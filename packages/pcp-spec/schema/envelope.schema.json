@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/envelope.schema.json",
+  "title": "PcpEnvelope",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "type", "payload"],
+  "properties": {
+    "protocol": {
+      "type": "integer",
+      "const": 1,
+      "description": "Protocol version number (1 for PCP/1)"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "hello",
+        "welcome",
+        "command",
+        "ack",
+        "result",
+        "event",
+        "snapshot",
+        "error",
+        "ping",
+        "pong"
+      ],
+      "description": "Message category kind"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Globally unique message ID (ULID or UUID)"
+    },
+    "ts": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Timestamp in epoch milliseconds"
+    },
+    "commandId": {
+      "type": "string",
+      "description": "Correlation and idempotency ID for command, ack, result, and error"
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Session ID scope, or @daemon for daemon-level events"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic per-session sequence integer"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Semantic subtype of the message"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Payload dictionary (never null)"
+    }
+  },
+  "additionalProperties": true
+}

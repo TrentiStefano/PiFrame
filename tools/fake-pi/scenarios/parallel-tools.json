@@ -1,0 +1,199 @@
+{
+  "name": "parallel-tools",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 200,
+          "output": 10,
+          "total": 210
+        },
+        "assistantMessageEvent": {
+          "type": "toolcall_start",
+          "contentIndex": 0,
+          "id": "call_a",
+          "toolName": "read"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 200,
+          "output": 20,
+          "total": 220
+        },
+        "assistantMessageEvent": {
+          "type": "toolcall_end",
+          "contentIndex": 0,
+          "toolCall": {
+            "id": "call_a",
+            "name": "read",
+            "args": {
+              "path": "a.txt"
+            }
+          }
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 200,
+          "output": 30,
+          "total": 230
+        },
+        "assistantMessageEvent": {
+          "type": "toolcall_start",
+          "contentIndex": 1,
+          "id": "call_b",
+          "toolName": "read"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 200,
+          "output": 40,
+          "total": 240
+        },
+        "assistantMessageEvent": {
+          "type": "toolcall_end",
+          "contentIndex": 1,
+          "toolCall": {
+            "id": "call_b",
+            "name": "read",
+            "args": {
+              "path": "b.txt"
+            }
+          }
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "tool_call",
+              "id": "call_a",
+              "name": "read",
+              "args": {
+                "path": "a.txt"
+              }
+            },
+            {
+              "type": "tool_call",
+              "id": "call_b",
+              "name": "read",
+              "args": {
+                "path": "b.txt"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "call_a",
+        "toolName": "read",
+        "args": {
+          "path": "a.txt"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "call_b",
+        "toolName": "read",
+        "args": {
+          "path": "b.txt"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "call_a",
+        "toolName": "read",
+        "result": "Content A",
+        "isError": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "call_b",
+        "toolName": "read",
+        "result": "Content B",
+        "isError": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": []
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_end",
+        "messages": [],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

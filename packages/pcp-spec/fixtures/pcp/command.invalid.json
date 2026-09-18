@@ -1,0 +1,8 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "msg_01HZCMD00000000000000001",
+  "ts": 1726640000100,
+  "type": "unsupported.command.type",
+  "payload": {}
+}

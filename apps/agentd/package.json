@@ -1,0 +1,27 @@
+{
+  "name": "@pi-crust/agentd",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pi-Crust persistent daemon runtime",
+  "piCompat": "^0.85.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "node --watch dist/main.js",
+    "lint": "tsc --noEmit",
+    "test": "node --test dist/test/**/*.test.js"
+  },
+  "dependencies": {
+    "@pi-crust/pcp-ts": "workspace:*",
+    "chokidar": "^4.0.3",
+    "ulid": "^2.3.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.14",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/ack.schema.json",
+  "title": "PcpAck",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "commandId", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "ack" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "commandId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "type": { "type": "string", "const": "command.ack" },
+    "payload": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["accepted", "executing", "resume", "rejected", "deduplicated"]
+        },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

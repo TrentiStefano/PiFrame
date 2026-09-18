@@ -1,0 +1,7 @@
+{"type":"extension_ui_request","id":"req_conf_01","method":"confirm","title":"Confirm deployment","message":"Do you want to deploy to production?","timeout":30000}
+{"type":"extension_ui_request","id":"req_sel_01","method":"select","title":"Pick environment","options":["staging","production","local"]}
+{"type":"extension_ui_request","id":"req_inp_01","method":"input","title":"API Key name","placeholder":"my-key"}
+{"type":"extension_ui_request","id":"req_ed_01","method":"editor","title":"Edit commit note","prefill":"Initial release note"}
+{"type":"extension_ui_request","id":"req_not_01","method":"notify","message":"Build finished successfully","notifyType":"info"}
+{"type":"extension_ui_request","id":"req_stat_01","method":"setStatus","statusKey":"pipeline","statusText":"Healthy"}
+{"type":"extension_ui_request","id":"req_wid_01","method":"setWidget","widgetKey":"metrics","widgetLines":["CPU: 12%","RAM: 240MB"]}

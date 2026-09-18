@@ -1,0 +1,132 @@
+{
+  "name": "retry-then-success",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_start",
+        "attempt": 1,
+        "maxAttempts": 3,
+        "delayMs": 100,
+        "errorMessage": "Provider temporary error"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_end",
+        "success": true,
+        "attempt": 1
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 120,
+          "output": 10,
+          "total": 130
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 120,
+          "output": 20,
+          "total": 140
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Success after retry!"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 120,
+          "output": 25,
+          "total": 145
+        },
+        "assistantMessageEvent": {
+          "type": "text_end",
+          "contentIndex": 0,
+          "content": "Success after retry!"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Success after retry!"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": []
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_end",
+        "messages": [],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

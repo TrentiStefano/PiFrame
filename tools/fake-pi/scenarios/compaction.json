@@ -1,0 +1,25 @@
+{
+  "name": "compaction",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "compaction_start",
+        "reason": "manual"
+      }
+    },
+    {
+      "delayMs": 20,
+      "event": {
+        "type": "compaction_end",
+        "result": {
+          "tokensBefore": 50000,
+          "tokensAfter": 8000,
+          "cost": 0.05
+        },
+        "aborted": false,
+        "willRetry": false
+      }
+    }
+  ]
+}

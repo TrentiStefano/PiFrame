@@ -1,0 +1,12 @@
+{"id":"cmd_prompt_01","type":"response","command":"prompt","success":true}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","usage":{"input":120,"output":5,"total":125},"assistantMessageEvent":{"type":"text_start","contentIndex":0}}
+{"type":"message_update","usage":{"input":120,"output":10,"total":130},"assistantMessageEvent":{"type":"text_delta","contentIndex":0,"delta":"Hello, "}}
+{"type":"message_update","usage":{"input":120,"output":18,"total":138},"assistantMessageEvent":{"type":"text_delta","contentIndex":0,"delta":"world! How can I help?"}}
+{"type":"message_update","usage":{"input":120,"output":25,"total":145},"assistantMessageEvent":{"type":"text_end","contentIndex":0,"content":"Hello, world! How can I help?"}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Hello, world! How can I help?"}]}}
+{"type":"turn_end","message":{"role":"assistant","content":[{"type":"text","text":"Hello, world! How can I help?"}]},"toolResults":[]}
+{"type":"agent_end","messages":[{"role":"assistant","content":[{"type":"text","text":"Hello, world! How can I help?"}]}],"willRetry":false}
+{"type":"agent_settled"}

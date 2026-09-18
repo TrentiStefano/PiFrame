@@ -1,0 +1,14 @@
+{
+  "protocol": 1,
+  "kind": "snapshot",
+  "id": "msg_01HZSNA00000000000000001",
+  "ts": 1726640000300,
+  "sessionId": "s_01HZSESSION00000000000001",
+  "seq": 100,
+  "type": "session.snapshot",
+  "payload": {
+    "runtime": {
+      "isStreaming": false
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "protocol": 1,
+  "kind": "welcome",
+  "id": "msg_01HZWELCOME0000000000001",
+  "ts": 1726640000050,
+  "type": "connection.welcome",
+  "payload": {
+    "clientId": "c_01HZCLIENT00000000000001",
+    "daemon": {
+      "version": "0.1.0",
+      "startedAt": 1726639000000,
+      "pid": 12345
+    },
+    "pi": {
+      "path": "node .../cli.js",
+      "version": "0.85.1",
+      "supported": true
+    },
+    "capabilities": [
+      "replay.v1",
+      "ui.claim.v1",
+      "workspace.v1"
+    ],
+    "limits": {
+      "maxFrameBytes": 4194304,
+      "journalMaxEvents": 2000
+    }
+  }
+}

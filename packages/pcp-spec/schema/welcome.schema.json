@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/welcome.schema.json",
+  "title": "PcpWelcome",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "welcome" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "type": { "type": "string", "const": "connection.welcome" },
+    "payload": {
+      "type": "object",
+      "required": ["clientId", "daemon", "pi", "capabilities", "limits"],
+      "properties": {
+        "clientId": { "type": "string" },
+        "daemon": {
+          "type": "object",
+          "required": ["version", "startedAt", "pid"],
+          "properties": {
+            "version": { "type": "string" },
+            "startedAt": { "type": "integer" },
+            "pid": { "type": "integer" }
+          }
+        },
+        "pi": {
+          "type": "object",
+          "required": ["path", "version", "supported"],
+          "properties": {
+            "path": { "type": "string" },
+            "version": { "type": "string" },
+            "supported": { "type": "boolean" }
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "limits": {
+          "type": "object",
+          "required": ["maxFrameBytes", "journalMaxEvents"],
+          "properties": {
+            "maxFrameBytes": { "type": "integer" },
+            "journalMaxEvents": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "protocol": 1,
+  "kind": "ack",
+  "id": "msg_01HZACK00000000000000001",
+  "ts": 1726640000105,
+  "commandId": "cmd_01HZIDEMPOTENT000000001",
+  "type": "command.ack",
+  "payload": {
+    "state": "invalid_state"
+  }
+}

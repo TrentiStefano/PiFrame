@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/snapshot.schema.json",
+  "title": "PcpSnapshot",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "sessionId", "seq", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "snapshot" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "sessionId": { "type": "string" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "session.snapshot" },
+    "payload": {
+      "type": "object",
+      "required": [
+        "session",
+        "runtime",
+        "transcript",
+        "activeTools",
+        "pendingUiRequests",
+        "usage",
+        "workspace"
+      ],
+      "properties": {
+        "session": {
+          "type": "object",
+          "required": ["id", "cwd"],
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "cwd": { "type": "string" },
+            "gitRoot": { "type": ["string", "null"] },
+            "sessionFile": { "type": ["string", "null"] },
+            "createdAt": { "type": "integer" },
+            "lastActivityAt": { "type": "integer" }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "required": ["status", "isStreaming", "isCompacting", "autoCompaction", "queue"],
+          "properties": {
+            "status": { "type": "string" },
+            "model": { "type": ["object", "null"] },
+            "thinkingLevel": { "type": ["string", "null"] },
+            "steeringMode": { "type": ["string", "null"] },
+            "followUpMode": { "type": ["string", "null"] },
+            "isStreaming": { "type": "boolean" },
+            "isCompacting": { "type": "boolean" },
+            "autoCompaction": { "type": "boolean" },
+            "queue": {
+              "type": "object",
+              "required": ["steering", "followUp"],
+              "properties": {
+                "steering": { "type": "array", "items": { "type": "string" } },
+                "followUp": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "transcript": {
+          "type": "object",
+          "required": ["entries"],
+          "properties": {
+            "entries": { "type": "array" },
+            "leafId": { "type": ["string", "null"] }
+          }
+        },
+        "liveMessage": { "type": ["object", "null"] },
+        "activeTools": { "type": "array" },
+        "pendingUiRequests": { "type": "array" },
+        "usage": { "type": "object" },
+        "workspace": { "type": "object" }
+      }
+    }
+  }
+}

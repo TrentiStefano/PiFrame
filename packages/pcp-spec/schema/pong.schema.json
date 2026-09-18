@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/pong.schema.json",
+  "title": "PcpPong",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "pong" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "type": { "type": "string", "const": "heartbeat.pong" },
+    "payload": { "type": "object" }
+  }
+}

@@ -1,0 +1,14 @@
+{"id":"cmd_prompt_02","type":"response","command":"prompt","success":true}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","usage":{"input":150,"output":10,"total":160},"assistantMessageEvent":{"type":"thinking_start","contentIndex":0}}
+{"type":"message_update","usage":{"input":150,"output":20,"total":170},"assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"The user wants an OAuth implementation analysis."}}
+{"type":"message_update","usage":{"input":150,"output":35,"total":185},"assistantMessageEvent":{"type":"thinking_end","contentIndex":0,"content":"The user wants an OAuth implementation analysis."}}
+{"type":"message_update","usage":{"input":150,"output":40,"total":190},"assistantMessageEvent":{"type":"text_start","contentIndex":1}}
+{"type":"message_update","usage":{"input":150,"output":60,"total":210},"assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":"Here is the OAuth architecture plan."}}
+{"type":"message_update","usage":{"input":150,"output":70,"total":220},"assistantMessageEvent":{"type":"text_end","contentIndex":1,"content":"Here is the OAuth architecture plan."}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants an OAuth implementation analysis."},{"type":"text","text":"Here is the OAuth architecture plan."}]}}
+{"type":"turn_end","message":{"role":"assistant","content":[]},"toolResults":[]}
+{"type":"agent_end","messages":[],"willRetry":false}
+{"type":"agent_settled"}

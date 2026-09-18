@@ -1,0 +1,9 @@
+{"id":"cmd_prompt_06","type":"response","command":"prompt","success":true}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","usage":{"input":100,"output":5,"total":105},"assistantMessageEvent":{"type":"text_start","contentIndex":0}}
+{"type":"message_update","usage":{"input":100,"output":15,"total":115},"assistantMessageEvent":{"type":"text_delta","contentIndex":0,"delta":"Generating large report..."}}
+{"id":"cmd_abort_01","type":"response","command":"abort","success":true}
+{"type":"agent_end","messages":[],"willRetry":false}
+{"type":"agent_settled"}

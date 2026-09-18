@@ -1,0 +1,3 @@
+{"id":"cmd_compact_01","type":"response","command":"compact","success":true,"data":{"tokensBefore":85000,"tokensAfter":12500,"cost":0.12}}
+{"type":"compaction_start","reason":"manual"}
+{"type":"compaction_end","result":{"tokensBefore":85000,"tokensAfter":12500,"cost":0.12},"aborted":false,"willRetry":false}

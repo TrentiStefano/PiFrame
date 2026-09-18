@@ -1,0 +1,18 @@
+{
+  "protocol": 2,
+  "kind": "hello",
+  "id": "msg_01HZHELLO0000000000000001",
+  "ts": 1726640000000,
+  "type": "connection.hello",
+  "payload": {
+    "client": {
+      "name": "pi-crust",
+      "version": "0.1.0",
+      "platform": "windows"
+    },
+    "encoding": "json",
+    "capabilities": [
+      "replay.v1"
+    ]
+  }
+}

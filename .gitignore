@@ -1,0 +1,108 @@
+# ==============================================================================
+# Node.js & Dependencies
+# ==============================================================================
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==============================================================================
+# TypeScript & Build Outputs
+# ==============================================================================
+dist/
+**/dist/
+*.tsbuildinfo
+out/
+
+# ==============================================================================
+# Flutter & Dart
+# ==============================================================================
+.dart_tool/
+**/.dart_tool/
+.packages
+.pub-cache/
+.pub/
+
+# Flutter build directories
+build/
+**/build/
+
+# Flutter generated files
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Platform-specific ephemeral files
+windows/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+ios/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+
+# Symbol files
+*.symbols
+*.map
+
+# ==============================================================================
+# Pi-Crust Runtime & Local Storage
+# ==============================================================================
+.pi-crust/
+**/.pi-crust/
+runtime/
+daemon.token
+daemon.pid
+daemon.json
+daemon.log*
+*.token
+*.pid
+crash-*.log
+
+# ==============================================================================
+# Environment & Secrets
+# ==============================================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ==============================================================================
+# OS & Editor Files
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# Visual Studio / Visual Studio Code (optional temporary files)
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+
+*.d.ts
+*.d.js

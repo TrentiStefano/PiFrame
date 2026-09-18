@@ -1,0 +1,13 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "msg_01HZCMD00000000000000001",
+  "ts": 1726640000100,
+  "commandId": "cmd_01HZIDEMPOTENT000000001",
+  "sessionId": "s_01HZSESSION00000000000001",
+  "type": "agent.prompt",
+  "payload": {
+    "message": "Implement OAuth authentication",
+    "streamingBehavior": "steer"
+  }
+}

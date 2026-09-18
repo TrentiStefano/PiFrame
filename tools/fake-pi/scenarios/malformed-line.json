@@ -1,0 +1,21 @@
+{
+  "name": "malformed-line",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "malformed": true
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/result.schema.json",
+  "title": "PcpResult",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "commandId", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "result" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "commandId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "type": { "type": "string", "const": "command.result" },
+    "payload": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["completed", "failed", "deduplicated", "rejected"]
+        },
+        "data": { "type": "object" },
+        "error": { "type": "string" }
+      }
+    }
+  }
+}

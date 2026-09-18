@@ -1,0 +1,4 @@
+{"id":"cmd_bash_01","type":"response","command":"bash","success":true}
+{"type":"bash_execution_update","commandId":"cmd_bash_01","output":"Step 1/3: Installing packages...\n"}
+{"type":"bash_execution_update","commandId":"cmd_bash_01","output":"Step 2/3: Compiling...\n"}
+{"type":"bash_execution_update","commandId":"cmd_bash_01","output":"Step 3/3: Done in 1.42s.\n"}

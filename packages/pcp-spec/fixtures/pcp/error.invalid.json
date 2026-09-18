@@ -1,0 +1,11 @@
+{
+  "protocol": 1,
+  "kind": "error",
+  "id": "msg_01HZERR00000000000000001",
+  "ts": 1726640000400,
+  "type": "error",
+  "payload": {
+    "code": "NOT_A_VALID_CODE",
+    "message": "Something went wrong"
+  }
+}

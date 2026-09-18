@@ -1,0 +1,60 @@
+{
+  "protocol": 1,
+  "kind": "snapshot",
+  "id": "msg_01HZSNA00000000000000001",
+  "ts": 1726640000300,
+  "sessionId": "s_01HZSESSION00000000000001",
+  "seq": 100,
+  "type": "session.snapshot",
+  "payload": {
+    "session": {
+      "id": "s_01HZSESSION00000000000001",
+      "name": "Refactor auth",
+      "cwd": "C:/Personale/Repos/pi-crust",
+      "gitRoot": "C:/Personale/Repos/pi-crust",
+      "sessionFile": "session.jsonl",
+      "createdAt": 1726639000000,
+      "lastActivityAt": 1726640000000
+    },
+    "runtime": {
+      "status": "working",
+      "model": {
+        "id": "gpt-5.6-luna",
+        "name": "GPT-5.6 Luna"
+      },
+      "thinkingLevel": "low",
+      "steeringMode": "one-at-a-time",
+      "followUpMode": "one-at-a-time",
+      "isStreaming": true,
+      "isCompacting": false,
+      "autoCompaction": true,
+      "queue": {
+        "steering": [],
+        "followUp": []
+      }
+    },
+    "transcript": {
+      "entries": [
+        {
+          "id": "e_1",
+          "type": "user",
+          "text": "Start"
+        }
+      ],
+      "leafId": "e_1"
+    },
+    "liveMessage": null,
+    "activeTools": [],
+    "pendingUiRequests": [],
+    "usage": {
+      "tokens": {
+        "total": 500
+      },
+      "cost": 0.005
+    },
+    "workspace": {
+      "branch": "main",
+      "dirty": false
+    }
+  }
+}

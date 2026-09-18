@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/hello.schema.json",
+  "title": "PcpHello",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "hello" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "type": { "type": "string", "const": "connection.hello" },
+    "payload": {
+      "type": "object",
+      "required": ["token", "client", "encoding", "capabilities"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "client": {
+          "type": "object",
+          "required": ["name", "version", "platform"],
+          "properties": {
+            "name": { "type": "string" },
+            "version": { "type": "string" },
+            "platform": { "type": "string" }
+          }
+        },
+        "encoding": { "type": "string", "enum": ["json"] },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "ui-confirm",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "extension_ui_request",
+        "id": "req_conf_test",
+        "method": "confirm",
+        "title": "Confirm Delete",
+        "message": "Proceed with deletion?"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

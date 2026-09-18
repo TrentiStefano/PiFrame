@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  node:
+    name: Node.js (Lint, Test, Build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Verify Pi target recon
+        run: node tools/recon/verify.ts
+
+      - name: Run Schema validation
+        run: pnpm --filter @pi-crust/pcp-spec run test
+
+      - name: Build TypeScript packages
+        run: pnpm -r run build
+
+      - name: Run tests
+        run: pnpm -r run test
+
+  flutter:
+    name: Flutter (Analyze & Test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+
+      - name: Setup Flutter dependencies
+        run: node tools/scripts/setup-flutter.js
+
+      - name: Analyze Flutter code
+        run: node tools/scripts/lint-flutter.js
+
+      - name: Run Flutter unit tests
+        run: node tools/scripts/test-flutter.js

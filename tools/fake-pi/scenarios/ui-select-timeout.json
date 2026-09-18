@@ -1,0 +1,31 @@
+{
+  "name": "ui-select-timeout",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "extension_ui_request",
+        "id": "req_sel_test",
+        "method": "select",
+        "title": "Select Option",
+        "options": [
+          "A",
+          "B"
+        ],
+        "timeout": 200
+      }
+    },
+    {
+      "delayMs": 250,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

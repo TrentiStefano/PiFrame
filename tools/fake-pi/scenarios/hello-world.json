@@ -1,0 +1,129 @@
+{
+  "name": "hello-world",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 5,
+          "total": 105
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 15,
+          "total": 115
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Hello from fake-pi!"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 20,
+          "total": 120
+        },
+        "assistantMessageEvent": {
+          "type": "text_end",
+          "contentIndex": 0,
+          "content": "Hello from fake-pi!"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello from fake-pi!"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello from fake-pi!"
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Hello from fake-pi!"
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

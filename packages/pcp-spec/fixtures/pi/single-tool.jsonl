@@ -1,0 +1,21 @@
+{"id":"cmd_prompt_03","type":"response","command":"prompt","success":true}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","usage":{"input":200,"output":15,"total":215},"assistantMessageEvent":{"type":"toolcall_start","contentIndex":0,"id":"call_read_01","toolName":"read"}}
+{"type":"message_update","usage":{"input":200,"output":25,"total":225},"assistantMessageEvent":{"type":"toolcall_delta","contentIndex":0,"delta":"{\"path\":\"package.json\"}"}}
+{"type":"message_update","usage":{"input":200,"output":35,"total":235},"assistantMessageEvent":{"type":"toolcall_end","contentIndex":0,"toolCall":{"id":"call_read_01","name":"read","args":{"path":"package.json"}}}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"tool_call","id":"call_read_01","name":"read","args":{"path":"package.json"}}]}}
+{"type":"tool_execution_start","toolCallId":"call_read_01","toolName":"read","args":{"path":"package.json"}}
+{"type":"tool_execution_update","toolCallId":"call_read_01","toolName":"read","args":{"path":"package.json"},"partialResult":"{\n  \"name\": \"pi-crust\",\n"}
+{"type":"tool_execution_end","toolCallId":"call_read_01","toolName":"read","result":"{\n  \"name\": \"pi-crust\",\n  \"version\": \"0.1.0\"\n}\n","isError":false}
+{"type":"turn_end","message":{"role":"assistant","content":[]},"toolResults":[{"role":"toolResult","toolCallId":"call_read_01","result":"{\n  \"name\": \"pi-crust\",\n  \"version\": \"0.1.0\"\n}\n"}]}
+{"type":"turn_start"}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","usage":{"input":280,"output":10,"total":290},"assistantMessageEvent":{"type":"text_start","contentIndex":0}}
+{"type":"message_update","usage":{"input":280,"output":20,"total":300},"assistantMessageEvent":{"type":"text_delta","contentIndex":0,"delta":"The package name is pi-crust."}}
+{"type":"message_update","usage":{"input":280,"output":25,"total":305},"assistantMessageEvent":{"type":"text_end","contentIndex":0,"content":"The package name is pi-crust."}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"The package name is pi-crust."}]}}
+{"type":"turn_end","message":{"role":"assistant","content":[]},"toolResults":[]}
+{"type":"agent_end","messages":[],"willRetry":false}
+{"type":"agent_settled"}

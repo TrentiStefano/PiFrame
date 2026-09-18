@@ -1,0 +1,63 @@
+{
+  "name": "crash-mid-stream",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 5,
+          "total": 105
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 10,
+          "total": 110
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "About to crash..."
+        }
+      }
+    },
+    {
+      "delayMs": 20,
+      "crash": true,
+      "exitCode": 137
+    }
+  ]
+}

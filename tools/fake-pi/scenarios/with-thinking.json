@@ -1,0 +1,165 @@
+{
+  "name": "with-thinking",
+  "events": [
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 10,
+          "total": 160
+        },
+        "assistantMessageEvent": {
+          "type": "thinking_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 20,
+          "total": 170
+        },
+        "assistantMessageEvent": {
+          "type": "thinking_delta",
+          "contentIndex": 0,
+          "delta": "Reasoning about problem..."
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 30,
+          "total": 180
+        },
+        "assistantMessageEvent": {
+          "type": "thinking_end",
+          "contentIndex": 0,
+          "content": "Reasoning about problem..."
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 40,
+          "total": 190
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 1
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 50,
+          "total": 200
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 1,
+          "delta": "Solution verified."
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 150,
+          "output": 60,
+          "total": 210
+        },
+        "assistantMessageEvent": {
+          "type": "text_end",
+          "contentIndex": 1,
+          "content": "Solution verified."
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "Reasoning about problem..."
+            },
+            {
+              "type": "text",
+              "text": "Solution verified."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": []
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_end",
+        "messages": [],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

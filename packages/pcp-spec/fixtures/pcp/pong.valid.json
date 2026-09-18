@@ -1,0 +1,8 @@
+{
+  "protocol": 1,
+  "kind": "pong",
+  "id": "msg_01HZPONG0000000000000001",
+  "ts": 1726640000510,
+  "type": "heartbeat.pong",
+  "payload": {}
+}

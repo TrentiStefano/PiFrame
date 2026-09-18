@@ -1,0 +1,15 @@
+{
+  "protocol": 1,
+  "kind": "error",
+  "id": "msg_01HZERR00000000000000001",
+  "ts": 1726640000400,
+  "commandId": "cmd_01HZIDEMPOTENT000000001",
+  "sessionId": "s_01HZSESSION00000000000001",
+  "type": "error",
+  "payload": {
+    "code": "PI_NOT_FOUND",
+    "message": "Could not find pi executable in PATH",
+    "retryable": false,
+    "hint": "Set path in Settings"
+  }
+}

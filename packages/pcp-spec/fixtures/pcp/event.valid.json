@@ -1,0 +1,13 @@
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "msg_01HZEVT00000000000000001",
+  "ts": 1726640000200,
+  "sessionId": "s_01HZSESSION00000000000001",
+  "seq": 42,
+  "type": "text.delta",
+  "payload": {
+    "contentIndex": 0,
+    "delta": "Generating files..."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "pi-crust-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "setup": "pnpm install && node tools/scripts/setup-flutter.js",
+    "codegen": "node tools/codegen/generate.js",
+    "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.js",
+    "test": "pnpm -r --stream run test && node tools/scripts/test-flutter.js",
+    "test:e2e": "pnpm --filter @pi-crust/e2e run test",
+    "run:daemon": "pnpm --filter @pi-crust/agentd run dev",
+    "run:app": "cd apps/pi_crust && flutter run",
+    "build:all": "pnpm -r run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

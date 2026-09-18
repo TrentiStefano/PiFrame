@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "kind": "result",
+  "id": "msg_01HZRES00000000000000001",
+  "ts": 1726640000150,
+  "commandId": "cmd_01HZIDEMPOTENT000000001",
+  "type": "command.result",
+  "payload": {}
+}

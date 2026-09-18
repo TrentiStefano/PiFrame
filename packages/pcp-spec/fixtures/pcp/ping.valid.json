@@ -1,0 +1,8 @@
+{
+  "protocol": 1,
+  "kind": "ping",
+  "id": "msg_01HZPING0000000000000001",
+  "ts": 1726640000500,
+  "type": "heartbeat.ping",
+  "payload": {}
+}

@@ -1,0 +1,6 @@
+packages:
+  - 'apps/agentd'
+  - 'packages/pcp-spec'
+  - 'packages/pcp-ts'
+  - 'tools/*'
+  - 'test/e2e'

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pi-crust.dev/pcp/schema/error.schema.json",
+  "title": "PcpError",
+  "type": "object",
+  "required": ["protocol", "kind", "id", "ts", "type", "payload"],
+  "properties": {
+    "protocol": { "type": "integer", "const": 1 },
+    "kind": { "type": "string", "const": "error" },
+    "id": { "type": "string" },
+    "ts": { "type": "integer" },
+    "commandId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "type": { "type": "string", "const": "error" },
+    "payload": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "AUTH_FAILED",
+            "PROTOCOL_VERSION_UNSUPPORTED",
+            "INVALID_MESSAGE",
+            "SESSION_NOT_FOUND",
+            "SESSION_BUSY",
+            "WORKER_UNAVAILABLE",
+            "WORKER_CRASHED",
+            "PI_NOT_FOUND",
+            "PI_VERSION_UNSUPPORTED",
+            "COMMAND_REJECTED",
+            "COMMAND_TIMEOUT",
+            "UI_REQUEST_NOT_CLAIMED",
+            "UI_REQUEST_EXPIRED",
+            "JOURNAL_GAP",
+            "CONFIG_INVALID",
+            "RATE_LIMITED",
+            "INTERNAL"
+          ]
+        },
+        "message": { "type": "string" },
+        "retryable": { "type": "boolean" },
+        "details": { "type": "object" },
+        "hint": { "type": "string" }
+      }
+    }
+  }
+}
