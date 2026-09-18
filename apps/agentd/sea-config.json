@@ -1,0 +1,5 @@
+{
+  "main": "dist/pi-agentd.cjs",
+  "output": "dist/sea-prep.blob",
+  "disableExperimentalSEAWarning": true
+}

@@ -26,7 +26,35 @@ class DaemonLocator {
     return '$_homeDir/.pi-crust/runtime';
   }
 
-  static Future<DaemonEndpoint?> locateOrProbe() async {
+  static Future<DaemonEndpoint?> locateOrProbe({bool autoSpawn = true}) async {
+    // 1. Try reading existing runtime files and health probe
+    var endpoint = await _probeActiveDaemon();
+    if (endpoint != null) {
+      return endpoint;
+    }
+
+    if (!autoSpawn) return null;
+
+    // 2. On-demand launch of sidecar daemon (D8)
+    final launched = await _spawnSidecarDaemon();
+    if (!launched) return null;
+
+    // 3. Poll for readiness (100ms interval, up to 10s timeout)
+    const timeout = Duration(seconds: 10);
+    final stopwatch = Stopwatch()..start();
+
+    while (stopwatch.elapsed < timeout) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      endpoint = await _probeActiveDaemon();
+      if (endpoint != null) {
+        return endpoint;
+      }
+    }
+
+    return null;
+  }
+
+  static Future<DaemonEndpoint?> _probeActiveDaemon() async {
     final jsonFile = File('$_runtimeDir/daemon.json');
     final tokenFile = File('$_runtimeDir/daemon.token');
 
@@ -37,16 +65,67 @@ class DaemonLocator {
         final data = jsonDecode(jsonContent) as Map<String, dynamic>;
         final port = data['port'] as int;
 
-        // Health check probe
         final healthUri = Uri.parse('http://127.0.0.1:$port/api/health');
-        final resp = await http.get(healthUri).timeout(const Duration(seconds: 2));
+        final resp = await http.get(healthUri).timeout(const Duration(milliseconds: 800));
         if (resp.statusCode == 200) {
           return DaemonEndpoint(port: port, token: token);
         }
       } catch (_) {
-        // Stale or error, fallback to null
+        // Stale or unreachable
       }
     }
     return null;
+  }
+
+  static Future<bool> _spawnSidecarDaemon() async {
+    try {
+      final envBin = Platform.environment['PI_CRUST_DAEMON_BIN'];
+      if (envBin != null && await File(envBin).exists()) {
+        await Process.start(
+          envBin,
+          [],
+          mode: ProcessStartMode.detached,
+        );
+        return true;
+      }
+
+      // Check next to executable (bundle sidecar)
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+      final bundledExeName = Platform.isWindows ? 'pi-agentd.exe' : 'pi-agentd';
+      final bundledSidecar = File('$exeDir/$bundledExeName');
+      if (await bundledSidecar.exists()) {
+        await Process.start(
+          bundledSidecar.path,
+          [],
+          mode: ProcessStartMode.detached,
+        );
+        return true;
+      }
+
+      // Development fallbacks: check repository paths
+      final devPaths = [
+        '../agentd/dist/pi-agentd.cjs',
+        '../agentd/dist/main.js',
+        'apps/agentd/dist/pi-agentd.cjs',
+        'apps/agentd/dist/main.js',
+        '../../apps/agentd/dist/pi-agentd.cjs',
+        '../../apps/agentd/dist/main.js',
+      ];
+
+      for (final p in devPaths) {
+        final file = File(p);
+        if (await file.exists()) {
+          await Process.start(
+            'node',
+            [file.absolute.path],
+            mode: ProcessStartMode.detached,
+          );
+          return true;
+        }
+      }
+    } catch (_) {
+      // Spawn error handled gracefully
+    }
+    return false;
   }
 }

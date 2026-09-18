@@ -159,7 +159,9 @@ export class Dispatcher {
       // Session Management
       // -----------------------------------------------------------------------
       case 'session.list': {
-        return { sessions: await this.registry.listSessions() };
+        const activeIds = new Set(this.registry.getAllSessions().map((s) => s.id));
+        const sessions = await this.sessionIndex.listSessions(activeIds, payload?.query, payload?.limit);
+        return { sessions };
       }
 
       case 'session.create': {
@@ -475,11 +477,6 @@ export class Dispatcher {
         return { diff };
       }
 
-      case 'session.list': {
-        const activeIds = new Set(this.registry.getAllSessions().map((s) => s.id));
-        const sessions = await this.sessionIndex.listSessions(activeIds, payload?.query, payload?.limit);
-        return { sessions };
-      }
 
       case 'session.rename': {
         if (!sessionId) throw new Error('sessionId required');

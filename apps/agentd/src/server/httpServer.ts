@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { timingSafeEqualStrings, parseCookies } from './auth.js';
+import { serveStaticFile } from './static.js';
 import type { DaemonConfig } from '../config/config.js';
 
 export interface HttpServerOptions {
@@ -11,6 +12,7 @@ export interface HttpServerOptions {
   token: string | (() => string);
   version: string;
   startedAt: number;
+  staticDir?: string;
 }
 
 export function createHttpServer(opts: HttpServerOptions): http.Server {
@@ -172,14 +174,17 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
     }
 
     // 6. Static files (e.g. Flutter Web hosting if enabled)
-    if (req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<!DOCTYPE html><html><head><title>Pi-Crust Daemon</title></head><body><h1>Pi-Crust Daemon v${version}</h1><p>Status: Healthy</p></body></html>`);
-      return;
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      const handled = serveStaticFile(req, res, {
+        staticDir: opts.staticDir || process.env.PI_CRUST_WEB_DIR,
+        version,
+        token: opts.token
+      });
+      if (handled) return;
     }
 
-    res.writeHead(405, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: false, error: 'Method Not Allowed' }));
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Not Found' }));
   });
 
   return server;
