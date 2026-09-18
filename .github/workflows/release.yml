@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate All Suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build TypeScript packages
+        run: pnpm -r run build
+
+      - name: Build Agentd Single-file Bundle
+        run: pnpm --filter @pi-crust/agentd run build:bundle
+
+      - name: Run Node tests (including security & fault injection)
+        run: pnpm -r run test
+
+      - name: Run Flutter tests & analyzers (theme lint, telemetry lint)
+        run: |
+          cd packages/pi_crust_protocol && flutter test
+          cd ../pi_crust_theme && flutter test
+          cd ../../apps/pi_crust && flutter analyze && flutter test
+
+  build-release:
+    name: Build Release Artifacts
+    needs: validate
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            asset_name: pi-crust-windows-x64.zip
+          - os: macos-latest
+            platform: macos
+            asset_name: pi-crust-macos.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.25.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Daemon Bundle
+        run: pnpm --filter @pi-crust/agentd run build:bundle
+
+      - name: Build Flutter Desktop
+        run: |
+          cd apps/pi_crust
+          flutter build ${{ matrix.platform }} --release
+
+      - name: Package Windows Artifact
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Copy-Item "apps/agentd/dist/pi-agentd.cjs" -Destination "apps/pi_crust/build/windows/x64/runner/Release/"
+          Compress-Archive -Path "apps/pi_crust/build/windows/x64/runner/Release/*" -DestinationPath "pi-crust-windows-x64.zip"
+
+      - name: Package macOS Artifact
+        if: matrix.platform == 'macos'
+        run: |
+          cp apps/agentd/dist/pi-agentd.cjs apps/pi_crust/build/macos/Build/Products/Release/
+          zip -r pi-crust-macos.zip apps/pi_crust/build/macos/Build/Products/Release/
+
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ matrix.asset_name }}

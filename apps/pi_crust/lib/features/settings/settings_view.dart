@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/theme/theme_providers.dart';
+import 'diagnostics.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -28,7 +29,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 4,
+      length: 5,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -151,6 +152,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> with SingleTickerPr
                     Tab(text: 'Daemon'),
                     Tab(text: 'Aspetto'),
                     Tab(text: 'Privacy'),
+                    Tab(text: 'Diagnostica'),
                   ],
                 ),
               ],
@@ -383,6 +385,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> with SingleTickerPr
                     ),
                   ],
                 ),
+
+                // -------------------------------------------------------------
+                // Tab 5: Diagnostica Locale & Export Bundle (D16)
+                // -------------------------------------------------------------
+                const DiagnosticsSection(),
               ],
             ),
           ),

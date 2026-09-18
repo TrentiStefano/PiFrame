@@ -107,6 +107,17 @@ export class Connection {
       return;
     }
 
+    if ((msg as any).kind === 'ping') {
+      this.send({
+        protocol: 1,
+        kind: 'pong',
+        id: `pong_${Date.now()}`,
+        ts: Date.now(),
+        payload: {}
+      } as any);
+      return;
+    }
+
     if (msg.kind === 'pong') {
       if (this.pongTimeout) {
         clearTimeout(this.pongTimeout);
