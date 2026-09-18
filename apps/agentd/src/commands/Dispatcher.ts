@@ -168,7 +168,35 @@ export class Dispatcher {
       case 'session.open': {
         if (!sessionId) throw new Error('sessionId is required for session.open');
         const session = await this.registry.openSession(sessionId, payload.cwd);
+        if (session.status === 'worker_error' || !session.worker || !session.worker.health().alive) {
+          await this.registry.getSupervisor().reconcileAndRespawn(session);
+        }
         return { session: session.getSessionMeta() };
+      }
+
+      case 'session.attach': {
+        return { attached: true, sessionId };
+      }
+
+      case 'session.detach': {
+        return { detached: true, sessionId };
+      }
+
+      case 'session.getStats': {
+        if (!sessionId) throw new Error('sessionId required for session.getStats');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'get_session_stats' });
+        return res.data;
+      }
+
+      case 'session.getEntries': {
+        if (!sessionId) throw new Error('sessionId required for session.getEntries');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({
+          command: 'get_entries',
+          arguments: payload.since ? { since: payload.since } : {}
+        });
+        return res.data;
       }
 
       case 'session.closeWorker': {
@@ -240,6 +268,13 @@ export class Dispatcher {
         return res.data;
       }
 
+      case 'agent.clearQueue': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'clear_queue' });
+        return res.data;
+      }
+
       case 'agent.interrupt': {
         // Esc semantics:
         // 1. clear_queue -> captures { steering, followUp }
@@ -268,10 +303,63 @@ export class Dispatcher {
         return { interrupted: true, queue: restoredQueue };
       }
 
+      case 'agent.abort': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'abort' });
+        return res.data;
+      }
+
       case 'agent.compact': {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'compact' });
+        return res.data;
+      }
+
+      case 'agent.setAutoCompaction': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({
+          command: 'set_auto_compaction',
+          arguments: { enabled: payload.enabled }
+        });
+        const session = this.registry.getSession(sessionId);
+        if (session) session.autoCompaction = !!payload.enabled;
+        return res.data;
+      }
+
+      case 'agent.setAutoRetry': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({
+          command: 'set_auto_retry',
+          arguments: { enabled: payload.enabled }
+        });
+        return res.data;
+      }
+
+      case 'agent.setSteeringMode': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({
+          command: 'set_steering_mode',
+          arguments: { mode: payload.mode }
+        });
+        const session = this.registry.getSession(sessionId);
+        if (session) session.steeringMode = payload.mode;
+        return res.data;
+      }
+
+      case 'agent.setFollowUpMode': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({
+          command: 'set_follow_up_mode',
+          arguments: { mode: payload.mode }
+        });
+        const session = this.registry.getSession(sessionId);
+        if (session) session.followUpMode = payload.mode;
         return res.data;
       }
 
@@ -285,6 +373,13 @@ export class Dispatcher {
         return res.data;
       }
 
+      case 'agent.getModels': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'get_available_models' });
+        return res.data;
+      }
+
       case 'agent.setThinkingLevel': {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -295,10 +390,58 @@ export class Dispatcher {
         return res.data;
       }
 
+      case 'agent.getThinkingLevels': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'get_available_thinking_levels' });
+        return res.data;
+      }
+
+      case 'agent.getCommands': {
+        if (!sessionId) throw new Error('sessionId required');
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const res = await worker.send({ command: 'get_commands' });
+        return res.data;
+      }
+
+      case 'ui.claim': {
+        if (!sessionId) throw new Error('sessionId required for ui.claim');
+        const session = this.registry.getSession(sessionId);
+        if (!session) {
+          const err: any = new Error(`Session ${sessionId} not found`);
+          err.code = 'SESSION_NOT_FOUND';
+          throw err;
+        }
+        const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
+        if (!claimRes.success) {
+          const err: any = new Error(claimRes.reason || 'Failed to claim UI request');
+          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          throw err;
+        }
+        return { claimed: true, requestId: payload.requestId };
+      }
+
       case 'ui.respond': {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
-        if (session && session.worker) {
+        if (!session) {
+          const err: any = new Error(`Session ${sessionId} not found`);
+          err.code = 'SESSION_NOT_FOUND';
+          throw err;
+        }
+
+        const resolveRes = session.uiBroker.resolveRequest(
+          payload.requestId,
+          conn.id,
+          payload.cancelled ? 'cancelled' : payload.confirmed ? 'confirmed' : 'value'
+        );
+        if (!resolveRes.success) {
+          const err: any = new Error(resolveRes.reason || 'Failed to resolve UI request');
+          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          throw err;
+        }
+
+        if (session.worker) {
           const res = await session.worker.send({
             command: 'extension_ui_response',
             arguments: {

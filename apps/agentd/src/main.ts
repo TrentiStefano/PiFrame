@@ -103,8 +103,8 @@ async function main() {
     onCommand: async (conn, cmd) => {
       await dispatcher.handle(conn, cmd);
     },
-    onAttach: async (conn, sessionId, lastSeq) => {
-      await registry.attachClient(sessionId, conn, lastSeq);
+    onAttach: async (conn, sessionId, lastSeq, commandId) => {
+      await registry.attachClient(sessionId, conn, lastSeq, commandId);
     },
     onDetach: async (conn, sessionId) => {
       await registry.detachClient(sessionId, conn);

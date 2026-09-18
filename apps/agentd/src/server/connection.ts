@@ -19,7 +19,7 @@ export interface ConnectionOptions {
   startedAt: number;
   piInfo: { path: string; version: string; supported: boolean };
   onCommand: (conn: Connection, cmd: any) => Promise<void>;
-  onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null) => Promise<void>;
+  onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
   onClose: (conn: Connection) => void;
 }
@@ -35,7 +35,7 @@ export class Connection {
   private startedAt: number;
   private piInfo: { path: string; version: string; supported: boolean };
   private onCommandCallback: (conn: Connection, cmd: any) => Promise<void>;
-  private onAttachCallback?: (conn: Connection, sessionId: string, lastSeq: number | null) => Promise<void>;
+  private onAttachCallback?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   private onDetachCallback?: (conn: Connection, sessionId: string) => Promise<void>;
   private onCloseCallback: (conn: Connection) => void;
 
@@ -143,7 +143,7 @@ export class Connection {
         if (sid) {
           this.attachedSessions.add(sid);
           if (this.onAttachCallback) {
-            void this.onAttachCallback(this, sid, lastSeq);
+            void this.onAttachCallback(this, sid, lastSeq, msg.commandId);
           }
         }
       } else if (msg.type === 'session.detach') {

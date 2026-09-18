@@ -101,7 +101,12 @@ export class SessionRegistry {
     return session;
   }
 
-  public async attachClient(sessionId: string, conn: Connection, lastSeq: number | null): Promise<void> {
+  public async attachClient(
+    sessionId: string,
+    conn: Connection,
+    lastSeq: number | null,
+    commandId?: string
+  ): Promise<void> {
     let session = this.sessions.get(sessionId);
     if (!session) {
       session = await this.openSession(sessionId);
@@ -113,15 +118,8 @@ export class SessionRegistry {
     const currentSeq = session.journal.currentSeq;
     const minSeq = session.journal.minSeq;
 
-    // Check if replay is possible or snapshot is needed
-    if (lastSeq !== null && lastSeq >= minSeq && lastSeq <= currentSeq) {
-      // Replay missing events from journal
-      const events = session.journal.getRange(lastSeq + 1, currentSeq);
-      for (const event of events) {
-        conn.send(event);
-      }
-    } else {
-      // Send full snapshot
+    // Case 1: lastSeq == null -> Full snapshot
+    if (lastSeq === null || lastSeq === undefined) {
       const snapshotPayload: PcpSnapshotPayload = session.getSnapshot();
       const snapshotMessage: PcpSnapshot = {
         protocol: 1,
@@ -129,12 +127,95 @@ export class SessionRegistry {
         id: `snp_${ulid()}`,
         ts: Date.now(),
         sessionId,
-        seq: session.journal.currentSeq,
+        seq: currentSeq,
         type: 'session.snapshot',
         payload: snapshotPayload
       };
       conn.send(snapshotMessage);
+      return;
     }
+
+    // Case 2: Resume: lastSeq >= minSeq - 1 && lastSeq <= currentSeq
+    if (lastSeq >= minSeq - 1 && lastSeq <= currentSeq) {
+      conn.send({
+        protocol: 1,
+        kind: 'ack',
+        id: `ack_${ulid()}`,
+        ts: Date.now(),
+        commandId: commandId || `att_${ulid()}`,
+        type: 'command.ack',
+        sessionId,
+        payload: { state: 'resume' }
+      } as any);
+
+      if (lastSeq < currentSeq) {
+        const events = session.journal.getRange(lastSeq + 1, currentSeq);
+        for (const event of events) {
+          conn.send(event);
+        }
+      }
+      return;
+    }
+
+    // Case 3: Gap: lastSeq < minSeq - 1
+    if (lastSeq < minSeq - 1) {
+      const snapshotPayload: PcpSnapshotPayload = session.getSnapshot();
+      const snapshotMessage: PcpSnapshot = {
+        protocol: 1,
+        kind: 'snapshot',
+        id: `snp_${ulid()}`,
+        ts: Date.now(),
+        sessionId,
+        seq: currentSeq,
+        type: 'session.snapshot',
+        payload: snapshotPayload
+      };
+      conn.send(snapshotMessage);
+
+      conn.send({
+        protocol: 1,
+        kind: 'event',
+        id: `evt_${ulid()}`,
+        ts: Date.now(),
+        sessionId,
+        seq: currentSeq,
+        type: 'journal.gap',
+        payload: {
+          fromSeq: lastSeq,
+          toSeq: minSeq
+        }
+      } as any);
+      return;
+    }
+
+    // Case 4: Reset: lastSeq > currentSeq (client from another daemon or out of sync)
+    const snapshotPayload: PcpSnapshotPayload = session.getSnapshot();
+    const snapshotMessage: PcpSnapshot = {
+      protocol: 1,
+      kind: 'snapshot',
+      id: `snp_${ulid()}`,
+      ts: Date.now(),
+      sessionId,
+      seq: currentSeq,
+      type: 'session.snapshot',
+      payload: snapshotPayload
+    };
+    conn.send(snapshotMessage);
+
+    conn.send({
+      protocol: 1,
+      kind: 'event',
+      id: `evt_${ulid()}`,
+      ts: Date.now(),
+      sessionId,
+      seq: currentSeq,
+      type: 'journal.gap',
+      payload: {
+        fromSeq: lastSeq,
+        toSeq: currentSeq,
+        reset: true
+      }
+    } as any);
   }
 
   public async detachClient(sessionId: string, conn: Connection): Promise<void> {
@@ -142,6 +223,7 @@ export class SessionRegistry {
     if (session) {
       session.attachedClientIds.delete(conn.id);
       conn.attachedSessions.delete(sessionId);
+      session.uiBroker.onClientDisconnected(conn.id);
     }
   }
 

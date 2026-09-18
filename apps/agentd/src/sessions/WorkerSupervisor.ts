@@ -1,3 +1,6 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getPiCrustBaseDir } from '../config/config.js';
 import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { Session } from './Session.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
@@ -95,14 +98,66 @@ export class WorkerSupervisor {
       const health = worker.health();
       if (!health.alive) {
         const exitInfo = await worker.stop({ graceMs: 1000 });
+
+        // Persist crash diagnostics to ~/.pi-crust/journal/<sessionId>/crash-<ts>.log
+        try {
+          const journalDir = path.join(getPiCrustBaseDir(), 'journal', session.id);
+          fs.mkdirSync(journalDir, { recursive: true });
+          const crashLogPath = path.join(journalDir, `crash-${Date.now()}.log`);
+          const crashContent = [
+            `Timestamp: ${new Date().toISOString()}`,
+            `SessionId: ${session.id}`,
+            `ExitCode: ${exitInfo.exitCode}`,
+            `Signal: ${exitInfo.signal}`,
+            `StatusAtCrash: ${session.status}`,
+            `IsStreaming: ${session.isStreaming}`,
+            '--- Last Stderr ---',
+            ...exitInfo.lastStderr
+          ].join('\n');
+          fs.writeFileSync(crashLogPath, crashContent, 'utf8');
+        } catch {
+          // Non-fatal if filesystem write fails
+        }
+
+        const safeRestart = session.status === 'settled' && !session.isStreaming;
+
         session.emitCustomEvent('worker.crashed', {
           exitCode: exitInfo.exitCode,
           signal: exitInfo.signal,
           lastStderr: exitInfo.lastStderr,
-          recoverable: session.status === 'settled'
+          recoverable: safeRestart
         });
       }
     }
+  }
+
+  public async reconcileAndRespawn(session: Session): Promise<void> {
+    // 1. Ensure worker is spawned for this session
+    const worker = await this.ensureWorker(session);
+
+    // 2. Query Pi for existing entries using the durable cursor
+    try {
+      const res = await worker.send({
+        command: 'get_entries',
+        arguments: session.leafId ? { since: session.leafId } : {}
+      });
+
+      if (res && res.data) {
+        session.reconcileEntries(res.data.entries || [], res.data.leafId);
+      }
+    } catch {
+      // If get_entries fails, proceed with current entries
+    }
+
+    // 3. Reset session status to settled
+    session.status = 'settled';
+    session.isStreaming = false;
+
+    // 4. Emit session.status update
+    session.emitCustomEvent('session.status', {
+      status: 'settled',
+      reason: 'recovered_from_crash'
+    });
   }
 
   public touch(sessionId: string): void {

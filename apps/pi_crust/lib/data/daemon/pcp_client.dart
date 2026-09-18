@@ -163,6 +163,10 @@ class PcpClient {
         final event = PcpCodec.decodeEvent(map);
         final sessionId = event.sessionId;
         _attachedSessions[sessionId] = event.seq;
+        if (event.type == 'journal.gap') {
+          // Re-sync by attaching without lastSeq to obtain a fresh full snapshot
+          attach(sessionId, lastSeq: null);
+        }
         if (_eventControllers.containsKey(sessionId)) {
           _eventControllers[sessionId]!.add(event);
         }
@@ -236,6 +240,221 @@ class PcpClient {
       payload: {'lastSeq': lastSeq},
     );
     sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sendPrompt(
+    String sessionId,
+    String text, {
+    String? streamingBehavior,
+    List<dynamic>? images,
+  }) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'prm_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.prompt',
+      payload: {
+        'text': text,
+        'streamingBehavior': ?streamingBehavior,
+        'images': ?images,
+      },
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> interruptAgent(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'int_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.interrupt',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> clearQueue(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'cq_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.clearQueue',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> compactContext(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'cmp_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.compact',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setModel(String sessionId, String provider, String modelId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'sm_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.setModel',
+      payload: {'provider': provider, 'modelId': modelId},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setThinkingLevel(String sessionId, String level) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'stl_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.setThinkingLevel',
+      payload: {'level': level},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getCommands(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'gc_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.getCommands',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getAvailableModels(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'gm_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.getModels',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getAvailableThinkingLevels(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'gtl_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'agent.getThinkingLevels',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getSessionStats(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'gss_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.getStats',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> claimUiRequest(String sessionId, String requestId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'clr_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'ui.claim',
+      payload: {'requestId': requestId},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> respondUiRequest(
+    String sessionId,
+    String requestId, {
+    dynamic value,
+    bool? confirmed,
+    bool? cancelled,
+  }) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'rsr_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'ui.respond',
+      payload: {
+        'requestId': requestId,
+        'value': ?value,
+        'confirmed': ?confirmed,
+        'cancelled': ?cancelled,
+      },
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> recoverSession(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'rcs_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.open',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getDaemonConfig() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: 'gdc_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'daemon.getConfig',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setDaemonConfig(Map<String, dynamic> config) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: 'sdc_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'daemon.setConfig',
+      payload: config,
+    );
+    return sendCommand(cmd);
   }
 
   Stream<PcpEvent> events(String sessionId) {

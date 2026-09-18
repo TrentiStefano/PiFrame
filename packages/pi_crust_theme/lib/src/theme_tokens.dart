@@ -165,6 +165,11 @@ class CrustTokens extends ThemeExtension<CrustTokens> {
       thinking: Color.lerp(thinking, other.thinking, t)!,
     );
   }
+
+  double get radiusSm => 8.0;
+  double get radiusMd => 12.0;
+  String get monoFontFamily => 'JetBrains Mono';
+  String get uiFontFamily => 'Inter';
 }
 
 extension CrustTokensExtension on BuildContext {

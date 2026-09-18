@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../command_palette/command_palette.dart';
 
 class SessionsSidebar extends ConsumerWidget {
   const SessionsSidebar({super.key});
@@ -119,6 +120,44 @@ class SessionsSidebar extends ConsumerWidget {
               error: (err, _) => Center(
                 child: Text('Errore: $err', style: TextStyle(color: tokens.danger, fontSize: 12)),
               ),
+            ),
+          ),
+
+          // Bottom utility bar: Command Palette & Settings
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: tokens.border, width: 1)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: tokens.textSecondary,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    icon: const Icon(Icons.settings_outlined, size: 16),
+                    label: const Text('Impostazioni', style: TextStyle(fontSize: 12)),
+                    onPressed: () {
+                      ref.read(showSettingsProvider.notifier).state = true;
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
+                  tooltip: 'Command Palette (Ctrl+K)',
+                  onPressed: () {
+                    CommandPalette.show(
+                      context,
+                      onOpenSettings: () {
+                        ref.read(showSettingsProvider.notifier).state = true;
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ],

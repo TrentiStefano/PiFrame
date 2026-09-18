@@ -109,6 +109,12 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         lastAppliedSeq: nextSeq,
       );
 
+    case UsageUpdatedEvent(:final usage):
+      return current.copyWith(
+        usage: usage,
+        lastAppliedSeq: nextSeq,
+      );
+
     case CompactionStartedEvent():
       return current.copyWith(
         agentStatus: AgentStatus.compacting,

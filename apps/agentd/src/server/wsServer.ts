@@ -14,7 +14,7 @@ export interface WsServerOptions {
   piInfo: { path: string; version: string; supported: boolean };
   port: number;
   onCommand: (conn: Connection, cmd: any) => Promise<void>;
-  onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null) => Promise<void>;
+  onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
 }
 

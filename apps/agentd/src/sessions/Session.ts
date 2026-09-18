@@ -5,6 +5,7 @@ import { adaptPiEvent, type SessionContext } from '../pi/PiEventAdapter.js';
 import type { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@pi-crust/pcp-ts';
 import type { PiEvent } from '../pi/piCommands.js';
+import { UiRequestBroker } from '../ui/UiRequestBroker.js';
 
 export interface SessionOptions {
   id: string;
@@ -39,7 +40,7 @@ export class Session {
   };
 
   public entries: Array<Record<string, unknown>> = [];
-  public pendingUiRequests: Array<Record<string, unknown>> = [];
+  public leafId: string | null = null;
   public workspace: Record<string, unknown> = {
     branch: null,
     dirty: false,
@@ -50,6 +51,7 @@ export class Session {
   public journal: EventJournal;
   public worker?: StdioPiTransport;
   public attachedClientIds = new Set<string>();
+  public uiBroker: UiRequestBroker;
 
   private onBroadcast?: (event: PcpEvent) => void;
   private adapterContext: SessionContext;
@@ -71,6 +73,13 @@ export class Session {
     this.journal = new EventJournal({
       sessionId: this.id,
       getContext: () => this.getSnapshotContext()
+    });
+
+    this.uiBroker = new UiRequestBroker({
+      sessionId: this.id,
+      onEmitEvent: (evt) => {
+        this.emitCustomEvent(evt.type as any, evt.payload);
+      }
     });
   }
 
@@ -99,13 +108,29 @@ export class Session {
       autoCompaction: this.autoCompaction,
       queue: this.queue,
       entries: this.entries,
-      pendingUiRequests: this.pendingUiRequests,
+      pendingUiRequests: this.uiBroker.getPending(),
       workspace: this.workspace
     };
   }
 
   public getSnapshot(seq?: number): PcpSnapshotPayload {
     return SnapshotBuilder.build(this.getSnapshotContext(), seq ?? this.journal.currentSeq);
+  }
+
+  public reconcileEntries(newEntries: Array<Record<string, unknown>>, leafId?: string | null): void {
+    if (leafId !== undefined) {
+      this.leafId = leafId;
+    }
+    if (!newEntries || newEntries.length === 0) return;
+
+    const existingIds = new Set(this.entries.map((e: any) => e.id || e.entryId).filter(Boolean));
+    for (const entry of newEntries) {
+      const id = (entry as any).id || (entry as any).entryId;
+      if (!id || !existingIds.has(id)) {
+        this.entries.push(entry);
+        if (id) existingIds.add(id);
+      }
+    }
   }
 
   public dispatchPiEvent(rawEvent: PiEvent): PcpEvent[] {
@@ -177,16 +202,13 @@ export class Session {
         break;
 
       case 'ui.request':
-        this.pendingUiRequests.push(payload);
+        this.uiBroker.addRequest(payload);
         if (payload.dialog) {
           this.status = 'awaiting_user';
         }
         break;
 
       case 'ui.resolved':
-        this.pendingUiRequests = this.pendingUiRequests.filter(
-          (r: any) => r.requestId !== payload.requestId
-        );
         if (this.status === 'awaiting_user') {
           this.status = this.isStreaming ? 'working' : 'settled';
         }
@@ -195,10 +217,14 @@ export class Session {
       case 'message.completed':
         if (payload.message) {
           this.entries.push(payload.message);
+          if (payload.message.id) {
+            this.leafId = payload.message.id;
+          }
         }
         break;
 
       case 'worker.crashed':
+        this.uiBroker.cancelAll('worker_crashed');
         this.status = 'worker_error';
         this.isStreaming = false;
         break;
@@ -206,6 +232,7 @@ export class Session {
   }
 
   public close(): void {
+    this.uiBroker.dispose();
     this.journal.close();
   }
 }

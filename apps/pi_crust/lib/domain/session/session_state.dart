@@ -30,6 +30,9 @@ class SessionState {
   final List<String> steeringQueue;
   final List<String> followUpQueue;
   final List<Map<String, dynamic>> pendingUiRequests;
+  final String? currentModel;
+  final String? currentThinkingLevel;
+  final Map<String, dynamic>? usage;
   final int lastAppliedSeq;
 
   const SessionState({
@@ -44,6 +47,9 @@ class SessionState {
     this.steeringQueue = const [],
     this.followUpQueue = const [],
     this.pendingUiRequests = const [],
+    this.currentModel,
+    this.currentThinkingLevel,
+    this.usage,
     this.lastAppliedSeq = 0,
   });
 
@@ -68,6 +74,9 @@ class SessionState {
     List<String>? steeringQueue,
     List<String>? followUpQueue,
     List<Map<String, dynamic>>? pendingUiRequests,
+    String? currentModel,
+    String? currentThinkingLevel,
+    Map<String, dynamic>? usage,
     int? lastAppliedSeq,
   }) {
     return SessionState(
@@ -82,6 +91,9 @@ class SessionState {
       steeringQueue: steeringQueue ?? this.steeringQueue,
       followUpQueue: followUpQueue ?? this.followUpQueue,
       pendingUiRequests: pendingUiRequests ?? this.pendingUiRequests,
+      currentModel: currentModel ?? this.currentModel,
+      currentThinkingLevel: currentThinkingLevel ?? this.currentThinkingLevel,
+      usage: usage ?? this.usage,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
     );
   }
