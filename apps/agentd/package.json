@@ -10,7 +10,7 @@
     "build": "tsc",
     "dev": "node --watch dist/main.js",
     "lint": "tsc --noEmit",
-    "test": "node --test dist/test/**/*.test.js"
+    "test": "node --test dist/**/*.test.js"
   },
   "dependencies": {
     "@pi-crust/pcp-ts": "workspace:*",

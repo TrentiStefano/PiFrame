@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Cross-component end-to-end integration tests",
   "scripts": {
+    "build": "tsc",
     "test": "node --test dist/**/*.spec.js"
   },
   "dependencies": {

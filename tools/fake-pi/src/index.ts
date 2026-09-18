@@ -40,7 +40,7 @@ async function main() {
   }
 
   // Check for scenario
-  let scenarioName = 'hello-world';
+  let scenarioName = process.env.FAKE_PI_SCENARIO || 'hello-world';
   const scenarioIdx = args.indexOf('--scenario');
   if (scenarioIdx !== -1 && args[scenarioIdx + 1]) {
     scenarioName = args[scenarioIdx + 1];
@@ -75,7 +75,7 @@ async function main() {
     }
 
     const id = cmd.id;
-    const type = cmd.type;
+    const type = cmd.type || cmd.command;
 
     if (type === 'extension_ui_response') {
       return;
