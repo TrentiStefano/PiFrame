@@ -4,6 +4,8 @@ import type { SessionRegistry } from '../sessions/SessionRegistry.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import { CommandDeduplicator } from './CommandRecord.js';
 import { loadConfig, patchConfig, type DaemonConfig } from '../config/config.js';
+import { WorkspaceService } from '../workspace/WorkspaceService.js';
+import { SessionIndex } from '../sessions/SessionIndex.js';
 import type {
   PcpCommand,
   PcpAck,
@@ -16,10 +18,13 @@ export class Dispatcher {
   private registry: SessionRegistry;
   private connectionManager: ConnectionManager;
   private deduplicator = new CommandDeduplicator();
+  private workspaceService = new WorkspaceService();
+  private sessionIndex: SessionIndex;
 
   constructor(registry: SessionRegistry, connectionManager: ConnectionManager) {
     this.registry = registry;
     this.connectionManager = connectionManager;
+    this.sessionIndex = registry.getIndex();
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -454,6 +459,75 @@ export class Dispatcher {
           return res.data;
         }
         return { ok: true };
+      }
+
+      case 'workspace.refresh': {
+        const session = sessionId ? this.registry.getSession(sessionId) : null;
+        const cwd = session?.cwd || payload?.cwd || process.cwd();
+        const status = await this.workspaceService.getStatus(cwd, true);
+        return status;
+      }
+
+      case 'workspace.getDiff': {
+        const session = sessionId ? this.registry.getSession(sessionId) : null;
+        const cwd = session?.cwd || payload?.cwd || process.cwd();
+        const diff = await this.workspaceService.getDiff(cwd, payload?.filePath);
+        return { diff };
+      }
+
+      case 'session.list': {
+        const activeIds = new Set(this.registry.getAllSessions().map((s) => s.id));
+        const sessions = await this.sessionIndex.listSessions(activeIds, payload?.query, payload?.limit);
+        return { sessions };
+      }
+
+      case 'session.rename': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        if (!session) throw new Error(`Session ${sessionId} not found`);
+        session.name = payload.name;
+        if (session.worker) {
+          try {
+            await session.worker.send({ command: 'set_session_name', arguments: { name: payload.name } });
+          } catch (_) {}
+        }
+        return { name: session.name };
+      }
+
+      case 'session.fork': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        if (!session) throw new Error(`Session ${sessionId} not found`);
+        if (session.worker) {
+          const res = await session.worker.send({
+            command: 'fork',
+            arguments: { entryId: payload?.entryId }
+          });
+          return res.data;
+        }
+        return { ok: true, forked: true };
+      }
+
+      case 'session.clone': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        if (!session) throw new Error(`Session ${sessionId} not found`);
+        if (session.worker) {
+          const res = await session.worker.send({ command: 'clone', arguments: {} });
+          return res.data;
+        }
+        return { ok: true, cloned: true };
+      }
+
+      case 'session.getTree': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        if (!session) throw new Error(`Session ${sessionId} not found`);
+        if (session.worker) {
+          const res = await session.worker.send({ command: 'get_tree', arguments: {} });
+          return res.data;
+        }
+        return { tree: [] };
       }
 
       default: {

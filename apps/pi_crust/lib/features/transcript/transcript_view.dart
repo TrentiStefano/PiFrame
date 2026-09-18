@@ -241,6 +241,48 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
   }
 
+  Future<void> _handleFork(String entryId) async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return;
+    try {
+      final res = await client.forkSession(widget.sessionId, entryId: entryId);
+      final data = res['data'] as Map<String, dynamic>? ?? res;
+      if (data['cancelled'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Fork annullato dall'extension"),
+            backgroundColor: context.tokens.surfaceElevated,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      final newSid = data['sessionId'] as String? ?? data['id'] as String?;
+      if (newSid != null) {
+        ref.read(activeSessionIdProvider.notifier).state = newSid;
+        ref.invalidate(sessionListProvider);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nuovo ramo avviato: $newSid'),
+            backgroundColor: context.tokens.surfaceElevated,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Errore fork: $e'),
+          backgroundColor: context.tokens.danger,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Widget _buildEntryItem(SessionEntry entry, CrustTokens tokens) {
     final isUser = entry.role == 'user';
 
@@ -262,16 +304,43 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.person_outline, size: 13, color: tokens.accent),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Tu',
-                    style: TextStyle(
-                      color: tokens.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_outline, size: 13, color: tokens.accent),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tu',
+                        style: TextStyle(
+                          color: tokens.accent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => _handleFork(entry.id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.call_split, size: 12, color: tokens.accent),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Riparti da qui',
+                            style: TextStyle(
+                              color: tokens.accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

@@ -116,6 +116,27 @@ export class SessionIndex {
     return summaries.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   }
 
+  public async listSessions(
+    activeSessionIds = new Set<string>(),
+    query?: string,
+    limit: number = 50
+  ): Promise<SessionSummary[]> {
+    let list = await this.scan(activeSessionIds);
+
+    if (query && query.trim().length > 0) {
+      const q = query.trim().toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.id.toLowerCase().includes(q) ||
+          (s.name && s.name.toLowerCase().includes(q)) ||
+          s.cwd.toLowerCase().includes(q) ||
+          (s.lastMessagePreview && s.lastMessagePreview.toLowerCase().includes(q))
+      );
+    }
+
+    return list.slice(0, limit);
+  }
+
   private parseSessionFile(
     sessionId: string,
     filePath: string,

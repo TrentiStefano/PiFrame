@@ -457,6 +457,100 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'wkr_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'workspace.refresh',
+      payload: {'cwd': ?cwd},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'wkd_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'workspace.getDiff',
+      payload: {'filePath': ?filePath},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: 'lss_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.list',
+      payload: {
+        'query': ?query,
+        'limit': ?limit,
+      },
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> renameSession(String sessionId, String name) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'rns_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.rename',
+      payload: {'name': name},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> forkSession(String sessionId, {String? entryId}) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'frk_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.fork',
+      payload: {'entryId': ?entryId},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> cloneSession(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'cln_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.clone',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> getSessionTree(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: 'gtr_${DateTime.now().millisecondsSinceEpoch}',
+      type: 'session.getTree',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
   Stream<PcpEvent> events(String sessionId) {
     return _eventControllers.putIfAbsent(
       sessionId,

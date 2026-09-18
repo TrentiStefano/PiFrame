@@ -38,6 +38,14 @@ export class SessionRegistry {
     return this.sessions.get(id);
   }
 
+  public getAllSessions(): Session[] {
+    return Array.from(this.sessions.values());
+  }
+
+  public getIndex(): SessionIndex {
+    return this.index;
+  }
+
   public async listSessions(): Promise<SessionSummary[]> {
     const activeIds = new Set(this.sessions.keys());
     return this.index.scan(activeIds);
