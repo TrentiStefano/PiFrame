@@ -2,6 +2,7 @@
 # Node.js & Dependencies
 # ==============================================================================
 node_modules/
+**/node_modules/
 .pnpm-store/
 npm-debug.log*
 yarn-debug.log*
@@ -10,12 +11,27 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # ==============================================================================
-# TypeScript & Build Outputs
+# TypeScript, Caches & Build Outputs
 # ==============================================================================
 dist/
 **/dist/
-*.tsbuildinfo
 out/
+**/out/
+*.tsbuildinfo
+.turbo/
+.cache/
+.temp/
+.tmp/
+
+# ==============================================================================
+# Test & Coverage Outputs
+# ==============================================================================
+coverage/
+**/coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
 
 # ==============================================================================
 # Flutter & Dart
@@ -24,7 +40,10 @@ out/
 **/.dart_tool/
 .packages
 .pub-cache/
+**/.pub-cache/
 .pub/
+**/.pub/
+**/doc/api/
 
 # Flutter build directories
 build/
@@ -43,6 +62,8 @@ macos/Flutter/ephemeral/
 **/macos/Flutter/ephemeral/
 ios/Flutter/ephemeral/
 **/ios/Flutter/ephemeral/
+**/.gradle/
+**/android/.gradle/
 
 # Symbol files
 *.symbols
@@ -85,6 +106,7 @@ Thumbs.db
 
 # IDEs
 .idea/
+**/.idea/
 *.iml
 *.ipr
 *.iws
@@ -102,7 +124,3 @@ Thumbs.db
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-
-
-*.d.ts
-*.d.js
