@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/theme/theme_providers.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -276,22 +277,72 @@ class _SettingsViewState extends ConsumerState<SettingsView> with SingleTickerPr
                 // -------------------------------------------------------------
                 // Tab 3: Aspetto
                 // -------------------------------------------------------------
-                ListView(
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    Text('Personalizzazione Tema e UI', style: TextStyle(color: tokens.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Pi-Crust supporta temi personalizzati definiti via file JSON in ~/.pi-crust/themes/.',
-                      style: TextStyle(color: tokens.textMuted, fontSize: 13),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildInfoCard(tokens, [
-                      _buildInfoRow(tokens, 'Tema attivo', 'Crust Dark (Ufficiale)'),
-                      _buildInfoRow(tokens, 'Densità layout', 'Confortevole (Default 1.0x)'),
-                      _buildInfoRow(tokens, 'Caratteri', 'Inter (UI) · JetBrains Mono (Codice)'),
-                    ]),
-                  ],
+                Consumer(
+                  builder: (context, ref, _) {
+                    final activeTheme = ref.watch(activeThemeSpecProvider);
+                    final repo = ref.watch(themeRepositoryProvider);
+                    final themes = repo.availableThemes;
+
+                    return ListView(
+                      padding: const EdgeInsets.all(24),
+                      children: [
+                        Text('Personalizzazione Tema e UI',
+                            style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Pi-Crust supporta temi personalizzati definiti via file JSON in ~/.pi-crust/themes/.',
+                          style: TextStyle(color: tokens.textMuted, fontSize: 13),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Text('Seleziona Tema: ',
+                                style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 12),
+                            DropdownButton<String>(
+                              value: activeTheme.id,
+                              dropdownColor: tokens.surfaceElevated,
+                              style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                              items: themes.map((t) {
+                                return DropdownMenuItem<String>(
+                                  value: t.id,
+                                  child: Text('${t.name} (${t.variant})'),
+                                );
+                              }).toList(),
+                              onChanged: (newId) {
+                                if (newId != null) {
+                                  ref.read(activeThemeSpecProvider.notifier).setTheme(newId);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoCard(tokens, [
+                          _buildInfoRow(tokens, 'Tema attivo', '${activeTheme.name} (v${activeTheme.version})'),
+                          _buildInfoRow(tokens, 'Densità layout', 'Confortevole (Default 1.0x)'),
+                          _buildInfoRow(tokens, 'Caratteri', '${activeTheme.toTokens().uiFontFamily} (UI) · ${activeTheme.toTokens().monoFontFamily} (Codice)'),
+                        ]),
+                        if (activeTheme.diagnostics.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Text('Diagnostica tema:',
+                              style: TextStyle(
+                                  color: tokens.warning,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          ...activeTheme.diagnostics.map((d) => Text('• $d',
+                              style: TextStyle(color: tokens.textMuted, fontSize: 11))),
+                        ],
+                      ],
+                    );
+                  },
                 ),
 
                 // -------------------------------------------------------------

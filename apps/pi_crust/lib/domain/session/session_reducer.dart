@@ -74,6 +74,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         role: role,
         text: text,
         thinking: current.currentStreamingThinking.isNotEmpty ? current.currentStreamingThinking : null,
+        toolCalls: current.activeToolCalls.values.toList(),
         timestamp: DateTime.now().millisecondsSinceEpoch,
       );
 
@@ -82,22 +83,77 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         entries: nextEntries,
         streamingTextBlocks: const {},
         streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
         lastAppliedSeq: nextSeq,
       );
 
-    case ToolProgressEvent(:final toolCallId, :final partialResult):
-      // Cumulative replacement rule: partialResult is NOT a delta
-      final nextOutputs = Map<String, String>.from(current.toolOutputs);
-      nextOutputs[toolCallId] = partialResult;
+    case ToolStartedEvent(:final toolCallId, :final toolName, :final args):
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      nextActive[toolCallId] = ToolExecutionState(
+        toolCallId: toolCallId,
+        toolName: toolName,
+        args: args,
+        isRunning: true,
+      );
       return current.copyWith(
+        activeToolCalls: nextActive,
+        lastAppliedSeq: nextSeq,
+      );
+
+    case ToolProgressEvent(:final toolCallId, :final toolName, :final partialResult):
+      // Cumulative replacement rule: partialResult is NOT a delta
+      final outputStr = partialResult?.toString() ?? '';
+      final nextOutputs = Map<String, String>.from(current.toolOutputs);
+      nextOutputs[toolCallId] = outputStr;
+
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      final existing = nextActive[toolCallId];
+      if (existing != null) {
+        nextActive[toolCallId] = existing.copyWith(
+          output: outputStr,
+        );
+      } else {
+        nextActive[toolCallId] = ToolExecutionState(
+          toolCallId: toolCallId,
+          toolName: toolName,
+          output: outputStr,
+          isRunning: true,
+        );
+      }
+
+      return current.copyWith(
+        activeToolCalls: nextActive,
         toolOutputs: nextOutputs,
         lastAppliedSeq: nextSeq,
       );
 
-    case ToolCompletedEvent(:final toolCallId, :final result):
+    case ToolCompletedEvent(:final toolCallId, :final toolName, :final result, :final isError, :final durationMs):
+      final outputStr = result?.toString() ?? '';
       final nextOutputs = Map<String, String>.from(current.toolOutputs);
-      nextOutputs[toolCallId] = result?.toString() ?? '';
+      nextOutputs[toolCallId] = outputStr;
+
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      final existing = nextActive[toolCallId];
+      if (existing != null) {
+        nextActive[toolCallId] = existing.copyWith(
+          output: outputStr.isNotEmpty ? outputStr : existing.output,
+          isRunning: false,
+          isError: isError,
+          durationMs: durationMs,
+        );
+      } else {
+        nextActive[toolCallId] = ToolExecutionState(
+          toolCallId: toolCallId,
+          toolName: toolName,
+          output: outputStr,
+          isRunning: false,
+          isError: isError,
+          durationMs: durationMs,
+        );
+      }
+
       return current.copyWith(
+        activeToolCalls: nextActive,
         toolOutputs: nextOutputs,
         lastAppliedSeq: nextSeq,
       );

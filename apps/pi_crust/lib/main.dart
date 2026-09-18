@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'app/router.dart';
+import 'data/theme/theme_providers.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const ProviderScope(child: PiCrustApp()));
 }
 
-class PiCrustApp extends StatelessWidget {
+class PiCrustApp extends ConsumerWidget {
   const PiCrustApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeData = ref.watch(currentThemeDataProvider);
+
     return MaterialApp.router(
       title: 'Pi-Crust',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: CrustTokens.dark.background,
-        extensions: const [CrustTokens.dark],
-      ),
+      theme: themeData,
     );
   }
 }

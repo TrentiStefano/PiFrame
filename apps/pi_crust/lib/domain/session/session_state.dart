@@ -1,11 +1,48 @@
 import 'agent_status.dart';
 
+class ToolExecutionState {
+  final String toolCallId;
+  final String toolName;
+  final Map<String, dynamic> args;
+  final String output;
+  final bool isRunning;
+  final bool isError;
+  final int? durationMs;
+
+  const ToolExecutionState({
+    required this.toolCallId,
+    required this.toolName,
+    this.args = const {},
+    this.output = '',
+    this.isRunning = false,
+    this.isError = false,
+    this.durationMs,
+  });
+
+  ToolExecutionState copyWith({
+    String? output,
+    bool? isRunning,
+    bool? isError,
+    int? durationMs,
+  }) {
+    return ToolExecutionState(
+      toolCallId: toolCallId,
+      toolName: toolName,
+      args: args,
+      output: output ?? this.output,
+      isRunning: isRunning ?? this.isRunning,
+      isError: isError ?? this.isError,
+      durationMs: durationMs ?? this.durationMs,
+    );
+  }
+}
+
 class SessionEntry {
   final String id;
   final String role; // 'user', 'assistant', 'system'
   final String text;
   final String? thinking;
-  final List<Map<String, dynamic>> toolCalls;
+  final List<ToolExecutionState> toolCalls;
   final int timestamp;
 
   const SessionEntry({
@@ -26,6 +63,7 @@ class SessionState {
   final List<SessionEntry> entries;
   final Map<int, String> streamingTextBlocks;
   final Map<int, String> streamingThinkingBlocks;
+  final Map<String, ToolExecutionState> activeToolCalls;
   final Map<String, String> toolOutputs;
   final List<String> steeringQueue;
   final List<String> followUpQueue;
@@ -43,6 +81,7 @@ class SessionState {
     this.entries = const [],
     this.streamingTextBlocks = const {},
     this.streamingThinkingBlocks = const {},
+    this.activeToolCalls = const {},
     this.toolOutputs = const {},
     this.steeringQueue = const [],
     this.followUpQueue = const [],
@@ -60,16 +99,19 @@ class SessionState {
       streamingThinkingBlocks.values.join();
 
   bool get isStreaming =>
-      streamingTextBlocks.isNotEmpty || agentStatus == AgentStatus.working;
+      streamingTextBlocks.isNotEmpty ||
+      streamingThinkingBlocks.isNotEmpty ||
+      activeToolCalls.values.any((t) => t.isRunning) ||
+      agentStatus == AgentStatus.working;
 
   SessionState copyWith({
-    String? sessionId,
     String? sessionName,
     String? cwd,
     AgentStatus? agentStatus,
     List<SessionEntry>? entries,
     Map<int, String>? streamingTextBlocks,
     Map<int, String>? streamingThinkingBlocks,
+    Map<String, ToolExecutionState>? activeToolCalls,
     Map<String, String>? toolOutputs,
     List<String>? steeringQueue,
     List<String>? followUpQueue,
@@ -80,13 +122,15 @@ class SessionState {
     int? lastAppliedSeq,
   }) {
     return SessionState(
-      sessionId: sessionId ?? this.sessionId,
+      sessionId: sessionId,
       sessionName: sessionName ?? this.sessionName,
       cwd: cwd ?? this.cwd,
       agentStatus: agentStatus ?? this.agentStatus,
       entries: entries ?? this.entries,
       streamingTextBlocks: streamingTextBlocks ?? this.streamingTextBlocks,
-      streamingThinkingBlocks: streamingThinkingBlocks ?? this.streamingThinkingBlocks,
+      streamingThinkingBlocks:
+          streamingThinkingBlocks ?? this.streamingThinkingBlocks,
+      activeToolCalls: activeToolCalls ?? this.activeToolCalls,
       toolOutputs: toolOutputs ?? this.toolOutputs,
       steeringQueue: steeringQueue ?? this.steeringQueue,
       followUpQueue: followUpQueue ?? this.followUpQueue,

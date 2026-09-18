@@ -1,0 +1,73 @@
+{
+  "$schema": "./theme.schema.json",
+  "schemaVersion": 1,
+  "id": "crust-dark",
+  "name": "Crust Dark",
+  "author": "Pi-Crust",
+  "version": "1.0.0",
+  "variant": "dark",
+  "extends": null,
+  "colors": {
+    "background": "#0E1116",
+    "surface": "#141922",
+    "surfaceElevated": "#1B2230",
+    "overlay": "#0A0D12CC",
+    "border": "#242C3A",
+    "borderStrong": "#33405480",
+    "textPrimary": "#E6EAF2",
+    "textSecondary": "#9AA6B8",
+    "textMuted": "#66738A",
+    "accent": "#7C9CFF",
+    "accentContrast": "#0B0F16",
+    "focusRing": "#7C9CFF",
+    "success": "#4ED08A",
+    "warning": "#E8B341",
+    "danger": "#F1687A",
+    "info": "#59B9E8",
+    "agentWorking": "#7C9CFF",
+    "agentRetrying": "#E8B341",
+    "agentCompacting": "#59B9E8",
+    "agentSettled": "#4ED08A",
+    "agentAwaitingUser": "#C08CFF",
+    "agentError": "#F1687A",
+    "userBubble": "#18202C",
+    "thinking": "#8E7BD6",
+    "diffAddedBg": "#10301F",
+    "diffAddedFg": "#7EE0A8",
+    "diffRemovedBg": "#3A1620",
+    "diffRemovedFg": "#F59AA8",
+    "diffContextFg": "#8592A6"
+  },
+  "syntax": {
+    "keyword": "#C792EA",
+    "string": "#9CE29C",
+    "number": "#F2A65A",
+    "comment": "#5C6A80",
+    "function": "#7C9CFF",
+    "type": "#59D3C0",
+    "variable": "#E6EAF2",
+    "operator": "#9AA6B8",
+    "punctuation": "#7E8AA0",
+    "invalid": "#F1687A"
+  },
+  "typography": {
+    "uiFontFamily": "Inter",
+    "monoFontFamily": "JetBrains Mono",
+    "baseSize": 14,
+    "scale": { "xs": 11, "sm": 12, "md": 14, "lg": 16, "xl": 20, "xxl": 26 },
+    "lineHeight": 1.5,
+    "weights": { "regular": 400, "medium": 500, "semibold": 600 }
+  },
+  "spacing": { "unit": 4, "scale": [0, 4, 8, 12, 16, 24, 32, 48] },
+  "radii": { "sm": 6, "md": 10, "lg": 16, "pill": 999 },
+  "elevation": {
+    "level1": { "color": "#00000059", "blur": 12, "offsetY": 2 },
+    "level2": { "color": "#00000073", "blur": 28, "offsetY": 8 }
+  },
+  "motion": { "fast": 120, "normal": 180, "slow": 280, "curve": "easeOutCubic" },
+  "components": {
+    "sidebar": { "background": "#0C1015", "width": 280 },
+    "composer": { "background": "#141922", "minHeight": 96 },
+    "toolCard": { "background": "#141922", "borderRadius": 10 }
+  }
+}

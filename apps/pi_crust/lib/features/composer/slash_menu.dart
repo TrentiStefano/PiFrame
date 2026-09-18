@@ -29,7 +29,7 @@ class SlashMenu extends StatelessWidget {
     }
 
     return Material(
-      color: Colors.transparent,
+      color: tokens.surface.withValues(alpha: 0),
       child: Container(
         constraints: const BoxConstraints(maxHeight: 220),
         decoration: BoxDecoration(
@@ -38,7 +38,7 @@ class SlashMenu extends StatelessWidget {
           border: Border.all(color: tokens.border, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: tokens.overlay,
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

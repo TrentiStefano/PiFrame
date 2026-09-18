@@ -28,7 +28,7 @@ class CommandPalette extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, {VoidCallback? onOpenSettings}) {
     return showDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
+      barrierColor: context.tokens.overlay,
       builder: (_) => CommandPalette(onOpenSettings: onOpenSettings),
     );
   }
