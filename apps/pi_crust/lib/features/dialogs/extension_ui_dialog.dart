@@ -40,6 +40,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   late TextEditingController _textController;
   String? _selectedOption;
   Timer? _countdownTimer;
+  StreamSubscription? _resolutionSubscription;
+  bool _isResponding = false;
+  String? _responseError;
   int _secondsRemaining = 0;
 
   @override
@@ -69,6 +72,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       });
     }
 
+    final client = ref.read(pcpClientProvider);
+    _resolutionSubscription = client?.events(widget.sessionId).listen((event) {
+      if (event.type == 'ui.resolved' && event.payload['requestId'] == widget.request['requestId']) {
+        if (mounted && !_isResponding) Navigator.of(context, rootNavigator: true).pop();
+      }
+    });
     _attemptClaim();
   }
 
@@ -80,7 +89,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       final res = await client.claimUiRequest(widget.sessionId, requestId);
       if (mounted) {
         setState(() {
-          _isClaimedByMe = res['claimed'] == true;
+          _isClaimedByMe = (res['data'] as Map?)?['claimed'] == true;
           _isClaimChecked = true;
         });
       }
@@ -97,21 +106,39 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _resolutionSubscription?.cancel();
     _textController.dispose();
     super.dispose();
   }
 
-  void _sendResponse({dynamic value, bool? confirmed, bool? cancelled}) {
+  Future<void> _sendResponse({dynamic value, bool? confirmed, bool? cancelled}) async {
+    if (_isResponding) return;
+    if (!_isClaimedByMe) {
+      Navigator.of(context, rootNavigator: true).pop();
+      return;
+    }
     final client = ref.read(pcpClientProvider);
-    final requestId = widget.request['requestId']?.toString() ?? '';
-    client?.respondUiRequest(
-      widget.sessionId,
-      requestId,
-      value: value,
-      confirmed: confirmed,
-      cancelled: cancelled,
-    );
-    Navigator.of(context, rootNavigator: true).pop();
+    if (client == null) return;
+    setState(() => _isResponding = true);
+    try {
+      await client.respondUiRequest(
+        widget.sessionId,
+        widget.request['requestId']?.toString() ?? '',
+        value: value,
+        confirmed: confirmed,
+        cancelled: cancelled,
+      );
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isResponding = false;
+          _responseError = error.toString();
+        });
+      }
+    }
   }
 
   @override
@@ -268,17 +295,20 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
 
             const SizedBox(height: 20),
 
+            if (_responseError != null)
+              Text(_responseError!, style: TextStyle(color: tokens.danger)),
+
             // Actions row
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => _sendResponse(cancelled: true),
+                  onPressed: _isResponding ? null : () => _sendResponse(cancelled: true),
                   child: Text('Annulla', style: TextStyle(color: tokens.textSecondary)),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _isClaimedByMe
+                  onPressed: _isClaimedByMe && !_isResponding
                       ? () {
                           if (method == 'confirm') {
                             _sendResponse(confirmed: true);

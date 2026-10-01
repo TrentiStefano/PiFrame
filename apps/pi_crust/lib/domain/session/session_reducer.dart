@@ -75,7 +75,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         text: text,
         thinking: current.currentStreamingThinking.isNotEmpty ? current.currentStreamingThinking : null,
         toolCalls: current.activeToolCalls.values.toList(),
-        timestamp: DateTime.now().millisecondsSinceEpoch,
+        timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
       );
 
       final nextEntries = List<SessionEntry>.from(current.entries)..add(entry);
@@ -203,6 +203,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         'title': title,
         'message': message,
         'dialog': dialog,
+        ...event.payload,
       });
       return current.copyWith(
         pendingUiRequests: nextRequests,

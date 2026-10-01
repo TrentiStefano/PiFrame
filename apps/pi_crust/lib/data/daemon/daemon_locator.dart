@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class DaemonEndpoint {
   final int port;
@@ -27,6 +28,22 @@ class DaemonLocator {
   }
 
   static Future<DaemonEndpoint?> locateOrProbe({bool autoSpawn = true}) async {
+    if (kIsWeb) {
+      // Browsers cannot inspect native runtime files. Use daemon-hosted same-origin bootstrap.
+      final base = Uri.base;
+      if (base.host != '127.0.0.1' && base.host != 'localhost') return null;
+      try {
+        final response = await http.get(base.resolve('/api/session-bootstrap'))
+            .timeout(const Duration(seconds: 3));
+        if (response.statusCode != 200) return null;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final token = data['token'] as String?;
+        if (token == null || token.isEmpty) return null;
+        return DaemonEndpoint(port: base.port, token: token);
+      } catch (_) {
+        return null;
+      }
+    }
     // 1. Try reading existing runtime files and health probe
     var endpoint = await _probeActiveDaemon();
     if (endpoint != null) {
@@ -81,9 +98,10 @@ class DaemonLocator {
     try {
       final envBin = Platform.environment['PI_CRUST_DAEMON_BIN'];
       if (envBin != null && await File(envBin).exists()) {
+        final isScript = RegExp(r'\.(c?js|mjs)$', caseSensitive: false).hasMatch(envBin);
         await Process.start(
-          envBin,
-          [],
+          isScript ? 'node' : envBin,
+          isScript ? [File(envBin).absolute.path] : [],
           mode: ProcessStartMode.detached,
         );
         return true;
@@ -104,6 +122,8 @@ class DaemonLocator {
 
       // Development fallbacks: check repository paths
       final devPaths = [
+        '$exeDir/pi-agentd.cjs',
+        '$exeDir/dist/pi-agentd.cjs',
         '../agentd/dist/pi-agentd.cjs',
         '../agentd/dist/main.js',
         'apps/agentd/dist/pi-agentd.cjs',

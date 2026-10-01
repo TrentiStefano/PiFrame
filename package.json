@@ -8,6 +8,7 @@
     "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.js",
     "test": "pnpm -r --stream run test && node tools/scripts/test-flutter.js",
     "test:e2e": "pnpm --filter @pi-crust/e2e run test",
+    "smoke:real-pi": "pnpm --filter @pi-crust/agentd build && node tools/scripts/smoke-real-pi.mjs",
     "run:daemon": "pnpm --filter @pi-crust/agentd run dev",
     "run:app": "cd apps/pi_crust && flutter run",
     "build:all": "pnpm -r run build"

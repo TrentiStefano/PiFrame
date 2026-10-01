@@ -51,7 +51,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         final res = await client.refreshWorkspace(widget.sessionId);
         if (mounted) {
           setState(() {
-            _gitStatus = res;
+            _gitStatus = res['data'] as Map<String, dynamic>? ?? {};
             _isLoadingGit = false;
           });
         }
@@ -63,13 +63,24 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     }
   }
 
+  Future<void> _runAction(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+      }
+    }
+  }
+
   Future<void> _showFileDiff(String filePath) async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
 
     try {
       final res = await client.getWorkspaceDiff(widget.sessionId, filePath: filePath);
-      final diffText = res['diff']?.toString() ?? 'Nessuna differenza trovata.';
+      final data = res['data'] as Map<String, dynamic>? ?? {};
+      final diffText = data['diff']?.toString() ?? 'Nessuna differenza trovata.';
 
       if (mounted) {
         showDialog(
@@ -128,14 +139,23 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     setState(() => _isCompacting = true);
 
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final res = await notifier.compact();
-
-    setState(() => _isCompacting = false);
+    Map<String, dynamic>? res;
+    try {
+      final result = await notifier.compact();
+      res = result?['data'] as Map<String, dynamic>?;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Compattazione non riuscita: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _isCompacting = false);
+    }
 
     if (mounted && res != null) {
       final tokensBefore = res['tokensBefore'] ?? '?';
-      final tokensAfter = res['tokensAfter'] ?? '?';
-      final cost = res['cost'] != null ? '\$${res['cost']}' : '';
+      final tokensAfter = res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
+      final usage = res['usage'] as Map?;
+      final cost = usage?['cost'] is Map ? '\$${usage!['cost']['total']}' : '';
 
       showDialog(
         context: context,
@@ -161,11 +181,16 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   Future<void> _cloneSession() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
-    await client.cloneSession(widget.sessionId);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ramo duplicato con successo.')),
-      );
+    try {
+      final result = await client.cloneSession(widget.sessionId);
+      if (!mounted) return;
+      final data = result['data'] as Map<String, dynamic>;
+      ref.read(activeSessionIdProvider.notifier).state = data['sessionId'] as String;
+      ref.invalidate(sessionListProvider);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Duplicazione non riuscita: $error')));
+      }
     }
   }
 
@@ -359,7 +384,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 const SizedBox(height: 6),
                 _isLoadingParams
                     ? SizedBox(height: 36, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent)))
-                    : Container(
+                    : _models.isEmpty
+                        ? Text('Nessun modello abilitato in Pi.', style: TextStyle(color: tokens.textMuted, fontSize: 12))
+                        : Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
@@ -381,7 +408,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                                 child: Text(name, overflow: TextOverflow.ellipsis),
                               );
                             }).toList(),
-                            onChanged: (newModel) {
+                            onChanged: sessionState.readOnly ? null : (newModel) {
                               if (newModel != null) {
                                 final modelObj = _models.firstWhere(
                                   (m) => (m['name'] ?? m['id'])?.toString() == newModel,
@@ -389,7 +416,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                                 );
                                 final provider = modelObj['provider']?.toString() ?? '';
                                 final modelId = modelObj['id']?.toString() ?? newModel;
-                                sessionNotifier.setModel(provider, modelId);
+                                _runAction(() => sessionNotifier.setModel(provider, modelId));
                               }
                             },
                           ),
@@ -424,9 +451,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           child: Text(lvl.toUpperCase()),
                         );
                       }).toList(),
-                      onChanged: (newLevel) {
+                      onChanged: sessionState.readOnly ? null : (newLevel) {
                         if (newLevel != null) {
-                          sessionNotifier.setThinkingLevel(newLevel);
+                          _runAction(() => sessionNotifier.setThinkingLevel(newLevel));
                         }
                       },
                     ),
@@ -485,7 +512,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                         )
                       : Icon(Icons.compress, size: 16, color: tokens.accent),
                   label: Text(_isCompacting ? 'Compattazione...' : 'Compatta contesto'),
-                  onPressed: _isCompacting ? null : _triggerCompaction,
+                  onPressed: _isCompacting || sessionState.readOnly ? null : _triggerCompaction,
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(

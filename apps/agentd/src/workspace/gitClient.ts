@@ -29,6 +29,7 @@ async function runGit(args: string[], cwd: string): Promise<string | null> {
     const { stdout } = await execFileAsync('git', args, {
       cwd,
       timeout: EXEC_TIMEOUT_MS,
+      windowsHide: true,
       maxBuffer: 10 * 1024 * 1024, // 10MB limit
       encoding: 'utf8',
     });

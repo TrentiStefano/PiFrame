@@ -6,6 +6,7 @@ import { CommandDeduplicator } from './CommandRecord.js';
 import { loadConfig, patchConfig, type DaemonConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
+import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
 import type {
   PcpCommand,
   PcpAck,
@@ -159,8 +160,7 @@ export class Dispatcher {
       // Session Management
       // -----------------------------------------------------------------------
       case 'session.list': {
-        const activeIds = new Set(this.registry.getAllSessions().map((s) => s.id));
-        const sessions = await this.sessionIndex.listSessions(activeIds, payload?.query, payload?.limit);
+        const sessions = await this.registry.listSessions(payload?.query, payload?.limit);
         return { sessions };
       }
 
@@ -174,8 +174,10 @@ export class Dispatcher {
 
       case 'session.open': {
         if (!sessionId) throw new Error('sessionId is required for session.open');
-        const session = await this.registry.openSession(sessionId, payload.cwd);
-        if (session.status === 'worker_error' || !session.worker || !session.worker.health().alive) {
+        const session = payload.continue === true
+          ? await this.registry.continueSession(sessionId, payload.confirmed === true)
+          : await this.registry.openSession(sessionId, payload.cwd);
+        if (!session.readOnly && (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)) {
           await this.registry.getSupervisor().reconcileAndRespawn(session);
         }
         return { session: session.getSessionMeta() };
@@ -377,6 +379,8 @@ export class Dispatcher {
           command: 'set_model',
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
+        const session = this.registry.getSession(sessionId);
+        if (session) session.model = res.data;
         return res.data;
       }
 
@@ -384,7 +388,8 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_available_models' });
-        return res.data;
+        const models = Array.isArray(res.data?.models) ? res.data.models : [];
+        return { ...res.data, models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns()) };
       }
 
       case 'agent.setThinkingLevel': {
@@ -394,6 +399,8 @@ export class Dispatcher {
           command: 'set_thinking_level',
           arguments: { level: payload.level }
         });
+        const session = this.registry.getSession(sessionId);
+        if (session) session.thinkingLevel = payload.level;
         return res.data;
       }
 
@@ -482,6 +489,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error(`Session ${sessionId} not found`);
+        if (session.readOnly) throw new Error('External session is read-only. Duplicate it first.');
         session.name = payload.name;
         if (session.worker) {
           try {
@@ -495,25 +503,16 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error(`Session ${sessionId} not found`);
-        if (session.worker) {
-          const res = await session.worker.send({
-            command: 'fork',
-            arguments: { entryId: payload?.entryId }
-          });
-          return res.data;
-        }
-        return { ok: true, forked: true };
+        const fork = await this.registry.cloneSession(sessionId, payload?.entryId);
+        return { sessionId: fork.id };
       }
 
       case 'session.clone': {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error(`Session ${sessionId} not found`);
-        if (session.worker) {
-          const res = await session.worker.send({ command: 'clone', arguments: {} });
-          return res.data;
-        }
-        return { ok: true, cloned: true };
+        const clone = await this.registry.cloneSession(sessionId);
+        return { sessionId: clone.id };
       }
 
       case 'session.getTree': {

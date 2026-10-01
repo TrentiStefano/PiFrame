@@ -43,6 +43,13 @@ class AppShell extends ConsumerWidget {
       },
       child: Scaffold(
         backgroundColor: tokens.background,
+        drawer: const Drawer(width: 290, child: SessionsSidebar()),
+        appBar: MediaQuery.sizeOf(context).width < 900 ? AppBar(
+          backgroundColor: tokens.surface,
+          foregroundColor: tokens.textPrimary,
+          title: const Text('Pi-Crust'),
+          toolbarHeight: 40,
+        ) : null,
         body: SafeArea(
           child: Column(
             children: [
@@ -79,6 +86,11 @@ class AppShell extends ConsumerWidget {
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: () => ref.invalidate(daemonEndpointProvider),
+                        child: const Text('Riprova'),
                       ),
                     ],
                   ),
@@ -135,16 +147,16 @@ class AppShell extends ConsumerWidget {
                                     : Column(
                                         children: [
                                           Expanded(
-                                            child: TranscriptView(sessionId: activeSessionId),
+                                            child: TranscriptView(key: ValueKey('transcript_$activeSessionId'), sessionId: activeSessionId),
                                           ),
-                                          Composer(sessionId: activeSessionId),
+                                          Composer(key: ValueKey('composer_$activeSessionId'), sessionId: activeSessionId),
                                         ],
                                       ),
                               ),
 
                               // Column 3: Context Panel
                               if (showContextPanel && activeSessionId != null)
-                                ContextPanel(sessionId: activeSessionId),
+                                ContextPanel(key: ValueKey('context_$activeSessionId'), sessionId: activeSessionId),
                             ],
                           );
                         },

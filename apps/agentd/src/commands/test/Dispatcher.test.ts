@@ -1,6 +1,18 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+const temporaryHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-test-'));
+const previousHome = process.env.PI_CRUST_HOME;
+process.env.PI_CRUST_HOME = temporaryHome;
+test.after(() => {
+  if (previousHome === undefined) delete process.env.PI_CRUST_HOME;
+  else process.env.PI_CRUST_HOME = previousHome;
+  fs.rmSync(temporaryHome, { recursive: true, force: true });
+});
 import { Dispatcher } from '../Dispatcher.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';

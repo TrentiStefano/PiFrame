@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/session_reducer.dart';
+import '../../domain/session/snapshot_reducer.dart';
 import 'pcp_client.dart';
 import 'daemon_locator.dart';
 
@@ -15,7 +15,14 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
   return endpointAsync.when(
     data: (endpoint) {
       if (endpoint == null) return null;
-      final client = PcpClient(port: endpoint.port, token: endpoint.token);
+      final client = PcpClient(
+        port: endpoint.port,
+        token: endpoint.token,
+        rediscover: () async {
+          final found = await DaemonLocator.locateOrProbe();
+          return found == null ? null : (port: found.port, token: found.token);
+        },
+      );
       client.connect();
       ref.onDispose(() => client.dispose());
       return client;
@@ -33,27 +40,22 @@ final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
 
 final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final client = ref.watch(pcpClientProvider);
-  if (client == null || client.state != DaemonConnectionState.connected) {
+  final connection = ref.watch(connectionStateProvider);
+  if (client == null || connection.value != DaemonConnectionState.connected) {
     return [];
   }
 
-  final cmd = PcpCommand(
-    protocol: 1,
-    id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-    ts: DateTime.now().millisecondsSinceEpoch,
-    commandId: 'list_${DateTime.now().millisecondsSinceEpoch}',
-    type: 'session.list',
-    payload: {},
-  );
+  final subscription = client.events('@daemon').listen((event) {
+    if (event.type == 'session.indexChanged') {
+      ref.invalidateSelf();
+    }
+  });
+  ref.onDispose(subscription.cancel);
 
-  try {
-    final res = await client.sendCommand(cmd);
-    final data = res['data'] as Map<String, dynamic>?;
-    final sessions = data?['sessions'] as List?;
-    return sessions?.cast<Map<String, dynamic>>() ?? [];
-  } catch (_) {
-    return [];
-  }
+  final res = await client.listSessions();
+  final data = res['data'] as Map<String, dynamic>?;
+  final sessions = data?['sessions'] as List?;
+  return sessions?.cast<Map<String, dynamic>>() ?? [];
 });
 
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
@@ -78,58 +80,18 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   void _init() {
     if (client == null) return;
 
-    client!.attach(sessionId);
-
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
-      final snapPayload = snapshot.payload;
-      final sessionMeta = snapPayload['session'] as Map<String, dynamic>?;
-      final runtimeMeta = snapPayload['runtime'] as Map<String, dynamic>?;
-      final usageMeta = snapPayload['usage'] as Map<String, dynamic>?;
-      final transcriptMeta = snapPayload['transcript'] as Map<String, dynamic>?;
-
-      final rawEntries = transcriptMeta?['entries'] as List<dynamic>? ?? [];
-      final entries = rawEntries.map((e) {
-        final map = e as Map<String, dynamic>;
-        String text = '';
-        if (map['text'] is String) {
-          text = map['text'] as String;
-        } else if (map['content'] is String) {
-          text = map['content'] as String;
-        } else if (map['content'] is List) {
-          for (final b in (map['content'] as List)) {
-            if (b is Map && b['type'] == 'text') {
-              text += (b['text'] as String?) ?? '';
-            }
-          }
-        }
-        return SessionEntry(
-          id: map['id']?.toString() ?? '',
-          role: map['role']?.toString() ?? 'assistant',
-          text: text,
-          timestamp: (map['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-        );
-      }).toList();
-
-      state = state.copyWith(
-        sessionName: sessionMeta?['name'] as String?,
-        cwd: sessionMeta?['cwd'] as String? ?? '',
-        entries: entries.isNotEmpty ? entries : state.entries,
-        currentModel: runtimeMeta?['model'] is Map
-            ? (runtimeMeta!['model']['name'] ?? runtimeMeta['model']['id'])?.toString()
-            : null,
-        currentThinkingLevel: runtimeMeta?['thinkingLevel']?.toString(),
-        usage: usageMeta,
-        lastAppliedSeq: snapshot.seq,
-      );
+      state = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
     });
 
     _sub = client!.events(sessionId).listen((event) {
       state = reduceSessionState(state, event);
     });
+    client!.attach(sessionId);
   }
 
   Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
-    if (client == null) return;
+    if (client == null) throw StateError('Daemon non connesso');
     await client!.sendPrompt(sessionId, text, streamingBehavior: streamingBehavior);
   }
 
@@ -150,12 +112,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> setModel(String provider, String modelId) async {
     if (client == null) return;
-    await client!.setModel(sessionId, provider, modelId);
+    final result = await client!.setModel(sessionId, provider, modelId);
+    final model = result['data'] as Map<String, dynamic>?;
+    state = state.copyWith(currentModel: (model?['name'] ?? model?['id'] ?? modelId).toString());
   }
 
   Future<void> setThinkingLevel(String level) async {
     if (client == null) return;
     await client!.setThinkingLevel(sessionId, level);
+    state = state.copyWith(currentThinkingLevel: level);
   }
 
   Future<void> recoverSession() async {

@@ -6,12 +6,15 @@ import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
 import type { PcpSnapshot, PcpSnapshotPayload } from '@pi-crust/pcp-ts';
+import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 
 export interface SessionRegistryOptions {
   piExecutablePath: string;
   capabilities: PiCapabilities;
   workerIdleTimeoutMs: number;
   connectionManager: ConnectionManager;
+  sessionIndex?: SessionIndex;
+  checkTerminalOwner?: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 }
 
 export class SessionRegistry {
@@ -19,14 +22,17 @@ export class SessionRegistry {
   private index: SessionIndex;
   private supervisor: WorkerSupervisor;
   private connectionManager: ConnectionManager;
+  private checkTerminalOwner: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 
   constructor(opts: SessionRegistryOptions) {
-    this.index = new SessionIndex();
+    this.index = opts.sessionIndex || new SessionIndex();
     this.connectionManager = opts.connectionManager;
+    this.checkTerminalOwner = opts.checkTerminalOwner || hasInteractivePiInCwd;
     this.supervisor = new WorkerSupervisor({
       piExecutablePath: opts.piExecutablePath,
       capabilities: opts.capabilities,
-      defaultIdleTimeoutMs: opts.workerIdleTimeoutMs
+      defaultIdleTimeoutMs: opts.workerIdleTimeoutMs,
+      checkTerminalOwner: this.checkTerminalOwner
     });
   }
 
@@ -46,14 +52,29 @@ export class SessionRegistry {
     return this.index;
   }
 
-  public async listSessions(): Promise<SessionSummary[]> {
-    const activeIds = new Set(this.sessions.keys());
-    return this.index.scan(activeIds);
+  public async listSessions(query?: string, limit = 50): Promise<SessionSummary[]> {
+    const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
+    const merged = new Map((await this.index.scan(activeIds)).map((s) => [s.id, s]));
+    for (const session of this.sessions.values()) {
+      merged.set(session.id, {
+        ...merged.get(session.id),
+        ...session.getSessionMeta(),
+        sessionFile: session.sessionFile || '',
+        sizeBytes: merged.get(session.id)?.sizeBytes || 0,
+        messageCount: session.entries.length,
+        isActive: !session.readOnly
+      } as SessionSummary);
+    }
+    const q = query?.trim().toLowerCase();
+    return Array.from(merged.values())
+      .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
+      .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
   }
 
-  public async createSession(opts: { cwd?: string; name?: string }): Promise<Session> {
+  public async createSession(opts: { cwd?: string; name?: string; announce?: boolean }): Promise<Session> {
     const id = `s_${ulid()}`;
-    const cwd = opts.cwd || process.cwd();
+    const cwd = opts.cwd || process.env.INIT_CWD || process.cwd();
     const name = opts.name || `Session ${new Date().toLocaleTimeString()}`;
 
     const session = new Session({
@@ -67,7 +88,11 @@ export class SessionRegistry {
 
     this.sessions.set(id, session);
 
-    // Broadcast index change on @daemon
+    if (opts.announce !== false) this.announceSession(session);
+    return session;
+  }
+
+  private announceSession(session: Session): void {
     this.connectionManager.broadcast('@daemon', {
       protocol: 1,
       kind: 'event',
@@ -80,19 +105,39 @@ export class SessionRegistry {
         added: [session.getSessionMeta()]
       }
     } as any);
+  }
 
-    return session;
+  private async refreshTerminalOwnership(session: Session): Promise<boolean | null> {
+    if (!session.sessionFile) return false;
+    const owner = await this.checkTerminalOwner(session.cwd, session.sessionFile, session.id);
+    if (owner === false) {
+      session.readOnly = false;
+      session.readOnlyReason = null;
+      session.allowAmbiguousTerminal = false;
+    } else if (owner === true) {
+      session.readOnly = true;
+      session.readOnlyReason = 'terminal';
+      session.allowAmbiguousTerminal = false;
+    } else if (!session.allowAmbiguousTerminal) {
+      session.readOnly = true;
+      session.readOnlyReason = 'unknown';
+    }
+    return owner;
   }
 
   public async openSession(id: string, cwd?: string): Promise<Session> {
     const existing = this.sessions.get(id);
     if (existing) {
+      await this.refreshTerminalOwnership(existing);
       return existing;
     }
 
     // Try finding in session index
     const summaries = await this.index.scan();
     const found = summaries.find((s) => s.id === id);
+    if (!found) {
+      throw Object.assign(new Error(`Session ${id} not found`), { code: 'SESSION_NOT_FOUND' });
+    }
 
     const session = new Session({
       id,
@@ -105,8 +150,78 @@ export class SessionRegistry {
       }
     });
 
+    // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
+    const terminalOwner = await this.refreshTerminalOwnership(session);
+    session.entries = this.index.readTranscript(found.sessionFile);
     this.sessions.set(id, session);
     return session;
+  }
+
+  public async continueSession(id: string, confirmedAmbiguousOwner = false): Promise<Session> {
+    const session = this.sessions.get(id) || await this.openSession(id);
+    const owner = await this.checkTerminalOwner(session.cwd, session.sessionFile, session.id);
+    if (owner === true) {
+      session.readOnly = true;
+      session.readOnlyReason = 'terminal';
+      throw new Error('An interactive Pi terminal is using this session. Duplicate it instead.');
+    }
+    if (owner === null && !confirmedAmbiguousOwner) {
+      throw new Error('Confirm that this exact session is closed in Pi before continuing.');
+    }
+    session.allowAmbiguousTerminal = owner === null;
+    session.readOnly = false;
+    session.readOnlyReason = null;
+    return session;
+  }
+
+  public async cloneSession(id: string, entryId?: string): Promise<Session> {
+    const source = this.sessions.get(id) || await this.openSession(id);
+    if (!source.sessionFile) await this.ensureWorkerForSession(id);
+    if (!source.sessionFile) throw new Error('Pi has not persisted this session yet');
+    if (source.isStreaming) throw new Error('Wait for the active run to settle before duplicating it.');
+    if (entryId) {
+      const persisted = this.index.readTranscript(source.sessionFile);
+      if (!persisted.some((entry) => entry.id === entryId)) {
+        const live = source.entries.find((entry) => entry.id === entryId);
+        const match = persisted.find((entry) => entry.role === 'user' && live?.timestamp != null && entry.timestamp === live.timestamp);
+        if (!match?.id) throw new Error('Fork entry no longer exists on the active branch');
+        entryId = String(match.id);
+      }
+    }
+    let clone = await this.createSession({ cwd: source.cwd, name: `${source.name} (copy)`, announce: false });
+    clone.forkSourceFile = source.sessionFile;
+    try {
+      const worker = await this.ensureWorkerForSession(clone.id);
+      if (entryId) {
+        const response = await worker.send({ command: 'fork', arguments: { entryId } });
+        if (response.data?.cancelled) throw new Error('Pi cancelled the fork');
+        await this.supervisor.refreshSession(clone, worker);
+        const finalId = (await worker.send({ command: 'get_state' })).data?.sessionId;
+        if (finalId && finalId !== clone.id) {
+          // RPC fork changes Pi's identity before its new file is necessarily persisted.
+          this.sessions.delete(clone.id);
+          const final = new Session({
+            id: finalId, name: clone.name, cwd: clone.cwd, sessionFile: clone.sessionFile,
+            onBroadcast: (event) => this.connectionManager.broadcast(finalId, event)
+          });
+          final.entries = clone.entries;
+          final.leafId = clone.leafId;
+          final.model = clone.model;
+          final.thinkingLevel = clone.thinkingLevel;
+          this.supervisor.rekeySession(clone, final);
+          await clone.close();
+          clone = final;
+          this.sessions.set(finalId, final);
+        }
+      }
+      this.announceSession(clone);
+      return clone;
+    } catch (error) {
+      await this.closeWorker(clone.id);
+      this.sessions.delete(clone.id);
+      await clone.close();
+      throw error;
+    }
   }
 
   public async attachClient(
@@ -120,6 +235,12 @@ export class SessionRegistry {
       session = await this.openSession(sessionId);
     }
 
+    if (session.sessionFile) {
+      await this.refreshTerminalOwnership(session);
+      if (session.readOnly || !session.worker) session.entries = this.index.readTranscript(session.sessionFile);
+      // Without a Pi worker, the session file is the latest source of history.
+      if (session.readOnly || !session.worker) lastSeq = null;
+    }
     session.attachedClientIds.add(conn.id);
     conn.attachedSessions.add(sessionId);
 
@@ -249,8 +370,6 @@ export class SessionRegistry {
 
   public async closeAll(graceMs = 5000): Promise<void> {
     await this.supervisor.stopAll(graceMs);
-    for (const session of this.sessions.values()) {
-      session.close();
-    }
+    await Promise.all(Array.from(this.sessions.values(), (session) => session.close()));
   }
 }

@@ -31,13 +31,13 @@ test('PiEventAdapter: maps agent_start and text_delta', () => {
   assert.equal(updatePcp[0].payload.contentIndex, 0);
 });
 
-test('PiEventAdapter: maps agent_end without retry to run.ended and run.settled', () => {
+test('PiEventAdapter: settles only on agent_settled, not agent_end', () => {
   const ctx = { sessionId: 'test_session' };
   const endEvt = { type: 'agent_end', willRetry: false };
   const endPcp = adaptPiEvent(endEvt, ctx);
-  assert.equal(endPcp.length, 2);
+  assert.equal(endPcp.length, 1);
   assert.equal(endPcp[0].type, 'run.ended');
-  assert.equal(endPcp[1].type, 'run.settled');
+  assert.equal(adaptPiEvent({ type: 'agent_settled' }, ctx)[0].type, 'run.settled');
 });
 
 test('PiEventAdapter: processes real fixture file text-only.jsonl', () => {

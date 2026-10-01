@@ -9,7 +9,7 @@ import 'package:pi_crust/data/daemon/daemon_providers.dart';
 void main() {
   Widget wrapWithThemeAndScope(Widget child, {List<Override> overrides = const []}) {
     return ProviderScope(
-      overrides: overrides,
+      overrides: [daemonEndpointProvider.overrideWith((ref) async => null), ...overrides],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(
           extensions: const [CrustTokens.dark],
@@ -53,7 +53,7 @@ void main() {
     expect(find.text('Sessioni'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text('Tutte'), findsOneWidget);
-    expect(find.text('Attive'), findsOneWidget);
+    expect(find.text('Gestite'), findsOneWidget);
     expect(find.text('Questo repo'), findsOneWidget);
 
     // Both sessions should initially be visible
@@ -71,8 +71,8 @@ void main() {
     await tester.enterText(find.byType(TextField), '');
     await tester.pumpAndSettle();
 
-    // Filter by "Attive" chip
-    await tester.tap(find.text('Attive'));
+    // Filter by daemon-managed sessions.
+    await tester.tap(find.text('Gestite'));
     await tester.pumpAndSettle();
 
     expect(find.text('Feature Branch A'), findsOneWidget);

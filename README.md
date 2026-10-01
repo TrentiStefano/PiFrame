@@ -89,10 +89,10 @@
 
 Before building or running Pi-Crust, ensure the following are installed on your machine:
 
-1. **Flutter SDK:** Version `^3.13.2` or later (tested on Flutter `3.47.x` Channel stable).
-2. **Node.js & pnpm:** Node.js `>= 22.0.0` and `pnpm >= 9.0.0`.
+1. **Flutter SDK:** Flutter `3.47.2` or later with Dart `>= 3.13.2` (the constraint in `pubspec.yaml`).
+2. **Node.js & pnpm:** Node.js `>= 22.19.0` and `pnpm >= 9.0.0`.
 3. **Pi CLI:**
-   - Install `pi-coding-agent` (`>= v0.85.0`) globally, or
+   - Install `@earendil-works/pi-coding-agent` globally (real CLI integration verified with `v0.99.2`), or
    - Use the included **`fake-pi`** tool for local development and testing without requiring LLM API keys.
 4. **For Windows Desktop (.exe):**
    - **Visual Studio 2022+** with the **"Desktop development with C++"** workload installed (standard requirement for Flutter Windows development).
@@ -123,10 +123,10 @@ pnpm run:daemon
 
 # Option B: Development mode using fake-pi (no LLM key needed)
 # On Windows PowerShell:
-$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/bin/fake-pi"; pnpm run:daemon
+$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
 
 # On Linux/macOS:
-PI_CRUST_PI_PATH=./tools/fake-pi/bin/fake-pi pnpm run:daemon
+PI_CRUST_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
 ```
 The daemon will initialize `~/.pi-crust/runtime/`, write `daemon.json` and `daemon.token`, and start listening on `127.0.0.1`.
 
@@ -138,9 +138,26 @@ cd apps/pi_crust
 # Run as Windows Desktop app:
 flutter run -d windows
 
-# Or run as a Web application in Chrome:
-flutter run -d chrome
+# Build the Web application with local renderer assets:
+flutter build web --no-web-resources-cdn
 ```
+
+For Web, serve the build from the daemon's own origin. From the repository root, start the daemon with:
+```powershell
+$env:PI_CRUST_WEB_DIR = "$PWD/apps/pi_crust/build/web"
+pnpm run:daemon
+```
+On Linux/macOS, use `PI_CRUST_WEB_DIR="$PWD/apps/pi_crust/build/web" pnpm run:daemon`.
+Open `http://127.0.0.1:<port>/`, using the port printed by the daemon. A separate `flutter run -d chrome` server cannot discover native runtime files.
+
+### Existing terminal sessions
+The sidebar indexes Pi session files and hides sessions whose project path is inside the OS temporary directory.
+Closed sessions open directly in Pi-Crust and continue in the original Pi session file.
+Pi does not expose the exact session selected by an already-running terminal process. Pi-Crust detects explicit session arguments and treats other Pi processes in the same project as ambiguous.
+Ambiguous sessions stay read-only until you confirm that the terminal is not using that session. Use **Duplica e continua** to avoid shared writes.
+The **Gestite** filter shows daemon-managed sessions. It does not list live terminal processes.
+The model picker applies Pi's global `enabledModels` setting and Pi's authenticated-model list.
+Set `PI_CODING_AGENT_SESSION_DIR` on the daemon to index a custom session directory.
 
 ---
 
@@ -167,13 +184,16 @@ Once compilation completes, the release output will be located in:
 ```text
 apps/pi_crust/build/windows/x64/runner/Release/
 ├── pi_crust.exe           # The main executable
+├── pi-agentd.cjs          # Daemon sidecar copied by the Windows build
 ├── flutter_windows.dll    # Flutter engine runtime
 └── data/                  # Assets, fonts, and bundled themes
 ```
 
 #### How to test it:
 1. **With daemon running:** If `pi-agentd` is already running (`pnpm run:daemon`), simply double-click `pi_crust.exe`. The application automatically discovers the active daemon via `~/.pi-crust/runtime/daemon.json` and authenticates.
-2. **Autonomous launch:** If no daemon is running, `pi_crust.exe` automatically checks for a bundled daemon sidecar (`pi-agentd.exe` or `dist/pi-agentd.cjs`) or uses the `PI_CRUST_DAEMON_BIN` environment variable to launch the daemon process on-demand.
+2. **Autonomous launch:** If no daemon is running, `pi_crust.exe` checks for adjacent `pi-agentd.exe`, `pi-agentd.cjs`, or `dist/pi-agentd.cjs`. It also accepts `PI_CRUST_DAEMON_BIN`.
+3. **Node requirement:** The `.cjs` sidecar requires `node` on PATH. A Node SEA executable does not require a separate Node installation.
+4. **Reconnect:** Desktop reconnects re-read the daemon endpoint. Commands with uncertain outcomes are not replayed after the daemon token changes.
 
 ---
 
@@ -188,14 +208,18 @@ pnpm test
 # Run End-to-End and Fault Injection test suites:
 pnpm test:e2e
 
+# Exercise the installed real Pi CLI with an isolated, loopback mock model:
+# No real LLM calls or changes to existing Pi sessions.
+pnpm smoke:real-pi
+
 # Run Flutter static analysis:
 cd apps/pi_crust
 flutter analyze
 ```
 
 ### Test Suites Breakdown:
-- **`apps/agentd`:** 30 unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
-- **`apps/pi_crust`:** 23 widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
+- **`apps/agentd`:** Unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
+- **`apps/pi_crust`:** Widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
 - **`packages/pi_crust_protocol`:** 4 contract serialization & forward compatibility tests.
 - **`packages/pi_crust_theme`:** 7 theme parsing, inheritance, and cycle detection tests.
 - **`test/e2e`:** 4 end-to-end integration tests, including:

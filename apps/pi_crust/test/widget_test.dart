@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust/main.dart';
+import 'package:pi_crust/data/daemon/daemon_providers.dart';
 
 void main() {
   testWidgets('PiCrustApp loads smoke test', (WidgetTester tester) async {
@@ -9,7 +10,10 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(const ProviderScope(child: PiCrustApp()));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+      child: const PiCrustApp(),
+    ));
     await tester.pump(const Duration(milliseconds: 50));
 
     // Verify app starts and renders

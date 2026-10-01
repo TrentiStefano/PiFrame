@@ -59,6 +59,8 @@ class SessionState {
   final String sessionId;
   final String? sessionName;
   final String cwd;
+  final bool readOnly;
+  final String? readOnlyReason;
   final AgentStatus agentStatus;
   final List<SessionEntry> entries;
   final Map<int, String> streamingTextBlocks;
@@ -77,6 +79,8 @@ class SessionState {
     required this.sessionId,
     this.sessionName,
     required this.cwd,
+    this.readOnly = false,
+    this.readOnlyReason,
     this.agentStatus = AgentStatus.settled,
     this.entries = const [],
     this.streamingTextBlocks = const {},
@@ -107,6 +111,8 @@ class SessionState {
   SessionState copyWith({
     String? sessionName,
     String? cwd,
+    bool? readOnly,
+    String? readOnlyReason,
     AgentStatus? agentStatus,
     List<SessionEntry>? entries,
     Map<int, String>? streamingTextBlocks,
@@ -125,6 +131,8 @@ class SessionState {
       sessionId: sessionId,
       sessionName: sessionName ?? this.sessionName,
       cwd: cwd ?? this.cwd,
+      readOnly: readOnly ?? this.readOnly,
+      readOnlyReason: readOnlyReason ?? this.readOnlyReason,
       agentStatus: agentStatus ?? this.agentStatus,
       entries: entries ?? this.entries,
       streamingTextBlocks: streamingTextBlocks ?? this.streamingTextBlocks,

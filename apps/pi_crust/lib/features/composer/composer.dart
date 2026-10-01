@@ -6,6 +6,9 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import 'slash_menu.dart';
 
+final composerDraftProvider = StateProvider.family<String, String>((ref, sessionId) => '');
+final composerSendingProvider = StateProvider.family<bool, String>((ref, sessionId) => false);
+
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -25,6 +28,7 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   void initState() {
     super.initState();
+    _controller.text = ref.read(composerDraftProvider(widget.sessionId));
     _controller.addListener(_onTextChanged);
     _loadCommands();
   }
@@ -41,6 +45,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   void _onTextChanged() {
     final text = _controller.text;
+    ref.read(composerDraftProvider(widget.sessionId).notifier).state = text;
     final show = text.startsWith('/') && !text.contains('\n');
     if (show != _showSlashMenu) {
       setState(() {
@@ -57,17 +62,67 @@ class _ComposerState extends ConsumerState<Composer> {
     super.dispose();
   }
 
-  void _send({String? streamingBehavior}) {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  Future<void> _send({String? streamingBehavior}) async {
+    final draft = _controller.text;
+    final text = draft.trim();
+    if (text.isEmpty || ref.read(composerSendingProvider(widget.sessionId))) return;
+    final savedDraft = ref.read(composerDraftProvider(widget.sessionId).notifier);
+    final sending = ref.read(composerSendingProvider(widget.sessionId).notifier);
+    sending.state = true;
+    try {
+      await ref.read(sessionStateFamily(widget.sessionId).notifier)
+          .sendPrompt(text, streamingBehavior: streamingBehavior);
+      if (savedDraft.mounted && savedDraft.state == draft) savedDraft.state = '';
+      if (mounted && _controller.text == draft) _controller.clear();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invio non riuscito: $error')),
+        );
+      }
+    } finally {
+      if (sending.mounted) sending.state = false;
+    }
+  }
 
-    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    sessionNotifier.sendPrompt(text, streamingBehavior: streamingBehavior);
+  Future<void> _continueAmbiguousSession() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verifica la sessione Pi'),
+        content: const Text(
+          'Pi-Crust rileva Pi interattivo aperto in questa cartella, ma Pi non comunica quale file di sessione usa. '
+          'Continua solo se questa sessione non è aperta nel terminale. Due processi sullo stesso file possono danneggiare la cronologia.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annulla')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continua qui')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final client = ref.read(pcpClientProvider);
+      if (client == null) throw StateError('Daemon non connesso');
+      await client.continueSession(widget.sessionId, confirmed: true);
+      if (!mounted) return;
+      ref.invalidate(sessionListProvider);
+      ref.invalidate(sessionStateFamily(widget.sessionId));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ripresa non riuscita: $error')));
+      }
+    }
+  }
 
-    _controller.clear();
-    setState(() {
-      _showSlashMenu = false;
-    });
+  Future<void> _runAction(Future<dynamic> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+      }
+    }
   }
 
   Future<void> _interrupt() async {
@@ -77,15 +132,24 @@ class _ComposerState extends ConsumerState<Composer> {
     });
 
     final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final res = await sessionNotifier.interrupt();
+    Map<String, dynamic>? res;
+    try {
+      res = await sessionNotifier.interrupt();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Interruzione non riuscita: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isInterrupting = false);
+    }
+    if (!mounted) return;
 
-    setState(() {
-      _isInterrupting = false;
-    });
-
+    final data = res?['data'] as Map<String, dynamic>? ?? res;
     // Esc semantics: Restore any unexecuted queued text back into the composer
-    if (res != null && res['queue'] is Map) {
-      final q = res['queue'] as Map<String, dynamic>;
+    if (data != null && data['queue'] is Map) {
+      final q = data['queue'] as Map<String, dynamic>;
       final steering = (q['steering'] as List<dynamic>?)?.cast<String>() ?? [];
       final followUp = (q['followUp'] as List<dynamic>?)?.cast<String>() ?? [];
       final restored = [...steering, ...followUp].where((s) => s.trim().isNotEmpty).join('\n');
@@ -123,8 +187,56 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final isSending = ref.watch(composerSendingProvider(widget.sessionId));
+    ref.listen<String>(composerDraftProvider(widget.sessionId), (previous, draft) {
+      if (_controller.text != draft) {
+        _controller.value = TextEditingValue(text: draft, selection: TextSelection.collapsed(offset: draft.length));
+      }
+    });
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
     final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    if (sessionState.readOnly) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          Expanded(child: Text(
+            sessionState.readOnlyReason == 'terminal'
+                ? 'Pi ha una sessione interattiva aperta in questa cartella. Duplica per evitare scritture concorrenti.'
+                : 'Pi-Crust non può verificare che questa sessione sia chiusa. Duplica per continuare in sicurezza.',
+            style: TextStyle(color: tokens.textSecondary),
+          )),
+          if (sessionState.readOnlyReason == 'unknown') ...[
+            TextButton.icon(
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Continua qui'),
+              onPressed: _continueAmbiguousSession,
+            ),
+            const SizedBox(width: 8),
+          ],
+          TextButton.icon(
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Duplica e continua'),
+            onPressed: () async {
+              try {
+                final client = ref.read(pcpClientProvider);
+                if (client == null) throw StateError('Daemon non connesso');
+                final result = await client.cloneSession(widget.sessionId);
+                if (!mounted) return;
+                final data = result['data'] as Map<String, dynamic>;
+                ref.read(activeSessionIdProvider.notifier).state = data['sessionId'] as String;
+                ref.invalidate(sessionListProvider);
+              } catch (error) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Duplicazione non riuscita: $error')),
+                  );
+                }
+              }
+            },
+          ),
+        ]),
+      );
+    }
     final isStreaming = sessionState.isStreaming;
     final isError = sessionState.agentStatus == AgentStatus.workerError;
     final totalQueued = sessionState.steeringQueue.length + sessionState.followUpQueue.length;
@@ -174,7 +286,7 @@ class _ComposerState extends ConsumerState<Composer> {
                       'Svuota coda',
                       style: TextStyle(color: tokens.textMuted, fontSize: 11),
                     ),
-                    onPressed: () => sessionNotifier.clearQueue(),
+                    onPressed: () => _runAction(sessionNotifier.clearQueue),
                   ),
                 ],
               ),
@@ -206,7 +318,7 @@ class _ComposerState extends ConsumerState<Composer> {
                     ),
                     icon: const Icon(Icons.refresh, size: 14),
                     label: const Text('Riprendi sessione', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: () => sessionNotifier.recoverSession(),
+                    onPressed: () => _runAction(sessionNotifier.recoverSession),
                   ),
                 ],
               ),
@@ -296,7 +408,7 @@ class _ComposerState extends ConsumerState<Composer> {
                             backgroundColor: tokens.accent,
                             foregroundColor: tokens.accentContrast,
                           ),
-                          onPressed: () => _send(),
+                          onPressed: isSending ? null : () => _send(),
                         ),
                       ),
                     )
@@ -313,7 +425,7 @@ class _ComposerState extends ConsumerState<Composer> {
                         ),
                         icon: const Icon(Icons.bolt, size: 16),
                         label: const Text('Steer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        onPressed: () => _send(streamingBehavior: 'steer'),
+                        onPressed: isSending ? null : () => _send(streamingBehavior: 'steer'),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -329,7 +441,7 @@ class _ComposerState extends ConsumerState<Composer> {
                         ),
                         icon: const Icon(Icons.more_time, size: 16),
                         label: const Text('Follow-up', style: TextStyle(fontSize: 12)),
-                        onPressed: () => _send(streamingBehavior: 'followUp'),
+                        onPressed: isSending ? null : () => _send(streamingBehavior: 'followUp'),
                       ),
                     ),
                   ],

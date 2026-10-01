@@ -23,6 +23,10 @@ export class Spill {
         fs.mkdirSync(this.journalDir, { recursive: true });
       }
       this.writeStream = fs.createWriteStream(this.eventsFile, { flags: 'a', encoding: 'utf8' });
+      this.writeStream.on('error', (error) => {
+        console.error(`Spill write failed for session ${this.sessionId}:`, error);
+        this.writeStream = undefined;
+      });
     } catch (err) {
       console.error(`Failed to initialize spill for session ${this.sessionId}:`, err);
     }
@@ -97,10 +101,13 @@ export class Spill {
     return null;
   }
 
-  public close(): void {
-    if (this.writeStream) {
-      this.writeStream.end();
-      this.writeStream = undefined;
-    }
+  public close(): Promise<void> {
+    const stream = this.writeStream;
+    this.writeStream = undefined;
+    if (!stream || stream.closed) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      stream.once('close', resolve);
+      stream.end();
+    });
   }
 }

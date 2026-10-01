@@ -151,75 +151,32 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               ),
             ),
 
-            // Transcript Entries List
+            // Eager layout gives scrollbar exact total extent for variable-height messages.
             Expanded(
-              child: ListView.builder(
+              child: Scrollbar(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(20),
-                itemCount: sessionState.entries.length + (showLiveStream ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index < sessionState.entries.length) {
-                    final entry = sessionState.entries[index];
-                    return _buildEntryItem(entry, tokens);
-                  }
-
-                  // Active Streaming Block
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 20),
+                thumbVisibility: true,
+                trackVisibility: true,
+                interactive: true,
+                child: SingleChildScrollView(
+                  key: const ValueKey('transcript-scroll'),
+                  controller: _scrollController,
+                  child: Padding(
+                    key: const ValueKey('transcript-content'),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
+
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (liveThinking.isNotEmpty ||
-                            sessionState.agentStatus == AgentStatus.working)
-                          ThinkingBlock(
-                            thinkingText: liveThinking,
-                            isStreaming: sessionState.isStreaming,
-                          ),
-                        if (hasActiveTools)
-                          ToolTimeline(
-                            toolCalls: sessionState.activeToolCalls.values.toList(),
-                          ),
-                        if (liveText.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: tokens.surfaceElevated,
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
-                              border: Border.all(
-                                color: tokens.agentWorking.withValues(alpha: 0.4),
-                                width: 1,
-                              ),
-                            ),
-                            child: RichContent(text: liveText),
-                          )
-                        else if (sessionState.agentStatus == AgentStatus.working &&
-                            liveThinking.isEmpty &&
-                            !hasActiveTools)
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  color: tokens.agentWorking,
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Elaborazione in corso...',
-                                style: TextStyle(
-                                  color: tokens.agentWorking,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                        for (final entry in sessionState.entries) _buildEntryItem(entry, tokens),
+                        if (showLiveStream)
+                          _buildLiveStream(
+                            sessionState, tokens, liveThinking, liveText, hasActiveTools,
                           ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
           ],
@@ -238,6 +195,43 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildLiveStream(
+    SessionState sessionState,
+    CrustTokens tokens,
+    String liveThinking,
+    String liveText,
+    bool hasActiveTools,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (liveThinking.isNotEmpty || sessionState.agentStatus == AgentStatus.working)
+            ThinkingBlock(thinkingText: liveThinking, isStreaming: sessionState.isStreaming),
+          if (hasActiveTools)
+            ToolTimeline(toolCalls: sessionState.activeToolCalls.values.toList()),
+          if (liveText.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                border: Border.all(color: tokens.agentWorking.withValues(alpha: 0.4)),
+              ),
+              child: RichContent(text: liveText),
+            )
+          else if (sessionState.agentStatus == AgentStatus.working && liveThinking.isEmpty && !hasActiveTools)
+            Row(children: [
+              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: tokens.agentWorking, strokeWidth: 2)),
+              const SizedBox(width: 8),
+              Text('Elaborazione in corso...', style: TextStyle(color: tokens.agentWorking, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+        ],
+      ),
     );
   }
 

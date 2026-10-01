@@ -3,11 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust/features/settings/settings_view.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+import 'package:pi_crust/data/daemon/daemon_providers.dart';
 
 void main() {
   testWidgets('SettingsView renders all 4 tabs properly', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
             extensions: [CrustTokens.dark],
@@ -31,6 +33,7 @@ void main() {
   testWidgets('SettingsView enforces D16 Zero Remote Telemetry in Privacy tab', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
             extensions: [CrustTokens.dark],

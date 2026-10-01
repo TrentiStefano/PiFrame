@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/daemon/pcp_client.dart';
 import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 
@@ -184,6 +185,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   ),
                 ),
                 IconButton(
+                  icon: Icon(Icons.refresh, color: tokens.textMuted, size: 18),
+                  tooltip: 'Aggiorna sessioni',
+                  onPressed: () {
+                    ref.invalidate(sessionListProvider);
+                    final active = ref.read(activeSessionIdProvider);
+                    if (active != null) ref.read(pcpClientProvider)?.attach(active);
+                  },
+                ),
+                IconButton(
                   icon: Icon(Icons.add, color: tokens.accent, size: 20),
                   tooltip: 'Nuova Sessione',
                   onPressed: () async {
@@ -193,17 +203,24 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       protocol: 1,
                       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
                       ts: DateTime.now().millisecondsSinceEpoch,
-                      commandId: 'crt_${DateTime.now().millisecondsSinceEpoch}',
+                      commandId: PcpClient.newCommandId('crt'),
                       type: 'session.create',
                       payload: {},
                     );
-                    final res = await client.sendCommand(cmd);
-                    final data = res['data'] as Map<String, dynamic>?;
-                    final session = data?['session'] as Map<String, dynamic>?;
-                    final sid = session?['id'] as String?;
-                    if (sid != null) {
-                      ref.read(activeSessionIdProvider.notifier).state = sid;
-                      ref.invalidate(sessionListProvider);
+                    try {
+                      final res = await client.sendCommand(cmd);
+                      if (!mounted) return;
+                      final data = res['data'] as Map<String, dynamic>?;
+                      final session = data?['session'] as Map<String, dynamic>?;
+                      final sid = session?['id'] as String?;
+                      if (sid != null) {
+                        ref.read(activeSessionIdProvider.notifier).state = sid;
+                        ref.invalidate(sessionListProvider);
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Creazione non riuscita: $error')));
+                      }
                     }
                   },
                 ),
@@ -265,7 +282,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 children: [
                   _buildFilterChip('all', 'Tutte', tokens),
                   const SizedBox(width: 6),
-                  _buildFilterChip('active', 'Attive', tokens),
+                  _buildFilterChip('active', 'Gestite', tokens),
                   const SizedBox(width: 6),
                   _buildFilterChip('repo', 'Questo repo', tokens),
                 ],
@@ -283,7 +300,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   final name = (s['name'] as String? ?? '').toLowerCase();
                   final cwd = (s['cwd'] as String? ?? '').toLowerCase();
                   final preview = (s['lastMessagePreview'] as String? ?? '').toLowerCase();
-                  final isActive = s['isActive'] == true || s['id'] == activeId;
+                  final isActive = s['isActive'] == true;
 
                   // Text search
                   if (_searchQuery.isNotEmpty) {
@@ -331,7 +348,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     final cwd = s['cwd'] as String? ?? '';
                     final preview = s['lastMessagePreview'] as String?;
                     final isSelected = id == activeId;
-                    final isActive = s['isActive'] == true || isSelected;
+                    final isActive = s['isActive'] == true;
 
                     return Container(
                       decoration: BoxDecoration(

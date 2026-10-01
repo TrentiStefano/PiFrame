@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { PiCapabilities } from './piCommands.js';
+import { resolvePiLaunch } from './executable.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -94,15 +95,8 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
 
   // Probe pi --version
   try {
-    let spawnPath = foundPath;
-    let spawnArgs = ['--version'];
-
-    if (spawnPath.endsWith('.js')) {
-      spawnArgs = [spawnPath, '--version'];
-      spawnPath = process.execPath;
-    }
-
-    const { stdout } = await execFileAsync(spawnPath, spawnArgs, {
+    const launch = resolvePiLaunch(foundPath, ['--version']);
+    const { stdout } = await execFileAsync(launch.file, launch.args, {
       timeout: 5000,
       windowsHide: true
     });

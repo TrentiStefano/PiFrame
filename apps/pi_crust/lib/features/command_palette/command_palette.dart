@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/daemon/pcp_client.dart';
 
 class PaletteAction {
   final String id;
   final String title;
   final String subtitle;
   final IconData icon;
-  final VoidCallback onExecute;
+  final Future<void> Function() onExecute;
 
   const PaletteAction({
     required this.id,
@@ -64,11 +65,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
               id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
               ts: DateTime.now().millisecondsSinceEpoch,
               sessionId: '@daemon',
-              commandId: 'cs_${DateTime.now().millisecondsSinceEpoch}',
+              commandId: PcpClient.newCommandId('cs'),
               type: 'session.create',
               payload: {'name': 'Nuova Sessione'},
             );
             final res = await pcpClient.sendCommand(cmd);
+            if (!mounted) return;
             final data = res['data'] as Map<String, dynamic>?;
             final session = (data?['session'] ?? res['session']) as Map<String, dynamic>?;
             if (session != null && session['id'] != null) {
@@ -84,8 +86,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           title: 'Compatta contesto',
           subtitle: 'Esegui manual compaction per ridurre i token',
           icon: Icons.compress,
-          onExecute: () {
-            ref.read(sessionStateFamily(activeSessionId).notifier).compact();
+          onExecute: () async {
+            await ref.read(sessionStateFamily(activeSessionId).notifier).compact();
           },
         ),
         PaletteAction(
@@ -93,8 +95,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           title: 'Svuota coda',
           subtitle: 'Rimuovi tutti i messaggi steer e follow-up in attesa',
           icon: Icons.clear_all,
-          onExecute: () {
-            ref.read(sessionStateFamily(activeSessionId).notifier).clearQueue();
+          onExecute: () async {
+            await ref.read(sessionStateFamily(activeSessionId).notifier).clearQueue();
           },
         ),
         PaletteAction(
@@ -102,8 +104,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           title: 'Interrompi agente (Esc)',
           subtitle: 'Ferma il modello e ripristina la coda nel composer',
           icon: Icons.stop_circle_outlined,
-          onExecute: () {
-            ref.read(sessionStateFamily(activeSessionId).notifier).interrupt();
+          onExecute: () async {
+            await ref.read(sessionStateFamily(activeSessionId).notifier).interrupt();
           },
         ),
       ],
@@ -112,7 +114,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         title: 'Apri Impostazioni',
         subtitle: 'Configura percorso Pi, timeout worker e aspetto',
         icon: Icons.settings,
-        onExecute: () {
+        onExecute: () async {
           widget.onOpenSettings?.call();
         },
       ),
@@ -202,9 +204,15 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                             final isSelected = index == _selectedIndex;
 
                             return InkWell(
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                action.onExecute();
+                              onTap: () async {
+                                try {
+                                  await action.onExecute();
+                                  if (context.mounted) Navigator.of(context).pop();
+                                } catch (error) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+                                  }
+                                }
                               },
                               hoverColor: tokens.surface,
                               child: Container(
