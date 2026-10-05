@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../domain/session/session_state.dart';
 
 class ToolCard extends StatefulWidget {
@@ -61,14 +62,14 @@ class _ToolCardState extends State<ToolCard> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: isBash ? tokens.background : tokens.surface,
+        color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         border: Border.all(
           color: tool.isError
               ? tokens.agentError
               : tool.isRunning
-                  ? tokens.agentWorking.withValues(alpha: 0.6)
-                  : tokens.border,
+              ? tokens.agentWorking.withValues(alpha: 0.6)
+              : tokens.border,
           width: 1,
         ),
       ),
@@ -76,9 +77,17 @@ class _ToolCardState extends State<ToolCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header row
-          InkWell(
-            onTap: hasOutput ? () => setState(() => _isExpanded = !_isExpanded) : null,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          TextButton(
+            onPressed: hasOutput
+                ? () => setState(() => _isExpanded = !_isExpanded)
+                : null,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+              alignment: Alignment.centerLeft,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: Row(
@@ -89,8 +98,8 @@ class _ToolCardState extends State<ToolCard> {
                     color: tool.isError
                         ? tokens.agentError
                         : tool.isRunning
-                            ? tokens.agentWorking
-                            : tokens.textSecondary,
+                        ? tokens.agentWorking
+                        : tokens.textSecondary,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -98,8 +107,8 @@ class _ToolCardState extends State<ToolCard> {
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 12,
-                      fontFamily: tokens.monoFontFamily,
-                      fontWeight: FontWeight.bold,
+                      fontFamily: tokens.uiFontFamily,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (argPreview.isNotEmpty) ...[
@@ -140,9 +149,17 @@ class _ToolCardState extends State<ToolCard> {
                       ),
                     )
                   else if (tool.isError)
-                    Icon(Icons.error_outline, size: 14, color: tokens.agentError)
+                    Icon(
+                      Icons.error_outline,
+                      size: 14,
+                      color: tokens.agentError,
+                    )
                   else
-                    Icon(Icons.check_circle_outline, size: 14, color: tokens.agentSettled),
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 14,
+                      color: tokens.agentSettled,
+                    ),
                   if (hasOutput) ...[
                     const SizedBox(width: 4),
                     Icon(
@@ -175,7 +192,9 @@ class _ToolCardState extends State<ToolCard> {
                 child: SelectableText(
                   tool.output,
                   style: TextStyle(
-                    color: tool.isError ? tokens.agentError : tokens.textSecondary,
+                    color: tool.isError
+                        ? tokens.agentError
+                        : tokens.textSecondary,
                     fontSize: 11.5,
                     fontFamily: tokens.monoFontFamily,
                     height: 1.4,

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
-import 'package:pi_crust_protocol/pi_crust_protocol.dart';
+
+import 'session_actions.dart';
 import '../../data/daemon/daemon_providers.dart';
-import '../../data/daemon/pcp_client.dart';
 import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 
 class SessionsSidebar extends ConsumerStatefulWidget {
-  const SessionsSidebar({super.key});
+  final VoidCallback? onSessionSelected;
+
+  const SessionsSidebar({super.key, this.onSessionSelected});
 
   @override
   ConsumerState<SessionsSidebar> createState() => _SessionsSidebarState();
@@ -18,6 +20,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _filterMode = 'all'; // 'all', 'active', 'repo'
+  bool _creating = false;
 
   @override
   void initState() {
@@ -49,7 +52,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         ),
         title: Text(
           'Rinomina Sessione',
-          style: TextStyle(color: tokens.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: TextField(
           controller: textController,
@@ -157,13 +164,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final tokens = context.tokens;
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
-    final activeSessionCwd = activeId != null ? ref.watch(sessionStateFamily(activeId)).cwd : '';
+    final activeSessionCwd = activeId != null
+        ? ref.watch(sessionStateFamily(activeId)).cwd
+        : '';
 
     return Container(
-      width: 290,
+      width: 280,
       decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border(right: BorderSide(color: tokens.border, width: 1)),
+        color: tokens.chassis,
+        border: Border(right: BorderSide(color: tokens.borderStrong, width: 1)),
       ),
       child: Column(
         children: [
@@ -171,17 +180,25 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Sessioni',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Sessioni',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 30,
+                      height: 1.0,
+                      fontFamily: tokens.headingFontFamily,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -190,39 +207,24 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   onPressed: () {
                     ref.invalidate(sessionListProvider);
                     final active = ref.read(activeSessionIdProvider);
-                    if (active != null) ref.read(pcpClientProvider)?.attach(active);
+                    if (active != null) {
+                      ref.read(pcpClientProvider)?.attach(active);
+                    }
                   },
                 ),
                 IconButton(
                   icon: Icon(Icons.add, color: tokens.accent, size: 20),
                   tooltip: 'Nuova Sessione',
-                  onPressed: () async {
-                    final client = ref.read(pcpClientProvider);
-                    if (client == null) return;
-                    final cmd = PcpCommand(
-                      protocol: 1,
-                      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-                      ts: DateTime.now().millisecondsSinceEpoch,
-                      commandId: PcpClient.newCommandId('crt'),
-                      type: 'session.create',
-                      payload: {},
-                    );
-                    try {
-                      final res = await client.sendCommand(cmd);
-                      if (!mounted) return;
-                      final data = res['data'] as Map<String, dynamic>?;
-                      final session = data?['session'] as Map<String, dynamic>?;
-                      final sid = session?['id'] as String?;
-                      if (sid != null) {
-                        ref.read(activeSessionIdProvider.notifier).state = sid;
-                        ref.invalidate(sessionListProvider);
-                      }
-                    } catch (error) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Creazione non riuscita: $error')));
-                      }
-                    }
-                  },
+                  onPressed: _creating || ref.watch(pcpClientProvider) == null
+                      ? null
+                      : () async {
+                          setState(() => _creating = true);
+                          await createSession(context, ref);
+                          if (mounted) {
+                            setState(() => _creating = false);
+                            widget.onSessionSelected?.call();
+                          }
+                        },
                 ),
               ],
             ),
@@ -232,7 +234,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
             ),
             child: TextField(
               controller: _searchController,
@@ -241,19 +245,36 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 isDense: true,
                 hintText: 'Cerca sessioni...',
                 hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
-                prefixIcon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: tokens.textMuted,
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear, size: 14, color: tokens.textMuted),
+                        icon: Icon(
+                          Icons.clear,
+                          size: 14,
+                          color: tokens.textMuted,
+                        ),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
                         onPressed: () => _searchController.clear(),
                       )
                     : null,
                 filled: true,
                 fillColor: tokens.surfaceElevated,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
                   borderSide: BorderSide(color: tokens.border),
@@ -274,7 +295,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -299,12 +322,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   final id = (s['id'] as String? ?? '').toLowerCase();
                   final name = (s['name'] as String? ?? '').toLowerCase();
                   final cwd = (s['cwd'] as String? ?? '').toLowerCase();
-                  final preview = (s['lastMessagePreview'] as String? ?? '').toLowerCase();
+                  final preview = (s['lastMessagePreview'] as String? ?? '')
+                      .toLowerCase();
                   final isActive = s['isActive'] == true;
 
                   // Text search
                   if (_searchQuery.isNotEmpty) {
-                    final match = id.contains(_searchQuery) ||
+                    final match =
+                        id.contains(_searchQuery) ||
                         name.contains(_searchQuery) ||
                         cwd.contains(_searchQuery) ||
                         preview.contains(_searchQuery);
@@ -340,6 +365,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     final s = filtered[index];
@@ -350,113 +379,181 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     final isSelected = id == activeId;
                     final isActive = s['isActive'] == true;
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(
-                            color: isSelected ? tokens.accent : tokens.surface,
-                            width: 3,
-                          ),
-                          bottom: BorderSide(color: tokens.border.withValues(alpha: 0.5), width: 0.5),
-                        ),
-                      ),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: Material(
-                        color: isSelected ? tokens.surfaceElevated : tokens.surface,
+                        color: isSelected
+                            ? tokens.displaySurface
+                            : tokens.chassis,
+                        borderRadius: BorderRadius.circular(tokens.radiusMd),
+                        clipBehavior: Clip.antiAlias,
                         child: ListTile(
-                        dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                        leading: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected
-                                ? tokens.accent
-                                : (isActive ? tokens.agentSettled : tokens.textMuted.withValues(alpha: 0.5)),
-                          ),
-                        ),
-                        title: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isSelected ? tokens.accent : tokens.textPrimary,
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                        subtitle: Text(
-                          preview != null && preview.isNotEmpty ? preview : cwd,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert, size: 15, color: tokens.textMuted),
-                          color: tokens.surfaceElevated,
+                          selected: isSelected,
+                          selectedColor: tokens.displayText,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            side: BorderSide(color: tokens.border),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusMd,
+                            ),
                           ),
-                          onSelected: (action) {
-                            if (action == 'rename') {
-                              _showRenameDialog(id, name);
-                            } else if (action == 'tree') {
-                              SessionTreeDialog.show(context, sessionId: id);
-                            } else if (action == 'clone') {
-                              _cloneSession(id);
-                            }
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          leading: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isSelected
+                                  ? tokens.displayText
+                                  : (isActive
+                                        ? tokens.agentSettled
+                                        : tokens.textMuted.withValues(
+                                            alpha: 0.5,
+                                          )),
+                            ),
+                          ),
+                          title: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? tokens.displayText
+                                  : tokens.textPrimary,
+                              fontSize: 14,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: Text(
+                            preview != null && preview.isNotEmpty
+                                ? preview
+                                : cwd,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? tokens.displayText.withValues(alpha: 0.8)
+                                  : tokens.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            tooltip: 'Azioni sessione',
+                            icon: Icon(
+                              Icons.more_horiz,
+                              size: 18,
+                              color: isSelected
+                                  ? tokens.displayText
+                                  : tokens.textMuted,
+                            ),
+                            color: tokens.surfaceElevated,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusSm,
+                              ),
+                              side: BorderSide(color: tokens.border),
+                            ),
+                            onSelected: (action) {
+                              if (action == 'rename') {
+                                _showRenameDialog(id, name);
+                              } else if (action == 'tree') {
+                                SessionTreeDialog.show(context, sessionId: id);
+                              } else if (action == 'clone') {
+                                _cloneSession(id);
+                              }
+                            },
+                            itemBuilder: (ctx) => [
+                              PopupMenuItem(
+                                value: 'rename',
+                                height: 32,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.edit_outlined,
+                                      size: 14,
+                                      color: tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Rinomina',
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'tree',
+                                height: 32,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.account_tree_outlined,
+                                      size: 14,
+                                      color: tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Albero rami',
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'clone',
+                                height: 32,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.copy_outlined,
+                                      size: 14,
+                                      color: tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Duplica',
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            ref.read(activeSessionIdProvider.notifier).state =
+                                id;
+                            widget.onSessionSelected?.call();
                           },
-                          itemBuilder: (ctx) => [
-                            PopupMenuItem(
-                              value: 'rename',
-                              height: 32,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit_outlined, size: 14, color: tokens.textSecondary),
-                                  const SizedBox(width: 8),
-                                  Text('Rinomina', style: TextStyle(color: tokens.textPrimary, fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'tree',
-                              height: 32,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.account_tree_outlined, size: 14, color: tokens.textSecondary),
-                                  const SizedBox(width: 8),
-                                  Text('Albero rami', style: TextStyle(color: tokens.textPrimary, fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'clone',
-                              height: 32,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.copy_outlined, size: 14, color: tokens.textSecondary),
-                                  const SizedBox(width: 8),
-                                  Text('Duplica', style: TextStyle(color: tokens.textPrimary, fontSize: 12)),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
-                        onTap: () {
-                          ref.read(activeSessionIdProvider.notifier).state = id;
-                        },
                       ),
-                    ),
-                  );
+                    );
                   },
                 );
               },
               loading: () => Center(
-                child: CircularProgressIndicator(color: tokens.accent, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: tokens.accent,
+                  strokeWidth: 2,
+                ),
               ),
               error: (err, _) => Center(
-                child: Text('Errore: $err', style: TextStyle(color: tokens.danger, fontSize: 12)),
+                child: Text(
+                  'Errore: $err',
+                  style: TextStyle(color: tokens.danger, fontSize: 12),
+                ),
               ),
             ),
           ),
@@ -473,11 +570,17 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   child: TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.textSecondary,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
                       alignment: Alignment.centerLeft,
                     ),
                     icon: const Icon(Icons.settings_outlined, size: 16),
-                    label: const Text('Impostazioni', style: TextStyle(fontSize: 12)),
+                    label: const Text(
+                      'Impostazioni',
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onPressed: () {
                       ref.read(showSettingsProvider.notifier).state = true;
                     },
@@ -505,31 +608,22 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   Widget _buildFilterChip(String mode, String label, CrustTokens tokens) {
     final isSelected = _filterMode == mode;
-    return InkWell(
-      borderRadius: BorderRadius.circular(tokens.radiusSm),
-      onTap: () {
-        setState(() {
-          _filterMode = mode;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? tokens.accent.withValues(alpha: 0.15) : tokens.surfaceElevated,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: isSelected ? tokens.accent : tokens.border,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? tokens.accent : tokens.textSecondary,
+    return Semantics(
+      selected: isSelected,
+      child: TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: isSelected ? tokens.displayText : tokens.textPrimary,
+          backgroundColor: isSelected ? tokens.displaySurface : tokens.chassis,
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          textStyle: TextStyle(
             fontSize: 11,
+            fontFamily: tokens.uiFontFamily,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
+        onPressed: () => setState(() => _filterMode = mode),
+        child: Text(label),
       ),
     );
   }

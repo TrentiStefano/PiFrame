@@ -37,6 +37,7 @@ dependencies:
   go_router: ^14.2.0
   web_socket_channel: ^3.0.1
   http: ^1.2.1
+  window_manager: ^0.5.1
 
   pi_crust_protocol:
     path: ../../packages/pi_crust_protocol
@@ -67,6 +68,20 @@ flutter:
 
   assets:
     - assets/themes/
+
+  fonts:
+    - family: SchibstedGrotesk
+      fonts:
+        - asset: assets/fonts/SchibstedGrotesk.ttf
+    - family: BarlowCondensed
+      fonts:
+        - asset: assets/fonts/BarlowCondensed-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowCondensed-Bold.ttf
+          weight: 700
+    - family: SourceCodePro
+      fonts:
+        - asset: assets/fonts/SourceCodePro.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'theme_tokens.dart';
 
 Color? parseHexColor(
@@ -13,7 +14,8 @@ Color? parseHexColor(
   final clean = hex.trim();
   if (!clean.startsWith('#')) {
     diagnostics?.add(
-        'Invalid color format for "$fieldName": "$hex". Expected "#RRGGBB" or "#RRGGBBAA". Using fallback.');
+      'Invalid color format for "$fieldName": "$hex". Expected "#RRGGBB" or "#RRGGBBAA". Using fallback.',
+    );
     return fallback;
   }
   try {
@@ -30,12 +32,14 @@ Color? parseHexColor(
       return Color.fromARGB(a, r, g, b);
     } else {
       diagnostics?.add(
-          'Invalid color length for "$fieldName": "$hex". Expected 7 or 9 chars. Using fallback.');
+        'Invalid color length for "$fieldName": "$hex". Expected 7 or 9 chars. Using fallback.',
+      );
       return fallback;
     }
   } catch (e) {
     diagnostics?.add(
-        'Malformed color hex for "$fieldName": "$hex" ($e). Using fallback.');
+      'Malformed color hex for "$fieldName": "$hex" ($e). Using fallback.',
+    );
     return fallback;
   }
 }
@@ -105,16 +109,25 @@ class ThemeSpec {
       }
     }
 
-    final schemaVer = json['schemaVersion'] is int ? json['schemaVersion'] as int : 1;
+    final schemaVer = json['schemaVersion'] is int
+        ? json['schemaVersion'] as int
+        : 1;
     final id = json['id'] is String ? json['id'] as String : 'unknown-theme';
     final name = json['name'] is String ? json['name'] as String : id;
     final author = json['author'] is String ? json['author'] as String : '';
-    final version = json['version'] is String ? json['version'] as String : '1.0.0';
+    final version = json['version'] is String
+        ? json['version'] as String
+        : '1.0.0';
     final variant = (json['variant'] == 'light') ? 'light' : 'dark';
-    final extendsTheme = json['extends'] is String ? json['extends'] as String : null;
+    final extendsTheme = json['extends'] is String
+        ? json['extends'] as String
+        : null;
 
-    Map<String, dynamic> toMap(dynamic val) =>
-        (val is Map<String, dynamic>) ? val : (val is Map) ? Map<String, dynamic>.from(val) : {};
+    Map<String, dynamic> toMap(dynamic val) => (val is Map<String, dynamic>)
+        ? val
+        : (val is Map)
+        ? Map<String, dynamic>.from(val)
+        : {};
 
     return ThemeSpec(
       schemaVersion: schemaVer,
@@ -143,7 +156,9 @@ class ThemeSpec {
     ];
 
     Map<String, dynamic> mergeMaps(
-        Map<String, dynamic> b, Map<String, dynamic> o) {
+      Map<String, dynamic> b,
+      Map<String, dynamic> o,
+    ) {
       final res = Map<String, dynamic>.from(b);
       res.addAll(o);
       return res;
@@ -170,14 +185,24 @@ class ThemeSpec {
   }
 
   CrustTokens toTokens() {
-    final baseTokens = variant == 'light' ? CrustTokens.light : CrustTokens.dark;
+    final baseTokens = variant == 'light'
+        ? CrustTokens.light
+        : CrustTokens.dark;
     final d = diagnostics;
 
-    Color c(String key, Color fallback) =>
-        parseHexColor(rawColors[key], fallback: fallback, fieldName: 'colors.$key', diagnostics: d)!;
+    Color c(String key, Color fallback) => parseHexColor(
+      rawColors[key],
+      fallback: fallback,
+      fieldName: 'colors.$key',
+      diagnostics: d,
+    )!;
 
-    Color s(String key, Color fallback) =>
-        parseHexColor(rawSyntax[key], fallback: fallback, fieldName: 'syntax.$key', diagnostics: d)!;
+    Color s(String key, Color fallback) => parseHexColor(
+      rawSyntax[key],
+      fallback: fallback,
+      fieldName: 'syntax.$key',
+      diagnostics: d,
+    )!;
 
     double numVal(dynamic val, double fallback) {
       if (val is num) return val.toDouble();
@@ -242,6 +267,20 @@ class ThemeSpec {
       radiusPill: rPill,
       uiFontFamily: uiFont,
       monoFontFamily: monoFont,
+      headingFontFamily: rawTypography['headingFontFamily'] is String
+          ? rawTypography['headingFontFamily'] as String
+          : baseTokens.headingFontFamily,
+      chassis: c('chassis', baseTokens.chassis),
+      displaySurface: c('displaySurface', baseTokens.displaySurface),
+      displayText: c('displayText', baseTokens.displayText),
+      signalWarning: c('signalWarning', baseTokens.signalWarning),
+      signalDanger: c('signalDanger', baseTokens.signalDanger),
+      pressDuration: Duration(
+        milliseconds: numVal(rawMotion['fast'], 120).clamp(0, 300).round(),
+      ),
+      panelDuration: Duration(
+        milliseconds: numVal(rawMotion['normal'], 240).clamp(0, 300).round(),
+      ),
     );
   }
 
@@ -268,6 +307,197 @@ class ThemeSpec {
       fontFamily: tokens.uiFontFamily,
       dividerColor: tokens.border,
       cardColor: tokens.surface,
+      useMaterial3: true,
+      splashFactory: NoSplash.splashFactory,
+      visualDensity: VisualDensity.standard,
+      textTheme:
+          TextTheme(
+                headlineLarge: TextStyle(
+                  fontSize: 32,
+                  height: 1.15,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                  letterSpacing: -0.8,
+                ),
+                headlineSmall: TextStyle(
+                  fontSize: 24,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+                titleLarge: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                ),
+                titleMedium: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                ),
+                bodyLarge: TextStyle(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: tokens.textPrimary,
+                ),
+                bodyMedium: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: tokens.textPrimary,
+                ),
+                bodySmall: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: tokens.textSecondary,
+                ),
+                labelLarge: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                ),
+              )
+              .apply(fontFamily: tokens.uiFontFamily)
+              .copyWith(
+                headlineLarge: TextStyle(
+                  fontFamily: tokens.headingFontFamily,
+                  fontSize: 56,
+                  height: 1.0,
+                  fontWeight: FontWeight.w700,
+                  color: tokens.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+                headlineSmall: TextStyle(
+                  fontFamily: tokens.headingFontFamily,
+                  fontSize: 32,
+                  height: 1.05,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                ),
+                titleLarge: TextStyle(
+                  fontFamily: tokens.headingFontFamily,
+                  fontSize: 28,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textPrimary,
+                ),
+              ),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: tokens.accent,
+        selectionColor: tokens.accent.withValues(alpha: 0.2),
+        selectionHandleColor: tokens.accent,
+      ),
+      iconTheme: IconThemeData(color: tokens.textSecondary, size: 20),
+      appBarTheme: AppBarTheme(
+        backgroundColor: tokens.surface,
+        foregroundColor: tokens.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: tokens.surface,
+        scrimColor: tokens.overlay,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: tokens.surface,
+        surfaceTintColor: tokens.surface,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusLg),
+          side: BorderSide(color: tokens.border),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: tokens.textPrimary,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+        ),
+        textStyle: TextStyle(
+          color: tokens.background,
+          fontFamily: tokens.uiFontFamily,
+          fontSize: 12,
+        ),
+        waitDuration: const Duration(milliseconds: 450),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: tokens.textPrimary,
+        contentTextStyle: TextStyle(
+          color: tokens.background,
+          fontFamily: tokens.uiFontFamily,
+        ),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: tokens.accent,
+          foregroundColor: tokens.accentContrast,
+          elevation: 0,
+          disabledBackgroundColor: tokens.surfaceElevated,
+          disabledForegroundColor: tokens.textMuted,
+          minimumSize: const Size(40, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: tokens.accent,
+          foregroundColor: tokens.accentContrast,
+          minimumSize: const Size(40, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: tokens.textPrimary,
+          side: BorderSide(color: tokens.borderStrong),
+          minimumSize: const Size(40, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: tokens.accent,
+          minimumSize: const Size(40, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: tokens.surface,
+        surfaceTintColor: tokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
+          side: BorderSide(color: tokens.border),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: tokens.accent,
+        unselectedLabelColor: tokens.textSecondary,
+        indicatorColor: tokens.accent,
+        dividerColor: tokens.border,
+        labelStyle: TextStyle(
+          fontFamily: tokens.uiFontFamily,
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        textColor: tokens.textPrimary,
+        iconColor: tokens.textSecondary,
+      ),
       cardTheme: CardThemeData(
         color: tokens.surface,
         elevation: 0,
@@ -279,6 +509,11 @@ class ThemeSpec {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: tokens.surfaceElevated,
+        hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           borderSide: BorderSide(color: tokens.border),
@@ -293,8 +528,15 @@ class ThemeSpec {
         ),
       ),
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(tokens.textMuted.withValues(alpha: 0.4)),
-        radius: Radius.circular(tokens.radiusPill),
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.dragged)
+              ? tokens.textSecondary
+              : tokens.textMuted.withValues(alpha: 0.45),
+        ),
+        thickness: WidgetStateProperty.all(6),
+        radius: Radius.circular(tokens.radiusSm),
       ),
       extensions: [tokens],
     );

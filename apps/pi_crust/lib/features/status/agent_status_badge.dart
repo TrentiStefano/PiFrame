@@ -1,75 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../domain/session/agent_status.dart';
 
 class AgentStatusBadge extends StatelessWidget {
   final AgentStatus status;
-
-  const AgentStatusBadge({super.key, required this.status});
+  final bool onDisplay;
+  const AgentStatusBadge({
+    super.key,
+    required this.status,
+    this.onDisplay = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    Color bg;
-    Color fg;
-
-    switch (status) {
-      case AgentStatus.idle:
-      case AgentStatus.settled:
-        bg = tokens.success.withValues(alpha: 0.15);
-        fg = tokens.success;
-        break;
-      case AgentStatus.working:
-        bg = tokens.agentWorking.withValues(alpha: 0.15);
-        fg = tokens.agentWorking;
-        break;
-      case AgentStatus.retrying:
-        bg = tokens.warning.withValues(alpha: 0.15);
-        fg = tokens.warning;
-        break;
-      case AgentStatus.compacting:
-        bg = tokens.info.withValues(alpha: 0.15);
-        fg = tokens.info;
-        break;
-      case AgentStatus.awaitingUser:
-        bg = tokens.agentAwaitingUser.withValues(alpha: 0.15);
-        fg = tokens.agentAwaitingUser;
-        break;
-      case AgentStatus.error:
-      case AgentStatus.workerError:
-        bg = tokens.danger.withValues(alpha: 0.15);
-        fg = tokens.danger;
-        break;
+    final foreground = switch (status) {
+      AgentStatus.idle || AgentStatus.settled => tokens.success,
+      AgentStatus.working => tokens.agentWorking,
+      AgentStatus.retrying => tokens.warning,
+      AgentStatus.compacting => tokens.info,
+      AgentStatus.awaitingUser => tokens.agentAwaitingUser,
+      AgentStatus.error || AgentStatus.workerError => tokens.danger,
+    };
+    if (onDisplay) {
+      final signal = switch (status) {
+        AgentStatus.error || AgentStatus.workerError => tokens.signalDanger,
+        AgentStatus.working ||
+        AgentStatus.retrying ||
+        AgentStatus.awaitingUser => tokens.signalWarning,
+        _ => tokens.displayText,
+      };
+      return Semantics(
+        liveRegion: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 6, height: 6, color: signal),
+            const SizedBox(width: 8),
+            Text(
+              status.label,
+              style: TextStyle(
+                color: tokens.displayText,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
     }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fg.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: fg,
-              shape: BoxShape.circle,
-            ),
+    return Semantics(
+      liveRegion: true,
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(
+            foreground.withValues(alpha: 0.12),
+            tokens.surface,
           ),
-          const SizedBox(width: 6),
-          Text(
-            status.label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: foreground,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              status.label,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

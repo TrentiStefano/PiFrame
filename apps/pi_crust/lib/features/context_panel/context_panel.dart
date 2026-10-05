@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../data/daemon/daemon_providers.dart';
 import '../../ui/code/diff_block.dart';
 import '../session_tree/session_tree_dialog.dart';
@@ -37,7 +38,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     if (mounted) {
       setState(() {
         _models = models;
-        _thinkingLevels = levels.isNotEmpty ? levels : ['off', 'low', 'medium', 'high'];
+        _thinkingLevels = levels.isNotEmpty
+            ? levels
+            : ['off', 'low', 'medium', 'high'];
         _isLoadingParams = false;
       });
     }
@@ -68,7 +71,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       await action();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
       }
     }
   }
@@ -78,9 +83,13 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     if (client == null) return;
 
     try {
-      final res = await client.getWorkspaceDiff(widget.sessionId, filePath: filePath);
+      final res = await client.getWorkspaceDiff(
+        widget.sessionId,
+        filePath: filePath,
+      );
       final data = res['data'] as Map<String, dynamic>? ?? {};
-      final diffText = data['diff']?.toString() ?? 'Nessuna differenza trovata.';
+      final diffText =
+          data['diff']?.toString() ?? 'Nessuna differenza trovata.';
 
       if (mounted) {
         showDialog(
@@ -100,13 +109,17 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Diff: $filePath',
-                        style: TextStyle(
-                          color: context.tokens.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: context.tokens.monoFontFamily,
+                      Expanded(
+                        child: Text(
+                          'Diff: $filePath',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.tokens.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: context.tokens.monoFontFamily,
+                          ),
                         ),
                       ),
                       IconButton(
@@ -119,10 +132,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   const SizedBox(height: 12),
                   Expanded(
                     child: SingleChildScrollView(
-                      child: DiffBlock(
-                        diffText: diffText,
-                        filename: filePath,
-                      ),
+                      child: DiffBlock(diffText: diffText, filename: filePath),
                     ),
                   ),
                 ],
@@ -145,7 +155,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       res = result?['data'] as Map<String, dynamic>?;
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Compattazione non riuscita: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Compattazione non riuscita: $error')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isCompacting = false);
@@ -153,7 +165,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
 
     if (mounted && res != null) {
       final tokensBefore = res['tokensBefore'] ?? '?';
-      final tokensAfter = res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
+      final tokensAfter =
+          res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
       final usage = res['usage'] as Map?;
       final cost = usage?['cost'] is Map ? '\$${usage!['cost']['total']}' : '';
 
@@ -161,8 +174,10 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: context.tokens.surface,
-          title: Text('Compattazione completata',
-              style: TextStyle(color: context.tokens.textPrimary)),
+          title: Text(
+            'Compattazione completata',
+            style: TextStyle(color: context.tokens.textPrimary),
+          ),
           content: Text(
             'Token prima: $tokensBefore\nToken dopo: $tokensAfter\n${cost.isNotEmpty ? "Costo: $cost" : ""}',
             style: TextStyle(color: context.tokens.textSecondary),
@@ -185,11 +200,14 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       final result = await client.cloneSession(widget.sessionId);
       if (!mounted) return;
       final data = result['data'] as Map<String, dynamic>;
-      ref.read(activeSessionIdProvider.notifier).state = data['sessionId'] as String;
+      ref.read(activeSessionIdProvider.notifier).state =
+          data['sessionId'] as String;
       ref.invalidate(sessionListProvider);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Duplicazione non riuscita: $error')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Duplicazione non riuscita: $error')),
+        );
       }
     }
   }
@@ -198,10 +216,15 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
-    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    final sessionNotifier = ref.read(
+      sessionStateFamily(widget.sessionId).notifier,
+    );
 
-    final currentModelName = sessionState.currentModel ??
-        (_models.isNotEmpty ? (_models.first['name'] ?? _models.first['id']) : 'Default');
+    final currentModelName =
+        sessionState.currentModel ??
+        (_models.isNotEmpty
+            ? (_models.first['name'] ?? _models.first['id'])
+            : 'Default');
     final currentThinking = sessionState.currentThinkingLevel ?? 'medium';
 
     final usage = sessionState.usage;
@@ -217,37 +240,45 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final changedFiles = (_gitStatus?['files'] as List<dynamic>?) ?? const [];
 
     return Container(
-      width: 280,
+      width: 320,
       decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border(left: BorderSide(color: tokens.border, width: 1)),
+        color: tokens.chassis,
+        border: Border(left: BorderSide(color: tokens.borderStrong, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              color: tokens.displaySurface,
+              border: Border(bottom: BorderSide(color: tokens.borderStrong)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Contesto & Git',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Contesto & Git',
+                    style: TextStyle(
+                      color: tokens.displayText,
+                      fontSize: 24,
+                      height: 1,
+                      fontFamily: tokens.headingFontFamily,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
                   icon: Icon(
                     Icons.refresh,
                     size: 16,
-                    color: _isLoadingGit ? tokens.accent : tokens.textSecondary,
+                    color: _isLoadingGit
+                        ? tokens.displayText
+                        : tokens.displayText.withValues(alpha: 0.78),
                   ),
+                  tooltip: 'Aggiorna workspace',
                   onPressed: _isLoadingGit ? null : _loadGitStatus,
                 ),
               ],
@@ -262,17 +293,25 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 if (isGitRepo) ...[
                   Row(
                     children: [
-                      Icon(Icons.fork_right_outlined, size: 16, color: tokens.accent),
+                      Icon(
+                        Icons.fork_right_outlined,
+                        size: 16,
+                        color: tokens.accent,
+                      ),
                       const SizedBox(width: 6),
-                      Text(
-                        branch,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          branch,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       if (additions > 0)
                         Text(
                           '+$additions',
@@ -283,7 +322,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      if (additions > 0 && deletions > 0) const SizedBox(width: 4),
+                      if (additions > 0 && deletions > 0)
+                        const SizedBox(width: 4),
                       if (deletions > 0)
                         Text(
                           '-$deletions',
@@ -334,11 +374,17 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                         onTap: () => _showFileDiff(filePath),
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 2,
+                          ),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
                                 decoration: BoxDecoration(
                                   color: badgeColor.withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(3),
@@ -376,17 +422,50 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   const SizedBox(height: 16),
                 ],
 
+                if (!isGitRepo) ...[
+                  Icon(
+                    Icons.folder_outlined,
+                    size: 24,
+                    color: tokens.textMuted,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isLoadingGit
+                        ? 'Caricamento workspace...'
+                        : 'Nessun repository Git disponibile.',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 // 2. Modello Attivo
                 Text(
                   'Modello LLM',
-                  style: TextStyle(color: tokens.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 _isLoadingParams
-                    ? SizedBox(height: 36, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent)))
+                    ? SizedBox(
+                        height: 36,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tokens.accent,
+                          ),
+                        ),
+                      )
                     : _models.isEmpty
-                        ? Text('Nessun modello abilitato in Pi.', style: TextStyle(color: tokens.textMuted, fontSize: 12))
-                        : Container(
+                    ? Text(
+                        sessionState.currentModel == null
+                            ? 'Nessun modello abilitato in Pi.'
+                            : '${sessionState.currentModel}\nElenco modelli non disponibile.',
+                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                      )
+                    : Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
@@ -397,28 +476,61 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           child: DropdownButton<String>(
                             isExpanded: true,
                             dropdownColor: tokens.surfaceElevated,
-                            value: _models.any((m) => m['name'] == currentModelName || m['id'] == currentModelName)
+                            value:
+                                _models.any(
+                                  (m) =>
+                                      m['name'] == currentModelName ||
+                                      m['id'] == currentModelName,
+                                )
                                 ? currentModelName
-                                : (_models.isNotEmpty ? (_models.first['name'] ?? _models.first['id']) : null),
-                            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                                : (_models.isNotEmpty
+                                      ? (_models.first['name'] ??
+                                            _models.first['id'])
+                                      : null),
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 13,
+                              fontFamily: tokens.uiFontFamily,
+                            ),
                             items: _models.map((m) {
-                              final name = m['name'] as String? ?? m['id'] as String;
+                              final name =
+                                  m['name'] as String? ?? m['id'] as String;
                               return DropdownMenuItem<String>(
                                 value: name,
-                                child: Text(name, overflow: TextOverflow.ellipsis),
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               );
                             }).toList(),
-                            onChanged: sessionState.readOnly ? null : (newModel) {
-                              if (newModel != null) {
-                                final modelObj = _models.firstWhere(
-                                  (m) => (m['name'] ?? m['id'])?.toString() == newModel,
-                                  orElse: () => {'provider': '', 'id': newModel},
-                                );
-                                final provider = modelObj['provider']?.toString() ?? '';
-                                final modelId = modelObj['id']?.toString() ?? newModel;
-                                _runAction(() => sessionNotifier.setModel(provider, modelId));
-                              }
-                            },
+                            onChanged: sessionState.readOnly
+                                ? null
+                                : (newModel) {
+                                    if (newModel != null) {
+                                      final modelObj = _models.firstWhere(
+                                        (m) =>
+                                            (m['name'] ?? m['id'])
+                                                ?.toString() ==
+                                            newModel,
+                                        orElse: () => {
+                                          'provider': '',
+                                          'id': newModel,
+                                        },
+                                      );
+                                      final provider =
+                                          modelObj['provider']?.toString() ??
+                                          '';
+                                      final modelId =
+                                          modelObj['id']?.toString() ??
+                                          newModel;
+                                      _runAction(
+                                        () => sessionNotifier.setModel(
+                                          provider,
+                                          modelId,
+                                        ),
+                                      );
+                                    }
+                                  },
                           ),
                         ),
                       ),
@@ -427,7 +539,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 // 3. Livello Reasoning / Thinking
                 Text(
                   'Livello Thinking',
-                  style: TextStyle(color: tokens.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Container(
@@ -443,19 +559,31 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                       dropdownColor: tokens.surfaceElevated,
                       value: _thinkingLevels.contains(currentThinking)
                           ? currentThinking
-                          : (_thinkingLevels.isNotEmpty ? _thinkingLevels.first : 'off'),
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                          : (_thinkingLevels.isNotEmpty
+                                ? _thinkingLevels.first
+                                : 'off'),
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 13,
+                        fontFamily: tokens.uiFontFamily,
+                      ),
                       items: _thinkingLevels.map((lvl) {
                         return DropdownMenuItem<String>(
                           value: lvl,
                           child: Text(lvl.toUpperCase()),
                         );
                       }).toList(),
-                      onChanged: sessionState.readOnly ? null : (newLevel) {
-                        if (newLevel != null) {
-                          _runAction(() => sessionNotifier.setThinkingLevel(newLevel));
-                        }
-                      },
+                      onChanged: sessionState.readOnly
+                          ? null
+                          : (newLevel) {
+                              if (newLevel != null) {
+                                _runAction(
+                                  () => sessionNotifier.setThinkingLevel(
+                                    newLevel,
+                                  ),
+                                );
+                              }
+                            },
                     ),
                   ),
                 ),
@@ -464,32 +592,45 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 // 4. Finestra di Contesto
                 Text(
                   'Utilizzo Contesto',
-                  style: TextStyle(color: tokens.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: percent != null ? (percent / 100.0).clamp(0.0, 1.0) : 0.05,
-                    backgroundColor: tokens.background,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      (percent ?? 0) > 80 ? tokens.danger : ((percent ?? 0) > 60 ? tokens.warning : tokens.success),
-                    ),
-                    minHeight: 8,
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 8),
+                if (percent != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: LinearProgressIndicator(
+                      value: (percent / 100.0).clamp(0.0, 1.0),
+                      backgroundColor: tokens.background,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        percent > 80
+                            ? tokens.danger
+                            : (percent > 60 ? tokens.warning : tokens.success),
+                      ),
+                      minHeight: 8,
+                    ),
+                  ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '$totalTokens token',
+                      usage == null
+                          ? 'Dati non disponibili'
+                          : '$totalTokens token',
                       style: TextStyle(color: tokens.textMuted, fontSize: 11),
                     ),
                     if (percent != null)
                       Text(
                         '${percent.toStringAsFixed(1)} %',
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                   ],
                 ),
@@ -501,28 +642,49 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     backgroundColor: tokens.surfaceElevated,
                     foregroundColor: tokens.textPrimary,
                     side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    ),
                   ),
                   icon: _isCompacting
                       ? SizedBox(
                           width: 14,
                           height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accent),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tokens.accent,
+                          ),
                         )
                       : Icon(Icons.compress, size: 16, color: tokens.accent),
-                  label: Text(_isCompacting ? 'Compattazione...' : 'Compatta contesto'),
-                  onPressed: _isCompacting || sessionState.readOnly ? null : _triggerCompaction,
+                  label: Text(
+                    _isCompacting ? 'Compattazione...' : 'Compatta contesto',
+                  ),
+                  onPressed: _isCompacting || sessionState.readOnly
+                      ? null
+                      : _triggerCompaction,
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: tokens.textSecondary,
                     side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    ),
                   ),
-                  icon: Icon(Icons.content_copy, size: 15, color: tokens.textSecondary),
+                  icon: Icon(
+                    Icons.content_copy,
+                    size: 15,
+                    color: tokens.textSecondary,
+                  ),
                   label: const Text('Duplica Ramo (Clone)'),
                   onPressed: _cloneSession,
                 ),
@@ -531,12 +693,24 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: tokens.textSecondary,
                     side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    ),
                   ),
-                  icon: Icon(Icons.account_tree_outlined, size: 15, color: tokens.textSecondary),
+                  icon: Icon(
+                    Icons.account_tree_outlined,
+                    size: 15,
+                    color: tokens.textSecondary,
+                  ),
                   label: const Text('Albero dei Rami (Tree)'),
-                  onPressed: () => SessionTreeDialog.show(context, sessionId: widget.sessionId),
+                  onPressed: () => SessionTreeDialog.show(
+                    context,
+                    sessionId: widget.sessionId,
+                  ),
                 ),
               ],
             ),

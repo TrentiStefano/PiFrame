@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
@@ -24,6 +25,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   final ScrollController _scrollController = ScrollController();
   bool _userScrolledUp = false;
   String? _lastHandledUiRequestId;
+  List<SessionEntry>? _renderedEntries;
+  CrustTokens? _renderedTokens;
+  List<Widget> _historyWidgets = const [];
 
   @override
   void initState() {
@@ -50,7 +54,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (animate) {
       _scrollController.animateTo(
         maxScroll,
-        duration: const Duration(milliseconds: 200),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : context.tokens.panelDuration,
         curve: Curves.easeOutCubic,
       );
     } else {
@@ -96,6 +102,20 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final tokens = context.tokens;
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
 
+    // Stream ticks rebuild only the live region; immutable history widgets are reused.
+    if (!identical(_renderedEntries, sessionState.entries) ||
+        !identical(_renderedTokens, tokens)) {
+      _renderedEntries = sessionState.entries;
+      _renderedTokens = tokens;
+      _historyWidgets = [
+        for (final entry in sessionState.entries)
+          RepaintBoundary(
+            key: ValueKey(entry.id),
+            child: _buildEntryItem(entry, tokens),
+          ),
+      ];
+    }
+
     // Auto check pending extension UI requests
     _checkPendingUiRequests(sessionState.pendingUiRequests);
 
@@ -109,7 +129,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final hasActiveTools = sessionState.activeToolCalls.isNotEmpty;
     final liveThinking = sessionState.currentStreamingThinking;
     final liveText = sessionState.currentStreamingText;
-    final showLiveStream = sessionState.isStreaming ||
+    final showLiveStream =
+        sessionState.isStreaming ||
         liveText.isNotEmpty ||
         liveThinking.isNotEmpty ||
         hasActiveTools;
@@ -120,33 +141,52 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
               decoration: BoxDecoration(
-                color: tokens.surface,
-                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+                color: tokens.displaySurface,
+                border: Border(
+                  bottom: BorderSide(color: tokens.border, width: 1),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        sessionState.sessionName ?? widget.sessionId,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sessionState.sessionName ?? widget.sessionId,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.displayText,
+                            fontFamily: tokens.headingFontFamily,
+                            fontSize: 28,
+                            height: 1.05,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        sessionState.cwd.isNotEmpty ? sessionState.cwd : 'Nessuna cartella aperta',
-                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          sessionState.cwd.isNotEmpty
+                              ? sessionState.cwd
+                              : 'Nessuna cartella aperta',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.displayText.withValues(alpha: 0.75),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  AgentStatusBadge(status: sessionState.agentStatus),
+                  const SizedBox(width: 12),
+                  AgentStatusBadge(
+                    status: sessionState.agentStatus,
+                    onDisplay: true,
+                  ),
                 ],
               ),
             ),
@@ -163,17 +203,28 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   controller: _scrollController,
                   child: Padding(
                     key: const ValueKey('transcript-content'),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final entry in sessionState.entries) _buildEntryItem(entry, tokens),
-                        if (showLiveStream)
-                          _buildLiveStream(
-                            sessionState, tokens, liveThinking, liveText, hasActiveTools,
-                          ),
-                      ],
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 28,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 820),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ..._historyWidgets,
+                            if (showLiveStream)
+                              _buildLiveStream(
+                                sessionState,
+                                tokens,
+                                liveThinking,
+                                liveText,
+                                hasActiveTools,
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -210,26 +261,52 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (liveThinking.isNotEmpty || sessionState.agentStatus == AgentStatus.working)
-            ThinkingBlock(thinkingText: liveThinking, isStreaming: sessionState.isStreaming),
+          if (liveThinking.isNotEmpty ||
+              sessionState.agentStatus == AgentStatus.working)
+            ThinkingBlock(
+              thinkingText: liveThinking,
+              isStreaming: sessionState.isStreaming,
+            ),
           if (hasActiveTools)
-            ToolTimeline(toolCalls: sessionState.activeToolCalls.values.toList()),
+            ToolTimeline(
+              toolCalls: sessionState.activeToolCalls.values.toList(),
+            ),
           if (liveText.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(color: tokens.agentWorking.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: tokens.agentWorking.withValues(alpha: 0.4),
+                ),
               ),
               child: RichContent(text: liveText),
             )
-          else if (sessionState.agentStatus == AgentStatus.working && liveThinking.isEmpty && !hasActiveTools)
-            Row(children: [
-              SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: tokens.agentWorking, strokeWidth: 2)),
-              const SizedBox(width: 8),
-              Text('Elaborazione in corso...', style: TextStyle(color: tokens.agentWorking, fontSize: 12, fontWeight: FontWeight.w600)),
-            ]),
+          else if (sessionState.agentStatus == AgentStatus.working &&
+              liveThinking.isEmpty &&
+              !hasActiveTools)
+            Row(
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    color: tokens.agentWorking,
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Elaborazione in corso...',
+                  style: TextStyle(
+                    color: tokens.agentWorking,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -283,16 +360,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (isUser) {
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
-        alignment: Alignment.centerRight,
+        alignment: Alignment.centerLeft,
         child: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75,
-          ),
+          constraints: const BoxConstraints(maxWidth: 820),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: tokens.userBubble,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border, width: 1),
+            border: Border(bottom: BorderSide(color: tokens.borderStrong)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,7 +377,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.person_outline, size: 13, color: tokens.accent),
+                      Icon(
+                        Icons.person_outline,
+                        size: 13,
+                        color: tokens.accent,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Tu',
@@ -319,11 +397,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     borderRadius: BorderRadius.circular(4),
                     onTap: () => _handleFork(entry.id),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.call_split, size: 12, color: tokens.accent),
+                          Icon(
+                            Icons.call_split,
+                            size: 12,
+                            color: tokens.accent,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'Riparti da qui',
@@ -364,12 +449,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           // Message content
           if (entry.text.isNotEmpty)
             Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(color: tokens.border, width: 1),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -379,7 +459,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.auto_awesome, size: 13, color: tokens.textSecondary),
+                          Icon(
+                            Icons.circle_outlined,
+                            size: 14,
+                            color: tokens.accent,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Assistente',
@@ -391,8 +475,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           ),
                         ],
                       ),
-                      InkWell(
-                        onTap: () {
+                      IconButton(
+                        tooltip: 'Copia messaggio',
+                        onPressed: () {
                           Clipboard.setData(ClipboardData(text: entry.text));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -401,7 +486,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                           );
                         },
-                        child: Icon(Icons.copy, size: 13, color: tokens.textMuted),
+                        icon: Icon(
+                          Icons.copy_outlined,
+                          size: 16,
+                          color: tokens.textMuted,
+                        ),
                       ),
                     ],
                   ),
