@@ -33,7 +33,7 @@ Users run Pi-Crust on Windows, macOS, or Web alongside the Pi-Crust daemon. They
 
 ## Brand Commitments
 
-The product name is Pi-Crust. The desired interface is fluid, modern, stunning, and sophisticated. Design inspirations: Dieter Rams and Teenage Engineering.
+The product name and original mark are Pi-Crust. The visual direction is Bento spatial grouping with official Catppuccin Latte/Frappé colors and modest rounded, subtly bordered surfaces throughout the application. Root `DESIGN.md` is authoritative; prior external design-language references are retired.
 
 ## Evidence on Hand
 

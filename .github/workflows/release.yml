@@ -39,6 +39,12 @@ jobs:
       - name: Build Agentd Single-file Bundle
         run: pnpm --filter @pi-crust/agentd run build:bundle
 
+      - name: Verify Agentd Workspace Commands in Bundle
+        run: pnpm run check:agentd-bundle
+
+      - name: Smoke-test packaged agentd workspace command
+        run: pnpm run smoke:agentd-bundle
+
       - name: Run Node tests (including security & fault injection)
         run: pnpm -r run test
 
@@ -83,6 +89,12 @@ jobs:
 
       - name: Build Daemon Bundle
         run: pnpm --filter @pi-crust/agentd run build:bundle
+
+      - name: Verify Agentd Workspace Commands in Bundle
+        run: pnpm run check:agentd-bundle
+
+      - name: Smoke-test packaged agentd workspace command
+        run: pnpm run smoke:agentd-bundle
 
       - name: Build Flutter Desktop
         run: |

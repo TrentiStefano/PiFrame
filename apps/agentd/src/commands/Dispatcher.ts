@@ -7,6 +7,7 @@ import { loadConfig, patchConfig, type DaemonConfig } from '../config/config.js'
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
+import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type {
   PcpCommand,
   PcpAck,
@@ -21,11 +22,17 @@ export class Dispatcher {
   private deduplicator = new CommandDeduplicator();
   private workspaceService = new WorkspaceService();
   private sessionIndex: SessionIndex;
+  private piPackages: PiPackageOperations;
 
-  constructor(registry: SessionRegistry, connectionManager: ConnectionManager) {
+  constructor(
+    registry: SessionRegistry,
+    connectionManager: ConnectionManager,
+    piPackages?: PiPackageOperations
+  ) {
     this.registry = registry;
     this.connectionManager = connectionManager;
     this.sessionIndex = registry.getIndex();
+    this.piPackages = piPackages ?? new PiPackageService(registry.getPiExecutablePath());
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -69,7 +76,7 @@ export class Dispatcher {
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: any) {
-      const isRejected = err.code === 'COMMAND_REJECTED' || err.code === 'CONFIG_INVALID' || err.code === 'SESSION_NOT_FOUND';
+      const isRejected = err.code === 'COMMAND_REJECTED' || err.code === 'CONFIG_INVALID' || err.code === 'SESSION_NOT_FOUND' || String(err.code || '').startsWith('WORKSPACE_');
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, err.message);
       this.sendResult(conn, commandId, state, undefined, payload.error);
@@ -116,11 +123,43 @@ export class Dispatcher {
     } as PcpResult);
   }
 
+  private requireWorkspaceSession(sessionId?: string): NonNullable<ReturnType<SessionRegistry['getSession']>> {
+    if (!sessionId) throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
+    const session = this.registry.getSession(sessionId);
+    if (!session) throw Object.assign(new Error(`Session ${sessionId} not found.`), { code: 'SESSION_NOT_FOUND' });
+    return session;
+  }
+
+  private assertWorkspaceWritable(session: NonNullable<ReturnType<SessionRegistry['getSession']>>): void {
+    if (session.readOnly) {
+      throw Object.assign(new Error('Repository writes are disabled for read-only sessions.'), { code: 'COMMAND_REJECTED' });
+    }
+    const activeTool = Array.from(session.activeTools.values()).some((tool: any) => tool.isRunning);
+    if (activeTool || session.isStreaming || session.isCompacting || ['working', 'retrying', 'compacting', 'awaiting_user'].includes(session.status)) {
+      throw Object.assign(new Error('Repository writes are disabled while the Pi worker is active.'), { code: 'COMMAND_REJECTED' });
+    }
+  }
+
   private async execute(conn: Connection, cmd: PcpCommand): Promise<any> {
     const payload = (cmd.payload || {}) as Record<string, any>;
     const sessionId = cmd.sessionId;
 
     switch (cmd.type) {
+      case 'pi.packages.list':
+        return { packages: await this.piPackages.list() };
+
+      case 'pi.packages.update':
+        return await this.piPackages.update(String(payload.source ?? ''));
+
+      case 'pi.packages.remove':
+        return await this.piPackages.remove(String(payload.source ?? ''));
+
+      case 'pi.packages.pin':
+        return await this.piPackages.pin(
+          String(payload.source ?? ''),
+          String(payload.version ?? '')
+        );
+
       // -----------------------------------------------------------------------
       // Daemon configuration
       // -----------------------------------------------------------------------
@@ -471,17 +510,43 @@ export class Dispatcher {
       }
 
       case 'workspace.refresh': {
-        const session = sessionId ? this.registry.getSession(sessionId) : null;
-        const cwd = session?.cwd || payload?.cwd || process.cwd();
-        const status = await this.workspaceService.getStatus(cwd, true);
-        return status;
+        const session = this.requireWorkspaceSession(sessionId);
+        return this.workspaceService.getStatus(session.cwd, true);
       }
 
       case 'workspace.getDiff': {
-        const session = sessionId ? this.registry.getSession(sessionId) : null;
-        const cwd = session?.cwd || payload?.cwd || process.cwd();
-        const diff = await this.workspaceService.getDiff(cwd, payload?.filePath);
+        const session = this.requireWorkspaceSession(sessionId);
+        const diff = await this.workspaceService.getDiff(session.cwd, payload?.filePath);
         return { diff };
+      }
+
+      case 'workspace.listFiles': {
+        const session = this.requireWorkspaceSession(sessionId);
+        return this.workspaceService.listFiles(session.cwd);
+      }
+
+      case 'workspace.readFile': {
+        const session = this.requireWorkspaceSession(sessionId);
+        return this.workspaceService.readFile(session.cwd, payload.path);
+      }
+
+      case 'workspace.saveFile': {
+        const session = this.requireWorkspaceSession(sessionId);
+        const assertCanWrite = () => this.assertWorkspaceWritable(session);
+        return this.workspaceService.saveFile(session.cwd, payload.path, payload.content, payload.revision, assertCanWrite);
+      }
+
+      case 'workspace.gitAction': {
+        const session = this.requireWorkspaceSession(sessionId);
+        const assertCanWrite = () => this.assertWorkspaceWritable(session);
+        return this.workspaceService.gitAction(
+          session.cwd,
+          payload.action,
+          payload.paths,
+          payload.expectedStagedPaths,
+          payload.message,
+          assertCanWrite
+        );
       }
 
 

@@ -6,11 +6,7 @@ class CodeBlock extends StatefulWidget {
   final String code;
   final String? language;
 
-  const CodeBlock({
-    super.key,
-    required this.code,
-    this.language,
-  });
+  const CodeBlock({super.key, required this.code, this.language});
 
   @override
   State<CodeBlock> createState() => _CodeBlockState();
@@ -53,7 +49,9 @@ class _CodeBlockState extends State<CodeBlock> {
                 topLeft: Radius.circular(tokens.radiusSm),
                 topRight: Radius.circular(tokens.radiusSm),
               ),
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -71,20 +69,27 @@ class _CodeBlockState extends State<CodeBlock> {
                   onTap: _copyToClipboard,
                   borderRadius: BorderRadius.circular(4),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           _copied ? Icons.check : Icons.copy,
                           size: 12,
-                          color: _copied ? tokens.success : tokens.textSecondary,
+                          color: _copied
+                              ? tokens.success
+                              : tokens.textSecondary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           _copied ? 'Copiato!' : 'Copia',
                           style: TextStyle(
-                            color: _copied ? tokens.success : tokens.textSecondary,
+                            color: _copied
+                                ? tokens.textPrimary
+                                : tokens.textSecondary,
                             fontSize: 11,
                             fontFamily: tokens.monoFontFamily,
                           ),
@@ -120,7 +125,8 @@ class _CodeBlockState extends State<CodeBlock> {
     final spans = <TextSpan>[];
 
     final keywordRegex = RegExp(
-        r'\b(async|await|break|case|catch|class|const|continue|default|do|else|enum|export|extends|false|final|finally|for|function|if|implements|import|in|interface|is|let|new|null|package|private|protected|public|return|static|super|switch|this|throw|true|try|typedef|var|void|while|with|yield)\b');
+      r'\b(async|await|break|case|catch|class|const|continue|default|do|else|enum|export|extends|false|final|finally|for|function|if|implements|import|in|interface|is|let|new|null|package|private|protected|public|return|static|super|switch|this|throw|true|try|typedef|var|void|while|with|yield)\b',
+    );
     final stringRegex = RegExp(r'''(['"`])(?:(?!\1)[^\\]|\\.)*\1''');
     final numberRegex = RegExp(r'\b\d+(\.\d+)?\b');
     final commentRegex = RegExp(r'(//[^\n]*|/\*[\s\S]*?\*/|#[^\n]*)');
@@ -151,23 +157,29 @@ class _CodeBlockState extends State<CodeBlock> {
       for (final match in matches) {
         if (match.start < lastEnd) continue; // skip overlap
         if (match.start > lastEnd) {
-          spans.add(TextSpan(
-            text: line.substring(lastEnd, match.start),
-            style: TextStyle(color: tokens.textPrimary),
-          ));
+          spans.add(
+            TextSpan(
+              text: line.substring(lastEnd, match.start),
+              style: TextStyle(color: tokens.textPrimary),
+            ),
+          );
         }
-        spans.add(TextSpan(
-          text: line.substring(match.start, match.end),
-          style: TextStyle(color: match.color),
-        ));
+        spans.add(
+          TextSpan(
+            text: line.substring(match.start, match.end),
+            style: TextStyle(color: match.color),
+          ),
+        );
         lastEnd = match.end;
       }
 
       if (lastEnd < line.length) {
-        spans.add(TextSpan(
-          text: line.substring(lastEnd),
-          style: TextStyle(color: tokens.textPrimary),
-        ));
+        spans.add(
+          TextSpan(
+            text: line.substring(lastEnd),
+            style: TextStyle(color: tokens.textPrimary),
+          ),
+        );
       }
 
       if (i < lines.length - 1) {

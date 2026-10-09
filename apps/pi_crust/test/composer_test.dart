@@ -7,6 +7,7 @@ import 'package:pi_crust/data/daemon/daemon_providers.dart';
 import 'package:pi_crust/domain/session/session_state.dart';
 import 'package:pi_crust/domain/session/agent_status.dart';
 import 'package:pi_crust/features/composer/composer.dart';
+import 'package:pi_crust/features/composer/composer_draft.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 class RejectingSession extends SessionStateNotifier {

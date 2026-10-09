@@ -43,6 +43,7 @@ dependencies:
     path: ../../packages/pi_crust_protocol
   pi_crust_theme:
     path: ../../packages/pi_crust_theme
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

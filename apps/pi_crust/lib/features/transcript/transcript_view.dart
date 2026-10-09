@@ -9,6 +9,7 @@ import '../../domain/session/session_state.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
 import '../dialogs/extension_ui_dialog.dart';
+import '../workspace/repository_workspace.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
 
@@ -97,10 +98,63 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
   }
 
+  String _formatTokens(Object? value) {
+    if (value is! num) return '—';
+    final count = value.toInt();
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 10000) return '${(count / 1000).round()}k';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return '$count';
+  }
+
+  Widget _metricChip(CrustTokens tokens, String label, String value) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: tokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(color: tokens.border),
+        ),
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$label · ',
+                style: TextStyle(color: tokens.textMuted),
+              ),
+              TextSpan(
+                text: value,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 10),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
+    final stats = sessionState.sessionStats;
+    final contextUsage =
+        stats?['contextUsage'] as Map? ??
+        sessionState.usage?['contextUsage'] as Map?;
+    final contextPercent = contextUsage?['percent'] as num?;
+    final contextWindow = contextUsage?['contextWindow'];
+    final contextLabel = contextUsage == null
+        ? 'non disponibile'
+        : contextPercent == null
+        ? 'post-compattazione · —/${_formatTokens(contextWindow)}'
+        : '${contextPercent.toStringAsFixed(1)}% · ${_formatTokens(contextUsage['tokens'])}/${_formatTokens(contextWindow)}';
+    final cost = stats?['cost'] as num?;
+    final extensionStatuses = sessionState.extensionStatuses.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
 
     // Stream ticks rebuild only the live region; immutable history widgets are reused.
     if (!identical(_renderedEntries, sessionState.entries) ||
@@ -148,85 +202,117 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   bottom: BorderSide(color: tokens.border, width: 1),
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sessionState.sessionName ?? widget.sessionId,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.displayText,
-                            fontFamily: tokens.headingFontFamily,
-                            fontSize: 28,
-                            height: 1.05,
-                            fontWeight: FontWeight.w600,
-                          ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sessionState.sessionName ?? widget.sessionId,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: tokens.displayText,
+                                fontFamily: tokens.headingFontFamily,
+                                fontSize: 28,
+                                height: 1.05,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              sessionState.cwd.isNotEmpty
+                                  ? sessionState.cwd
+                                  : 'Nessuna cartella aperta',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: tokens.displayText.withValues(
+                                  alpha: 0.75,
+                                ),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          sessionState.cwd.isNotEmpty
-                              ? sessionState.cwd
-                              : 'Nessuna cartella aperta',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.displayText.withValues(alpha: 0.75),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      AgentStatusBadge(
+                        status: sessionState.agentStatus,
+                        onDisplay: true,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  AgentStatusBadge(
-                    status: sessionState.agentStatus,
-                    onDisplay: true,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _metricChip(
+                        tokens,
+                        'Modello',
+                        sessionState.currentModel ?? '—',
+                      ),
+                      _metricChip(
+                        tokens,
+                        'Thinking',
+                        sessionState.currentThinkingLevel ?? '—',
+                      ),
+                      _metricChip(tokens, 'Contesto', contextLabel),
+                      _metricChip(
+                        tokens,
+                        'Costo',
+                        cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
+                      ),
+                      for (final status in extensionStatuses)
+                        _metricChip(tokens, status.key, status.value),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Eager layout gives scrollbar exact total extent for variable-height messages.
+            // Build only visible turns; long histories otherwise relayout in full on resize.
             Expanded(
               child: Scrollbar(
                 controller: _scrollController,
                 thumbVisibility: true,
                 trackVisibility: true,
                 interactive: true,
-                child: SingleChildScrollView(
+                child: ListView(
                   key: const ValueKey('transcript-scroll'),
                   controller: _scrollController,
-                  child: Padding(
-                    key: const ValueKey('transcript-content'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 28,
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 820),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ..._historyWidgets,
-                            if (showLiveStream)
-                              _buildLiveStream(
-                                sessionState,
-                                tokens,
-                                liveThinking,
-                                liveText,
-                                hasActiveTools,
-                              ),
-                          ],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 28,
+                  ),
+                  children: [
+                    for (final entry in _historyWidgets)
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 820),
+                          child: entry,
                         ),
                       ),
-                    ),
-                  ),
+                    if (showLiveStream)
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 820),
+                          child: _buildLiveStream(
+                            sessionState,
+                            tokens,
+                            liveThinking,
+                            liveText,
+                            hasActiveTools,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -277,9 +363,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(
-                  color: tokens.agentWorking.withValues(alpha: 0.4),
-                ),
+                border: Border.all(color: tokens.borderStrong),
               ),
               child: RichContent(text: liveText),
             )
@@ -300,7 +384,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 Text(
                   'Elaborazione in corso...',
                   style: TextStyle(
-                    color: tokens.agentWorking,
+                    color: tokens.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -315,8 +399,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   Future<void> _handleFork(String entryId) async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
+    if (!await resolveDirtyRepository(
+      context,
+      ref,
+      ref.read(activeSessionIdProvider),
+    )) {
+      return;
+    }
     try {
       final res = await client.forkSession(widget.sessionId, entryId: entryId);
+      if (!mounted || !context.mounted) return;
       final data = res['data'] as Map<String, dynamic>? ?? res;
       if (data['cancelled'] == true) {
         if (!mounted) return;
@@ -331,7 +423,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       }
       final newSid = data['sessionId'] as String? ?? data['id'] as String?;
       if (newSid != null) {
-        ref.read(activeSessionIdProvider.notifier).state = newSid;
+        if (!await switchSessionSafely(context, ref, newSid)) return;
         ref.invalidate(sessionListProvider);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -366,7 +458,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: tokens.userBubble,
-            border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            border: Border.all(color: tokens.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,7 +479,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       Text(
                         'Tu',
                         style: TextStyle(
-                          color: tokens.accent,
+                          color: tokens.textPrimary,
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -413,7 +506,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           Text(
                             'Riparti da qui',
                             style: TextStyle(
-                              color: tokens.accent,
+                              color: tokens.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -449,7 +542,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           // Message content
           if (entry.text.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tokens.surface,
+                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                border: Border.all(color: tokens.border),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

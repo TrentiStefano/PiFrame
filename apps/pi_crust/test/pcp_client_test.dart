@@ -72,6 +72,43 @@ void main() {
     await Future.wait([first, second]);
   });
 
+  test('workspace commands use the active session and preserve validated payloads', () async {
+    final requests = <Future<Map<String, dynamic>>>[
+      client.listWorkspaceFiles('session-a'),
+      client.readWorkspaceFile('session-a', 'lib/main.dart'),
+      client.saveWorkspaceFile('session-a', {
+        'path': 'lib/main.dart',
+        'content': 'updated',
+        'revision': List.filled(64, 'a').join(),
+      }),
+      client.workspaceGitAction('session-a', {
+        'action': 'commit',
+        'paths': ['lib/main.dart'],
+        'expectedStagedPaths': ['lib/main.dart'],
+        'message': 'Update main',
+      }),
+    ];
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.map((command) => command['type']).toList(), [
+      'workspace.listFiles',
+      'workspace.readFile',
+      'workspace.saveFile',
+      'workspace.gitAction',
+    ]);
+    for (var index = 0; index < commands.length; index++) {
+      expect(commands[index]['sessionId'], 'session-a');
+      socket.add(jsonEncode({
+        'kind': 'result',
+        'commandId': commands[index]['commandId'],
+        'payload': {'state': 'completed', 'data': {}},
+      }));
+    }
+    await Future.wait(requests);
+    expect(commands[1]['payload']['path'], 'lib/main.dart');
+    expect(commands[2]['payload']['revision'], List.filled(64, 'a').join());
+    expect(commands[3]['payload']['expectedStagedPaths'], ['lib/main.dart']);
+  });
+
   test('dispose rejects pending commands', () async {
     final result = client.listSessions();
     final assertion = expectLater(result, throwsA(isA<StateError>()));

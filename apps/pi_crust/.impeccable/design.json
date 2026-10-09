@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-05T09:57:20+02:00",
-  "title": "Design System: Pi-Crust — Precision",
+  "title": "Design System: Pi-Crust — Bento Workbench",
   "extensions": {
     "shadows": [
       {
@@ -60,14 +60,14 @@
       }
     ],
     "narrative": {
-      "northStar": "Precision",
-      "overview": "A sharply composed working instrument for Pi sessions. Rams/Braun contribute hierarchy, honesty, and exact functional separation; Teenage Engineering contributes typographic confidence and disciplined graphic personality. Pi-Crust retains its own identity and the user's DR10 palette.",
+      "northStar": "Cohesive Bento workbench",
+      "overview": "A local-first Pi session workbench: repository/editor, Pi chat and Git Changes share a Bento layout, Catppuccin Latte/Frappé palette, and consistent rounded, subtly bordered surfaces. Pi-Crust keeps its own name and mark.",
       "keyCharacteristics": [
-        "mineral chassis",
-        "near-black session and composer display fields",
-        "bold condensed Pi-Crust identity",
-        "open transcript and sharply defined tool states",
-        "green/yellow/red signals reserved for real semantic roles"
+        "three related, resizable work areas",
+        "official Catppuccin Latte/Frappé colors",
+        "rounded 1px outlined surfaces across panes and controls",
+        "dense session, transcript and Git information",
+        "semantic colors used only with readable palette text"
       ],
       "rules": [
         {
@@ -92,7 +92,7 @@
         "Do keep transcript and workspace controls visible and responsive."
       ],
       "donts": [
-        "Don't imitate Braun or Teenage Engineering hardware or logos.",
+        "Don't revive retired external design references or old palette hues.",
         "Don't invent diagnostic data, meters, metrics, or fake state.",
         "Don't add generic card stacks, decorative glass, or continuous motion."
       ]

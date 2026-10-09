@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 // Set only after successful native initialization. Web and widget tests do not
 // call platform channels or pretend to own an operating-system window.
 final desktopChromeProvider = Provider<bool>((ref) => false);
+final desktopWindowLifecycleProvider = Provider<bool>((ref) => false);
 
 class DesktopDragRegion extends ConsumerWidget {
   final Widget child;
@@ -16,7 +17,8 @@ class DesktopDragRegion extends ConsumerWidget {
 }
 
 class DesktopCaptionButtons extends StatefulWidget {
-  const DesktopCaptionButtons({super.key});
+  final Future<bool> Function()? onCloseRequested;
+  const DesktopCaptionButtons({super.key, this.onCloseRequested});
   @override
   State<DesktopCaptionButtons> createState() => _DesktopCaptionButtonsState();
 }
@@ -24,11 +26,25 @@ class DesktopCaptionButtons extends StatefulWidget {
 class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
     with WindowListener {
   bool _maximized = false;
+  bool _closing = false;
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    windowManager.setPreventClose(widget.onCloseRequested != null);
     _refresh();
+  }
+
+  @override
+  void onWindowClose() async {
+    if (_closing || widget.onCloseRequested == null) return;
+    _closing = true;
+    final allow = await widget.onCloseRequested!.call();
+    if (allow) {
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
+    }
+    _closing = false;
   }
 
   Future<void> _refresh() async {

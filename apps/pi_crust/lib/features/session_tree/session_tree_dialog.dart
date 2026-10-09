@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../data/daemon/daemon_providers.dart';
 
 class SessionTreeDialog extends ConsumerStatefulWidget {
@@ -84,7 +85,11 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.account_tree_outlined, color: tokens.accent, size: 20),
+                    Icon(
+                      Icons.account_tree_outlined,
+                      color: tokens.accent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Albero della Sessione',
@@ -112,9 +117,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
             const SizedBox(height: 12),
 
             // Content
-            Expanded(
-              child: _buildBody(tokens),
-            ),
+            Expanded(child: _buildBody(tokens)),
 
             const SizedBox(height: 12),
             Divider(color: tokens.border, height: 1),
@@ -170,7 +173,8 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
       );
     }
 
-    final treeList = _treeData?['tree'] as List<dynamic>? ??
+    final treeList =
+        _treeData?['tree'] as List<dynamic>? ??
         _treeData?['nodes'] as List<dynamic>? ??
         [];
 
@@ -199,10 +203,15 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
       itemCount: treeList.length,
       itemBuilder: (context, index) {
         final node = treeList[index];
-        final nodeMap = node is Map<String, dynamic> ? node : <String, dynamic>{};
+        final nodeMap = node is Map<String, dynamic>
+            ? node
+            : <String, dynamic>{};
         final nodeId = nodeMap['id']?.toString() ?? 'nodo_$index';
         final role = nodeMap['role']?.toString() ?? 'entry';
-        final summary = nodeMap['summary']?.toString() ?? nodeMap['text']?.toString() ?? nodeId;
+        final summary =
+            nodeMap['summary']?.toString() ??
+            nodeMap['text']?.toString() ??
+            nodeId;
         final isLeaf = nodeMap['isLeaf'] == true;
         final isActive = nodeMap['isActive'] == true;
 
@@ -220,7 +229,9 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
           child: Row(
             children: [
               Icon(
-                isActive ? Icons.radio_button_checked : (isLeaf ? Icons.nature : Icons.commit),
+                isActive
+                    ? Icons.radio_button_checked
+                    : (isLeaf ? Icons.nature : Icons.commit),
                 color: isActive ? tokens.accent : tokens.textMuted,
                 size: 16,
               ),
@@ -234,7 +245,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
                         Text(
                           role.toUpperCase(),
                           style: TextStyle(
-                            color: isActive ? tokens.accent : tokens.textSecondary,
+                            color: tokens.textSecondary,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -242,15 +253,21 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
                         if (isActive) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
-                              color: tokens.accent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(3),
+                              color: tokens.surfaceElevated,
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusSm,
+                              ),
+                              border: Border.all(color: tokens.border),
                             ),
                             child: Text(
                               'ATTIVO',
                               style: TextStyle(
-                                color: tokens.accent,
+                                color: tokens.textPrimary,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -264,10 +281,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
                       summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                     ),
                   ],
                 ),

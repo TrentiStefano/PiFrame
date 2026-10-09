@@ -36,7 +36,15 @@ class AgentStatusBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 6, height: 6, color: signal),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: signal,
+                shape: BoxShape.circle,
+                border: Border.all(color: tokens.borderStrong, width: 1),
+              ),
+            ),
             const SizedBox(width: 8),
             Text(
               status.label,
@@ -64,23 +72,25 @@ class AgentStatusBadge extends StatelessWidget {
             tokens.surface,
           ),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(color: tokens.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 6,
-              height: 6,
+              width: 8,
+              height: 8,
               decoration: BoxDecoration(
                 color: foreground,
                 shape: BoxShape.circle,
+                border: Border.all(color: tokens.borderStrong, width: 1),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               status.label,
               style: TextStyle(
-                color: foreground,
+                color: tokens.textPrimary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),

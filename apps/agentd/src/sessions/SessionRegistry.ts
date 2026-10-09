@@ -22,11 +22,13 @@ export class SessionRegistry {
   private index: SessionIndex;
   private supervisor: WorkerSupervisor;
   private connectionManager: ConnectionManager;
+  private piExecutablePath: string;
   private checkTerminalOwner: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 
   constructor(opts: SessionRegistryOptions) {
     this.index = opts.sessionIndex || new SessionIndex();
     this.connectionManager = opts.connectionManager;
+    this.piExecutablePath = opts.piExecutablePath;
     this.checkTerminalOwner = opts.checkTerminalOwner || hasInteractivePiInCwd;
     this.supervisor = new WorkerSupervisor({
       piExecutablePath: opts.piExecutablePath,
@@ -50,6 +52,10 @@ export class SessionRegistry {
 
   public getIndex(): SessionIndex {
     return this.index;
+  }
+
+  public getPiExecutablePath(): string {
+    return this.piExecutablePath;
   }
 
   public async listSessions(query?: string, limit = 50): Promise<SessionSummary[]> {

@@ -25,6 +25,10 @@ Pi-Crust è progettato come un'applicazione desktop a doppio componente:
   - Versione minima supportata: **v0.85.0**.
   - Installabile globalmente tramite `npm install -g @earendil-works/pi-coding-agent`.
 
+### MCP Dart/Flutter per Pi
+
+Pi-Crust usa il server ufficiale integrato Dart/Flutter configurato a livello utente in `~/.pi/agent/mcp.json` (`dart mcp-server`, esposizione differita). Serve Flutter/Dart SDK su `PATH`. Da root del progetto, verifica con `pi mcp list`; lo stato atteso è `dart · connected`. Pi-Crust avvia worker RPC con la workspace come `cwd`, quindi il server si aggancia al progetto attivo senza richiedere trust locale. Gli strumenti sono scoperti on demand tramite `tool_search`.
+
 ---
 
 ## 3. Installazione

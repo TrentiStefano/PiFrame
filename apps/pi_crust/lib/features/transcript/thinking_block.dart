@@ -35,6 +35,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(color: tokens.border),
       ),
       child: AnimatedSize(
         duration: MediaQuery.disableAnimationsOf(context) || widget.isStreaming
@@ -49,7 +50,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
               expanded: _isExpanded,
               child: TextButton(
                 style: TextButton.styleFrom(
-                  foregroundColor: tokens.thinking,
+                  foregroundColor: tokens.textPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 12,

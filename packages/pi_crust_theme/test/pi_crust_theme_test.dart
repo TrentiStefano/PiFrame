@@ -5,22 +5,33 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 void main() {
-  test('CrustTokens dark has required color values', () {
-    const tokens = CrustTokens.dark;
-    expect(tokens.background, const Color(0xFF151916));
-    expect(tokens.accent, const Color(0xFF83CCA1));
-    expect(tokens.agentWorking, const Color(0xFF83CCA1));
-    expect(tokens.diffAddedBg, const Color(0xFF223D2C));
-    expect(tokens.diffAddedFg, const Color(0xFF9BD8B2));
-    expect(tokens.syntaxKeyword, const Color(0xFFFFB2AA));
-  });
+  test(
+    'Catppuccin Frappé fallback uses semantic colors and rounded tokens',
+    () {
+      const tokens = CrustTokens.dark;
+      expect(tokens.background, const Color(0xFF303446));
+      expect(tokens.surfaceElevated, const Color(0xFF414559));
+      expect(tokens.displaySurface, const Color(0xFF414559));
+      expect(tokens.displayText, const Color(0xFFC6D0F5));
+      expect(tokens.accent, const Color(0xFFCA9EE6));
+      expect(tokens.agentWorking, const Color(0xFFA6D189));
+      expect(tokens.diffAddedFg, const Color(0xFFC6D0F5));
+      expect(tokens.danger, const Color(0xFFE78284));
+      expect(tokens.syntaxKeyword, const Color(0xFFCA9EE6));
+      expect(tokens.radiusLg, 14);
+    },
+  );
 
-  test('CrustTokens light has required color values', () {
+  test('Catppuccin Latte fallback has coordinated light surfaces', () {
     const tokens = CrustTokens.light;
-    expect(tokens.background, const Color(0xFFF8F9F5));
-    expect(tokens.surface, const Color(0xFFF8F9F5));
-    expect(tokens.accent, const Color(0xFF0D703F));
-    expect(tokens.diffAddedBg, const Color(0xFFDDEBDD));
+    expect(tokens.background, const Color(0xFFEFF1F5));
+    expect(tokens.surface, const Color(0xFFEFF1F5));
+    expect(tokens.displaySurface, const Color(0xFFCCD0DA));
+    expect(tokens.displayText, const Color(0xFF4C4F69));
+    expect(tokens.accent, const Color(0xFF8839EF));
+    expect(tokens.warning, const Color(0xFFDF8E1D));
+    expect(tokens.diffAddedFg, const Color(0xFF4C4F69));
+    expect(tokens.radiusLg, 14);
   });
 
   test('parseHexColor handles 7-char and 9-char hex correctly', () {

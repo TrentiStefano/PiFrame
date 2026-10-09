@@ -14,7 +14,6 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
     final assetThemes = [
       'assets/themes/crust-dark.json',
       'assets/themes/crust-light.json',
-      'assets/themes/example-minimal.json',
     ];
     for (final path in assetThemes) {
       try {

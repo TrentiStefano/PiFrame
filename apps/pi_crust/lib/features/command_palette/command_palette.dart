@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
-import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 
 import '../../data/daemon/daemon_providers.dart';
-import '../../data/daemon/pcp_client.dart';
-import '../composer/composer.dart';
+import '../composer/composer_draft.dart';
+import '../sessions_sidebar/session_actions.dart';
 
 class PaletteAction {
   final String id;
@@ -100,27 +99,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         subtitle: 'Avvia una nuova sessione Pi',
         icon: Icons.add_circle_outline,
         onExecute: () async {
-          if (pcpClient != null) {
-            final cmd = PcpCommand(
-              protocol: 1,
-              id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-              ts: DateTime.now().millisecondsSinceEpoch,
-              sessionId: '@daemon',
-              commandId: PcpClient.newCommandId('cs'),
-              type: 'session.create',
-              payload: {'name': 'Nuova Sessione'},
-            );
-            final res = await pcpClient.sendCommand(cmd);
-            if (!mounted) return;
-            final data = res['data'] as Map<String, dynamic>?;
-            final session =
-                (data?['session'] ?? res['session']) as Map<String, dynamic>?;
-            if (session != null && session['id'] != null) {
-              ref.read(activeSessionIdProvider.notifier).state =
-                  session['id'] as String;
-              ref.invalidate(sessionListProvider);
-            }
-          }
+          if (pcpClient == null) return;
+          await createSession(context, ref, name: 'Nuova Sessione');
+          if (!mounted || !context.mounted) return;
+          ref.invalidate(sessionListProvider);
         },
       ),
       if (activeSessionId != null &&
@@ -219,11 +201,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           child: Material(
             color: tokens.surface,
             borderRadius: BorderRadius.circular(tokens.radiusLg),
-            elevation: 4,
+            clipBehavior: Clip.antiAlias,
+            elevation: 0,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                border: Border.all(color: tokens.borderStrong),
+                borderRadius: BorderRadius.circular(tokens.radiusLg),
+                border: Border.all(color: tokens.border),
               ),
               child: Column(
                 children: [
@@ -265,7 +248,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                           ),
                           decoration: BoxDecoration(
                             color: tokens.surface,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
                             border: Border.all(color: tokens.border),
                           ),
                           child: Text(

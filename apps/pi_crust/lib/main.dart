@@ -14,18 +14,26 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final nativeWindows =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  if (nativeWindows) {
+  final desktopWindowLifecycle = !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+  if (desktopWindowLifecycle) {
     await windowManager.ensureInitialized();
     await windowManager.setTitle('Pi-Crust');
     await windowManager.setMinimumSize(const Size(680, 480));
-    await windowManager.setTitleBarStyle(
-      TitleBarStyle.hidden,
-      windowButtonVisibility: false,
-    );
+    if (nativeWindows) {
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: false,
+      );
+    }
   }
   runApp(
     ProviderScope(
-      overrides: [desktopChromeProvider.overrideWithValue(nativeWindows)],
+      overrides: [
+        desktopChromeProvider.overrideWithValue(nativeWindows),
+        desktopWindowLifecycleProvider.overrideWithValue(desktopWindowLifecycle),
+      ],
       child: const PiCrustApp(),
     ),
   );

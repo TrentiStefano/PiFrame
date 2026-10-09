@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/daemon/pcp_client.dart';
 import '../../data/theme/theme_providers.dart';
 import 'diagnostics.dart';
 
@@ -26,16 +27,21 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   int _workerIdleTimeoutMinutes = 30;
   bool _isLoadingConfig = true;
   String? _configStatusMessage;
+  bool _isLoadingPackages = true;
+  bool _isWorkingWithPackage = false;
+  String? _packageError;
+  List<Map<String, dynamic>> _packages = [];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 5,
+      length: 6,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
     _fetchDaemonConfig();
+    _fetchPiPackages();
   }
 
   Future<void> _fetchDaemonConfig() async {
@@ -64,6 +70,296 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         });
       }
     }
+  }
+
+  Future<void> _fetchPiPackages() async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) {
+      if (mounted) {
+        setState(() {
+          _packages = [];
+          _packageError = 'Daemon non connesso';
+          _isLoadingPackages = false;
+        });
+      }
+      return;
+    }
+    setState(() {
+      _isLoadingPackages = true;
+      _packageError = null;
+    });
+    try {
+      final result = await client.listPiPackages();
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+      final packages = (data['packages'] as List? ?? const [])
+          .cast<Map<String, dynamic>>();
+      if (mounted) setState(() => _packages = packages);
+    } catch (error) {
+      if (mounted) setState(() => _packageError = error.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingPackages = false);
+    }
+  }
+
+  Future<bool> _confirmPackageAction(
+    String title,
+    String message,
+    String confirmation,
+  ) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(confirmation),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _performPackageAction(
+    String source,
+    Future<Map<String, dynamic>> Function(PcpClient client) action, {
+    required String successMessage,
+  }) async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null || _isWorkingWithPackage) return;
+    setState(() => _isWorkingWithPackage = true);
+    try {
+      await action(client);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$successMessage: $source. Riavvia Pi per applicare le modifiche.',
+            ),
+          ),
+        );
+      }
+      await _fetchPiPackages();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Operazione sul pacchetto non riuscita: $error'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isWorkingWithPackage = false);
+    }
+  }
+
+  Future<void> _updatePackage(Map<String, dynamic> package) async {
+    final source = package['source'].toString();
+    if (!await _confirmPackageAction(
+      'Aggiornare il pacchetto?',
+      'Pi aggiornerà $source usando il package manager installato. Il codice aggiornato verrà caricato al prossimo avvio di Pi.',
+      'Aggiorna',
+    ))
+      return;
+    await _performPackageAction(
+      source,
+      (client) => client.updatePiPackage(source),
+      successMessage: 'Pacchetto aggiornato',
+    );
+  }
+
+  Future<void> _removePackage(Map<String, dynamic> package) async {
+    final source = package['source'].toString();
+    if (!await _confirmPackageAction(
+      'Rimuovere il pacchetto?',
+      'Pi rimuoverà $source dalle impostazioni utente e dalla directory dei pacchetti. Le cronologie delle sessioni non vengono modificate.',
+      'Rimuovi',
+    ))
+      return;
+    await _performPackageAction(
+      source,
+      (client) => client.removePiPackage(source),
+      successMessage: 'Pacchetto rimosso',
+    );
+  }
+
+  Future<void> _pinPackage(Map<String, dynamic> package) async {
+    final source = package['source'].toString();
+    final currentVersion =
+        (package['pinnedVersion'] ?? package['version'] ?? '').toString();
+    var version = currentVersion;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Blocca versione npm'),
+          content: TextFormField(
+            initialValue: currentVersion,
+            onChanged: (value) => setDialogState(() => version = value.trim()),
+            decoration: const InputDecoration(
+              labelText: 'Versione semver',
+              hintText: '1.2.3',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: version.isEmpty
+                  ? null
+                  : () => Navigator.pop(dialogContext, version),
+              child: const Text('Blocca'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    if (!await _confirmPackageAction(
+      'Confermare versione bloccata?',
+      '$source verrà impostato sulla versione $selected.',
+      'Blocca versione',
+    ))
+      return;
+    await _performPackageAction(
+      source,
+      (client) => client.pinPiPackage(source, selected),
+      successMessage: 'Versione bloccata',
+    );
+  }
+
+  Widget _packageList(CrustTokens tokens) {
+    if (_isLoadingPackages) {
+      return Center(child: CircularProgressIndicator(color: tokens.accent));
+    }
+    if (_packageError != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_packageError!, style: TextStyle(color: tokens.danger)),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _fetchPiPackages,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Riprova'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_packages.isEmpty) {
+      return Center(
+        child: Text(
+          'Nessun pacchetto Pi utente installato.',
+          style: TextStyle(color: tokens.textMuted),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(
+          'Pacchetti Pi installati',
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Pacchetti utente globali, gestiti dal package manager Pi. Modifiche attive al prossimo avvio di Pi.',
+          style: TextStyle(color: tokens.textMuted, fontSize: 12),
+        ),
+        if (_isWorkingWithPackage) ...[
+          const SizedBox(height: 12),
+          LinearProgressIndicator(color: tokens.accent),
+        ],
+        const SizedBox(height: 16),
+        for (final package in _packages) _buildPackageCard(tokens, package),
+      ],
+    );
+  }
+
+  Widget _buildPackageCard(CrustTokens tokens, Map<String, dynamic> package) {
+    final source = package['source']?.toString() ?? '';
+    final name = package['name']?.toString() ?? source;
+    final version = package['version']?.toString() ?? 'versione sconosciuta';
+    final pin = package['pinnedVersion']?.toString();
+    final supportsPin = source.startsWith('npm:');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        border: Border.all(color: tokens.border),
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.extension_outlined, color: tokens.accent, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '$version${pin == null ? '' : ' · pinned $pin'} · $source',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10,
+                      fontFamily: tokens.monoFontFamily,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Aggiorna $name',
+              onPressed: _isWorkingWithPackage
+                  ? null
+                  : () => _updatePackage(package),
+              icon: const Icon(Icons.system_update_alt, size: 18),
+            ),
+            if (supportsPin)
+              IconButton(
+                tooltip: 'Blocca versione $name',
+                onPressed: _isWorkingWithPackage
+                    ? null
+                    : () => _pinPackage(package),
+                icon: const Icon(Icons.push_pin_outlined, size: 18),
+              ),
+            IconButton(
+              tooltip: 'Rimuovi $name',
+              onPressed: _isWorkingWithPackage
+                  ? null
+                  : () => _removePackage(package),
+              icon: Icon(Icons.delete_outline, size: 18, color: tokens.danger),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _updateTimeout(int newMinutes) async {
@@ -114,10 +410,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         children: [
           // Top Navigation Header
           Container(
+            margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: tokens.displaySurface,
-              border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+              color: tokens.surfaceElevated,
+              borderRadius: BorderRadius.circular(tokens.radiusLg),
+              border: Border.all(color: tokens.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,6 +458,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   ),
                   tabs: const [
                     Tab(text: 'PI CLI'),
+                    Tab(text: 'PACCHETTI'),
                     Tab(text: 'DAEMON'),
                     Tab(text: 'ASPETTO'),
                     Tab(text: 'PRIVACY'),
@@ -233,7 +532,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
 
                     // -------------------------------------------------------------
-                    // Tab 2: Daemon
+                    // Tab 2: Pacchetti Pi
+                    // -------------------------------------------------------------
+                    _packageList(tokens),
+
+                    // -------------------------------------------------------------
+                    // Tab 3: Daemon
                     // -------------------------------------------------------------
                     ListView(
                       padding: const EdgeInsets.all(24),
@@ -313,49 +617,66 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                 runSpacing: 8,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  DropdownButton<int>(
-                                    value: _workerIdleTimeoutMinutes,
-                                    dropdownColor: tokens.surfaceElevated,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 14,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
                                     ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 0,
-                                        child: Text('Mai (0 min)'),
+                                    decoration: BoxDecoration(
+                                      color: tokens.surfaceElevated,
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusMd,
                                       ),
-                                      DropdownMenuItem(
-                                        value: 5,
-                                        child: Text('5 minuti'),
+                                      border: Border.all(color: tokens.border),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusMd,
+                                        ),
+                                        value: _workerIdleTimeoutMinutes,
+                                        dropdownColor: tokens.surfaceElevated,
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 14,
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 0,
+                                            child: Text('Mai (0 min)'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 5,
+                                            child: Text('5 minuti'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 15,
+                                            child: Text('15 minuti'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 30,
+                                            child: Text('30 minuti (Default)'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 60,
+                                            child: Text('1 ora (60 min)'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 120,
+                                            child: Text('2 ore (120 min)'),
+                                          ),
+                                        ],
+                                        onChanged: (val) {
+                                          if (val != null) _updateTimeout(val);
+                                        },
                                       ),
-                                      DropdownMenuItem(
-                                        value: 15,
-                                        child: Text('15 minuti'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 30,
-                                        child: Text('30 minuti (Default)'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 60,
-                                        child: Text('1 ora (60 min)'),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 120,
-                                        child: Text('2 ore (120 min)'),
-                                      ),
-                                    ],
-                                    onChanged: (val) {
-                                      if (val != null) _updateTimeout(val);
-                                    },
+                                    ),
                                   ),
                                   const SizedBox(width: 16),
                                   if (_configStatusMessage != null)
                                     Text(
                                       _configStatusMessage!,
                                       style: TextStyle(
-                                        color: tokens.success,
+                                        color: tokens.textPrimary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -382,7 +703,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
 
                     // -------------------------------------------------------------
-                    // Tab 3: Aspetto
+                    // Tab 4: Aspetto
                     // -------------------------------------------------------------
                     Consumer(
                       builder: (context, ref, _) {
@@ -422,33 +743,51 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                DropdownButton<String>(
-                                  isExpanded: true,
-                                  value: activeTheme.id,
-                                  dropdownColor: tokens.surfaceElevated,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 13,
-                                    fontFamily: tokens.uiFontFamily,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
                                   ),
-                                  items: themes.map((t) {
-                                    return DropdownMenuItem<String>(
-                                      value: t.id,
-                                      child: Text(
-                                        '${t.name} (${t.variant})',
-                                        overflow: TextOverflow.ellipsis,
+                                  decoration: BoxDecoration(
+                                    color: tokens.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(
+                                      tokens.radiusMd,
+                                    ),
+                                    border: Border.all(color: tokens.border),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusMd,
                                       ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (newId) {
-                                    if (newId != null) {
-                                      ref
-                                          .read(
-                                            activeThemeSpecProvider.notifier,
-                                          )
-                                          .setTheme(newId);
-                                    }
-                                  },
+                                      value: activeTheme.id,
+                                      dropdownColor: tokens.surfaceElevated,
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 13,
+                                        fontFamily: tokens.uiFontFamily,
+                                      ),
+                                      items: themes.map((t) {
+                                        return DropdownMenuItem<String>(
+                                          value: t.id,
+                                          child: Text(
+                                            '${t.name} (${t.variant})',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (newId) {
+                                        if (newId != null) {
+                                          ref
+                                              .read(
+                                                activeThemeSpecProvider
+                                                    .notifier,
+                                              )
+                                              .setTheme(newId);
+                                        }
+                                      },
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -475,7 +814,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               Text(
                                 'Diagnostica tema:',
                                 style: TextStyle(
-                                  color: tokens.warning,
+                                  color: tokens.textPrimary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -497,7 +836,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
 
                     // -------------------------------------------------------------
-                    // Tab 4: Privacy (D16 — Zero Telemetry)
+                    // Tab 5: Privacy (D16 — Zero Telemetry)
                     // -------------------------------------------------------------
                     ListView(
                       padding: const EdgeInsets.all(24),
@@ -507,7 +846,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             Icon(
                               Icons.shield_outlined,
                               size: 24,
-                              color: tokens.success,
+                              color: tokens.textPrimary,
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -556,7 +895,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
 
                     // -------------------------------------------------------------
-                    // Tab 5: Diagnostica Locale & Export Bundle (D16)
+                    // Tab 6: Diagnostica Locale & Export Bundle (D16)
                     // -------------------------------------------------------------
                     const DiagnosticsSection(),
                   ],

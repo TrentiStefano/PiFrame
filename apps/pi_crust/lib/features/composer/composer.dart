@@ -5,12 +5,11 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
+import 'composer_draft.dart';
 import 'slash_menu.dart';
 import '../../ui/precision.dart';
+import '../workspace/repository_workspace.dart';
 
-final composerDraftProvider = StateProvider.family<String, String>(
-  (ref, sessionId) => '',
-);
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
 );
@@ -150,6 +149,91 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
+  Future<void> _addFileToContext() async {
+    final repository = ref.read(
+      repositoryStateProvider(widget.sessionId).notifier,
+    );
+    if (repository.currentState.files.isEmpty) await repository.loadFiles();
+    if (!mounted) return;
+    final state = repository.currentState;
+    if (state.files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            state.error ?? 'Nessun file disponibile nella sessione.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final path = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Aggiungi file al contesto'),
+        content: SizedBox(
+          width: 560,
+          height: 420,
+          child: ListView.builder(
+            itemCount: state.files.length,
+            itemBuilder: (context, index) {
+              final file = state.files[index];
+              final filePath = file['path'].toString();
+              return ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                leading: const Icon(Icons.description_outlined, size: 18),
+                title: Text(
+                  filePath,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text('${file['sizeBytes'] ?? 0} B'),
+                onTap: () => Navigator.pop(dialogContext, filePath),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annulla'),
+          ),
+        ],
+      ),
+    );
+    if (path == null || !mounted) return;
+
+    String? content = state.buffers[path]?.content;
+    final fileInfo = state.files.firstWhere(
+      (file) => file['path'] == path,
+      orElse: () => const <String, dynamic>{},
+    );
+    final size = (fileInfo['sizeBytes'] as num?)?.toInt() ?? 0;
+    if (content == null && size <= 64 * 1024) {
+      try {
+        final client = ref.read(pcpClientProvider);
+        if (client == null) throw StateError('Daemon non connesso');
+        final result = await client.readWorkspaceFile(widget.sessionId, path);
+        content =
+            (result['data'] as Map<String, dynamic>)['content'] as String?;
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('File non aggiunto: $error')));
+        }
+        return;
+      }
+    }
+
+    final attachment = content == null || content.length > 64 * 1024
+        ? 'File di riferimento: `$path` (troppo grande per inserirlo; chiedi a Pi di leggerlo).'
+        : 'File context: `$path`\n````${path.split('.').last}\n$content\n````';
+    appendComposerContext(ref, widget.sessionId, attachment);
+    _focusNode.requestFocus();
+  }
+
   Future<void> _interrupt() async {
     if (_isInterrupting) return;
     setState(() {
@@ -269,13 +353,24 @@ class _ComposerState extends ConsumerState<Composer> {
                       if (client == null) {
                         throw StateError('Daemon non connesso');
                       }
+                      if (!await resolveDirtyRepository(
+                        context,
+                        ref,
+                        ref.read(activeSessionIdProvider),
+                      )) {
+                        return;
+                      }
                       final result = await client.cloneSession(
                         widget.sessionId,
                       );
-                      if (!mounted) return;
+                      if (!mounted || !context.mounted) return;
                       final data = result['data'] as Map<String, dynamic>;
-                      ref.read(activeSessionIdProvider.notifier).state =
-                          data['sessionId'] as String;
+                      if (!await switchSessionSafely(
+                        context,
+                        ref,
+                        data['sessionId'] as String,
+                      ))
+                        return;
                       ref.invalidate(sessionListProvider);
                     } catch (error) {
                       if (context.mounted) {
@@ -300,10 +395,12 @@ class _ComposerState extends ConsumerState<Composer> {
         sessionState.steeringQueue.length + sessionState.followUpQueue.length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: tokens.displaySurface,
-        border: Border(top: BorderSide(color: tokens.borderStrong, width: 1)),
+        color: tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(tokens.radiusLg),
+        border: Border.all(color: tokens.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -439,13 +536,13 @@ class _ComposerState extends ConsumerState<Composer> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextField(
-                    cursorColor: tokens.displayText,
+                    cursorColor: tokens.accent,
                     controller: _controller,
                     focusNode: _focusNode,
                     maxLines: 5,
                     minLines: 2,
                     style: TextStyle(
-                      color: tokens.displayText,
+                      color: tokens.textPrimary,
                       fontSize: 15,
                       height: 1.5,
                     ),
@@ -454,20 +551,18 @@ class _ComposerState extends ConsumerState<Composer> {
                           ? 'Aggiungi istruzioni o prepara il prossimo turno...'
                           : 'Cosa vuoi realizzare? Digita / per i comandi.',
                       hintStyle: TextStyle(
-                        color: tokens.displayText.withValues(alpha: 0.7),
+                        color: tokens.textMuted,
                         fontSize: 14,
                       ),
-                      fillColor: tokens.displaySurface,
+                      fillColor: tokens.background,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        borderSide: BorderSide(
-                          color: tokens.displayText.withValues(alpha: 0.45),
-                        ),
+                        borderSide: BorderSide(color: tokens.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
                         borderSide: BorderSide(
-                          color: tokens.displayText,
+                          color: tokens.focusRing,
                           width: 1.5,
                         ),
                       ),
@@ -494,6 +589,11 @@ class _ComposerState extends ConsumerState<Composer> {
                             ),
                           ),
                         ),
+                      IconButton(
+                        tooltip: 'Aggiungi file al contesto',
+                        onPressed: _addFileToContext,
+                        icon: const Icon(Icons.attach_file, size: 18),
+                      ),
                       // Stop button during streaming
                       if (isStreaming)
                         Padding(

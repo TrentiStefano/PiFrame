@@ -6,11 +6,7 @@ class DiffBlock extends StatefulWidget {
   final String diffText;
   final String? filename;
 
-  const DiffBlock({
-    super.key,
-    required this.diffText,
-    this.filename,
-  });
+  const DiffBlock({super.key, required this.diffText, this.filename});
 
   @override
   State<DiffBlock> createState() => _DiffBlockState();
@@ -60,7 +56,9 @@ class _DiffBlockState extends State<DiffBlock> {
                 topLeft: Radius.circular(tokens.radiusSm),
                 topRight: Radius.circular(tokens.radiusSm),
               ),
-              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -68,7 +66,11 @@ class _DiffBlockState extends State<DiffBlock> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.difference_outlined, size: 14, color: tokens.textSecondary),
+                    Icon(
+                      Icons.difference_outlined,
+                      size: 14,
+                      color: tokens.textSecondary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       widget.filename ?? 'DIFF',
@@ -90,7 +92,8 @@ class _DiffBlockState extends State<DiffBlock> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    if (additions > 0 && deletions > 0) const SizedBox(width: 6),
+                    if (additions > 0 && deletions > 0)
+                      const SizedBox(width: 6),
                     if (deletions > 0)
                       Text(
                         '-$deletions',
@@ -107,20 +110,27 @@ class _DiffBlockState extends State<DiffBlock> {
                   onTap: _copyToClipboard,
                   borderRadius: BorderRadius.circular(4),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           _copied ? Icons.check : Icons.copy,
                           size: 12,
-                          color: _copied ? tokens.success : tokens.textSecondary,
+                          color: _copied
+                              ? tokens.success
+                              : tokens.textSecondary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           _copied ? 'Copiato!' : 'Copia',
                           style: TextStyle(
-                            color: _copied ? tokens.success : tokens.textSecondary,
+                            color: _copied
+                                ? tokens.textPrimary
+                                : tokens.textSecondary,
                             fontSize: 11,
                             fontFamily: tokens.monoFontFamily,
                           ),
@@ -139,7 +149,9 @@ class _DiffBlockState extends State<DiffBlock> {
             child: IntrinsicWidth(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: lines.map((line) => _buildDiffLine(line, tokens)).toList(),
+                children: lines
+                    .map((line) => _buildDiffLine(line, tokens))
+                    .toList(),
               ),
             ),
           ),

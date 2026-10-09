@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/session/session_state.dart';
 import '../../domain/session/session_reducer.dart';
 import '../../domain/session/snapshot_reducer.dart';
@@ -38,7 +40,9 @@ final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
   return client.connectionStateStream;
 });
 
-final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final client = ref.watch(pcpClientProvider);
   final connection = ref.watch(connectionStateProvider);
   if (client == null || connection.value != DaemonConnectionState.connected) {
@@ -61,19 +65,24 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asy
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
 final showSettingsProvider = StateProvider<bool>((ref) => false);
 
-final sessionStateFamily = StateNotifierProvider.family<SessionStateNotifier, SessionState, String>((ref, sessionId) {
-  final client = ref.watch(pcpClientProvider);
-  return SessionStateNotifier(sessionId, client);
-});
+final sessionStateFamily =
+    StateNotifierProvider.family<SessionStateNotifier, SessionState, String>((
+      ref,
+      sessionId,
+    ) {
+      final client = ref.watch(pcpClientProvider);
+      return SessionStateNotifier(sessionId, client);
+    });
 
 class SessionStateNotifier extends StateNotifier<SessionState> {
   final String sessionId;
   final PcpClient? client;
   StreamSubscription? _sub;
   StreamSubscription? _snapSub;
+  bool _statsLoading = false;
 
   SessionStateNotifier(this.sessionId, this.client)
-      : super(SessionState(sessionId: sessionId, cwd: '')) {
+    : super(SessionState(sessionId: sessionId, cwd: '')) {
     _init();
   }
 
@@ -82,17 +91,46 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
       state = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
+      unawaited(refreshSessionStats());
     });
 
     _sub = client!.events(sessionId).listen((event) {
       state = reduceSessionState(state, event);
+      if (event.type == 'usage.updated' || event.type == 'run.settled') {
+        unawaited(refreshSessionStats());
+      }
     });
     client!.attach(sessionId);
   }
 
+  Future<void> refreshSessionStats() async {
+    if (client == null ||
+        state.readOnly ||
+        (state.currentModel == null && state.entries.isEmpty) ||
+        _statsLoading) {
+      return;
+    }
+    _statsLoading = true;
+    try {
+      final result = await client!.getSessionStats(sessionId);
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+      if (mounted) {
+        state = state.copyWith(sessionStats: Map<String, dynamic>.from(data));
+      }
+    } catch (_) {
+      // Older Pi/agentd builds may not expose session statistics.
+    } finally {
+      _statsLoading = false;
+    }
+  }
+
   Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
     if (client == null) throw StateError('Daemon non connesso');
-    await client!.sendPrompt(sessionId, text, streamingBehavior: streamingBehavior);
+    await client!.sendPrompt(
+      sessionId,
+      text,
+      streamingBehavior: streamingBehavior,
+    );
   }
 
   Future<Map<String, dynamic>?> interrupt() async {
@@ -114,7 +152,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null) return;
     final result = await client!.setModel(sessionId, provider, modelId);
     final model = result['data'] as Map<String, dynamic>?;
-    state = state.copyWith(currentModel: (model?['name'] ?? model?['id'] ?? modelId).toString());
+    state = state.copyWith(
+      currentModel: (model?['name'] ?? model?['id'] ?? modelId).toString(),
+    );
   }
 
   Future<void> setThinkingLevel(String level) async {

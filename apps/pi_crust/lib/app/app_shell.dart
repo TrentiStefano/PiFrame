@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'desktop_chrome.dart';
 import '../ui/precision.dart';
@@ -13,6 +16,7 @@ import '../features/sessions_sidebar/session_actions.dart';
 import '../features/transcript/transcript_view.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
+import '../features/workspace/repository_workspace.dart';
 import '../features/command_palette/command_palette.dart';
 import '../features/settings/settings_view.dart';
 
@@ -22,16 +26,59 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell>
-    with SingleTickerProviderStateMixin {
+class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  late final AnimationController _inspector = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 240),
-  );
-  bool _inspectorOpen = false;
-  bool _inspectorVisited = false;
+  bool _closingWindow = false;
+  late final bool _handlesNativeClose;
   bool _creating = false;
+  WorkspacePane _compactPane = WorkspacePane.chat;
+  WorkspacePane _companionPane = WorkspacePane.repository;
+  final Map<WorkspacePane, bool> _paneVisibility = {
+    WorkspacePane.repository: true,
+    WorkspacePane.chat: true,
+    WorkspacePane.git: true,
+  };
+  final Map<WorkspacePane, double> _paneWeights = {
+    WorkspacePane.repository: 32,
+    WorkspacePane.chat: 44,
+    WorkspacePane.git: 24,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _handlesNativeClose =
+        ref.read(desktopWindowLifecycleProvider) &&
+        !ref.read(desktopChromeProvider);
+    if (_handlesNativeClose) {
+      windowManager.addListener(this);
+      unawaited(windowManager.setPreventClose(true));
+    }
+  }
+
+  @override
+  void onWindowClose() async {
+    if (_closingWindow || !_handlesNativeClose) return;
+    _closingWindow = true;
+    try {
+      final allowClose = await resolveDirtyRepository(
+        context,
+        ref,
+        ref.read(activeSessionIdProvider),
+      );
+      if (!mounted || !allowClose) return;
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
+    } finally {
+      _closingWindow = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_handlesNativeClose) windowManager.removeListener(this);
+    super.dispose();
+  }
 
   void _palette() => CommandPalette.show(
     context,
@@ -44,27 +91,6 @@ class _AppShellState extends ConsumerState<AppShell>
     if (mounted) setState(() => _creating = false);
   }
 
-  void _toggleInspector() {
-    setState(() {
-      _inspectorVisited = true;
-      _inspectorOpen = !_inspectorOpen;
-    });
-    _inspector.duration = context.tokens.panelDuration;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _inspector.value = _inspectorOpen ? 1 : 0;
-    } else if (_inspectorOpen) {
-      _inspector.forward();
-    } else {
-      _inspector.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _inspector.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
@@ -75,14 +101,31 @@ class _AppShellState extends ConsumerState<AppShell>
         DaemonConnectionState.disconnected;
     final connected = connection == DaemonConnectionState.connected;
     final width = MediaQuery.sizeOf(context).width;
-    final narrow = width < 900;
-    final dockInspector = width >= 1280;
+    final showSessionRail = width >= 1560;
     final nativeChrome = ref.watch(desktopChromeProvider);
-    final reduced = MediaQuery.disableAnimationsOf(context);
     Widget workArea() => activeId == null
-        ? _welcome(tokens, narrow, connected)
+        ? _welcome(tokens, !showSessionRail, connected)
         : Column(
             children: [
+              Container(
+                height: 38,
+                margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceElevated,
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  border: Border.all(color: tokens.border),
+                ),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Pi chat',
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
               Expanded(
                 child: TranscriptView(
                   key: ValueKey('transcript_$activeId'),
@@ -158,15 +201,15 @@ class _AppShellState extends ConsumerState<AppShell>
             children: [
               Container(
                 height: 76,
+                margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 decoration: BoxDecoration(
                   color: tokens.chassis,
-                  border: Border(
-                    bottom: BorderSide(color: tokens.borderStrong),
-                  ),
+                  borderRadius: BorderRadius.circular(tokens.radiusLg),
+                  border: Border.all(color: tokens.border),
                 ),
                 child: Row(
                   children: [
-                    if (narrow)
+                    if (!showSessionRail)
                       IconButton(
                         tooltip: 'Apri sessioni',
                         icon: const Icon(Icons.menu),
@@ -176,7 +219,9 @@ class _AppShellState extends ConsumerState<AppShell>
                     Expanded(
                       child: DesktopDragRegion(
                         child: Padding(
-                          padding: EdgeInsets.only(left: narrow ? 4 : 24),
+                          padding: EdgeInsets.only(
+                            left: showSessionRail ? 24 : 4,
+                          ),
                           child: Row(
                             children: [
                               const CrustMark(size: 28),
@@ -211,6 +256,29 @@ class _AppShellState extends ConsumerState<AppShell>
                           label: const Text('Comandi'),
                         ),
                       ),
+                    if (width >= 900 && activeId != null && !settings)
+                      PopupMenuButton<WorkspacePane>(
+                        tooltip: 'Mostra o nascondi pannelli',
+                        onSelected: _togglePane,
+                        itemBuilder: (context) => [
+                          for (final pane in WorkspacePane.values)
+                            PopupMenuItem(
+                              value: pane,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _paneVisibility[pane] == true
+                                        ? Icons.check_box_outlined
+                                        : Icons.check_box_outline_blank,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(_paneLabel(pane)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
                     IconButton(
                       tooltip: Theme.of(context).brightness == Brightness.light
                           ? 'Tema scuro'
@@ -238,12 +306,10 @@ class _AppShellState extends ConsumerState<AppShell>
                     ),
                     if (activeId != null && !settings)
                       IconButton(
-                        tooltip: 'Workspace e modello',
-                        isSelected: dockInspector && _inspectorOpen,
+                        tooltip: 'Modello e azioni sessione',
                         icon: const Icon(Icons.tune, size: 19),
-                        onPressed: () => dockInspector
-                            ? _toggleInspector()
-                            : _scaffoldKey.currentState?.openEndDrawer(),
+                        onPressed: () =>
+                            _scaffoldKey.currentState?.openEndDrawer(),
                       ),
                     if (nativeChrome) ...[
                       Container(
@@ -252,7 +318,10 @@ class _AppShellState extends ConsumerState<AppShell>
                         margin: const EdgeInsets.symmetric(horizontal: 8),
                         color: tokens.borderStrong,
                       ),
-                      const DesktopCaptionButtons(),
+                      DesktopCaptionButtons(
+                        onCloseRequested: () =>
+                            resolveDirtyRepository(context, ref, activeId),
+                      ),
                     ] else
                       const SizedBox(width: 12),
                   ],
@@ -260,18 +329,14 @@ class _AppShellState extends ConsumerState<AppShell>
               ),
               if (!connected)
                 Container(
-                  color: tokens.signalWarning,
+                  color: tokens.signalWarning.withValues(alpha: 0.16),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 4,
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.link_off,
-                        size: 17,
-                        color: tokens.displaySurface,
-                      ),
+                      Icon(Icons.link_off, size: 17, color: tokens.warning),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -279,14 +344,14 @@ class _AppShellState extends ConsumerState<AppShell>
                               ? 'Riconnessione al daemon in corso...'
                               : 'Daemon non raggiungibile. Le sessioni restano gestite da Pi.',
                           style: TextStyle(
-                            color: tokens.displaySurface,
+                            color: tokens.textPrimary,
                             fontSize: 12,
                           ),
                         ),
                       ),
                       TextButton(
                         style: TextButton.styleFrom(
-                          foregroundColor: tokens.displaySurface,
+                          foregroundColor: tokens.textPrimary,
                         ),
                         onPressed: () => ref.invalidate(daemonEndpointProvider),
                         child: const Text('Riprova'),
@@ -303,75 +368,11 @@ class _AppShellState extends ConsumerState<AppShell>
                       )
                     : Row(
                         children: [
-                          if (!narrow) const SessionsSidebar(),
+                          if (showSessionRail) const SessionsSidebar(),
                           Expanded(
-                            child: Stack(
-                              children: [
-                                // Reserve space once per toggle, not on every animation frame.
-                                Positioned.fill(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                      right:
-                                          dockInspector &&
-                                              _inspectorOpen &&
-                                              activeId != null
-                                          ? 320
-                                          : 0,
-                                    ),
-                                    child: RepaintBoundary(child: workArea()),
-                                  ),
-                                ),
-                                if (dockInspector &&
-                                    activeId != null &&
-                                    _inspectorVisited)
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    width: 320,
-                                    child: IgnorePointer(
-                                      ignoring: !_inspectorOpen,
-                                      child: ExcludeFocus(
-                                        excluding: !_inspectorOpen,
-                                        child: ExcludeSemantics(
-                                          excluding: !_inspectorOpen,
-                                          child: AnimatedBuilder(
-                                            animation: _inspector,
-                                            child: ContextPanel(
-                                              key: ValueKey(
-                                                'context_$activeId',
-                                              ),
-                                              sessionId: activeId,
-                                            ),
-                                            builder: (context, child) =>
-                                                Transform.translate(
-                                                  key: const ValueKey(
-                                                    'inspector-translation',
-                                                  ),
-                                                  offset: Offset(
-                                                    reduced
-                                                        ? (_inspectorOpen
-                                                              ? 0
-                                                              : 320)
-                                                        : 320 *
-                                                              (1 -
-                                                                  tokens
-                                                                      .panelCurve
-                                                                      .transform(
-                                                                        _inspector
-                                                                            .value,
-                                                                      )),
-                                                    0,
-                                                  ),
-                                                  child: child,
-                                                ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                            child: activeId == null
+                                ? RepaintBoundary(child: workArea())
+                                : _workspace(activeId, width, workArea),
                           ),
                         ],
                       ),
@@ -379,6 +380,277 @@ class _AppShellState extends ConsumerState<AppShell>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    final panes = <WorkspacePane, Widget>{
+      WorkspacePane.repository: RepositoryPane(
+        key: ValueKey('repo_$sessionId'),
+        sessionId: sessionId,
+      ),
+      WorkspacePane.chat: chat(),
+      WorkspacePane.git: GitChangesPane(
+        key: ValueKey('git_$sessionId'),
+        sessionId: sessionId,
+      ),
+    };
+    final visible = _visiblePanes(chatFirst: width < 900);
+
+    if (width < 900) {
+      final selected = visible.contains(_compactPane)
+          ? _compactPane
+          : visible.first;
+      return Column(
+        children: [
+          _paneSelector(
+            visible,
+            selected,
+            (pane) => setState(() => _compactPane = pane),
+            showLayoutMenu: true,
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: visible.indexOf(selected),
+              children: [for (final pane in visible) _bentoPane(panes[pane]!)],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (width < 1440 && _paneVisibility[WorkspacePane.chat] == true) {
+      final companions = visible
+          .where((pane) => pane != WorkspacePane.chat)
+          .toList();
+      if (companions.isNotEmpty) {
+        final selected = companions.contains(_companionPane)
+            ? _companionPane
+            : companions.first;
+        return Column(
+          children: [
+            if (companions.length > 1)
+              _paneSelector(
+                companions,
+                selected,
+                (pane) => setState(() => _companionPane = pane),
+              ),
+            Expanded(
+              child: _resizablePaneRow([WorkspacePane.chat, selected], panes),
+            ),
+          ],
+        );
+      }
+    }
+
+    return _resizablePaneRow(visible, panes);
+  }
+
+  List<WorkspacePane> _visiblePanes({bool chatFirst = false}) {
+    final order = chatFirst
+        ? WorkspacePane.values
+        : const [
+            WorkspacePane.repository,
+            WorkspacePane.chat,
+            WorkspacePane.git,
+          ];
+    return order.where((pane) => _paneVisibility[pane] == true).toList();
+  }
+
+  String _paneLabel(WorkspacePane pane) => switch (pane) {
+    WorkspacePane.chat => 'Chat',
+    WorkspacePane.repository => 'Repository',
+    WorkspacePane.git => 'Git Changes',
+  };
+
+  void _togglePane(WorkspacePane pane) {
+    final visible = _visiblePanes();
+    if (_paneVisibility[pane] == true && visible.length <= 1) return;
+    setState(() {
+      _paneVisibility[pane] = !(_paneVisibility[pane] ?? false);
+      final remaining = _visiblePanes();
+      if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
+      if (!remaining.contains(_companionPane)) {
+        _companionPane = remaining.firstWhere(
+          (item) => item != WorkspacePane.chat,
+          orElse: () => remaining.first,
+        );
+      }
+    });
+  }
+
+  Widget _bentoPane(Widget child) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.all(3),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          border: Border.all(color: tokens.border),
+          borderRadius: BorderRadius.circular(tokens.radiusLg),
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _resizablePaneRow(
+    List<WorkspacePane> panes,
+    Map<WorkspacePane, Widget> contents,
+  ) {
+    if (panes.isEmpty) return const SizedBox.shrink();
+    if (panes.length == 1) return _bentoPane(contents[panes.single]!);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dividerWidth = 8.0;
+        final availableWidth =
+            constraints.maxWidth - dividerWidth * (panes.length - 1);
+        return Row(
+          children: [
+            for (var index = 0; index < panes.length; index++) ...[
+              Expanded(
+                flex: (_paneWeights[panes[index]] ?? 1)
+                    .round()
+                    .clamp(1, 100)
+                    .toInt(),
+                child: _bentoPane(contents[panes[index]]!),
+              ),
+              if (index < panes.length - 1)
+                MouseRegion(
+                  key: ValueKey(
+                    'pane-divider-${panes[index]}-${panes[index + 1]}',
+                  ),
+                  cursor: SystemMouseCursors.resizeLeftRight,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragUpdate: (details) => _resizeAdjacent(
+                      panes[index],
+                      panes[index + 1],
+                      details.delta.dx,
+                      availableWidth,
+                    ),
+                    child: SizedBox(
+                      width: dividerWidth,
+                      child: Center(
+                        child: Container(
+                          width: 1,
+                          height: 40,
+                          color: context.tokens.borderStrong,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  void _resizeAdjacent(
+    WorkspacePane left,
+    WorkspacePane right,
+    double delta,
+    double availableWidth,
+  ) {
+    final leftWeight = _paneWeights[left] ?? 1;
+    final rightWeight = _paneWeights[right] ?? 1;
+    final total = leftWeight + rightWeight;
+    if (availableWidth <= 0 || total <= 0) return;
+    final minimum = total * 0.2;
+    final nextLeft = (leftWeight + delta / availableWidth * total)
+        .clamp(minimum, total - minimum)
+        .toDouble();
+    setState(() {
+      _paneWeights[left] = nextLeft;
+      _paneWeights[right] = total - nextLeft;
+    });
+  }
+
+  Widget _paneSelector(
+    List<WorkspacePane> panes,
+    WorkspacePane selected,
+    ValueChanged<WorkspacePane> onSelected, {
+    bool showLayoutMenu = false,
+  }) {
+    final tokens = context.tokens;
+    String label(WorkspacePane pane) => switch (pane) {
+      WorkspacePane.chat => 'Chat',
+      WorkspacePane.repository => 'File',
+      WorkspacePane.git => 'Git Changes',
+    };
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: tokens.chassis,
+        border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+      ),
+      child: Row(
+        children: [
+          for (final pane in panes)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Semantics(
+                  button: true,
+                  selected: pane == selected,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      foregroundColor: pane == selected
+                          ? tokens.displayText
+                          : tokens.textPrimary,
+                      backgroundColor: pane == selected
+                          ? tokens.displaySurface
+                          : tokens.chassis,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        side: BorderSide(
+                          color: pane == selected
+                              ? tokens.borderStrong
+                              : tokens.border,
+                        ),
+                      ),
+                    ),
+                    onPressed: () => onSelected(pane),
+                    child: Text(
+                      label(pane),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (showLayoutMenu)
+            PopupMenuButton<WorkspacePane>(
+              tooltip: 'Mostra o nascondi pannelli',
+              onSelected: _togglePane,
+              itemBuilder: (context) => [
+                for (final pane in WorkspacePane.values)
+                  PopupMenuItem(
+                    value: pane,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _paneVisibility[pane] == true
+                              ? Icons.check_box_outlined
+                              : Icons.check_box_outline_blank,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(_paneLabel(pane)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+        ],
       ),
     );
   }

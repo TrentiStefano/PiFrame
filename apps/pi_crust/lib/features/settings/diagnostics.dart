@@ -112,20 +112,20 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         if (fixtureLabel != null) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            color: tokens.signalWarning,
+            color: tokens.signalWarning.withValues(alpha: 0.16),
             child: Row(
               children: [
                 Icon(
                   Icons.science_outlined,
                   size: 16,
-                  color: tokens.displaySurface,
+                  color: tokens.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     fixtureLabel,
                     style: TextStyle(
-                      color: tokens.displaySurface,
+                      color: tokens.textPrimary,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
@@ -287,9 +287,24 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
               ),
               if (_exportSuccess != null) ...[
                 const SizedBox(height: 10),
-                Text(
-                  _exportSuccess!,
-                  style: TextStyle(color: tokens.agentSettled, fontSize: 11),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 14,
+                      color: tokens.agentSettled,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _exportSuccess!,
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -313,14 +328,28 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
             label,
             style: TextStyle(color: tokens.textSecondary, fontSize: 13),
           );
-          final valueWidget = Text(
+          final valueText = Text(
             value,
             style: TextStyle(
-              color: color ?? tokens.textPrimary,
+              color: tokens.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           );
+          final valueWidget = color == null
+              ? valueText
+              : Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: valueText,
+                );
           if (constraints.maxWidth < 520) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),

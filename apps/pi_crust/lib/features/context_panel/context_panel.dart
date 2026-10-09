@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
-import '../../ui/code/diff_block.dart';
 import '../session_tree/session_tree_dialog.dart';
+import '../workspace/repository_workspace.dart';
 
 class ContextPanel extends ConsumerStatefulWidget {
   final String sessionId;
@@ -20,14 +20,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   List<String> _thinkingLevels = [];
   bool _isLoadingParams = true;
   bool _isCompacting = false;
-  Map<String, dynamic>? _gitStatus;
-  bool _isLoadingGit = false;
 
   @override
   void initState() {
     super.initState();
     _loadParams();
-    _loadGitStatus();
   }
 
   Future<void> _loadParams() async {
@@ -46,26 +43,6 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     }
   }
 
-  Future<void> _loadGitStatus() async {
-    setState(() => _isLoadingGit = true);
-    final client = ref.read(pcpClientProvider);
-    if (client != null) {
-      try {
-        final res = await client.refreshWorkspace(widget.sessionId);
-        if (mounted) {
-          setState(() {
-            _gitStatus = res['data'] as Map<String, dynamic>? ?? {};
-            _isLoadingGit = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _isLoadingGit = false);
-      }
-    } else {
-      if (mounted) setState(() => _isLoadingGit = false);
-    }
-  }
-
   Future<void> _runAction(Future<void> Function() action) async {
     try {
       await action();
@@ -76,72 +53,6 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         ).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
       }
     }
-  }
-
-  Future<void> _showFileDiff(String filePath) async {
-    final client = ref.read(pcpClientProvider);
-    if (client == null) return;
-
-    try {
-      final res = await client.getWorkspaceDiff(
-        widget.sessionId,
-        filePath: filePath,
-      );
-      final data = res['data'] as Map<String, dynamic>? ?? {};
-      final diffText =
-          data['diff']?.toString() ?? 'Nessuna differenza trovata.';
-
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => Dialog(
-            backgroundColor: context.tokens.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(context.tokens.radiusMd),
-              side: BorderSide(color: context.tokens.border, width: 1),
-            ),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Diff: $filePath',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.tokens.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: context.tokens.monoFontFamily,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        color: context.tokens.textSecondary,
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: DiffBlock(diffText: diffText, filename: filePath),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-    } catch (_) {}
   }
 
   Future<void> _triggerCompaction() async {
@@ -185,7 +96,10 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('OK', style: TextStyle(color: context.tokens.accent)),
+              child: Text(
+                'OK',
+                style: TextStyle(color: context.tokens.textPrimary),
+              ),
             ),
           ],
         ),
@@ -196,12 +110,19 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   Future<void> _cloneSession() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
+    if (!await resolveDirtyRepository(
+      context,
+      ref,
+      ref.read(activeSessionIdProvider),
+    )) {
+      return;
+    }
     try {
       final result = await client.cloneSession(widget.sessionId);
       if (!mounted) return;
       final data = result['data'] as Map<String, dynamic>;
-      ref.read(activeSessionIdProvider.notifier).state =
-          data['sessionId'] as String;
+      if (!await switchSessionSafely(context, ref, data['sessionId'] as String))
+        return;
       ref.invalidate(sessionListProvider);
     } catch (error) {
       if (mounted) {
@@ -233,12 +154,6 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final contextUsage = usage?['contextUsage'] as Map<String, dynamic>?;
     final percent = (contextUsage?['percent'] as num?)?.toDouble();
 
-    final isGitRepo = _gitStatus?['isRepository'] == true;
-    final branch = _gitStatus?['branch']?.toString() ?? 'main';
-    final additions = _gitStatus?['totalAdditions'] as int? ?? 0;
-    final deletions = _gitStatus?['totalDeletions'] as int? ?? 0;
-    final changedFiles = (_gitStatus?['files'] as List<dynamic>?) ?? const [];
-
     return Container(
       width: 320,
       decoration: BoxDecoration(
@@ -260,7 +175,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    'Contesto & Git',
+                    'Sessione',
                     style: TextStyle(
                       color: tokens.displayText,
                       fontSize: 24,
@@ -270,17 +185,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.refresh,
-                    size: 16,
-                    color: _isLoadingGit
-                        ? tokens.displayText
-                        : tokens.displayText.withValues(alpha: 0.78),
-                  ),
-                  tooltip: 'Aggiorna workspace',
-                  onPressed: _isLoadingGit ? null : _loadGitStatus,
-                ),
+                const SizedBox(width: 12),
               ],
             ),
           ),
@@ -289,156 +194,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // 1. Git Repository Card
-                if (isGitRepo) ...[
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.fork_right_outlined,
-                        size: 16,
-                        color: tokens.accent,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          branch,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (additions > 0)
-                        Text(
-                          '+$additions',
-                          style: TextStyle(
-                            color: tokens.diffAddedFg,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      if (additions > 0 && deletions > 0)
-                        const SizedBox(width: 4),
-                      if (deletions > 0)
-                        Text(
-                          '-$deletions',
-                          style: TextStyle(
-                            color: tokens.diffRemovedFg,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Changed Files
-                  Text(
-                    'File Modificati (${changedFiles.length})',
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (changedFiles.isEmpty)
-                    Text(
-                      'Nessun file modificato (clean)',
-                      style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
-                    )
-                  else
-                    ...changedFiles.map((f) {
-                      final filePath = f['path']?.toString() ?? '';
-                      final status = f['status']?.toString() ?? 'modified';
-                      Color badgeColor = tokens.warning;
-                      String badgeText = 'M';
-                      if (status == 'added') {
-                        badgeColor = tokens.diffAddedFg;
-                        badgeText = 'A';
-                      } else if (status == 'deleted') {
-                        badgeColor = tokens.diffRemovedFg;
-                        badgeText = 'D';
-                      } else if (status == 'untracked') {
-                        badgeColor = tokens.info;
-                        badgeText = '?';
-                      }
-
-                      return InkWell(
-                        onTap: () => _showFileDiff(filePath),
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 2,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: badgeColor.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                                child: Text(
-                                  badgeText,
-                                  style: TextStyle(
-                                    color: badgeColor,
-                                    fontSize: 10,
-                                    fontFamily: tokens.monoFontFamily,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  filePath,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 12,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  const SizedBox(height: 20),
-                  Divider(color: tokens.border, height: 1),
-                  const SizedBox(height: 16),
-                ],
-
-                if (!isGitRepo) ...[
-                  Icon(
-                    Icons.folder_outlined,
-                    size: 24,
-                    color: tokens.textMuted,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isLoadingGit
-                        ? 'Caricamento workspace...'
-                        : 'Nessun repository Git disponibile.',
-                    style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
-                // 2. Modello Attivo
+                // Session settings; repository and Git status live in Git Changes.
+                // 1. Modello Attivo
                 Text(
                   'Modello LLM',
                   style: TextStyle(
@@ -475,6 +232,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             isExpanded: true,
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusMd,
+                            ),
                             dropdownColor: tokens.surfaceElevated,
                             value:
                                 _models.any(
@@ -556,6 +316,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
+                      borderRadius: BorderRadius.circular(tokens.radiusMd),
                       dropdownColor: tokens.surfaceElevated,
                       value: _thinkingLevels.contains(currentThinking)
                           ? currentThinking

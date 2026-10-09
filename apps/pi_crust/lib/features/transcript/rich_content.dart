@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
 
@@ -72,17 +73,19 @@ class RichContent extends StatelessWidget {
       if (currentPara.isNotEmpty) {
         final content = currentPara.toString().trim();
         if (content.isNotEmpty) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: SelectableText.rich(
-              _parseInlineSpans(content, tokens),
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 13.5,
-                height: 1.55,
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: SelectableText.rich(
+                _parseInlineSpans(content, tokens),
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 13.5,
+                  height: 1.55,
+                ),
               ),
             ),
-          ));
+          );
         }
         currentPara.clear();
       }
@@ -90,44 +93,52 @@ class RichContent extends StatelessWidget {
 
     for (final line in rawLines) {
       final trimmed = line.trim();
-      if (trimmed.startsWith('# ') || trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
+      if (trimmed.startsWith('# ') ||
+          trimmed.startsWith('## ') ||
+          trimmed.startsWith('### ')) {
         flushPara();
         if (trimmed.startsWith('### ')) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.only(top: 10, bottom: 4),
-            child: SelectableText(
-              trimmed.substring(4),
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 10, bottom: 4),
+              child: SelectableText(
+                trimmed.substring(4),
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ));
+          );
         } else if (trimmed.startsWith('## ')) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 6),
-            child: SelectableText(
-              trimmed.substring(3),
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 6),
+              child: SelectableText(
+                trimmed.substring(3),
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ));
+          );
         } else if (trimmed.startsWith('# ')) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.only(top: 14, bottom: 8),
-            child: SelectableText(
-              trimmed.substring(2),
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 14, bottom: 8),
+              child: SelectableText(
+                trimmed.substring(2),
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ));
+          );
         }
       } else if (trimmed.isEmpty) {
         flushPara();
@@ -155,10 +166,14 @@ class RichContent extends StatelessWidget {
 
       final matches = <_InlineMatch>[];
       for (final m in inlineCodeRegex.allMatches(line)) {
-        matches.add(_InlineMatch(m.start, m.end, m.group(1)!, _InlineType.code));
+        matches.add(
+          _InlineMatch(m.start, m.end, m.group(1)!, _InlineType.code),
+        );
       }
       for (final m in boldRegex.allMatches(line)) {
-        matches.add(_InlineMatch(m.start, m.end, m.group(1)!, _InlineType.bold));
+        matches.add(
+          _InlineMatch(m.start, m.end, m.group(1)!, _InlineType.bold),
+        );
       }
       matches.sort((a, b) => a.start.compareTo(b.start));
 
@@ -169,31 +184,35 @@ class RichContent extends StatelessWidget {
           spans.add(TextSpan(text: line.substring(lastEnd, m.start)));
         }
         if (m.type == _InlineType.code) {
-          spans.add(WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusSm * 0.6),
-                border: Border.all(color: tokens.border, width: 1),
-              ),
-              child: Text(
-                m.text,
-                style: TextStyle(
-                  color: tokens.accent,
-                  fontFamily: tokens.monoFontFamily,
-                  fontSize: 12,
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceElevated,
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  border: Border.all(color: tokens.border, width: 1),
+                ),
+                child: Text(
+                  m.text,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontFamily: tokens.monoFontFamily,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
-          ));
+          );
         } else if (m.type == _InlineType.bold) {
-          spans.add(TextSpan(
-            text: m.text,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ));
+          spans.add(
+            TextSpan(
+              text: m.text,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          );
         }
         lastEnd = m.end;
       }

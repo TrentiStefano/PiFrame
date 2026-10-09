@@ -73,6 +73,8 @@ class SessionState {
   final String? currentModel;
   final String? currentThinkingLevel;
   final Map<String, dynamic>? usage;
+  final Map<String, dynamic>? sessionStats;
+  final Map<String, String> extensionStatuses;
   final int lastAppliedSeq;
 
   const SessionState({
@@ -93,14 +95,14 @@ class SessionState {
     this.currentModel,
     this.currentThinkingLevel,
     this.usage,
+    this.sessionStats,
+    this.extensionStatuses = const {},
     this.lastAppliedSeq = 0,
   });
 
-  String get currentStreamingText =>
-      streamingTextBlocks.values.join();
+  String get currentStreamingText => streamingTextBlocks.values.join();
 
-  String get currentStreamingThinking =>
-      streamingThinkingBlocks.values.join();
+  String get currentStreamingThinking => streamingThinkingBlocks.values.join();
 
   bool get isStreaming =>
       streamingTextBlocks.isNotEmpty ||
@@ -125,6 +127,8 @@ class SessionState {
     String? currentModel,
     String? currentThinkingLevel,
     Map<String, dynamic>? usage,
+    Map<String, dynamic>? sessionStats,
+    Map<String, String>? extensionStatuses,
     int? lastAppliedSeq,
   }) {
     return SessionState(
@@ -146,6 +150,8 @@ class SessionState {
       currentModel: currentModel ?? this.currentModel,
       currentThinkingLevel: currentThinkingLevel ?? this.currentThinkingLevel,
       usage: usage ?? this.usage,
+      sessionStats: sessionStats ?? this.sessionStats,
+      extensionStatuses: extensionStatuses ?? this.extensionStatuses,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
     );
   }

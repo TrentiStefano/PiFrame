@@ -1,28 +1,26 @@
 ---
-version: 1
+version: 2
 slug: "lib-app-app-shell-dart"
 primary_target: "lib/app/app_shell.dart"
 related_targets: ["lib/main.dart","lib/ui/precision.dart","lib/app/desktop_chrome.dart","lib/features/transcript/transcript_view.dart","lib/features/composer/composer.dart"]
 ---
 
-# Precision — approved replacement
+# Pi-Crust — Bento Workbench
 
-Mode: Operate. Scope: entire Flutter client plus Windows window chrome and a once-per-launch identity reveal. The user rejected Fieldwork and explicitly approved the harder-edged replacement after the live Teenage Engineering homepage and official Braun product photos were inspected. Preserve light-first/dark pairing, DR10 colors, Italian copy, Pi session ownership, daemon boundary, drafts, queues, and read-only safeguards.
+Current app-shell contract. Root `DESIGN.md` is authoritative.
 
 ## Direction contract
 
-THESIS: A precise industrial workspace, not a pale Material card stack. Actual session and workspace information owns the screen; no imitation knobs, invented meters, or decorative statistics.
+**Thesis:** A coherent, local-first Pi workbench. Bento describes repository/editor, chat and Git Changes spatial grouping; shared surface grammar applies beyond panes.
 
-OWN-WORLD: Mineral chassis, open near-white reading field, sharply bounded black information/command surfaces, small radii, Barlow Condensed identity/headings, Schibsted Grotesk reading text, Source Code Pro code, and functional DR10 green/yellow/red signals. An original four-part P glyph replaces the generic circle.
+**Palette:** Official Catppuccin Latte and Frappé values from `themes/crust-*.json`, mirrored in Flutter assets and token fallbacks. Mauve is the primary accent; Green/Yellow/Red/Blue are semantic status roles. Never use custom darkened/shifted hues. Small text uses named palette text colors; accents appear on icons, borders and tinted surfaces.
 
-STORY: Identify the session and state immediately, follow agent work in a clear open transcript, compose against a distinct command surface, and open workspace controls without losing the conversation.
+**Surfaces:** Use modest rounded corners and subtle 1px borders for functional UI throughout: app sections, session rows, transcript/tool/code blocks, composer, settings, inputs, dialogs and menus. Keep list density high; don't card every text row. No square borderless controls, deep shadows, glass or nested stacks.
 
-FIRST VIEWPORT: An integrated 76px application header carries the Pi-Crust glyph/wordmark and native Windows controls. A mineral session index sits beside a dark session information strip, open transcript, and dark anchored composer. Empty state has decisive task lettering and real session actions. Narrow windows keep explicit session/workspace drawers.
+**Identity and type:** Preserve Pi-Crust's own name and mark. Keep Barlow Condensed for identity/headings, Schibsted Grotesk for UI/body and Source Code Pro for code/paths.
 
-FORM: User-approved pinned Precision direction supersedes Fieldwork. Prior concept seed `c2b131d0` is retained as provenance; the explicit user choice overrides its assignment. Signature motion is the four-part glyph assembling on launch while the already-visible application settles; any input completes it immediately. Inspector movement is a 240ms transform with the stronger drawer curve, press feedback 120ms/0.97, and keyboard commands remain instant. Reduced motion removes movement.
-
-FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+**Interaction:** Preserve session history ownership, local daemon boundary, drafts, queues, read-only safeguards and extension UI. Caption controls stay native and accessible. Keyboard actions remain immediate; reduced motion respected. Panes resize/hide without losing state.
 
 ## Evidence gate
 
-Capture the actual Windows executable with custom title bar, exercise caption controls/drag/resize, and record startup frames/video. Capture shared-client light/dark at desktop/narrow widths. Keep build-thread inspection to one batched pass plus one confirmation. Use user rejection and actual source images as the finish-review inputs, not the previous approval. Test reduced motion, pointer interruption, keyboard immediacy, and inspector reversal. Do not claim frame rates from screenshots. There are no new shipping research photos: fonts are local and licensed; brand drawing is original.
+Inspect fresh light/dark app renders, settings, session list, composer, transcript, dialogs, and wide/compact workspace. Test the theme selector against actual token colors and verify text contrast; do not claim visual QA from source alone.

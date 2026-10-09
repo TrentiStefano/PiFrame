@@ -292,8 +292,8 @@ class ThemeSpec {
       brightness: isDark ? Brightness.dark : Brightness.light,
       primary: tokens.accent,
       onPrimary: tokens.accentContrast,
-      secondary: tokens.agentSettled,
-      onSecondary: tokens.background,
+      secondary: tokens.accent,
+      onSecondary: tokens.accentContrast,
       error: tokens.danger,
       onError: tokens.accentContrast,
       surface: tokens.surface,
@@ -398,7 +398,10 @@ class ThemeSpec {
         backgroundColor: tokens.surface,
         scrimColor: tokens.overlay,
         elevation: 0,
-        shape: const RoundedRectangleBorder(),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusLg),
+          side: BorderSide(color: tokens.border),
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: tokens.surface,
@@ -468,7 +471,7 @@ class ThemeSpec {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: tokens.accent,
+          foregroundColor: tokens.textPrimary,
           minimumSize: const Size(40, 40),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -510,6 +513,8 @@ class ThemeSpec {
         filled: true,
         fillColor: tokens.surfaceElevated,
         hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+        labelStyle: TextStyle(color: tokens.textSecondary),
+        errorStyle: TextStyle(color: tokens.danger),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
@@ -525,6 +530,14 @@ class ThemeSpec {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           borderSide: BorderSide(color: tokens.focusRing, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          borderSide: BorderSide(color: tokens.danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          borderSide: BorderSide(color: tokens.danger, width: 1.5),
         ),
       ),
       scrollbarTheme: ScrollbarThemeData(
