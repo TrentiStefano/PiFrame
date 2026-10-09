@@ -107,25 +107,6 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
         ? _welcome(tokens, !showSessionRail, connected)
         : Column(
             children: [
-              Container(
-                height: 38,
-                margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.border),
-                ),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Pi chat',
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
               Expanded(
                 child: TranscriptView(
                   key: ValueKey('transcript_$activeId'),
@@ -226,7 +207,13 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                             children: [
                               const CrustMark(size: 28),
                               const SizedBox(width: 12),
-                              BrandWordmark(size: width < 520 ? 30 : 38),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: BrandWordmark(size: width < 520 ? 30 : 38),
+                                ),
+                              ),
                               if (width > 920) ...[
                                 const SizedBox(width: 32),
                                 Icon(
@@ -280,6 +267,9 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                         ],
                       ),
                     IconButton(
+                      visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
+                      padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
+                      constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
                       tooltip: Theme.of(context).brightness == Brightness.light
                           ? 'Tema scuro'
                           : 'Tema chiaro',
@@ -298,6 +288,9 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                           ),
                     ),
                     IconButton(
+                      visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
+                      padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
+                      constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
                       tooltip: 'Impostazioni',
                       icon: const Icon(Icons.settings_outlined, size: 18),
                       onPressed: () =>
@@ -306,6 +299,9 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                     ),
                     if (activeId != null && !settings)
                       IconButton(
+                        visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
+                        padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
+                        constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
                         tooltip: 'Modello e azioni sessione',
                         icon: const Icon(Icons.tune, size: 19),
                         onPressed: () =>
@@ -368,7 +364,13 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                       )
                     : Row(
                         children: [
-                          if (showSessionRail) const SessionsSidebar(),
+                          if (showSessionRail)
+                            _bentoPane(
+                              const SizedBox(
+                                width: 280,
+                                child: SessionsSidebar(),
+                              ),
+                            ),
                           Expanded(
                             child: activeId == null
                                 ? RepaintBoundary(child: workArea())
@@ -482,16 +484,18 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   Widget _bentoPane(Widget child) {
     final tokens = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.all(3),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: tokens.surface,
-          border: Border.all(color: tokens.border),
-          borderRadius: BorderRadius.circular(tokens.radiusLg),
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            border: Border.all(color: tokens.border),
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+          ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }

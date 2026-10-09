@@ -71,8 +71,9 @@ class _FakeWorkspaceClient extends PcpClient {
 
   @override
   Future<Map<String, dynamic>> listWorkspaceFiles(String sessionId) async {
-    if (unsupportedList)
+    if (unsupportedList) {
       throw StateError('Unsupported command type: workspace.listFiles');
+    }
     return {
       'data': {
         'rootPath': '/repo',
@@ -398,4 +399,80 @@ void main() {
     expect(container.read(activeSessionIdProvider), 'session-a');
     expect(editor.currentState.buffers['lib/main.dart']?.dirty, isTrue);
   });
+
+  testWidgets(
+    'RepositoryPane displays full-width treeview without empty editor, expands/collapses folders and closes editor',
+    (tester) async {
+      final client = _FakeWorkspaceClient();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pcpClientProvider.overrideWithValue(client),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state =
+                    const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [CrustTokens.light],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: RepositoryPane(sessionId: 'session-a'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially no file is selected: editor field does NOT exist! No wasted space!
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsNothing,
+      );
+      expect(find.text('Seleziona un file'), findsNothing);
+
+      // Hierarchical folder 'lib' and file 'main.dart' are present in tree
+      expect(find.text('lib'), findsOneWidget);
+      expect(find.text('main.dart'), findsOneWidget);
+
+      // Tap 'lib' folder row to collapse it
+      await tester.tap(find.text('lib'));
+      await tester.pumpAndSettle();
+
+      // Child 'main.dart' is now collapsed/hidden!
+      expect(find.text('main.dart'), findsNothing);
+
+      // Tap 'lib' again to expand it
+      await tester.tap(find.text('lib'));
+      await tester.pumpAndSettle();
+      expect(find.text('main.dart'), findsOneWidget);
+
+      // Tap the file to open it in the editor
+      await tester.tap(find.text('main.dart'));
+      await tester.pumpAndSettle();
+
+      // Now editor is opened
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('Chiudi file'), findsOneWidget);
+
+      // Click close button to close the editor
+      await tester.tap(find.byTooltip('Chiudi file'));
+      await tester.pumpAndSettle();
+
+      // Returns to full-width tree view, editor is gone
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsNothing,
+      );
+    },
+  );
 }

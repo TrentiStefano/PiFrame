@@ -123,9 +123,14 @@ export class Dispatcher {
     } as PcpResult);
   }
 
-  private requireWorkspaceSession(sessionId?: string): NonNullable<ReturnType<SessionRegistry['getSession']>> {
+  private async requireWorkspaceSession(sessionId?: string): Promise<NonNullable<ReturnType<SessionRegistry['getSession']>>> {
     if (!sessionId) throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
-    const session = this.registry.getSession(sessionId);
+    let session = this.registry.getSession(sessionId);
+    if (!session) {
+      try {
+        session = await this.registry.openSession(sessionId);
+      } catch (_) {}
+    }
     if (!session) throw Object.assign(new Error(`Session ${sessionId} not found.`), { code: 'SESSION_NOT_FOUND' });
     return session;
   }
@@ -510,34 +515,34 @@ export class Dispatcher {
       }
 
       case 'workspace.refresh': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         return this.workspaceService.getStatus(session.cwd, true);
       }
 
       case 'workspace.getDiff': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         const diff = await this.workspaceService.getDiff(session.cwd, payload?.filePath);
         return { diff };
       }
 
       case 'workspace.listFiles': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         return this.workspaceService.listFiles(session.cwd);
       }
 
       case 'workspace.readFile': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         return this.workspaceService.readFile(session.cwd, payload.path);
       }
 
       case 'workspace.saveFile': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
         return this.workspaceService.saveFile(session.cwd, payload.path, payload.content, payload.revision, assertCanWrite);
       }
 
       case 'workspace.gitAction': {
-        const session = this.requireWorkspaceSession(sessionId);
+        const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
         return this.workspaceService.gitAction(
           session.cwd,
@@ -552,7 +557,10 @@ export class Dispatcher {
 
       case 'session.rename': {
         if (!sessionId) throw new Error('sessionId required');
-        const session = this.registry.getSession(sessionId);
+        let session = this.registry.getSession(sessionId);
+        if (!session) {
+          try { session = await this.registry.openSession(sessionId); } catch (_) {}
+        }
         if (!session) throw new Error(`Session ${sessionId} not found`);
         if (session.readOnly) throw new Error('External session is read-only. Duplicate it first.');
         session.name = payload.name;

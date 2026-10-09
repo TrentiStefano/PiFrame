@@ -164,8 +164,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       'Aggiornare il pacchetto?',
       'Pi aggiornerà $source usando il package manager installato. Il codice aggiornato verrà caricato al prossimo avvio di Pi.',
       'Aggiorna',
-    ))
+    )) {
       return;
+    }
     await _performPackageAction(
       source,
       (client) => client.updatePiPackage(source),
@@ -179,8 +180,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       'Rimuovere il pacchetto?',
       'Pi rimuoverà $source dalle impostazioni utente e dalla directory dei pacchetti. Le cronologie delle sessioni non vengono modificate.',
       'Rimuovi',
-    ))
+    )) {
       return;
+    }
     await _performPackageAction(
       source,
       (client) => client.removePiPackage(source),
@@ -226,8 +228,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       'Confermare versione bloccata?',
       '$source verrà impostato sulla versione $selected.',
       'Blocca versione',
-    ))
+    )) {
       return;
+    }
     await _performPackageAction(
       source,
       (client) => client.pinPiPackage(source, selected),

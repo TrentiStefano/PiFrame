@@ -105,7 +105,7 @@ class RichContent extends StatelessWidget {
                 trimmed.substring(4),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 15,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -115,12 +115,21 @@ class RichContent extends StatelessWidget {
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(top: 12, bottom: 6),
-              child: SelectableText(
-                trimmed.substring(3),
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
+              child: Container(
+                padding: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: tokens.accent, width: 3),
+                  ),
+                ),
+                child: SelectableText(
+                  trimmed.substring(3),
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: tokens.headingFontFamily,
+                  ),
                 ),
               ),
             ),
@@ -135,11 +144,110 @@ class RichContent extends StatelessWidget {
                   color: tokens.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  fontFamily: tokens.headingFontFamily,
                 ),
               ),
             ),
           );
         }
+      } else if (trimmed.startsWith('> ')) {
+        flushPara();
+        widgets.add(
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              border: Border(
+                left: BorderSide(
+                  color: tokens.accent.withValues(alpha: 0.6),
+                  width: 3,
+                ),
+              ),
+            ),
+            child: SelectableText.rich(
+              _parseInlineSpans(trimmed.substring(2).trim(), tokens),
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.5,
+              ),
+            ),
+          ),
+        );
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        flushPara();
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, right: 8, left: 4),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: tokens.accent,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SelectableText.rich(
+                    _parseInlineSpans(trimmed.substring(2).trim(), tokens),
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13.5,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else if (RegExp(r'^\d+\.\s').hasMatch(trimmed)) {
+        flushPara();
+        final match = RegExp(r'^(\d+)\.\s').firstMatch(trimmed)!;
+        final numStr = match.group(1)!;
+        final itemText = trimmed.substring(match.end).trim();
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 20,
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Text(
+                    '$numStr.',
+                    style: TextStyle(
+                      color: tokens.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: tokens.monoFontFamily,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: SelectableText.rich(
+                    _parseInlineSpans(itemText, tokens),
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13.5,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       } else if (trimmed.isEmpty) {
         flushPara();
       } else {

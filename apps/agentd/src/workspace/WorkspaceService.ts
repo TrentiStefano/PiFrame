@@ -85,28 +85,44 @@ export class WorkspaceService {
     const output = await runGitStrict(['ls-files', '--cached', '--others', '--exclude-standard', '-z'], root);
     const files: FileInfo[] = [];
     let truncated = false;
-    for (const item of output.split('\0')) {
-      if (!item) continue;
+    const items = output.split('\0').filter(Boolean);
+    const BATCH_SIZE = 64;
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
       if (files.length >= MAX_LIST_FILES) {
         truncated = true;
         break;
       }
-      let relativePath: string;
-      try {
-        relativePath = normalizeRelativePath(item);
-      } catch {
-        continue;
-      }
-      const target = path.resolve(root, ...relativePath.split('/'));
-      if (!inside(root, target)) continue;
-      try {
-        const entry = await fs.promises.lstat(target);
-        if (!entry.isFile() || entry.isSymbolicLink()) continue;
-        const canonical = await fs.promises.realpath(target);
-        if (!inside(root, canonical)) continue;
-        files.push({ path: relativePath, sizeBytes: entry.size });
-      } catch (error: any) {
-        if (error?.code !== 'ENOENT') throw error;
+      const chunk = items.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        chunk.map(async (item) => {
+          let relativePath: string;
+          try {
+            relativePath = normalizeRelativePath(item);
+          } catch {
+            return null;
+          }
+          const target = path.resolve(root, ...relativePath.split('/'));
+          if (!inside(root, target)) return null;
+          try {
+            const entry = await fs.promises.lstat(target);
+            if (!entry.isFile() || entry.isSymbolicLink()) return null;
+            const canonical = await fs.promises.realpath(target);
+            if (!inside(root, canonical)) return null;
+            return { path: relativePath, sizeBytes: entry.size };
+          } catch (error: any) {
+            if (error?.code !== 'ENOENT') throw error;
+            return null;
+          }
+        })
+      );
+      for (const res of results) {
+        if (res) {
+          files.push(res);
+          if (files.length >= MAX_LIST_FILES) {
+            truncated = true;
+            break;
+          }
+        }
       }
     }
     files.sort((a, b) => a.path.localeCompare(b.path));

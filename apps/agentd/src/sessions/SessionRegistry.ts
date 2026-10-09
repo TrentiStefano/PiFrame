@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { ulid } from 'ulid';
 import { Session } from './Session.js';
 import { SessionIndex, type SessionSummary } from './SessionIndex.js';
@@ -140,7 +141,7 @@ export class SessionRegistry {
 
     // Try finding in session index
     const summaries = await this.index.scan();
-    const found = summaries.find((s) => s.id === id);
+    const found = summaries.find((s) => s.id === id || (s.sessionFile && (path.basename(s.sessionFile, path.extname(s.sessionFile)) === id || path.basename(s.sessionFile).startsWith(id))));
     if (!found) {
       throw Object.assign(new Error(`Session ${id} not found`), { code: 'SESSION_NOT_FOUND' });
     }

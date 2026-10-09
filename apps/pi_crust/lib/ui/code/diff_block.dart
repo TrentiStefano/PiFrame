@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+import 'syntax_highlighter.dart';
 
 class DiffBlock extends StatefulWidget {
   final String diffText;
@@ -14,6 +15,26 @@ class DiffBlock extends StatefulWidget {
 
 class _DiffBlockState extends State<DiffBlock> {
   bool _copied = false;
+  String? _cachedDiffText;
+  List<String> _cachedLines = const [];
+  int _cachedAdditions = 0;
+  int _cachedDeletions = 0;
+
+  void _parseDiffIfNeeded(String diffText) {
+    if (_cachedDiffText == diffText) return;
+    _cachedDiffText = diffText;
+    final lines = diffText.split('\n');
+    int additions = 0;
+    int deletions = 0;
+    for (final line in lines) {
+      final trimmed = line.trimLeft();
+      if ((line.startsWith('+') && !line.startsWith('+++')) || (trimmed.startsWith('+') && !trimmed.startsWith('+++'))) additions++;
+      if ((line.startsWith('-') && !line.startsWith('---')) || (trimmed.startsWith('-') && !trimmed.startsWith('---'))) deletions++;
+    }
+    _cachedLines = lines;
+    _cachedAdditions = additions;
+    _cachedDeletions = deletions;
+  }
 
   void _copyToClipboard() async {
     await Clipboard.setData(ClipboardData(text: widget.diffText));
@@ -28,26 +49,24 @@ class _DiffBlockState extends State<DiffBlock> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final lines = widget.diffText.split('\n');
+    _parseDiffIfNeeded(widget.diffText);
+    final lines = _cachedLines;
+    final additions = _cachedAdditions;
+    final deletions = _cachedDeletions;
+    final lang = SyntaxHighlighter.inferLanguage(widget.filename);
 
-    int additions = 0;
-    int deletions = 0;
-    for (final line in lines) {
-      if (line.startsWith('+') && !line.startsWith('+++')) additions++;
-      if (line.startsWith('-') && !line.startsWith('---')) deletions++;
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(color: tokens.border, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header: File/diff title, +/- stats, and Copy button
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(color: tokens.border, width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header: File/diff title, +/- stats, and Copy button
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -144,47 +163,163 @@ class _DiffBlockState extends State<DiffBlock> {
           ),
 
           // Diff lines
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: lines
-                    .map((line) => _buildDiffLine(line, tokens))
-                    .toList(),
-              ),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minWidth = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: minWidth),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: lines
+                          .map((line) => _buildDiffLine(line, tokens, lang))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildDiffLine(String line, CrustTokens tokens) {
-    Color? bg;
-    Color fg = tokens.diffContextFg;
-
-    if (line.startsWith('+') && !line.startsWith('+++')) {
-      bg = tokens.diffAddedBg;
-      fg = tokens.diffAddedFg;
-    } else if (line.startsWith('-') && !line.startsWith('---')) {
-      bg = tokens.diffRemovedBg;
-      fg = tokens.diffRemovedFg;
-    } else if (line.startsWith('@@')) {
-      bg = tokens.surfaceElevated;
-      fg = tokens.accent;
+  Widget _buildDiffLine(String line, CrustTokens tokens, String lang) {
+    if (line.isEmpty) {
+      return Container(
+        color: tokens.surface.withValues(alpha: 0),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: const Text(' '),
+      );
     }
+
+    if (line.startsWith('@@')) {
+      return Container(
+        color: tokens.surfaceElevated,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        child: Text.rich(
+          TextSpan(
+            children: [
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  margin: const EdgeInsets.only(right: 6),
+                  decoration: BoxDecoration(
+                    color: tokens.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Text(
+                    'HUNK',
+                    style: TextStyle(
+                      color: tokens.accent,
+                      fontSize: 9.5,
+                      fontFamily: tokens.monoFontFamily,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              TextSpan(
+                text: line,
+                style: TextStyle(
+                  color: tokens.accent,
+                  fontFamily: tokens.monoFontFamily,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final trimmed = line.trimLeft();
+    final isAddition = (line.startsWith('+') && !line.startsWith('+++')) || (trimmed.startsWith('+') && !trimmed.startsWith('+++'));
+    final isDeletion = (line.startsWith('-') && !line.startsWith('---')) || (trimmed.startsWith('-') && !trimmed.startsWith('---'));
+    final isHeader = line.startsWith('+++') || line.startsWith('---');
+
+    final Color bg;
+    final Color prefixColor;
+    final String prefix;
+    final String code;
+
+    if (isAddition) {
+      bg = tokens.diffAddedBg;
+      prefixColor = tokens.diffAddedFg;
+      prefix = '+ ';
+      code = line.startsWith('+')
+          ? (line.length > 1 ? line.substring(1) : '')
+          : (trimmed.length > 1 ? trimmed.substring(1) : '');
+    } else if (isDeletion) {
+      bg = tokens.diffRemovedBg;
+      prefixColor = tokens.diffRemovedFg;
+      prefix = '- ';
+      code = line.startsWith('-')
+          ? (line.length > 1 ? line.substring(1) : '')
+          : (trimmed.length > 1 ? trimmed.substring(1) : '');
+    } else if (isHeader) {
+      bg = tokens.surfaceElevated;
+      prefixColor = tokens.textSecondary;
+      prefix = '';
+      code = line;
+    } else {
+      bg = tokens.surface.withValues(alpha: 0);
+      prefixColor = tokens.textMuted.withValues(alpha: 0.5);
+      prefix = '  ';
+      code = line.startsWith(' ') ? line.substring(1) : line;
+    }
+
+    final codeSpans = isHeader
+        ? [
+            TextSpan(
+              text: code,
+              style: TextStyle(
+                color: prefixColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ]
+        : SyntaxHighlighter.highlightLine(
+            code,
+            lang,
+            tokens,
+            defaultColor: isAddition
+                ? tokens.diffAddedFg
+                : isDeletion
+                    ? tokens.diffRemovedFg
+                    : tokens.diffContextFg,
+          );
 
     return Container(
       color: bg,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Text(
-        line.isEmpty ? ' ' : line,
-        style: TextStyle(
-          color: fg,
-          fontFamily: tokens.monoFontFamily,
-          fontSize: 12,
-          height: 1.4,
+      child: Text.rich(
+        TextSpan(
+          children: [
+            if (prefix.isNotEmpty)
+              TextSpan(
+                text: prefix,
+                style: TextStyle(
+                  color: prefixColor,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: tokens.monoFontFamily,
+                  fontSize: 12,
+                ),
+              ),
+            ...codeSpans,
+          ],
+          style: TextStyle(
+            fontFamily: tokens.monoFontFamily,
+            fontSize: 12,
+            height: 1.4,
+          ),
         ),
       ),
     );

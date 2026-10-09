@@ -6,8 +6,11 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import 'composer_draft.dart';
+import 'copilot_file_picker.dart';
+import 'file_mention_menu.dart';
 import 'slash_menu.dart';
 import '../../ui/precision.dart';
+import '../../ui/shimmer_border.dart';
 import '../workspace/repository_workspace.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
@@ -29,6 +32,11 @@ class _ComposerState extends ConsumerState<Composer> {
   List<Map<String, dynamic>> _availableCommands = [];
   bool _showSlashMenu = false;
   bool _isInterrupting = false;
+  bool _showFileMentionMenu = false;
+  String _fileMentionQuery = '';
+  int _fileMentionStartIndex = -1;
+  int _fileMentionSelectedIndex = 0;
+  List<Map<String, dynamic>> _matchingMentionFiles = [];
 
   @override
   void initState() {
@@ -57,6 +65,73 @@ class _ComposerState extends ConsumerState<Composer> {
         _showSlashMenu = show;
       });
     }
+
+    final selection = _controller.selection;
+    final cursor = selection.baseOffset;
+    if (cursor > 0 && cursor <= text.length) {
+      final beforeCursor = text.substring(0, cursor);
+      final atMatch = RegExp(r'@([a-zA-Z0-9_\-\./]*)$').firstMatch(beforeCursor);
+      if (atMatch != null) {
+        final query = atMatch.group(1)!;
+        final start = atMatch.start;
+        _updateFileMentions(query, start);
+      } else if (_showFileMentionMenu) {
+        setState(() => _showFileMentionMenu = false);
+      }
+    } else if (_showFileMentionMenu) {
+      setState(() => _showFileMentionMenu = false);
+    }
+  }
+
+  Future<void> _updateFileMentions(String query, int startIndex) async {
+    final repoNotifier = ref.read(repositoryStateProvider(widget.sessionId).notifier);
+    if (repoNotifier.currentState.files.isEmpty) {
+      await repoNotifier.loadFiles();
+    }
+    if (!mounted) return;
+    final allFiles = repoNotifier.currentState.files;
+    final cleanQuery = query.toLowerCase();
+
+    final matches = allFiles.where((f) {
+      final p = (f['path']?.toString() ?? '').toLowerCase();
+      if (cleanQuery.isEmpty) return true;
+      return p.contains(cleanQuery);
+    }).take(6).toList();
+
+    setState(() {
+      _showFileMentionMenu = matches.isNotEmpty;
+      _fileMentionQuery = query;
+      _fileMentionStartIndex = startIndex;
+      _matchingMentionFiles = matches;
+      _fileMentionSelectedIndex = 0;
+    });
+  }
+
+  void _completeFileMention(String path) {
+    final text = _controller.text;
+    final cursor = _controller.selection.baseOffset;
+    if (_fileMentionStartIndex >= 0 && cursor >= _fileMentionStartIndex) {
+      final prefix = text.substring(0, _fileMentionStartIndex);
+      final suffix = cursor < text.length ? text.substring(cursor) : '';
+      final newText = '$prefix@$path $suffix';
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(
+          offset: prefix.length + path.length + 2,
+        ),
+      );
+    } else {
+      final newText = '$text@$path ';
+      _controller.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
+    }
+    setState(() {
+      _showFileMentionMenu = false;
+      _matchingMentionFiles = [];
+    });
+    _focusNode.requestFocus();
   }
 
   @override
@@ -167,43 +242,15 @@ class _ComposerState extends ConsumerState<Composer> {
       return;
     }
 
-    final path = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Aggiungi file al contesto'),
-        content: SizedBox(
-          width: 560,
-          height: 420,
-          child: ListView.builder(
-            itemCount: state.files.length,
-            itemBuilder: (context, index) {
-              final file = state.files[index];
-              final filePath = file['path'].toString();
-              return ListTile(
-                dense: true,
-                visualDensity: VisualDensity.compact,
-                leading: const Icon(Icons.description_outlined, size: 18),
-                title: Text(
-                  filePath,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text('${file['sizeBytes'] ?? 0} B'),
-                onTap: () => Navigator.pop(dialogContext, filePath),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annulla'),
-          ),
-        ],
-      ),
-    );
-    if (path == null || !mounted) return;
+    final result = await CopilotFilePicker.show(context, files: state.files);
+    if (result == null || !mounted) return;
 
+    if (result.action == CopilotFileActionType.mention) {
+      _completeFileMention(result.path);
+      return;
+    }
+
+    final path = result.path;
     String? content = state.buffers[path]?.content;
     final fileInfo = state.files.firstWhere(
       (file) => file['path'] == path,
@@ -214,9 +261,9 @@ class _ComposerState extends ConsumerState<Composer> {
       try {
         final client = ref.read(pcpClientProvider);
         if (client == null) throw StateError('Daemon non connesso');
-        final result = await client.readWorkspaceFile(widget.sessionId, path);
+        final fileResult = await client.readWorkspaceFile(widget.sessionId, path);
         content =
-            (result['data'] as Map<String, dynamic>)['content'] as String?;
+            (fileResult['data'] as Map<String, dynamic>)['content'] as String?;
       } catch (error) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -369,8 +416,9 @@ class _ComposerState extends ConsumerState<Composer> {
                         context,
                         ref,
                         data['sessionId'] as String,
-                      ))
+                      )) {
                         return;
+                      }
                       ref.invalidate(sessionListProvider);
                     } catch (error) {
                       if (context.mounted) {
@@ -394,27 +442,49 @@ class _ComposerState extends ConsumerState<Composer> {
     final totalQueued =
         sessionState.steeringQueue.length + sessionState.followUpQueue.length;
 
+    final isShimmerActive = isSending ||
+        isStreaming ||
+        sessionState.agentStatus == AgentStatus.working ||
+        sessionState.agentStatus == AgentStatus.retrying ||
+        sessionState.agentStatus == AgentStatus.compacting ||
+        sessionState.activeToolCalls.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
+      child: ShimmerBorder(
+        isActive: isShimmerActive,
         borderRadius: BorderRadius.circular(tokens.radiusLg),
-        border: Border.all(color: tokens.border),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Slash Menu overlay if active
-          if (_showSlashMenu && _availableCommands.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: SlashMenu(
-                commands: _availableCommands,
-                filter: _controller.text,
-                onSelect: _onSelectSlashCommand,
-              ),
-            ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // File Mention overlay if active
+              if (_showFileMentionMenu && _matchingMentionFiles.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: FileMentionMenu(
+                    files: _matchingMentionFiles,
+                    query: _fileMentionQuery,
+                    selectedIndex: _fileMentionSelectedIndex,
+                    onSelect: _completeFileMention,
+                  ),
+                ),
+
+              // Slash Menu overlay if active
+              if (_showSlashMenu && _availableCommands.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  child: SlashMenu(
+                    commands: _availableCommands,
+                    filter: _controller.text,
+                    onSelect: _onSelectSlashCommand,
+                  ),
+                ),
 
           // Pending Queue bar (if any queue exists)
           if (totalQueued > 0)
@@ -513,6 +583,41 @@ class _ComposerState extends ConsumerState<Composer> {
             child: Focus(
               onKeyEvent: (node, event) {
                 if (event is KeyDownEvent) {
+                  // File Mention keyboard navigation
+                  if (_showFileMentionMenu && _matchingMentionFiles.isNotEmpty) {
+                    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                      setState(() {
+                        _fileMentionSelectedIndex =
+                            (_fileMentionSelectedIndex + 1) %
+                            _matchingMentionFiles.length;
+                      });
+                      return KeyEventResult.handled;
+                    }
+                    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                      setState(() {
+                        _fileMentionSelectedIndex =
+                            (_fileMentionSelectedIndex - 1 + _matchingMentionFiles.length) %
+                            _matchingMentionFiles.length;
+                      });
+                      return KeyEventResult.handled;
+                    }
+                    if (event.logicalKey == LogicalKeyboardKey.tab ||
+                        event.logicalKey == LogicalKeyboardKey.enter) {
+                      final chosen =
+                          _matchingMentionFiles[_fileMentionSelectedIndex]['path']
+                              ?.toString() ??
+                          '';
+                      if (chosen.isNotEmpty) {
+                        _completeFileMention(chosen);
+                        return KeyEventResult.handled;
+                      }
+                    }
+                    if (event.logicalKey == LogicalKeyboardKey.escape) {
+                      setState(() => _showFileMentionMenu = false);
+                      return KeyEventResult.handled;
+                    }
+                  }
+
                   if (event.logicalKey == LogicalKeyboardKey.escape) {
                     if (isStreaming) {
                       _interrupt();
@@ -704,6 +809,8 @@ class _ComposerState extends ConsumerState<Composer> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }

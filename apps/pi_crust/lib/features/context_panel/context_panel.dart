@@ -121,8 +121,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       final result = await client.cloneSession(widget.sessionId);
       if (!mounted) return;
       final data = result['data'] as Map<String, dynamic>;
-      if (!await switchSessionSafely(context, ref, data['sessionId'] as String))
+      if (!await switchSessionSafely(context, ref, data['sessionId'] as String)) {
         return;
+      }
       ref.invalidate(sessionListProvider);
     } catch (error) {
       if (mounted) {
@@ -157,8 +158,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     return Container(
       width: 320,
       decoration: BoxDecoration(
-        color: tokens.chassis,
-        border: Border(left: BorderSide(color: tokens.borderStrong, width: 1)),
+        color: tokens.surface,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +168,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: tokens.displaySurface,
-              border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+              border: Border(bottom: BorderSide(color: tokens.border)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

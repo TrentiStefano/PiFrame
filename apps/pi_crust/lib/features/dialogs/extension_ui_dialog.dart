@@ -76,8 +76,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     _resolutionSubscription = client?.events(widget.sessionId).listen((event) {
       if (event.type == 'ui.resolved' &&
           event.payload['requestId'] == widget.request['requestId']) {
-        if (mounted && !_isResponding)
+        if (mounted && !_isResponding) {
           Navigator.of(context, rootNavigator: true).pop();
+        }
       }
     });
     _attemptClaim();

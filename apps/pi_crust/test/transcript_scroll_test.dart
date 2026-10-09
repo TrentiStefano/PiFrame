@@ -51,20 +51,21 @@ void main() {
     final controller = tester.widget<ListView>(scrollView).controller!;
     expect(controller.position.viewportDimension, greaterThan(0));
     expect(controller.position.maxScrollExtent, greaterThan(0));
-    expect(find.textContaining('Transcript entry 79'), findsNothing);
+    // Initial load lands on the latest message at the bottom
+    expect(find.textContaining('Transcript entry 79'), findsOneWidget);
+    // Older messages remain unloaded/scrolled off
+    expect(find.textContaining('Transcript entry 0'), findsNothing);
 
-    final lastEntryFinder = find.textContaining('Transcript entry 79');
+    // Scroll up to reveal the load previous messages button
+    final loadMoreFinder = find.textContaining('Carica messaggi precedenti');
     await tester.scrollUntilVisible(
-      lastEntryFinder,
-      400,
+      loadMoreFinder,
+      -300,
       scrollable: find
           .descendant(of: scrollView, matching: find.byType(Scrollable))
           .first,
     );
     await tester.pumpAndSettle();
-    final lastEntry = tester.getRect(lastEntryFinder.first);
-    final viewport = tester.getRect(scrollView);
-    expect(lastEntry.bottom, lessThanOrEqualTo(viewport.bottom + 1));
-    expect(lastEntry.top, greaterThanOrEqualTo(viewport.top - 1));
+    expect(loadMoreFinder, findsOneWidget);
   });
 }

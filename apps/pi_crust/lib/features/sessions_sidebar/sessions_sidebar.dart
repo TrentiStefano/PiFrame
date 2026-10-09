@@ -41,7 +41,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   String _searchQuery = '';
   String _filterMode = 'all'; // 'all', 'active', 'repo'
   bool _creating = false;
-  final Set<String> _collapsedFolders = {};
+  final Set<String> _expandedFolders = {};
 
   @override
   void initState() {
@@ -63,57 +63,62 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final tokens = context.tokens;
     final textController = TextEditingController(text: currentName);
 
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: tokens.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusMd),
-          side: BorderSide(color: tokens.border, width: 1),
-        ),
-        title: Text(
-          'Rinomina Sessione',
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+    String? newName;
+    try {
+      newName = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: tokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            side: BorderSide(color: tokens.border, width: 1),
           ),
-        ),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'Nome sessione...',
-            hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
-            enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: tokens.border),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: tokens.accent),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
+          title: Text(
+            'Rinomina Sessione',
+            style: TextStyle(
+              color: tokens.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
-        ),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: tokens.textMuted),
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: tokens.accent,
-              foregroundColor: tokens.surface,
+          content: TextField(
+            controller: textController,
+            autofocus: true,
+            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Nome sessione...',
+              hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: tokens.border),
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: tokens.accent),
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
             ),
-            onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
-            child: const Text('Salva'),
+            onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
           ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: tokens.textMuted),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Annulla'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      textController.dispose();
+    }
 
     if (newName != null && newName.isNotEmpty && newName != currentName) {
       final client = ref.read(pcpClientProvider);
@@ -200,14 +205,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: tokens.chassis,
-        border: Border(right: BorderSide(color: tokens.borderStrong, width: 1)),
+        color: tokens.surface,
       ),
       child: Column(
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: tokens.border, width: 1),
@@ -223,8 +227,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 30,
-                      height: 1.0,
+                      fontSize: 18,
+                      height: 1.1,
                       fontFamily: tokens.headingFontFamily,
                       fontWeight: FontWeight.w600,
                     ),
@@ -409,7 +413,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     <({String? folder, Map<String, dynamic>? session})>[];
                 for (final group in grouped.entries) {
                   rows.add((folder: group.key, session: null));
-                  if (!_collapsedFolders.contains(group.key)) {
+                  final isExpanded = _expandedFolders.contains(group.key) ||
+                      _searchQuery.isNotEmpty;
+                  if (isExpanded) {
                     rows.addAll(
                       group.value.map(
                         (session) => (folder: null, session: session),
@@ -428,9 +434,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     final row = rows[index];
                     if (row.session == null) {
                       final folder = row.folder ?? '';
-                      final collapsed = _collapsedFolders.contains(folder);
+                      final expanded = _expandedFolders.contains(folder);
                       return Material(
-                        color: tokens.chassis,
+                        color: tokens.surface,
                         child: ListTile(
                           key: ValueKey('session-folder:$folder'),
                           dense: true,
@@ -439,9 +445,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             horizontal: 8,
                           ),
                           leading: Icon(
-                            collapsed
-                                ? Icons.folder_outlined
-                                : Icons.folder_open_outlined,
+                            expanded
+                                ? Icons.folder_open_outlined
+                                : Icons.folder_outlined,
                             size: 17,
                             color: tokens.accent,
                           ),
@@ -464,15 +470,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             ),
                           ),
                           trailing: Icon(
-                            collapsed ? Icons.chevron_right : Icons.expand_more,
+                            expanded ? Icons.expand_more : Icons.chevron_right,
                             size: 18,
                             color: tokens.textMuted,
                           ),
                           onTap: () => setState(() {
-                            if (collapsed) {
-                              _collapsedFolders.remove(folder);
+                            if (expanded) {
+                              _expandedFolders.remove(folder);
                             } else {
-                              _collapsedFolders.add(folder);
+                              _expandedFolders.add(folder);
                             }
                           }),
                         ),
@@ -488,16 +494,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                     return Padding(
                       padding: const EdgeInsets.only(
-                        left: 20,
-                        right: 2,
-                        bottom: 1,
+                        left: 14,
+                        right: 4,
+                        bottom: 3,
                       ),
                       child: Material(
                         color: isSelected
                             ? tokens.displaySurface
-                            : tokens.chassis,
+                            : tokens.surfaceElevated.withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusMd),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
                           side: BorderSide(
                             color: isSelected
                                 ? tokens.focusRing
@@ -510,7 +516,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           selectedColor: tokens.displayText,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
-                              tokens.radiusMd,
+                              tokens.radiusSm,
                             ),
                           ),
                           dense: true,
@@ -736,7 +742,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           foregroundColor: isSelected ? tokens.displayText : tokens.textPrimary,
           backgroundColor: isSelected
               ? tokens.surfaceElevated
-              : tokens.background,
+              : tokens.surface.withValues(alpha: 0),
           side: BorderSide(
             color: isSelected ? tokens.focusRing : tokens.border,
           ),

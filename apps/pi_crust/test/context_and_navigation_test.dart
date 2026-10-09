@@ -82,11 +82,19 @@ void main() {
       expect(find.text('Gestite'), findsOneWidget);
       expect(find.text('Questo repo'), findsOneWidget);
 
-      // Both sessions should initially be visible
+      // Folders should initially be visible minimized
+      expect(find.text('pi-crust'), findsOneWidget);
+      expect(find.text('other-repo'), findsOneWidget);
+
+      // Expand folders to view sessions
+      await tester.tap(find.text('pi-crust'));
+      await tester.tap(find.text('other-repo'));
+      await tester.pumpAndSettle();
+
       expect(find.text('Feature Branch A'), findsOneWidget);
       expect(find.text('Bugfix Session B'), findsOneWidget);
 
-      // Filter by search query
+      // Filter by search query (auto-expands matching folders)
       await tester.enterText(find.byType(TextField), 'diff viewer');
       await tester.pumpAndSettle();
 
@@ -150,12 +158,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const ValueKey('session-folder:/repo')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-folder:/other')), findsOneWidget);
+    expect(find.text('worker#19'), findsNothing);
+
+    // Expand collapsed folders to reveal sessions
+    await tester.tap(find.byKey(const ValueKey('session-folder:/repo')));
+    await tester.tap(find.byKey(const ValueKey('session-folder:/other')));
+    await tester.pumpAndSettle();
+
     expect(find.text('First'), findsOneWidget);
     expect(find.text('Second'), findsOneWidget);
     expect(find.text('Other'), findsOneWidget);
-    expect(find.text('worker#19'), findsNothing);
-    expect(find.byKey(const ValueKey('session-folder:/repo')), findsOneWidget);
-    expect(find.byKey(const ValueKey('session-folder:/other')), findsOneWidget);
   });
 
   testWidgets('new session uses chosen working directory', (tester) async {

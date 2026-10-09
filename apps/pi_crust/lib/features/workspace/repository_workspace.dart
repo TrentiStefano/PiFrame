@@ -238,8 +238,9 @@ class RepositoryController extends StateNotifier<RepositoryState> {
   Future<void> save(String path, {String? revisionOverride}) async {
     final client = _readClient();
     final buffer = state.buffers[path];
-    if (client == null || buffer == null)
+    if (client == null || buffer == null) {
       throw StateError('File non disponibile');
+    }
     final content = buffer.content;
     final result = await client.saveWorkspaceFile(sessionId, {
       'path': path,
@@ -331,7 +332,9 @@ Future<bool> switchSessionSafely(
 ) async {
   final currentId = ref.read(activeSessionIdProvider);
   if (currentId == nextId) return true;
+  if (!context.mounted) return false;
   if (!await resolveDirtyRepository(context, ref, currentId)) return false;
+  if (!context.mounted) return false;
   ref.read(activeSessionIdProvider.notifier).state = nextId;
   return true;
 }
@@ -400,8 +403,9 @@ Future<bool> resolveDirtyRepository(
             .toList()) {
       await saveRepositoryFile(context, ref, sessionId, entry.key);
       if (!context.mounted ||
-          controller.currentState.buffers[entry.key]?.dirty == true)
+          controller.currentState.buffers[entry.key]?.dirty == true) {
         return false;
+      }
     }
     return true;
   } catch (_) {
@@ -430,8 +434,9 @@ Future<void> saveRepositoryFile(
     final message = error.toString().toLowerCase();
     if (!message.contains('conflict') &&
         !message.contains('changed on disk') &&
-        !message.contains('reload before saving'))
+        !message.contains('reload before saving')) {
       rethrow;
+    }
     final disk = await controller.currentDisk(path);
     if (!context.mounted) return;
     final choice = await showDialog<String>(
@@ -458,10 +463,12 @@ Future<void> saveRepositoryFile(
         ],
       ),
     );
-    if (choice == 'reload')
+    if (choice == 'reload') {
       controller.reload(path, disk.content, disk.revision);
-    if (choice == 'overwrite')
+    }
+    if (choice == 'overwrite') {
       await controller.save(path, revisionOverride: disk.revision);
+    }
     if (choice == 'keep') rethrow;
   }
 }
@@ -480,11 +487,32 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted)
+      if (mounted) {
         ref
             .read(repositoryStateProvider(widget.sessionId).notifier)
             .loadFiles();
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(RepositoryPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      _cachedRawFiles = null;
+      _cachedTreeNodes = const [];
+      _expandedDirs.clear();
+      _initialExpansionDone = false;
+      _editorPath = null;
+      _editor.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref
+              .read(repositoryStateProvider(widget.sessionId).notifier)
+              .loadFiles();
+        }
+      });
+    }
   }
 
   @override
@@ -493,13 +521,67 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     super.dispose();
   }
 
+  List<_TreeNode> _cachedTreeNodes = const [];
+  Object? _cachedRawFiles;
+  final Set<String> _expandedDirs = <String>{};
+  bool _initialExpansionDone = false;
+
+  void _collapseAll() {
+    setState(() {
+      _expandedDirs.clear();
+    });
+  }
+
+  void _expandAll(List<Map<String, dynamic>> raw) {
+    setState(() {
+      final nodes = _getTreeNodes(raw);
+      _collectAllDirs(nodes, _expandedDirs);
+    });
+  }
+
+  List<_TreeNode> _getTreeNodes(List<Map<String, dynamic>> raw) {
+    if (identical(raw, _cachedRawFiles)) return _cachedTreeNodes;
+    _cachedRawFiles = raw;
+    _cachedTreeNodes = _buildFileTree(raw);
+    if (!_initialExpansionDone && _cachedTreeNodes.isNotEmpty) {
+      _initialExpansionDone = true;
+      _collectAllDirs(_cachedTreeNodes, _expandedDirs);
+    }
+    return _cachedTreeNodes;
+  }
+
   Widget _fileList(
     CrustTokens tokens,
     RepositoryState repo,
     String? selectedPath,
+    SessionState session,
   ) {
-    if (repo.loading && repo.files.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+    final isAttaching = (repo.error != null &&
+            (repo.error!.contains('not found') ||
+                repo.error!.contains('Session not found'))) ||
+        (repo.files.isEmpty && session.cwd.isEmpty);
+
+    if (isAttaching || (repo.loading && repo.files.isEmpty)) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: tokens.accent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Caricamento file...',
+              style: TextStyle(color: tokens.textMuted, fontSize: 11),
+            ),
+          ],
+        ),
+      );
     }
     if (repo.files.isEmpty) {
       return Center(
@@ -511,56 +593,45 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         ),
       );
     }
+
+    final rootNodes = _getTreeNodes(repo.files);
+    if (selectedPath != null) {
+      _expandParentsOf(selectedPath, _expandedDirs);
+    }
+    final flatRows = _flattenTree(rootNodes, _expandedDirs);
+
     return ListView.builder(
       key: PageStorageKey<String>('repository-files-${widget.sessionId}'),
-      itemCount: repo.files.length,
+      itemCount: flatRows.length,
+      itemExtent: 28.0,
       itemBuilder: (context, index) {
-        final filePath = repo.files[index]['path'].toString();
-        final segments = filePath.split('/');
-        final parent = segments.length > 1
-            ? segments.take(segments.length - 1).join('/')
-            : null;
-        final selected = filePath == selectedPath;
-        return Material(
-          color: tokens.surface.withValues(alpha: 0),
-          child: Tooltip(
-            message: filePath,
-            child: ListTile(
-              dense: true,
-              selected: selected,
-              selectedTileColor: tokens.surfaceElevated,
-              contentPadding: EdgeInsets.only(
-                left: 8 + (segments.length - 1) * 12,
-                right: 8,
-              ),
-              leading: Icon(
-                Icons.description_outlined,
-                size: 16,
-                color: selected ? tokens.accent : tokens.textMuted,
-              ),
-              title: Text(
-                segments.last,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                  fontFamily: tokens.monoFontFamily,
-                ),
-              ),
-              subtitle: parent == null
-                  ? null
-                  : Text(
-                      parent,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: tokens.textMuted, fontSize: 10),
-                    ),
-              onTap: () => ref
+        final row = flatRows[index];
+        final node = row.node;
+        final selected = !node.isDirectory && node.path == selectedPath;
+        final isExpanded =
+            node.isDirectory && _expandedDirs.contains(node.path);
+
+        return _TreeRow(
+          key: ValueKey(node.path),
+          row: row,
+          selected: selected,
+          isExpanded: isExpanded,
+          tokens: tokens,
+          onTap: () {
+            if (node.isDirectory) {
+              setState(() {
+                if (_expandedDirs.contains(node.path)) {
+                  _expandedDirs.remove(node.path);
+                } else {
+                  _expandedDirs.add(node.path);
+                }
+              });
+            } else {
+              ref
                   .read(repositoryStateProvider(widget.sessionId).notifier)
-                  .selectFile(filePath),
-            ),
-          ),
+                  .selectFile(node.path);
+            }
+          },
         );
       },
     );
@@ -668,6 +739,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       },
                 child: const Text('Salva'),
               ),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: 'Chiudi file',
+                onPressed: () => ref
+                    .read(repositoryStateProvider(widget.sessionId).notifier)
+                    .showFileList(),
+                icon: const Icon(Icons.close, size: 16),
+              ),
             ],
           ),
         ),
@@ -743,6 +822,17 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final tokens = context.tokens;
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
     final session = ref.watch(sessionStateFamily(widget.sessionId));
+
+    ref.listen<SessionState>(sessionStateFamily(widget.sessionId), (prev, next) {
+      final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
+      if (next.cwd.isNotEmpty &&
+          (prev == null || prev.cwd.isEmpty || currentRepo.error != null)) {
+        ref
+            .read(repositoryStateProvider(widget.sessionId).notifier)
+            .loadFiles();
+      }
+    });
+
     final path = repo.selectedPath;
     final buffer = path == null ? null : repo.buffers[path];
     if (path != _editorPath) {
@@ -769,16 +859,42 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             context,
             'Repository',
             Icons.folder_outlined,
-            trailing: IconButton(
-              tooltip: 'Aggiorna file',
-              onPressed: repo.loading
-                  ? null
-                  : () => ref
-                        .read(
-                          repositoryStateProvider(widget.sessionId).notifier,
-                        )
-                        .loadFiles(),
-              icon: const Icon(Icons.refresh, size: 17),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Collassa tutte le cartelle',
+                  onPressed: _collapseAll,
+                  icon: const Icon(Icons.unfold_less, size: 16),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Espandi tutte le cartelle',
+                  onPressed: () => _expandAll(repo.files),
+                  icon: const Icon(Icons.unfold_more, size: 16),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Aggiorna file',
+                  onPressed: repo.loading
+                      ? null
+                      : () => ref
+                            .read(
+                              repositoryStateProvider(widget.sessionId).notifier,
+                            )
+                            .loadFiles(),
+                  icon: const Icon(Icons.refresh, size: 16),
+                ),
+              ],
             ),
           ),
           if (repo.rootPath != null)
@@ -798,35 +914,49 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final compactFiles = constraints.maxWidth < 420;
-                final treeWidth = compactFiles
-                    ? constraints.maxWidth
-                    : (constraints.maxWidth * 0.32)
-                          .clamp(140.0, 220.0)
-                          .toDouble();
+                if (path == null) {
+                  // No file opened: file tree occupies 100% of the pane width!
+                  return _fileList(tokens, repo, path, session);
+                }
+
+                final compactFiles = constraints.maxWidth < 480;
+                if (compactFiles) {
+                  return _editorPane(
+                    context,
+                    tokens,
+                    repo,
+                    session,
+                    path,
+                    buffer,
+                    writeBlocked,
+                    blockReason,
+                    compact: true,
+                  );
+                }
+
+                final treeWidth = (constraints.maxWidth * 0.28)
+                    .clamp(180.0, 260.0)
+                    .toDouble();
                 return Row(
                   children: [
-                    if (!compactFiles || path == null)
-                      SizedBox(
-                        width: treeWidth,
-                        child: _fileList(tokens, repo, path),
+                    SizedBox(
+                      width: treeWidth,
+                      child: _fileList(tokens, repo, path, session),
+                    ),
+                    VerticalDivider(width: 1, color: tokens.borderStrong),
+                    Expanded(
+                      child: _editorPane(
+                        context,
+                        tokens,
+                        repo,
+                        session,
+                        path,
+                        buffer,
+                        writeBlocked,
+                        blockReason,
+                        compact: false,
                       ),
-                    if (!compactFiles)
-                      VerticalDivider(width: 1, color: tokens.borderStrong),
-                    if (!compactFiles || path != null)
-                      Expanded(
-                        child: _editorPane(
-                          context,
-                          tokens,
-                          repo,
-                          session,
-                          path,
-                          buffer,
-                          writeBlocked,
-                          blockReason,
-                          compact: compactFiles,
-                        ),
-                      ),
+                    ),
                   ],
                 );
               },
@@ -865,19 +995,32 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }
 
   @override
+  void didUpdateWidget(GitChangesPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      _status = null;
+      _refresh();
+    }
+  }
+
+  @override
   void dispose() {
     _message.dispose();
     super.dispose();
   }
 
   Future<void> _refresh() async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) {
+      if (mounted) setState(() => _status = {'error': 'Daemon non connesso'});
+      return;
+    }
     setState(() => _loading = true);
     try {
-      final result = await ref
-          .read(pcpClientProvider)!
-          .refreshWorkspace(widget.sessionId);
-      if (mounted)
+      final result = await client.refreshWorkspace(widget.sessionId);
+      if (mounted) {
         setState(() => _status = result['data'] as Map<String, dynamic>?);
+      }
     } catch (e) {
       if (mounted) setState(() => _status = {'error': e.toString()});
     } finally {
@@ -918,10 +1061,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       }
       await _refresh();
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Operazione Git non riuscita: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -939,8 +1083,15 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => Dialog(
-          child: ConstrainedBox(
+        builder: (dialogContext) {
+          final tokens = dialogContext.tokens;
+          return Dialog(
+            backgroundColor: tokens.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusLg),
+              side: BorderSide(color: tokens.border, width: 1),
+            ),
+            child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -982,8 +1133,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
             ),
           ),
-        ),
-      );
+        );
+      },
+    );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1009,28 +1161,33 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Annullare tutte le modifiche?'),
-        content: SizedBox(
-          width: 640,
-          height: 380,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$path\n${_status?['rootPath'] ?? '—'} · ${_status?['branch'] ?? '—'}',
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: DiffBlock(
-                    diffText: diff.isEmpty ? 'Diff non disponibile.' : diff,
-                    filename: path,
+        content: Builder(
+          builder: (dialogContext) {
+            final mediaSize = MediaQuery.sizeOf(dialogContext);
+            return SizedBox(
+              width: (mediaSize.width * 0.8).clamp(280.0, 640.0),
+              height: (mediaSize.height * 0.6).clamp(240.0, 380.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$path\n${_status?['rootPath'] ?? '—'} · ${_status?['branch'] ?? '—'}',
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: DiffBlock(
+                        diffText: diff.isEmpty ? 'Diff non disponibile.' : diff,
+                        filename: path,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('L’operazione rimuove modifiche staged e unstaged.'),
+                ],
               ),
-              const SizedBox(height: 8),
-              const Text('L’operazione rimuove modifiche staged e unstaged.'),
-            ],
-          ),
+            );
+          },
         ),
         actions: [
           TextButton(
@@ -1055,20 +1212,29 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Commit dei file staged'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Repository: ${_status?['rootPath'] ?? '—'} · ramo: ${_status?['branch'] ?? '—'}\nFile revisionati: ${staged.join(', ')}',
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 520,
+            maxHeight: (MediaQuery.sizeOf(ctx).height * 0.6).clamp(200.0, 420.0),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Repository: ${_status?['rootPath'] ?? '—'} · ramo: ${_status?['branch'] ?? '—'}\n'
+                  'File revisionati (${staged.length}): ${staged.take(5).join(', ')}${staged.length > 5 ? ' (+${staged.length - 5} altri)' : ''}',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _message,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Messaggio commit'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _message,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Messaggio commit'),
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1092,6 +1258,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final tokens = context.tokens;
     final session = ref.watch(sessionStateFamily(widget.sessionId));
     final repository = ref.watch(repositoryStateProvider(widget.sessionId));
+
+    ref.listen<SessionState>(sessionStateFamily(widget.sessionId), (prev, next) {
+      if (next.cwd.isNotEmpty &&
+          (prev == null || prev.cwd.isEmpty || _status?['error'] != null)) {
+        _refresh();
+      }
+    });
+
     final piTouchedPaths = _piTouchedPaths(session);
     final blocked = _sessionWritesBlocked(session);
     final files = _files;
@@ -1145,20 +1319,55 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
             ),
           if (!repo)
-            Expanded(
-              child: Center(
-                child: Text(
-                  _loading
-                      ? 'Caricamento...'
-                      : (_status?['error']?.toString() ??
-                            'Nessun repository Git.'),
-                  style: TextStyle(
-                    color: _status?['error'] == null
-                        ? tokens.textMuted
-                        : tokens.danger,
+            Builder(
+              builder: (context) {
+                final rawError = _status?['error']?.toString();
+                final isAttaching = (rawError != null &&
+                        (rawError.contains('not found') ||
+                            rawError.contains('Session not found'))) ||
+                    (_status == null && session.cwd.isEmpty);
+
+                if (_loading || isAttaching) {
+                  return Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: tokens.accent,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Collegamento a Git...',
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      rawError ?? 'Nessun repository Git.',
+                      style: TextStyle(
+                        color: rawError == null
+                            ? tokens.textMuted
+                            : tokens.danger,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             )
           else ...[
             Padding(
@@ -1337,4 +1546,246 @@ Widget _paneHeader(
       ],
     ),
   );
+}
+
+class _TreeNode {
+  final String name;
+  final String path;
+  final bool isDirectory;
+  final List<_TreeNode> children;
+
+  const _TreeNode({
+    required this.name,
+    required this.path,
+    required this.isDirectory,
+    this.children = const [],
+  });
+}
+
+class _TreeDirBuilder {
+  final String name;
+  final String path;
+  final Map<String, _TreeDirBuilder> dirs = {};
+  final List<_TreeNode> files = [];
+
+  _TreeDirBuilder(this.name, this.path);
+
+  List<_TreeNode> toChildren() {
+    final sortedDirs = dirs.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final sortedFiles = List<_TreeNode>.of(files)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    return [
+      for (final d in sortedDirs)
+        _TreeNode(
+          name: d.name,
+          path: d.path,
+          isDirectory: true,
+          children: d.toChildren(),
+        ),
+      ...sortedFiles,
+    ];
+  }
+}
+
+List<_TreeNode> _buildFileTree(List<Map<String, dynamic>> raw) {
+  final root = _TreeDirBuilder('', '');
+  for (final item in raw) {
+    final rawPath = item['path']?.toString();
+    if (rawPath == null || rawPath.isEmpty) continue;
+    final normalized = rawPath.replaceAll('\\', '/');
+    final cleanPath = normalized.replaceFirst(RegExp(r'^\.?/'), '');
+    final segments =
+        cleanPath.split('/').where((s) => s.isNotEmpty).toList();
+    if (segments.isEmpty) continue;
+
+    var curr = root;
+    var accumulated = '';
+    for (var i = 0; i < segments.length - 1; i++) {
+      final seg = segments[i];
+      accumulated = accumulated.isEmpty ? seg : '$accumulated/$seg';
+      curr = curr.dirs.putIfAbsent(
+        seg,
+        () => _TreeDirBuilder(seg, accumulated),
+      );
+    }
+    final fileName = segments.last;
+    curr.files.add(
+      _TreeNode(
+        name: fileName,
+        path: cleanPath,
+        isDirectory: false,
+      ),
+    );
+  }
+  return root.toChildren();
+}
+
+class _FlatTreeRow {
+  final _TreeNode node;
+  final int depth;
+  const _FlatTreeRow({required this.node, required this.depth});
+}
+
+List<_FlatTreeRow> _flattenTree(
+  List<_TreeNode> nodes,
+  Set<String> expandedDirs,
+) {
+  final result = <_FlatTreeRow>[];
+  void walk(List<_TreeNode> list, int depth) {
+    for (final node in list) {
+      result.add(_FlatTreeRow(node: node, depth: depth));
+      if (node.isDirectory && expandedDirs.contains(node.path)) {
+        walk(node.children, depth + 1);
+      }
+    }
+  }
+  walk(nodes, 0);
+  return result;
+}
+
+void _collectAllDirs(List<_TreeNode> nodes, Set<String> target) {
+  for (final node in nodes) {
+    if (node.isDirectory) {
+      target.add(node.path);
+      _collectAllDirs(node.children, target);
+    }
+  }
+}
+
+void _expandParentsOf(String path, Set<String> target) {
+  final normalized =
+      path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\.?/'), '');
+  final segments =
+      normalized.split('/').where((s) => s.isNotEmpty).toList();
+  var accumulated = '';
+  for (var i = 0; i < segments.length - 1; i++) {
+    accumulated =
+        accumulated.isEmpty ? segments[i] : '$accumulated/${segments[i]}';
+    target.add(accumulated);
+  }
+}
+
+class _TreeRow extends StatelessWidget {
+  const _TreeRow({
+    super.key,
+    required this.row,
+    required this.selected,
+    required this.isExpanded,
+    required this.tokens,
+    required this.onTap,
+  });
+
+  final _FlatTreeRow row;
+  final bool selected;
+  final bool isExpanded;
+  final CrustTokens tokens;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final node = row.node;
+    final indent = (row.depth * 14.0).clamp(0.0, 160.0);
+
+    return RepaintBoundary(
+      child: Tooltip(
+        message: node.path,
+        waitDuration: const Duration(milliseconds: 700),
+        child: Material(
+          color: selected
+              ? tokens.surfaceElevated
+              : tokens.surface.withValues(alpha: 0),
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: tokens.accent.withValues(alpha: 0.08),
+            child: SizedBox(
+              height: 28.0,
+              child: Padding(
+                padding: EdgeInsets.only(left: 4.0 + indent, right: 8.0),
+                child: Row(
+                  children: [
+                    if (node.isDirectory) ...[
+                      Icon(
+                        isExpanded ? Icons.expand_more : Icons.chevron_right,
+                        size: 14,
+                        color: tokens.textMuted,
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        isExpanded
+                            ? Icons.folder_open_outlined
+                            : Icons.folder_outlined,
+                        size: 15,
+                        color: tokens.syntaxFunction,
+                      ),
+                    ] else ...[
+                      const SizedBox(width: 14),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.description_outlined,
+                        size: 14,
+                        color: selected ? tokens.accent : tokens.textMuted,
+                      ),
+                    ],
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        node.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? tokens.accent
+                              : (node.isDirectory
+                                  ? tokens.textPrimary
+                                  : tokens.textSecondary),
+                          fontSize: 12,
+                          fontFamily: tokens.monoFontFamily,
+                          fontWeight: selected || node.isDirectory
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class WorkspaceFileEntry {
+  final String path;
+  final String fileName;
+  final String? parentDir;
+  final int depth;
+
+  const WorkspaceFileEntry({
+    required this.path,
+    required this.fileName,
+    this.parentDir,
+    this.depth = 0,
+  });
+
+  factory WorkspaceFileEntry.fromMap(Map<String, dynamic> map) {
+    final filePath = map['path'].toString();
+    final lastSlash = filePath.lastIndexOf('/');
+    if (lastSlash == -1) {
+      return WorkspaceFileEntry(path: filePath, fileName: filePath, depth: 0);
+    }
+    final parent = filePath.substring(0, lastSlash);
+    final name = filePath.substring(lastSlash + 1);
+    final slashCount = '/'.allMatches(parent).length;
+    return WorkspaceFileEntry(
+      path: filePath,
+      fileName: name,
+      parentDir: parent,
+      depth: slashCount + 1,
+    );
+  }
 }
