@@ -55,9 +55,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     case MessageCompletedEvent(:final message):
       final msg = message ?? {};
       final role = (msg['role'] as String?) ?? 'assistant';
-      final id =
-          (msg['id'] as String?) ??
-          'msg_${DateTime.now().millisecondsSinceEpoch}';
+      if (role == 'system' || role == 'toolResult' || role == 'tool') {
+        return current.copyWith(
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          activeToolCalls: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
 
       // Extract text content if message contains content blocks
       String text = '';
@@ -73,6 +78,19 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       if (text.isEmpty && current.currentStreamingText.isNotEmpty) {
         text = current.currentStreamingText;
       }
+
+      if (isInternalOrJunkMessageText(text)) {
+        return current.copyWith(
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          activeToolCalls: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
+      final id =
+          (msg['id'] as String?) ??
+          'msg_${DateTime.now().millisecondsSinceEpoch}';
 
       final entry = SessionEntry(
         id: id,

@@ -18,6 +18,7 @@ dependencies:
   pi_crust_theme:
     path: ../../packages/pi_crust_theme
   file_selector: ^1.1.0
+  url_launcher: ^6.3.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

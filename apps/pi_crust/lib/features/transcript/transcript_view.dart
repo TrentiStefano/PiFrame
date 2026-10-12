@@ -140,13 +140,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _lastHandledUiRequestId = reqId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (req['dialog'] == true) {
-          ExtensionUiDialog.show(
-            context,
-            sessionId: widget.sessionId,
-            request: req,
-          );
-        } else if (req['method'] == 'notify') {
+        if (req['method'] == 'notify') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(req['message']?.toString() ?? 'Notifica'),
@@ -684,10 +678,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
-    // Windowing / Pagination for long transcripts
-    final totalEntries = sessionState.entries.length;
+    // Windowing / Pagination for long transcripts (excluding internal/junk messages)
+    final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
+    final totalEntries = cleanEntries.length;
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
-    final visibleEntries = sessionState.entries.sublist(hiddenCount);
+    final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0;
 
     // Initial scroll to bottom when opening session or receiving first entries
@@ -1118,6 +1113,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
   Widget _buildEntryItem(SessionEntry entry, CrustTokens tokens) {
+    if (entry.isJunkOrInternal) return const SizedBox.shrink();
     final isUser = entry.role == 'user';
 
     if (isUser) {
