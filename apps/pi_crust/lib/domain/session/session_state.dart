@@ -53,6 +53,39 @@ class SessionEntry {
     this.toolCalls = const [],
     required this.timestamp,
   });
+
+  bool get isJunkOrInternal =>
+      role == 'system' ||
+      role == 'toolResult' ||
+      role == 'tool' ||
+      isInternalOrJunkMessageText(text);
+}
+
+bool isInternalOrJunkMessageText(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return false;
+  // 1. Task notifications
+  if (trimmed.startsWith('<task-notification>') ||
+      (trimmed.contains('<task-notification>') &&
+          trimmed.contains('</task-notification>'))) {
+    return true;
+  }
+  // 2. Pure (exit 0, no output)
+  if (trimmed == '(exit 0, no output)') {
+    return true;
+  }
+  // 3. Git CRLF replacement warnings
+  final lines = trimmed
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+  if (lines.isNotEmpty &&
+      lines.every((l) =>
+          l.startsWith('warning:') && l.contains('LF will be replaced by CRLF'))) {
+    return true;
+  }
+  return false;
 }
 
 class SessionState {

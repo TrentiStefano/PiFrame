@@ -1,8 +1,30 @@
+import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
+
+Future<void> _openUrl(String url) async {
+  try {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      await launchUrl(uri);
+    }
+  } catch (_) {
+    try {
+      if (Platform.isWindows) {
+        await Process.run('rundll32', ['url.dll,FileProtocolHandler', url]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', [url]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', [url]);
+      }
+    } catch (_) {}
+  }
+}
 
 class RichContent extends StatelessWidget {
   final String text;
@@ -14,19 +36,21 @@ class RichContent extends StatelessWidget {
     final tokens = context.tokens;
     final segments = _parseSegments(text);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: segments.map((seg) {
-        if (seg is _CodeSegment) {
-          if (seg.language == 'diff') {
-            return DiffBlock(diffText: seg.code);
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: segments.map((seg) {
+          if (seg is _CodeSegment) {
+            if (seg.language == 'diff') {
+              return DiffBlock(diffText: seg.code);
+            }
+            return CodeBlock(code: seg.code, language: seg.language);
+          } else if (seg is _TextSegment) {
+            return _buildMarkdownText(seg.content, tokens);
           }
-          return CodeBlock(code: seg.code, language: seg.language);
-        } else if (seg is _TextSegment) {
-          return _buildMarkdownText(seg.content, tokens);
-        }
-        return const SizedBox.shrink();
-      }).toList(),
+          return const SizedBox.shrink();
+        }).toList(),
+      ),
     );
   }
 
@@ -76,7 +100,7 @@ class RichContent extends StatelessWidget {
           widgets.add(
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: SelectableText.rich(
+              child: Text.rich(
                 _parseInlineSpans(content, tokens),
                 style: TextStyle(
                   color: tokens.textPrimary,
@@ -101,7 +125,7 @@ class RichContent extends StatelessWidget {
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(top: 10, bottom: 4),
-              child: SelectableText(
+              child: Text(
                 trimmed.substring(4),
                 style: TextStyle(
                   color: tokens.textPrimary,
@@ -122,7 +146,7 @@ class RichContent extends StatelessWidget {
                     left: BorderSide(color: tokens.accent, width: 3),
                   ),
                 ),
-                child: SelectableText(
+                child: Text(
                   trimmed.substring(3),
                   style: TextStyle(
                     color: tokens.textPrimary,
@@ -138,7 +162,7 @@ class RichContent extends StatelessWidget {
           widgets.add(
             Padding(
               padding: const EdgeInsets.only(top: 14, bottom: 8),
-              child: SelectableText(
+              child: Text(
                 trimmed.substring(2),
                 style: TextStyle(
                   color: tokens.textPrimary,
@@ -166,7 +190,7 @@ class RichContent extends StatelessWidget {
                 ),
               ),
             ),
-            child: SelectableText.rich(
+            child: Text.rich(
               _parseInlineSpans(trimmed.substring(2).trim(), tokens),
               style: TextStyle(
                 color: tokens.textSecondary,
@@ -197,7 +221,7 @@ class RichContent extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: SelectableText.rich(
+                  child: Text.rich(
                     _parseInlineSpans(trimmed.substring(2).trim(), tokens),
                     style: TextStyle(
                       color: tokens.textPrimary,
@@ -235,7 +259,7 @@ class RichContent extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: SelectableText.rich(
+                  child: Text.rich(
                     _parseInlineSpans(itemText, tokens),
                     style: TextStyle(
                       color: tokens.textPrimary,
@@ -265,6 +289,8 @@ class RichContent extends StatelessWidget {
 
   TextSpan _parseInlineSpans(String text, CrustTokens tokens) {
     final spans = <InlineSpan>[];
+    final mdLinkRegex = RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)');
+    final rawUrlRegex = RegExp(r'(?<![\(\[])(https?://[^\s\)]+)');
     final inlineCodeRegex = RegExp(r'`([^`]+)`');
     final boldRegex = RegExp(r'\*\*([^*]+)\*\*');
 
@@ -273,16 +299,75 @@ class RichContent extends StatelessWidget {
       final line = lines[l];
 
       final matches = <_InlineMatch>[];
+
+      // Markdown links: [label](url)
+      for (final m in mdLinkRegex.allMatches(line)) {
+        matches.add(
+          _InlineMatch(
+            m.start,
+            m.end,
+            m.group(1)!,
+            _InlineType.link,
+            target: m.group(2)!,
+          ),
+        );
+      }
+
+      // Raw URLs: https://...
+      for (final m in rawUrlRegex.allMatches(line)) {
+        final start = m.start;
+        final end = m.end;
+        // Skip if already inside a markdown link match
+        final overlaps = matches.any(
+          (other) =>
+              (start >= other.start && start < other.end) ||
+              (end > other.start && end <= other.end),
+        );
+        if (!overlaps) {
+          matches.add(
+            _InlineMatch(
+              start,
+              end,
+              m.group(1)!,
+              _InlineType.link,
+              target: m.group(1)!,
+            ),
+          );
+        }
+      }
+
+      // Inline code: `code`
       for (final m in inlineCodeRegex.allMatches(line)) {
-        matches.add(
-          _InlineMatch(m.start, m.end, m.group(1)!, _InlineType.code),
+        final start = m.start;
+        final end = m.end;
+        final overlaps = matches.any(
+          (other) =>
+              (start >= other.start && start < other.end) ||
+              (end > other.start && end <= other.end),
         );
+        if (!overlaps) {
+          matches.add(
+            _InlineMatch(start, end, m.group(1)!, _InlineType.code),
+          );
+        }
       }
+
+      // Bold: **text**
       for (final m in boldRegex.allMatches(line)) {
-        matches.add(
-          _InlineMatch(m.start, m.end, m.group(1)!, _InlineType.bold),
+        final start = m.start;
+        final end = m.end;
+        final overlaps = matches.any(
+          (other) =>
+              (start >= other.start && start < other.end) ||
+              (end > other.start && end <= other.end),
         );
+        if (!overlaps) {
+          matches.add(
+            _InlineMatch(start, end, m.group(1)!, _InlineType.bold),
+          );
+        }
       }
+
       matches.sort((a, b) => a.start.compareTo(b.start));
 
       int lastEnd = 0;
@@ -321,6 +406,22 @@ class RichContent extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           );
+        } else if (m.type == _InlineType.link) {
+          final targetUrl = m.target ?? m.text;
+          spans.add(
+            TextSpan(
+              text: m.text,
+              style: TextStyle(
+                color: tokens.accent,
+                decoration: TextDecoration.underline,
+                decorationColor: tokens.accent.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w500,
+              ),
+              mouseCursor: SystemMouseCursors.click,
+              recognizer: TapGestureRecognizer()
+                ..onTap = () => _openUrl(targetUrl),
+            ),
+          );
         }
         lastEnd = m.end;
       }
@@ -338,14 +439,15 @@ class RichContent extends StatelessWidget {
   }
 }
 
-enum _InlineType { code, bold }
+enum _InlineType { code, bold, link }
 
 class _InlineMatch {
   final int start;
   final int end;
   final String text;
   final _InlineType type;
-  _InlineMatch(this.start, this.end, this.text, this.type);
+  final String? target;
+  _InlineMatch(this.start, this.end, this.text, this.type, {this.target});
 }
 
 abstract class _Segment {}

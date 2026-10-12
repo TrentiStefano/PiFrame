@@ -41,3 +41,10 @@ void appendCodeSelectionToComposer(
     'Code reference: `$path:$startLine-$endLine`\n$fence$language\n$text\n$fence',
   );
 }
+
+void appendFileMentionToComposer(WidgetRef ref, String sessionId, String path) {
+  final draft = ref.read(composerDraftProvider(sessionId).notifier);
+  final current = draft.state;
+  final separator = current.isEmpty || current.endsWith(' ') ? '' : ' ';
+  draft.state = '$current$separator@$path ';
+}

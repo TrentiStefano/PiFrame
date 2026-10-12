@@ -9,7 +9,6 @@ import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
-import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
@@ -33,6 +32,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   bool _initialScrollDone = false;
 
+  bool _isRenaming = false;
+  final TextEditingController _renameController = TextEditingController();
+  final FocusNode _renameFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -42,9 +45,60 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   void didUpdateWidget(TranscriptView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
+      _isRenaming = false;
       _visibleCount = _pageSize;
       _initialScrollDone = false;
       _userScrolledUp = false;
+    }
+  }
+
+  void _startRenaming(String currentName) {
+    setState(() {
+      _isRenaming = true;
+      _renameController.text = currentName;
+      _renameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: currentName.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _renameFocusNode.canRequestFocus) {
+        _renameFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _cancelRename() {
+    if (!_isRenaming) return;
+    setState(() {
+      _isRenaming = false;
+    });
+  }
+
+  Future<void> _submitRename() async {
+    if (!_isRenaming) return;
+    final newName = _renameController.text.trim();
+    setState(() {
+      _isRenaming = false;
+    });
+    if (newName.isEmpty) return;
+
+    final currentState = ref.read(sessionStateFamily(widget.sessionId));
+    if (newName == (currentState.sessionName ?? widget.sessionId)) return;
+
+    try {
+      final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+      await notifier.rename(newName);
+      ref.invalidate(sessionListProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore durante la rinomina: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -128,6 +182,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   @override
   void dispose() {
+    _renameController.dispose();
+    _renameFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -140,13 +196,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _lastHandledUiRequestId = reqId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (req['dialog'] == true) {
-          ExtensionUiDialog.show(
-            context,
-            sessionId: widget.sessionId,
-            request: req,
-          );
-        } else if (req['method'] == 'notify') {
+        if (req['method'] == 'notify') {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(req['message']?.toString() ?? 'Notifica'),
@@ -684,10 +734,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
-    // Windowing / Pagination for long transcripts
-    final totalEntries = sessionState.entries.length;
+    // Windowing / Pagination for long transcripts (excluding internal/junk messages)
+    final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
+    final totalEntries = cleanEntries.length;
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
-    final visibleEntries = sessionState.entries.sublist(hiddenCount);
+    final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0;
 
     // Initial scroll to bottom when opening session or receiving first entries
@@ -890,18 +941,157 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      sessionState.sessionName ?? widget.sessionId,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontFamily: tokens.headingFontFamily,
-                        fontSize: isCompact ? 16 : 19,
-                        height: 1.1,
-                        fontWeight: FontWeight.w700,
+                    if (_isRenaming)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Focus(
+                                onKeyEvent: (node, event) {
+                                  if (event is KeyDownEvent &&
+                                      event.logicalKey ==
+                                          LogicalKeyboardKey.escape) {
+                                    _cancelRename();
+                                    return KeyEventResult.handled;
+                                  }
+                                  return KeyEventResult.ignored;
+                                },
+                                child: TextField(
+                                  key: const ValueKey(
+                                    'session-name-rename-field',
+                                  ),
+                                  controller: _renameController,
+                                  focusNode: _renameFocusNode,
+                                  autofocus: true,
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _submitRename(),
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontFamily: tokens.headingFontFamily,
+                                    fontSize: isCompact ? 15 : 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                    filled: true,
+                                    fillColor: tokens.surfaceElevated,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: tokens.syntaxKeyword,
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: tokens.syntaxKeyword,
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: tokens.syntaxKeyword,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              key: const ValueKey(
+                                'session-name-rename-submit',
+                              ),
+                              icon: Icon(
+                                Icons.check,
+                                size: 16,
+                                color: tokens.syntaxFunction,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 26,
+                                minHeight: 26,
+                              ),
+                              tooltip: 'Salva',
+                              onPressed: _submitRename,
+                            ),
+                            IconButton(
+                              key: const ValueKey(
+                                'session-name-rename-cancel',
+                              ),
+                              icon: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: tokens.textMuted,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 26,
+                                minHeight: 26,
+                              ),
+                              tooltip: 'Annulla',
+                              onPressed: _cancelRename,
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        key: const ValueKey('session-name-title'),
+                        behavior: HitTestBehavior.opaque,
+                        onDoubleTap: () => _startRenaming(
+                          sessionState.sessionName ?? widget.sessionId,
+                        ),
+                        child: Tooltip(
+                          message: 'Doppio clic per rinominare',
+                          waitDuration: const Duration(milliseconds: 400),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    sessionState.sessionName ?? widget.sessionId,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontFamily: tokens.headingFontFamily,
+                                      fontSize: isCompact ? 16 : 19,
+                                      height: 1.1,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.edit_outlined,
+                                  size: isCompact ? 13 : 15,
+                                  color: tokens.textMuted.withValues(
+                                    alpha: 0.45,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 2),
                     Row(
                       children: [
@@ -1118,6 +1308,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
   Widget _buildEntryItem(SessionEntry entry, CrustTokens tokens) {
+    if (entry.isJunkOrInternal) return const SizedBox.shrink();
     final isUser = entry.role == 'user';
 
     if (isUser) {
