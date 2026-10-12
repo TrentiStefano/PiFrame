@@ -27,6 +27,8 @@ export interface ConnectionOptions {
 export class Connection {
   public readonly id: string;
   public state: ConnectionState = 'authenticating';
+  public authenticated = false;
+  private cleanedUp = false;
   public attachedSessions = new Set<string>();
 
   private ws: WebSocket;
@@ -147,28 +149,26 @@ export class Connection {
       }
       this.commandTimestamps.push(now);
 
-      // Handle session.attach / detach directly on connection
-      if (msg.type === 'session.attach') {
-        const sid = msg.sessionId;
-        const lastSeq = (msg.payload as any)?.lastSeq ?? null;
-        if (sid) {
-          this.attachedSessions.add(sid);
-          if (this.onAttachCallback) {
-            void this.onAttachCallback(this, sid, lastSeq, msg.commandId);
-          }
-        }
-      } else if (msg.type === 'session.detach') {
-        const sid = msg.sessionId;
-        if (sid) {
-          this.attachedSessions.delete(sid);
-          if (this.onDetachCallback) {
-            void this.onDetachCallback(this, sid);
-          }
-        }
-      }
-
-      void this.onCommandCallback(this, msg);
+      void this.executeCommand(msg).catch((error) => {
+        this.send({
+          protocol: 1, kind: 'error', id: `err_${ulid()}`, ts: Date.now(),
+          commandId: msg.commandId, type: 'error',
+          payload: { code: error.code || 'INTERNAL', message: error.message }
+        } as PcpError);
+      });
     }
+  }
+
+  private async executeCommand(msg: any): Promise<void> {
+    if (msg.type === 'session.attach') {
+      if (!msg.sessionId) throw new Error('sessionId required');
+      await this.onAttachCallback?.(this, msg.sessionId, msg.payload?.lastSeq ?? null, msg.commandId);
+      this.attachedSessions.add(msg.sessionId);
+    } else if (msg.type === 'session.detach' && msg.sessionId) {
+      await this.onDetachCallback?.(this, msg.sessionId);
+      this.attachedSessions.delete(msg.sessionId);
+    }
+    await this.onCommandCallback(this, msg);
   }
 
   private handleHello(msg: any): void {
@@ -183,6 +183,7 @@ export class Connection {
       return;
     }
 
+    this.authenticated = true;
     this.state = 'ready';
 
     // Start 15s application heartbeat
@@ -288,6 +289,8 @@ export class Connection {
   }
 
   private cleanup(): void {
+    if (this.cleanedUp) return;
+    this.cleanedUp = true;
     this.state = 'closed';
     if (this.handshakeTimer) clearTimeout(this.handshakeTimer);
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);

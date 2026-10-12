@@ -1,25 +1,37 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 void main() {
-  test('CrustTokens dark has required color values', () {
-    const tokens = CrustTokens.dark;
-    expect(tokens.background, const Color(0xFF0E1116));
-    expect(tokens.accent, const Color(0xFF7C9CFF));
-    expect(tokens.agentWorking, const Color(0xFF7C9CFF));
-    expect(tokens.diffAddedBg, const Color(0xFF10301F));
-    expect(tokens.diffAddedFg, const Color(0xFF7EE0A8));
-    expect(tokens.syntaxKeyword, const Color(0xFFC792EA));
-  });
+  test(
+    'Catppuccin Frappé fallback uses semantic colors and rounded tokens',
+    () {
+      const tokens = CrustTokens.dark;
+      expect(tokens.background, const Color(0xFF303446));
+      expect(tokens.surfaceElevated, const Color(0xFF414559));
+      expect(tokens.displaySurface, const Color(0xFF414559));
+      expect(tokens.displayText, const Color(0xFFC6D0F5));
+      expect(tokens.accent, const Color(0xFFCA9EE6));
+      expect(tokens.agentWorking, const Color(0xFFA6D189));
+      expect(tokens.diffAddedFg, const Color(0xFFC6D0F5));
+      expect(tokens.danger, const Color(0xFFE78284));
+      expect(tokens.syntaxKeyword, const Color(0xFFCA9EE6));
+      expect(tokens.radiusLg, 14);
+    },
+  );
 
-  test('CrustTokens light has required color values', () {
+  test('Catppuccin Latte fallback has coordinated light surfaces', () {
     const tokens = CrustTokens.light;
-    expect(tokens.background, const Color(0xFFF6F8FA));
-    expect(tokens.surface, const Color(0xFFFFFFFF));
-    expect(tokens.accent, const Color(0xFF0969DA));
-    expect(tokens.diffAddedBg, const Color(0xFFE6FFEC));
+    expect(tokens.background, const Color(0xFFEFF1F5));
+    expect(tokens.surface, const Color(0xFFEFF1F5));
+    expect(tokens.displaySurface, const Color(0xFFCCD0DA));
+    expect(tokens.displayText, const Color(0xFF4C4F69));
+    expect(tokens.accent, const Color(0xFF8839EF));
+    expect(tokens.warning, const Color(0xFFDF8E1D));
+    expect(tokens.diffAddedFg, const Color(0xFF4C4F69));
+    expect(tokens.radiusLg, 14);
   });
 
   test('parseHexColor handles 7-char and 9-char hex correctly', () {
@@ -38,18 +50,26 @@ void main() {
       'name': 'Test Tolerant',
       'variant': 'dark',
       'unknownKey': 'should be ignored with diagnostic',
-      'colors': {
-        'accent': 'not-a-color',
-      },
+      'colors': {'accent': 'not-a-color'},
     };
 
     final spec = ThemeSpec.fromJson(rawJson);
     expect(spec.id, 'test-tolerant');
-    expect(spec.diagnostics.any((d) => d.contains('Unknown theme property ignored: "unknownKey"')), isTrue);
+    expect(
+      spec.diagnostics.any(
+        (d) => d.contains('Unknown theme property ignored: "unknownKey"'),
+      ),
+      isTrue,
+    );
 
     final tokens = spec.toTokens();
     expect(tokens.accent, CrustTokens.dark.accent); // fell back safely!
-    expect(spec.diagnostics.any((d) => d.contains('Invalid color format for "colors.accent"')), isTrue);
+    expect(
+      spec.diagnostics.any(
+        (d) => d.contains('Invalid color format for "colors.accent"'),
+      ),
+      isTrue,
+    );
   });
 
   test('ThemeSpec.merge correctly merges base and override', () {
@@ -97,7 +117,10 @@ void main() {
     repo.registerThemeJson(themeB);
 
     final resolvedA = repo.availableThemes.firstWhere((t) => t.id == 'theme-a');
-    expect(resolvedA.diagnostics.any((d) => d.contains('Inheritance cycle')), isTrue);
+    expect(
+      resolvedA.diagnostics.any((d) => d.contains('Inheritance cycle')),
+      isTrue,
+    );
   });
 
   test('ThemeSpec.toThemeData generates consistent ThemeData with tokens extension', () {
@@ -105,10 +128,7 @@ void main() {
       id: 'custom',
       name: 'Custom Theme',
       variant: 'dark',
-      rawColors: {
-        'accent': '#7C9CFF',
-        'background': '#0E1116',
-      },
+      rawColors: {'accent': '#7C9CFF', 'background': '#0E1116'},
     );
 
     final themeData = spec.toThemeData();

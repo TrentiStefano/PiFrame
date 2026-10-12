@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "description": "Code generator from PCP JSON Schema to TypeScript and Dart",
-  "main": "dist/index.js",
+  "main": "generate.js",
   "scripts": {
-    "build": "tsc",
-    "generate": "node dist/index.js"
+    "build": "node --check generate.js",
+    "generate": "node generate.js"
   },
   "dependencies": {
     "json-schema-to-typescript": "^15.0.4"

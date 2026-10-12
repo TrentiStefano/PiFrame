@@ -1,10 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { ulid } from 'ulid';
 import type { PiTransport } from './PiTransport.js';
 import type { PiCommand, PiResponse, PiEvent, TransportHealth, PiCapabilities, ExitInfo } from './piCommands.js';
 import { JsonlFramer } from './jsonlFramer.js';
+import { resolvePiLaunch } from './executable.js';
 
 export interface StdioPiTransportOptions {
   executablePath: string;
@@ -35,6 +34,7 @@ export class StdioPiTransport implements PiTransport {
     }
   >();
   private fifoPendingCommands: Array<{
+    id: string;
     command: string;
     resolve: (res: PiResponse) => void;
     reject: (err: Error) => void;
@@ -58,64 +58,54 @@ export class StdioPiTransport implements PiTransport {
   }
 
   public async start(opts: { cwd: string; args?: string[]; env?: Record<string, string> }): Promise<void> {
-    const cwd = opts.cwd;
-    const extraArgs = opts.args ?? [];
+    const launch = resolvePiLaunch(this.executablePath, opts.args ?? []);
     const env = { ...process.env, ...opts.env, PI_CRUST: '1' };
-
-    let spawnFile = this.executablePath;
-    let spawnArgs = [...extraArgs];
-
-    // Windows optimization: If targeting a .js file or known Node bundle, execute via node directly
-    if (spawnFile.endsWith('.js')) {
-      spawnArgs = [spawnFile, ...spawnArgs];
-      spawnFile = process.execPath;
-    } else if (process.platform === 'win32') {
-      // Check if it's a wrapper .cmd with adjacent cli.js
-      const dir = path.dirname(spawnFile);
-      const possibleCli = path.join(dir, 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'bundle', 'cli.js');
-      if (fs.existsSync(possibleCli)) {
-        spawnArgs = [possibleCli, ...spawnArgs];
-        spawnFile = process.execPath;
-      }
-    }
-
     this.startedAt = Date.now();
     this.lastSeenMs = this.startedAt;
 
-    this.child = spawn(spawnFile, spawnArgs, {
-      cwd,
+    this.child = spawn(launch.file, launch.args, {
+      cwd: opts.cwd,
       env,
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
       windowsHide: true
     });
 
-    this.exitPromise = new Promise<ExitInfo>((resolve) => {
-      this.child!.on('exit', (code, signal) => {
-        this.exitInfo = {
-          exitCode: code,
-          signal,
-          lastStderr: [...this.stderrRingBuffer]
-        };
-        this.isStopped = true;
-        // Wake up any waiting events iterators
-        for (const waiter of this.eventWaiters) {
-          waiter(null);
-        }
-        this.eventWaiters = [];
-        resolve(this.exitInfo);
+    let resolveExit!: (info: ExitInfo) => void;
+    this.exitPromise = new Promise<ExitInfo>((resolve) => { resolveExit = resolve; });
+    let exitFinished = false;
+    const finishExit = (code: number | null, signal: NodeJS.Signals | null, cause?: Error) => {
+      if (exitFinished) return;
+      exitFinished = true;
+      this.exitInfo = { exitCode: code, signal, lastStderr: [...this.stderrRingBuffer] };
+      this.isStopped = true;
+      const failure = cause ?? new Error(`Pi worker exited (code=${code}, signal=${signal ?? 'none'})`);
+      for (const entry of this.pendingCommands.values()) {
+        if (entry.timer) clearTimeout(entry.timer);
+        entry.reject(failure);
+      }
+      this.pendingCommands.clear();
+      this.fifoPendingCommands = [];
+      for (const waiter of this.eventWaiters) waiter(null);
+      this.eventWaiters = [];
+      resolveExit(this.exitInfo);
+    };
+
+    const spawned = new Promise<void>((resolve, reject) => {
+      this.child!.once('spawn', resolve);
+      this.child!.once('error', (err) => {
+        finishExit(null, null, err);
+        reject(err);
       });
     });
+    this.child.once('exit', (code, signal) => finishExit(code, signal));
 
-    // Handle stdout via JsonlFramer
     this.child.stdout!.on('data', (chunk: Buffer) => {
       this.lastSeenMs = Date.now();
-      const results = this.framer.push(chunk);
-      for (const res of results) {
+      for (const res of this.framer.push(chunk)) {
         if (res.ok && res.value) {
           this.handleIncomingObject(res.value);
         } else if (!res.ok) {
-          // Emit diagnostic warning rather than crashing
           this.enqueueEvent({
             type: 'worker.diagnostic',
             level: 'warn',
@@ -126,48 +116,53 @@ export class StdioPiTransport implements PiTransport {
       }
     });
 
-    // Handle stderr ring buffer
     let stderrRemainder = '';
     this.child.stderr!.on('data', (chunk: Buffer) => {
       this.lastSeenMs = Date.now();
-      const text = stderrRemainder + chunk.toString('utf8');
-      const lines = text.split(/\r?\n/);
+      const lines = (stderrRemainder + chunk.toString('utf8')).split(/\r?\n/);
       stderrRemainder = lines.pop() ?? '';
-
       for (const line of lines) {
         if (!line.trim()) continue;
         this.stderrRingBuffer.push(line);
-        if (this.stderrRingBuffer.length > this.maxStderrLines) {
-          this.stderrRingBuffer.shift();
-        }
+        if (this.stderrRingBuffer.length > this.maxStderrLines) this.stderrRingBuffer.shift();
       }
     });
+
+    await spawned;
   }
 
   private handleIncomingObject(obj: any): void {
     if (obj.type === 'response') {
       const resp = obj as PiResponse;
-      if (resp.id && this.pendingCommands.has(resp.id)) {
-        const entry = this.pendingCommands.get(resp.id)!;
-        if (entry.timer) clearTimeout(entry.timer);
-        this.pendingCommands.delete(resp.id);
-        entry.resolve(resp);
+      if (resp.id) {
+        const entry = this.pendingCommands.get(resp.id);
+        if (entry) {
+          this.completePending(resp.id, entry, resp);
+          return;
+        }
+        // An explicit unknown ID is a late or foreign response, never a FIFO match.
         return;
       }
 
-      // If response lacks ID or was not found, match FIFO by command name
-      if (this.fifoPendingCommands.length > 0) {
-        const idx = this.fifoPendingCommands.findIndex((e) => !resp.command || e.command === resp.command);
-        if (idx !== -1) {
-          const entry = this.fifoPendingCommands.splice(idx, 1)[0];
-          entry.resolve(resp);
+      const fallback = this.fifoPendingCommands.find((pending) => !resp.command || pending.command === resp.command);
+      if (fallback) {
+        const entry = this.pendingCommands.get(fallback.id);
+        if (entry) {
+          this.completePending(fallback.id, entry, resp);
           return;
         }
       }
     }
 
-    // Normal Pi event -> push to async iterator queue
     this.enqueueEvent(obj);
+  }
+
+  private completePending(id: string, entry: { resolve: (res: PiResponse) => void; reject: (err: Error) => void; timer?: NodeJS.Timeout }, response: PiResponse): void {
+    if (entry.timer) clearTimeout(entry.timer);
+    this.pendingCommands.delete(id);
+    this.fifoPendingCommands = this.fifoPendingCommands.filter((pending) => pending.id !== id);
+    if (response.success) entry.resolve(response);
+    else entry.reject(new Error(response.error || `Pi command ${response.command ?? 'unknown'} failed`));
   }
 
   private enqueueEvent(event: PiEvent): void {
@@ -184,39 +179,41 @@ export class StdioPiTransport implements PiTransport {
       throw new Error('Pi worker is not running');
     }
 
-    const commandId = cmd.id || `pi_${ulid()}`;
-    cmd.id = commandId;
+    const command = cmd.command;
+    const arguments_ = cmd.arguments ?? {};
+    const isUiResponse = command === 'extension_ui_response';
+    const commandId = isUiResponse ? String(arguments_.id ?? '') : (cmd.id || `pi_${ulid()}`);
+    const payload = JSON.stringify({ type: command, ...arguments_, id: commandId }) + '\n';
 
-    const payload = JSON.stringify(cmd) + '\n';
+    if (isUiResponse) {
+      return new Promise<PiResponse>((resolve, reject) => {
+        this.child!.stdin!.write(payload, 'utf8', (err) => {
+          if (err) reject(err);
+          else resolve({ type: 'response', id: commandId, command, success: true });
+        });
+      });
+    }
 
     return new Promise<PiResponse>((resolve, reject) => {
-      const timeoutMs = cmd.command === 'abort' ? undefined : 30_000;
+      const timeoutMs = command === 'abort' ? undefined : 30_000;
       let timer: NodeJS.Timeout | undefined;
-
+      const removePending = () => {
+        if (timer) clearTimeout(timer);
+        this.pendingCommands.delete(commandId);
+        this.fifoPendingCommands = this.fifoPendingCommands.filter((pending) => pending.id !== commandId);
+      };
       if (timeoutMs) {
         timer = setTimeout(() => {
-          this.pendingCommands.delete(commandId);
-          reject(new Error(`Command ${cmd.command} (id=${commandId}) timed out after ${timeoutMs}ms`));
+          removePending();
+          reject(new Error(`Command ${command} (id=${commandId}) timed out after ${timeoutMs}ms`));
         }, timeoutMs);
       }
 
-      this.pendingCommands.set(commandId, {
-        resolve,
-        reject,
-        command: cmd.command,
-        timer
-      });
-
-      this.fifoPendingCommands.push({
-        command: cmd.command,
-        resolve,
-        reject
-      });
-
+      this.pendingCommands.set(commandId, { resolve, reject, command, timer });
+      this.fifoPendingCommands.push({ id: commandId, command, resolve, reject });
       this.child!.stdin!.write(payload, 'utf8', (err) => {
         if (err) {
-          if (timer) clearTimeout(timer);
-          this.pendingCommands.delete(commandId);
+          removePending();
           reject(err);
         }
       });
@@ -251,25 +248,21 @@ export class StdioPiTransport implements PiTransport {
   }
 
   public async stop(opts: { graceMs: number }): Promise<ExitInfo> {
-    if (this.isStopped || !this.child || this.child.killed) {
-      return this.exitInfo;
-    }
+    if (!this.child || !this.exitPromise) return this.exitInfo;
+    if (this.isStopped) return this.exitPromise;
 
     const graceMs = opts.graceMs || 5000;
-
-    try {
-      this.child.kill('SIGTERM');
-    } catch {}
+    if (!this.child.killed) {
+      try { this.child.kill('SIGTERM'); } catch {}
+    }
 
     const forceKillTimer = setTimeout(() => {
-      if (this.child && !this.child.killed) {
-        try {
-          this.child.kill('SIGKILL');
-        } catch {}
+      if (this.child && !this.isStopped) {
+        try { this.child.kill('SIGKILL'); } catch {}
       }
     }, graceMs);
 
-    const info = await this.exitPromise!;
+    const info = await this.exitPromise;
     clearTimeout(forceKillTimer);
     return info;
   }

@@ -39,7 +39,8 @@ export class ConnectionManager {
 
   public broadcast(sessionId: string, msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      if (sessionId === '@daemon' || conn.attachedSessions.has(sessionId)) {
+      if ((conn.state === 'ready' || conn.state === 'attached') &&
+          (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))) {
         conn.send(msg);
       }
     }
@@ -47,7 +48,7 @@ export class ConnectionManager {
 
   public broadcastAll(msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      conn.send(msg);
+      if (conn.state === 'ready' || conn.state === 'attached') conn.send(msg);
     }
   }
 
@@ -115,8 +116,11 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
       onAttach,
       onDetach,
       onClose: (closedConn) => {
-        if (closedConn.state === 'authenticating') {
+        if (!closedConn.authenticated) {
           recordFailedHello(ip);
+        }
+        for (const sessionId of closedConn.attachedSessions) {
+          void onDetach?.(closedConn, sessionId).catch(() => {});
         }
         manager.remove(closedConn);
       }

@@ -91,7 +91,7 @@ export class EventJournal {
     return SnapshotBuilder.build(this.getContext(), seq ?? this.seqCounter);
   }
 
-  public close(): void {
-    this.spill.close();
+  public close(): Promise<void> {
+    return this.spill.close();
   }
 }

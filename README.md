@@ -1,6 +1,6 @@
 # Pi-Crust 🥧
 
-> **Modern, resilient, decoupled GUI (Windows, macOS, and Web) for [`pi-coding-agent`](https://github.com/earendil-works/pi), inspired by OpenAI Codex and GitHub Copilot app interfaces.**
+> **Modern, resilient, decoupled GUI (Windows, macOS, Linux, and Web) for [`pi-coding-agent`](https://github.com/earendil-works/pi), inspired by OpenAI Codex and GitHub Copilot app interfaces.**
 
 ---
 
@@ -14,12 +14,28 @@
 
 ---
 
+## 📦 Releases
+
+Main-branch commits follow [Conventional Commits](https://www.conventionalcommits.org/): `fix:` bumps patch, `feat:` bumps minor, and `!` or `BREAKING CHANGE:` bumps major. Release Please opens a release PR with synchronized SemVer versions and changelog. Merge that PR to publish installers for Windows, macOS, and Linux plus a fresh UI screenshot. Docs, tests, and chore-only commits do not release. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
+
+Download the latest [Windows installer](https://github.com/TrentiStefano/pi-crust/releases/latest), [macOS DMG](https://github.com/TrentiStefano/pi-crust/releases/latest), or [Linux Debian package](https://github.com/TrentiStefano/pi-crust/releases/latest) from **Releases**.
+
+| Windows | macOS (Apple silicon + Intel) | Linux |
+| --- | --- | --- |
+| `Pi-Crust-Setup-…-windows-x64.exe` | `Pi-Crust-…-macos-arm64.dmg` / `Pi-Crust-…-macos-x64.dmg` | `Pi-Crust-…-linux-amd64.deb` |
+
+Installers include the Pi-Crust app, `pi-agentd`, and bundled Node.js runtime. Install Pi CLI separately (`npm install -g @earendil-works/pi-coding-agent`). Windows installers are unsigned (SmartScreen may warn); macOS builds are not signed/notarized (Gatekeeper may require **Control-click → Open**).
+
+![Pi-Crust desktop UI](https://github.com/TrentiStefano/pi-crust/releases/latest/download/pi-crust-screenshot.png)
+
+---
+
 ## 🏗 Architecture
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
 │  Pi-Crust (Flutter Desktop & Web)                             │
-│  Windows · macOS · Web (Chrome / Edge)                        │
+│  Windows · macOS · Linux · Web (Chrome / Edge)                │
 │  ── Presentation + Session Projection + Command Dispatcher    │
 └──────────────────────────┬────────────────────────────────────┘
                            │  PCP/1 (Pi-Crust Protocol, JSON over WebSocket)
@@ -89,13 +105,9 @@
 
 Before building or running Pi-Crust, ensure the following are installed on your machine:
 
-1. **Flutter SDK:** Version `^3.13.2` or later (tested on Flutter `3.47.x` Channel stable).
-2. **Node.js & pnpm:** Node.js `>= 22.0.0` and `pnpm >= 9.0.0`.
-3. **Pi CLI:**
-   - Install `pi-coding-agent` (`>= v0.85.0`) globally, or
-   - Use the included **`fake-pi`** tool for local development and testing without requiring LLM API keys.
-4. **For Windows Desktop (.exe):**
-   - **Visual Studio 2022+** with the **"Desktop development with C++"** workload installed (standard requirement for Flutter Windows development).
+1. **Pi CLI:** Install `@earendil-works/pi-coding-agent` globally and keep `pi` on `PATH`. Pi-Crust installers bundle Node.js for the daemon; installing Pi via npm still requires Node.js/npm.
+2. **From source only:** Flutter `3.47.2` or later, Dart `>= 3.13.2`, Node.js `>= 22.19.0`, pnpm `>= 9.0.0`, and platform desktop build tools.
+3. **Windows source builds:** Visual Studio with the **Desktop development with C++** workload. Downloaded Windows installers need no build tools.
 
 ---
 
@@ -123,10 +135,10 @@ pnpm run:daemon
 
 # Option B: Development mode using fake-pi (no LLM key needed)
 # On Windows PowerShell:
-$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/bin/fake-pi"; pnpm run:daemon
+$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
 
 # On Linux/macOS:
-PI_CRUST_PI_PATH=./tools/fake-pi/bin/fake-pi pnpm run:daemon
+PI_CRUST_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
 ```
 The daemon will initialize `~/.pi-crust/runtime/`, write `daemon.json` and `daemon.token`, and start listening on `127.0.0.1`.
 
@@ -138,42 +150,41 @@ cd apps/pi_crust
 # Run as Windows Desktop app:
 flutter run -d windows
 
-# Or run as a Web application in Chrome:
-flutter run -d chrome
+# Build the Web application with local renderer assets:
+flutter build web --no-web-resources-cdn
 ```
+
+For Web, serve the build from the daemon's own origin. From the repository root, start the daemon with:
+```powershell
+$env:PI_CRUST_WEB_DIR = "$PWD/apps/pi_crust/build/web"
+pnpm run:daemon
+```
+On Linux/macOS, use `PI_CRUST_WEB_DIR="$PWD/apps/pi_crust/build/web" pnpm run:daemon`.
+Open `http://127.0.0.1:<port>/`, using the port printed by the daemon. A separate `flutter run -d chrome` server cannot discover native runtime files.
+
+### Existing terminal sessions
+The sidebar indexes Pi session files and hides sessions whose project path is inside the OS temporary directory.
+Closed sessions open directly in Pi-Crust and continue in the original Pi session file.
+Pi does not expose the exact session selected by an already-running terminal process. Pi-Crust detects explicit session arguments and treats other Pi processes in the same project as ambiguous.
+Ambiguous sessions stay read-only until you confirm that the terminal is not using that session. Use **Duplica e continua** to avoid shared writes.
+The **Gestite** filter shows daemon-managed sessions. It does not list live terminal processes.
+The model picker applies Pi's global `enabledModels` setting and Pi's authenticated-model list.
+Set `PI_CODING_AGENT_SESSION_DIR` on the daemon to index a custom session directory.
 
 ---
 
-## 📦 Building the Windows Executable (`.exe`)
+## 🛠 Building from Source
 
-You can compile a standalone, high-performance Windows release executable in two simple steps:
+Build the daemon and Flutter desktop app for your current OS:
 
-### Step 1: Bundle the Daemon Sidecar
-Bundle the daemon into a single self-contained CommonJS file:
 ```bash
-pnpm --filter @pi-crust/agentd build:bundle
-```
-*(Optionally, you can create a Node Single Executable Application via `pnpm --filter @pi-crust/agentd build:sea`)*.
-
-### Step 2: Build the Flutter Windows Release
-Compile the Flutter desktop application:
-```bash
+pnpm install
+pnpm --filter @pi-crust/agentd run build:bundle
 cd apps/pi_crust
-flutter build windows --release
+flutter build windows --release # or macos / linux
 ```
 
-### Step 3: Run and Test the Executable
-Once compilation completes, the release output will be located in:
-```text
-apps/pi_crust/build/windows/x64/runner/Release/
-├── pi_crust.exe           # The main executable
-├── flutter_windows.dll    # Flutter engine runtime
-└── data/                  # Assets, fonts, and bundled themes
-```
-
-#### How to test it:
-1. **With daemon running:** If `pi-agentd` is already running (`pnpm run:daemon`), simply double-click `pi_crust.exe`. The application automatically discovers the active daemon via `~/.pi-crust/runtime/daemon.json` and authenticates.
-2. **Autonomous launch:** If no daemon is running, `pi_crust.exe` automatically checks for a bundled daemon sidecar (`pi-agentd.exe` or `dist/pi-agentd.cjs`) or uses the `PI_CRUST_DAEMON_BIN` environment variable to launch the daemon process on-demand.
+Release Please derives SemVer and updates `package.json`, the Flutter `pubspec.yaml`, daemon version, app version, and `CHANGELOG.md`. Merge its release PR to run `.github/workflows/release.yml` and publish installers. The daemon bundle and Node.js runtime are placed beside the app so it can start the daemon without a separate Node installation. The daemon starts on demand; it is not installed as a persistent OS service. Pi CLI is still required.
 
 ---
 
@@ -188,14 +199,18 @@ pnpm test
 # Run End-to-End and Fault Injection test suites:
 pnpm test:e2e
 
+# Exercise the installed real Pi CLI with an isolated, loopback mock model:
+# No real LLM calls or changes to existing Pi sessions.
+pnpm smoke:real-pi
+
 # Run Flutter static analysis:
 cd apps/pi_crust
 flutter analyze
 ```
 
 ### Test Suites Breakdown:
-- **`apps/agentd`:** 30 unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
-- **`apps/pi_crust`:** 23 widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
+- **`apps/agentd`:** Unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
+- **`apps/pi_crust`:** Widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
 - **`packages/pi_crust_protocol`:** 4 contract serialization & forward compatibility tests.
 - **`packages/pi_crust_theme`:** 7 theme parsing, inheritance, and cycle detection tests.
 - **`test/e2e`:** 4 end-to-end integration tests, including:
@@ -209,7 +224,7 @@ flutter analyze
 ```text
 pi-crust/
 ├── apps/
-│   ├── pi_crust/                 # Flutter application (Windows, macOS, Web)
+│   ├── pi_crust/                 # Flutter application (Windows, macOS, Linux, Web)
 │   │   ├── lib/                  # App shell, state reducers, UI features
 │   │   ├── assets/themes/        # Bundled official themes (crust-dark, crust-light)
 │   │   └── test/                 # Widget, smoke, and lint tests

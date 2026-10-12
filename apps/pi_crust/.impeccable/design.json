@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-05T09:57:20+02:00",
+  "title": "Design System: Pi-Crust — Bento Workbench",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "elevated-dialog",
+        "value": "Flutter Material elevation 4",
+        "purpose": "Lift only transient dialogs above the work surface."
+      },
+      {
+        "name": "command-surface",
+        "value": "Flutter Material elevation 4",
+        "purpose": "Separate keyboard command search from the active workspace."
+      }
+    ],
+    "motion": [
+      {
+        "name": "pointer-press",
+        "value": "scale 0.97; 120ms; cubic(0.23, 1, 0.32, 1)",
+        "purpose": "Confirm pointer press without delaying keyboard activation."
+      },
+      {
+        "name": "inspector-glide",
+        "value": "translateX; 240ms; cubic(0.32, 0.72, 0, 1)",
+        "purpose": "Explain inspector spatial relation while keeping transcript layout stationary during animation."
+      },
+      {
+        "name": "launch-reveal",
+        "value": "620ms; cubic(0.23, 1, 0.32, 1); fade 0.82→1; four mark segments assemble",
+        "purpose": "One-time identity reveal on startup; any input completes immediately."
+      },
+      {
+        "name": "keyboard-actions",
+        "value": "0ms",
+        "purpose": "Command palette and frequent keyboard actions remain immediate."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "Remove movement and splash motion; keep work visible immediately.",
+        "purpose": "Respect MediaQuery.disableAnimationsOf."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "session-navigation",
+        "value": "900px",
+        "purpose": "Use persistent session index above; explicit session drawer below."
+      },
+      {
+        "name": "workspace-inspector",
+        "value": "1280px",
+        "purpose": "Dock inspector at desktop widths; end drawer below."
+      },
+      {
+        "name": "native-window-minimum",
+        "value": "680×480 logical pixels",
+        "purpose": "Keep native title controls and work area usable."
+      }
+    ],
+    "narrative": {
+      "northStar": "Cohesive Bento workbench",
+      "overview": "A local-first Pi session workbench: repository/editor, Pi chat and Git Changes share a Bento layout, Catppuccin Latte/Frappé palette, and consistent rounded, subtly bordered surfaces. Pi-Crust keeps its own name and mark.",
+      "keyCharacteristics": [
+        "three related, resizable work areas",
+        "official Catppuccin Latte/Frappé colors",
+        "rounded 1px outlined surfaces across panes and controls",
+        "dense session, transcript and Git information",
+        "semantic colors used only with readable palette text"
+      ],
+      "rules": [
+        {
+          "name": "Signal Color Rule",
+          "body": "Yellow and red indicate meaningful warning or danger state only.",
+          "section": "colors"
+        },
+        {
+          "name": "Plane Rule",
+          "body": "Use contrast, alignment, and 1px rules before adding shadows.",
+          "section": "elevation"
+        },
+        {
+          "name": "Instant Keyboard Rule",
+          "body": "Keyboard commands and repeated navigation do not animate.",
+          "section": "motion"
+        }
+      ],
+      "dos": [
+        "Do keep caption drag/control behavior native and accessible.",
+        "Do keep startup reveal once-only and interruptible.",
+        "Do keep transcript and workspace controls visible and responsive."
+      ],
+      "donts": [
+        "Don't revive retired external design references or old palette hues.",
+        "Don't invent diagnostic data, meters, metrics, or fake state.",
+        "Don't add generic card stacks, decorative glass, or continuous motion."
+      ]
+    }
+  }
+}

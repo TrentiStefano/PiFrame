@@ -1,4 +1,5 @@
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
+
 import 'agent_status.dart';
 import 'session_state.dart';
 
@@ -8,7 +9,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     return current;
   }
 
-  final nextSeq = event.seq > current.lastAppliedSeq ? event.seq : current.lastAppliedSeq;
+  final nextSeq = event.seq > current.lastAppliedSeq
+      ? event.seq
+      : current.lastAppliedSeq;
 
   switch (event) {
     case RunStartedEvent():
@@ -52,8 +55,10 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     case MessageCompletedEvent(:final message):
       final msg = message ?? {};
       final role = (msg['role'] as String?) ?? 'assistant';
-      final id = (msg['id'] as String?) ?? 'msg_${DateTime.now().millisecondsSinceEpoch}';
-      
+      final id =
+          (msg['id'] as String?) ??
+          'msg_${DateTime.now().millisecondsSinceEpoch}';
+
       // Extract text content if message contains content blocks
       String text = '';
       if (msg['content'] is String) {
@@ -73,9 +78,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         id: id,
         role: role,
         text: text,
-        thinking: current.currentStreamingThinking.isNotEmpty ? current.currentStreamingThinking : null,
+        thinking: current.currentStreamingThinking.isNotEmpty
+            ? current.currentStreamingThinking
+            : null,
         toolCalls: current.activeToolCalls.values.toList(),
-        timestamp: DateTime.now().millisecondsSinceEpoch,
+        timestamp:
+            (msg['timestamp'] as num?)?.toInt() ??
+            DateTime.now().millisecondsSinceEpoch,
       );
 
       final nextEntries = List<SessionEntry>.from(current.entries)..add(entry);
@@ -88,7 +97,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case ToolStartedEvent(:final toolCallId, :final toolName, :final args):
-      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      final nextActive = Map<String, ToolExecutionState>.from(
+        current.activeToolCalls,
+      );
       nextActive[toolCallId] = ToolExecutionState(
         toolCallId: toolCallId,
         toolName: toolName,
@@ -100,18 +111,22 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         lastAppliedSeq: nextSeq,
       );
 
-    case ToolProgressEvent(:final toolCallId, :final toolName, :final partialResult):
+    case ToolProgressEvent(
+      :final toolCallId,
+      :final toolName,
+      :final partialResult,
+    ):
       // Cumulative replacement rule: partialResult is NOT a delta
       final outputStr = partialResult?.toString() ?? '';
       final nextOutputs = Map<String, String>.from(current.toolOutputs);
       nextOutputs[toolCallId] = outputStr;
 
-      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      final nextActive = Map<String, ToolExecutionState>.from(
+        current.activeToolCalls,
+      );
       final existing = nextActive[toolCallId];
       if (existing != null) {
-        nextActive[toolCallId] = existing.copyWith(
-          output: outputStr,
-        );
+        nextActive[toolCallId] = existing.copyWith(output: outputStr);
       } else {
         nextActive[toolCallId] = ToolExecutionState(
           toolCallId: toolCallId,
@@ -127,12 +142,20 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         lastAppliedSeq: nextSeq,
       );
 
-    case ToolCompletedEvent(:final toolCallId, :final toolName, :final result, :final isError, :final durationMs):
+    case ToolCompletedEvent(
+      :final toolCallId,
+      :final toolName,
+      :final result,
+      :final isError,
+      :final durationMs,
+    ):
       final outputStr = result?.toString() ?? '';
       final nextOutputs = Map<String, String>.from(current.toolOutputs);
       nextOutputs[toolCallId] = outputStr;
 
-      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      final nextActive = Map<String, ToolExecutionState>.from(
+        current.activeToolCalls,
+      );
       final existing = nextActive[toolCallId];
       if (existing != null) {
         nextActive[toolCallId] = existing.copyWith(
@@ -166,8 +189,17 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case UsageUpdatedEvent(:final usage):
+      return current.copyWith(usage: usage, lastAppliedSeq: nextSeq);
+
+    case UiStatusEvent(:final statusKey, :final statusText):
+      final statuses = Map<String, String>.from(current.extensionStatuses);
+      if (statusText == null || statusText.isEmpty) {
+        statuses.remove(statusKey);
+      } else {
+        statuses[statusKey] = statusText;
+      }
       return current.copyWith(
-        usage: usage,
+        extensionStatuses: statuses,
         lastAppliedSeq: nextSeq,
       );
 
@@ -179,7 +211,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
     case CompactionEndedEvent():
       return current.copyWith(
-        agentStatus: current.isStreaming ? AgentStatus.working : AgentStatus.settled,
+        agentStatus: current.isStreaming
+            ? AgentStatus.working
+            : AgentStatus.settled,
         lastAppliedSeq: nextSeq,
       );
 
@@ -190,19 +224,22 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case UiRequestEvent(
-        :final requestId,
-        :final method,
-        :final title,
-        :final message,
-        :final dialog
-      ):
-      final nextRequests = List<Map<String, dynamic>>.from(current.pendingUiRequests);
+      :final requestId,
+      :final method,
+      :final title,
+      :final message,
+      :final dialog,
+    ):
+      final nextRequests = List<Map<String, dynamic>>.from(
+        current.pendingUiRequests,
+      );
       nextRequests.add({
         'requestId': requestId,
         'method': method,
         'title': title,
         'message': message,
         'dialog': dialog,
+        ...event.payload,
       });
       return current.copyWith(
         pendingUiRequests: nextRequests,

@@ -1,3 +1,13 @@
+export function isLoopbackHost(host: string | undefined, port: number): boolean {
+  if (!host) return false;
+  try {
+    const url = new URL(`http://${host}`);
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) &&
+      !url.username && !url.password && url.pathname === '/' &&
+      Number(url.port || 80) === port;
+  } catch { return false; }
+}
+
 export function isOriginAllowed(origin: string | undefined, allowedOrigins: string[], port: number): boolean {
   // Desktop clients (like Flutter Desktop) don't send Origin
   if (!origin) return true;

@@ -86,6 +86,10 @@ export type PcpWelcome = PcpEnvelope<PcpWelcomePayload> & {
 // -----------------------------------------------------------------------------
 
 export type PcpCommandType =
+  | 'pi.packages.list'
+  | 'pi.packages.update'
+  | 'pi.packages.remove'
+  | 'pi.packages.pin'
   | 'daemon.getStatus'
   | 'daemon.getConfig'
   | 'daemon.setConfig'
@@ -122,12 +126,57 @@ export type PcpCommandType =
   | 'ui.claim'
   | 'ui.respond'
   | 'workspace.refresh'
-  | 'workspace.getDiff';
+  | 'workspace.getDiff'
+  | 'workspace.listFiles'
+  | 'workspace.readFile'
+  | 'workspace.saveFile'
+  | 'workspace.gitAction';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
   commandId: string;
   type: PcpCommandType;
+}
+
+export interface PiPackageInfo {
+  source: string;
+  name: string;
+  version: string | null;
+  pinnedVersion: string | null;
+}
+
+export interface WorkspaceFileInfo {
+  path: string;
+  sizeBytes: number;
+}
+
+export interface WorkspaceListFilesResult {
+  rootPath: string;
+  files: WorkspaceFileInfo[];
+  truncated: boolean;
+}
+
+export interface WorkspaceReadFileResult {
+  rootPath: string;
+  path: string;
+  content: string;
+  revision: string;
+  sizeBytes: number;
+}
+
+export interface WorkspaceSaveFileRequest {
+  path: string;
+  content: string;
+  revision: string;
+}
+
+export type WorkspaceGitAction = 'stage' | 'unstage' | 'commit' | 'discard';
+
+export interface WorkspaceGitActionRequest {
+  action: WorkspaceGitAction;
+  paths: string[];
+  expectedStagedPaths?: string[];
+  message?: string;
 }
 
 // -----------------------------------------------------------------------------

@@ -75,7 +75,11 @@ async function main() {
     }
 
     const id = cmd.id;
-    const type = cmd.type || cmd.command;
+    const type = cmd.type;
+    if (typeof type !== 'string' || 'arguments' in cmd) {
+      send({ id, type: 'response', command: 'parse', success: false, error: 'Expected canonical flat RPC command with type and top-level arguments' });
+      return;
+    }
 
     if (type === 'extension_ui_response') {
       return;
@@ -242,6 +246,8 @@ async function main() {
       const events = scenarioConfig.events || [
         { delayMs: 10, event: { type: 'agent_start' } },
         { delayMs: 10, event: { type: 'turn_start' } },
+        { event: { type: 'message_start', message: { role: 'user', content: cmd.message, timestamp: Date.now() } } },
+        { event: { type: 'message_end', message: { role: 'user', content: cmd.message, timestamp: Date.now() } } },
         { delayMs: 10, event: { type: 'message_start', message: { role: 'assistant', content: [] } } },
         { delayMs: 10, event: { type: 'message_update', usage: { input: 100, output: 5, total: 105 }, assistantMessageEvent: { type: 'text_start', contentIndex: 0 } } },
         { delayMs: 10, event: { type: 'message_update', usage: { input: 100, output: 15, total: 115 }, assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'Hello from fake-pi!' } } },
@@ -275,8 +281,15 @@ async function main() {
       return;
     }
 
-    // Default response for unknown commands
-    send({ id, type: 'response', command: type, success: true, data: {} });
+    if (type === 'bash') {
+      send({ id, type: 'response', command: type, success: true,
+        data: { output: `Fake command: ${cmd.command}`, exitCode: 0, cancelled: false, truncated: false } });
+      return;
+    }
+    const supportedSetters = ['set_model', 'set_thinking_level', 'set_session_name',
+      'set_auto_compaction', 'set_auto_retry', 'set_steering_mode', 'set_follow_up_mode'];
+    send({ id, type: 'response', command: type, success: supportedSetters.includes(type), data: {},
+      error: supportedSetters.includes(type) ? undefined : `Unknown command type: ${type}` });
   };
 
   process.stdin.on('data', chunk => {

@@ -23,6 +23,13 @@ export class Session {
   public cwd: string;
   public gitRoot?: string | null;
   public sessionFile?: string | null;
+  public forkSourceFile?: string;
+  public readOnly = false;
+  public readOnlyReason: 'terminal' | 'unknown' | null = null;
+  public allowAmbiguousTerminal = false;
+  public liveMessage: any = null;
+  public activeTools = new Map<string, any>();
+  public usage: Record<string, unknown> = {};
   public createdAt: number;
   public lastActivityAt: number;
 
@@ -91,8 +98,10 @@ export class Session {
       gitRoot: this.gitRoot,
       sessionFile: this.sessionFile,
       createdAt: this.createdAt,
-      lastActivityAt: this.lastActivityAt
-    };
+      lastActivityAt: this.lastActivityAt,
+      readOnly: this.readOnly,
+      readOnlyReason: this.readOnlyReason
+    } as SessionMeta;
   }
 
   public getSnapshotContext(): SnapshotContext {
@@ -109,6 +118,9 @@ export class Session {
       queue: this.queue,
       entries: this.entries,
       pendingUiRequests: this.uiBroker.getPending(),
+      liveMessage: this.liveMessage,
+      activeTools: Array.from(this.activeTools.values()),
+      usage: this.usage,
       workspace: this.workspace
     };
   }
@@ -163,6 +175,37 @@ export class Session {
 
   private updateInternalState(type: PcpEventType, payload: any): void {
     switch (type) {
+      case 'message.started':
+        this.liveMessage = { id: payload.messageId, role: payload.role, content: [] };
+        break;
+
+      case 'text.delta':
+      case 'thinking.delta': {
+        this.liveMessage ||= { role: 'assistant', content: [] };
+        const index = payload.contentIndex || 0;
+        const field = type === 'text.delta' ? 'text' : 'thinking';
+        const block = this.liveMessage.content[index] || { type: field, [field]: '' };
+        block[field] += payload.delta || '';
+        this.liveMessage.content[index] = block;
+        break;
+      }
+
+      case 'tool.started':
+        this.activeTools.set(payload.toolCallId, { ...payload, isRunning: true });
+        break;
+      case 'tool.progress': {
+        const tool = this.activeTools.get(payload.toolCallId) || {};
+        this.activeTools.set(payload.toolCallId, { ...tool, ...payload, output: payload.partialResult });
+        break;
+      }
+      case 'tool.completed': {
+        const tool = this.activeTools.get(payload.toolCallId) || {};
+        this.activeTools.set(payload.toolCallId, { ...tool, ...payload, output: payload.result, isRunning: false });
+        break;
+      }
+      case 'usage.updated':
+        this.usage = payload.usage || {};
+        break;
       case 'run.started':
         this.status = 'working';
         this.isStreaming = true;
@@ -178,6 +221,8 @@ export class Session {
       case 'run.settled':
         this.status = 'settled';
         this.isStreaming = false;
+        this.liveMessage = null;
+        this.activeTools.clear();
         break;
 
       case 'retry.started':
@@ -215,7 +260,9 @@ export class Session {
         break;
 
       case 'message.completed':
-        if (payload.message) {
+        this.liveMessage = null;
+        this.activeTools.clear();
+        if (payload.message && payload.message.role !== 'system') {
           this.entries.push(payload.message);
           if (payload.message.id) {
             this.leafId = payload.message.id;
@@ -231,8 +278,8 @@ export class Session {
     }
   }
 
-  public close(): void {
+  public close(): Promise<void> {
     this.uiBroker.dispose();
-    this.journal.close();
+    return this.journal.close();
   }
 }

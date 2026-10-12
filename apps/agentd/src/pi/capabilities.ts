@@ -37,7 +37,7 @@ export async function probeCapabilities(executablePath: string, version: string,
 
     await transport.start({
       cwd: process.cwd(),
-      args: ['--mode', 'rpc', '--no-session']
+      args: ['--mode', 'rpc', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--offline']
     });
 
     let thinkingLevels: string[] = ['none', 'low', 'medium', 'high'];
