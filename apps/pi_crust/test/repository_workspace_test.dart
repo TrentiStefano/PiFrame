@@ -216,6 +216,8 @@ void main() {
     await repository.selectFile('lib/main.dart');
     repository.edit('lib/main.dart', 'manual edit\n');
     await repository.save('lib/main.dart');
+    // Git changes starts collapsed by default: tap section header to expand
+    await tester.tap(find.text('MODIFICHE (CHANGES)'));
     await tester.pumpAndSettle();
 
     expect(
@@ -275,8 +277,7 @@ void main() {
     final draft = ProviderScope.containerOf(
       tester.element(find.byType(Composer)),
     ).read(composerDraftProvider('session-a'));
-    expect(draft, contains('lib/main.dart'));
-    expect(draft, contains('original'));
+    expect(draft, contains('@lib/main.dart'));
   });
 
   testWidgets('Composer adds selected code with exact file and line range', (
@@ -437,15 +438,20 @@ void main() {
       );
       expect(find.text('Seleziona un file'), findsNothing);
 
-      // Hierarchical folder 'lib' and file 'main.dart' are present in tree
+      // Hierarchical folder 'lib' is present in tree; starts collapsed by default
       expect(find.text('lib'), findsOneWidget);
-      expect(find.text('main.dart'), findsOneWidget);
+      expect(find.text('main.dart'), findsNothing);
 
-      // Tap 'lib' folder row to collapse it
+      // Tap 'lib' folder row to expand it
       await tester.tap(find.text('lib'));
       await tester.pumpAndSettle();
 
-      // Child 'main.dart' is now collapsed/hidden!
+      // Child 'main.dart' is now visible!
+      expect(find.text('main.dart'), findsOneWidget);
+
+      // Tap 'lib' again to collapse it
+      await tester.tap(find.text('lib'));
+      await tester.pumpAndSettle();
       expect(find.text('main.dart'), findsNothing);
 
       // Tap 'lib' again to expand it
