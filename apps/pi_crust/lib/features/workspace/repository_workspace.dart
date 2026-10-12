@@ -1466,7 +1466,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
             ),
             const Spacer(),
-            if (trailing != null) trailing,
+            ?trailing,
           ],
         ),
       ),
