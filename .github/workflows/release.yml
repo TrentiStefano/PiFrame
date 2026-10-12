@@ -218,6 +218,7 @@ jobs:
           cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
           chmod +x "$app/Contents/MacOS/node"
           cp -R "$app" dist/dmg/Pi-Crust.app
+          codesign --force --deep --sign - dist/dmg/Pi-Crust.app
           ln -s /Applications dist/dmg/Applications
           test -x "$app/Contents/MacOS/pi_crust"
           test -x "$app/Contents/MacOS/node"
