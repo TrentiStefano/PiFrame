@@ -138,6 +138,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     return client!.interruptAgent(sessionId);
   }
 
+  Future<void> rename(String newName) async {
+    if (client != null) {
+      await client!.renameSession(sessionId, newName);
+    }
+    if (mounted) {
+      state = state.copyWith(sessionName: newName);
+    }
+  }
+
   Future<void> clearQueue() async {
     if (client == null) return;
     await client!.clearQueue(sessionId);
