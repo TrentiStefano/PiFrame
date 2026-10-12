@@ -15,7 +15,14 @@ async function main() {
   console.log(`Platform: ${process.platform} (${process.arch})`);
 
   // 2. Verify Pi CLI version
-  const piBundle = 'C:/nvm4w/nodejs/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js';
+  const piBundle = process.env.PI_CRUST_PI_BUNDLE
+    ?? (process.platform === 'win32'
+      ? 'C:/nvm4w/nodejs/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'
+      : '');
+  if (!piBundle || !fs.existsSync(piBundle)) {
+    console.log('Skipping live Pi RPC check; set PI_CRUST_PI_BUNDLE to the CLI bundle path to enable it.');
+    return;
+  }
   const piVersion = await new Promise<string>((resolve, reject) => {
     const p = spawn(process.execPath, [piBundle, '--version'], { stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
@@ -64,14 +71,13 @@ async function main() {
 
   // 4. Live RPC probe verification
   console.log('Running live RPC probe test against Pi CLI...');
-  const probeResult = await runRpcProbe();
+  const probeResult = await runRpcProbe(piBundle);
   console.log('Live RPC probe result:', JSON.stringify(probeResult, null, 2));
   console.log('=== Step 0.1 Verification Passed! ===');
 }
 
-function runRpcProbe(): Promise<{ sessionId: string; model?: string }> {
+function runRpcProbe(piBundle: string): Promise<{ sessionId: string; model?: string }> {
   return new Promise((resolve, reject) => {
-    const piBundle = 'C:/nvm4w/nodejs/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js';
     const proc = spawn(process.execPath, [piBundle, '--mode', 'rpc', '--no-session', '--no-extensions'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });

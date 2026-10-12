@@ -80,6 +80,15 @@ importers:
         specifier: ^8.18.0
         version: 8.21.3
     devDependencies:
+      '@pi-crust/agentd':
+        specifier: workspace:*
+        version: link:../../apps/agentd
+      '@pi-crust/fake-pi':
+        specifier: workspace:*
+        version: link:../../tools/fake-pi
+      '@pi-crust/fault-proxy':
+        specifier: workspace:*
+        version: link:../../tools/fault-proxy
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.3

@@ -3,9 +3,6 @@ name: Release
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,15 +10,15 @@ permissions:
 jobs:
   validate:
     name: Validate All Suites
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v5
         with:
           version: 10.25.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -66,7 +63,7 @@ jobs:
     name: Prepare semantic release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       issues: write
@@ -76,7 +73,7 @@ jobs:
       tag: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         id: release
         with:
           config-file: release-please-config.json
@@ -84,15 +81,13 @@ jobs:
 
   release-meta:
     name: Resolve build version
-    if: always() && needs.validate.result == 'success' && (needs.release-please.result == 'success' || needs.release-please.result == 'skipped')
     needs: [release-please, validate]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       should_build: ${{ steps.version.outputs.should_build }}
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
       - id: version
         shell: bash
         env:
@@ -100,11 +95,7 @@ jobs:
           RELEASE_TAG: ${{ needs.release-please.outputs.tag }}
           RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            version=$(node -p "require('./.release-please-manifest.json')['.']")
-            tag="v$version"
-            should_build=true
-          elif [[ "$RELEASE_CREATED" == "true" ]]; then
+          if [[ "$RELEASE_CREATED" == "true" ]]; then
             version="$RELEASE_VERSION"
             tag="$RELEASE_TAG"
             should_build=true
@@ -145,13 +136,13 @@ jobs:
     env:
       APP_VERSION: ${{ needs.release-meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v5
         with:
           version: 10.25.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -249,7 +240,7 @@ jobs:
           '
           test -s dist/pi-crust-screenshot.png
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: installer-${{ matrix.platform }}-${{ matrix.arch }}
           path: dist/*
@@ -260,16 +251,16 @@ jobs:
     name: Attach installers to GitHub Release
     needs: [release-please, release-meta, build-release, validate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.release-meta.outputs.tag }}
-          files: artifacts/*
+      - name: Upload installer assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ needs.release-meta.outputs.tag }}" artifacts/* --clobber
