@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing SemVer tag to rebuild and attach installers to
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -10,6 +16,7 @@ permissions:
 jobs:
   validate:
     name: Validate All Suites
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -81,6 +88,7 @@ jobs:
 
   release-meta:
     name: Resolve build version
+    if: always() && needs.validate.result == 'success' && (needs.release-please.result == 'success' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     needs: [release-please, validate]
     runs-on: ubuntu-24.04
     outputs:
@@ -94,8 +102,13 @@ jobs:
           RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
           RELEASE_TAG: ${{ needs.release-please.outputs.tag }}
           RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
+          MANUAL_TAG: ${{ inputs.release_tag }}
         run: |
-          if [[ "$RELEASE_CREATED" == "true" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="${MANUAL_TAG#v}"
+            tag="v$version"
+            should_build=true
+          elif [[ "$RELEASE_CREATED" == "true" ]]; then
             version="$RELEASE_VERSION"
             tag="$RELEASE_TAG"
             should_build=true
@@ -137,6 +150,8 @@ jobs:
       APP_VERSION: ${{ needs.release-meta.outputs.version }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release-meta.outputs.tag }}
 
       - uses: pnpm/action-setup@v5
         with:
@@ -250,7 +265,7 @@ jobs:
   publish-release:
     name: Attach installers to GitHub Release
     needs: [release-please, release-meta, build-release, validate]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-please.outputs.release_created == 'true'
+    if: always() && needs.validate.result == 'success' && needs.build-release.result == 'success' && ((github.event_name == 'push' && needs.release-please.outputs.release_created == 'true') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -263,4 +278,4 @@ jobs:
       - name: Upload installer assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.release-meta.outputs.tag }}" artifacts/* --clobber
+        run: gh release upload "${{ needs.release-meta.outputs.tag }}" artifacts/* --clobber --repo "$GITHUB_REPOSITORY"
