@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 
+import '../../app/app_version.dart';
+
 enum DaemonConnectionState {
   disconnected,
   connecting,
@@ -88,7 +90,7 @@ class PcpClient {
         'token': token,
         'client': {
           'name': 'pi_crust_flutter',
-          'version': '0.1.0',
+          'version': piCrustVersion,
           'platform': defaultTargetPlatform.name,
         },
         'encoding': 'json',

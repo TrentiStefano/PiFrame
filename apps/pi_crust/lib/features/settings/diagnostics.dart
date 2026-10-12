@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import '../../app/app_version.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 
@@ -44,7 +45,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
       // Redacted Diagnostic Bundle (D16: strictly local, secrets scrubbed)
       final bundle = {
         'generatedAt': DateTime.now().toIso8601String(),
-        'app': {'name': 'Pi-Crust', 'version': '0.1.0', 'protocol': 1},
+        'app': {'name': 'Pi-Crust', 'version': piCrustVersion, 'protocol': 1},
         'daemon': {
           'status': client?.state.toString() ?? 'unknown',
           'config': {
@@ -187,7 +188,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                     ? tokens.agentSettled
                     : tokens.warning,
               ),
-              _buildMetricRow('Versione Pi-Crust App', 'v0.1.0', tokens),
+              _buildMetricRow('Versione Pi-Crust App', 'v$piCrustVersion', tokens),
               _buildMetricRow(
                 'Protocollo PCP',
                 'PCP/1 (JSON over WebSocket)',

@@ -7,8 +7,8 @@ Questa guida documenta la distribuzione, l'avvio on-demand, la gestione degli ag
 ## 1. Architettura di Distribuzione (D8, D14)
 
 Pi-Crust è progettato come un'applicazione desktop a doppio componente:
-1. **Interfaccia Grafica (Flutter App)**: l'ambiente visuale reattivo (disponibile per macOS, Windows e Web locale).
-2. **Daemon di Runtime (`pi-agentd`)**: processo sidecar Node.js / Node SEA autonomo, che gestisce la connessione con Pi (`pi --mode rpc`), mantiene il journal degli eventi serializzato e gestisce lo stato persistente delle sessioni.
+1. **Interfaccia Grafica (Flutter App)**: app desktop per Windows, macOS e Linux; Web locale resta disponibile da sorgente.
+2. **Daemon di Runtime (`pi-agentd`)**: sidecar Node.js incluso negli installer insieme al runtime Node. Gestisce la connessione con Pi (`pi --mode rpc`), il journal degli eventi e lo stato delle sessioni.
 3. **Pi CLI Originale**: l'installazione di Pi (`v0.85.0+`) rimane completamente esterna ed intatta in `~/.pi/`. Pi-Crust **non modifica, non sposta e non sovrascrive mai** file all'interno di `~/.pi/`.
 
 ---
@@ -18,12 +18,11 @@ Pi-Crust è progettato come un'applicazione desktop a doppio componente:
 - **Sistemi Operativi supportati**:
   - macOS 12+ (Apple Silicon `arm64` e Intel `x64`)
   - Windows 10/11 (`x64`)
+  - Linux x64 (distribuzioni Debian/Ubuntu con GTK 3)
 - **Node.js**:
-  - Nella versione distribuita con binario Node SEA (Single Executable Application), Node.js è incluso nel binario sidecar.
-  - Per ambienti di sviluppo o esecuzione da sorgenti: Node.js ≥ 22.0.0.
-- **Pi Coding Agent**:
-  - Versione minima supportata: **v0.85.0**.
-  - Installabile globalmente tramite `npm install -g @earendil-works/pi-coding-agent`.
+  - Gli installer includono runtime Node e bundle `pi-agentd`; non serve installare Node separatamente.
+  - Per sviluppo o esecuzione da sorgenti: Node.js ≥ 22.19.0.
+- **Pi Coding Agent** (non incluso nell'installer): versione minima **v0.85.0**, da installare e tenere su `PATH`; l'installazione npm richiede Node.js/npm (`npm install -g @earendil-works/pi-coding-agent`).
 
 ### MCP Dart/Flutter per Pi
 
@@ -33,15 +32,26 @@ Pi-Crust usa il server ufficiale integrato Dart/Flutter configurato a livello ut
 
 ## 3. Installazione
 
+Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.com/TrentiStefano/pi-crust/releases/latest). I commit Conventional (`fix`, `feat`, `BREAKING CHANGE`) aggiornano il PR di release SemVer; quando il PR viene unito, GitHub Actions pubblica installer Windows, macOS Intel/Apple silicon e Linux x64 con screenshot aggiornato.
+
 ### macOS
-1. Scarica `Pi-Crust.dmg`.
-2. Trascina l'applicazione `Pi-Crust.app` nella cartella `/Applications`.
-3. Al primo avvio, l'applicazione individua o avvia automaticamente il daemon sidecar `pi-agentd`.
+1. Apri il DMG e trascina `Pi-Crust.app` in `/Applications`.
+2. Al primo avvio, Pi-Crust avvia `pi-agentd` usando il runtime Node incluso.
+3. Build non firmate/notarizzate possono richiedere **Control-click → Open** al primo avvio.
 
 ### Windows
-1. Scarica l'installer o il pacchetto zip `Pi-Crust-win-x64.zip`.
-2. Estrai ed esegui `pi_crust.exe`.
-3. L'applicazione si avvia associandosi al daemon locale su loopback.
+1. Avvia `Pi-Crust-Setup-…-windows-x64.exe`.
+2. L'installer aggiunge collegamenti nel menu Start; icona desktop è facoltativa.
+3. Pi-Crust include e avvia `pi-agentd` con Node incluso. Installer non firmato può mostrare l'avviso SmartScreen.
+
+### Linux (Debian / Ubuntu)
+Installa il pacchetto `.deb` scaricato:
+
+```bash
+sudo apt install ./Pi-Crust-…-linux-amd64.deb
+```
+
+Il pacchetto aggiunge Pi-Crust al menu applicazioni e include daemon e runtime Node.
 
 ### Web Locale (`http://127.0.0.1:<porta>/`)
 1. Il daemon `pi-agentd` include un server statico HTTP integrato per gli asset web di Flutter.
@@ -51,7 +61,7 @@ Pi-Crust usa il server ufficiale integrato Dart/Flutter configurato a livello ut
 
 ## 4. Ciclo di Vita del Daemon (D8, D9)
 
-- **Avvio on-demand**: Il daemon non è un servizio di sistema persistente né un daemon di background permanente non desiderato. La GUI controlla la salute su `GET http://127.0.0.1:<porta>/api/health`; se non attivo, spawna il binario sidecar in modalità `detached`.
+- **Avvio on-demand**: Il daemon non è un servizio di sistema persistente. La GUI controlla `GET http://127.0.0.1:<porta>/api/health`; se non attivo, avvia il bundle `pi-agentd.cjs` con il runtime Node incluso in modalità `detached`.
 - **Lock e Token**:
   - File di runtime: `~/.pi-crust/runtime/daemon.json` (porta e PID).
   - File di lock: `~/.pi-crust/runtime/daemon.lock` per prevenire istanze duplicate.

@@ -120,6 +120,20 @@ class DaemonLocator {
         return true;
       }
 
+      // Release installers bundle Node beside the daemon so users need no Node install.
+      final bundledDaemon = File('$exeDir/pi-agentd.cjs');
+      final bundledNode = File(
+        '$exeDir/${Platform.isWindows ? 'node.exe' : 'node'}',
+      );
+      if (await bundledDaemon.exists() && await bundledNode.exists()) {
+        await Process.start(
+          bundledNode.path,
+          [bundledDaemon.path],
+          mode: ProcessStartMode.detached,
+        );
+        return true;
+      }
+
       // Development fallbacks: check repository paths
       final devPaths = [
         '$exeDir/pi-agentd.cjs',

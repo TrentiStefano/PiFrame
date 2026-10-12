@@ -1,0 +1,29 @@
+{
+  "bootstrap-sha": "30c6a0bf59415019e75ca09537fc749ab9d0ca37",
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "apps/pi_crust/pubspec.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "apps/agentd/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "apps/agentd/src/main.ts"
+        },
+        {
+          "type": "generic",
+          "path": "apps/pi_crust/lib/app/app_version.dart"
+        }
+      ]
+    }
+  }
+}
