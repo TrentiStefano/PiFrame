@@ -31,6 +31,36 @@ describe('fake-pi simulator', () => {
     assert.strictEqual(out, originalContent);
   });
 
+  it('rejects legacy nested command envelopes instead of masking transport bugs', async () => {
+    const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session'], {
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    let output = '';
+    p.stdout.on('data', d => output += d.toString());
+    p.stdin.write(JSON.stringify({ command: 'get_state', arguments: {}, id: 'legacy' }) + '\n');
+    p.stdin.end();
+    const code = await new Promise<number | null>(resolve => p.on('close', resolve));
+    assert.strictEqual(code, 0);
+    const response = JSON.parse(output.trim());
+    assert.strictEqual(response.type, 'response');
+    assert.strictEqual(response.success, false);
+    assert.match(response.error, /canonical flat RPC command/);
+  });
+
+  it('accepts canonical bash command field and rejects unknown types', async () => {
+    const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session']);
+    let output = '';
+    p.stdout.on('data', d => output += d.toString());
+    p.stdin.write(JSON.stringify({ type: 'bash', command: 'echo test', id: 'bash' }) + '\n');
+    p.stdin.write(JSON.stringify({ type: 'does-not-exist', id: 'unknown' }) + '\n');
+    p.stdin.end();
+    await new Promise(resolve => p.on('close', resolve));
+    const responses = output.trim().split('\n').map(line => JSON.parse(line));
+    assert.strictEqual(responses[0].success, true);
+    assert.strictEqual(responses[0].data.output, 'Fake command: echo test');
+    assert.strictEqual(responses[1].success, false);
+  });
+
   it('handles get_state and prompt commands in RPC mode', async () => {
     const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session'], {
       stdio: ['pipe', 'pipe', 'pipe']

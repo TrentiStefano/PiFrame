@@ -59,6 +59,8 @@ class SessionState {
   final String sessionId;
   final String? sessionName;
   final String cwd;
+  final bool readOnly;
+  final String? readOnlyReason;
   final AgentStatus agentStatus;
   final List<SessionEntry> entries;
   final Map<int, String> streamingTextBlocks;
@@ -71,12 +73,16 @@ class SessionState {
   final String? currentModel;
   final String? currentThinkingLevel;
   final Map<String, dynamic>? usage;
+  final Map<String, dynamic>? sessionStats;
+  final Map<String, String> extensionStatuses;
   final int lastAppliedSeq;
 
   const SessionState({
     required this.sessionId,
     this.sessionName,
     required this.cwd,
+    this.readOnly = false,
+    this.readOnlyReason,
     this.agentStatus = AgentStatus.settled,
     this.entries = const [],
     this.streamingTextBlocks = const {},
@@ -89,14 +95,14 @@ class SessionState {
     this.currentModel,
     this.currentThinkingLevel,
     this.usage,
+    this.sessionStats,
+    this.extensionStatuses = const {},
     this.lastAppliedSeq = 0,
   });
 
-  String get currentStreamingText =>
-      streamingTextBlocks.values.join();
+  String get currentStreamingText => streamingTextBlocks.values.join();
 
-  String get currentStreamingThinking =>
-      streamingThinkingBlocks.values.join();
+  String get currentStreamingThinking => streamingThinkingBlocks.values.join();
 
   bool get isStreaming =>
       streamingTextBlocks.isNotEmpty ||
@@ -107,6 +113,8 @@ class SessionState {
   SessionState copyWith({
     String? sessionName,
     String? cwd,
+    bool? readOnly,
+    String? readOnlyReason,
     AgentStatus? agentStatus,
     List<SessionEntry>? entries,
     Map<int, String>? streamingTextBlocks,
@@ -119,12 +127,16 @@ class SessionState {
     String? currentModel,
     String? currentThinkingLevel,
     Map<String, dynamic>? usage,
+    Map<String, dynamic>? sessionStats,
+    Map<String, String>? extensionStatuses,
     int? lastAppliedSeq,
   }) {
     return SessionState(
       sessionId: sessionId,
       sessionName: sessionName ?? this.sessionName,
       cwd: cwd ?? this.cwd,
+      readOnly: readOnly ?? this.readOnly,
+      readOnlyReason: readOnlyReason ?? this.readOnlyReason,
       agentStatus: agentStatus ?? this.agentStatus,
       entries: entries ?? this.entries,
       streamingTextBlocks: streamingTextBlocks ?? this.streamingTextBlocks,
@@ -138,6 +150,8 @@ class SessionState {
       currentModel: currentModel ?? this.currentModel,
       currentThinkingLevel: currentThinkingLevel ?? this.currentThinkingLevel,
       usage: usage ?? this.usage,
+      sessionStats: sessionStats ?? this.sessionStats,
+      extensionStatuses: extensionStatuses ?? this.extensionStatuses,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
     );
   }

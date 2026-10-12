@@ -16,7 +16,9 @@ class SlashMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final cleanFilter = filter.startsWith('/') ? filter.substring(1).toLowerCase() : filter.toLowerCase();
+    final cleanFilter = filter.startsWith('/')
+        ? filter.substring(1).toLowerCase()
+        : filter.toLowerCase();
 
     final filtered = commands.where((cmd) {
       final name = (cmd['name'] as String? ?? '').toLowerCase();
@@ -59,19 +61,26 @@ class SlashMenu extends StatelessWidget {
               onTap: () => onSelect(cmd),
               hoverColor: tokens.surface,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: tokens.accent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
                       ),
                       child: Text(
                         '/$name',
                         style: TextStyle(
-                          color: tokens.accent,
+                          color: tokens.textPrimary,
                           fontWeight: FontWeight.bold,
                           fontFamily: tokens.monoFontFamily,
                           fontSize: 12,

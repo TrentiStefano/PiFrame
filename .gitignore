@@ -32,6 +32,9 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+.impeccable/
+**/.impeccable/
+.agents/
 
 # ==============================================================================
 # Flutter & Dart

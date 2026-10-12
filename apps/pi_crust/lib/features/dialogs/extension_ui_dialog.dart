@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
+
 import '../../data/daemon/daemon_providers.dart';
 
 class ExtensionUiDialog extends ConsumerStatefulWidget {
@@ -23,10 +25,7 @@ class ExtensionUiDialog extends ConsumerStatefulWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: context.tokens.overlay,
-      builder: (_) => ExtensionUiDialog(
-        sessionId: sessionId,
-        request: request,
-      ),
+      builder: (_) => ExtensionUiDialog(sessionId: sessionId, request: request),
     );
   }
 
@@ -40,6 +39,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   late TextEditingController _textController;
   String? _selectedOption;
   Timer? _countdownTimer;
+  StreamSubscription? _resolutionSubscription;
+  bool _isResponding = false;
+  String? _responseError;
   int _secondsRemaining = 0;
 
   @override
@@ -48,7 +50,8 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     final prefill = widget.request['prefill']?.toString() ?? '';
     _textController = TextEditingController(text: prefill);
 
-    final options = (widget.request['options'] as List<dynamic>?)
+    final options =
+        (widget.request['options'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const [];
@@ -69,6 +72,15 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       });
     }
 
+    final client = ref.read(pcpClientProvider);
+    _resolutionSubscription = client?.events(widget.sessionId).listen((event) {
+      if (event.type == 'ui.resolved' &&
+          event.payload['requestId'] == widget.request['requestId']) {
+        if (mounted && !_isResponding) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+    });
     _attemptClaim();
   }
 
@@ -80,7 +92,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       final res = await client.claimUiRequest(widget.sessionId, requestId);
       if (mounted) {
         setState(() {
-          _isClaimedByMe = res['claimed'] == true;
+          _isClaimedByMe = (res['data'] as Map?)?['claimed'] == true;
           _isClaimChecked = true;
         });
       }
@@ -97,31 +109,55 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _resolutionSubscription?.cancel();
     _textController.dispose();
     super.dispose();
   }
 
-  void _sendResponse({dynamic value, bool? confirmed, bool? cancelled}) {
+  Future<void> _sendResponse({
+    dynamic value,
+    bool? confirmed,
+    bool? cancelled,
+  }) async {
+    if (_isResponding) return;
+    if (!_isClaimedByMe) {
+      Navigator.of(context, rootNavigator: true).pop();
+      return;
+    }
     final client = ref.read(pcpClientProvider);
-    final requestId = widget.request['requestId']?.toString() ?? '';
-    client?.respondUiRequest(
-      widget.sessionId,
-      requestId,
-      value: value,
-      confirmed: confirmed,
-      cancelled: cancelled,
-    );
-    Navigator.of(context, rootNavigator: true).pop();
+    if (client == null) return;
+    setState(() => _isResponding = true);
+    try {
+      await client.respondUiRequest(
+        widget.sessionId,
+        widget.request['requestId']?.toString() ?? '',
+        value: value,
+        confirmed: confirmed,
+        cancelled: cancelled,
+      );
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isResponding = false;
+          _responseError = error.toString();
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final method = widget.request['method']?.toString() ?? 'confirm';
-    final title = widget.request['title']?.toString() ?? 'Richiesta di Interazione';
+    final title =
+        widget.request['title']?.toString() ?? 'Richiesta di Interazione';
     final message = widget.request['message']?.toString() ?? '';
     final placeholder = widget.request['placeholder']?.toString() ?? '';
-    final options = (widget.request['options'] as List<dynamic>?)
+    final options =
+        (widget.request['options'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??
         const [];
@@ -142,11 +178,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             // Header
             Row(
               children: [
-                Icon(
-                  Icons.smart_toy_outlined,
-                  size: 20,
-                  color: tokens.accent,
-                ),
+                Icon(Icons.smart_toy_outlined, size: 20, color: tokens.accent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -160,15 +192,19 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 ),
                 if (_secondsRemaining > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: tokens.warning.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(tokens.radiusPill),
+                      border: Border.all(color: tokens.border),
                     ),
                     child: Text(
                       '${_secondsRemaining}s',
                       style: TextStyle(
-                        color: tokens.warning,
+                        color: tokens.textPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -186,16 +222,23 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 decoration: BoxDecoration(
                   color: tokens.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.warning.withValues(alpha: 0.4)),
+                  border: Border.all(color: tokens.borderStrong),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.lock_outline, size: 16, color: tokens.warning),
+                    Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: tokens.textPrimary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Un altro client sta rispondendo a questa richiesta.',
-                        style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -207,7 +250,11 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             if (message.isNotEmpty) ...[
               Text(
                 message,
-                style: TextStyle(color: tokens.textSecondary, fontSize: 13.5, height: 1.4),
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 13.5,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -217,22 +264,34 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
               ...options.map((opt) {
                 final isSelected = _selectedOption == opt;
                 return InkWell(
-                  onTap: _isClaimedByMe ? () => setState(() => _selectedOption = opt) : null,
+                  onTap: _isClaimedByMe
+                      ? () => setState(() => _selectedOption = opt)
+                      : null,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
                     child: Row(
                       children: [
                         Icon(
-                          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
                           size: 18,
-                          color: isSelected ? tokens.accent : tokens.textSecondary,
+                          color: isSelected
+                              ? tokens.accent
+                              : tokens.textSecondary,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             opt,
-                            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -260,7 +319,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                     fontFamily: tokens.monoFontFamily,
                   ),
                   decoration: InputDecoration(
-                    hintText: placeholder.isNotEmpty ? placeholder : 'Inserisci testo...',
+                    hintText: placeholder.isNotEmpty
+                        ? placeholder
+                        : 'Inserisci testo...',
                   ),
                 ),
               ),
@@ -268,17 +329,25 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
 
             const SizedBox(height: 20),
 
+            if (_responseError != null)
+              Text(_responseError!, style: TextStyle(color: tokens.danger)),
+
             // Actions row
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => _sendResponse(cancelled: true),
-                  child: Text('Annulla', style: TextStyle(color: tokens.textSecondary)),
+                  onPressed: _isResponding
+                      ? null
+                      : () => _sendResponse(cancelled: true),
+                  child: Text(
+                    'Annulla',
+                    style: TextStyle(color: tokens.textSecondary),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _isClaimedByMe
+                  onPressed: _isClaimedByMe && !_isResponding
                       ? () {
                           if (method == 'confirm') {
                             _sendResponse(confirmed: true);

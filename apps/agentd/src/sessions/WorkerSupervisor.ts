@@ -4,24 +4,34 @@ import { getPiCrustBaseDir } from '../config/config.js';
 import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { Session } from './Session.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
+import { SessionIndex } from './SessionIndex.js';
 
 export interface WorkerSupervisorOptions {
   piExecutablePath: string;
   capabilities: PiCapabilities;
   defaultIdleTimeoutMs: number;
+  checkTerminalOwner: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 }
 
 export class WorkerSupervisor {
   private piExecutablePath: string;
   private capabilities: PiCapabilities;
   private idleTimeoutMs: number;
+  private checkTerminalOwner: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
   private idleTimers = new Map<string, NodeJS.Timeout>();
   private activeWorkers = new Map<string, StdioPiTransport>();
+  private startingWorkers = new Map<string, Promise<StdioPiTransport>>();
+  private sessions = new Map<string, Session>();
+  private workerSessions = new Map<StdioPiTransport, Session>();
+  private stoppingWorkers = new Set<StdioPiTransport>();
+  private stoppingTasks = new Map<string, Promise<void>>();
+  private shuttingDown = false;
 
   constructor(opts: WorkerSupervisorOptions) {
     this.piExecutablePath = opts.piExecutablePath;
     this.capabilities = opts.capabilities;
     this.idleTimeoutMs = opts.defaultIdleTimeoutMs;
+    this.checkTerminalOwner = opts.checkTerminalOwner;
   }
 
   public updateIdleTimeout(newTimeoutMs: number): void {
@@ -35,6 +45,18 @@ export class WorkerSupervisor {
   }
 
   public async ensureWorker(session: Session): Promise<StdioPiTransport> {
+    if (session.readOnly) throw new Error('External session is read-only. Duplicate it before sending commands.');
+    if (this.shuttingDown) throw new Error('Daemon is shutting down');
+    await this.stoppingTasks.get(session.id);
+    if (this.shuttingDown) throw new Error('Daemon is shutting down');
+    const starting = this.startingWorkers.get(session.id);
+    if (starting) return starting;
+    const task = this.startWorker(session);
+    this.startingWorkers.set(session.id, task);
+    try { return await task; } finally { this.startingWorkers.delete(session.id); }
+  }
+
+  private async startWorker(session: Session): Promise<StdioPiTransport> {
     const existing = this.activeWorkers.get(session.id);
     if (existing && existing.health().alive) {
       this.touch(session.id);
@@ -46,18 +68,31 @@ export class WorkerSupervisor {
       this.activeWorkers.delete(session.id);
     }
 
+    if (session.sessionFile) {
+      const terminalOwner = await this.checkTerminalOwner(session.cwd, session.sessionFile, session.id);
+      if (terminalOwner === true || (terminalOwner === null && !session.allowAmbiguousTerminal)) {
+        session.readOnly = true;
+        session.readOnlyReason = terminalOwner === true ? 'terminal' : 'unknown';
+        throw new Error(terminalOwner === true
+          ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
+          : 'Pi-Crust could not verify which session is open in this project. Confirm before continuing.');
+      }
+    }
+
     const worker = new StdioPiTransport({
       executablePath: this.piExecutablePath,
       capabilities: this.capabilities
     });
 
     const args = ['--mode', 'rpc'];
-    if (session.name && !session.sessionFile) {
-      args.push('--name', session.name);
-    }
-    if (session.sessionFile) {
+    if (session.forkSourceFile) {
+      args.push('--fork', session.forkSourceFile, '--session-id', session.id);
+    } else if (session.sessionFile) {
       args.push('--session', session.sessionFile);
+    } else {
+      args.push('--session-id', session.id);
     }
+    if (session.name && !session.sessionFile) args.push('--name', session.name);
 
     await worker.start({
       cwd: session.cwd,
@@ -66,17 +101,53 @@ export class WorkerSupervisor {
 
     session.worker = worker;
     this.activeWorkers.set(session.id, worker);
+    this.sessions.set(session.id, session);
+    this.workerSessions.set(worker, session);
     this.touch(session.id);
 
-    // Consume worker events in background
     void this.pumpEvents(session, worker);
+    try {
+      await this.refreshSession(session, worker);
+      session.forkSourceFile = undefined;
+      return worker;
+    } catch (error) {
+      await this.stopWorker(session.id);
+      throw error;
+    }
+  }
 
-    return worker;
+  public async refreshSession(session: Session, worker: StdioPiTransport): Promise<void> {
+    const state = (await worker.send({ command: 'get_state' })).data;
+    if (state?.sessionFile) session.sessionFile = state.sessionFile;
+    session.model = state?.model || null;
+    session.thinkingLevel = state?.thinkingLevel || null;
+    session.isStreaming = !!state?.isStreaming;
+    session.isCompacting = !!state?.isCompacting;
+    const response = await worker.send({ command: 'get_entries' });
+    session.entries = SessionIndex.projectTranscript(response.data?.entries || []);
+    session.leafId = response.data?.leafId || null;
+  }
+
+  public rekeySession(previous: Session, next: Session): void {
+    const worker = this.activeWorkers.get(previous.id);
+    if (!worker) throw new Error('Fork worker is not running');
+    const timer = this.idleTimers.get(previous.id);
+    if (timer) clearTimeout(timer);
+    this.idleTimers.delete(previous.id);
+    this.activeWorkers.delete(previous.id);
+    this.sessions.delete(previous.id);
+    this.activeWorkers.set(next.id, worker);
+    this.sessions.set(next.id, next);
+    this.workerSessions.set(worker, next);
+    previous.worker = undefined;
+    next.worker = worker;
+    this.touch(next.id);
   }
 
   private async pumpEvents(session: Session, worker: StdioPiTransport): Promise<void> {
     try {
       for await (const event of worker.events()) {
+        session = this.workerSessions.get(worker) || session;
         this.touch(session.id);
         session.dispatchPiEvent(event);
       }
@@ -88,6 +159,9 @@ export class WorkerSupervisor {
       });
     } finally {
       // Worker stopped or crashed
+      session = this.workerSessions.get(worker) || session;
+      this.workerSessions.delete(worker);
+      if (this.activeWorkers.get(session.id) !== worker) return;
       this.activeWorkers.delete(session.id);
       const timer = this.idleTimers.get(session.id);
       if (timer) {
@@ -96,7 +170,7 @@ export class WorkerSupervisor {
       }
 
       const health = worker.health();
-      if (!health.alive) {
+      if (!health.alive && !this.stoppingWorkers.delete(worker)) {
         const exitInfo = await worker.stop({ graceMs: 1000 });
 
         // Persist crash diagnostics to ~/.pi-crust/journal/<sessionId>/crash-<ts>.log
@@ -183,13 +257,25 @@ export class WorkerSupervisor {
     const worker = this.activeWorkers.get(sessionId);
     if (!worker) return;
 
-    // RULE: Never shut down worker if actively working, retrying, compacting, or awaiting user input
-    // To check state, we look at the session
-    // If working, re-schedule timeout
-    this.touch(sessionId);
+    const session = this.sessions.get(sessionId);
+    if (session && session.sessionFile && fs.existsSync(session.sessionFile) &&
+        session.status === 'settled' && !session.isStreaming && !session.isCompacting &&
+        session.uiBroker.getPending().length === 0) {
+      await this.stopWorker(sessionId);
+    } else {
+      this.touch(sessionId);
+    }
   }
 
   public async stopWorker(sessionId: string, graceMs = 5000): Promise<void> {
+    const pending = this.stoppingTasks.get(sessionId);
+    if (pending) return pending;
+    const stopping = this.stopWorkerNow(sessionId, graceMs);
+    this.stoppingTasks.set(sessionId, stopping);
+    try { await stopping; } finally { this.stoppingTasks.delete(sessionId); }
+  }
+
+  private async stopWorkerNow(sessionId: string, graceMs: number): Promise<void> {
     const timer = this.idleTimers.get(sessionId);
     if (timer) {
       clearTimeout(timer);
@@ -198,12 +284,16 @@ export class WorkerSupervisor {
 
     const worker = this.activeWorkers.get(sessionId);
     if (worker) {
-      this.activeWorkers.delete(sessionId);
+      this.stoppingWorkers.add(worker);
       await worker.stop({ graceMs });
+      if (this.activeWorkers.get(sessionId) === worker) this.activeWorkers.delete(sessionId);
+      this.stoppingWorkers.delete(worker);
     }
   }
 
   public async stopAll(graceMs = 5000): Promise<void> {
+    this.shuttingDown = true;
+    await Promise.allSettled(this.startingWorkers.values());
     const sessionIds = Array.from(this.activeWorkers.keys());
     await Promise.all(sessionIds.map((sid) => this.stopWorker(sid, graceMs)));
   }

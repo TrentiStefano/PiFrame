@@ -101,7 +101,11 @@ void main() {
           sessionId: 's1',
           seq: 2,
           payload: {
-            'message': {'id': 'm1', 'role': 'assistant', 'content': 'Final content'}
+            'message': {
+              'id': 'm1',
+              'role': 'assistant',
+              'content': 'Final content',
+            },
           },
         ),
       );
@@ -111,8 +115,41 @@ void main() {
       expect(state.currentStreamingText, '');
     });
 
+    test('tracks extension-provided status and clears it when removed', () {
+      var state = const SessionState(sessionId: 's1', cwd: '/test');
+      state = reduceSessionState(
+        state,
+        const UiStatusEvent(
+          protocol: 1,
+          id: 'status-1',
+          ts: 1000,
+          sessionId: 's1',
+          seq: 1,
+          payload: {'statusKey': 'pony', 'statusText': 'Ponytail: full'},
+        ),
+      );
+      expect(state.extensionStatuses['pony'], 'Ponytail: full');
+
+      state = reduceSessionState(
+        state,
+        const UiStatusEvent(
+          protocol: 1,
+          id: 'status-2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {'statusKey': 'pony', 'statusText': null},
+        ),
+      );
+      expect(state.extensionStatuses, isEmpty);
+    });
+
     test('ignores duplicate or older seq events', () {
-      var state = const SessionState(sessionId: 's1', cwd: '/test', lastAppliedSeq: 5);
+      var state = const SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        lastAppliedSeq: 5,
+      );
 
       state = reduceSessionState(
         state,

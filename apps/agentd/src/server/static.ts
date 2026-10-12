@@ -1,6 +1,7 @@
 import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { isLoopbackHost } from './origin.js';
 
 export interface StaticServerOptions {
   staticDir?: string;
@@ -44,6 +45,12 @@ export function serveStaticFile(
 ): boolean {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     return false;
+  }
+
+  if (!isLoopbackHost(req.headers.host, req.socket.localPort || 80)) {
+    res.writeHead(403);
+    res.end('Untrusted Host');
+    return true;
   }
 
   const staticDir = opts.staticDir;

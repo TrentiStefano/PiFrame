@@ -20,10 +20,10 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
     case 'agent_end':
       const willRetry = !!rawEvent.willRetry;
       results.push({ type: 'run.ended', payload: { willRetry } });
-      if (!willRetry) {
-        // §5.4: only when willRetry is false does run settle
-        results.push({ type: 'run.settled', payload: {} });
-      }
+      break;
+
+    case 'agent_settled':
+      results.push({ type: 'run.settled', payload: {} });
       break;
 
     case 'turn_start':
@@ -63,7 +63,7 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
               delta: sub.delta ?? ''
             }
           });
-        } else if (sub.type === 'tool_call_delta') {
+        } else if (sub.type === 'toolcall_delta' || sub.type === 'tool_call_delta') {
           results.push({
             type: 'toolcall.argsDelta',
             payload: {
@@ -76,11 +76,11 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       }
 
       // Check usage update
-      const usage = rawEvent.message?.usage;
+      const usage = rawEvent.usage || rawEvent.message?.usage;
       if (usage && (!ctx.lastUsage ||
-          ctx.lastUsage.inputTokens !== usage.inputTokens ||
-          ctx.lastUsage.outputTokens !== usage.outputTokens)) {
-        ctx.lastUsage = { ...usage };
+          ctx.lastUsage.inputTokens !== (usage.input ?? usage.inputTokens) ||
+          ctx.lastUsage.outputTokens !== (usage.output ?? usage.outputTokens))) {
+        ctx.lastUsage = { inputTokens: usage.input ?? usage.inputTokens, outputTokens: usage.output ?? usage.outputTokens };
         results.push({
           type: 'usage.updated',
           payload: { usage }
@@ -92,7 +92,10 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
     case 'message_end':
       results.push({
         type: 'message.completed',
-        payload: { message: rawEvent.message }
+        payload: { message: rawEvent.message ? {
+          ...rawEvent.message,
+          id: rawEvent.message.id || `msg_${rawEvent.message.timestamp ?? ulid()}`
+        } : undefined }
       });
       break;
 
@@ -198,7 +201,7 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       if (method === 'notify') {
         results.push({
           type: 'ui.notify',
-          payload: { level: rawEvent.level ?? 'info', message: rawEvent.message ?? '' }
+          payload: { level: rawEvent.notifyType ?? rawEvent.level ?? 'info', message: rawEvent.message ?? '' }
         });
       } else if (method === 'setStatus') {
         results.push({
@@ -208,7 +211,7 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       } else if (method === 'setWidget') {
         results.push({
           type: 'ui.widget',
-          payload: { widgetKey: rawEvent.widgetKey, lines: rawEvent.lines, placement: rawEvent.placement }
+          payload: { widgetKey: rawEvent.widgetKey, lines: rawEvent.widgetLines ?? rawEvent.lines, placement: rawEvent.widgetPlacement ?? rawEvent.placement }
         });
       } else if (method === 'set_editor_text') {
         results.push({
@@ -232,7 +235,7 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
             options: rawEvent.options,
             placeholder: rawEvent.placeholder,
             prefill: rawEvent.prefill,
-            timeoutMs: rawEvent.timeoutMs,
+            timeoutMs: rawEvent.timeout ?? rawEvent.timeoutMs,
             dialog: true,
             claimedBy: null
           }

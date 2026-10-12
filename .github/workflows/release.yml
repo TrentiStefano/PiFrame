@@ -2,12 +2,13 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -23,44 +24,126 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: pnpm
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.47.2'
           cache: true
 
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev
+
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check synchronized versions
+        run: pnpm run check:version
 
       - name: Build TypeScript packages
         run: pnpm -r run build
 
-      - name: Build Agentd Single-file Bundle
+      - name: Build daemon bundle
         run: pnpm --filter @pi-crust/agentd run build:bundle
 
-      - name: Run Node tests (including security & fault injection)
+      - name: Verify and smoke-test daemon bundle
+        run: |
+          pnpm run check:agentd-bundle
+          pnpm run smoke:agentd-bundle
+
+      - name: Run Node tests
         run: pnpm -r run test
 
-      - name: Run Flutter tests & analyzers (theme lint, telemetry lint)
+      - name: Run Flutter tests and analyzers
         run: |
           cd packages/pi_crust_protocol && flutter test
           cd ../pi_crust_theme && flutter test
           cd ../../apps/pi_crust && flutter analyze && flutter test
 
-  build-release:
-    name: Build Release Artifacts
+  release-please:
+    name: Prepare semantic release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  release-meta:
+    name: Resolve build version
+    if: always() && needs.validate.result == 'success' && (needs.release-please.result == 'success' || needs.release-please.result == 'skipped')
+    needs: [release-please, validate]
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.version.outputs.should_build }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        shell: bash
+        env:
+          RELEASE_CREATED: ${{ needs.release-please.outputs.release_created }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            version=$(node -p "require('./.release-please-manifest.json')['.']")
+            tag="v$version"
+            should_build=true
+          elif [[ "$RELEASE_CREATED" == "true" ]]; then
+            version="$RELEASE_VERSION"
+            tag="$RELEASE_TAG"
+            should_build=true
+          else
+            version=""
+            tag=""
+            should_build=false
+          fi
+          if [[ "$should_build" == "true" && ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unsupported release version: $version" >&2
+            exit 1
+          fi
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build-release:
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }} installer
+    if: needs.release-meta.outputs.should_build == 'true'
+    needs: [release-meta, validate]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             platform: windows
-            asset_name: pi-crust-windows-x64.zip
-          - os: macos-latest
+            arch: x64
+          - os: macos-15-intel
             platform: macos
-            asset_name: pi-crust-macos.zip
+            arch: x64
+          - os: macos-15
+            platform: macos
+            arch: arm64
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x64
     runs-on: ${{ matrix.os }}
+    env:
+      APP_VERSION: ${{ needs.release-meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -71,39 +154,122 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: pnpm
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.47.2'
           cache: true
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev xvfb imagemagick
 
-      - name: Build Daemon Bundle
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build protocol package
+        run: pnpm --filter @pi-crust/pcp-ts run build
+
+      - name: Build daemon bundle
         run: pnpm --filter @pi-crust/agentd run build:bundle
 
-      - name: Build Flutter Desktop
-        run: |
-          cd apps/pi_crust
-          flutter build ${{ matrix.platform }} --release
+      - name: Build Flutter desktop app
+        working-directory: apps/pi_crust
+        run: flutter build ${{ matrix.platform }} --release --build-name ${{ needs.release-meta.outputs.version }} --build-number ${{ github.run_number }} --dart-define=PI_CRUST_VERSION=${{ needs.release-meta.outputs.version }}
 
-      - name: Package Windows Artifact
+      - name: Build Windows installer
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          Copy-Item "apps/agentd/dist/pi-agentd.cjs" -Destination "apps/pi_crust/build/windows/x64/runner/Release/"
-          Compress-Archive -Path "apps/pi_crust/build/windows/x64/runner/Release/*" -DestinationPath "pi-crust-windows-x64.zip"
+          $bundle = Join-Path $env:GITHUB_WORKSPACE 'apps/pi_crust/build/windows/x64/runner/Release'
+          if (!(Test-Path (Join-Path $bundle 'pi-agentd.cjs'))) {
+            Copy-Item 'apps/agentd/dist/pi-agentd.cjs' $bundle
+          }
+          $nodePath = (Get-Command node).Source
+          Copy-Item $nodePath (Join-Path $bundle 'node.exe') -Force
+          Copy-Item (Join-Path (Split-Path $nodePath -Parent) 'LICENSE') (Join-Path $bundle 'NODE-LICENSE.txt') -Force
+          if (!(Test-Path (Join-Path $bundle 'pi_crust.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt'))) {
+            throw 'Windows app bundle is missing app, daemon, or Node runtime.'
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          choco install innosetup --yes --no-progress
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$bundle" "/DOutputDir=$env:GITHUB_WORKSPACE/dist" 'packaging/windows/pi-crust.iss'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Package macOS Artifact
+      - name: Build macOS DMG
         if: matrix.platform == 'macos'
+        shell: bash
         run: |
-          cp apps/agentd/dist/pi-agentd.cjs apps/pi_crust/build/macos/Build/Products/Release/
-          zip -r pi-crust-macos.zip apps/pi_crust/build/macos/Build/Products/Release/
+          app='apps/pi_crust/build/macos/Build/Products/Release/pi_crust.app'
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" dist/dmg
+          cp apps/agentd/dist/pi-agentd.cjs "$app/Contents/MacOS/pi-agentd.cjs"
+          node_bin="$(command -v node)"
+          cp "$node_bin" "$app/Contents/MacOS/node"
+          cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
+          chmod +x "$app/Contents/MacOS/node"
+          cp -R "$app" dist/dmg/Pi-Crust.app
+          ln -s /Applications dist/dmg/Applications
+          test -x "$app/Contents/MacOS/pi_crust"
+          test -x "$app/Contents/MacOS/node"
+          test -s "$app/Contents/MacOS/pi-agentd.cjs"
+          test -s "$app/Contents/Resources/NODE-LICENSE.txt"
+          hdiutil create -volname 'Pi-Crust' -srcfolder dist/dmg -ov -format UDZO "dist/Pi-Crust-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
+          rm -rf dist/dmg
 
-      - name: Upload Release Artifacts
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Build Linux Debian installer
+        if: matrix.platform == 'linux'
+        run: bash tools/scripts/package-linux-deb.sh "$APP_VERSION"
+
+      - name: Capture README screenshot
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          package="dist/Pi-Crust-${APP_VERSION}-linux-amd64.deb"
+          temp_dir="$(mktemp -d)"
+          trap 'rm -rf "$temp_dir"' EXIT
+          dpkg-deb --extract "$package" "$temp_dir"
+          export PI_CRUST_HOME="$temp_dir/home"
+          export APP_BIN="$temp_dir/opt/pi-crust/pi_crust"
+          mkdir -p "$PI_CRUST_HOME"
+          xvfb-run -a -s '-screen 0 1280x720x24' bash -c '
+            "$APP_BIN" &
+            app_pid=$!
+            trap "kill $app_pid 2>/dev/null || true" EXIT
+            for _ in $(seq 1 20); do
+              [[ -s "$PI_CRUST_HOME/runtime/daemon.json" ]] && break
+              sleep 0.5
+            done
+            test -s "$PI_CRUST_HOME/runtime/daemon.json"
+            sleep 2
+            import -window root "$GITHUB_WORKSPACE/dist/pi-crust-screenshot.png"
+          '
+          test -s dist/pi-crust-screenshot.png
+
+      - uses: actions/upload-artifact@v4
         with:
-          files: ${{ matrix.asset_name }}
+          name: installer-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-release:
+    name: Attach installers to GitHub Release
+    needs: [release-please, release-meta, build-release, validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-meta.outputs.tag }}
+          files: artifacts/*

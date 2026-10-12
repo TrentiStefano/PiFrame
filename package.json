@@ -1,6 +1,6 @@
 {
   "name": "pi-crust-monorepo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "setup": "pnpm install && node tools/scripts/setup-flutter.js",
@@ -8,9 +8,14 @@
     "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.js",
     "test": "pnpm -r --stream run test && node tools/scripts/test-flutter.js",
     "test:e2e": "pnpm --filter @pi-crust/e2e run test",
-    "run:daemon": "pnpm --filter @pi-crust/agentd run dev",
-    "run:app": "cd apps/pi_crust && flutter run",
-    "build:all": "pnpm -r run build"
+    "smoke:real-pi": "pnpm --filter @pi-crust/agentd build && node tools/scripts/smoke-real-pi.mjs",
+    "build:agentd": "pnpm --filter @pi-crust/agentd build && pnpm --filter @pi-crust/agentd build:bundle && node tools/scripts/check-agentd-bundle.mjs && node tools/scripts/smoke-agentd-bundle.mjs",
+    "check:agentd-bundle": "node tools/scripts/check-agentd-bundle.mjs",
+    "check:version": "node tools/scripts/check-version-sync.mjs",
+    "smoke:agentd-bundle": "node tools/scripts/smoke-agentd-bundle.mjs",
+    "run:daemon": "pnpm --filter @pi-crust/agentd build && pnpm --filter @pi-crust/agentd run dev",
+    "run:app": "pnpm run build:agentd && cd apps/pi_crust && flutter run",
+    "build:all": "pnpm -r run build && pnpm run build:agentd"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

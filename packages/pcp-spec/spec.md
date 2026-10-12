@@ -150,6 +150,28 @@ Followed by `result`:
 - `commandId` is cached for 10 minutes.
 - Re-sending an identical `commandId` returns `state: "deduplicated"` with original data without re-executing.
 
+### 4.1 Workspace commands
+
+Workspace commands require `sessionId`; daemon derives repository root from that registered session's cwd. Client-supplied cwd is not accepted. Paths are repository-relative and must not traverse outside the Git root.
+
+- `workspace.listFiles` payload `{}` → `{rootPath, files:[{path,sizeBytes}], truncated}`.
+- `workspace.readFile` payload `{path}` → `{rootPath,path,content,revision,sizeBytes}`. `revision` is SHA-256 of file bytes. Only UTF-8 text files up to 1 MiB are supported; binary and larger files return explicit errors.
+- `workspace.saveFile` payload `{path,content,revision}` → `{path,revision}`. Revision is required and stale revisions are rejected; save uses an atomic same-directory replacement.
+- `workspace.gitAction` payload `{action,paths,expectedStagedPaths?,message?}` → `{status}`. `action` is `stage`, `unstage`, `commit`, or `discard`. Paths are explicit repository-relative paths. `commit` requires non-empty `message`, and both `paths` and `expectedStagedPaths` must exactly match current staged paths before commit.
+
+Repository writes (`saveFile` and every Git action) are rejected for read-only sessions or while the Pi worker is active/streaming. `workspace.refresh` keeps existing Git status fields and includes `staged` / `unstaged` flags with index/worktree status codes per path.
+
+### 4.2 Pi package commands
+
+These authenticated local-daemon commands operate on Pi's user-level package settings and invoke the discovered Pi CLI without a shell. They do not accept a caller-supplied package directory or project scope.
+
+- `pi.packages.list` payload `{}` → `{packages:[{source,name,version,pinnedVersion}]}`.
+- `pi.packages.update` payload `{source}` → `{output}`; delegates to `pi update <source>`.
+- `pi.packages.remove` payload `{source}` → `{output}`; delegates to `pi remove <source>`.
+- `pi.packages.pin` payload `{source,version}` → `{output,source}`; accepts npm package sources only and delegates to `pi install npm:<name>@<semver>`.
+
+Mutating package commands require explicit confirmation in the UI. Pi remains owner of package settings and installation directories. Package code can execute in Pi's process; removal, update and pin controls must show package identity and scope before confirmation. Project-local resources remain governed by Pi's project-trust policy and are not managed by these user-scope commands.
+
 ---
 
 ## 5. Normalized Event Types

@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { timingSafeEqualStrings, parseCookies } from './auth.js';
 import { serveStaticFile } from './static.js';
+import { isLoopbackHost, isOriginAllowed } from './origin.js';
 import type { DaemonConfig } from '../config/config.js';
 
 export interface HttpServerOptions {
@@ -45,7 +46,14 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
   }
 
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
+    const localPort = req.socket.localPort || 80;
+    if (!isLoopbackHost(req.headers.host, localPort) ||
+        !isOriginAllowed(req.headers.origin, config.web?.origins || [], localPort)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Untrusted Host or Origin' }));
+      return;
+    }
+    const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
 
     // Set standard security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -78,6 +86,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
       const currentToken = getToken();
       res.writeHead(200, {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
         'Set-Cookie': `pcp_token=${currentToken}; Path=/; HttpOnly; SameSite=Strict`
       });
       res.end(JSON.stringify({ ok: true, token: currentToken }));

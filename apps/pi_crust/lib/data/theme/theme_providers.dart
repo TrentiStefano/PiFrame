@@ -1,18 +1,19 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
-  final repo = ThemeRepository();
+  final repo = ThemeRepository()..setActiveTheme('crust-light');
 
   // Load bundled asset themes
   Future.microtask(() async {
     final assetThemes = [
       'assets/themes/crust-dark.json',
       'assets/themes/crust-light.json',
-      'assets/themes/example-minimal.json',
     ];
     for (final path in assetThemes) {
       try {
@@ -23,7 +24,8 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
 
     // Attempt to watch user ~/.pi-crust/themes/
     try {
-      final home = Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'];
+      final home =
+          Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'];
       if (home != null) {
         final userThemesDir = Directory('$home/.pi-crust/themes');
         if (userThemesDir.existsSync()) {
@@ -39,11 +41,18 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
 
 class ThemeNotifier extends StateNotifier<ThemeSpec> {
   final ThemeRepository _repo;
+  late final StreamSubscription<List<ThemeSpec>> _subscription;
 
   ThemeNotifier(this._repo) : super(_repo.activeTheme) {
-    _repo.watch().listen((_) {
+    _subscription = _repo.watch().listen((_) {
       state = _repo.activeTheme;
     });
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 
   void setTheme(String themeId) {
@@ -52,11 +61,12 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
   }
 }
 
-final activeThemeSpecProvider =
-    StateNotifierProvider<ThemeNotifier, ThemeSpec>((ref) {
-  final repo = ref.watch(themeRepositoryProvider);
-  return ThemeNotifier(repo);
-});
+final activeThemeSpecProvider = StateNotifierProvider<ThemeNotifier, ThemeSpec>(
+  (ref) {
+    final repo = ref.watch(themeRepositoryProvider);
+    return ThemeNotifier(repo);
+  },
+);
 
 final currentThemeDataProvider = Provider<ThemeData>((ref) {
   final spec = ref.watch(activeThemeSpecProvider);

@@ -3,6 +3,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { getPiCrustBaseDir } from '../config/config.js';
 
+export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boolean {
+  const pathApi = path.win32.isAbsolute(cwd) || path.win32.isAbsolute(tempDir) ? path.win32 : path;
+  const relative = pathApi.relative(pathApi.resolve(tempDir), pathApi.resolve(cwd));
+  return relative === '' || (!relative.startsWith(`..${pathApi.sep}`) && relative !== '..' && !pathApi.isAbsolute(relative));
+}
+
 export interface SessionSummary {
   id: string;
   name?: string;
@@ -19,10 +25,13 @@ export interface SessionSummary {
 
 export class SessionIndex {
   private cachePath: string;
+  private sessionsDir: string;
   private cache = new Map<string, { mtime: number; summary: SessionSummary }>();
 
-  constructor() {
-    this.cachePath = path.join(getPiCrustBaseDir(), 'index.json');
+  constructor(opts: { sessionsDir?: string; cachePath?: string } = {}) {
+    this.sessionsDir = opts.sessionsDir || process.env.PI_CODING_AGENT_SESSION_DIR ||
+      path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent'), 'sessions');
+    this.cachePath = opts.cachePath || path.join(getPiCrustBaseDir(), 'index.json');
     this.loadCache();
   }
 
@@ -42,7 +51,8 @@ export class SessionIndex {
 
   private saveCache(): void {
     try {
-      const list = Array.from(this.cache.values());
+      const list = Array.from(this.cache, ([id, value]) => ({ id, ...value }));
+      fs.mkdirSync(path.dirname(this.cachePath), { recursive: true });
       const temp = `${this.cachePath}.tmp.${Date.now()}`;
       fs.writeFileSync(temp, JSON.stringify(list, null, 2), 'utf8');
       fs.renameSync(temp, this.cachePath);
@@ -53,7 +63,7 @@ export class SessionIndex {
    * Scans ~/.pi/agent/sessions/ strictly in read-only mode to index existing Pi sessions.
    */
   public async scan(activeSessionIds = new Set<string>()): Promise<SessionSummary[]> {
-    const piSessionsDir = path.join(os.homedir(), '.pi', 'agent', 'sessions');
+    const piSessionsDir = this.sessionsDir;
     if (!fs.existsSync(piSessionsDir)) {
       return [];
     }
@@ -72,13 +82,12 @@ export class SessionIndex {
         } catch {
           continue;
         }
-        if (!stat.isDirectory()) continue;
-
-        const sessionFiles = fs.readdirSync(fullCwdDirPath);
-        for (const sFile of sessionFiles) {
+        const sessionFiles = stat.isDirectory()
+          ? fs.readdirSync(fullCwdDirPath).map((file) => path.join(fullCwdDirPath, file))
+          : [fullCwdDirPath];
+        for (const fullFilePath of sessionFiles) {
+          const sFile = path.basename(fullFilePath);
           if (!sFile.endsWith('.json') && !sFile.endsWith('.jsonl')) continue;
-
-          const fullFilePath = path.join(fullCwdDirPath, sFile);
           let fileStat: fs.Stats;
           try {
             fileStat = fs.statSync(fullFilePath);
@@ -87,22 +96,24 @@ export class SessionIndex {
           }
 
           const sessionId = path.basename(sFile, path.extname(sFile));
-          const cached = this.cache.get(sessionId);
+          const cached = this.cache.get(fullFilePath);
 
           if (cached && cached.mtime === fileStat.mtimeMs) {
+            if (isTemporarySessionCwd(cached.summary.cwd)) continue;
             summaries.push({
               ...cached.summary,
-              isActive: activeSessionIds.has(sessionId)
+              isActive: activeSessionIds.has(cached.summary.id)
             });
             continue;
           }
 
           // Inspect session file preview
           const summary = this.parseSessionFile(sessionId, fullFilePath, fileStat, cwdDir);
-          this.cache.set(sessionId, { mtime: fileStat.mtimeMs, summary });
+          if (!summary) continue;
+          this.cache.set(fullFilePath, { mtime: fileStat.mtimeMs, summary });
           summaries.push({
             ...summary,
-            isActive: activeSessionIds.has(sessionId)
+            isActive: activeSessionIds.has(summary.id)
           });
         }
       }
@@ -137,34 +148,82 @@ export class SessionIndex {
     return list.slice(0, limit);
   }
 
+  public readTranscript(filePath: string): Array<Record<string, unknown>> {
+    const entries: any[] = [];
+    for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.type !== 'session') entries.push(entry);
+      } catch { /* An active terminal may have an unfinished final line. */ }
+    }
+    return SessionIndex.projectTranscript(entries);
+  }
+
+  public static projectTranscript(entries: any[]): Array<Record<string, unknown>> {
+    const byId = new Map(entries.filter((e) => e.id).map((e) => [e.id, e]));
+    const branch: any[] = [];
+    const visited = new Set<string>();
+    let cursor = entries.at(-1);
+    while (cursor && cursor.id && !visited.has(cursor.id)) {
+      visited.add(cursor.id);
+      branch.unshift(cursor);
+      cursor = byId.get(cursor.parentId);
+    }
+    return (branch.length ? branch : entries)
+      .filter((entry) => (entry.type === 'message' || entry.role) && (entry.message || entry).role !== 'system')
+      .map((entry) => ({ ...(entry.message || entry), id: entry.id }));
+  }
+
   private parseSessionFile(
     sessionId: string,
     filePath: string,
     stat: fs.Stats,
     dirName: string
-  ): SessionSummary {
+  ): SessionSummary | null {
     let cwd = process.cwd();
     let name: string | undefined = sessionId;
     let messageCount = 0;
     let lastMessagePreview: string | undefined;
 
     try {
+      // Skip test/temporary projects before reading entire transcripts.
+      const fd = fs.openSync(filePath, 'r');
+      const headerBuffer = Buffer.alloc(16 * 1024);
+      let headerBytes: number;
+      try { headerBytes = fs.readSync(fd, headerBuffer, 0, headerBuffer.length, 0); }
+      finally { fs.closeSync(fd); }
+      const firstLine = headerBuffer.subarray(0, headerBytes).toString('utf8').split('\n', 1)[0];
+      try {
+        const header = JSON.parse(firstLine);
+        if (header.type === 'session' && header.cwd && isTemporarySessionCwd(header.cwd)) return null;
+      } catch { /* Legacy or incomplete headers use the normal parser below. */ }
+
       const content = fs.readFileSync(filePath, 'utf8');
       const lines = content.split('\n').filter((l) => l.trim().length > 0);
-      messageCount = lines.length;
-
       for (const line of lines) {
         try {
           const entry = JSON.parse(line);
-          if (entry.cwd) cwd = entry.cwd;
-          if (entry.sessionName || entry.name) name = entry.sessionName || entry.name;
+          if (entry.type === 'session') {
+            if (entry.id) sessionId = entry.id;
+            if (entry.cwd) cwd = entry.cwd;
+          }
+          if (entry.type === 'session_info') name = entry.name;
+          if (entry.sessionName) name = entry.sessionName;
           if (entry.type === 'message' || entry.role) {
-            const text = typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content || '');
-            lastMessagePreview = text.slice(0, 100);
+            const message = entry.message || entry;
+            if (message.role === 'system') continue;
+            messageCount++;
+            const text = typeof message.content === 'string' ? message.content :
+              (Array.isArray(message.content) ? message.content
+                .filter((block: any) => block.type === 'text')
+                .map((block: any) => block.text || '').join('') : '');
+            if (text) lastMessagePreview = text.slice(0, 100);
           }
         } catch {}
       }
     } catch {}
+
+    if (isTemporarySessionCwd(cwd)) return null;
 
     return {
       id: sessionId,
