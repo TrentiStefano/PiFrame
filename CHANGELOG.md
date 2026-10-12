@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/TrentiStefano/pi-crust/compare/v1.1.0...v1.2.0) (2026-10-12)
+
+
+### Features
+
+* **icon:** add application icons and design assets for branding and UI ([ce5fa9a](https://github.com/TrentiStefano/pi-crust/commit/ce5fa9a5364a412df0778bbf9e433491c5a7d44e))
+
+
+### Bug Fixes
+
+* release workflow for automated builds and publishing improvements ([c486e3e](https://github.com/TrentiStefano/pi-crust/commit/c486e3e2bd4062e6ccc499f21f7904fd751c98d6))
+
 ## [1.1.0](https://github.com/TrentiStefano/pi-crust/compare/v1.0.0...v1.1.0) (2026-10-12)
 
 
