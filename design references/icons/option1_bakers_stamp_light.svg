@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <radialGradient id="crustRim_light_1" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#f4a261"/>
+      <stop offset="100%" stop-color="#e76f51"/>
+    </radialGradient>
+    <radialGradient id="crustSurface_light_1" cx="45%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#faedcd"/>
+      <stop offset="100%" stop-color="#f6bd60"/>
+    </radialGradient>
+    <filter id="ventGlow_light_1" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#8839ef" flood-opacity="0.0"/>
+    </filter>
+    <filter id="pieShadow_light_1" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#eff1f5"/>
+
+  <g filter="url(#pieShadow_light_1)">
+    <!-- 16-Crimp Fluted Crust Rim -->
+    <path d="M 256.00 18.00 Q 256.00 18.00 276.68 33.04 Q 297.36 48.07 322.22 42.10 Q 347.08 36.12 360.43 57.92 Q 373.78 79.73 399.04 83.72 Q 424.29 87.71 428.28 112.96 Q 432.27 138.22 454.08 151.57 Q 475.88 164.92 469.90 189.78 Q 463.93 214.64 478.96 235.32 Q 494.00 256.00 478.96 276.68 Q 463.93 297.36 469.90 322.22 Q 475.88 347.08 454.08 360.43 Q 432.27 373.78 428.28 399.04 Q 424.29 424.29 399.04 428.28 Q 373.78 432.27 360.43 454.08 Q 347.08 475.88 322.22 469.90 Q 297.36 463.93 276.68 478.96 Q 256.00 494.00 235.32 478.96 Q 214.64 463.93 189.78 469.90 Q 164.92 475.88 151.57 454.08 Q 138.22 432.27 112.96 428.28 Q 87.71 424.29 83.72 399.04 Q 79.73 373.78 57.92 360.43 Q 36.12 347.08 42.10 322.22 Q 48.07 297.36 33.04 276.68 Q 18.00 256.00 33.04 235.32 Q 48.07 214.64 42.10 189.78 Q 36.12 164.92 57.92 151.57 Q 79.73 138.22 83.72 112.96 Q 87.71 87.71 112.96 83.72 Q 138.22 79.73 151.57 57.92 Q 164.92 36.12 189.78 42.10 Q 214.64 48.07 235.32 33.04 Z" fill="url(#crustRim_light_1)" stroke="#cca062" stroke-width="3" stroke-linejoin="round"/>
+    
+    <!-- Crimp Pinches -->
+    <line x1="256.0" y1="76.0" x2="256.0" y2="46.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="324.9" y1="89.7" x2="336.4" y2="62.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="383.3" y1="128.7" x2="404.5" y2="107.5" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="422.3" y1="187.1" x2="450.0" y2="175.6" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="436.0" y1="256.0" x2="466.0" y2="256.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="422.3" y1="324.9" x2="450.0" y2="336.4" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="383.3" y1="383.3" x2="404.5" y2="404.5" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="324.9" y1="422.3" x2="336.4" y2="450.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="256.0" y1="436.0" x2="256.0" y2="466.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="187.1" y1="422.3" x2="175.6" y2="450.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="128.7" y1="383.3" x2="107.5" y2="404.5" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="89.7" y1="324.9" x2="62.0" y2="336.4" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="76.0" y1="256.0" x2="46.0" y2="256.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="89.7" y1="187.1" x2="62.0" y2="175.6" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="128.7" y1="128.7" x2="107.5" y2="107.5" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+    <line x1="187.1" y1="89.7" x2="175.6" y2="62.0" stroke="#d48b45" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+
+    <!-- Concentric Inner Pastry Ridge -->
+    <circle cx="256" cy="256" r="182" fill="none" stroke="#d48b45" stroke-width="2.5" opacity="0.7"/>
+
+    <!-- Pastry Surface Dome -->
+    <circle cx="256" cy="256" r="172" fill="url(#crustSurface_light_1)" stroke="#d48b45" stroke-width="1.5"/>
+    
+    <!-- Curved Baker Steam Slits -->
+    <path d="M 120 170 Q 135 155 150 170" fill="none" stroke="#c27838" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+    <path d="M 362 170 Q 377 155 392 170" fill="none" stroke="#c27838" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+    <path d="M 120 342 Q 135 357 150 342" fill="none" stroke="#c27838" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+    <path d="M 362 342 Q 377 357 392 342" fill="none" stroke="#c27838" stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+
+    <!-- Cutout Vent Well -->
+    <rect x="154" y="154" width="204" height="204" rx="20" fill="#eff1f5" opacity="0.4"/>
+
+    <!-- Official Pi-Coding-Agent Logo Embossed as Baker Vent -->
+    <g filter="url(#ventGlow_light_1)">
+      <path d="M 164.00 164.00 H 302.00 V 256.00 H 256.00 V 302.00 H 210.00 V 348.00 H 164.00 Z M 210.00 210.00 V 256.00 H 256.00 V 210.00 Z" fill="#8839ef" fill-rule="evenodd"/>
+      <path d="M 302.00 256.00 H 348.00 V 348.00 H 302.00 Z" fill="#8839ef"/>
+    </g>
+  </g>
+</svg>

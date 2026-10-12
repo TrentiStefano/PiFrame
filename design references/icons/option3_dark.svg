@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <clipPath id="pieClip_dark">
+      <circle cx="256" cy="256" r="188"/>
+    </clipPath>
+    <filter id="latticeShadow_dark" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#303446"/>
+
+  <g filter="url(#latticeShadow_dark)">
+    <!-- Fluted Outer Rim -->
+    <path d="M 256.00 22.00 Q 256.00 22.00 276.48 36.02 Q 296.97 50.04 321.26 44.92 Q 345.55 39.81 359.11 60.60 Q 372.67 81.39 397.07 85.96 Q 421.46 90.54 426.04 114.93 Q 430.61 139.33 451.40 152.89 Q 472.19 166.45 467.08 190.74 Q 461.96 215.03 475.98 235.52 Q 490.00 256.00 475.98 276.48 Q 461.96 296.97 467.08 321.26 Q 472.19 345.55 451.40 359.11 Q 430.61 372.67 426.04 397.07 Q 421.46 421.46 397.07 426.04 Q 372.67 430.61 359.11 451.40 Q 345.55 472.19 321.26 467.08 Q 296.97 461.96 276.48 475.98 Q 256.00 490.00 235.52 475.98 Q 215.03 461.96 190.74 467.08 Q 166.45 472.19 152.89 451.40 Q 139.33 430.61 114.93 426.04 Q 90.54 421.46 85.96 397.07 Q 81.39 372.67 60.60 359.11 Q 39.81 345.55 44.92 321.26 Q 50.04 296.97 36.02 276.48 Q 22.00 256.00 36.02 235.52 Q 50.04 215.03 44.92 190.74 Q 39.81 166.45 60.60 152.89 Q 81.39 139.33 85.96 114.93 Q 90.54 90.54 114.93 85.96 Q 139.33 81.39 152.89 60.60 Q 166.45 39.81 190.74 44.92 Q 215.03 50.04 235.52 36.02 Z" fill="#e5c890" stroke="#e5c890" stroke-width="4" stroke-linejoin="round"/>
+    
+    <!-- Pie Well Under Lattice -->
+    <circle cx="256" cy="256" r="188" fill="#232634"/>
+
+    <!-- Woven Lattice Strips (Clipped to Pie) -->
+    <g clip-path="url(#pieClip_dark)" opacity="0.85">
+      <line x1="-14" y1="226" x2="286" y2="526" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="46" y1="166" x2="346" y2="466" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="106" y1="106" x2="406" y2="406" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="166" y1="46" x2="466" y2="346" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="226" y1="-14" x2="526" y2="286" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="-14" y1="286" x2="286" y2="-14" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="46" y1="346" x2="346" y2="46" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="106" y1="406" x2="406" y2="106" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="166" y1="466" x2="466" y2="166" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    <line x1="226" y1="526" x2="526" y2="226" stroke="#ef9f76" stroke-width="16" stroke-linecap="round"/>
+    </g>
+
+    <!-- Concentric Rim Ring -->
+    <circle cx="256" cy="256" r="188" fill="none" stroke="#e5c890" stroke-width="5"/>
+
+    <!-- Central Medallion Shield framing the Pi logo -->
+    <circle cx="256" cy="256" r="115" fill="#292c3c" stroke="#e5c890" stroke-width="4"/>
+    <circle cx="256" cy="256" r="102" fill="none" stroke="#e5c890" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+
+    <!-- Official Pi Logo -->
+    <g>
+      <path d="M 171.00 171.00 H 298.50 V 256.00 H 256.00 V 298.50 H 213.50 V 341.00 H 171.00 Z M 213.50 213.50 V 256.00 H 256.00 V 213.50 Z" fill="#ca9ee6" fill-rule="evenodd"/>
+      <path d="M 298.50 256.00 H 341.00 V 341.00 H 298.50 Z" fill="#ca9ee6"/>
+    </g>
+  </g>
+</svg>

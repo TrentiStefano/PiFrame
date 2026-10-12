@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <filter id="cleanShadow_light_4" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#eff1f5"/>
+
+  <g filter="url(#cleanShadow_light_4)">
+    <path d="M 256.00 28.00 Q 256.00 28.00 281.62 46.37 Q 307.25 64.75 338.62 61.65 Q 370.00 58.55 383.00 87.27 Q 396.01 115.99 424.73 129.00 Q 453.45 142.00 450.35 173.38 Q 447.25 204.75 465.63 230.38 Q 484.00 256.00 465.63 281.62 Q 447.25 307.25 450.35 338.62 Q 453.45 370.00 424.73 383.00 Q 396.01 396.01 383.00 424.73 Q 370.00 453.45 338.62 450.35 Q 307.25 447.25 281.62 465.63 Q 256.00 484.00 230.38 465.63 Q 204.75 447.25 173.38 450.35 Q 142.00 453.45 129.00 424.73 Q 115.99 396.01 87.27 383.00 Q 58.55 370.00 61.65 338.62 Q 64.75 307.25 46.37 281.62 Q 28.00 256.00 46.37 230.38 Q 64.75 204.75 61.65 173.38 Q 58.55 142.00 87.27 129.00 Q 115.99 115.99 129.00 87.27 Q 142.00 58.55 173.38 61.65 Q 204.75 64.75 230.38 46.37 Z" fill="#df8e1d" stroke="#cca062" stroke-width="4" stroke-linejoin="round"/>
+
+    <circle cx="256" cy="256" r="162" fill="#eff1f5" stroke="#cca062" stroke-width="3"/>
+    
+    <line x1="228" y1="120" x2="236" y2="136" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="256" y1="116" x2="256" y2="134" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="284" y1="120" x2="276" y2="136" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+
+    <line x1="228" y1="392" x2="236" y2="376" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="256" y1="396" x2="256" y2="378" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="284" y1="392" x2="276" y2="376" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+
+    <g>
+      <path d="M 151.00 151.00 H 308.50 V 256.00 H 256.00 V 308.50 H 203.50 V 361.00 H 151.00 Z M 203.50 203.50 V 256.00 H 256.00 V 203.50 Z" fill="#8839ef" fill-rule="evenodd"/>
+      <path d="M 308.50 256.00 H 361.00 V 361.00 H 308.50 Z" fill="#8839ef"/>
+    </g>
+  </g>
+</svg>

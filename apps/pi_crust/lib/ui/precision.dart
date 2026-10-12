@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -134,12 +135,14 @@ class _LaunchRevealState extends State<LaunchReveal>
 class CrustMark extends StatelessWidget {
   final double size;
   final Color? color;
-  const CrustMark({super.key, this.size = 32, this.color});
+  final Color? crustColor;
+  const CrustMark({super.key, this.size = 32, this.color, this.crustColor});
   @override
   Widget build(BuildContext context) {
     final progress = context
         .dependOnInheritedWidgetOfExactType<_LaunchScope>()
         ?.progress;
+    final tokens = context.tokens;
     return Semantics(
       label: 'Pi-Crust',
       image: true,
@@ -147,8 +150,10 @@ class CrustMark extends StatelessWidget {
         dimension: size,
         child: CustomPaint(
           painter: _MarkPainter(
-            color ?? context.tokens.accent,
-            context.tokens.enterCurve,
+            color ?? tokens.accent,
+            crustColor ?? tokens.warning,
+            tokens.surface,
+            tokens.enterCurve,
             progress,
           ),
         ),
@@ -159,27 +164,95 @@ class CrustMark extends StatelessWidget {
 
 class _MarkPainter extends CustomPainter {
   final Color color;
+  final Color crustColor;
+  final Color surfaceColor;
   final Curve curve;
   final Animation<double>? progress;
-  _MarkPainter(this.color, this.curve, this.progress)
-    : super(repaint: progress);
+  _MarkPainter(
+    this.color,
+    this.crustColor,
+    this.surfaceColor,
+    this.curve,
+    this.progress,
+  ) : super(repaint: progress);
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 32, size.height / 32);
     canvas.clipRect(const Rect.fromLTWH(0, 0, 32, 32));
+
+    final overallPhase = curve.transform((progress?.value ?? 1.0).clamp(0.0, 1.0));
+
+    // 1. 12-lobed fluted pie crust seal rim
+    final scallop = Path();
+    const nCrimps = 12;
+    const steps = nCrimps * 4;
+    for (var i = 0; i < steps; i++) {
+      final angle = (i * 2 * math.pi) / steps - (math.pi / 2);
+      final wave = math.cos(nCrimps * angle);
+      final r = 13.0 + 2.2 * (0.5 + 0.5 * wave);
+      final px = 16.0 + r * math.cos(angle);
+      final py = 16.0 + r * math.sin(angle);
+      if (i == 0) {
+        scallop.moveTo(px, py);
+      } else {
+        scallop.lineTo(px, py);
+      }
+    }
+    scallop.close();
+
+    canvas.drawPath(
+      scallop,
+      Paint()..color = crustColor.withValues(alpha: 0.15 + 0.85 * overallPhase),
+    );
+
+    // 2. Inner circular pastry well
+    canvas.drawCircle(
+      const Offset(16, 16),
+      10.6,
+      Paint()..color = surfaceColor,
+    );
+    canvas.drawCircle(
+      const Offset(16, 16),
+      10.6,
+      Paint()
+        ..color = crustColor.withValues(alpha: 0.45 * overallPhase)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+
+    // 3. Delicate score marks above and below
+    final slitPaint = Paint()
+      ..color = crustColor.withValues(alpha: 0.7 * overallPhase)
+      ..strokeWidth = 0.75
+      ..strokeCap = StrokeCap.round;
+    // Above
+    canvas.drawLine(const Offset(14.5, 7.8), const Offset(14.8, 8.8), slitPaint);
+    canvas.drawLine(const Offset(16.0, 7.5), const Offset(16.0, 8.6), slitPaint);
+    canvas.drawLine(const Offset(17.5, 7.8), const Offset(17.2, 8.8), slitPaint);
+    // Below
+    canvas.drawLine(const Offset(14.5, 24.2), const Offset(14.8, 23.2), slitPaint);
+    canvas.drawLine(const Offset(16.0, 24.5), const Offset(16.0, 23.4), slitPaint);
+    canvas.drawLine(const Offset(17.5, 24.2), const Offset(17.2, 23.2), slitPaint);
+
+    // 4. Official pi-coding-agent geometric mark
+    // Center at (16, 16), 4x4 block unit = 3.25
+    // P shape parts + i block
     const parts = [
-      Rect.fromLTWH(0, 0, 8, 32),
-      Rect.fromLTWH(8, 0, 24, 8),
-      Rect.fromLTWH(24, 8, 8, 12),
-      Rect.fromLTWH(8, 12, 16, 8),
+      Rect.fromLTWH(9.5, 9.5, 3.25, 13.0),   // P stem
+      Rect.fromLTWH(12.75, 9.5, 6.5, 3.25),  // P top bar
+      Rect.fromLTWH(16.0, 12.75, 3.25, 3.25),// P right wall
+      Rect.fromLTWH(12.75, 16.0, 3.25, 3.25),// P bottom loop
+      Rect.fromLTWH(19.25, 16.0, 3.25, 6.5), // i block
     ];
+
     for (var i = 0; i < parts.length; i++) {
       final phase = curve.transform(
-        ((progress?.value ?? 1) * 1.6 - i * 0.14).clamp(0.0, 1.0),
+        (((progress?.value ?? 1) * 1.6) - (i * 0.12)).clamp(0.0, 1.0),
       );
       canvas.drawRect(
-        parts[i].shift(Offset((1 - phase) * (i.isEven ? -12 : 12), 0)),
+        parts[i].shift(Offset((1 - phase) * (i.isEven ? -6 : 6), 0)),
         Paint()..color = color.withValues(alpha: 0.15 + 0.85 * phase),
       );
     }
@@ -188,7 +261,11 @@ class _MarkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MarkPainter old) =>
-      old.color != color || old.progress != progress || old.curve != curve;
+      old.color != color ||
+      old.crustColor != crustColor ||
+      old.surfaceColor != surfaceColor ||
+      old.progress != progress ||
+      old.curve != curve;
 }
 
 class BrandWordmark extends StatelessWidget {

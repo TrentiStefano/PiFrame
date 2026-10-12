@@ -24,6 +24,25 @@ out/
 .tmp/
 
 # ==============================================================================
+# Common generated files and platform caches
+# ==============================================================================
+*.class
+*.log
+*.pyc
+*.swp
+app.*.map.json
+.build/
+.buildlog/
+.swiftpm/
+.history/
+.svn/
+migrate_working_dir/
+**/DerivedData/
+**/Pods/
+**/xcuserdata/
+.widget_preview/
+
+# ==============================================================================
 # Test & Coverage Outputs
 # ==============================================================================
 coverage/
