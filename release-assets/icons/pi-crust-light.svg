@@ -1,28 +1,136 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <filter id="cleanShadow_light_4" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.14"/>
+    <!-- Soft Diffused Natural Floor Shadow (macOS style, zero neon glow) -->
+    <filter id="cohesiveShadowLight" x="-25%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.14"/>
     </filter>
+
+    <!-- Top Filling Surface: Lighter, smooth matte surface -->
+    <linearGradient id="fillingTopLight" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#e6e9ef"/>
+      <stop offset="100%" stop-color="#f2f4f8"/>
+    </linearGradient>
+
+    <!-- Filling Cut Face (Right): Interior pie filling cross-section -->
+    <linearGradient id="fillingCutRightLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dce0e8"/>
+      <stop offset="100%" stop-color="#ccd0da"/>
+    </linearGradient>
+
+    <!-- Cohesive 1-Piece Crust: Visibly DARKER than the filling -->
+    <linearGradient id="crustBackWallLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bcc0cc"/>
+      <stop offset="50%" stop-color="#acb0be"/>
+      <stop offset="100%" stop-color="#9ca0b0"/>
+    </linearGradient>
+
+    <linearGradient id="crustBottomSlabLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bcc0cc"/>
+      <stop offset="100%" stop-color="#acb0be"/>
+    </linearGradient>
   </defs>
 
+  <!-- Squircle Base Canvas: Catppuccin Latte Base -->
   <rect width="512" height="512" rx="112" fill="#eff1f5"/>
+  <rect x="8" y="8" width="496" height="496" rx="104" fill="none" stroke="#bcc0cc" stroke-width="1.5" opacity="0.8"/>
 
-  <g filter="url(#cleanShadow_light_4)">
-    <path d="M 256.00 28.00 Q 256.00 28.00 281.62 46.37 Q 307.25 64.75 338.62 61.65 Q 370.00 58.55 383.00 87.27 Q 396.01 115.99 424.73 129.00 Q 453.45 142.00 450.35 173.38 Q 447.25 204.75 465.63 230.38 Q 484.00 256.00 465.63 281.62 Q 447.25 307.25 450.35 338.62 Q 453.45 370.00 424.73 383.00 Q 396.01 396.01 383.00 424.73 Q 370.00 453.45 338.62 450.35 Q 307.25 447.25 281.62 465.63 Q 256.00 484.00 230.38 465.63 Q 204.75 447.25 173.38 450.35 Q 142.00 453.45 129.00 424.73 Q 115.99 396.01 87.27 383.00 Q 58.55 370.00 61.65 338.62 Q 64.75 307.25 46.37 281.62 Q 28.00 256.00 46.37 230.38 Q 64.75 204.75 61.65 173.38 Q 58.55 142.00 87.27 129.00 Q 115.99 115.99 129.00 87.27 Q 142.00 58.55 173.38 61.65 Q 204.75 64.75 230.38 46.37 Z" fill="#df8e1d" stroke="#cca062" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Soft Diffused Floor Ambient Shadow under entire pie slice -->
+  <ellipse cx="258" cy="408" rx="156" ry="36" fill="#000000" opacity="0.12" filter="url(#cohesiveShadowLight)"/>
 
-    <circle cx="256" cy="256" r="162" fill="#eff1f5" stroke="#cca062" stroke-width="3"/>
-    
-    <line x1="228" y1="120" x2="236" y2="136" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="256" y1="116" x2="256" y2="134" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="284" y1="120" x2="276" y2="136" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+  <g filter="url(#cohesiveShadowLight)">
+    <!-- ================================================================= -->
+    <!-- 1. BACK CURVED CRUST WALL (Seamlessly connects to bottom crust)    -->
+    <!-- Top rim: (140, 180) to (390, 192), Bottom: (140, 255) to (390, 267) -->
+    <!-- ================================================================= -->
+    <path d="M 140 180 Q 265 120 390 192 V 267 Q 265 195 140 255 Z"
+          fill="url(#crustBackWallLight)" stroke="#8c8fa1" stroke-width="1.5"/>
 
-    <line x1="228" y1="392" x2="236" y2="376" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="256" y1="396" x2="256" y2="378" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1="284" y1="392" x2="276" y2="376" stroke="#cca062" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Subtle vertical crimp lines along back crust wall -->
+    <g stroke="#8c8fa1" stroke-width="2.5" stroke-linecap="round" opacity="0.6">
+      <line x1="172" y1="168" x2="172" y2="240"/>
+      <line x1="206" y1="150" x2="206" y2="222"/>
+      <line x1="244" y1="140" x2="244" y2="212"/>
+      <line x1="284" y1="138" x2="284" y2="210"/>
+      <line x1="324" y1="148" x2="324" y2="220"/>
+      <line x1="360" y1="168" x2="360" y2="240"/>
+    </g>
 
-    <g>
-      <path d="M 151.00 151.00 H 308.50 V 256.00 H 256.00 V 308.50 H 203.50 V 361.00 H 151.00 Z M 203.50 203.50 V 256.00 H 256.00 V 203.50 Z" fill="#8839ef" fill-rule="evenodd"/>
-      <path d="M 308.50 256.00 H 361.00 V 361.00 H 308.50 Z" fill="#8839ef"/>
+    <!-- Raised Fluted Crimp Rim (Rises 12px above filling along back arc) -->
+    <path d="M 140 180 
+             C 148 168, 162 160, 172 162
+             C 182 150, 198 144, 208 146
+             C 220 136, 236 132, 246 134
+             C 258 130, 274 130, 284 134
+             C 296 136, 312 142, 322 148
+             C 334 150, 350 158, 358 166
+             C 370 172, 382 182, 390 192
+             Q 265 122 140 180 Z"
+          fill="#bcc0cc" stroke="#8c8fa1" stroke-width="1.5" stroke-linejoin="round"/>
+
+    <!-- Soft highlight pips on each crimp lobe crest -->
+    <g fill="#ffffff" opacity="0.8">
+      <circle cx="172" cy="162" r="2.5"/>
+      <circle cx="208" cy="146" r="2.5"/>
+      <circle cx="246" cy="134" r="2.5"/>
+      <circle cx="284" cy="134" r="2.5"/>
+      <circle cx="322" cy="148" r="2.5"/>
+      <circle cx="358" cy="166" r="2.5"/>
+    </g>
+
+    <!-- ================================================================= -->
+    <!-- 2. FOREGROUND CUT WALLS (Filling + Cohesive Bottom Crust Layer)    -->
+    <!-- ================================================================= -->
+
+    <!-- LEFT CUT WALL (In perspective shadow) -->
+    <!-- Filling upper portion -->
+    <path d="M 220 320 L 140 180 V 235 L 220 375 Z"
+          fill="#ccd0da" stroke="#bcc0cc" stroke-width="1"/>
+    <!-- Bottom crust layer portion (connects seamlessly to back crust at 140, 255) -->
+    <path d="M 220 375 L 140 235 V 255 L 220 395 Z"
+          fill="#acb0be" stroke="#9ca0b0" stroke-width="1"/>
+
+    <!-- RIGHT CUT WALL (Facing viewer) -->
+    <!-- Filling upper portion: from (220, 320) to (390, 192) down to seam (390, 247) and (220, 375) -->
+    <path d="M 220 320 L 390 192 V 247 L 220 375 Z"
+          fill="url(#fillingCutRightLight)" stroke="#bcc0cc" stroke-width="1.5" stroke-linejoin="round"/>
+
+    <!-- BOTTOM CRUST LAYER: 1-piece base under the pie slice -->
+    <!-- Connects at (390, 247) to (390, 267) seamlessly meeting back crust wall! -->
+    <path d="M 220 375 L 390 247 V 267 L 220 395 Z"
+          fill="url(#crustBottomSlabLight)" stroke="#8c8fa1" stroke-width="1.5" stroke-linejoin="round"/>
+
+    <!-- Subtle texture demarcation between filling and bottom crust -->
+    <line x1="222" y1="375" x2="388" y2="247" stroke="#8c8fa1" stroke-width="1.5"/>
+
+    <!-- Leading Edge Chamfer Bevel Highlight (from top apex to bottom apex) -->
+    <line x1="220" y1="320" x2="220" y2="395" stroke="#8c8fa1" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- ================================================================= -->
+    <!-- 3. TOP PIE FILLING FACET (Lighter, smooth surface)               -->
+    <!-- Apex: (220, 320), Left: (140, 180), Right: (390, 192)            -->
+    <!-- ================================================================= -->
+    <path d="M 220 320 L 140 180 Q 265 120 390 192 Z"
+          fill="url(#fillingTopLight)" stroke="#8c8fa1" stroke-width="1.5" stroke-linejoin="round"/>
+
+    <!-- Bevel highlight edges along facet sides -->
+    <line x1="220" y1="320" x2="140" y2="180" stroke="#ffffff" stroke-width="1.2"/>
+    <line x1="220" y1="320" x2="390" y2="192" stroke="#ffffff" stroke-width="1.2"/>
+
+    <!-- Single Refined Mauve Pinstripe along Inner Crust Rim Seam -->
+    <path d="M 144 182 Q 265 124 386 194" fill="none" stroke="#8839ef" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="220" cy="320" r="3.5" fill="#8839ef"/>
+
+    <!-- ================================================================= -->
+    <!-- 4. OFFICIAL PI CODING AGENT LOGO — PERFECTLY CENTERED             -->
+    <!-- Center of facet: (248, 230). 33px margin left & right.           -->
+    <!-- True 3D perspective matrix alignment:                            -->
+    <!-- ================================================================= -->
+    <g transform="matrix(0.38, 0.018, -0.062, 0.232, 248, 230)">
+      <!-- Official Pi-Coding-Agent Logo in High-Contrast Latte Text Primary -->
+      <path d="M -105 -105 H 52.5 V 0 H 0 V 52.5 H -52.5 V 105 H -105 Z M -52.5 -52.5 V 0 H 0 V -52.5 Z"
+            fill="#4c4f69" fill-rule="evenodd"/>
+      <path d="M 52.5 0 H 105 V 105 H 52.5 Z"
+            fill="#4c4f69"/>
     </g>
   </g>
 </svg>

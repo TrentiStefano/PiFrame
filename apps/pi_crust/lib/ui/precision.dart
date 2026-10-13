@@ -151,7 +151,7 @@ class CrustMark extends StatelessWidget {
         child: CustomPaint(
           painter: _MarkPainter(
             color ?? tokens.accent,
-            crustColor ?? tokens.warning,
+            crustColor ?? tokens.borderStrong,
             tokens.surface,
             tokens.enterCurve,
             progress,
