@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
 import 'data/theme/theme_providers.dart';
+import 'data/notifications/desktop_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +17,8 @@ Future<void> main() async {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
   final desktopWindowLifecycle = !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.macOS);
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
   if (desktopWindowLifecycle) {
     await windowManager.ensureInitialized();
     await windowManager.setTitle('Pi-Crust');
@@ -27,6 +29,7 @@ Future<void> main() async {
         windowButtonVisibility: false,
       );
     }
+    await DesktopNotificationService.instance.initialize();
   }
   runApp(
     ProviderScope(

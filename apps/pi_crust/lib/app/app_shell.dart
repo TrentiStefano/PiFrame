@@ -19,6 +19,8 @@ import '../features/context_panel/context_panel.dart';
 import '../features/workspace/repository_workspace.dart';
 import '../features/command_palette/command_palette.dart';
 import '../features/settings/settings_view.dart';
+import '../data/notifications/notification_providers.dart';
+import '../data/notifications/session_notification_watcher.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -26,10 +28,12 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> with WindowListener {
+class _AppShellState extends ConsumerState<AppShell>
+    with WindowListener, WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _closingWindow = false;
   late final bool _handlesNativeClose;
+  late final bool _hasWindowListener;
   bool _creating = false;
   WorkspacePane _compactPane = WorkspacePane.chat;
   WorkspacePane _companionPane = WorkspacePane.repository;
@@ -47,12 +51,35 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
     _handlesNativeClose =
-        ref.read(desktopWindowLifecycleProvider) &&
-        !ref.read(desktopChromeProvider);
-    if (_handlesNativeClose) {
+        desktopLifecycle && !ref.read(desktopChromeProvider);
+    _hasWindowListener = desktopLifecycle;
+    if (_hasWindowListener) {
       windowManager.addListener(this);
-      unawaited(windowManager.setPreventClose(true));
+      if (_handlesNativeClose) {
+        unawaited(windowManager.setPreventClose(true));
+      }
+    }
+  }
+
+  @override
+  void onWindowFocus() {
+    ref.read(appFocusProvider.notifier).state = true;
+  }
+
+  @override
+  void onWindowBlur() {
+    ref.read(appFocusProvider.notifier).state = false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(appFocusProvider.notifier).state = true;
+    } else {
+      ref.read(appFocusProvider.notifier).state = false;
     }
   }
 
@@ -76,7 +103,10 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
 
   @override
   void dispose() {
-    if (_handlesNativeClose) windowManager.removeListener(this);
+    WidgetsBinding.instance.removeObserver(this);
+    if (_hasWindowListener) {
+      windowManager.removeListener(this);
+    }
     super.dispose();
   }
 
@@ -177,8 +207,11 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
                   ),
                 ),
               ),
-        body: SafeArea(
-          child: Column(
+        body: Stack(
+          children: [
+            const SessionNotificationWatcher(),
+            SafeArea(
+              child: Column(
             children: [
               Container(
                 height: 76,
@@ -382,6 +415,8 @@ class _AppShellState extends ConsumerState<AppShell> with WindowListener {
             ],
           ),
         ),
+      ],
+    ),
       ),
     );
   }

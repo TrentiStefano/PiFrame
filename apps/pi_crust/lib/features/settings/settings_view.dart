@@ -5,6 +5,7 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/theme/theme_providers.dart';
+import '../../data/notifications/notification_providers.dart';
 import 'diagnostics.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -700,6 +701,44 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               label: const Text('Riavvia Daemon'),
                               onPressed: null, // Disabled when workers exist
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Notifiche di Sistema (macOS, Windows, Linux)',
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Invia notifiche di sistema quando l\'agente completa una risposta o richiede una scelta/conferma e l\'applicazione non è a fuoco.',
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Material(
+                          type: MaterialType.transparency,
+                          child: SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              'Notifiche di sistema quando l\'app non è a fuoco',
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            value: ref.watch(notificationsEnabledProvider),
+                            activeColor: tokens.accent,
+                            onChanged: (val) {
+                              ref
+                                  .read(notificationsEnabledProvider.notifier)
+                                  .state = val;
+                            },
                           ),
                         ),
                       ],
