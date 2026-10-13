@@ -1,4 +1,4 @@
-const piCrustVersionDefault = '1.3.0'; // x-release-please-version
+const piCrustVersionDefault = '1.4.0'; // x-release-please-version
 
 const piCrustVersion = String.fromEnvironment(
   'PI_CRUST_VERSION',
