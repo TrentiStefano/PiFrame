@@ -28,6 +28,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/themes/
+    - assets/branding/
   fonts:
     - family: SchibstedGrotesk
       fonts:

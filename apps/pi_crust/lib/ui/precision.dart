@@ -130,32 +130,50 @@ class _LaunchRevealState extends State<LaunchReveal>
   }
 }
 
-/// An original four-part P glyph. Its component strokes assemble only at
-/// application launch, never when selecting sessions or streaming messages.
+/// The official 3D pie slice Pi-Crust mark. Adapts to theme brightness,
+/// with graceful fallback for headless tests without asset bindings.
 class CrustMark extends StatelessWidget {
   final double size;
   final Color? color;
   final Color? crustColor;
   const CrustMark({super.key, this.size = 32, this.color, this.crustColor});
+
   @override
   Widget build(BuildContext context) {
-    final progress = context
-        .dependOnInheritedWidgetOfExactType<_LaunchScope>()
-        ?.progress;
     final tokens = context.tokens;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final assetPath = isDark
+        ? 'assets/branding/app_icon_dark_512.png'
+        : 'assets/branding/app_icon_light_512.png';
+
     return Semantics(
       label: 'Pi-Crust',
       image: true,
-      child: SizedBox.square(
-        dimension: size,
-        child: CustomPaint(
-          painter: _MarkPainter(
-            color ?? tokens.accent,
-            crustColor ?? tokens.borderStrong,
-            tokens.surface,
-            tokens.enterCurve,
-            progress,
-          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.22),
+        child: Image.asset(
+          assetPath,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          excludeFromSemantics: true,
+          errorBuilder: (context, error, stackTrace) {
+            final progress = context
+                .dependOnInheritedWidgetOfExactType<_LaunchScope>()
+                ?.progress;
+            return SizedBox.square(
+              dimension: size,
+              child: CustomPaint(
+                painter: _MarkPainter(
+                  color ?? tokens.accent,
+                  crustColor ?? tokens.borderStrong,
+                  tokens.surface,
+                  tokens.enterCurve,
+                  progress,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

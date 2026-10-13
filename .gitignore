@@ -22,6 +22,7 @@ out/
 .cache/
 .temp/
 .tmp/
+scratch/
 
 # ==============================================================================
 # Common generated files and platform caches

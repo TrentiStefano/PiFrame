@@ -220,13 +220,17 @@ class _ToolCardState extends State<ToolCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    tool.toolName,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 12,
-                      fontFamily: tokens.uiFontFamily,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      tool.toolName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 12,
+                        fontFamily: tokens.uiFontFamily,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   if (argPreview.isNotEmpty) ...[
