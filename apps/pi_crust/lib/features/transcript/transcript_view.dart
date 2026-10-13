@@ -35,6 +35,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   bool _isRenaming = false;
   final TextEditingController _renameController = TextEditingController();
   final FocusNode _renameFocusNode = FocusNode();
+  final Set<String> _expandedThinkingBlocks = <String>{};
+  int _lastTotalEntries = 0;
 
   @override
   void initState() {
@@ -46,6 +48,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
       _isRenaming = false;
+      _expandedThinkingBlocks.clear();
+      _lastTotalEntries = 0;
       _visibleCount = _pageSize;
       _initialScrollDone = false;
       _userScrolledUp = false;
@@ -737,6 +741,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     // Windowing / Pagination for long transcripts (excluding internal/junk messages)
     final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
     final totalEntries = cleanEntries.length;
+
+    // Keep visible messages in view if new messages arrive during active session
+    if (_lastTotalEntries > 0 && totalEntries > _lastTotalEntries) {
+      final added = totalEntries - _lastTotalEntries;
+      _visibleCount = _visibleCount + added;
+    }
+    _lastTotalEntries = totalEntries;
+
+    // Transition live thinking expansion to newly committed entry if stream finished
+    if (!sessionState.isStreaming &&
+        _expandedThinkingBlocks.contains('live_${widget.sessionId}')) {
+      final lastAssistant = cleanEntries.reversed
+          .where((e) => e.role == 'assistant' && e.thinking != null && e.thinking!.isNotEmpty)
+          .firstOrNull;
+      if (lastAssistant != null) {
+        _expandedThinkingBlocks.remove('live_${widget.sessionId}');
+        _expandedThinkingBlocks.add(lastAssistant.id);
+      }
+    }
+
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
     final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0;
@@ -838,6 +862,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       if (entryIndex < visibleEntries.length) {
                         final entry = visibleEntries[entryIndex];
                         return Padding(
+                          key: ValueKey('entry_row_${entry.id}'),
                           padding: EdgeInsets.symmetric(
                             horizontal: isCompact ? 12 : 24,
                           ),
@@ -854,6 +879,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       }
 
                       return Padding(
+                        key: const ValueKey('entry_row_livestream'),
                         padding: EdgeInsets.symmetric(
                           horizontal: isCompact ? 12 : 24,
                         ),
@@ -949,11 +975,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             Expanded(
                               child: Focus(
                                 onKeyEvent: (node, event) {
-                                  if (event is KeyDownEvent &&
-                                      event.logicalKey ==
-                                          LogicalKeyboardKey.escape) {
-                                    _cancelRename();
-                                    return KeyEventResult.handled;
+                                  if (event is KeyDownEvent) {
+                                    if (event.logicalKey ==
+                                        LogicalKeyboardKey.escape) {
+                                      _cancelRename();
+                                      return KeyEventResult.handled;
+                                    }
+                                    if (event.logicalKey ==
+                                            LogicalKeyboardKey.enter ||
+                                        event.logicalKey ==
+                                            LogicalKeyboardKey.numpadEnter) {
+                                      _submitRename();
+                                      return KeyEventResult.handled;
+                                    }
                                   }
                                   return KeyEventResult.ignored;
                                 },
@@ -964,6 +998,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   controller: _renameController,
                                   focusNode: _renameFocusNode,
                                   autofocus: true,
+                                  maxLines: 1,
                                   textInputAction: TextInputAction.done,
                                   onSubmitted: (_) => _submitRename(),
                                   style: TextStyle(
@@ -1211,8 +1246,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           if (liveThinking.isNotEmpty ||
               sessionState.agentStatus == AgentStatus.working)
             ThinkingBlock(
+              key: ValueKey('thinking_live_${widget.sessionId}'),
               thinkingText: liveThinking,
               isStreaming: sessionState.isStreaming,
+              isExpanded: _expandedThinkingBlocks
+                  .contains('live_${widget.sessionId}'),
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  if (expanded) {
+                    _expandedThinkingBlocks
+                        .add('live_${widget.sessionId}');
+                  } else {
+                    _expandedThinkingBlocks
+                        .remove('live_${widget.sessionId}');
+                  }
+                });
+              },
             ),
           if (hasActiveTools)
             ToolTimeline(
@@ -1415,7 +1464,20 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         children: [
           // Thinking block if present
           if (entry.thinking != null && entry.thinking!.isNotEmpty)
-            ThinkingBlock(thinkingText: entry.thinking!),
+            ThinkingBlock(
+              key: ValueKey('thinking_${entry.id}'),
+              thinkingText: entry.thinking!,
+              isExpanded: _expandedThinkingBlocks.contains(entry.id),
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  if (expanded) {
+                    _expandedThinkingBlocks.add(entry.id);
+                  } else {
+                    _expandedThinkingBlocks.remove(entry.id);
+                  }
+                });
+              },
+            ),
 
           // Tool calls timeline if present
           if (entry.toolCalls.isNotEmpty)

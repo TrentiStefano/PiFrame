@@ -4,11 +4,15 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 class ThinkingBlock extends StatefulWidget {
   final String thinkingText;
   final bool isStreaming;
+  final bool? isExpanded;
+  final ValueChanged<bool>? onExpansionChanged;
 
   const ThinkingBlock({
     super.key,
     required this.thinkingText,
     this.isStreaming = false,
+    this.isExpanded,
+    this.onExpansionChanged,
   });
 
   @override
@@ -16,7 +20,31 @@ class ThinkingBlock extends StatefulWidget {
 }
 
 class _ThinkingBlockState extends State<ThinkingBlock> {
-  bool _isExpanded = false;
+  late bool _internalExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _internalExpanded = widget.isExpanded ?? false;
+  }
+
+  @override
+  void didUpdateWidget(ThinkingBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isExpanded != null && widget.isExpanded != oldWidget.isExpanded) {
+      _internalExpanded = widget.isExpanded!;
+    }
+  }
+
+  bool get _effectiveExpanded => widget.isExpanded ?? _internalExpanded;
+
+  void _toggleExpanded() {
+    final next = !_effectiveExpanded;
+    if (widget.isExpanded == null) {
+      setState(() => _internalExpanded = next);
+    }
+    widget.onExpansionChanged?.call(next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +75,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
-              expanded: _isExpanded,
+              expanded: _effectiveExpanded,
               child: TextButton(
                 style: TextButton.styleFrom(
                   foregroundColor: tokens.textPrimary,
@@ -57,7 +85,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                   ),
                   alignment: Alignment.centerLeft,
                 ),
-                onPressed: () => setState(() => _isExpanded = !_isExpanded),
+                onPressed: _toggleExpanded,
                 child: Row(
                   children: [
                     Icon(
@@ -88,7 +116,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                       Expanded(
                         flex: 3,
                         child: Text(
-                          _isExpanded ? '' : firstLine,
+                          _effectiveExpanded ? '' : firstLine,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -98,7 +126,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                         ),
                       ),
                     Icon(
-                      _isExpanded ? Icons.expand_less : Icons.expand_more,
+                      _effectiveExpanded ? Icons.expand_less : Icons.expand_more,
                       size: 18,
                       color: tokens.textSecondary,
                     ),
@@ -106,7 +134,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                 ),
               ),
             ),
-            if (_isExpanded)
+            if (_effectiveExpanded)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 child: SelectableText(
