@@ -41,6 +41,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+      }
+    });
   }
 
   @override
@@ -53,6 +58,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _visibleCount = _pageSize;
       _initialScrollDone = false;
       _userScrolledUp = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+        }
+      });
     }
   }
 

@@ -1,36 +1,171 @@
-# Pi-Crust 🥧
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/design-evidence/icons/pi-crust-dark-1024.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/design-evidence/icons/pi-crust-light-1024.png">
+    <img src="docs/design-evidence/icons/pi-crust-dark-1024.png" width="132" height="132" alt="Pi-Crust Logo" style="border-radius: 28px; box-shadow: 0 12px 32px rgba(0,0,0,0.25);">
+  </picture>
+</p>
 
-> **Modern, resilient, decoupled GUI (Windows, macOS, Linux, and Web) for [`pi-coding-agent`](https://github.com/earendil-works/pi), inspired by OpenAI Codex and GitHub Copilot app interfaces.**
+<h1 align="center">Pi-Crust</h1>
 
----
+<p align="center">
+  <strong>The modern, resilient Bento GUI for <a href="https://github.com/earendil-works/pi">pi-coding-agent</a>.</strong><br>
+  Engineered for developers who demand fluid motion, native desktop speed, and zero lost agent work.
+</p>
 
-## 🌟 Overview
-
-**Pi-Crust** is a high-performance desktop and web graphical user interface for `pi-coding-agent`. Unlike terminal-locked or web-only wrappers, Pi-Crust is built on a **resilient three-tier decoupled architecture**:
-- The GUI can be closed, reloaded, or crash without terminating the running Pi agent.
-- A persistent local daemon keeps tasks running, journals every event with monotonic sequence numbers, and allows seamless reattachment and replay upon GUI reconnect.
-- Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`), guaranteeing 100% compatibility with the official Pi CLI.
-- Built with **strictly zero remote telemetry** (Decision D16) and a loopback-only security boundary.
-
----
-
-## 📦 Releases
-
-Main-branch commits follow [Conventional Commits](https://www.conventionalcommits.org/): `fix:` bumps patch, `feat:` bumps minor, and `!` or `BREAKING CHANGE:` bumps major. Release Please opens a release PR with synchronized SemVer versions and changelog. Merge that PR to publish installers for Windows, macOS, and Linux plus a fresh UI screenshot. Docs, tests, and chore-only commits do not release. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
-
-Download the latest [Windows installer](https://github.com/TrentiStefano/pi-crust/releases/latest), [macOS DMG](https://github.com/TrentiStefano/pi-crust/releases/latest), or [Linux Debian package](https://github.com/TrentiStefano/pi-crust/releases/latest) from **Releases**.
-
-| Windows | macOS (Apple silicon + Intel) | Linux |
-| --- | --- | --- |
-| `Pi-Crust-Setup-…-windows-x64.exe` | `Pi-Crust-…-macos-arm64.dmg` / `Pi-Crust-…-macos-x64.dmg` | `Pi-Crust-…-linux-amd64.deb` |
-
-Installers include the Pi-Crust app, `pi-agentd`, and bundled Node.js runtime. Install Pi CLI separately (`npm install -g @earendil-works/pi-coding-agent`). Windows installers are unsigned (SmartScreen may warn); macOS builds are not signed/notarized (Gatekeeper may require **Control-click → Open**).
-
-![Pi-Crust desktop UI](https://github.com/TrentiStefano/pi-crust/releases/latest/download/pi-crust-screenshot.png)
+<p align="center">
+  <a href="https://github.com/TrentiStefano/pi-crust/releases/latest"><img src="https://img.shields.io/github/v/release/TrentiStefano/pi-crust?style=flat-square&color=ca9ee6" alt="Latest Release"></a>
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-blue?style=flat-square" alt="Supported Platforms">
+  <img src="https://img.shields.io/badge/flutter-3.47%2B-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/typescript-Node.js%2022%2B-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <a href="docs/security.md"><img src="https://img.shields.io/badge/telemetry-strictly%20zero%20(D16)-success?style=flat-square" alt="Zero Telemetry"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
+</p>
 
 ---
 
-## 🏗 Architecture
+## 🎬 UI in Motion
+
+Experience the fluid desktop layout, live token streaming, in-file code search, collapsible reasoning blocks, and instant theme switching:
+
+<p align="center">
+  <img src="docs/design-evidence/pi-crust-showcase.webp" alt="Pi-Crust Bento Layout Showcase and Animations" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+</p>
+
+> 📹 **Watch full recording:** [pi-crust-showcase.mp4](docs/design-evidence/pi-crust-showcase.mp4) · Explore interactive web showcase in [docs/design-evidence/showcase.html](docs/design-evidence/showcase.html).
+
+---
+
+## 🌟 Why Pi-Crust?
+
+Most AI coding assistants lock you into a monolithic web app or terminal session where closing the tab kills the task. **Pi-Crust** is designed with a **three-tier decoupled architecture**:
+
+1. **🛡 Never Lose Agent Work (Disconnect-Safe):** Close the window, restart your desktop shell, or reload anytime. A background local daemon (`pi-agentd`) keeps the agent running, journals every stream event monotonically, and catches up seamlessly upon GUI reconnect with zero gaps or duplicate events.
+2. **📂 100% Native Pi Compatibility:** Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`). Switch freely between the `pi` terminal CLI and the Pi-Crust GUI at any moment.
+3. **🍱 Bento Triptych Workspace:** Co-visible repository code editor, streaming chat transcript, and interactive Git Changes in a balanced three-compartment view inspired by modern editor ergonomics.
+4. **🔒 Local-First & Zero Telemetry (Decision D16):** Strictly bound to `127.0.0.1` with cryptographically random tokens. No third-party analytics, no tracking pixels, no outbound calls beyond your configured model provider.
+
+---
+
+## ✨ Features
+
+### 🍱 Bento Triptych Workspace
+- **Three co-visible work areas:** Repository file tree & code viewer (Left), Pi chat session (Center), and Git Changes inspector (Right).
+- **Responsive adaptation:** Seamlessly adjusts from ultra-wide 1440px+ displays down to compact laptop screens and single-column mobile views.
+- **Panel toggles:** Collapse or expand any side panel with a single click or keyboard shortcut.
+
+### ⚡ Interactive Code Viewer & In-File Search
+- **Syntax Highlighting:** Automatic programming language detection across Dart, TypeScript, JavaScript, Python, Rust, HTML, CSS, JSON, and Markdown.
+- **In-File Search (`Ctrl+F` / `Cmd+F`):** Live text matching with occurrence counter (`1 di N`), previous/next cycling, case-sensitivity toggle, and prominent match highlighting.
+- **Instant Save & Edit:** Edit source files directly in the active session's workspace without opening a separate IDE.
+
+### 🎯 Editable Steer Message Queue
+- **Direct in-queue editing:** When an agent is streaming an answer, view queued directives in the Composer queue bar.
+- **Modify on the fly:** Click **✏️ Modifica** to reword instructions before they reach the agent, or load them back into the composer input field.
+- **Queue re-ordering & dismissal:** Remove individual steer or follow-up items with immediate daemon synchronization.
+
+### 🧠 Collapsible Reasoning Streams
+- **Deep Thinking inspection:** Collapsible reasoning blocks showing real-time token generation, step duration (e.g. `14.2s`), and tool invocations.
+- **Smooth spring animations:** Expand or collapse thoughts without losing your scroll position in long transcripts.
+
+### 🔔 Native OS Notifications
+- **Background awareness:** Receive native OS notifications (Windows, macOS, Linux) when the agent completes an answer or requests confirmation, even when Pi-Crust is minimized or out of focus.
+
+### 🌿 Git Changes & Staging Desk
+- **Live repository tracking:** Real-time branch indicator, clean/dirty indicator, and line addition/deletion counts (`+42 -6`).
+- **File status badges:** Clear visual differentiation between modified (`M`), added (`A`), deleted (`D`), and untracked (`?`) files.
+- **Visual Diff Inspector:** Side-by-side or unified inline diff viewer with one-click per-file staging and revert.
+
+### 🎨 Catppuccin Theme Engine
+- **Official Catppuccin Palettes:** Ships with **Frappé** (dark) and **Latte** (light) palettes.
+- **Hot-Reloadable JSON Themes:** Create custom themes in `~/.pi-crust/themes/` with inheritance (`extends`), contrast verification, and zero hardcoded widget colors.
+
+---
+
+## 📸 Screenshots
+
+| Catppuccin Frappé (Dark) | Catppuccin Latte (Light) |
+| :---: | :---: |
+| [![Frappe Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![Latte Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
+| *Bento Triptych workspace in dark mode* | *Bento Triptych workspace in light mode* |
+
+| Model & Extension Settings | Compact / Single-Pane Mode |
+| :---: | :---: |
+| [![Settings](docs/design-evidence/pi-crust-live-settings-frappe.png)](docs/design-evidence/pi-crust-live-settings-frappe.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
+| *Model selection, thinking effort, and Pi extensions* | *Compact responsive layout for smaller screens* |
+
+---
+
+## 📥 Download & Installation
+
+Download pre-built binaries from the [**GitHub Releases**](https://github.com/TrentiStefano/pi-crust/releases/latest) page:
+
+| Operating System | Architecture | Installer / Package | Notes |
+| :--- | :--- | :--- | :--- |
+| **Windows** | `x64` | [`Pi-Crust-Setup-…-windows-x64.exe`](https://github.com/TrentiStefano/pi-crust/releases/latest) | Bundles Node.js & `pi-agentd` |
+| **macOS** | `arm64` (Apple Silicon) | [`Pi-Crust-…-macos-arm64.dmg`](https://github.com/TrentiStefano/pi-crust/releases/latest) | Drag to `/Applications` |
+| **macOS** | `x64` (Intel) | [`Pi-Crust-…-macos-x64.dmg`](https://github.com/TrentiStefano/pi-crust/releases/latest) | Drag to `/Applications` |
+| **Linux** | `x64` (Debian / Ubuntu) | [`Pi-Crust-…-linux-amd64.deb`](https://github.com/TrentiStefano/pi-crust/releases/latest) | `sudo apt install ./Pi-Crust-…deb` |
+
+> [!NOTE]
+> Installers bundle the GUI app and the runtime daemon (`pi-agentd`) with an embedded Node.js environment.  
+> You only need to ensure the official `pi` CLI is installed on your system.
+
+### Prerequisites
+
+1. **Install Pi CLI** (if not already installed):
+   ```bash
+   npm install -g @earendil-works/pi-coding-agent
+   ```
+2. Verify `pi` is accessible from your terminal:
+   ```bash
+   pi --version
+   ```
+
+---
+
+## 🛠 Building from Source
+
+### 1. Clone & Install Dependencies
+```bash
+# Clone the repository
+git clone https://github.com/TrentiStefano/pi-crust.git
+cd pi-crust
+
+# Install monorepo dependencies
+pnpm install
+
+# Build protocol packages and daemon bundle
+pnpm build:all
+```
+
+### 2. Start the Daemon (`pi-agentd`)
+```bash
+# Production mode (connects to your real 'pi' CLI)
+pnpm run:daemon
+
+# Or local development mode (no LLM API key needed, uses fake-pi)
+# On Windows PowerShell:
+$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
+
+# On macOS / Linux:
+PI_CRUST_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
+```
+
+### 3. Run the Flutter App
+```bash
+cd apps/pi_crust
+
+# Run natively on your desktop platform:
+flutter run -d windows   # or 'macos' / 'linux'
+
+# Or build for web (served via daemon origin):
+flutter build web --no-web-resources-cdn
+```
+
+---
+
+## 🏗 Architecture & Decoupling
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
@@ -62,194 +197,63 @@ Installers include the Pi-Crust app, `pi-agentd`, and bundled Node.js runtime. I
         (Source of truth of history — owned exclusively by Pi)
 ```
 
-### Decoupling Rules
-1. **Pi-Crust (Flutter):** Manages user experience, state reduction, layout, themes, and commands. Knows nothing about child processes, stdio streams, or JSONL files.
-2. **pi-agentd (Daemon):** Manages process lifecycles, Pi RPC communication, session registries, event replay, git status, and authentication. Knows nothing about widgets or UI layout.
-3. **Pi (`pi-coding-agent`):** Manages agent intelligence, tools, models, extensions, and session persistence. Completely unaware that Pi-Crust exists.
-
----
-
-## ✨ Features
-
-- **🛡 Disconnect-Safe & Background Execution:** Close the window anytime while Pi is working on large refactors. The daemon buffers the stream into a monotonic event journal. Reopen the GUI, and the session catches up instantly without gaps or duplicate events.
-- **💬 Rich Streaming Transcript:**
-  - Token-level text streaming with sub-100ms latency.
-  - Collapsible **Thinking / Reasoning** blocks with live step streaming.
-  - Syntax-highlighted code blocks with language badge and one-click copy.
-  - Inline unified **Diff Viewer** for file modifications.
-  - Interactive **Tool Cards** showing tool execution status, parameters, output, and execution duration.
-- **🌲 Multi-Session Management & Visual Branching:**
-  - Fast search and filtering across sessions (Active, Repository, All).
-  - Visual **Session Tree** dialog inspecting turns, forks, and branches.
-  - **Fork ("Riparti da qui")** from any turn or user prompt, and session cloning.
-- **🔍 Workspace & Git Insights:**
-  - Real-time Git status indicator (branch, clean/dirty state, line additions and deletions).
-  - Modified files list with status badges (`M`, `A`, `D`, `?`).
-  - Click-to-inspect full file diff modal dialog.
-- **🎨 Extensible JSON Theme Engine (`pi_crust_theme`):**
-  - Ships with bundled high-contrast Dark and Light themes (`crust-dark`, `crust-light`).
-  - Supports custom user themes placed in `~/.pi-crust/themes/` with inheritance (`extends`), cyclic dependency validation, and live hot-reload.
-  - Strict WCAG AA contrast compliance and zero hard-coded widget colors.
-- **🧩 Interactive Extension Dialogs:**
-  - Supports Pi extension UI dialogs (`select`, `confirm`, `input`, `editor`).
-  - Server-side **Claim/Lease Broker** prevents multiple open GUI windows from submitting conflicting responses to the same prompt.
-- **🔒 Privacy & Security First:**
-  - Strictly bound to loopback `127.0.0.1`.
-  - 256-bit cryptographically random authentication tokens with constant-time verification.
-  - Strict HTTP Origin allowlist and Content Security Policy (CSP).
-  - **Zero Remote Telemetry:** No analytics SDKs, no external tracking, no outbound network requests outside loopback. Diagnostic bundles redact all secrets before export.
-
----
-
-## 📋 Prerequisites
-
-Before building or running Pi-Crust, ensure the following are installed on your machine:
-
-1. **Pi CLI:** Install `@earendil-works/pi-coding-agent` globally and keep `pi` on `PATH`. Pi-Crust installers bundle Node.js for the daemon; installing Pi via npm still requires Node.js/npm.
-2. **From source only:** Flutter `3.47.2` or later, Dart `>= 3.13.2`, Node.js `>= 22.19.0`, pnpm `>= 9.0.0`, and platform desktop build tools.
-3. **Windows source builds:** Visual Studio with the **Desktop development with C++** workload. Downloaded Windows installers need no build tools.
-
----
-
-## 🚀 Quick Start (Development Mode)
-
-### 1. Install Dependencies & Build Packages
-Clone the repository and install all monorepo dependencies:
-```bash
-# Clone repository
-git clone https://github.com/TrentiStefano/pi-crust.git
-cd pi-crust
-
-# Install Node dependencies
-pnpm install
-
-# Build TypeScript protocol packages
-pnpm build:all
-```
-
-### 2. Start the Daemon (`pi-agentd`)
-In a terminal, start the daemon:
-```bash
-# Option A: Standard mode (uses installed 'pi' CLI)
-pnpm run:daemon
-
-# Option B: Development mode using fake-pi (no LLM key needed)
-# On Windows PowerShell:
-$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
-
-# On Linux/macOS:
-PI_CRUST_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
-```
-The daemon will initialize `~/.pi-crust/runtime/`, write `daemon.json` and `daemon.token`, and start listening on `127.0.0.1`.
-
-### 3. Launch the Flutter GUI
-In a separate terminal, run Pi-Crust:
-```bash
-cd apps/pi_crust
-
-# Run as Windows Desktop app:
-flutter run -d windows
-
-# Build the Web application with local renderer assets:
-flutter build web --no-web-resources-cdn
-```
-
-For Web, serve the build from the daemon's own origin. From the repository root, start the daemon with:
-```powershell
-$env:PI_CRUST_WEB_DIR = "$PWD/apps/pi_crust/build/web"
-pnpm run:daemon
-```
-On Linux/macOS, use `PI_CRUST_WEB_DIR="$PWD/apps/pi_crust/build/web" pnpm run:daemon`.
-Open `http://127.0.0.1:<port>/`, using the port printed by the daemon. A separate `flutter run -d chrome` server cannot discover native runtime files.
-
-### Existing terminal sessions
-The sidebar indexes Pi session files and hides sessions whose project path is inside the OS temporary directory.
-Closed sessions open directly in Pi-Crust and continue in the original Pi session file.
-Pi does not expose the exact session selected by an already-running terminal process. Pi-Crust detects explicit session arguments and treats other Pi processes in the same project as ambiguous.
-Ambiguous sessions stay read-only until you confirm that the terminal is not using that session. Use **Duplica e continua** to avoid shared writes.
-The **Gestite** filter shows daemon-managed sessions. It does not list live terminal processes.
-The model picker applies Pi's global `enabledModels` setting and Pi's authenticated-model list.
-Set `PI_CODING_AGENT_SESSION_DIR` on the daemon to index a custom session directory.
-
----
-
-## 🛠 Building from Source
-
-Build the daemon and Flutter desktop app for your current OS:
-
-```bash
-pnpm install
-pnpm --filter @pi-crust/agentd run build:bundle
-cd apps/pi_crust
-flutter build windows --release # or macos / linux
-```
-
-Release Please derives SemVer and updates `package.json`, the Flutter `pubspec.yaml`, daemon version, app version, and `CHANGELOG.md`. Merge its release PR to run `.github/workflows/release.yml` and publish installers. The daemon bundle and Node.js runtime are placed beside the app so it can start the daemon without a separate Node installation. The daemon starts on demand; it is not installed as a persistent OS service. Pi CLI is still required.
+| Layer | Responsibility | Isolation Guarantee |
+| :--- | :--- | :--- |
+| **Pi-Crust (Flutter)** | UI presentation, Bento triptych layout, state reduction, animations, and theme engine. | Knows **nothing** about child processes, stdio streams, or raw session files. |
+| **pi-agentd (Daemon)** | Process supervisor, monotonic event journal, session reconnect replay, Git diff client, and RPC bridge. | Knows **nothing** about Flutter widgets or layout logic. |
+| **Pi (`pi-coding-agent`)** | LLM orchestrator, model execution, tool invocation, and file system modifications. | Unaware that Pi-Crust exists; operates as a standard headless RPC worker. |
 
 ---
 
 ## 🧪 Testing & Verification
 
-Pi-Crust maintains a rigorous automated testing matrix across all packages:
+Pi-Crust enforces 100% test passing across Dart, TypeScript, and protocol specifications:
 
 ```bash
-# Run all unit, contract, security, and Flutter tests:
+# Run all unit, contract, security, and Flutter tests
 pnpm test
 
-# Run End-to-End and Fault Injection test suites:
+# Run Flutter tests directly
+cd apps/pi_crust
+flutter test
+
+# Run End-to-End fault injection test suites
 pnpm test:e2e
 
-# Exercise the installed real Pi CLI with an isolated, loopback mock model:
-# No real LLM calls or changes to existing Pi sessions.
+# Smoke test with real Pi CLI over loopback mock model
 pnpm smoke:real-pi
-
-# Run Flutter static analysis:
-cd apps/pi_crust
-flutter analyze
 ```
-
-### Test Suites Breakdown:
-- **`apps/agentd`:** Unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
-- **`apps/pi_crust`:** Widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
-- **`packages/pi_crust_protocol`:** 4 contract serialization & forward compatibility tests.
-- **`packages/pi_crust_theme`:** 7 theme parsing, inheritance, and cycle detection tests.
-- **`test/e2e`:** 4 end-to-end integration tests, including:
-  - **M1 Proof of Architecture:** Disconnecting GUI mid-stream does not interrupt Pi; reconnected client catches up cleanly.
-  - **Fault Injection:** Duplicate frame delivery, corrupted frames, and abrupt WebSocket drops.
 
 ---
 
-## 📂 Repository Structure
+## 📂 Repository Layout
 
 ```text
 pi-crust/
 ├── apps/
 │   ├── pi_crust/                 # Flutter application (Windows, macOS, Linux, Web)
-│   │   ├── lib/                  # App shell, state reducers, UI features
-│   │   ├── assets/themes/        # Bundled official themes (crust-dark, crust-light)
-│   │   └── test/                 # Widget, smoke, and lint tests
-│   └── agentd/                   # Node.js / TypeScript persistent daemon
-│       ├── src/server/           # HTTP/WS server, token auth, static SPA server
+│   │   ├── lib/                  # App shell, Bento workspace, syntax highlighter, composer
+│   │   ├── assets/themes/        # Bundled Catppuccin themes (crust-dark, crust-light)
+│   │   └── test/                 # 87+ widget, stress, layout, and lint tests
+│   └── agentd/                   # Persistent Node.js/TypeScript daemon
+│       ├── src/server/           # HTTP/WebSocket server, token auth, static SPA host
 │       ├── src/sessions/         # Session registry, supervisor, indexer
-│       ├── src/journal/          # Monotonic event journal, buffer, snapshot
+│       ├── src/journal/          # Monotonic event journal, buffer, snapshot generator
 │       ├── src/workspace/        # WorkspaceService, read-only Git client
-│       └── src/ui/               # UiRequestBroker (claim/lease management)
+│       └── src/ui/               # UiRequestBroker (claim/lease broker)
 ├── packages/
-│   ├── pcp-spec/                 # Source of truth: PCP/1 protocol specification & JSON Schemas
+│   ├── pcp-spec/                 # PCP/1 protocol specification & JSON Schemas
 │   ├── pcp-ts/                   # Generated TypeScript types & validators
 │   ├── pi_crust_protocol/        # Generated Dart types & codec for Flutter
 │   └── pi_crust_theme/           # Dart theme engine with JSON inheritance & hot-reload
-├── tools/
-│   ├── fake-pi/                  # Scriptable mock Pi RPC server for testing
-│   ├── fault-proxy/              # WebSocket proxy for network fault injection
-│   └── codegen/                  # JSON Schema -> TypeScript & Dart code generator
-├── test/e2e/                     # Cross-component end-to-end test scenarios
 ├── docs/                         # Architecture, Security baseline, ADRs, Installation guides
-└── themes/                       # Source theme definitions and JSON schemas
+│   └── design-evidence/         # High-res UI fixtures, showcase videos, and icon assets
+├── tools/                        # fake-pi mock server, fault-proxy, codegen scripts
+└── test/e2e/                     # Cross-component end-to-end integration tests
 ```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is open-source and available under the [MIT License](LICENSE).

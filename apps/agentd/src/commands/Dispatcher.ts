@@ -433,7 +433,13 @@ export class Dispatcher {
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_available_models' });
         const models = Array.isArray(res.data?.models) ? res.data.models : [];
-        return { ...res.data, models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns()) };
+        const session = this.registry.getSession(sessionId);
+        return {
+          ...res.data,
+          currentModel: session?.model,
+          currentThinkingLevel: session?.thinkingLevel,
+          models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns())
+        };
       }
 
       case 'agent.setThinkingLevel': {

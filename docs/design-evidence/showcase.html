@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pi-Crust — Live Interactive UI & Animation Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Catppuccin Frappé (Dark Theme) */
+      --bg: #232634;
+      --card-bg: #292c3c;
+      --surface: #303446;
+      --surface-hover: #414559;
+      --border: #51576d;
+      --border-subtle: #414559;
+      --text: #c6d0f5;
+      --text-muted: #a5adce;
+      --text-dim: #737994;
+      --accent: #ca9ee6; /* Mauve */
+      --accent-glow: rgba(202, 158, 230, 0.25);
+      --accent-soft: rgba(202, 158, 230, 0.12);
+      --success: #a6d189; /* Green */
+      --warning: #e5c890; /* Yellow */
+      --error: #e78284;   /* Red */
+      --blue: #8caaee;
+      --font-ui: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body.theme-latte {
+      /* Catppuccin Latte (Light Theme) */
+      --bg: #dce0e8;
+      --card-bg: #eff1f5;
+      --surface: #e6e9ef;
+      --surface-hover: #ccd0da;
+      --border: #bcc0cc;
+      --border-subtle: #ccd0da;
+      --text: #4c4f69;
+      --text-muted: #6c6f85;
+      --text-dim: #8c8fa1;
+      --accent: #8839ef;
+      --accent-glow: rgba(136, 57, 239, 0.25);
+      --accent-soft: rgba(136, 57, 239, 0.12);
+      --success: #40a02b;
+      --warning: #df8e1d;
+      --error: #d20f39;
+      --blue: #1e66f5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* Top App Titlebar */
+    .app-titlebar {
+      height: 48px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .brand-name {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-status {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 2px 7px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-dot-pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse-glow 2s infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .titlebar-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      font-size: 12px;
+    }
+
+    .titlebar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-header {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-header:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Main Bento Workspace */
+    .bento-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr 340px;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 48px);
+      overflow: hidden;
+    }
+
+    .bento-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      position: relative;
+    }
+
+    .panel-header {
+      height: 42px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Left: Repository & Code */
+    .repo-file-tree {
+      height: 140px;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-y: auto;
+      padding: 8px 6px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+
+    .tree-item {
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background 0.15s;
+    }
+    .tree-item:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+    .tree-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Search Bar in Code Editor */
+    .code-search-overlay {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slide-down {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 4px 8px;
+      gap: 6px;
+    }
+
+    .search-input {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      width: 100%;
+      outline: none;
+    }
+
+    .search-badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .search-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .search-btn:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+
+    .code-editor-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.6;
+      background: var(--card-bg);
+    }
+
+    .code-line {
+      display: flex;
+      gap: 14px;
+    }
+    .line-num {
+      color: var(--text-dim);
+      width: 24px;
+      text-align: right;
+      user-select: none;
+    }
+    .line-text {
+      flex: 1;
+      white-space: pre;
+    }
+    .kw { color: #ca9ee6; font-weight: 600; }
+    .fn { color: #8caaee; }
+    .str { color: #a6d189; }
+    .comm { color: #737994; font-style: italic; }
+    .highlight-match {
+      background: rgba(229, 200, 144, 0.35);
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+    .highlight-active {
+      background: var(--accent);
+      color: #232634;
+      font-weight: 700;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    /* Center: Chat & Transcript */
+    .transcript-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .session-info-strip {
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .meta-pills {
+      display: flex;
+      gap: 8px;
+    }
+    .pill {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .pill.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Thinking Block */
+    .thinking-card {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .thinking-header {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .thinking-header:hover {
+      background: var(--surface-hover);
+    }
+    .thinking-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+    }
+    .thinking-body {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-subtle);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      background: rgba(0,0,0,0.15);
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    /* Message Bubbles */
+    .msg-user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: #232634;
+      padding: 10px 14px;
+      border-radius: 12px 12px 2px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      max-width: 80%;
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .msg-assistant {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      padding: 12px 16px;
+      border-radius: 12px 12px 12px 2px;
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 95%;
+    }
+
+    /* Tool Card */
+    .tool-card {
+      border: 1px solid var(--border-subtle);
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+    .tool-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .tool-name {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tool-status {
+      font-size: 10.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(166, 209, 137, 0.15);
+      color: var(--success);
+      font-family: var(--font-mono);
+    }
+
+    /* Composer Area */
+    .composer-container {
+      border-top: 1px solid var(--border-subtle);
+      background: var(--card-bg);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Steer Queue Banner */
+    .steer-queue-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .steer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .steer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .steer-item-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+      color: var(--text);
+    }
+
+    .steer-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-steer-action {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-steer-action:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .composer-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .composer-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .composer-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    .btn-send {
+      background: var(--accent);
+      color: #232634;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      padding: 0 16px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn-send:hover {
+      opacity: 0.9;
+    }
+    .btn-send:active {
+      transform: scale(0.96);
+    }
+
+    /* Right: Git Changes & Diffs */
+    .git-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .git-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .git-file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--surface);
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .git-file-row:hover {
+      background: var(--surface-hover);
+      border-color: var(--border);
+    }
+    .git-file-row.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .git-status-badge {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .badge-m { background: rgba(229, 200, 144, 0.2); color: var(--warning); }
+    .badge-a { background: rgba(166, 209, 137, 0.2); color: var(--success); }
+
+    .git-diff-preview {
+      height: 180px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--card-bg);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      overflow-y: auto;
+      padding: 10px;
+      line-height: 1.5;
+    }
+
+    .diff-add {
+      background: rgba(166, 209, 137, 0.15);
+      color: var(--success);
+      padding: 1px 4px;
+    }
+    .diff-del {
+      background: rgba(231, 130, 132, 0.15);
+      color: var(--error);
+      padding: 1px 4px;
+    }
+
+    /* Modal dialog simulation for steer editing */
+    .modal-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--card-bg);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      width: 440px;
+      padding: 20px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: modal-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes modal-pop {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-weight: 700;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+    }
+
+    .modal-textarea {
+      width: 100%;
+      height: 80px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      resize: none;
+      outline: none;
+    }
+    .modal-textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #232634;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation / Titlebar -->
+  <header class="app-titlebar">
+    <div class="titlebar-left">
+      <img src="icons/pi-crust-dark-1024.png" id="appIcon" class="brand-icon" alt="Pi-Crust Icon">
+      <span class="brand-name">
+        Pi-Crust
+        <span class="badge-status">
+          <span class="status-dot-pulse"></span>
+          DAEMON CONNECTED
+        </span>
+      </span>
+    </div>
+
+    <div class="titlebar-center">
+      <span style="color: var(--text-dim);">Workspace:</span>
+      <strong style="color: var(--text);">pi-crust/apps/pi_crust</strong>
+      <span style="color: var(--border);">·</span>
+      <span style="color: var(--blue);">git:(UI_improvements)</span>
+    </div>
+
+    <div class="titlebar-right">
+      <button class="btn-header" id="themeToggleBtn" onclick="toggleTheme()">
+        <span id="themeIcon">☀️</span> Latte Theme
+      </button>
+      <button class="btn-header" style="background: var(--accent-soft); color: var(--accent); border-color: var(--accent);">
+        🥧 v0.1.0-beta
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Bento 3-Pane Layout -->
+  <main class="bento-workspace">
+
+    <!-- PANE 1: Repository & Code Editor with Syntax Highlighting & Search -->
+    <section class="bento-panel">
+      <div class="panel-header">
+        <span class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+          Repository Files
+        </span>
+        <button class="btn-header" id="searchTriggerBtn" onclick="toggleSearch()" style="padding: 4px 8px; font-size: 11px;">
+          🔍 Ctrl+F
+        </button>
+      </div>
+
+      <!-- File Browser Tree -->
+      <div class="repo-file-tree">
+        <div class="tree-item active" onclick="selectFile('code_editor_controller.dart')">
+          📄 code_editor_controller.dart
+        </div>
+        <div class="tree-item" onclick="selectFile('repository_workspace.dart')">
+          📄 repository_workspace.dart
+        </div>
+        <div class="tree-item" onclick="selectFile('thinking_block.dart')">
+          📄 thinking_block.dart
+        </div>
+        <div class="tree-item" onclick="selectFile('composer.dart')">
+          📄 composer.dart
+        </div>
+        <div class="tree-item" onclick="selectFile('daemon_providers.dart')">
+          📄 daemon_providers.dart
+        </div>
+      </div>
+
+      <!-- Ctrl+F In-File Search Overlay Bar -->
+      <div class="code-search-overlay" id="searchOverlay">
+        <div class="search-input-wrap">
+          <span>🔍</span>
+          <input type="text" class="search-input" id="searchQuery" value="highlightLine" placeholder="Trova nel file...">
+          <span class="search-badge" id="searchBadge">1 di 3</span>
+        </div>
+        <button class="search-btn" onclick="cycleMatch(-1)" title="Precedente">▲</button>
+        <button class="search-btn" onclick="cycleMatch(1)" title="Successivo">▼</button>
+        <button class="search-btn" onclick="toggleSearch()" title="Chiudi (Esc)">✕</button>
+      </div>
+
+      <!-- Syntax-Highlighted Code Editor View -->
+      <div class="code-editor-area" id="codeEditorArea">
+        <div class="code-line"><span class="line-num">1</span><span class="line-text"><span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;</span></div>
+        <div class="code-line"><span class="line-num">2</span><span class="line-text"><span class="kw">import</span> <span class="str">'package:pi_crust/ui/code/syntax_highlighter.dart'</span>;</span></div>
+        <div class="code-line"><span class="line-num">3</span><span class="line-text"></span></div>
+        <div class="code-line"><span class="line-num">4</span><span class="line-text"><span class="comm">/// Dynamic code controller with syntax & search highlighting.</span></span></div>
+        <div class="code-line"><span class="line-num">5</span><span class="line-text"><span class="kw">class</span> <span class="fn">CodeEditorController</span> <span class="kw">extends</span> TextEditingController {</span></div>
+        <div class="code-line"><span class="line-num">6</span><span class="line-text">  String? searchQuery;</span></div>
+        <div class="code-line"><span class="line-num">7</span><span class="line-text">  <span class="kw">int</span> activeMatchIndex = <span class="str">0</span>;</span></div>
+        <div class="code-line"><span class="line-num">8</span><span class="line-text"></span></div>
+        <div class="code-line"><span class="line-num">9</span><span class="line-text">  <span class="kw">void</span> <span class="fn">applySearch</span>(String query) {</span></div>
+        <div class="code-line"><span class="line-num">10</span><span class="line-text">    searchQuery = query;</span></div>
+        <div class="code-line"><span class="line-num">11</span><span class="line-text">    <span class="fn">highlightLine</span>(query); <span class="highlight-active">highlightLine</span></span></div>
+        <div class="code-line"><span class="line-num">12</span><span class="line-text">    notifyListeners();</span></div>
+        <div class="code-line"><span class="line-num">13</span><span class="line-text">  }</span></div>
+        <div class="code-line"><span class="line-num">14</span><span class="line-text"></span></div>
+        <div class="code-line"><span class="line-num">15</span><span class="line-text">  <span class="kw">void</span> <span class="highlight-match">highlightLine</span>(<span class="kw">final</span> String pattern) {</span></div>
+        <div class="code-line"><span class="line-num">16</span><span class="line-text">    <span class="comm">// Sub-pixel text rendering with token colors</span></span></div>
+        <div class="code-line"><span class="line-num">17</span><span class="line-text">    <span class="kw">return</span> SyntaxHighlighter.<span class="fn">highlight</span>(pattern);</span></div>
+        <div class="code-line"><span class="line-num">18</span><span class="line-text">  }</span></div>
+        <div class="code-line"><span class="line-num">19</span><span class="line-text">}</span></div>
+      </div>
+    </section>
+
+    <!-- PANE 2: Active Pi Chat Session & Steer Message Modification -->
+    <section class="bento-panel" style="grid-column: 2;">
+      <div class="panel-header">
+        <span class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Active Session: #ui-redesign
+        </span>
+        <div class="meta-pills">
+          <span class="pill active">claude-3-7-sonnet</span>
+          <span class="pill">effort: high</span>
+          <span class="pill">tokens: 42.1k / 200k</span>
+        </div>
+      </div>
+
+      <!-- Transcript Messages -->
+      <div class="transcript-scroll">
+        <!-- User prompt -->
+        <div class="msg-user">
+          Implement syntax highlighting in the repo file viewer, add in-file Ctrl+F search, and allow editing queued steer messages!
+        </div>
+
+        <!-- Collapsible Thinking Block -->
+        <div class="thinking-card" id="thinkingBlock">
+          <div class="thinking-header" onclick="toggleThinking()">
+            <span class="thinking-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+              Thinking Process · 14.2s
+            </span>
+            <span id="thinkingChevron" style="color: var(--text-dim); transition: transform 0.2s;">▲ Nascondi</span>
+          </div>
+          <div class="thinking-body" id="thinkingContent">
+            1. Investigated SessionStateNotifier for default model and thinking effort.<br>
+            2. Created CodeEditorController with SyntaxHighlighter and search match spans.<br>
+            3. Integrated Ctrl+F overlay with instant match cycling in RepositoryWorkspace.<br>
+            4. Upgraded Composer queue bar into an interactive steer message management desk.
+          </div>
+        </div>
+
+        <!-- Tool Execution Card -->
+        <div class="tool-card">
+          <div class="tool-header">
+            <span class="tool-name">
+              ⚡ Tool: flutter test test/code_editor_and_search_test.dart
+            </span>
+            <span class="tool-status">✓ SUCCESS (4.1s)</span>
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+            00:04 +5: All tests passed!
+          </div>
+        </div>
+
+        <!-- Assistant Reply -->
+        <div class="msg-assistant">
+          I've implemented syntax highlighting, Ctrl+F in-file search with match indicators, and direct in-queue editing for steer messages. Everything is fully covered by automated regression tests!
+        </div>
+      </div>
+
+      <!-- Composer & Steer Message Queue -->
+      <div class="composer-container">
+        <!-- Editable Steer Message in Queue -->
+        <div class="steer-queue-box" id="steerQueueBox">
+          <div class="steer-header">
+            <span>Messaggi in coda (1)</span>
+            <span style="font-size: 10px; color: var(--text-dim);">STEER STREAMING</span>
+          </div>
+          <div class="steer-item">
+            <span class="badge-status" style="font-size: 9.5px; padding: 1px 5px;">STEER #1</span>
+            <span class="steer-item-text" id="steerPreviewText">Assicurati che Ctrl+F supporti anche match case-sensitive</span>
+            <div class="steer-actions">
+              <button class="btn-steer-action" onclick="openSteerModal()" title="Modifica messaggio">✏️ Modifica</button>
+              <button class="btn-steer-action" onclick="deleteSteer()" title="Elimina dalla coda">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Box -->
+        <div class="composer-input-row">
+          <input type="text" class="composer-input" placeholder="Invia un messaggio o impartisci una direttiva (Steer)..." value="">
+          <button class="btn-send">Invia</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANE 3: Git Changes & Visual Diff -->
+    <section class="bento-panel">
+      <div class="panel-header">
+        <span class="panel-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg>
+          Git Changes
+        </span>
+        <button class="btn-header" style="padding: 4px 8px; font-size: 11px; color: var(--success); border-color: var(--success);">
+          + Stage All
+        </button>
+      </div>
+
+      <!-- Modified Files List -->
+      <div class="git-list">
+        <div class="git-section-title">Modificati (4)</div>
+        <div class="git-file-row active">
+          <span>code_editor_controller.dart</span>
+          <span class="git-status-badge badge-a">+128</span>
+        </div>
+        <div class="git-file-row">
+          <span>repository_workspace.dart</span>
+          <span class="git-status-badge badge-m">M (+42 -6)</span>
+        </div>
+        <div class="git-file-row">
+          <span>composer.dart</span>
+          <span class="git-status-badge badge-m">M (+88 -14)</span>
+        </div>
+        <div class="git-file-row">
+          <span>daemon_providers.dart</span>
+          <span class="git-status-badge badge-m">M (+36 -2)</span>
+        </div>
+      </div>
+
+      <!-- Realtime Diff Preview -->
+      <div class="git-diff-preview">
+        <div style="color: var(--text-dim); margin-bottom: 4px;">@@ -14,6 +14,12 @@</div>
+        <div class="diff-del">- void openSearch() {}</div>
+        <div class="diff-add">+ void openSearch(String query) {</div>
+        <div class="diff-add">+   _editor.applySearch(query);</div>
+        <div class="diff-add">+   _showSearchOverlay = true;</div>
+        <div class="diff-add">+ }</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Interactive Modal for Editing Queued Steer Message -->
+  <div class="modal-overlay" id="steerModal">
+    <div class="modal-card">
+      <div class="modal-title">
+        ✏️ Modifica Messaggio in Coda (Steer #1)
+      </div>
+      <textarea class="modal-textarea" id="steerModalInput">Assicurati che Ctrl+F supporti anche match case-sensitive</textarea>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeSteerModal()">Annulla</button>
+        <button class="btn-primary" onclick="saveSteerModal()">Salva e Aggiorna Coda</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Theme toggle
+    function toggleTheme() {
+      const isLatte = document.body.classList.toggle('theme-latte');
+      document.getElementById('themeIcon').textContent = isLatte ? '🌙' : '☀️';
+      document.getElementById('themeToggleBtn').innerHTML = isLatte ? '<span>🌙</span> Frappé Theme' : '<span>☀️</span> Latte Theme';
+      document.getElementById('appIcon').src = isLatte ? 'icons/pi-crust-light-1024.png' : 'icons/pi-crust-dark-1024.png';
+    }
+
+    // Thinking Block Toggle
+    let thinkingOpen = true;
+    function toggleThinking() {
+      thinkingOpen = !thinkingOpen;
+      const content = document.getElementById('thinkingContent');
+      const chevron = document.getElementById('thinkingChevron');
+      if (thinkingOpen) {
+        content.style.display = 'block';
+        chevron.textContent = '▲ Nascondi';
+      } else {
+        content.style.display = 'none';
+        chevron.textContent = '▼ Mostra (14.2s)';
+      }
+    }
+
+    // Search overlay toggle & cycling
+    let searchOpen = true;
+    let matchIndex = 1;
+    function toggleSearch() {
+      searchOpen = !searchOpen;
+      document.getElementById('searchOverlay').style.display = searchOpen ? 'flex' : 'none';
+    }
+
+    function cycleMatch(delta) {
+      matchIndex += delta;
+      if (matchIndex > 3) matchIndex = 1;
+      if (matchIndex < 1) matchIndex = 3;
+      document.getElementById('searchBadge').textContent = `${matchIndex} di 3`;
+    }
+
+    // Steer Queue management
+    function openSteerModal() {
+      document.getElementById('steerModal').classList.add('active');
+      document.getElementById('steerModalInput').focus();
+    }
+
+    function closeSteerModal() {
+      document.getElementById('steerModal').classList.remove('active');
+    }
+
+    function saveSteerModal() {
+      const newText = document.getElementById('steerModalInput').value;
+      document.getElementById('steerPreviewText').textContent = newText;
+      closeSteerModal();
+    }
+
+    function deleteSteer() {
+      document.getElementById('steerQueueBox').style.display = 'none';
+    }
+
+    function selectFile(name) {
+      document.querySelectorAll('.tree-item').forEach(el => {
+        el.classList.toggle('active', el.textContent.includes(name));
+      });
+    }
+  </script>
+</body>
+</html>

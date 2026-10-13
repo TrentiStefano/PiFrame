@@ -8,6 +8,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import '../composer/composer_draft.dart';
+import '../../ui/code/code_editor_controller.dart';
 import '../../ui/code/diff_block.dart';
 
 enum WorkspacePane { chat, repository, git }
@@ -494,14 +495,126 @@ class RepositoryPane extends ConsumerStatefulWidget {
 }
 
 class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
-  final _editor = TextEditingController();
+  CodeEditorController? _editor;
   String? _editorPath;
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  bool _showFileSearch = false;
+  final _fileSearchQueryController = TextEditingController();
+  final _fileSearchFocusNode = FocusNode();
+  final _editorFocusNode = FocusNode();
+  bool _fileSearchCaseSensitive = false;
+  int _fileSearchCurrentIndex = 0;
+  List<TextRange> _fileSearchMatches = const [];
+
+  CodeEditorController _ensureEditor(CrustTokens tokens) {
+    if (_editor == null) {
+      _editor = CodeEditorController(tokens: tokens, filePath: _editorPath);
+    } else {
+      _editor!.tokens = tokens;
+    }
+    return _editor!;
+  }
+
+  void _onFileSearchQueryChanged() {
+    _updateFileSearch();
+  }
+
+  void _openFileSearch() {
+    setState(() {
+      _showFileSearch = true;
+      if (_editor != null &&
+          _editor!.selection.isValid &&
+          !_editor!.selection.isCollapsed) {
+        final start = _editor!.selection.start;
+        final end = _editor!.selection.end;
+        if (start < end && end <= _editor!.text.length) {
+          final selectedText = _editor!.text.substring(start, end);
+          if (selectedText.isNotEmpty && !selectedText.contains('\n')) {
+            _fileSearchQueryController.text = selectedText;
+          }
+        }
+      }
+    });
+    _updateFileSearch();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _fileSearchFocusNode.requestFocus();
+        _fileSearchQueryController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _fileSearchQueryController.text.length,
+        );
+      }
+    });
+  }
+
+  void _closeFileSearch() {
+    setState(() {
+      _showFileSearch = false;
+      _editor?.searchQuery = '';
+      _fileSearchMatches = const [];
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _editorFocusNode.requestFocus();
+    });
+  }
+
+  void _updateFileSearch() {
+    if (_editor == null) return;
+    final query = _fileSearchQueryController.text;
+    _editor!.searchQuery = query;
+    _editor!.caseSensitive = _fileSearchCaseSensitive;
+    final matches = _editor!.findMatches();
+    setState(() {
+      _fileSearchMatches = matches;
+      if (matches.isEmpty) {
+        _fileSearchCurrentIndex = 0;
+        _editor!.currentMatchIndex = 0;
+      } else {
+        if (_fileSearchCurrentIndex >= matches.length) {
+          _fileSearchCurrentIndex = 0;
+        }
+        _editor!.currentMatchIndex = _fileSearchCurrentIndex;
+        _jumpToMatch(_fileSearchCurrentIndex);
+      }
+    });
+  }
+
+  void _nextFileSearchMatch() {
+    if (_fileSearchMatches.isEmpty || _editor == null) return;
+    setState(() {
+      _fileSearchCurrentIndex =
+          (_fileSearchCurrentIndex + 1) % _fileSearchMatches.length;
+      _editor!.currentMatchIndex = _fileSearchCurrentIndex;
+      _jumpToMatch(_fileSearchCurrentIndex);
+    });
+  }
+
+  void _prevFileSearchMatch() {
+    if (_fileSearchMatches.isEmpty || _editor == null) return;
+    setState(() {
+      _fileSearchCurrentIndex =
+          (_fileSearchCurrentIndex - 1 + _fileSearchMatches.length) %
+              _fileSearchMatches.length;
+      _editor!.currentMatchIndex = _fileSearchCurrentIndex;
+      _jumpToMatch(_fileSearchCurrentIndex);
+    });
+  }
+
+  void _jumpToMatch(int index) {
+    if (_editor == null || index < 0 || index >= _fileSearchMatches.length) return;
+    final match = _fileSearchMatches[index];
+    _editor!.selection = TextSelection(
+      baseOffset: match.start,
+      extentOffset: match.end,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _fileSearchQueryController.addListener(_onFileSearchQueryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref
@@ -518,9 +631,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       _cachedRawFiles = null;
       _cachedTreeNodes = const [];
       _editorPath = null;
-      _editor.clear();
+      _editor?.clear();
+      _editor?.filePath = null;
       _searchController.clear();
       _searchQuery = '';
+      _showFileSearch = false;
+      _fileSearchQueryController.clear();
+      _fileSearchMatches = const [];
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -533,7 +650,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
 
   @override
   void dispose() {
-    _editor.dispose();
+    _fileSearchQueryController.removeListener(_onFileSearchQueryChanged);
+    _fileSearchQueryController.dispose();
+    _fileSearchFocusNode.dispose();
+    _editorFocusNode.dispose();
+    _editor?.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -887,6 +1008,17 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               ),
               const SizedBox(width: 4),
               IconButton(
+                key: const ValueKey('repository-editor-search-btn'),
+                tooltip: 'Cerca nel file (Ctrl+F)',
+                onPressed: _openFileSearch,
+                icon: Icon(
+                  Icons.search,
+                  size: 16,
+                  color: _showFileSearch ? tokens.accent : tokens.textMuted,
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
                 tooltip: 'Chiudi file',
                 onPressed: () => ref
                     .read(repositoryStateProvider(widget.sessionId).notifier)
@@ -907,56 +1039,208 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             ),
           ),
         Expanded(
-          child: TextField(
-            key: ValueKey('repository-editor-${widget.sessionId}'),
-            controller: _editor,
-            enabled: !session.readOnly,
-            onChanged: (value) => ref
-                .read(repositoryStateProvider(widget.sessionId).notifier)
-                .edit(path, value),
-            contextMenuBuilder: (context, editorState) {
-              final selection = editorState.textEditingValue.selection;
-              final items = List<ContextMenuButtonItem>.of(
-                editorState.contextMenuButtonItems,
-              );
-              if (selection.isValid && !selection.isCollapsed) {
-                items.add(
-                  ContextMenuButtonItem(
-                    label: 'Aggiungi alla chat',
-                    onPressed: () {
-                      appendCodeSelectionToComposer(
-                        ref,
-                        widget.sessionId,
-                        path,
-                        editorState.textEditingValue.text,
-                        selection,
+          child: Stack(
+            children: [
+              Focus(
+                focusNode: _editorFocusNode,
+                onKeyEvent: (node, event) {
+                  if (event is KeyDownEvent) {
+                    final isControl = HardwareKeyboard.instance.isControlPressed ||
+                        HardwareKeyboard.instance.isMetaPressed;
+                    if (isControl && event.logicalKey == LogicalKeyboardKey.keyF) {
+                      _openFileSearch();
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: TextField(
+                  key: ValueKey('repository-editor-${widget.sessionId}'),
+                  controller: _editor,
+                  enabled: !session.readOnly,
+                  onChanged: (value) => ref
+                      .read(repositoryStateProvider(widget.sessionId).notifier)
+                      .edit(path, value),
+                  contextMenuBuilder: (context, editorState) {
+                    final selection = editorState.textEditingValue.selection;
+                    final items = List<ContextMenuButtonItem>.of(
+                      editorState.contextMenuButtonItems,
+                    );
+                    if (selection.isValid && !selection.isCollapsed) {
+                      items.add(
+                        ContextMenuButtonItem(
+                          label: 'Aggiungi alla chat',
+                          onPressed: () {
+                            appendCodeSelectionToComposer(
+                              ref,
+                              widget.sessionId,
+                              path,
+                              editorState.textEditingValue.text,
+                              selection,
+                            );
+                            editorState.hideToolbar();
+                          },
+                        ),
                       );
-                      editorState.hideToolbar();
-                    },
+                    }
+                    return AdaptiveTextSelectionToolbar.buttonItems(
+                      anchors: editorState.contextMenuAnchors,
+                      buttonItems: items,
+                    );
+                  },
+                  expands: true,
+                  maxLines: null,
+                  minLines: null,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: TextStyle(
+                    fontFamily: tokens.monoFontFamily,
+                    fontSize: 12,
+                    color: tokens.textPrimary,
                   ),
-                );
-              }
-              return AdaptiveTextSelectionToolbar.buttonItems(
-                anchors: editorState.contextMenuAnchors,
-                buttonItems: items,
-              );
-            },
-            expands: true,
-            maxLines: null,
-            minLines: null,
-            textAlignVertical: TextAlignVertical.top,
-            style: TextStyle(
-              fontFamily: tokens.monoFontFamily,
-              fontSize: 12,
-              color: tokens.textPrimary,
-            ),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: tokens.background,
-              contentPadding: const EdgeInsets.all(12),
-              border: InputBorder.none,
-              hintText: writeBlocked ? 'Sola lettura' : 'Contenuto file',
-            ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: tokens.background,
+                    contentPadding: const EdgeInsets.all(12),
+                    border: InputBorder.none,
+                    hintText: writeBlocked ? 'Sola lettura' : 'Contenuto file',
+                  ),
+                ),
+              ),
+              if (_showFileSearch)
+                Positioned(
+                  top: 8,
+                  right: 16,
+                  child: Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.escape) {
+                          _closeFileSearch();
+                          return KeyEventResult.handled;
+                        } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+                            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                          if (HardwareKeyboard.instance.isShiftPressed) {
+                            _prevFileSearchMatch();
+                          } else {
+                            _nextFileSearchMatch();
+                          }
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: Container(
+                      key: const ValueKey('repository-file-search-bar'),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.borderStrong),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tokens.borderStrong.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search, size: 14, color: tokens.textMuted),
+                          const SizedBox(width: 6),
+                          SizedBox(
+                            width: 170,
+                            height: 26,
+                            child: TextField(
+                              key: const ValueKey('repository-file-search-field'),
+                              controller: _fileSearchQueryController,
+                              focusNode: _fileSearchFocusNode,
+                              style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                hintText: 'Cerca nel file...',
+                                hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            ),
+                            child: Text(
+                              _fileSearchQueryController.text.isEmpty
+                                  ? ''
+                                  : _fileSearchMatches.isEmpty
+                                      ? '0 risultati'
+                                      : '${_fileSearchCurrentIndex + 1} di ${_fileSearchMatches.length}',
+                              style: TextStyle(
+                                color: _fileSearchMatches.isEmpty &&
+                                        _fileSearchQueryController.text.isNotEmpty
+                                    ? tokens.danger
+                                    : tokens.textMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            key: const ValueKey('repository-file-search-prev'),
+                            tooltip: 'Precedente (Shift+Enter)',
+                            icon: const Icon(Icons.keyboard_arrow_up, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            onPressed: _fileSearchMatches.isEmpty ? null : _prevFileSearchMatch,
+                          ),
+                          IconButton(
+                            key: const ValueKey('repository-file-search-next'),
+                            tooltip: 'Successivo (Enter)',
+                            icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            onPressed: _fileSearchMatches.isEmpty ? null : _nextFileSearchMatch,
+                          ),
+                          IconButton(
+                            key: const ValueKey('repository-file-search-case'),
+                            tooltip: 'Distingui maiuscole/minuscole',
+                            icon: Text(
+                              'Aa',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _fileSearchCaseSensitive
+                                    ? tokens.accent
+                                    : tokens.textMuted,
+                              ),
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            onPressed: () {
+                              setState(() {
+                                _fileSearchCaseSensitive = !_fileSearchCaseSensitive;
+                              });
+                              _updateFileSearch();
+                            },
+                          ),
+                          IconButton(
+                            key: const ValueKey('repository-file-search-close'),
+                            tooltip: 'Chiudi (Esc)',
+                            icon: const Icon(Icons.close, size: 14),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            onPressed: _closeFileSearch,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -966,6 +1250,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final editor = _ensureEditor(tokens);
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
     final session = ref.watch(sessionStateFamily(widget.sessionId));
 
@@ -994,12 +1279,20 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final buffer = path == null ? null : repo.buffers[path];
     if (path != _editorPath) {
       _editorPath = path;
-      _editor.value = TextEditingValue(text: buffer?.content ?? '');
-    } else if (buffer != null && _editor.text != buffer.content) {
-      _editor.value = TextEditingValue(
+      editor.filePath = path;
+      editor.value = TextEditingValue(text: buffer?.content ?? '');
+      if (_showFileSearch) {
+        _updateFileSearch();
+      }
+    } else if (buffer != null && editor.text != buffer.content) {
+      editor.filePath = path;
+      editor.value = TextEditingValue(
         text: buffer.content,
         selection: TextSelection.collapsed(offset: buffer.content.length),
       );
+      if (_showFileSearch) {
+        _updateFileSearch();
+      }
     }
     final writeBlocked = _sessionWritesBlocked(session);
     final blockReason = session.readOnly

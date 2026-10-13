@@ -92,6 +92,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
       state = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
       unawaited(refreshSessionStats());
+      unawaited(refreshDefaults());
     });
 
     _sub = client!.events(sessionId).listen((event) {
@@ -101,6 +102,77 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
     });
     client!.attach(sessionId);
+    unawaited(refreshDefaults());
+  }
+
+  bool _defaultsLoading = false;
+
+  Future<void> refreshDefaults() async {
+    if (client == null || state.readOnly || _defaultsLoading) return;
+    final needsModel = state.currentModel == null || state.currentModel!.isEmpty;
+    final needsThinking = state.currentThinkingLevel == null || state.currentThinkingLevel!.isEmpty;
+    if (!needsModel && !needsThinking) return;
+
+    _defaultsLoading = true;
+    try {
+      String? resolvedModel = state.currentModel;
+      String? resolvedThinking = state.currentThinkingLevel;
+
+      if (needsModel) {
+        final res = await client!.getAvailableModels(sessionId);
+        final data = res['data'] as Map<String, dynamic>? ?? res;
+        final currentModelRaw = data['currentModel'] ?? data['model'];
+        if (currentModelRaw is Map) {
+          resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])?.toString();
+        } else if (currentModelRaw is String && currentModelRaw.isNotEmpty) {
+          resolvedModel = currentModelRaw;
+        }
+
+        if (resolvedModel == null || resolvedModel.isEmpty) {
+          final models = (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+          final defaultModel = models.firstWhere(
+            (m) => m['isDefault'] == true || m['default'] == true,
+            orElse: () => models.isNotEmpty ? models.first : const {},
+          );
+          if (defaultModel.isNotEmpty) {
+            resolvedModel = (defaultModel['name'] ?? defaultModel['id'])?.toString();
+          }
+        }
+
+        if (data['currentThinkingLevel'] != null && resolvedThinking == null) {
+          resolvedThinking = data['currentThinkingLevel'].toString();
+        }
+      }
+
+      if (resolvedThinking == null || resolvedThinking.isEmpty) {
+        final tRes = await client!.getAvailableThinkingLevels(sessionId);
+        final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
+        final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];
+        if (levelRaw != null) {
+          resolvedThinking = levelRaw.toString();
+        } else {
+          final levels = (tData['levels'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+          if (levels.contains('medium')) {
+            resolvedThinking = 'medium';
+          } else if (levels.isNotEmpty) {
+            resolvedThinking = levels.first;
+          } else {
+            resolvedThinking = 'medium';
+          }
+        }
+      }
+
+      if (mounted && (resolvedModel != null || resolvedThinking != null)) {
+        state = state.copyWith(
+          currentModel: resolvedModel ?? state.currentModel,
+          currentThinkingLevel: resolvedThinking ?? state.currentThinkingLevel,
+        );
+      }
+    } catch (_) {
+      // Daemon may not support getAvailableModels or offline
+    } finally {
+      _defaultsLoading = false;
+    }
   }
 
   Future<void> refreshSessionStats() async {
@@ -150,6 +222,40 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   Future<void> clearQueue() async {
     if (client == null) return;
     await client!.clearQueue(sessionId);
+  }
+
+  Future<void> updateSteerMessage(int index, String newText) async {
+    if (client == null) return;
+    final currentSteering = List<String>.from(state.steeringQueue);
+    final currentFollowUp = List<String>.from(state.followUpQueue);
+    if (index < 0 || index >= currentSteering.length) return;
+
+    await client!.clearQueue(sessionId);
+    currentSteering[index] = newText;
+    for (final msg in currentSteering) {
+      await client!.sendPrompt(sessionId, msg, streamingBehavior: 'steer');
+    }
+    for (final msg in currentFollowUp) {
+      await client!.sendPrompt(sessionId, msg, streamingBehavior: 'followUp');
+    }
+    state = state.copyWith(steeringQueue: currentSteering);
+  }
+
+  Future<void> removeSteerMessage(int index) async {
+    if (client == null) return;
+    final currentSteering = List<String>.from(state.steeringQueue);
+    final currentFollowUp = List<String>.from(state.followUpQueue);
+    if (index < 0 || index >= currentSteering.length) return;
+
+    await client!.clearQueue(sessionId);
+    currentSteering.removeAt(index);
+    for (final msg in currentSteering) {
+      await client!.sendPrompt(sessionId, msg, streamingBehavior: 'steer');
+    }
+    for (final msg in currentFollowUp) {
+      await client!.sendPrompt(sessionId, msg, streamingBehavior: 'followUp');
+    }
+    state = state.copyWith(steeringQueue: currentSteering);
   }
 
   Future<Map<String, dynamic>?> compact() async {

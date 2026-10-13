@@ -29,6 +29,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
 
   Future<void> _loadParams() async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    await notifier.refreshDefaults();
     final models = await notifier.getAvailableModels();
     final levels = await notifier.getAvailableThinkingLevels();
 

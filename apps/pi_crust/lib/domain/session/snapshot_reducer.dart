@@ -75,7 +75,9 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     followUpQueue: (queue['followUp'] as List? ?? []).map((e) => e.toString()).toList(),
     pendingUiRequests: (payload['pendingUiRequests'] as List? ?? []).whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e)).toList(),
-    currentModel: model is Map ? (model['name'] ?? model['id'])?.toString() : null,
+    currentModel: model is Map
+        ? (model['name'] ?? model['id'])?.toString()
+        : (model is String && model.isNotEmpty ? model : null),
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
     usage: Map<String, dynamic>.from(payload['usage'] as Map? ?? {}),
     lastAppliedSeq: seq,

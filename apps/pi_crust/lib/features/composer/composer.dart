@@ -38,6 +38,115 @@ class _ComposerState extends ConsumerState<Composer> {
   int _fileMentionStartIndex = -1;
   int _fileMentionSelectedIndex = 0;
   List<Map<String, dynamic>> _matchingMentionFiles = [];
+  bool _queueExpanded = true;
+
+  Future<void> _showEditSteerDialog(
+    BuildContext context,
+    int index,
+    String initialText,
+  ) async {
+    final tokens = context.tokens;
+    final textController = TextEditingController(text: initialText);
+    final sessionNotifier =
+        ref.read(sessionStateFamily(widget.sessionId).notifier);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          backgroundColor: tokens.surfaceElevated,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            side: BorderSide(color: tokens.borderStrong),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.edit_note, size: 20, color: tokens.accent),
+              const SizedBox(width: 8),
+              Text(
+                'Modifica messaggio in coda (Steer #${index + 1})',
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Modifica il testo del messaggio in coda prima che venga inviato all\'agente:',
+                  style: TextStyle(color: tokens.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  key: const ValueKey('edit-steer-dialog-field'),
+                  controller: textController,
+                  maxLines: 4,
+                  style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: tokens.background,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      borderSide: BorderSide(color: tokens.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      borderSide: BorderSide(color: tokens.accent),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogCtx).pop();
+                sessionNotifier.removeSteerMessage(index);
+                _controller.text = textController.text;
+                _focusNode.requestFocus();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Messaggio caricato nel composer per la modifica'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: Text(
+                'Carica nel composer',
+                style: TextStyle(color: tokens.accent),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: Text(
+                'Annulla',
+                style: TextStyle(color: tokens.textMuted),
+              ),
+            ),
+            FilledButton(
+              key: const ValueKey('edit-steer-dialog-save'),
+              onPressed: () async {
+                final newText = textController.text.trim();
+                Navigator.of(dialogCtx).pop();
+                if (newText.isNotEmpty) {
+                  await sessionNotifier.updateSteerMessage(index, newText);
+                }
+              },
+              child: const Text('Aggiorna'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -498,39 +607,129 @@ class _ComposerState extends ConsumerState<Composer> {
               key: const ValueKey('composer-queue-bar'),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               color: tokens.surfaceElevated,
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.queue, size: 16, color: tokens.accent),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'In coda ($totalQueued): ${sessionState.steeringQueue.length} steer, ${sessionState.followUpQueue.length} follow-up',
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 12,
+                  Row(
+                    children: [
+                      Icon(Icons.queue, size: 16, color: tokens.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'In coda ($totalQueued): ${sessionState.steeringQueue.length} steer, ${sessionState.followUpQueue.length} follow-up',
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                      if (sessionState.steeringQueue.isNotEmpty)
+                        IconButton(
+                          key: const ValueKey('composer-queue-toggle-expand'),
+                          tooltip: _queueExpanded
+                              ? 'Nascondi messaggi in coda'
+                              : 'Mostra messaggi in coda',
+                          icon: Icon(
+                            _queueExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: tokens.textSecondary,
+                          ),
+                          onPressed: () =>
+                              setState(() => _queueExpanded = !_queueExpanded),
+                        ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: Icon(
+                          Icons.clear_all,
+                          size: 14,
+                          color: tokens.textMuted,
+                        ),
+                        label: Text(
+                          'Svuota coda',
+                          style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        ),
+                        onPressed: () => _runAction(sessionNotifier.clearQueue),
                       ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: Icon(
-                      Icons.clear_all,
-                      size: 14,
-                      color: tokens.textMuted,
-                    ),
-                    label: Text(
-                      'Svuota coda',
-                      style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                    ),
-                    onPressed: () => _runAction(sessionNotifier.clearQueue),
+                    ],
                   ),
+                  if (_queueExpanded && sessionState.steeringQueue.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    for (var i = 0; i < sessionState.steeringQueue.length; i++)
+                      Container(
+                        key: ValueKey('steer-queue-item-$i'),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.fromLTRB(8, 4, 6, 4),
+                        decoration: BoxDecoration(
+                          color: tokens.surface,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              ),
+                              child: Text(
+                                'STEER #${i + 1}',
+                                style: TextStyle(
+                                  color: tokens.accent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                sessionState.steeringQueue[i],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 12,
+                                  fontFamily: tokens.monoFontFamily,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              key: ValueKey('edit-steer-btn-$i'),
+                              tooltip: 'Modifica messaggio steer in coda',
+                              icon: Icon(Icons.edit_outlined, size: 14, color: tokens.accent),
+                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              padding: EdgeInsets.zero,
+                              onPressed: () => _showEditSteerDialog(
+                                context,
+                                i,
+                                sessionState.steeringQueue[i],
+                              ),
+                            ),
+                            IconButton(
+                              key: ValueKey('delete-steer-btn-$i'),
+                              tooltip: 'Elimina dalla coda',
+                              icon: Icon(Icons.close, size: 14, color: tokens.textMuted),
+                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              padding: EdgeInsets.zero,
+                              onPressed: () => sessionNotifier.removeSteerMessage(i),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
