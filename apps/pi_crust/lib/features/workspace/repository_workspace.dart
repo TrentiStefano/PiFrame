@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
@@ -10,6 +11,18 @@ import '../composer/composer_draft.dart';
 import '../../ui/code/diff_block.dart';
 
 enum WorkspacePane { chat, repository, git }
+
+final repoExpandedDirsProvider = StateProvider.family<Set<String>, String>(
+  (ref, sessionId) => <String>{},
+);
+
+final gitStagedExpandedProvider = StateProvider.family<bool, String>(
+  (ref, sessionId) => false,
+);
+
+final gitUnstagedExpandedProvider = StateProvider.family<bool, String>(
+  (ref, sessionId) => false,
+);
 
 String _repositoryLoadError(Object error) {
   final message = error.toString();
@@ -483,6 +496,9 @@ class RepositoryPane extends ConsumerStatefulWidget {
 class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   final _editor = TextEditingController();
   String? _editorPath;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -501,10 +517,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     if (oldWidget.sessionId != widget.sessionId) {
       _cachedRawFiles = null;
       _cachedTreeNodes = const [];
-      _expandedDirs.clear();
-      _initialExpansionDone = false;
       _editorPath = null;
       _editor.clear();
+      _searchController.clear();
+      _searchQuery = '';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -518,36 +534,60 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   @override
   void dispose() {
     _editor.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   List<_TreeNode> _cachedTreeNodes = const [];
   Object? _cachedRawFiles;
-  final Set<String> _expandedDirs = <String>{};
-  bool _initialExpansionDone = false;
 
   void _collapseAll() {
-    setState(() {
-      _expandedDirs.clear();
-    });
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = <String>{};
   }
 
   void _expandAll(List<Map<String, dynamic>> raw) {
-    setState(() {
-      final nodes = _getTreeNodes(raw);
-      _collectAllDirs(nodes, _expandedDirs);
-    });
+    final nodes = _getTreeNodes(raw);
+    final allDirs = <String>{};
+    _collectAllDirs(nodes, allDirs);
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = allDirs;
   }
 
   List<_TreeNode> _getTreeNodes(List<Map<String, dynamic>> raw) {
     if (identical(raw, _cachedRawFiles)) return _cachedTreeNodes;
     _cachedRawFiles = raw;
     _cachedTreeNodes = _buildFileTree(raw);
-    if (!_initialExpansionDone && _cachedTreeNodes.isNotEmpty) {
-      _initialExpansionDone = true;
-      _collectAllDirs(_cachedTreeNodes, _expandedDirs);
-    }
     return _cachedTreeNodes;
+  }
+
+  List<_TreeNode> _filterTree(
+    List<_TreeNode> nodes,
+    String query,
+    Set<String> matchingDirs,
+  ) {
+    final clean = query.toLowerCase();
+    final result = <_TreeNode>[];
+    for (final node in nodes) {
+      if (node.isDirectory) {
+        final subMatches = <String>{};
+        final filteredChildren = _filterTree(node.children, query, subMatches);
+        if (filteredChildren.isNotEmpty) {
+          matchingDirs.add(node.path);
+          matchingDirs.addAll(subMatches);
+          result.add(_TreeNode(
+            name: node.name,
+            path: node.path,
+            isDirectory: true,
+            children: filteredChildren,
+          ));
+        }
+      } else {
+        if (node.name.toLowerCase().contains(clean) ||
+            node.path.toLowerCase().contains(clean)) {
+          result.add(node);
+        }
+      }
+    }
+    return result;
   }
 
   Widget _fileList(
@@ -594,46 +634,136 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       );
     }
 
+    final expandedDirs = ref.watch(repoExpandedDirsProvider(widget.sessionId));
     final rootNodes = _getTreeNodes(repo.files);
-    if (selectedPath != null) {
-      _expandParentsOf(selectedPath, _expandedDirs);
+    final matchingDirs = <String>{};
+    final displayNodes = _searchQuery.isEmpty
+        ? rootNodes
+        : _filterTree(rootNodes, _searchQuery, matchingDirs);
+
+    final effectiveExpanded = _searchQuery.isEmpty
+        ? expandedDirs
+        : (Set<String>.from(expandedDirs)..addAll(matchingDirs));
+
+    if (selectedPath != null && _searchQuery.isEmpty) {
+      _expandParentsOf(selectedPath, effectiveExpanded);
     }
-    final flatRows = _flattenTree(rootNodes, _expandedDirs);
+    final flatRows = _flattenTree(displayNodes, effectiveExpanded);
 
-    return ListView.builder(
-      key: PageStorageKey<String>('repository-files-${widget.sessionId}'),
-      itemCount: flatRows.length,
-      itemExtent: 28.0,
-      itemBuilder: (context, index) {
-        final row = flatRows[index];
-        final node = row.node;
-        final selected = !node.isDirectory && node.path == selectedPath;
-        final isExpanded =
-            node.isDirectory && _expandedDirs.contains(node.path);
+    return Column(
+      children: [
+        Container(
+          height: 32,
+          margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+          decoration: BoxDecoration(
+            color: tokens.background,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            border: Border.all(color: tokens.border),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              Icon(Icons.search, size: 14, color: tokens.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: 'Cerca file...',
+                    hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                ),
+              ),
+              if (_searchQuery.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 14),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  tooltip: 'Cancella ricerca',
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
+                  },
+                ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: flatRows.isEmpty && _searchQuery.isNotEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Nessun file trovato per "$_searchQuery"',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  key: PageStorageKey<String>(
+                    'repository-files-${widget.sessionId}-$_searchQuery',
+                  ),
+                  itemCount: flatRows.length,
+                  itemExtent: 28.0,
+                  itemBuilder: (context, index) {
+                    final row = flatRows[index];
+                    final node = row.node;
+                    final selected = !node.isDirectory && node.path == selectedPath;
+                    final isExpanded =
+                        node.isDirectory && effectiveExpanded.contains(node.path);
 
-        return _TreeRow(
-          key: ValueKey(node.path),
-          row: row,
-          selected: selected,
-          isExpanded: isExpanded,
-          tokens: tokens,
-          onTap: () {
-            if (node.isDirectory) {
-              setState(() {
-                if (_expandedDirs.contains(node.path)) {
-                  _expandedDirs.remove(node.path);
-                } else {
-                  _expandedDirs.add(node.path);
-                }
-              });
-            } else {
-              ref
-                  .read(repositoryStateProvider(widget.sessionId).notifier)
-                  .selectFile(node.path);
-            }
-          },
-        );
-      },
+                    return _TreeRow(
+                      key: ValueKey(node.path),
+                      row: row,
+                      selected: selected,
+                      isExpanded: isExpanded,
+                      tokens: tokens,
+                      onTap: () {
+                        if (node.isDirectory) {
+                          final currentExpanded = ref.read(
+                            repoExpandedDirsProvider(widget.sessionId),
+                          );
+                          final next = Set<String>.from(currentExpanded);
+                          if (next.contains(node.path)) {
+                            next.remove(node.path);
+                          } else {
+                            next.add(node.path);
+                          }
+                          ref
+                              .read(
+                                repoExpandedDirsProvider(widget.sessionId).notifier,
+                              )
+                              .state = next;
+                        } else {
+                          ref
+                              .read(
+                                repositoryStateProvider(widget.sessionId).notifier,
+                              )
+                              .selectFile(node.path);
+                        }
+                      },
+                      onAddToChat: (filePath) {
+                        appendFileMentionToComposer(ref, widget.sessionId, filePath);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Aggiunto @$filePath alla chat'),
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                            width: 320,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -741,6 +871,22 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               ),
               const SizedBox(width: 4),
               IconButton(
+                tooltip: 'Aggiungi file alla chat',
+                onPressed: () {
+                  appendFileMentionToComposer(ref, widget.sessionId, path);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Aggiunto @$path alla chat'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                      width: 320,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_comment_outlined, size: 16),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
                 tooltip: 'Chiudi file',
                 onPressed: () => ref
                     .read(repositoryStateProvider(widget.sessionId).notifier)
@@ -830,6 +976,17 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         ref
             .read(repositoryStateProvider(widget.sessionId).notifier)
             .loadFiles();
+      }
+    });
+
+    ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (prev, next) {
+      if (next.selectedPath != null && next.selectedPath != prev?.selectedPath) {
+        final currentExpanded = ref.read(repoExpandedDirsProvider(widget.sessionId));
+        final updated = Set<String>.from(currentExpanded);
+        _expandParentsOf(next.selectedPath!, updated);
+        if (updated.length != currentExpanded.length) {
+          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = updated;
+        }
       }
     });
 
@@ -1253,6 +1410,162 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     await _action('commit', staged, message: message, expected: staged);
   }
 
+  Widget _buildGitSectionHeader({
+    required String title,
+    required int count,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required CrustTokens tokens,
+    Widget? trailing,
+  }) {
+    return InkWell(
+      onTap: onToggle,
+      hoverColor: tokens.accent.withValues(alpha: 0.05),
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: tokens.surfaceElevated.withValues(alpha: 0.6),
+          border: Border(
+            top: BorderSide(color: tokens.borderStrong, width: 0.5),
+            bottom: BorderSide(color: tokens.borderStrong, width: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isExpanded ? Icons.expand_more : Icons.chevron_right,
+              size: 16,
+              color: tokens.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                color: tokens.displayText,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .5,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: tokens.surface,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                border: Border.all(color: tokens.border),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Spacer(),
+            ?trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGitFileRow({
+    required Map<String, dynamic> file,
+    required bool isStaged,
+    required bool hasUnstagedEdit,
+    required CrustTokens tokens,
+    required Set<String> piTouchedPaths,
+    required Set<String> manualSavedPaths,
+    required bool blocked,
+  }) {
+    final path = file['path'].toString();
+    final stateLabel = isStaged && hasUnstagedEdit
+        ? 'staged + unstaged edits'
+        : isStaged
+        ? 'staged'
+        : 'unstaged';
+
+    return Material(
+      color: tokens.surface.withValues(alpha: 0),
+      child: ListTile(
+        dense: true,
+        visualDensity: VisualDensity.compact,
+        minVerticalPadding: 0,
+        contentPadding: const EdgeInsets.only(left: 16, right: 8),
+        onTap: () => _showDiff(path),
+        leading: Icon(
+          Icons.description_outlined,
+          size: 16,
+          color: isStaged ? tokens.accent : tokens.textMuted,
+        ),
+        title: Text(
+          path,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 11,
+            fontFamily: tokens.monoFontFamily,
+          ),
+        ),
+        subtitle: Text(
+          '${file['status'] ?? 'modified'} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: isStaged ? tokens.accent : tokens.textMuted,
+            fontSize: 9,
+          ),
+        ),
+        trailing: SizedBox(
+          width: 88,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (isStaged)
+                IconButton(
+                  tooltip: 'Togli dallo stage $path',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  onPressed: blocked || _working
+                      ? null
+                      : () => _action('unstage', [path]),
+                  icon: const Icon(
+                    Icons.remove_circle_outline,
+                    size: 16,
+                  ),
+                )
+              else if (hasUnstagedEdit || !isStaged)
+                IconButton(
+                  tooltip: 'Metti in stage $path',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  onPressed: blocked || _working
+                      ? null
+                      : () => _action('stage', [path]),
+                  icon: const Icon(Icons.add, size: 17),
+                ),
+              IconButton(
+                tooltip: 'Annulla modifiche a $path',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                onPressed: blocked || _working
+                    ? null
+                    : () => _discardFile(path),
+                icon: const Icon(Icons.undo, size: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
@@ -1270,6 +1583,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final blocked = _sessionWritesBlocked(session);
     final files = _files;
     final staged = _staged.toSet();
+    final stagedFiles = files.where((f) => staged.contains(f['path'].toString())).toList();
+    final unstagedFiles = files.where((f) => f['unstaged'] == true || !staged.contains(f['path'].toString())).toList();
+    final isStagedExpanded = ref.watch(gitStagedExpandedProvider(widget.sessionId));
+    final isUnstagedExpanded = ref.watch(gitUnstagedExpandedProvider(widget.sessionId));
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? session.cwd;
     return Container(
@@ -1398,100 +1715,128 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                         style: TextStyle(color: tokens.textMuted),
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: files.length,
-                      itemBuilder: (context, index) {
-                        final file = files[index];
-                        final path = file['path'].toString();
-                        final isStaged = staged.contains(path);
-                        final hasUnstagedEdit = file['unstaged'] == true;
-                        final stateLabel = isStaged && hasUnstagedEdit
-                            ? 'staged + unstaged edits'
-                            : isStaged
-                            ? 'staged'
-                            : 'unstaged';
-                        return Material(
-                          color: tokens.surface.withValues(alpha: 0),
-                          child: ListTile(
-                            dense: true,
-                            visualDensity: VisualDensity.compact,
-                            minVerticalPadding: 0,
-                            contentPadding: const EdgeInsets.only(
-                              left: 8,
-                              right: 2,
-                            ),
-                            onTap: () => _showDiff(path),
-                            leading: Icon(
-                              Icons.description_outlined,
-                              size: 16,
-                              color: isStaged
-                                  ? tokens.accent
-                                  : tokens.textMuted,
-                            ),
-                            title: Text(
-                              path,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 11,
-                                fontFamily: tokens.monoFontFamily,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${file['status'] ?? 'modified'} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, repository.manualSavedPaths)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: isStaged
-                                    ? tokens.accent
-                                    : tokens.textMuted,
-                                fontSize: 9,
-                              ),
-                            ),
-                            trailing: SizedBox(
-                              width: 88,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (hasUnstagedEdit)
-                                    IconButton(
-                                      tooltip: 'Metti in stage $path',
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      onPressed: blocked || _working
-                                          ? null
-                                          : () => _action('stage', [path]),
-                                      icon: const Icon(Icons.add, size: 17),
-                                    )
-                                  else if (isStaged)
-                                    IconButton(
-                                      tooltip: 'Togli dallo stage $path',
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      onPressed: blocked || _working
-                                          ? null
-                                          : () => _action('unstage', [path]),
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  IconButton(
-                                    tooltip: 'Annulla modifiche a $path',
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    onPressed: blocked || _working
-                                        ? null
-                                        : () => _discardFile(path),
-                                    icon: const Icon(Icons.undo, size: 16),
+                  : ListView(
+                      children: [
+                        _buildGitSectionHeader(
+                          title: 'Modifiche preparate (Staged)',
+                          count: stagedFiles.length,
+                          isExpanded: isStagedExpanded,
+                          tokens: tokens,
+                          onToggle: () {
+                            ref
+                                .read(
+                                  gitStagedExpandedProvider(widget.sessionId).notifier,
+                                )
+                                .state = !isStagedExpanded;
+                          },
+                          trailing: stagedFiles.isEmpty || blocked || _working
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Togli tutti dallo stage',
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
                                   ),
-                                ],
+                                  icon: const Icon(
+                                    Icons.remove_circle_outline,
+                                    size: 14,
+                                  ),
+                                  onPressed: () => _action(
+                                    'unstage',
+                                    stagedFiles
+                                        .map((f) => f['path'].toString())
+                                        .toList(),
+                                  ),
+                                ),
+                        ),
+                        if (isStagedExpanded) ...[
+                          if (stagedFiles.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
                               ),
-                            ),
-                          ),
-                        );
-                      },
+                              child: Text(
+                                'Nessun file preparato.',
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            )
+                          else
+                            for (final file in stagedFiles)
+                              _buildGitFileRow(
+                                file: file,
+                                isStaged: true,
+                                hasUnstagedEdit: file['unstaged'] == true,
+                                tokens: tokens,
+                                piTouchedPaths: piTouchedPaths,
+                                manualSavedPaths: repository.manualSavedPaths,
+                                blocked: blocked,
+                              ),
+                        ],
+                        _buildGitSectionHeader(
+                          title: 'Modifiche (Changes)',
+                          count: unstagedFiles.length,
+                          isExpanded: isUnstagedExpanded,
+                          tokens: tokens,
+                          onToggle: () {
+                            ref
+                                .read(
+                                  gitUnstagedExpandedProvider(widget.sessionId).notifier,
+                                )
+                                .state = !isUnstagedExpanded;
+                          },
+                          trailing: unstagedFiles.isEmpty || blocked || _working
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Metti tutti in stage',
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                  icon: const Icon(Icons.add, size: 15),
+                                  onPressed: () => _action(
+                                    'stage',
+                                    unstagedFiles
+                                        .map((f) => f['path'].toString())
+                                        .toList(),
+                                  ),
+                                ),
+                        ),
+                        if (isUnstagedExpanded) ...[
+                          if (unstagedFiles.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              child: Text(
+                                'Nessuna modifica non preparata.',
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            )
+                          else
+                            for (final file in unstagedFiles)
+                              _buildGitFileRow(
+                                file: file,
+                                isStaged: false,
+                                hasUnstagedEdit: true,
+                                tokens: tokens,
+                                piTouchedPaths: piTouchedPaths,
+                                manualSavedPaths: repository.manualSavedPaths,
+                                blocked: blocked,
+                              ),
+                        ],
+                      ],
                     ),
             ),
             Padding(
@@ -1675,6 +2020,7 @@ class _TreeRow extends StatelessWidget {
     required this.isExpanded,
     required this.tokens,
     required this.onTap,
+    this.onAddToChat,
   });
 
   final _FlatTreeRow row;
@@ -1682,6 +2028,7 @@ class _TreeRow extends StatelessWidget {
   final bool isExpanded;
   final CrustTokens tokens;
   final VoidCallback onTap;
+  final ValueChanged<String>? onAddToChat;
 
   @override
   Widget build(BuildContext context) {
@@ -1696,59 +2043,133 @@ class _TreeRow extends StatelessWidget {
           color: selected
               ? tokens.surfaceElevated
               : tokens.surface.withValues(alpha: 0),
-          child: InkWell(
-            onTap: onTap,
-            hoverColor: tokens.accent.withValues(alpha: 0.08),
-            child: SizedBox(
-              height: 28.0,
-              child: Padding(
-                padding: EdgeInsets.only(left: 4.0 + indent, right: 8.0),
-                child: Row(
-                  children: [
-                    if (node.isDirectory) ...[
-                      Icon(
-                        isExpanded ? Icons.expand_more : Icons.chevron_right,
-                        size: 14,
-                        color: tokens.textMuted,
+          child: GestureDetector(
+            onSecondaryTapDown: (details) {
+              if (!node.isDirectory && onAddToChat != null) {
+                final pos = details.globalPosition;
+                showMenu<String>(
+                  context: context,
+                  position: RelativeRect.fromLTRB(
+                    pos.dx,
+                    pos.dy,
+                    pos.dx + 1,
+                    pos.dy + 1,
+                  ),
+                  items: [
+                    PopupMenuItem(
+                      value: 'chat',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.add_comment_outlined,
+                            size: 16,
+                            color: tokens.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Aggiungi alla chat'),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        isExpanded
-                            ? Icons.folder_open_outlined
-                            : Icons.folder_outlined,
-                        size: 15,
-                        color: tokens.syntaxFunction,
-                      ),
-                    ] else ...[
-                      const SizedBox(width: 14),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.description_outlined,
-                        size: 14,
-                        color: selected ? tokens.accent : tokens.textMuted,
-                      ),
-                    ],
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        node.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: selected
-                              ? tokens.accent
-                              : (node.isDirectory
-                                  ? tokens.textPrimary
-                                  : tokens.textSecondary),
-                          fontSize: 12,
-                          fontFamily: tokens.monoFontFamily,
-                          fontWeight: selected || node.isDirectory
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
+                    ),
+                    PopupMenuItem(
+                      value: 'copy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy, size: 16, color: tokens.textMuted),
+                          const SizedBox(width: 8),
+                          const Text('Copia percorso'),
+                        ],
                       ),
                     ),
                   ],
+                ).then((choice) {
+                  if (choice == 'chat') {
+                    onAddToChat!(node.path);
+                  } else if (choice == 'copy') {
+                    Clipboard.setData(ClipboardData(text: node.path));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Percorso copiato: ${node.path}'),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                          width: 280,
+                        ),
+                      );
+                    }
+                  }
+                });
+              }
+            },
+            child: InkWell(
+              onTap: onTap,
+              hoverColor: tokens.accent.withValues(alpha: 0.08),
+              child: SizedBox(
+                height: 28.0,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4.0 + indent, right: 8.0),
+                  child: Row(
+                    children: [
+                      if (node.isDirectory) ...[
+                        Icon(
+                          isExpanded ? Icons.expand_more : Icons.chevron_right,
+                          size: 14,
+                          color: tokens.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          isExpanded
+                              ? Icons.folder_open_outlined
+                              : Icons.folder_outlined,
+                          size: 15,
+                          color: tokens.syntaxFunction,
+                        ),
+                      ] else ...[
+                        const SizedBox(width: 14),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.description_outlined,
+                          size: 14,
+                          color: selected ? tokens.accent : tokens.textMuted,
+                        ),
+                      ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          node.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selected
+                                ? tokens.accent
+                                : (node.isDirectory
+                                    ? tokens.textPrimary
+                                    : tokens.textSecondary),
+                            fontSize: 12,
+                            fontFamily: tokens.monoFontFamily,
+                            fontWeight: selected || node.isDirectory
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      if (!node.isDirectory && onAddToChat != null)
+                        IconButton(
+                          tooltip: 'Aggiungi alla chat',
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          icon: Icon(
+                            Icons.add_comment_outlined,
+                            size: 14,
+                            color: selected ? tokens.accent : tokens.textMuted,
+                          ),
+                          onPressed: () => onAddToChat!(node.path),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

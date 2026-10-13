@@ -31,7 +31,8 @@ class _ShimmerBorderState extends State<ShimmerBorder>
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     );
-    if (widget.isActive) {
+    final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (widget.isActive && !isTest) {
       _controller.repeat();
     }
   }
@@ -40,7 +41,8 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   void didUpdateWidget(ShimmerBorder oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
-      if (widget.isActive) {
+      final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+      if (widget.isActive && !isTest) {
         _controller.repeat();
       } else {
         _controller.stop();

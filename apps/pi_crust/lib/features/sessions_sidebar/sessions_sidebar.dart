@@ -4,9 +4,11 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import 'session_actions.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/shimmer_border.dart';
 import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
+import 'pinned_sessions_provider.dart';
 
 bool _isWorkerSession(Map<String, dynamic> session) {
   final name = (session['name'] ?? '').toString().toLowerCase();
@@ -403,6 +405,20 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   );
                 }
 
+                final pinnedIds = ref.watch(pinnedSessionsProvider);
+                final pinnedSessions = allSessions.where((s) {
+                  if (_isWorkerSession(s)) return false;
+                  final id = s['id'] as String? ?? '';
+                  return pinnedIds.contains(id);
+                }).toList();
+
+                final activeFolders = <String>{};
+                for (final s in allSessions) {
+                  if (s['isActive'] == true) {
+                    activeFolders.add(_sessionFolder(s));
+                  }
+                }
+
                 final grouped = <String, List<Map<String, dynamic>>>{};
                 for (final session in filtered) {
                   grouped
@@ -410,15 +426,24 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       .add(session);
                 }
                 final rows =
-                    <({String? folder, Map<String, dynamic>? session})>[];
+                    <({String? folder, Map<String, dynamic>? session, bool isFolder, bool isPinnedHeader, bool isPinnedSession})>[];
+
+                // Pinned sessions section on top (if not filtering)
+                if (_searchQuery.isEmpty && _filterMode == 'all' && pinnedSessions.isNotEmpty) {
+                  rows.add((folder: null, session: null, isFolder: false, isPinnedHeader: true, isPinnedSession: false));
+                  for (final session in pinnedSessions) {
+                    rows.add((folder: null, session: session, isFolder: false, isPinnedHeader: false, isPinnedSession: true));
+                  }
+                }
+
                 for (final group in grouped.entries) {
-                  rows.add((folder: group.key, session: null));
+                  rows.add((folder: group.key, session: null, isFolder: true, isPinnedHeader: false, isPinnedSession: false));
                   final isExpanded = _expandedFolders.contains(group.key) ||
                       _searchQuery.isNotEmpty;
                   if (isExpanded) {
                     rows.addAll(
                       group.value.map(
-                        (session) => (folder: null, session: session),
+                        (session) => (folder: null, session: session, isFolder: false, isPinnedHeader: false, isPinnedSession: false),
                       ),
                     );
                   }
@@ -432,58 +457,141 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   itemCount: rows.length,
                   itemBuilder: (context, index) {
                     final row = rows[index];
-                    if (row.session == null) {
-                      final folder = row.folder ?? '';
-                      final expanded = _expandedFolders.contains(folder);
-                      return Material(
-                        color: tokens.surface,
-                        child: ListTile(
-                          key: ValueKey('session-folder:$folder'),
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                          ),
-                          leading: Icon(
-                            expanded
-                                ? Icons.folder_open_outlined
-                                : Icons.folder_outlined,
-                            size: 17,
-                            color: tokens.accent,
-                          ),
-                          title: Text(
-                            _folderName(folder),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontWeight: FontWeight.w600,
+                    if (row.isPinnedHeader) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.push_pin, size: 13, color: tokens.accent),
+                            const SizedBox(width: 6),
+                            Text(
+                              'FISSATE (${pinnedSessions.length})',
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                          ),
-                          subtitle: Text(
-                            folder.isEmpty ? 'Cartella non nota' : folder,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 10,
-                            ),
-                          ),
-                          trailing: Icon(
-                            expanded ? Icons.expand_more : Icons.chevron_right,
-                            size: 18,
-                            color: tokens.textMuted,
-                          ),
-                          onTap: () => setState(() {
-                            if (expanded) {
-                              _expandedFolders.remove(folder);
-                            } else {
-                              _expandedFolders.add(folder);
-                            }
-                          }),
+                          ],
                         ),
                       );
                     }
+
+                    if (row.isFolder) {
+                      final folder = row.folder ?? '';
+                      final expanded = _expandedFolders.contains(folder);
+                      final hasActive = activeFolders.contains(folder);
+
+                      Widget folderTile = ListTile(
+                        key: ValueKey('session-folder:$folder'),
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                        ),
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              expanded
+                                  ? Icons.folder_open_outlined
+                                  : Icons.folder_outlined,
+                              size: 17,
+                              color: hasActive ? tokens.accent : tokens.accent.withValues(alpha: 0.8),
+                            ),
+                            if (hasActive) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: tokens.accent,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: tokens.accent.withValues(alpha: 0.6),
+                                      blurRadius: 4,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        title: Text(
+                          _folderName(folder),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          folder.isEmpty ? 'Cartella non nota' : folder,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              icon: Icon(Icons.add, size: 16, color: tokens.accent),
+                              tooltip: 'Nuova sessione in questa cartella',
+                              onPressed: () async {
+                                setState(() => _expandedFolders.add(folder));
+                                await createSession(context, ref, cwd: folder);
+                                if (mounted) widget.onSessionSelected?.call();
+                              },
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              expanded ? Icons.expand_more : Icons.chevron_right,
+                              size: 18,
+                              color: tokens.textMuted,
+                            ),
+                          ],
+                        ),
+                        onTap: () => setState(() {
+                          if (expanded) {
+                            _expandedFolders.remove(folder);
+                          } else {
+                            _expandedFolders.add(folder);
+                          }
+                        }),
+                      );
+
+                      if (hasActive) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: ShimmerBorder(
+                            isActive: true,
+                            strokeWidth: 1.0,
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            child: Material(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              child: folderTile,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Material(
+                        color: tokens.surface,
+                        child: folderTile,
+                      );
+                    }
+
                     final s = row.session!;
                     final id = s['id'] as String? ?? 's';
                     final name = s['name'] as String? ?? id;
@@ -491,10 +599,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     final preview = s['lastMessagePreview'] as String?;
                     final isSelected = id == activeId;
                     final isActive = s['isActive'] == true;
+                    final isPinned = pinnedIds.contains(id);
 
                     return Padding(
-                      padding: const EdgeInsets.only(
-                        left: 14,
+                      padding: EdgeInsets.only(
+                        left: row.isPinnedSession ? 4 : 14,
                         right: 4,
                         bottom: 3,
                       ),
@@ -541,19 +650,33 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               border: Border.all(color: tokens.borderStrong),
                             ),
                           ),
-                          title: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? tokens.displayText
-                                  : tokens.textPrimary,
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? tokens.displayText
+                                        : tokens.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              if (isPinned) ...[
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.push_pin,
+                                  size: 11,
+                                  color: tokens.accent,
+                                ),
+                              ],
+                            ],
                           ),
                           subtitle: Text(
                             preview != null && preview.isNotEmpty
@@ -585,7 +708,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               side: BorderSide(color: tokens.border),
                             ),
                             onSelected: (action) {
-                              if (action == 'rename') {
+                              if (action == 'pin') {
+                                ref.read(pinnedSessionsProvider.notifier).togglePin(id);
+                              } else if (action == 'rename') {
                                 _showRenameDialog(id, name);
                               } else if (action == 'tree') {
                                 SessionTreeDialog.show(context, sessionId: id);
@@ -594,6 +719,27 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               }
                             },
                             itemBuilder: (ctx) => [
+                              PopupMenuItem(
+                                value: 'pin',
+                                height: 32,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                                      size: 14,
+                                      color: tokens.accent,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                               PopupMenuItem(
                                 value: 'rename',
                                 height: 32,

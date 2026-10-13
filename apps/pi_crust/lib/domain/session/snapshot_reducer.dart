@@ -27,13 +27,19 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
   final entries = <SessionEntry>[];
   for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
-    if (message['role'] == 'system') continue;
+    final role = message['role']?.toString() ?? 'assistant';
+    if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
+    final text = _contentText(message['content'] ?? message['text'], 'text');
+    final thinking = _contentText(message['content'], 'thinking');
+    if (isInternalOrJunkMessageText(text)) continue;
+    if (text.trim().isEmpty && thinking.trim().isEmpty) continue;
+
     final timestamp = message['timestamp'] ?? raw['timestamp'];
     entries.add(SessionEntry(
       id: (raw['id'] ?? message['id'])?.toString() ?? 'snapshot_${entries.length}',
-      role: message['role']?.toString() ?? 'assistant',
-      text: _contentText(message['content'] ?? message['text'], 'text'),
-      thinking: _contentText(message['content'], 'thinking'),
+      role: role,
+      text: text,
+      thinking: thinking.isNotEmpty ? thinking : null,
       timestamp: timestamp is num ? timestamp.toInt() :
           DateTime.tryParse(timestamp?.toString() ?? '')?.millisecondsSinceEpoch ?? 0,
     ));

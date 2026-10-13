@@ -11,6 +11,7 @@ import 'file_mention_menu.dart';
 import 'slash_menu.dart';
 import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
+import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
@@ -77,9 +78,11 @@ class _ComposerState extends ConsumerState<Composer> {
         _updateFileMentions(query, start);
       } else if (_showFileMentionMenu) {
         setState(() => _showFileMentionMenu = false);
+        _focusNode.requestFocus();
       }
     } else if (_showFileMentionMenu) {
       setState(() => _showFileMentionMenu = false);
+      _focusNode.requestFocus();
     }
   }
 
@@ -105,6 +108,7 @@ class _ComposerState extends ConsumerState<Composer> {
       _matchingMentionFiles = matches;
       _fileMentionSelectedIndex = 0;
     });
+    _focusNode.requestFocus();
   }
 
   void _completeFileMention(String path) {
@@ -114,18 +118,22 @@ class _ComposerState extends ConsumerState<Composer> {
       final prefix = text.substring(0, _fileMentionStartIndex);
       final suffix = cursor < text.length ? text.substring(cursor) : '';
       final newText = '$prefix@$path $suffix';
+      final newOffset = prefix.length + path.length + 2;
       _controller.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(
-          offset: prefix.length + path.length + 2,
+          offset: newOffset,
         ),
       );
+      ref.read(composerDraftProvider(widget.sessionId).notifier).state = newText;
     } else {
-      final newText = '$text@$path ';
+      final separator = text.isEmpty || text.endsWith(' ') ? '' : ' ';
+      final newText = '$text$separator@$path ';
       _controller.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(offset: newText.length),
       );
+      ref.read(composerDraftProvider(widget.sessionId).notifier).state = newText;
     }
     setState(() {
       _showFileMentionMenu = false;
@@ -245,39 +253,7 @@ class _ComposerState extends ConsumerState<Composer> {
     final result = await CopilotFilePicker.show(context, files: state.files);
     if (result == null || !mounted) return;
 
-    if (result.action == CopilotFileActionType.mention) {
-      _completeFileMention(result.path);
-      return;
-    }
-
-    final path = result.path;
-    String? content = state.buffers[path]?.content;
-    final fileInfo = state.files.firstWhere(
-      (file) => file['path'] == path,
-      orElse: () => const <String, dynamic>{},
-    );
-    final size = (fileInfo['sizeBytes'] as num?)?.toInt() ?? 0;
-    if (content == null && size <= 64 * 1024) {
-      try {
-        final client = ref.read(pcpClientProvider);
-        if (client == null) throw StateError('Daemon non connesso');
-        final fileResult = await client.readWorkspaceFile(widget.sessionId, path);
-        content =
-            (fileResult['data'] as Map<String, dynamic>)['content'] as String?;
-      } catch (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('File non aggiunto: $error')));
-        }
-        return;
-      }
-    }
-
-    final attachment = content == null || content.length > 64 * 1024
-        ? 'File di riferimento: `$path` (troppo grande per inserirlo; chiedi a Pi di leggerlo).'
-        : 'File context: `$path`\n````${path.split('.').last}\n$content\n````';
-    appendComposerContext(ref, widget.sessionId, attachment);
+    _completeFileMention(result.path);
     _focusNode.requestFocus();
   }
 
@@ -356,9 +332,13 @@ class _ComposerState extends ConsumerState<Composer> {
       draft,
     ) {
       if (_controller.text != draft) {
+        final currentSelection = _controller.selection;
+        final newOffset = currentSelection.isValid && currentSelection.baseOffset <= draft.length
+            ? currentSelection.baseOffset
+            : draft.length;
         _controller.value = TextEditingValue(
           text: draft,
-          selection: TextSelection.collapsed(offset: draft.length),
+          selection: TextSelection.collapsed(offset: newOffset),
         );
       }
     });
@@ -442,6 +422,15 @@ class _ComposerState extends ConsumerState<Composer> {
     final totalQueued =
         sessionState.steeringQueue.length + sessionState.followUpQueue.length;
 
+    final pendingInteractionRequests = sessionState.pendingUiRequests.where((r) {
+      final method = r['method']?.toString();
+      return r['dialog'] == true ||
+          method == 'confirm' ||
+          method == 'select' ||
+          method == 'input' ||
+          method == 'editor';
+    }).toList();
+
     final isShimmerActive = isSending ||
         isStreaming ||
         sessionState.agentStatus == AgentStatus.working ||
@@ -463,11 +452,26 @@ class _ComposerState extends ConsumerState<Composer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Pending model question card docked non-invasively on top of chat input
+              if (pendingInteractionRequests.isNotEmpty)
+                Padding(
+                  key: const ValueKey('composer-extension-ui-card'),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ExtensionUiDialog(
+                    key: ValueKey('ext_ui_${pendingInteractionRequests.last['requestId']}'),
+                    sessionId: widget.sessionId,
+                    request: pendingInteractionRequests.last,
+                    isCard: true,
+                  ),
+                ),
+
               // File Mention overlay if active
               if (_showFileMentionMenu && _matchingMentionFiles.isNotEmpty)
                 Padding(
+                  key: const ValueKey('composer-file-mention-menu'),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: FileMentionMenu(
+                    key: const ValueKey('composer-file-mention-list'),
                     files: _matchingMentionFiles,
                     query: _fileMentionQuery,
                     selectedIndex: _fileMentionSelectedIndex,
@@ -478,8 +482,10 @@ class _ComposerState extends ConsumerState<Composer> {
               // Slash Menu overlay if active
               if (_showSlashMenu && _availableCommands.isNotEmpty)
                 Padding(
+                  key: const ValueKey('composer-slash-menu'),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: SlashMenu(
+                    key: const ValueKey('composer-slash-list'),
                     commands: _availableCommands,
                     filter: _controller.text,
                     onSelect: _onSelectSlashCommand,
@@ -489,6 +495,7 @@ class _ComposerState extends ConsumerState<Composer> {
           // Pending Queue bar (if any queue exists)
           if (totalQueued > 0)
             Container(
+              key: const ValueKey('composer-queue-bar'),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               color: tokens.surfaceElevated,
               child: Row(
@@ -531,6 +538,7 @@ class _ComposerState extends ConsumerState<Composer> {
           // Worker Crash Recovery Banner
           if (isError)
             Container(
+              key: const ValueKey('composer-crash-banner'),
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: tokens.danger.withValues(alpha: 0.15),
@@ -579,8 +587,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
           // Input area
           Padding(
+            key: const ValueKey('composer-input-area'),
             padding: const EdgeInsets.all(4),
             child: Focus(
+              key: const ValueKey('composer-input-focus'),
               onKeyEvent: (node, event) {
                 if (event is KeyDownEvent) {
                   // File Mention keyboard navigation
@@ -641,6 +651,7 @@ class _ComposerState extends ConsumerState<Composer> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextField(
+                    key: const ValueKey('composer-text-field'),
                     cursorColor: tokens.accent,
                     controller: _controller,
                     focusNode: _focusNode,
