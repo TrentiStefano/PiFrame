@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/TrentiStefano/pi-crust/compare/v1.3.0...v1.4.0) (2026-10-13)
+
+
+### Features
+
+* **branding:** redesign app icon to 3d pie slice with cohesive crust and centered pi glyph ([59a9708](https://github.com/TrentiStefano/pi-crust/commit/59a97080a377c2fff16bfb796cc788c572ef5fd9))
+
 ## [1.3.0](https://github.com/TrentiStefano/pi-crust/compare/v1.2.0...v1.3.0) (2026-10-12)
 
 

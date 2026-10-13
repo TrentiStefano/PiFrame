@@ -9,7 +9,7 @@ import { createWsServer } from './server/wsServer.js';
 import { SessionRegistry } from './sessions/SessionRegistry.js';
 import { Dispatcher } from './commands/Dispatcher.js';
 
-const VERSION = '1.3.0'; // x-release-please-version
+const VERSION = '1.4.0'; // x-release-please-version
 
 async function main() {
   console.log(`[agentd] Starting Pi-Crust Daemon v${VERSION}...`);
