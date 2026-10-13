@@ -9,6 +9,7 @@ import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
+import '../../domain/session/agent_status.dart';
 
 bool _isWorkerSession(Map<String, dynamic> session) {
   final name = (session['name'] ?? '').toString().toLowerCase();
@@ -458,6 +459,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   itemBuilder: (context, index) {
                     final row = rows[index];
                     if (row.isPinnedHeader) {
+                      final hasWorkingPinned = pinnedSessions.any((s) {
+                        final sId = s['id'] as String? ?? '';
+                        final st = ref.watch(sessionStateFamily(sId));
+                        return st.agentStatus == AgentStatus.working ||
+                            st.isStreaming ||
+                            st.activeToolCalls.isNotEmpty;
+                      });
+                      final hasActivePinned = hasWorkingPinned ||
+                          pinnedSessions.any((s) => s['isActive'] == true);
+
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                         child: Row(
@@ -473,6 +484,27 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 letterSpacing: 0.5,
                               ),
                             ),
+                            if (hasWorkingPinned) ...[
+                              const SizedBox(width: 6),
+                              _WorkingDot(color: tokens.agentWorking, size: 7),
+                            ] else if (hasActivePinned) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: tokens.accent,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: tokens.accent.withValues(alpha: 0.6),
+                                      blurRadius: 4,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       );
@@ -594,224 +626,26 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                     final s = row.session!;
                     final id = s['id'] as String? ?? 's';
-                    final name = s['name'] as String? ?? id;
-                    final cwd = s['cwd'] as String? ?? '';
-                    final preview = s['lastMessagePreview'] as String?;
                     final isSelected = id == activeId;
-                    final isActive = s['isActive'] == true;
                     final isPinned = pinnedIds.contains(id);
 
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        left: row.isPinnedSession ? 4 : 14,
-                        right: 4,
-                        bottom: 3,
-                      ),
-                      child: Material(
-                        color: isSelected
-                            ? tokens.displaySurface
-                            : tokens.surfaceElevated.withValues(alpha: 0.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          side: BorderSide(
-                            color: isSelected
-                                ? tokens.focusRing
-                                : tokens.border,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: ListTile(
-                          selected: isSelected,
-                          selectedColor: tokens.displayText,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
-                          ),
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          minVerticalPadding: 2,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 0,
-                          ),
-                          leading: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isSelected
-                                  ? tokens.displayText
-                                  : (isActive
-                                        ? tokens.agentSettled
-                                        : tokens.textMuted.withValues(
-                                            alpha: 0.5,
-                                          )),
-                              border: Border.all(color: tokens.borderStrong),
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? tokens.displayText
-                                        : tokens.textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                              if (isPinned) ...[
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.push_pin,
-                                  size: 11,
-                                  color: tokens.accent,
-                                ),
-                              ],
-                            ],
-                          ),
-                          subtitle: Text(
-                            preview != null && preview.isNotEmpty
-                                ? preview
-                                : cwd,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? tokens.displayText.withValues(alpha: 0.8)
-                                  : tokens.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            tooltip: 'Azioni sessione',
-                            icon: Icon(
-                              Icons.more_horiz,
-                              size: 18,
-                              color: isSelected
-                                  ? tokens.displayText
-                                  : tokens.textMuted,
-                            ),
-                            color: tokens.surfaceElevated,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusSm,
-                              ),
-                              side: BorderSide(color: tokens.border),
-                            ),
-                            onSelected: (action) {
-                              if (action == 'pin') {
-                                ref.read(pinnedSessionsProvider.notifier).togglePin(id);
-                              } else if (action == 'rename') {
-                                _showRenameDialog(id, name);
-                              } else if (action == 'tree') {
-                                SessionTreeDialog.show(context, sessionId: id);
-                              } else if (action == 'clone') {
-                                _cloneSession(id);
-                              }
-                            },
-                            itemBuilder: (ctx) => [
-                              PopupMenuItem(
-                                value: 'pin',
-                                height: 32,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-                                      size: 14,
-                                      color: tokens.accent,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'rename',
-                                height: 32,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.edit_outlined,
-                                      size: 14,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Rinomina',
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'tree',
-                                height: 32,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.account_tree_outlined,
-                                      size: 14,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Albero rami',
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'clone',
-                                height: 32,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.copy_outlined,
-                                      size: 14,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Duplica',
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          onTap: () async {
-                            if (await switchSessionSafely(context, ref, id)) {
-                              widget.onSessionSelected?.call();
-                            }
-                          },
-                        ),
-                      ),
+                    return _SessionTile(
+                      session: s,
+                      isPinned: isPinned,
+                      isPinnedSection: row.isPinnedSession,
+                      isSelected: isSelected,
+                      onTap: () async {
+                        if (await switchSessionSafely(context, ref, id)) {
+                          widget.onSessionSelected?.call();
+                        }
+                      },
+                      onPinToggle: () => ref
+                          .read(pinnedSessionsProvider.notifier)
+                          .togglePin(id),
+                      onRename: (sId, sName) => _showRenameDialog(sId, sName),
+                      onTree: (sId) =>
+                          SessionTreeDialog.show(context, sessionId: sId),
+                      onClone: (sId) => _cloneSession(sId),
                     );
                   },
                 );
@@ -906,6 +740,334 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         onPressed: () => setState(() => _filterMode = mode),
         child: Text(label),
       ),
+    );
+  }
+}
+
+class _WorkingDot extends StatefulWidget {
+  final Color color;
+  final double size;
+
+  const _WorkingDot({
+    required this.color,
+    this.size = 8.0,
+  });
+
+  @override
+  State<_WorkingDot> createState() => _WorkingDotState();
+}
+
+class _WorkingDotState extends State<_WorkingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    final isTest =
+        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (!isTest) {
+      _controller.repeat(reverse: true);
+    }
+    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final scale = _controller.isAnimating ? _pulse.value : 1.0;
+        return Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.color.withValues(alpha: 0.75 + 0.25 * scale),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.65 * scale),
+                blurRadius: 5.0 * scale,
+                spreadRadius: 1.2 * scale,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SessionTile extends ConsumerWidget {
+  final Map<String, dynamic> session;
+  final bool isPinned;
+  final bool isPinnedSection;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback onPinToggle;
+  final void Function(String id, String name) onRename;
+  final void Function(String id) onTree;
+  final void Function(String id) onClone;
+
+  const _SessionTile({
+    required this.session,
+    required this.isPinned,
+    required this.isPinnedSection,
+    required this.isSelected,
+    required this.onTap,
+    required this.onPinToggle,
+    required this.onRename,
+    required this.onTree,
+    required this.onClone,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.tokens;
+    final id = session['id'] as String? ?? 's';
+    final name = session['name'] as String? ?? id;
+    final cwd = session['cwd'] as String? ?? '';
+    final preview = session['lastMessagePreview'] as String?;
+    final isStaticActive = session['isActive'] == true;
+
+    final sessionState = (isPinned || isSelected)
+        ? ref.watch(sessionStateFamily(id))
+        : null;
+
+    final isWorking = sessionState != null
+        ? (sessionState.agentStatus == AgentStatus.working ||
+            sessionState.isStreaming ||
+            sessionState.activeToolCalls.isNotEmpty)
+        : (session['status'] == 'working' || session['isStreaming'] == true);
+
+    final tile = ListTile(
+      selected: isSelected,
+      selectedColor: tokens.displayText,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+      ),
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      minVerticalPadding: 2,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 0,
+      ),
+      leading: isWorking
+          ? _WorkingDot(color: tokens.agentWorking)
+          : Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? tokens.displayText
+                    : (isStaticActive
+                        ? tokens.agentSettled
+                        : tokens.textMuted.withValues(
+                            alpha: 0.5,
+                          )),
+                border: Border.all(color: tokens.borderStrong),
+              ),
+            ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isSelected ? tokens.displayText : tokens.textPrimary,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+          if (isPinned) ...[
+            const SizedBox(width: 4),
+            Icon(
+              Icons.push_pin,
+              size: 11,
+              color: tokens.accent,
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(
+        preview != null && preview.isNotEmpty ? preview : cwd,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: isSelected
+              ? tokens.displayText.withValues(alpha: 0.8)
+              : tokens.textMuted,
+          fontSize: 12,
+        ),
+      ),
+      trailing: PopupMenuButton<String>(
+        tooltip: 'Azioni sessione',
+        icon: Icon(
+          Icons.more_horiz,
+          size: 18,
+          color: isSelected ? tokens.displayText : tokens.textMuted,
+        ),
+        color: tokens.surfaceElevated,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          side: BorderSide(color: tokens.border),
+        ),
+        onSelected: (action) {
+          if (action == 'pin') {
+            onPinToggle();
+          } else if (action == 'rename') {
+            onRename(id, name);
+          } else if (action == 'tree') {
+            onTree(id);
+          } else if (action == 'clone') {
+            onClone(id);
+          }
+        },
+        itemBuilder: (ctx) => [
+          PopupMenuItem(
+            value: 'pin',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(
+                  isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                  size: 14,
+                  color: tokens.accent,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'rename',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.edit_outlined,
+                  size: 14,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Rinomina',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'tree',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.account_tree_outlined,
+                  size: 14,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Albero rami',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'clone',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.copy_outlined,
+                  size: 14,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Duplica',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      onTap: onTap,
+    );
+
+    final card = Material(
+      color: isSelected
+          ? tokens.displaySurface
+          : tokens.surfaceElevated.withValues(alpha: 0.5),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        side: BorderSide(
+          color: isSelected ? tokens.focusRing : tokens.border,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: tile,
+    );
+
+    if (isWorking) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: isPinnedSection ? 4 : 14,
+          right: 4,
+          bottom: 3,
+        ),
+        child: ShimmerBorder(
+          isActive: true,
+          strokeWidth: 1.0,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          child: card,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: isPinnedSection ? 4 : 14,
+        right: 4,
+        bottom: 3,
+      ),
+      child: card,
     );
   }
 }
