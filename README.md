@@ -24,15 +24,19 @@
 
 ---
 
-## 🎬 UI in Motion
+## 🎬 A Real Run
 
-Experience the fluid desktop layout, live token streaming, in-file code search, collapsible reasoning blocks, and instant theme switching:
+Run agents, stream token responses, search and edit repository code with syntax highlighting, steer tasks in-flight, and review Git diffs without leaving the window:
 
 <p align="center">
-  <img src="docs/design-evidence/pi-crust-showcase.webp" alt="Pi-Crust Bento Layout Showcase and Animations" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+  <a href="docs/design-evidence/hero.mp4">
+    <img src="docs/design-evidence/hero.gif" alt="A real run in Pi-Crust: agent working, code editor with syntax highlighting and Ctrl+F, steer queue, and Git changes review" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+  </a>
 </p>
 
-> 📹 **Watch full recording:** [pi-crust-showcase.mp4](docs/design-evidence/pi-crust-showcase.mp4) · Explore interactive web showcase in [docs/design-evidence/showcase.html](docs/design-evidence/showcase.html).
+<p align="center">
+  <sub>A real run: the agent streams reasoning and tokens, tool executes tests, code editor highlights syntax with in-file Ctrl+F match cycling, user modifies the steer queue in-flight, stages Git changes, and toggles themes. (<a href="docs/design-evidence/hero.mp4">Watch in full quality MP4</a> · <a href="docs/design-evidence/hero.webp">High-definition WebP</a> · <a href="docs/design-evidence/showcase.html">Interactive Web Demo</a>)</sub>
+</p>
 
 ---
 

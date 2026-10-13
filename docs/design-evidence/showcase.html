@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pi-Crust — Live Interactive UI & Animation Showcase</title>
+  <title>Pi-Crust — Live Application Run</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -61,7 +61,35 @@
       display: flex;
       flex-direction: column;
       user-select: none;
-      transition: background 0.3s ease, color 0.3s ease;
+      transition: background 0.35s ease, color 0.35s ease;
+      position: relative;
+    }
+
+    /* Virtual Mouse Cursor */
+    #virtualCursor {
+      position: fixed;
+      width: 22px;
+      height: 22px;
+      z-index: 9999;
+      pointer-events: none;
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.45));
+    }
+
+    .cursor-click-ring {
+      position: absolute;
+      top: 0; left: 0;
+      width: 22px; height: 22px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.3s ease-out;
+    }
+    .cursor-click-ring.active {
+      opacity: 1;
+      transform: scale(1.8);
+      border-color: #fff;
     }
 
     /* Top App Titlebar */
@@ -83,8 +111,8 @@
     }
 
     .brand-icon {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
@@ -117,12 +145,12 @@
       border-radius: 50%;
       background: var(--success);
       box-shadow: 0 0 8px var(--success);
-      animation: pulse-glow 2s infinite;
+      animation: pulse-glow 1.5s infinite;
     }
 
     @keyframes pulse-glow {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
+      50% { opacity: 0.35; transform: scale(0.8); }
     }
 
     .titlebar-center {
@@ -157,7 +185,7 @@
       gap: 6px;
       transition: all 0.2s;
     }
-    .btn-header:hover {
+    .btn-header:hover, .btn-header.active {
       background: var(--surface-hover);
       border-color: var(--accent);
       color: var(--accent);
@@ -167,7 +195,7 @@
     .bento-workspace {
       flex: 1;
       display: grid;
-      grid-template-columns: 320px 1fr 340px;
+      grid-template-columns: 310px 1fr 330px;
       gap: 12px;
       padding: 12px;
       height: calc(100vh - 48px);
@@ -209,7 +237,7 @@
 
     /* Left: Repository & Code */
     .repo-file-tree {
-      height: 140px;
+      height: 130px;
       border-bottom: 1px solid var(--border-subtle);
       overflow-y: auto;
       padding: 8px 6px;
@@ -226,9 +254,9 @@
       gap: 6px;
       cursor: pointer;
       color: var(--text-muted);
-      transition: background 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
-    .tree-item:hover {
+    .tree-item:hover, .tree-item.hovered {
       background: var(--surface);
       color: var(--text);
     }
@@ -243,10 +271,13 @@
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 8px 12px;
-      display: flex;
+      display: none;
       align-items: center;
       gap: 8px;
       animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .code-search-overlay.active {
+      display: flex;
     }
 
     @keyframes slide-down {
@@ -291,8 +322,9 @@
       font-size: 12px;
       padding: 2px 5px;
       border-radius: 4px;
+      transition: background 0.15s;
     }
-    .search-btn:hover {
+    .search-btn:hover, .search-btn.active {
       color: var(--text);
       background: var(--surface-hover);
     }
@@ -302,18 +334,18 @@
       overflow-y: auto;
       padding: 12px;
       font-family: var(--font-mono);
-      font-size: 11.5px;
+      font-size: 11px;
       line-height: 1.6;
       background: var(--card-bg);
     }
 
     .code-line {
       display: flex;
-      gap: 14px;
+      gap: 12px;
     }
     .line-num {
       color: var(--text-dim);
-      width: 24px;
+      width: 22px;
       text-align: right;
       user-select: none;
     }
@@ -328,14 +360,16 @@
     .highlight-match {
       background: rgba(229, 200, 144, 0.35);
       border-radius: 2px;
-      padding: 0 1px;
+      padding: 0 2px;
+      transition: all 0.2s;
     }
     .highlight-active {
-      background: var(--accent);
-      color: #232634;
-      font-weight: 700;
+      background: var(--accent) !important;
+      color: #232634 !important;
+      font-weight: 700 !important;
       border-radius: 2px;
-      padding: 0 2px;
+      padding: 0 3px;
+      box-shadow: 0 0 8px var(--accent-glow);
     }
 
     /* Center: Chat & Transcript */
@@ -383,6 +417,7 @@
       border: 1px solid var(--border-subtle);
       border-radius: 10px;
       overflow: hidden;
+      display: none;
       transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .thinking-header {
@@ -403,6 +438,16 @@
       gap: 8px;
       color: var(--accent);
     }
+    .thinking-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--accent-soft);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .thinking-body {
       padding: 12px 14px;
       border-top: 1px solid var(--border-subtle);
@@ -426,6 +471,8 @@
       font-weight: 500;
       max-width: 80%;
       box-shadow: 0 2px 8px var(--accent-glow);
+      display: none;
+      animation: fadeIn 0.2s ease;
     }
 
     .msg-assistant {
@@ -437,6 +484,7 @@
       font-size: 13px;
       line-height: 1.6;
       max-width: 95%;
+      display: none;
     }
 
     /* Tool Card */
@@ -447,6 +495,7 @@
       padding: 10px 12px;
       margin: 8px 0;
       font-size: 12px;
+      display: none;
     }
     .tool-header {
       display: flex;
@@ -487,7 +536,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 8px 12px;
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: 6px;
       animation: fadeIn 0.2s ease;
@@ -539,7 +588,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .btn-steer-action:hover {
+    .btn-steer-action:hover, .btn-steer-action.hovered {
       color: var(--accent);
       border-color: var(--accent);
     }
@@ -561,7 +610,7 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .composer-input:focus {
+    .composer-input:focus, .composer-input.focused {
       border-color: var(--accent);
       box-shadow: 0 0 0 2px var(--accent-soft);
     }
@@ -577,10 +626,8 @@
       font-size: 13px;
       transition: transform 0.1s, opacity 0.2s;
     }
-    .btn-send:hover {
+    .btn-send:hover, .btn-send.active {
       opacity: 0.9;
-    }
-    .btn-send:active {
       transform: scale(0.96);
     }
 
@@ -615,7 +662,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
-    .git-file-row:hover {
+    .git-file-row:hover, .git-file-row.hovered {
       background: var(--surface-hover);
       border-color: var(--border);
     }
@@ -660,7 +707,7 @@
     .modal-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.65);
       backdrop-filter: blur(4px);
       display: none;
       align-items: center;
@@ -677,7 +724,7 @@
       border-radius: 12px;
       width: 440px;
       padding: 20px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -691,7 +738,7 @@
 
     .modal-title {
       font-weight: 700;
-      font-size: 15px;
+      font-size: 14px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -700,14 +747,14 @@
 
     .modal-textarea {
       width: 100%;
-      height: 80px;
+      height: 70px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px;
       color: var(--text);
       font-family: var(--font-ui);
-      font-size: 13px;
+      font-size: 12.5px;
       resize: none;
       outline: none;
     }
@@ -725,7 +772,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 8px 14px;
+      padding: 7px 14px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 12px;
@@ -736,15 +783,60 @@
       background: var(--accent);
       color: #232634;
       border: none;
-      padding: 8px 14px;
+      padding: 7px 14px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 12px;
       font-weight: 700;
     }
+
+    /* Native Desktop Notification Toast */
+    .os-notification-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 1000;
+      transform: translateY(120px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .os-notification-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .notif-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+    .notif-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .notif-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
+
+  <!-- Simulated Cursor -->
+  <div id="virtualCursor">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="#ffffff" stroke="#232634" stroke-width="1.5">
+      <path d="M3 3l7.5 18 2.5-6.5L20 12z"/>
+    </svg>
+    <div class="cursor-click-ring" id="cursorRing"></div>
+  </div>
 
   <!-- Top Navigation / Titlebar -->
   <header class="app-titlebar">
@@ -793,19 +885,19 @@
 
       <!-- File Browser Tree -->
       <div class="repo-file-tree">
-        <div class="tree-item active" onclick="selectFile('code_editor_controller.dart')">
+        <div class="tree-item active" id="treeFile1">
           📄 code_editor_controller.dart
         </div>
-        <div class="tree-item" onclick="selectFile('repository_workspace.dart')">
+        <div class="tree-item" id="treeFile2">
           📄 repository_workspace.dart
         </div>
-        <div class="tree-item" onclick="selectFile('thinking_block.dart')">
+        <div class="tree-item" id="treeFile3">
           📄 thinking_block.dart
         </div>
-        <div class="tree-item" onclick="selectFile('composer.dart')">
+        <div class="tree-item" id="treeFile4">
           📄 composer.dart
         </div>
-        <div class="tree-item" onclick="selectFile('daemon_providers.dart')">
+        <div class="tree-item" id="treeFile5">
           📄 daemon_providers.dart
         </div>
       </div>
@@ -814,12 +906,12 @@
       <div class="code-search-overlay" id="searchOverlay">
         <div class="search-input-wrap">
           <span>🔍</span>
-          <input type="text" class="search-input" id="searchQuery" value="highlightLine" placeholder="Trova nel file...">
+          <input type="text" class="search-input" id="searchQuery" value="" placeholder="Trova nel file...">
           <span class="search-badge" id="searchBadge">1 di 3</span>
         </div>
-        <button class="search-btn" onclick="cycleMatch(-1)" title="Precedente">▲</button>
-        <button class="search-btn" onclick="cycleMatch(1)" title="Successivo">▼</button>
-        <button class="search-btn" onclick="toggleSearch()" title="Chiudi (Esc)">✕</button>
+        <button class="search-btn" id="btnPrevMatch" onclick="cycleMatch(-1)">▲</button>
+        <button class="search-btn" id="btnNextMatch" onclick="cycleMatch(1)">▼</button>
+        <button class="search-btn" onclick="toggleSearch()">✕</button>
       </div>
 
       <!-- Syntax-Highlighted Code Editor View -->
@@ -834,13 +926,13 @@
         <div class="code-line"><span class="line-num">8</span><span class="line-text"></span></div>
         <div class="code-line"><span class="line-num">9</span><span class="line-text">  <span class="kw">void</span> <span class="fn">applySearch</span>(String query) {</span></div>
         <div class="code-line"><span class="line-num">10</span><span class="line-text">    searchQuery = query;</span></div>
-        <div class="code-line"><span class="line-num">11</span><span class="line-text">    <span class="fn">highlightLine</span>(query); <span class="highlight-active">highlightLine</span></span></div>
+        <div class="code-line"><span class="line-num">11</span><span class="line-text">    <span class="fn">highlightLine</span>(query);</span></div>
         <div class="code-line"><span class="line-num">12</span><span class="line-text">    notifyListeners();</span></div>
         <div class="code-line"><span class="line-num">13</span><span class="line-text">  }</span></div>
         <div class="code-line"><span class="line-num">14</span><span class="line-text"></span></div>
-        <div class="code-line"><span class="line-num">15</span><span class="line-text">  <span class="kw">void</span> <span class="highlight-match">highlightLine</span>(<span class="kw">final</span> String pattern) {</span></div>
+        <div class="code-line"><span class="line-num">15</span><span class="line-text">  <span class="kw">void</span> <span class="match-span" id="match1">highlightLine</span>(<span class="kw">final</span> String pattern) {</span></div>
         <div class="code-line"><span class="line-num">16</span><span class="line-text">    <span class="comm">// Sub-pixel text rendering with token colors</span></span></div>
-        <div class="code-line"><span class="line-num">17</span><span class="line-text">    <span class="kw">return</span> SyntaxHighlighter.<span class="fn">highlight</span>(pattern);</span></div>
+        <div class="code-line"><span class="line-num">17</span><span class="line-text">    <span class="kw">return</span> SyntaxHighlighter.<span class="match-span" id="match2">highlightLine</span>(pattern);</span></div>
         <div class="code-line"><span class="line-num">18</span><span class="line-text">  }</span></div>
         <div class="code-line"><span class="line-num">19</span><span class="line-text">}</span></div>
       </div>
@@ -861,46 +953,39 @@
       </div>
 
       <!-- Transcript Messages -->
-      <div class="transcript-scroll">
+      <div class="transcript-scroll" id="transcriptScroll">
         <!-- User prompt -->
-        <div class="msg-user">
+        <div class="msg-user" id="userMsg">
           Implement syntax highlighting in the repo file viewer, add in-file Ctrl+F search, and allow editing queued steer messages!
         </div>
 
         <!-- Collapsible Thinking Block -->
         <div class="thinking-card" id="thinkingBlock">
-          <div class="thinking-header" onclick="toggleThinking()">
+          <div class="thinking-header" id="thinkingHeader" onclick="toggleThinking()">
             <span class="thinking-title">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
-              Thinking Process · 14.2s
+              <span class="thinking-spinner" id="thinkingSpinner"></span>
+              Thinking Process · <span id="thinkingTime">0.0s</span>
             </span>
-            <span id="thinkingChevron" style="color: var(--text-dim); transition: transform 0.2s;">▲ Nascondi</span>
+            <span id="thinkingChevron" style="color: var(--text-dim);">▲ Nascondi</span>
           </div>
-          <div class="thinking-body" id="thinkingContent">
-            1. Investigated SessionStateNotifier for default model and thinking effort.<br>
-            2. Created CodeEditorController with SyntaxHighlighter and search match spans.<br>
-            3. Integrated Ctrl+F overlay with instant match cycling in RepositoryWorkspace.<br>
-            4. Upgraded Composer queue bar into an interactive steer message management desk.
-          </div>
+          <div class="thinking-body" id="thinkingContent"></div>
         </div>
 
         <!-- Tool Execution Card -->
-        <div class="tool-card">
+        <div class="tool-card" id="toolCard">
           <div class="tool-header">
             <span class="tool-name">
               ⚡ Tool: flutter test test/code_editor_and_search_test.dart
             </span>
-            <span class="tool-status">✓ SUCCESS (4.1s)</span>
+            <span class="tool-status" id="toolStatus">⏳ RUNNING</span>
           </div>
-          <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
-            00:04 +5: All tests passed!
+          <div id="toolOutput" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+            Running targeted widget and integration test suite...
           </div>
         </div>
 
         <!-- Assistant Reply -->
-        <div class="msg-assistant">
-          I've implemented syntax highlighting, Ctrl+F in-file search with match indicators, and direct in-queue editing for steer messages. Everything is fully covered by automated regression tests!
-        </div>
+        <div class="msg-assistant" id="assistantMsg"></div>
       </div>
 
       <!-- Composer & Steer Message Queue -->
@@ -915,16 +1000,16 @@
             <span class="badge-status" style="font-size: 9.5px; padding: 1px 5px;">STEER #1</span>
             <span class="steer-item-text" id="steerPreviewText">Assicurati che Ctrl+F supporti anche match case-sensitive</span>
             <div class="steer-actions">
-              <button class="btn-steer-action" onclick="openSteerModal()" title="Modifica messaggio">✏️ Modifica</button>
-              <button class="btn-steer-action" onclick="deleteSteer()" title="Elimina dalla coda">✕</button>
+              <button class="btn-steer-action" id="btnEditSteer" onclick="openSteerModal()">✏️ Modifica</button>
+              <button class="btn-steer-action" id="btnDeleteSteer">✕</button>
             </div>
           </div>
         </div>
 
         <!-- Input Box -->
         <div class="composer-input-row">
-          <input type="text" class="composer-input" placeholder="Invia un messaggio o impartisci una direttiva (Steer)..." value="">
-          <button class="btn-send">Invia</button>
+          <input type="text" class="composer-input" id="composerInput" placeholder="Invia un messaggio o impartisci una direttiva (Steer)..." value="">
+          <button class="btn-send" id="btnSend">Invia</button>
         </div>
       </div>
     </section>
@@ -936,7 +1021,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg>
           Git Changes
         </span>
-        <button class="btn-header" style="padding: 4px 8px; font-size: 11px; color: var(--success); border-color: var(--success);">
+        <button class="btn-header" id="btnStageAll" style="padding: 4px 8px; font-size: 11px; color: var(--success); border-color: var(--success);">
           + Stage All
         </button>
       </div>
@@ -944,26 +1029,26 @@
       <!-- Modified Files List -->
       <div class="git-list">
         <div class="git-section-title">Modificati (4)</div>
-        <div class="git-file-row active">
+        <div class="git-file-row active" id="gitRow1">
           <span>code_editor_controller.dart</span>
-          <span class="git-status-badge badge-a">+128</span>
+          <span class="git-status-badge badge-a" id="gitBadge1">+128</span>
         </div>
-        <div class="git-file-row">
+        <div class="git-file-row" id="gitRow2">
           <span>repository_workspace.dart</span>
           <span class="git-status-badge badge-m">M (+42 -6)</span>
         </div>
-        <div class="git-file-row">
+        <div class="git-file-row" id="gitRow3">
           <span>composer.dart</span>
           <span class="git-status-badge badge-m">M (+88 -14)</span>
         </div>
-        <div class="git-file-row">
+        <div class="git-file-row" id="gitRow4">
           <span>daemon_providers.dart</span>
           <span class="git-status-badge badge-m">M (+36 -2)</span>
         </div>
       </div>
 
       <!-- Realtime Diff Preview -->
-      <div class="git-diff-preview">
+      <div class="git-diff-preview" id="gitDiffPreview">
         <div style="color: var(--text-dim); margin-bottom: 4px;">@@ -14,6 +14,12 @@</div>
         <div class="diff-del">- void openSearch() {}</div>
         <div class="diff-add">+ void openSearch(String query) {</div>
@@ -983,9 +1068,18 @@
       </div>
       <textarea class="modal-textarea" id="steerModalInput">Assicurati che Ctrl+F supporti anche match case-sensitive</textarea>
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeSteerModal()">Annulla</button>
-        <button class="btn-primary" onclick="saveSteerModal()">Salva e Aggiorna Coda</button>
+        <button class="btn-secondary" id="btnCancelModal" onclick="closeSteerModal()">Annulla</button>
+        <button class="btn-primary" id="btnSaveModal" onclick="saveSteerModal()">Salva e Aggiorna Coda</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Native OS Notification Toast -->
+  <div class="os-notification-toast" id="osToast">
+    <img src="icons/pi-crust-dark-1024.png" id="toastIcon" class="notif-icon" alt="Pi-Crust">
+    <div>
+      <div class="notif-title">Pi-Crust · Risposta completata</div>
+      <div class="notif-desc">L'agente ha completato con successo il refactoring richiesto.</div>
     </div>
   </div>
 
@@ -996,42 +1090,52 @@
       document.getElementById('themeIcon').textContent = isLatte ? '🌙' : '☀️';
       document.getElementById('themeToggleBtn').innerHTML = isLatte ? '<span>🌙</span> Frappé Theme' : '<span>☀️</span> Latte Theme';
       document.getElementById('appIcon').src = isLatte ? 'icons/pi-crust-light-1024.png' : 'icons/pi-crust-dark-1024.png';
+      document.getElementById('toastIcon').src = isLatte ? 'icons/pi-crust-light-1024.png' : 'icons/pi-crust-dark-1024.png';
     }
 
-    // Thinking Block Toggle
     let thinkingOpen = true;
     function toggleThinking() {
       thinkingOpen = !thinkingOpen;
       const content = document.getElementById('thinkingContent');
       const chevron = document.getElementById('thinkingChevron');
-      if (thinkingOpen) {
-        content.style.display = 'block';
-        chevron.textContent = '▲ Nascondi';
-      } else {
-        content.style.display = 'none';
-        chevron.textContent = '▼ Mostra (14.2s)';
+      content.style.display = thinkingOpen ? 'block' : 'none';
+      chevron.textContent = thinkingOpen ? '▲ Nascondi' : '▼ Mostra (14.2s)';
+    }
+
+    let searchOpen = false;
+    let currentMatch = 1;
+    function toggleSearch() {
+      searchOpen = !searchOpen;
+      document.getElementById('searchOverlay').classList.toggle('active', searchOpen);
+      if (searchOpen) {
+        document.getElementById('searchQuery').focus();
+        updateMatchVisuals();
       }
     }
 
-    // Search overlay toggle & cycling
-    let searchOpen = true;
-    let matchIndex = 1;
-    function toggleSearch() {
-      searchOpen = !searchOpen;
-      document.getElementById('searchOverlay').style.display = searchOpen ? 'flex' : 'none';
-    }
-
     function cycleMatch(delta) {
-      matchIndex += delta;
-      if (matchIndex > 3) matchIndex = 1;
-      if (matchIndex < 1) matchIndex = 3;
-      document.getElementById('searchBadge').textContent = `${matchIndex} di 3`;
+      currentMatch += delta;
+      if (currentMatch > 2) currentMatch = 1;
+      if (currentMatch < 1) currentMatch = 2;
+      document.getElementById('searchBadge').textContent = `${currentMatch} di 2`;
+      updateMatchVisuals();
     }
 
-    // Steer Queue management
+    function updateMatchVisuals() {
+      const q = document.getElementById('searchQuery').value;
+      const m1 = document.getElementById('match1');
+      const m2 = document.getElementById('match2');
+      if (!q) {
+        m1.className = '';
+        m2.className = '';
+        return;
+      }
+      m1.className = currentMatch === 1 ? 'highlight-active' : 'highlight-match';
+      m2.className = currentMatch === 2 ? 'highlight-active' : 'highlight-match';
+    }
+
     function openSteerModal() {
       document.getElementById('steerModal').classList.add('active');
-      document.getElementById('steerModalInput').focus();
     }
 
     function closeSteerModal() {
@@ -1039,20 +1143,200 @@
     }
 
     function saveSteerModal() {
-      const newText = document.getElementById('steerModalInput').value;
-      document.getElementById('steerPreviewText').textContent = newText;
+      const text = document.getElementById('steerModalInput').value;
+      document.getElementById('steerPreviewText').textContent = text;
       closeSteerModal();
     }
 
-    function deleteSteer() {
-      document.getElementById('steerQueueBox').style.display = 'none';
-    }
+    // Automated Virtual Mouse Cursor
+    const cursor = document.getElementById('virtualCursor');
+    const ring = document.getElementById('cursorRing');
 
-    function selectFile(name) {
-      document.querySelectorAll('.tree-item').forEach(el => {
-        el.classList.toggle('active', el.textContent.includes(name));
+    function moveCursor(x, y, duration = 350) {
+      return new Promise(resolve => {
+        cursor.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+        cursor.style.transform = `translate(${x}px, ${y}px)`;
+        setTimeout(resolve, duration);
       });
     }
+
+    function clickCursor() {
+      return new Promise(resolve => {
+        ring.classList.add('active');
+        setTimeout(() => {
+          ring.classList.remove('active');
+          resolve();
+        }, 220);
+      });
+    }
+
+    function moveAndClick(el, offsetX = 10, offsetY = 10, duration = 350) {
+      const rect = el.getBoundingClientRect();
+      return moveCursor(rect.left + offsetX, rect.top + offsetY, duration)
+        .then(() => clickCursor());
+    }
+
+    // Type text into input
+    function typeText(inputEl, text, speed = 25) {
+      return new Promise(resolve => {
+        inputEl.value = '';
+        let i = 0;
+        const interval = setInterval(() => {
+          inputEl.value += text[i];
+          i++;
+          if (i >= text.length) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, speed);
+      });
+    }
+
+    // Type text into div element
+    function streamText(divEl, text, speed = 18) {
+      return new Promise(resolve => {
+        divEl.style.display = 'block';
+        divEl.textContent = '';
+        let i = 0;
+        const interval = setInterval(() => {
+          divEl.textContent += text[i];
+          i++;
+          const scroll = document.getElementById('transcriptScroll');
+          scroll.scrollTop = scroll.scrollHeight;
+          if (i >= text.length) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, speed);
+      });
+    }
+
+    // MASTER SCRIPTED RUN FOR VIDEO RECORDING
+    async function startLiveDemoRun() {
+      // 1. Initial State: cursor enters from bottom right
+      await moveCursor(750, 700, 300);
+
+      // 2. Type prompt into composer
+      const composer = document.getElementById('composerInput');
+      composer.classList.add('focused');
+      await typeText(composer, 'Implement syntax highlighting, Ctrl+F search, and steer queue editing!', 20);
+      await new Promise(r => setTimeout(r, 200));
+
+      // 3. Click send button
+      const btnSend = document.getElementById('btnSend');
+      await moveAndClick(btnSend, 20, 15, 250);
+      composer.value = '';
+      composer.classList.remove('focused');
+      document.getElementById('userMsg').style.display = 'block';
+
+      // 4. Agent starts working: Thinking block appears
+      const thinking = document.getElementById('thinkingBlock');
+      thinking.style.display = 'block';
+      let sec = 0.0;
+      const timer = setInterval(() => {
+        sec += 0.1;
+        document.getElementById('thinkingTime').textContent = sec.toFixed(1) + 's';
+      }, 100);
+
+      const thinkingContent = document.getElementById('thinkingContent');
+      thinkingContent.innerHTML = '• Analyzing SessionStateNotifier defaults...<br>';
+      await new Promise(r => setTimeout(r, 450));
+      thinkingContent.innerHTML += '• Adding CodeEditorController with SyntaxHighlighter spans...<br>';
+      await new Promise(r => setTimeout(r, 500));
+      thinkingContent.innerHTML += '• Binding Ctrl+F search cycling in RepositoryWorkspace...<br>';
+      await new Promise(r => setTimeout(r, 450));
+      thinkingContent.innerHTML += '• Supporting in-queue editing for steer directives in Composer.';
+      clearInterval(timer);
+      document.getElementById('thinkingSpinner').style.display = 'none';
+
+      // 5. Tool Card execution
+      const toolCard = document.getElementById('toolCard');
+      toolCard.style.display = 'block';
+      await new Promise(r => setTimeout(r, 600));
+      document.getElementById('toolStatus').textContent = '✓ SUCCESS (4.1s)';
+      document.getElementById('toolOutput').textContent = '00:04 +87: All tests passed!';
+
+      // 6. Assistant text streams in
+      const assistantMsg = document.getElementById('assistantMsg');
+      await streamText(assistantMsg, "I've implemented syntax highlighting for code files, built an interactive Ctrl+F search bar with match cycling, and added direct in-queue steer message editing. All 87 regression tests passed!", 16);
+
+      // 7. Steer Message Queued in Composer
+      document.getElementById('steerQueueBox').style.display = 'flex';
+
+      // 8. User navigates to Code Editor (Pane 1)
+      const treeFile1 = document.getElementById('treeFile1');
+      await moveAndClick(treeFile1, 60, 12, 350);
+
+      // 9. User clicks Ctrl+F search trigger
+      const searchTrigger = document.getElementById('searchTriggerBtn');
+      await moveAndClick(searchTrigger, 25, 12, 300);
+      toggleSearch();
+
+      // 10. Type search query
+      const searchInput = document.getElementById('searchQuery');
+      await typeText(searchInput, 'highlightLine', 28);
+      updateMatchVisuals();
+      await new Promise(r => setTimeout(r, 350));
+
+      // 11. Cycle to next match
+      const btnNext = document.getElementById('btnNextMatch');
+      await moveAndClick(btnNext, 12, 10, 250);
+      cycleMatch(1);
+      await new Promise(r => setTimeout(r, 400));
+      await moveAndClick(btnNext, 12, 10, 200);
+      cycleMatch(1);
+      await new Promise(r => setTimeout(r, 350));
+
+      // 12. User edits queued steer message in Composer
+      const btnEdit = document.getElementById('btnEditSteer');
+      await moveAndClick(btnEdit, 24, 10, 350);
+      openSteerModal();
+      await new Promise(r => setTimeout(r, 300));
+
+      const modalInput = document.getElementById('steerModalInput');
+      modalInput.value = 'Assicurati che Ctrl+F supporti match case-sensitive e aggiorna i test';
+      await new Promise(r => setTimeout(r, 400));
+
+      const btnSave = document.getElementById('btnSaveModal');
+      await moveAndClick(btnSave, 50, 15, 300);
+      saveSteerModal();
+      await new Promise(r => setTimeout(r, 350));
+
+      // 13. User inspects Git Changes (Pane 3)
+      const gitRow1 = document.getElementById('gitRow1');
+      await moveAndClick(gitRow1, 80, 15, 350);
+      await new Promise(r => setTimeout(r, 400));
+
+      const btnStageAll = document.getElementById('btnStageAll');
+      await moveAndClick(btnStageAll, 30, 12, 300);
+      btnStageAll.textContent = '✓ Staged';
+      btnStageAll.style.background = 'var(--accent-soft)';
+      await new Promise(r => setTimeout(r, 350));
+
+      // 14. Theme Toggle: Switch to Latte Theme
+      const themeBtn = document.getElementById('themeToggleBtn');
+      await moveAndClick(themeBtn, 45, 14, 400);
+      toggleTheme();
+      await new Promise(r => setTimeout(r, 900));
+
+      // 15. Switch back to Frappé Theme
+      await moveAndClick(themeBtn, 45, 14, 350);
+      toggleTheme();
+      await new Promise(r => setTimeout(r, 400));
+
+      // 16. Desktop Notification slides in
+      const toast = document.getElementById('osToast');
+      toast.classList.add('show');
+      await new Promise(r => setTimeout(r, 1200));
+
+      // Signal completion on window object
+      window.demoFinished = true;
+    }
+
+    // Auto-start demo after 400ms
+    window.addEventListener('load', () => {
+      setTimeout(startLiveDemoRun, 400);
+    });
   </script>
 </body>
 </html>
