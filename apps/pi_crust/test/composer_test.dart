@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +217,16 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 50));
 
+      // Initially minimized while streaming
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+
+      // Hover to maximize
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(find.byType(Composer)));
+      await tester.pumpAndSettle();
+
       // Steer & Follow-up buttons should now be visible
       expect(find.text('Steer'), findsOneWidget);
       expect(find.text('Follow-up'), findsOneWidget);
@@ -250,6 +261,16 @@ void main() {
     );
 
     await tester.pump(const Duration(milliseconds: 50));
+
+    // Initially minimized while answering/working
+    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+
+    // Hover to maximize
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(tester.getCenter(find.byType(Composer)));
+    await tester.pumpAndSettle();
 
     expect(
       find.textContaining('In coda (2): 1 steer, 1 follow-up'),

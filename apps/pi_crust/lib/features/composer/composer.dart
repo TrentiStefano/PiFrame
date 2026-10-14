@@ -5,6 +5,7 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
+import '../../domain/session/session_state.dart';
 import 'composer_draft.dart';
 import 'copilot_file_picker.dart';
 import 'file_mention_menu.dart';
@@ -39,6 +40,11 @@ class _ComposerState extends ConsumerState<Composer> {
   int _fileMentionSelectedIndex = 0;
   List<Map<String, dynamic>> _matchingMentionFiles = [];
   bool _queueExpanded = true;
+  bool _isHovered = false;
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
+  }
 
   Future<void> _showEditSteerDialog(
     BuildContext context,
@@ -153,6 +159,7 @@ class _ComposerState extends ConsumerState<Composer> {
     super.initState();
     _controller.text = ref.read(composerDraftProvider(widget.sessionId));
     _controller.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
     _loadCommands();
   }
 
@@ -253,6 +260,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -547,20 +555,58 @@ class _ComposerState extends ConsumerState<Composer> {
         sessionState.agentStatus == AgentStatus.compacting ||
         sessionState.activeToolCalls.isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: ShimmerBorder(
-        isActive: isShimmerActive,
-        borderRadius: BorderRadius.circular(tokens.radiusLg),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusLg),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+    final isAgentAnswering = sessionState.isStreaming ||
+        sessionState.agentStatus == AgentStatus.working ||
+        sessionState.activeToolCalls.isNotEmpty;
+    final isFocused = _focusNode.hasFocus;
+    final shouldMinimize = isAgentAnswering &&
+        !isFocused &&
+        !_isHovered &&
+        pendingInteractionRequests.isEmpty;
+
+    return MouseRegion(
+      key: const ValueKey('composer-mouse-region'),
+      onEnter: (_) {
+        if (!_isHovered) {
+          setState(() => _isHovered = true);
+        }
+      },
+      onExit: (_) {
+        if (_isHovered) {
+          setState(() => _isHovered = false);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOutCubic,
+        margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        child: ShimmerBorder(
+          isActive: isShimmerActive,
+          borderRadius: BorderRadius.circular(tokens.radiusLg),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: Container(
+              key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
+              padding: shouldMinimize
+                  ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+                  : const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(tokens.radiusLg),
+                border: Border.all(
+                  color: shouldMinimize
+                      ? tokens.agentWorking.withValues(alpha: 0.3)
+                      : Colors.transparent,
+                  width: 1,
+                ),
+              ),
+              child: shouldMinimize
+                  ? _buildMinimizedBar(tokens, isStreaming, sessionState)
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
               // Pending model question card docked non-invasively on top of chat input
               if (pendingInteractionRequests.isNotEmpty)
                 Padding(
@@ -1019,8 +1065,90 @@ class _ComposerState extends ConsumerState<Composer> {
           ),
         ],
       ),
-    ),
-  ),
-);
-}
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMinimizedBar(
+    CrustTokens tokens,
+    bool isStreaming,
+    SessionState sessionState,
+  ) {
+    return InkWell(
+      key: const ValueKey('composer-minimized-bar'),
+      borderRadius: BorderRadius.circular(tokens.radiusLg),
+      onTap: () {
+        setState(() => _isHovered = true);
+        _focusNode.requestFocus();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: tokens.agentWorking,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'L\'agente sta rispondendo... Passa il mouse o clicca per scrivere',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 12,
+                  fontFamily: tokens.uiFontFamily,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (isStreaming) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                key: const ValueKey('composer-minimized-interrupt'),
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                onTap: _interrupt,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.stop_circle_outlined,
+                        size: 13,
+                        color: tokens.agentWorking,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Interrompi',
+                        style: TextStyle(
+                          color: tokens.agentWorking,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Icon(
+              Icons.unfold_more,
+              size: 16,
+              color: tokens.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
