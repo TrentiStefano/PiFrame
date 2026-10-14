@@ -7,7 +7,9 @@ import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
+import '../../domain/session/attachment_model.dart';
 import '../../domain/session/session_state.dart';
+import '../composer/attachment_chips.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
@@ -1540,6 +1542,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final isUser = entry.role == 'user';
 
     if (isUser) {
+      final (cleanText, attachments) = parseAttachmentsFromText(entry.text);
       return Container(
         margin: const EdgeInsets.only(bottom: 16),
         alignment: Alignment.centerLeft,
@@ -1627,8 +1630,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              RichContent(text: entry.text),
+              if (attachments.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                AttachmentListBar(
+                  key: ValueKey('user-attachments-${entry.id}'),
+                  attachments: attachments,
+                  isEditable: false,
+                ),
+              ],
+              if (cleanText.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                RichContent(text: cleanText),
+              ],
             ],
           ),
         ),

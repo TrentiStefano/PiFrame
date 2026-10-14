@@ -14,6 +14,7 @@ import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
 import '../features/sessions_sidebar/session_actions.dart';
 import '../features/transcript/transcript_view.dart';
+import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
 import '../features/workspace/repository_workspace.dart';
@@ -135,19 +136,23 @@ class _AppShellState extends ConsumerState<AppShell>
     final nativeChrome = ref.watch(desktopChromeProvider);
     Widget workArea() => activeId == null
         ? _welcome(tokens, !showSessionRail, connected)
-        : Column(
-            children: [
-              Expanded(
-                child: TranscriptView(
-                  key: ValueKey('transcript_$activeId'),
+        : ChatDropTarget(
+            key: ValueKey('chat_drop_target_$activeId'),
+            sessionId: activeId,
+            child: Column(
+              children: [
+                Expanded(
+                  child: TranscriptView(
+                    key: ValueKey('transcript_$activeId'),
+                    sessionId: activeId,
+                  ),
+                ),
+                Composer(
+                  key: ValueKey('composer_$activeId'),
                   sessionId: activeId,
                 ),
-              ),
-              Composer(
-                key: ValueKey('composer_$activeId'),
-                sessionId: activeId,
-              ),
-            ],
+              ],
+            ),
           );
 
     return Focus(

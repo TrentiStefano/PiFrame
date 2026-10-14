@@ -3,9 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import 'package:file_selector/file_selector.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
+import '../../domain/session/attachment_model.dart';
 import '../../domain/session/session_state.dart';
+import 'attachment_chips.dart';
+import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
 import 'copilot_file_picker.dart';
 import 'file_mention_menu.dart';
@@ -270,7 +274,11 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _send({String? streamingBehavior}) async {
     final draft = _controller.text;
     final text = draft.trim();
-    if (text.isEmpty || ref.read(composerSendingProvider(widget.sessionId))) {
+    final attachments =
+        ref.read(composerAttachmentsProvider(widget.sessionId));
+
+    if ((text.isEmpty && attachments.isEmpty) ||
+        ref.read(composerSendingProvider(widget.sessionId))) {
       return;
     }
     final savedDraft = ref.read(
@@ -279,11 +287,23 @@ class _ComposerState extends ConsumerState<Composer> {
     final sending = ref.read(
       composerSendingProvider(widget.sessionId).notifier,
     );
+    final attachmentsNotifier = ref.read(
+      composerAttachmentsProvider(widget.sessionId).notifier,
+    );
     sending.state = true;
     try {
+      final fullPrompt = attachments.isNotEmpty
+          ? '${encodeAttachmentsTag(attachments)}${text.isNotEmpty ? '\n$text' : ''}'
+          : text;
+
       await ref
           .read(sessionStateFamily(widget.sessionId).notifier)
-          .sendPrompt(text, streamingBehavior: streamingBehavior);
+          .sendPrompt(fullPrompt, streamingBehavior: streamingBehavior);
+
+      if (attachmentsNotifier.mounted) {
+        attachmentsNotifier.clear();
+      }
+
       if (savedDraft.mounted && savedDraft.state == draft) {
         savedDraft.state = '';
       }
@@ -349,6 +369,23 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
+  void _onAttachSelected(String value) {
+    switch (value) {
+      case 'repo':
+        _addFileToContext();
+        break;
+      case 'external':
+        _addExternalFiles();
+        break;
+      case 'link':
+        _addWebLink();
+        break;
+      case 'image':
+        _addImageFiles();
+        break;
+    }
+  }
+
   Future<void> _addFileToContext() async {
     final repository = ref.read(
       repositoryStateProvider(widget.sessionId).notifier,
@@ -370,8 +407,98 @@ class _ComposerState extends ConsumerState<Composer> {
     final result = await CopilotFilePicker.show(context, files: state.files);
     if (result == null || !mounted) return;
 
+    final isImg = isImageExtension(result.path);
+    final fileName = result.path.replaceAll('\\', '/').split('/').last;
+    ref.read(composerAttachmentsProvider(widget.sessionId).notifier).add(
+          ChatAttachment(
+            id: 'att_repo_${DateTime.now().microsecondsSinceEpoch}',
+            type: isImg ? AttachmentType.image : AttachmentType.repoFile,
+            name: fileName,
+            pathOrUrl: result.path,
+          ),
+        );
     _completeFileMention(result.path);
     _focusNode.requestFocus();
+  }
+
+  Future<void> _addExternalFiles() async {
+    try {
+      final files = await openFiles();
+      if (files.isEmpty || !mounted) return;
+
+      final attachments = <ChatAttachment>[];
+      for (var i = 0; i < files.length; i++) {
+        final f = files[i];
+        final isImg = isImageExtension(f.path);
+        attachments.add(
+          ChatAttachment(
+            id: 'att_ext_${DateTime.now().microsecondsSinceEpoch}_$i',
+            type: isImg ? AttachmentType.image : AttachmentType.externalFile,
+            name: f.name,
+            pathOrUrl: f.path,
+          ),
+        );
+      }
+
+      ref
+          .read(composerAttachmentsProvider(widget.sessionId).notifier)
+          .addAll(attachments);
+      _focusNode.requestFocus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Selezione file annullata o non riuscita: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _addWebLink() async {
+    final attachment = await WebLinkInputDialog.show(context);
+    if (attachment == null || !mounted) return;
+
+    ref
+        .read(composerAttachmentsProvider(widget.sessionId).notifier)
+        .add(attachment);
+    _focusNode.requestFocus();
+  }
+
+  Future<void> _addImageFiles() async {
+    try {
+      final files = await openFiles(
+        acceptedTypeGroups: [
+          const XTypeGroup(
+            label: 'Immagini',
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'],
+          ),
+        ],
+      );
+      if (files.isEmpty || !mounted) return;
+
+      final attachments = <ChatAttachment>[];
+      for (var i = 0; i < files.length; i++) {
+        final f = files[i];
+        attachments.add(
+          ChatAttachment(
+            id: 'att_img_${DateTime.now().microsecondsSinceEpoch}_$i',
+            type: AttachmentType.image,
+            name: f.name,
+            pathOrUrl: f.path,
+          ),
+        );
+      }
+
+      ref
+          .read(composerAttachmentsProvider(widget.sessionId).notifier)
+          .addAll(attachments);
+      _focusNode.requestFocus();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Selezione immagini annullata o non riuscita: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _interrupt() async {
@@ -444,6 +571,8 @@ class _ComposerState extends ConsumerState<Composer> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final isSending = ref.watch(composerSendingProvider(widget.sessionId));
+    final attachments =
+        ref.watch(composerAttachmentsProvider(widget.sessionId));
     ref.listen<String>(composerDraftProvider(widget.sessionId), (
       previous,
       draft,
@@ -895,6 +1024,17 @@ class _ComposerState extends ConsumerState<Composer> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (attachments.isNotEmpty)
+                    AttachmentListBar(
+                      key: const ValueKey('composer-attachments-bar'),
+                      attachments: attachments,
+                      isEditable: true,
+                      onRemove: (a) => ref
+                          .read(
+                            composerAttachmentsProvider(widget.sessionId).notifier,
+                          )
+                          .remove(a.id),
+                    ),
                   TextField(
                     key: const ValueKey('composer-text-field'),
                     cursorColor: tokens.accent,
@@ -950,10 +1090,131 @@ class _ComposerState extends ConsumerState<Composer> {
                             ),
                           ),
                         ),
-                      IconButton(
-                        tooltip: 'Aggiungi file al contesto',
-                        onPressed: _addFileToContext,
+                      PopupMenuButton<String>(
+                        key: const ValueKey('composer-attach-popup-btn'),
+                        tooltip: 'Allega file, link o immagine',
                         icon: const Icon(Icons.attach_file, size: 18),
+                        color: tokens.surfaceElevated,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          side: BorderSide(color: tokens.borderStrong),
+                        ),
+                        offset: const Offset(0, -170),
+                        onSelected: _onAttachSelected,
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            key: const ValueKey('attach-option-repo'),
+                            value: 'repo',
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.folder_open_outlined,
+                                  size: 16,
+                                  color: tokens.accent,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'File dal repository',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            key: const ValueKey('attach-option-external'),
+                            value: 'external',
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.upload_file_outlined,
+                                  size: 16,
+                                  color: tokens.syntaxFunction,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'File esterno',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            key: const ValueKey('attach-option-link'),
+                            value: 'link',
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.link,
+                                  size: 16,
+                                  color: tokens.syntaxKeyword,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Link web',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            key: const ValueKey('attach-option-image'),
+                            value: 'image',
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.image_outlined,
+                                  size: 16,
+                                  color: tokens.syntaxNumber,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Immagine',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       // Stop button during streaming
                       if (isStreaming)
