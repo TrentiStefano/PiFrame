@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../ui/shimmer_border.dart';
@@ -574,6 +575,19 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
+                              key: ValueKey('repo-instructions-btn-$folder'),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              icon: Icon(Icons.description_outlined, size: 16, color: tokens.textSecondary),
+                              tooltip: 'Istruzioni repository (AGENTS.md, CLAUDE.md...)',
+                              onPressed: () {
+                                final activeSid = activeFolders.contains(folder) ? activeId : null;
+                                InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
+                              },
+                            ),
+                            const SizedBox(width: 2),
+                            IconButton(
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -646,6 +660,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       onTree: (sId) =>
                           SessionTreeDialog.show(context, sessionId: sId),
                       onClone: (sId) => _cloneSession(sId),
+                      onInstructions: (sId, folder) => InstructionFileDialog.show(
+                        context,
+                        folder: folder,
+                        sessionId: sId,
+                      ),
                     );
                   },
                 );
@@ -821,6 +840,7 @@ class _SessionTile extends ConsumerWidget {
   final void Function(String id, String name) onRename;
   final void Function(String id) onTree;
   final void Function(String id) onClone;
+  final void Function(String id, String folder)? onInstructions;
 
   const _SessionTile({
     required this.session,
@@ -832,6 +852,7 @@ class _SessionTile extends ConsumerWidget {
     required this.onRename,
     required this.onTree,
     required this.onClone,
+    this.onInstructions,
   });
 
   @override
@@ -939,6 +960,8 @@ class _SessionTile extends ConsumerWidget {
             onTree(id);
           } else if (action == 'clone') {
             onClone(id);
+          } else if (action == 'instructions') {
+            onInstructions?.call(id, _sessionFolder(session));
           }
         },
         itemBuilder: (ctx) => [
@@ -955,6 +978,27 @@ class _SessionTile extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Text(
                   isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          PopupMenuItem(
+            value: 'instructions',
+            height: 32,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: 14,
+                  color: tokens.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Istruzioni repository',
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
