@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,8 @@ class _ComposerState extends ConsumerState<Composer> {
   List<Map<String, dynamic>> _matchingMentionFiles = [];
   bool _queueExpanded = true;
   bool _isHovered = false;
+  Timer? _hoverGraceTimer;
+  bool _hasText = false;
 
   void _onFocusChanged() {
     if (mounted) setState(() {});
@@ -161,7 +164,9 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   void initState() {
     super.initState();
-    _controller.text = ref.read(composerDraftProvider(widget.sessionId));
+    final initialText = ref.read(composerDraftProvider(widget.sessionId));
+    _controller.text = initialText;
+    _hasText = initialText.trim().isNotEmpty;
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _loadCommands();
@@ -180,6 +185,12 @@ class _ComposerState extends ConsumerState<Composer> {
   void _onTextChanged() {
     final text = _controller.text;
     ref.read(composerDraftProvider(widget.sessionId).notifier).state = text;
+    final hasText = text.trim().isNotEmpty;
+    if (hasText != _hasText) {
+      setState(() {
+        _hasText = hasText;
+      });
+    }
     final show = text.startsWith('/') && !text.contains('\n');
     if (show != _showSlashMenu) {
       setState(() {
@@ -264,6 +275,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
+    _hoverGraceTimer?.cancel();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -445,11 +457,7 @@ class _ComposerState extends ConsumerState<Composer> {
           .addAll(attachments);
       _focusNode.requestFocus();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Selezione file annullata o non riuscita: $e')),
-        );
-      }
+      debugPrint('Selezione file annullata o non riuscita: $e');
     }
   }
 
@@ -493,11 +501,7 @@ class _ComposerState extends ConsumerState<Composer> {
           .addAll(attachments);
       _focusNode.requestFocus();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Selezione immagini annullata o non riuscita: $e')),
-        );
-      }
+      debugPrint('Selezione immagini annullata o non riuscita: $e');
     }
   }
 
@@ -688,46 +692,63 @@ class _ComposerState extends ConsumerState<Composer> {
         sessionState.agentStatus == AgentStatus.working ||
         sessionState.activeToolCalls.isNotEmpty;
     final isFocused = _focusNode.hasFocus;
+    final hasInputtedText = _hasText || _controller.text.trim().isNotEmpty;
+    final hasAttachments = attachments.isNotEmpty;
     final shouldMinimize = isAgentAnswering &&
         !isFocused &&
         !_isHovered &&
+        !hasInputtedText &&
+        !hasAttachments &&
         pendingInteractionRequests.isEmpty;
 
     return MouseRegion(
       key: const ValueKey('composer-mouse-region'),
       onEnter: (_) {
+        _hoverGraceTimer?.cancel();
+        _hoverGraceTimer = null;
         if (!_isHovered) {
           setState(() => _isHovered = true);
         }
       },
       onExit: (_) {
-        if (_isHovered) {
-          setState(() => _isHovered = false);
-        }
+        _hoverGraceTimer?.cancel();
+        _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
+          if (mounted && _isHovered) {
+            setState(() => _isHovered = false);
+          }
+        });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 260),
+        duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOutCubic,
         margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
         child: ShimmerBorder(
           isActive: isShimmerActive,
           borderRadius: BorderRadius.circular(tokens.radiusLg),
           child: AnimatedSize(
-            duration: const Duration(milliseconds: 260),
+            duration: const Duration(milliseconds: 350),
             curve: Curves.easeInOutCubic,
             alignment: Alignment.topCenter,
-            child: Container(
-              key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
-              padding: shouldMinimize
-                  ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
-                  : const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+              child: Container(
+                key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
+                padding: shouldMinimize
+                    ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+                    : const EdgeInsets.fromLTRB(12, 10, 12, 10),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(tokens.radiusLg),
                 border: Border.all(
                   color: shouldMinimize
                       ? tokens.agentWorking.withValues(alpha: 0.3)
-                      : Colors.transparent,
+                      : tokens.surfaceElevated.withValues(alpha: 0),
                   width: 1,
                 ),
               ),
@@ -1326,11 +1347,12 @@ class _ComposerState extends ConsumerState<Composer> {
           ),
         ],
       ),
-            ),
-          ),
-        ),
-      ),
-    );
+    ),
+  ),
+),
+),
+),
+);
   }
 
   Widget _buildMinimizedBar(

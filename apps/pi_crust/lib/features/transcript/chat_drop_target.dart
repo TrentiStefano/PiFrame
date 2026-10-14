@@ -47,18 +47,6 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
     ref
         .read(composerAttachmentsProvider(widget.sessionId).notifier)
         .addAll(newAttachments);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          newAttachments.length == 1
-              ? 'File allegato: ${newAttachments.first.name}'
-              : '${newAttachments.length} file allegati al messaggio',
-        ),
-        backgroundColor: context.tokens.surfaceElevated,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override

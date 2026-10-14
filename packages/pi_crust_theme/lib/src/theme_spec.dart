@@ -425,15 +425,16 @@ class ThemeSpec {
         waitDuration: const Duration(milliseconds: 450),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: tokens.textPrimary,
+        backgroundColor: tokens.surfaceElevated,
         contentTextStyle: TextStyle(
-          color: tokens.background,
+          color: tokens.textPrimary,
           fontFamily: tokens.uiFontFamily,
         ),
         behavior: SnackBarBehavior.floating,
-        elevation: 0,
+        elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(tokens.radiusMd),
+          side: BorderSide(color: tokens.borderStrong),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

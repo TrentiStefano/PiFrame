@@ -190,7 +190,7 @@ class ImagePreviewDialog extends StatelessWidget {
   }) {
     return showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.85),
+      barrierColor: context.tokens.overlay,
       barrierDismissible: true,
       builder: (ctx) => ImagePreviewDialog(pathOrUrl: pathOrUrl, title: title),
     );
@@ -203,7 +203,7 @@ class ImagePreviewDialog extends StatelessWidget {
 
     return Dialog(
       key: const ValueKey('image-lightbox-dialog'),
-      backgroundColor: Colors.transparent,
+      backgroundColor: tokens.background.withValues(alpha: 0),
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
@@ -218,7 +218,7 @@ class ImagePreviewDialog extends StatelessWidget {
             border: Border.all(color: tokens.borderStrong),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: tokens.overlay,
                 blurRadius: 24,
                 spreadRadius: 4,
               ),
@@ -283,7 +283,7 @@ class ImagePreviewDialog extends StatelessWidget {
                     bottomRight: Radius.circular(tokens.radiusLg),
                   ),
                   child: Container(
-                    color: Colors.black.withValues(alpha: 0.4),
+                    color: tokens.overlay,
                     child: InteractiveViewer(
                       maxScale: 5.0,
                       minScale: 0.5,

@@ -203,7 +203,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.danger,
-                  foregroundColor: Colors.white,
+                  foregroundColor: tokens.accentContrast,
                 ),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: const Text('Ignora modifiche'),

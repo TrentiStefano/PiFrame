@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'theme_spec.dart';
+import 'vscode_theme_converter.dart';
 
 class ThemeRepository {
   final Map<String, ThemeSpec> _rawThemes = {};
@@ -42,23 +42,27 @@ class ThemeRepository {
   List<ThemeSpec> get availableThemes => _resolvedThemes.values.toList();
   Stream<List<ThemeSpec>> watch() => _controller.stream;
 
+  bool hasTheme(String id) =>
+      _resolvedThemes.containsKey(id) || _rawThemes.containsKey(id);
+
   void setActiveTheme(String id) {
     if (_resolvedThemes.containsKey(id)) {
       _activeThemeId = id;
-      _controller.add(availableThemes);
+      if (!_controller.isClosed) {
+        _controller.add(availableThemes);
+      }
     }
   }
 
-  void registerThemeJson(String jsonString) {
+  ThemeSpec? registerThemeJson(String jsonString) {
     try {
-      final map = jsonDecode(jsonString);
-      if (map is Map<String, dynamic>) {
-        final spec = ThemeSpec.fromJson(map);
-        _rawThemes[spec.id] = spec;
-        _resolveAll();
-      }
+      final spec = VsCodeThemeConverter.parseAnyThemeJson(jsonString);
+      _rawThemes[spec.id] = spec;
+      _resolveAll();
+      return _resolvedThemes[spec.id] ?? spec;
     } catch (e) {
       debugPrint('Error parsing theme JSON: $e');
+      return null;
     }
   }
 
@@ -72,7 +76,9 @@ class ThemeRepository {
     for (final id in _rawThemes.keys) {
       _resolvedThemes[id] = _resolveTheme(id, <String>{}, 0);
     }
-    _controller.add(availableThemes);
+    if (!_controller.isClosed) {
+      _controller.add(availableThemes);
+    }
   }
 
   ThemeSpec _resolveTheme(String id, Set<String> visited, int depth) {

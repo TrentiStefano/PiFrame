@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
@@ -834,6 +835,76 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                   ),
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton.icon(
+                                key: const ValueKey('settings-import-theme-btn'),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: tokens.borderStrong),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      tokens.radiusSm,
+                                    ),
+                                  ),
+                                ),
+                                icon: Icon(
+                                  Icons.file_upload_outlined,
+                                  size: 16,
+                                  color: tokens.accent,
+                                ),
+                                label: Text(
+                                  'Importa tema JSON (VSCode / Pi-Crust)',
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  try {
+                                    final file = await openFile(
+                                      acceptedTypeGroups: [
+                                        const XTypeGroup(
+                                          label: 'Tema JSON (*.json)',
+                                          extensions: ['json'],
+                                        ),
+                                      ],
+                                    );
+                                    if (file == null || !context.mounted) return;
+                                    final content = await file.readAsString();
+                                    final importedSpec = await ref
+                                        .read(activeThemeSpecProvider.notifier)
+                                        .importThemeFromJson(content);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Tema "${importedSpec.name}" importato e attivato con successo!',
+                                          ),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Errore durante l\'importazione del tema: $e',
+                                          ),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
                             ),
                             const SizedBox(height: 16),
                             _buildInfoCard(tokens, [

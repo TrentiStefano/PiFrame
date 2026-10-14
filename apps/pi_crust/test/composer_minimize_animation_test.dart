@@ -74,11 +74,66 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.text('Steer'), findsOneWidget);
 
-      // Moving mouse away minimizes it back
+      // Moving mouse away: during grace period (300ms) it stays open
       await gesture.moveTo(const Offset(10, 10)); // outside composer
       await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
 
+      // After grace period (600ms + animation) expires, it minimizes back
+      await tester.pump(const Duration(milliseconds: 700));
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+    });
+
+    testWidgets('does not minimize if text has been inputted even if user clicks away while model is generating', (tester) async {
+      // Start with settled session
+      var sessionNotifier = SessionStateNotifier('s_min_test', null)
+        ..state = const SessionState(
+          sessionId: 's_min_test',
+          cwd: '/test',
+          agentStatus: AgentStatus.settled,
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  Expanded(child: SizedBox()),
+                  Composer(sessionId: 's_min_test'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Enter some text into the composer
+      await tester.enterText(find.byKey(const ValueKey('composer-text-field')), 'I have written some instructions here');
+      await tester.pumpAndSettle();
+
+      // User unfocuses / clicks away (e.g. tap elsewhere)
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      // Model starts generating / answering
+      sessionNotifier.state = sessionNotifier.state.copyWith(
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Generating answer while text was entered...'},
+      );
+      // Wait past any grace periods / animations
+      await tester.pump(const Duration(milliseconds: 1000));
+
+      // Should NOT be minimized because the user wrote text!
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(find.text('I have written some instructions here'), findsOneWidget);
     });
 
     testWidgets('does not minimize if the input box is focused', (tester) async {

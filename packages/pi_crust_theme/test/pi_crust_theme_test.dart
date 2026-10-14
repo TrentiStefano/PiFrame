@@ -135,5 +135,72 @@ void main() {
     expect(themeData.brightness, Brightness.dark);
     expect(themeData.scaffoldBackgroundColor, const Color(0xFF0E1116));
     expect(themeData.extension<CrustTokens>(), isNotNull);
+    expect(themeData.snackBarTheme.behavior, SnackBarBehavior.floating);
+    expect(themeData.snackBarTheme.backgroundColor, spec.toTokens().surfaceElevated);
+  });
+
+  test('VsCodeThemeConverter parses VSCode theme JSON with comments and trailing commas', () {
+    const vscodeJson = '''
+    // Single line comment
+    {
+      "name": "One Dark Custom",
+      "type": "dark",
+      "colors": {
+        "editor.background": "#282c34",
+        "editor.foreground": "#abb2bf",
+        "activityBar.background": "#21252b",
+        "sideBar.background": "#21252b",
+        "focusBorder": "#528bff",
+        /* block comment */
+        "editorError.foreground": "#e06c75",
+        "terminal.ansiGreen": "#98c379",
+      },
+      "tokenColors": [
+        {
+          "name": "Keywords",
+          "scope": ["keyword", "storage.type"],
+          "settings": {
+            "foreground": "#c678dd"
+          }
+        },
+        {
+          "name": "Strings",
+          "scope": "string",
+          "settings": {
+            "foreground": "#98c379"
+          }
+        }
+      ]
+    }
+    ''';
+
+    final spec = VsCodeThemeConverter.parseAnyThemeJson(vscodeJson);
+    expect(spec.name, 'One Dark Custom');
+    expect(spec.variant, 'dark');
+    expect(spec.id, 'vscode-one-dark-custom');
+    final tokens = spec.toTokens();
+    expect(tokens.background, const Color(0xFF282C34));
+    expect(tokens.textPrimary, const Color(0xFFABB2BF));
+    expect(tokens.syntaxKeyword, const Color(0xFFC678DD));
+    expect(tokens.syntaxString, const Color(0xFF98C379));
+    expect(tokens.accent, const Color(0xFF528BFF));
+  });
+
+  test('VsCodeThemeConverter handles light themes correctly', () {
+    const lightJson = '''
+    {
+      "name": "GitHub Light",
+      "type": "light",
+      "colors": {
+        "editor.background": "#ffffff",
+        "editor.foreground": "#24292e",
+        "sideBar.background": "#f6f8fa"
+      }
+    }
+    ''';
+    final spec = VsCodeThemeConverter.parseAnyThemeJson(lightJson);
+    expect(spec.variant, 'light');
+    expect(spec.toTokens().background, const Color(0xFFFFFFFF));
+    expect(spec.toTokens().textPrimary, const Color(0xFF24292E));
   });
 }
