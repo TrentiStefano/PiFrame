@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -37,6 +38,55 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   final FocusNode _renameFocusNode = FocusNode();
   final Set<String> _expandedThinkingBlocks = <String>{};
   int _lastTotalEntries = 0;
+  Timer? _liveStreamTimer;
+  DateTime? _liveTurnStartTime;
+
+  void _syncLiveTimer(bool isLiveWorking) {
+    if (isLiveWorking) {
+      _liveTurnStartTime ??= DateTime.now();
+      _liveStreamTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _liveStreamTimer?.cancel();
+      _liveStreamTimer = null;
+      _liveTurnStartTime = null;
+    }
+  }
+
+  int? _parseTimeoutSeconds(Map<String, dynamic> args) {
+    for (final key in [
+      'timeout',
+      'timeoutSeconds',
+      'timeout_seconds',
+      'timeoutMs',
+      'timeout_ms',
+      'WaitMsBeforeAsync',
+    ]) {
+      if (args.containsKey(key)) {
+        final val = args[key];
+        if (val is num) {
+          if (key.toLowerCase().contains('ms')) {
+            return (val / 1000).ceil();
+          }
+          if (val > 1000) {
+            return (val / 1000).ceil();
+          }
+          return val.toInt();
+        }
+        if (val is String) {
+          final trimmed = val.trim().toLowerCase();
+          final numPart = int.tryParse(trimmed.replaceAll(RegExp(r'[^0-9]'), ''));
+          if (numPart != null) {
+            if (trimmed.endsWith('ms')) return (numPart / 1000).ceil();
+            if (numPart > 1000) return (numPart / 1000).ceil();
+            return numPart;
+          }
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -52,6 +102,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   void didUpdateWidget(TranscriptView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
+      _liveStreamTimer?.cancel();
+      _liveStreamTimer = null;
+      _liveTurnStartTime = null;
       _isRenaming = false;
       _expandedThinkingBlocks.clear();
       _lastTotalEntries = 0;
@@ -196,6 +249,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   @override
   void dispose() {
+    _liveStreamTimer?.cancel();
     _renameController.dispose();
     _renameFocusNode.dispose();
     _scrollController.dispose();
@@ -752,6 +806,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
     final totalEntries = cleanEntries.length;
 
+    final isLiveWorking = sessionState.isStreaming ||
+        sessionState.agentStatus == AgentStatus.working;
+    _syncLiveTimer(isLiveWorking);
+
     // Keep visible messages in view if new messages arrive during active session
     if (_lastTotalEntries > 0 && totalEntries > _lastTotalEntries) {
       final added = totalEntries - _lastTotalEntries;
@@ -871,6 +929,34 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       final entryIndex = index - (hasLoadBanner ? 1 : 0);
                       if (entryIndex < visibleEntries.length) {
                         final entry = visibleEntries[entryIndex];
+                        int? elapsedSeconds;
+                        int? timeoutSeconds;
+                        if (entry.role != 'user') {
+                          final cleanIdx = cleanEntries.indexOf(entry);
+                          if (cleanIdx > 0) {
+                            final prev = cleanEntries[cleanIdx - 1];
+                            final diffMs = entry.timestamp - prev.timestamp;
+                            if (diffMs >= 5000) {
+                              elapsedSeconds = (diffMs / 1000).round();
+                            }
+                          }
+                          if (elapsedSeconds == null && entry.toolCalls.isNotEmpty) {
+                            int totalToolMs = 0;
+                            for (final t in entry.toolCalls) {
+                              if (t.durationMs != null) totalToolMs += t.durationMs!;
+                            }
+                            if (totalToolMs >= 5000) {
+                              elapsedSeconds = (totalToolMs / 1000).round();
+                            }
+                          }
+                          for (final t in entry.toolCalls) {
+                            final to = _parseTimeoutSeconds(t.args);
+                            if (to != null) {
+                              timeoutSeconds = to;
+                              break;
+                            }
+                          }
+                        }
                         return Padding(
                           key: ValueKey('entry_row_${entry.id}'),
                           padding: EdgeInsets.symmetric(
@@ -881,7 +967,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               constraints: const BoxConstraints(maxWidth: 820),
                               child: RepaintBoundary(
                                 key: ValueKey(entry.id),
-                                child: _buildEntryItem(entry, tokens),
+                                child: _buildEntryItem(
+                                  entry,
+                                  tokens,
+                                  elapsedSeconds: elapsedSeconds,
+                                  timeoutSeconds: timeoutSeconds,
+                                ),
                               ),
                             ),
                           ),
@@ -1311,6 +1402,79 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
               ],
             ),
+          // Seconds counter for live turn taking >= 5s
+          Builder(
+            builder: (context) {
+              final liveElapsedSec = _liveTurnStartTime != null
+                  ? DateTime.now().difference(_liveTurnStartTime!).inSeconds
+                  : 0;
+              int? activeTimeout;
+              for (final t in sessionState.activeToolCalls.values) {
+                final to = _parseTimeoutSeconds(t.args);
+                if (to != null) {
+                  activeTimeout = to;
+                  break;
+                }
+              }
+
+              if (liveElapsedSec >= 5 || activeTimeout != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        key: const ValueKey('livestream-seconds-counter'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.agentWorking.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(
+                            color: tokens.agentWorking.withValues(alpha: 0.35),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.timer_outlined,
+                              size: 12,
+                              color: tokens.agentWorking,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${liveElapsedSec}s',
+                              style: TextStyle(
+                                color: tokens.agentWorking,
+                                fontSize: 11,
+                                fontFamily: tokens.monoFontFamily,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (activeTimeout != null) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '(timeout: ${activeTimeout}s)',
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 10,
+                                  fontFamily: tokens.monoFontFamily,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
         ],
       ),
     );
@@ -1366,7 +1530,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
   }
 
-  Widget _buildEntryItem(SessionEntry entry, CrustTokens tokens) {
+  Widget _buildEntryItem(
+    SessionEntry entry,
+    CrustTokens tokens, {
+    int? elapsedSeconds,
+    int? timeoutSeconds,
+  }) {
     if (entry.isJunkOrInternal) return const SizedBox.shrink();
     final isUser = entry.role == 'user';
 
@@ -1508,38 +1677,112 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tokens.syntaxFunction.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(
-                            color:
-                                tokens.syntaxFunction.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.auto_awesome,
-                              size: 12,
-                              color: tokens.syntaxFunction,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Assistente',
-                              style: TextStyle(
-                                color: tokens.syntaxFunction,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                            decoration: BoxDecoration(
+                              color: tokens.syntaxFunction.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(
+                                color:
+                                    tokens.syntaxFunction.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 12,
+                                  color: tokens.syntaxFunction,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Assistente',
+                                  style: TextStyle(
+                                    color: tokens.syntaxFunction,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (elapsedSeconds != null && elapsedSeconds >= 5) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              key: ValueKey('entry_timer_${entry.id}'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.syntaxFunction.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                border: Border.all(
+                                  color: tokens.syntaxFunction.withValues(alpha: 0.3),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.timer_outlined,
+                                    size: 11,
+                                    color: tokens.syntaxFunction,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${elapsedSeconds}s',
+                                    style: TextStyle(
+                                      color: tokens.syntaxFunction,
+                                      fontSize: 10,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (timeoutSeconds != null) ...[
+                                    Text(
+                                      ' (timeout: ${timeoutSeconds}s)',
+                                      style: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 9.5,
+                                        fontFamily: tokens.monoFontFamily,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ] else if (timeoutSeconds != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              key: ValueKey('entry_timeout_${entry.id}'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              ),
+                              child: Text(
+                                'limite ${timeoutSeconds}s',
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 9.5,
+                                  fontFamily: tokens.monoFontFamily,
+                                ),
                               ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
                       IconButton(
                         tooltip: 'Copia messaggio',

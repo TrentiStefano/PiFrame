@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../domain/session/session_state.dart';
@@ -31,6 +33,120 @@ class ToolCard extends StatefulWidget {
 class _ToolCardState extends State<ToolCard> {
   bool _isExpanded = false;
   bool _initializedExpansion = false;
+  Timer? _liveTimer;
+  DateTime? _startedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.tool.isRunning) {
+      _startedAt = DateTime.now();
+      _startLiveTimer();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ToolCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tool.isRunning && !oldWidget.tool.isRunning) {
+      _startedAt = DateTime.now();
+      _startLiveTimer();
+    } else if (!widget.tool.isRunning && oldWidget.tool.isRunning) {
+      _stopLiveTimer();
+    }
+  }
+
+  void _startLiveTimer() {
+    _liveTimer?.cancel();
+    _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && widget.tool.isRunning) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _stopLiveTimer() {
+    _liveTimer?.cancel();
+    _liveTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _stopLiveTimer();
+    super.dispose();
+  }
+
+  bool _isTerminalTool(String name) {
+    switch (name.toLowerCase()) {
+      case 'bash':
+      case 'terminal':
+      case 'exec':
+      case 'run_command':
+      case 'sh':
+      case 'shell':
+      case 'cmd':
+      case 'powershell':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  String? _getCommandText(ToolExecutionState tool) {
+    if (tool.args.containsKey('command') && tool.args['command'] != null) {
+      return tool.args['command'].toString();
+    }
+    if (tool.args.containsKey('cmd') && tool.args['cmd'] != null) {
+      return tool.args['cmd'].toString();
+    }
+    if (tool.args.containsKey('CommandLine') && tool.args['CommandLine'] != null) {
+      return tool.args['CommandLine'].toString();
+    }
+    if (tool.args.containsKey('script') && tool.args['script'] != null) {
+      return tool.args['script'].toString();
+    }
+    if (_isTerminalTool(tool.toolName) && tool.args.isNotEmpty) {
+      final firstVal = tool.args.values.first;
+      if (firstVal is String && firstVal.trim().isNotEmpty) {
+        return firstVal;
+      }
+    }
+    return null;
+  }
+
+  int? _parseTimeoutSeconds(Map<String, dynamic> args) {
+    for (final key in [
+      'timeout',
+      'timeoutSeconds',
+      'timeout_seconds',
+      'timeoutMs',
+      'timeout_ms',
+      'WaitMsBeforeAsync',
+    ]) {
+      if (args.containsKey(key)) {
+        final val = args[key];
+        if (val is num) {
+          if (key.toLowerCase().contains('ms')) {
+            return (val / 1000).ceil();
+          }
+          if (val > 1000) {
+            return (val / 1000).ceil();
+          }
+          return val.toInt();
+        }
+        if (val is String) {
+          final trimmed = val.trim().toLowerCase();
+          final numPart = int.tryParse(trimmed.replaceAll(RegExp(r'[^0-9]'), ''));
+          if (numPart != null) {
+            if (trimmed.endsWith('ms')) return (numPart / 1000).ceil();
+            if (numPart > 1000) return (numPart / 1000).ceil();
+            return numPart;
+          }
+        }
+      }
+    }
+    return null;
+  }
 
   IconData _getToolIcon(String name) {
     switch (name.toLowerCase()) {
@@ -46,6 +162,11 @@ class _ToolCardState extends State<ToolCard> {
       case 'bash':
       case 'terminal':
       case 'exec':
+      case 'run_command':
+      case 'sh':
+      case 'shell':
+      case 'cmd':
+      case 'powershell':
         return Icons.terminal_outlined;
       case 'grep':
       case 'find':
@@ -69,6 +190,11 @@ class _ToolCardState extends State<ToolCard> {
       case 'bash':
       case 'terminal':
       case 'exec':
+      case 'run_command':
+      case 'sh':
+      case 'shell':
+      case 'cmd':
+      case 'powershell':
         return tokens.syntaxNumber;
       case 'grep':
       case 'find':
@@ -145,7 +271,9 @@ class _ToolCardState extends State<ToolCard> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final tool = widget.tool;
-    final isBash = tool.toolName.toLowerCase() == 'bash';
+    final isTerminal = _isTerminalTool(tool.toolName);
+    final commandText = _getCommandText(tool);
+    final timeoutSeconds = _parseTimeoutSeconds(tool.args);
     final parsed = _parseOutput(tool);
 
     if (!_initializedExpansion) {
@@ -163,12 +291,23 @@ class _ToolCardState extends State<ToolCard> {
       argPreview = tool.args['file'].toString();
     } else if (tool.args.containsKey('command')) {
       argPreview = tool.args['command'].toString();
+    } else if (commandText != null) {
+      argPreview = commandText;
     } else if (tool.args.isNotEmpty) {
       argPreview = tool.args.values.first.toString();
     }
 
     final hasOutput = tool.output.isNotEmpty;
+    final canExpand = hasOutput || commandText != null || parsed.diffText != null;
     final toolColor = _getToolColor(tool.toolName, tokens);
+
+    // Timing calculation
+    final durationMs = tool.durationMs ??
+        (tool.isRunning && _startedAt != null
+            ? DateTime.now().difference(_startedAt!).inMilliseconds
+            : null);
+    final durationSeconds = durationMs != null ? (durationMs / 1000).floor() : 0;
+    final isOver5Seconds = durationSeconds >= 5;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -189,7 +328,7 @@ class _ToolCardState extends State<ToolCard> {
         children: [
           // Header row
           TextButton(
-            onPressed: hasOutput
+            onPressed: canExpand
                 ? () => setState(() => _isExpanded = !_isExpanded)
                 : null,
             style: TextButton.styleFrom(
@@ -241,7 +380,7 @@ class _ToolCardState extends State<ToolCard> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isBash ? tokens.syntaxNumber : tokens.syntaxString,
+                          color: isTerminal ? tokens.syntaxNumber : tokens.syntaxString,
                           fontSize: 11.5,
                           fontFamily: tokens.monoFontFamily,
                           fontWeight: FontWeight.w500,
@@ -250,7 +389,54 @@ class _ToolCardState extends State<ToolCard> {
                     ),
                   ] else
                     const Spacer(),
-                  if (tool.durationMs != null) ...[
+                  // Seconds counter or ms duration badge
+                  if (isOver5Seconds) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      key: const ValueKey('tool-card-seconds-counter'),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (tool.isRunning ? tokens.agentWorking : tokens.syntaxFunction)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(
+                          color: (tool.isRunning ? tokens.agentWorking : tokens.syntaxFunction)
+                              .withValues(alpha: 0.4),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 11,
+                            color: tool.isRunning ? tokens.agentWorking : tokens.syntaxFunction,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${durationSeconds}s',
+                            style: TextStyle(
+                              color: tool.isRunning ? tokens.agentWorking : tokens.syntaxFunction,
+                              fontSize: 10,
+                              fontFamily: tokens.monoFontFamily,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (timeoutSeconds != null) ...[
+                            Text(
+                              ' / ${timeoutSeconds}s',
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 9.5,
+                                fontFamily: tokens.monoFontFamily,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ] else if (tool.durationMs != null) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -265,6 +451,25 @@ class _ToolCardState extends State<ToolCard> {
                           fontSize: 10,
                           fontFamily: tokens.monoFontFamily,
                           fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (timeoutSeconds != null && !isOver5Seconds) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      key: const ValueKey('tool-card-timeout-badge'),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                      child: Text(
+                        'limite ${timeoutSeconds}s',
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: 9.5,
+                          fontFamily: tokens.monoFontFamily,
                         ),
                       ),
                     ),
@@ -291,7 +496,7 @@ class _ToolCardState extends State<ToolCard> {
                       size: 14,
                       color: tokens.agentSettled,
                     ),
-                  if (hasOutput) ...[
+                  if (canExpand) ...[
                     const SizedBox(width: 4),
                     Icon(
                       _isExpanded ? Icons.expand_less : Icons.expand_more,
@@ -304,9 +509,137 @@ class _ToolCardState extends State<ToolCard> {
             ),
           ),
 
-          // Output body (if expanded or running)
-          if (hasOutput && (_isExpanded || tool.isRunning)) ...[
+          // Output / command body (if expanded or running)
+          if (canExpand && (_isExpanded || tool.isRunning)) ...[
             Divider(color: tokens.border, height: 1),
+
+            // Full bash / terminal command section
+            if (commandText != null) ...[
+              Container(
+                key: const ValueKey('tool-card-expanded-command'),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: tokens.background,
+                  borderRadius: !hasOutput && parsed.diffText == null
+                      ? BorderRadius.only(
+                          bottomLeft: Radius.circular(tokens.radiusSm),
+                          bottomRight: Radius.circular(tokens.radiusSm),
+                        )
+                      : BorderRadius.zero,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.terminal,
+                          size: 13,
+                          color: tokens.syntaxNumber,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isTerminal ? 'Comando lanciato' : 'Parametri comando',
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (timeoutSeconds != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            key: const ValueKey('tool-card-expanded-timeout'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.syntaxKeyword.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(
+                                color: tokens.syntaxKeyword.withValues(alpha: 0.3),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 10,
+                                  color: tokens.syntaxKeyword,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Timeout: ${timeoutSeconds}s',
+                                  style: TextStyle(
+                                    color: tokens.syntaxKeyword,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(4),
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: commandText));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Comando copiato negli appunti'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.copy, size: 11, color: tokens.textMuted),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'Copia comando',
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.borderStrong),
+                      ),
+                      child: SelectableText(
+                        commandText,
+                        style: TextStyle(
+                          color: tokens.syntaxNumber,
+                          fontSize: 12,
+                          fontFamily: tokens.monoFontFamily,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasOutput || parsed.diffText != null)
+                Divider(color: tokens.border, height: 1),
+            ],
+
             if (parsed.diffText != null) ...[
               Padding(
                 padding: const EdgeInsets.all(8),
@@ -340,12 +673,12 @@ class _ToolCardState extends State<ToolCard> {
                   ],
                 ),
               ),
-            ] else
+            ] else if (hasOutput) ...[
               Container(
                 padding: const EdgeInsets.all(8),
                 constraints: BoxConstraints(maxHeight: _isExpanded ? 320 : 120),
                 decoration: BoxDecoration(
-                  color: isBash
+                  color: isTerminal
                       ? tokens.background
                       : tokens.surfaceElevated.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.only(
@@ -367,9 +700,11 @@ class _ToolCardState extends State<ToolCard> {
                   ),
                 ),
               ),
+            ],
           ],
         ],
       ),
     );
   }
 }
+
