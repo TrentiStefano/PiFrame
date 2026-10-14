@@ -22,6 +22,8 @@ import '../features/command_palette/command_palette.dart';
 import '../features/settings/settings_view.dart';
 import '../data/notifications/notification_providers.dart';
 import '../data/notifications/session_notification_watcher.dart';
+import '../features/settings/updates_watcher.dart';
+import '../data/update/update_providers.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -215,6 +217,7 @@ class _AppShellState extends ConsumerState<AppShell>
         body: Stack(
           children: [
             const SessionNotificationWatcher(),
+            const UpdatesPeriodicWatcher(),
             SafeArea(
               child: Column(
             children: [
@@ -330,7 +333,25 @@ class _AppShellState extends ConsumerState<AppShell>
                       padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
                       constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
                       tooltip: 'Impostazioni',
-                      icon: const Icon(Icons.settings_outlined, size: 18),
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.settings_outlined, size: 18),
+                          if (ref.watch(hasUpdateBadgeProvider))
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: tokens.accent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       onPressed: () =>
                           ref.read(showSettingsProvider.notifier).state =
                               !settings,

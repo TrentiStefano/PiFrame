@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_crust/data/daemon/daemon_providers.dart';
 import 'package:pi_crust/data/daemon/pcp_client.dart';
 import 'package:pi_crust/domain/session/snapshot_reducer.dart';
-import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 
 class MockDefaultsPcpClient extends PcpClient {
   MockDefaultsPcpClient() : super(port: 1, token: 'test');

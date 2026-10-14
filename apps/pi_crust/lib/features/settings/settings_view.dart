@@ -7,6 +7,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import 'diagnostics.dart';
+import 'updates_section.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -37,7 +38,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 6,
+      length: 7,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -467,6 +468,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     Tab(text: 'ASPETTO'),
                     Tab(text: 'PRIVACY'),
                     Tab(text: 'DIAGNOSTICA'),
+                    Tab(text: 'AGGIORNAMENTI'),
                   ],
                 ),
               ],
@@ -733,7 +735,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               ),
                             ),
                             value: ref.watch(notificationsEnabledProvider),
-                            activeColor: tokens.accent,
+                            activeThumbColor: tokens.accent,
                             onChanged: (val) {
                               ref
                                   .read(notificationsEnabledProvider.notifier)
@@ -940,6 +942,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     // Tab 6: Diagnostica Locale & Export Bundle (D16)
                     // -------------------------------------------------------------
                     const DiagnosticsSection(),
+
+                    // -------------------------------------------------------------
+                    // Tab 7: Aggiornamenti Ufficiali GitHub
+                    // -------------------------------------------------------------
+                    const UpdatesSection(),
                   ],
                 ),
               ),

@@ -115,8 +115,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
     _defaultsLoading = true;
     try {
-      String? resolvedModel = state.currentModel;
-      String? resolvedThinking = state.currentThinkingLevel;
+      String? resolvedModel;
+      String? resolvedThinking;
 
       if (needsModel) {
         final res = await client!.getAvailableModels(sessionId);
@@ -139,12 +139,12 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
           }
         }
 
-        if (data['currentThinkingLevel'] != null && resolvedThinking == null) {
+        if (needsThinking && data['currentThinkingLevel'] != null) {
           resolvedThinking = data['currentThinkingLevel'].toString();
         }
       }
 
-      if (resolvedThinking == null || resolvedThinking.isEmpty) {
+      if (needsThinking && (resolvedThinking == null || resolvedThinking.isEmpty)) {
         final tRes = await client!.getAvailableThinkingLevels(sessionId);
         final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
         final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];

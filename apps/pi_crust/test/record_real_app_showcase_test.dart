@@ -177,10 +177,11 @@ class AppShell extends StatelessWidget {
   Future<Map<String, dynamic>> clearQueue(String sessionId) async => {'ok': true};
 
   @override
-  Future<Map<String, dynamic>> prompt(
+  Future<Map<String, dynamic>> sendPrompt(
     String sessionId,
-    String message, {
+    String text, {
     String? streamingBehavior,
+    List<dynamic>? images,
   }) async => {'ok': true};
 }
 
@@ -408,6 +409,7 @@ void main() {
       await _recordFrames(tester, boundaryKey, 25);
     }
 
+    // ignore: avoid_print
     print('CAPTURED REAL APP FRAMES: $_frameCounter');
     expect(_frameCounter, greaterThan(150));
   });

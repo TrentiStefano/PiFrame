@@ -11,6 +11,7 @@ import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import '../../domain/session/agent_status.dart';
+import '../../data/update/update_providers.dart';
 
 bool _isWorkerSession(Map<String, dynamic> session) {
   final name = (session['name'] ?? '').toString().toLowerCase();
@@ -702,7 +703,25 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       ),
                       alignment: Alignment.centerLeft,
                     ),
-                    icon: const Icon(Icons.settings_outlined, size: 16),
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.settings_outlined, size: 16),
+                        if (ref.watch(hasUpdateBadgeProvider))
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: tokens.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                     label: const Text(
                       'Impostazioni',
                       style: TextStyle(fontSize: 12),

@@ -140,7 +140,7 @@ void main() {
     );
   });
 
-  testWidgets('SettingsView renders six settings tabs', (tester) async {
+  testWidgets('SettingsView renders seven settings tabs', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
@@ -158,6 +158,7 @@ void main() {
       'ASPETTO',
       'PRIVACY',
       'DIAGNOSTICA',
+      'AGGIORNAMENTI',
     ]) {
       await tester.ensureVisible(find.text(tab).first);
       expect(find.text(tab), findsOneWidget);
