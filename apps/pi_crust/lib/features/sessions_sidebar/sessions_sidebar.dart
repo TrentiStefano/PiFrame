@@ -34,8 +34,13 @@ String _folderName(String path) {
 
 class SessionsSidebar extends ConsumerStatefulWidget {
   final VoidCallback? onSessionSelected;
+  final VoidCallback? onCollapse;
 
-  const SessionsSidebar({super.key, this.onSessionSelected});
+  const SessionsSidebar({
+    super.key,
+    this.onSessionSelected,
+    this.onCollapse,
+  });
 
   @override
   ConsumerState<SessionsSidebar> createState() => _SessionsSidebarState();
@@ -264,6 +269,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           }
                         },
                 ),
+                if (widget.onCollapse != null)
+                  IconButton(
+                    icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: 20),
+                    tooltip: 'Collassa barra sessioni',
+                    onPressed: widget.onCollapse,
+                  ),
               ],
             ),
           ),

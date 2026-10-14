@@ -8,6 +8,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import 'diagnostics.dart';
+import 'pi_cli_section.dart';
 import 'updates_section.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -485,57 +486,13 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   controller: _tabController,
                   children: [
                     // -------------------------------------------------------------
-                    // Tab 1: Pi
+                    // Tab 1: Pi CLI
                     // -------------------------------------------------------------
-                    ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        Text(
-                          'Installazione Pi Coding Agent',
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Pi-Crust si interfaccia con il CLI di Pi tramite subprocess locale RPC.',
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildInfoCard(tokens, [
-                          _buildInfoRow(
-                            tokens,
-                            'Percorso rilevato',
-                            'npm global prefix / PATH',
-                          ),
-                          _buildInfoRow(
-                            tokens,
-                            'Versione minima supportata',
-                            '>= v0.85.0',
-                          ),
-                          _buildInfoRow(
-                            tokens,
-                            'Stato',
-                            'Verifica tramite il daemon locale',
-                          ),
-                        ]),
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text('Ricontrolla installazione'),
-                            onPressed: () {
-                              ref.invalidate(daemonEndpointProvider);
-                            },
-                          ),
-                        ),
-                      ],
+                    PiCliSection(
+                      tokens: tokens,
+                      onRecheck: () {
+                        ref.invalidate(daemonEndpointProvider);
+                      },
                     ),
 
                     // -------------------------------------------------------------

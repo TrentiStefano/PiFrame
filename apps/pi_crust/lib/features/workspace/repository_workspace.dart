@@ -10,6 +10,7 @@ import '../../domain/session/session_state.dart';
 import '../composer/composer_draft.dart';
 import '../../ui/code/code_editor_controller.dart';
 import '../../ui/code/diff_block.dart';
+import 'integrated_terminal.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -488,8 +489,13 @@ Future<void> saveRepositoryFile(
 }
 
 class RepositoryPane extends ConsumerStatefulWidget {
-  const RepositoryPane({super.key, required this.sessionId});
+  const RepositoryPane({
+    super.key,
+    required this.sessionId,
+    this.onCollapse,
+  });
   final String sessionId;
+  final VoidCallback? onCollapse;
   @override
   ConsumerState<RepositoryPane> createState() => _RepositoryPaneState();
 }
@@ -499,6 +505,23 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   String? _editorPath;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+
+  bool _terminalOpen = false;
+  bool _terminalCollapsed = false;
+  double _terminalHeight = 240.0;
+
+  void _toggleTerminal() {
+    setState(() {
+      if (!_terminalOpen) {
+        _terminalOpen = true;
+        _terminalCollapsed = false;
+      } else if (_terminalCollapsed) {
+        _terminalCollapsed = false;
+      } else {
+        _terminalOpen = false;
+      }
+    });
+  }
 
   bool _showFileSearch = false;
   final _fileSearchQueryController = TextEditingController();
@@ -1316,6 +1339,21 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
+                  tooltip: _terminalOpen && !_terminalCollapsed
+                      ? 'Nascondi terminale'
+                      : 'Terminale integrato',
+                  onPressed: _toggleTerminal,
+                  icon: Icon(
+                    _terminalOpen ? Icons.terminal : Icons.terminal_outlined,
+                    size: 16,
+                    color: _terminalOpen ? tokens.accent : null,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
                   tooltip: 'Collassa tutte le cartelle',
                   onPressed: _collapseAll,
                   icon: const Icon(Icons.unfold_less, size: 16),
@@ -1344,6 +1382,17 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             .loadFiles(),
                   icon: const Icon(Icons.refresh, size: 16),
                 ),
+                if (widget.onCollapse != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Collassa pannello Repository',
+                    onPressed: widget.onCollapse,
+                    icon: const Icon(Icons.chevron_left, size: 18),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1364,49 +1413,111 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                final Widget upperContent;
                 if (path == null) {
                   // No file opened: file tree occupies 100% of the pane width!
-                  return _fileList(tokens, repo, path, session);
+                  upperContent = _fileList(tokens, repo, path, session);
+                } else {
+                  final compactFiles = constraints.maxWidth < 480;
+                  if (compactFiles) {
+                    upperContent = _editorPane(
+                      context,
+                      tokens,
+                      repo,
+                      session,
+                      path,
+                      buffer,
+                      writeBlocked,
+                      blockReason,
+                      compact: true,
+                    );
+                  } else {
+                    final treeWidth = (constraints.maxWidth * 0.28)
+                        .clamp(180.0, 260.0)
+                        .toDouble();
+                    upperContent = Row(
+                      children: [
+                        SizedBox(
+                          width: treeWidth,
+                          child: _fileList(tokens, repo, path, session),
+                        ),
+                        VerticalDivider(width: 1, color: tokens.borderStrong),
+                        Expanded(
+                          child: _editorPane(
+                            context,
+                            tokens,
+                            repo,
+                            session,
+                            path,
+                            buffer,
+                            writeBlocked,
+                            blockReason,
+                            compact: false,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
                 }
 
-                final compactFiles = constraints.maxWidth < 480;
-                if (compactFiles) {
-                  return _editorPane(
-                    context,
-                    tokens,
-                    repo,
-                    session,
-                    path,
-                    buffer,
-                    writeBlocked,
-                    blockReason,
-                    compact: true,
-                  );
+                if (!_terminalOpen) {
+                  return upperContent;
                 }
 
-                final treeWidth = (constraints.maxWidth * 0.28)
-                    .clamp(180.0, 260.0)
-                    .toDouble();
-                return Row(
+                return Column(
                   children: [
-                    SizedBox(
-                      width: treeWidth,
-                      child: _fileList(tokens, repo, path, session),
-                    ),
-                    VerticalDivider(width: 1, color: tokens.borderStrong),
-                    Expanded(
-                      child: _editorPane(
-                        context,
-                        tokens,
-                        repo,
-                        session,
-                        path,
-                        buffer,
-                        writeBlocked,
-                        blockReason,
-                        compact: false,
+                    Expanded(child: upperContent),
+                    if (_terminalCollapsed)
+                      _collapsedTerminalBar(tokens)
+                    else ...[
+                      MouseRegion(
+                        cursor: SystemMouseCursors.resizeUpDown,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onVerticalDragUpdate: (details) {
+                            final nextHeight = _terminalHeight - details.delta.dy;
+                            if (nextHeight < 60) {
+                              setState(() => _terminalCollapsed = true);
+                            } else {
+                              setState(() {
+                                _terminalHeight = nextHeight.clamp(
+                                  100.0,
+                                  (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
+                                );
+                              });
+                            }
+                          },
+                          child: Container(
+                            height: 6,
+                            color: tokens.border,
+                            child: Center(
+                              child: Container(
+                                width: 32,
+                                height: 2,
+                                decoration: BoxDecoration(
+                                  color: tokens.borderStrong,
+                                  borderRadius: BorderRadius.circular(1),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      SizedBox(
+                        height: _terminalHeight.clamp(
+                          100.0,
+                          (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
+                        ),
+                        child: IntegratedTerminalPanel(
+                          key: ValueKey('integrated_terminal_${widget.sessionId}'),
+                          cwd: repo.rootPath ?? session.cwd,
+                          tokens: tokens,
+                          onCollapseDownward: () =>
+                              setState(() => _terminalCollapsed = true),
+                          onClose: () => setState(() => _terminalOpen = false),
+                        ),
+                      ),
+                    ],
                   ],
                 );
               },
@@ -1424,11 +1535,65 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       ),
     );
   }
+
+  Widget _collapsedTerminalBar(CrustTokens tokens) {
+    return InkWell(
+      onTap: () => setState(() => _terminalCollapsed = false),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          border: Border(top: BorderSide(color: tokens.borderStrong)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.keyboard_arrow_up, size: 16, color: tokens.accent),
+            const SizedBox(width: 6),
+            Icon(Icons.terminal, size: 13, color: tokens.displayText),
+            const SizedBox(width: 6),
+            Text(
+              'TERMINALE',
+              style: TextStyle(
+                color: tokens.displayText,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              tooltip: 'Espandi terminale',
+              icon: const Icon(Icons.unfold_more, size: 14),
+              onPressed: () => setState(() => _terminalCollapsed = false),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              tooltip: 'Chiudi terminale',
+              icon: const Icon(Icons.close, size: 13),
+              onPressed: () => setState(() => _terminalOpen = false),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class GitChangesPane extends ConsumerStatefulWidget {
-  const GitChangesPane({super.key, required this.sessionId});
+  const GitChangesPane({
+    super.key,
+    required this.sessionId,
+    this.onCollapse,
+  });
   final String sessionId;
+  final VoidCallback? onCollapse;
   @override
   ConsumerState<GitChangesPane> createState() => _GitChangesPaneState();
 }
@@ -1891,10 +2056,26 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             context,
             'Git Changes',
             Icons.source_outlined,
-            trailing: IconButton(
-              tooltip: 'Aggiorna stato Git',
-              onPressed: _loading ? null : _refresh,
-              icon: const Icon(Icons.refresh, size: 17),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Aggiorna stato Git',
+                  onPressed: _loading ? null : _refresh,
+                  icon: const Icon(Icons.refresh, size: 17),
+                ),
+                if (widget.onCollapse != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Collassa pannello Git Changes',
+                    onPressed: widget.onCollapse,
+                    icon: const Icon(Icons.chevron_right, size: 18),
+                  ),
+                ],
+              ],
             ),
           ),
           Padding(

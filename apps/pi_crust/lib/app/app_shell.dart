@@ -50,6 +50,13 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.chat: 44,
     WorkspacePane.git: 24,
   };
+  final Set<WorkspacePane> _collapsedPanes = {};
+  final Map<WorkspacePane, double> _savedPaneWeights = {
+    WorkspacePane.repository: 32,
+    WorkspacePane.chat: 44,
+    WorkspacePane.git: 24,
+  };
+  bool _sidebarCollapsed = false;
 
   @override
   void initState() {
@@ -424,12 +431,18 @@ class _AppShellState extends ConsumerState<AppShell>
                     : Row(
                         children: [
                           if (showSessionRail)
-                            _bentoPane(
-                              const SizedBox(
-                                width: 280,
-                                child: SessionsSidebar(),
-                              ),
-                            ),
+                            _sidebarCollapsed
+                                ? _collapsedSidebarStrip(tokens)
+                                : _bentoPane(
+                                    SizedBox(
+                                      width: 280,
+                                      child: SessionsSidebar(
+                                        onCollapse: () => setState(
+                                          () => _sidebarCollapsed = true,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                           Expanded(
                             child: activeId == null
                                 ? RepaintBoundary(child: workArea())
@@ -452,11 +465,13 @@ class _AppShellState extends ConsumerState<AppShell>
       WorkspacePane.repository: RepositoryPane(
         key: ValueKey('repo_$sessionId'),
         sessionId: sessionId,
+        onCollapse: () => _collapsePane(WorkspacePane.repository),
       ),
       WorkspacePane.chat: chat(),
       WorkspacePane.git: GitChangesPane(
         key: ValueKey('git_$sessionId'),
         sessionId: sessionId,
+        onCollapse: () => _collapsePane(WorkspacePane.git),
       ),
     };
     final visible = _visiblePanes(chatFirst: width < 900);
@@ -531,7 +546,11 @@ class _AppShellState extends ConsumerState<AppShell>
     final visible = _visiblePanes();
     if (_paneVisibility[pane] == true && visible.length <= 1) return;
     setState(() {
-      _paneVisibility[pane] = !(_paneVisibility[pane] ?? false);
+      final nowVisible = !(_paneVisibility[pane] ?? false);
+      _paneVisibility[pane] = nowVisible;
+      if (nowVisible) {
+        _collapsedPanes.remove(pane);
+      }
       final remaining = _visiblePanes();
       if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
       if (!remaining.contains(_companionPane)) {
@@ -561,27 +580,196 @@ class _AppShellState extends ConsumerState<AppShell>
     );
   }
 
+  void _collapsePane(WorkspacePane pane) {
+    final visible = _visiblePanes();
+    final openPanes =
+        visible.where((p) => !_collapsedPanes.contains(p)).toList();
+    if (openPanes.length <= 1) return; // Always keep at least one pane open
+
+    setState(() {
+      _savedPaneWeights[pane] = _paneWeights[pane] ?? 30;
+      _collapsedPanes.add(pane);
+
+      final remaining = openPanes.where((p) => p != pane).toList();
+      if (remaining.isNotEmpty) {
+        final freed = _paneWeights[pane] ?? 30;
+        final extra = freed / remaining.length;
+        for (final rem in remaining) {
+          _paneWeights[rem] = (_paneWeights[rem] ?? 30) + extra;
+        }
+      }
+    });
+  }
+
+  void _expandPane(WorkspacePane pane) {
+    if (!_collapsedPanes.contains(pane)) return;
+    setState(() {
+      _collapsedPanes.remove(pane);
+      final visible = _visiblePanes();
+      final openOthers = visible
+          .where((p) => p != pane && !_collapsedPanes.contains(p))
+          .toList();
+
+      final restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
+      _paneWeights[pane] = restoreWeight;
+
+      if (openOthers.isNotEmpty) {
+        final totalOther = openOthers.fold<double>(
+          0.0,
+          (sum, p) => sum + (_paneWeights[p] ?? 30),
+        );
+        final targetOther = (100.0 - restoreWeight).clamp(20.0, 85.0);
+        final factor =
+            totalOther > 0 ? targetOther / totalOther : 1.0;
+        for (final other in openOthers) {
+          _paneWeights[other] =
+              ((_paneWeights[other] ?? 30) * factor).clamp(10.0, 85.0);
+        }
+      }
+    });
+  }
+
+  Widget _collapsedPaneStrip(WorkspacePane pane) {
+    final tokens = context.tokens;
+    final isLeft = pane == WorkspacePane.repository;
+    final iconData = switch (pane) {
+      WorkspacePane.repository => Icons.folder_outlined,
+      WorkspacePane.git => Icons.source_outlined,
+      WorkspacePane.chat => Icons.chat_bubble_outline,
+    };
+    final expandIcon = isLeft ? Icons.chevron_right : Icons.chevron_left;
+    final label = _paneLabel(pane).toUpperCase();
+
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Container(
+          width: 34,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            border: Border.all(color: tokens.border),
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+          ),
+          child: Column(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(),
+                tooltip: 'Espandi pannello ${_paneLabel(pane)}',
+                icon: Icon(expandIcon, size: 18, color: tokens.accent),
+                onPressed: () => _expandPane(pane),
+              ),
+              const SizedBox(height: 6),
+              Icon(iconData, size: 15, color: tokens.textMuted),
+              const SizedBox(height: 12),
+              Expanded(
+                child: RotatedBox(
+                  quarterTurns: 3,
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: tokens.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _collapsedSidebarStrip(CrustTokens tokens) {
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Container(
+          width: 36,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            border: Border.all(color: tokens.border),
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+          ),
+          child: Column(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(6),
+                constraints: const BoxConstraints(),
+                tooltip: 'Espandi barra sessioni',
+                icon: Icon(Icons.chevron_right, size: 18, color: tokens.accent),
+                onPressed: () => setState(() => _sidebarCollapsed = false),
+              ),
+              const SizedBox(height: 8),
+              const CrustMark(size: 20),
+              const SizedBox(height: 12),
+              Icon(Icons.chat_bubble_outline, size: 15, color: tokens.textMuted),
+              const SizedBox(height: 12),
+              Expanded(
+                child: RotatedBox(
+                  quarterTurns: 3,
+                  child: Center(
+                    child: Text(
+                      'SESSIONI',
+                      style: TextStyle(
+                        color: tokens.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _resizablePaneRow(
     List<WorkspacePane> panes,
     Map<WorkspacePane, Widget> contents,
   ) {
     if (panes.isEmpty) return const SizedBox.shrink();
-    if (panes.length == 1) return _bentoPane(contents[panes.single]!);
+    if (panes.length == 1 && _collapsedPanes.isEmpty) {
+      return _bentoPane(contents[panes.single]!);
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         const dividerWidth = 8.0;
-        final availableWidth =
-            constraints.maxWidth - dividerWidth * (panes.length - 1);
+        final collapsedCount =
+            panes.where((p) => _collapsedPanes.contains(p)).length;
+        const collapsedWidth = 40.0;
+        final availableWidth = constraints.maxWidth -
+            dividerWidth * (panes.length - 1) -
+            (collapsedWidth * collapsedCount);
+
         return Row(
           children: [
             for (var index = 0; index < panes.length; index++) ...[
-              Expanded(
-                flex: (_paneWeights[panes[index]] ?? 1)
-                    .round()
-                    .clamp(1, 100)
-                    .toInt(),
-                child: _bentoPane(contents[panes[index]]!),
-              ),
+              if (_collapsedPanes.contains(panes[index]))
+                _collapsedPaneStrip(panes[index])
+              else
+                Expanded(
+                  flex: (_paneWeights[panes[index]] ?? 1)
+                      .round()
+                      .clamp(1, 100)
+                      .toInt(),
+                  child: _bentoPane(contents[panes[index]]!),
+                ),
               if (index < panes.length - 1)
                 MouseRegion(
                   key: ValueKey(
@@ -621,14 +809,41 @@ class _AppShellState extends ConsumerState<AppShell>
     double delta,
     double availableWidth,
   ) {
+    if (_collapsedPanes.contains(left)) {
+      if (delta > 6) {
+        _expandPane(left);
+      }
+      return;
+    }
+    if (_collapsedPanes.contains(right)) {
+      if (delta < -6) {
+        _expandPane(right);
+      }
+      return;
+    }
+
     final leftWeight = _paneWeights[left] ?? 1;
     final rightWeight = _paneWeights[right] ?? 1;
     final total = leftWeight + rightWeight;
     if (availableWidth <= 0 || total <= 0) return;
-    final minimum = total * 0.2;
-    final nextLeft = (leftWeight + delta / availableWidth * total)
-        .clamp(minimum, total - minimum)
-        .toDouble();
+
+    final minimum = total * 0.15;
+    final candidateLeft = leftWeight + delta / availableWidth * total;
+
+    final openCount =
+        _visiblePanes().where((p) => !_collapsedPanes.contains(p)).length;
+    if (openCount > 1) {
+      if (candidateLeft < minimum) {
+        _collapsePane(left);
+        return;
+      }
+      if (total - candidateLeft < minimum) {
+        _collapsePane(right);
+        return;
+      }
+    }
+
+    final nextLeft = candidateLeft.clamp(minimum, total - minimum).toDouble();
     setState(() {
       _paneWeights[left] = nextLeft;
       _paneWeights[right] = total - nextLeft;
