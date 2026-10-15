@@ -680,6 +680,19 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<Map<String, dynamic>> deleteSession(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('del'),
+      type: 'session.delete',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
   Future<Map<String, dynamic>> forkSession(
     String sessionId, {
     String? entryId,
