@@ -10,6 +10,7 @@ import '../../domain/session/session_state.dart';
 import '../composer/composer_draft.dart';
 import '../../ui/code/code_editor_controller.dart';
 import '../../ui/code/diff_block.dart';
+import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 
 enum WorkspacePane { chat, repository, git }
@@ -1339,10 +1340,23 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: _terminalOpen && !_terminalCollapsed
-                      ? 'Nascondi terminale'
-                      : 'Terminale integrato',
-                  onPressed: _toggleTerminal,
+                  tooltip: ref.watch(terminalSettingsProvider).mode == TerminalMode.native
+                      ? 'Apri terminale nativo (OS)'
+                      : (_terminalOpen && !_terminalCollapsed
+                          ? 'Nascondi terminale'
+                          : 'Terminale integrato'),
+                  onPressed: () {
+                    final termSettings = ref.read(terminalSettingsProvider);
+                    if (termSettings.mode == TerminalMode.native) {
+                      launchNativeTerminal(
+                        cwd: repo.rootPath ?? session.cwd,
+                        nativeApp: termSettings.nativeApp,
+                        customPath: termSettings.customPath,
+                      );
+                    } else {
+                      _toggleTerminal();
+                    }
+                  },
                   icon: Icon(
                     _terminalOpen ? Icons.terminal : Icons.terminal_outlined,
                     size: 16,

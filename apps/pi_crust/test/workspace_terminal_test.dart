@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xterm/xterm.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:pi_crust/data/daemon/daemon_providers.dart';
 import 'package:pi_crust/features/workspace/integrated_terminal.dart';
@@ -31,9 +32,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify first terminal tab exists
+    // Verify first terminal tab and TerminalView exist
     expect(find.byIcon(Icons.terminal), findsWidgets);
-    expect(find.byType(TextField), findsOneWidget); // Command input line
+    expect(find.byType(TerminalView), findsOneWidget); // Direct in-terminal view
+    expect(find.byTooltip('Apri nel terminale nativo (OS)'), findsOneWidget);
+    expect(find.byTooltip('Interrompi processo (Ctrl+C)'), findsOneWidget);
 
     // Verify + button exists (PopupMenuButton with add icon)
     final addBtn = find.byTooltip('Nuovo terminale');
