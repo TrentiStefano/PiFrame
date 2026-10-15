@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
+import '../../app/app_version.dart';
+import '../../domain/update/semver.dart';
+
 class DaemonEndpoint {
   final int port;
   final String token;
@@ -25,6 +28,26 @@ class DaemonLocator {
       return '$custom/runtime';
     }
     return '$_homeDir/.pi-crust/runtime';
+  }
+
+  static Future<DaemonEndpoint?> restartDaemon() async {
+    final jsonFile = File('$_runtimeDir/daemon.json');
+    final tokenFile = File('$_runtimeDir/daemon.token');
+    if (await jsonFile.exists()) {
+      try {
+        final data = jsonDecode(await jsonFile.readAsString()) as Map<String, dynamic>;
+        final pid = data['pid'] as int?;
+        if (pid != null) {
+          Process.killPid(pid);
+        }
+      } catch (_) {}
+      try { await jsonFile.delete(); } catch (_) {}
+    }
+    if (await tokenFile.exists()) {
+      try { await tokenFile.delete(); } catch (_) {}
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    return locateOrProbe(autoSpawn: true);
   }
 
   static Future<DaemonEndpoint?> locateOrProbe({bool autoSpawn = true}) async {
@@ -85,6 +108,24 @@ class DaemonLocator {
         final healthUri = Uri.parse('http://127.0.0.1:$port/api/health');
         final resp = await http.get(healthUri).timeout(const Duration(milliseconds: 800));
         if (resp.statusCode == 200) {
+          final health = jsonDecode(resp.body) as Map<String, dynamic>;
+          final runningVersionStr = health['version'] as String?;
+          final pid = (health['pid'] ?? data['pid']) as int?;
+
+          final appSemVer = SemVer.tryParse(piCrustVersion);
+          final runningSemVer = SemVer.tryParse(runningVersionStr);
+
+          // If the running daemon is an older version than this client, terminate it
+          // so that a matching sidecar is spawned.
+          if (appSemVer != null && runningSemVer != null && runningSemVer < appSemVer) {
+            if (pid != null) {
+              Process.killPid(pid);
+            }
+            try { await jsonFile.delete(); } catch (_) {}
+            try { await tokenFile.delete(); } catch (_) {}
+            return null;
+          }
+
           return DaemonEndpoint(port: port, token: token);
         }
       } catch (_) {

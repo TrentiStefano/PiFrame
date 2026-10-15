@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import '../../data/daemon/daemon_locator.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/theme/theme_providers.dart';
@@ -33,6 +34,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   String? _configStatusMessage;
   bool _isLoadingPackages = true;
   bool _isWorkingWithPackage = false;
+  bool _isRestartingDaemon = false;
   String? _packageError;
   List<Map<String, dynamic>> _packages = [];
 
@@ -73,6 +75,35 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           _isLoadingConfig = false;
         });
       }
+    }
+  }
+
+  Future<void> _restartDaemon() async {
+    setState(() => _isRestartingDaemon = true);
+    try {
+      final endpoint = await DaemonLocator.restartDaemon();
+      if (mounted) {
+        if (endpoint != null) {
+          ref.invalidate(daemonEndpointProvider);
+          _fetchDaemonConfig();
+          _fetchPiPackages();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Daemon riavviato con successo')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Riavvio daemon non riuscito')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore durante il riavvio: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRestartingDaemon = false);
     }
   }
 
@@ -650,17 +681,27 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         const SizedBox(height: 24),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Tooltip(
-                            message: 'Riavvio disabilitato quando sono presenti worker attivi per proteggere le sessioni.',
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: tokens.surfaceElevated,
-                                foregroundColor: tokens.textMuted,
-                              ),
-                              icon: const Icon(Icons.restart_alt, size: 16),
-                              label: const Text('Riavvia Daemon'),
-                              onPressed: null, // Disabled when workers exist
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: tokens.surfaceElevated,
+                              foregroundColor: tokens.textPrimary,
                             ),
+                            icon: _isRestartingDaemon
+                                ? SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accent,
+                                    ),
+                                  )
+                                : const Icon(Icons.restart_alt, size: 16),
+                            label: Text(
+                              _isRestartingDaemon
+                                  ? 'Riavvio in corso...'
+                                  : 'Riavvia Daemon',
+                            ),
+                            onPressed: _isRestartingDaemon ? null : _restartDaemon,
                           ),
                         ),
                         const SizedBox(height: 24),

@@ -105,6 +105,25 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     );
   }
 
+  Map<String, String>? _parseWslPath(String path) {
+    final normalized =
+        path.trim().replaceFirst(RegExp(r'^[\\/]+'), '//').replaceAll('\\', '/');
+    final match = RegExp(
+      r'^//(wsl(?:\.localhost|\$))/([^/]+)(?:/(.*))?$',
+      caseSensitive: false,
+    ).firstMatch(normalized);
+    if (match == null) return null;
+    final distro = match.group(2)!;
+    final rest = match.group(3) ?? '';
+    final linuxPath = '/$rest'.replaceAll(RegExp(r'/+'), '/');
+    return {
+      'distro': distro,
+      'linuxPath': linuxPath.length > 1 && linuxPath.endsWith('/')
+          ? linuxPath.substring(0, linuxPath.length - 1)
+          : linuxPath,
+    };
+  }
+
   void _createNewTab({String? preferredShell}) {
     _counter++;
     final String shellExe;
@@ -112,7 +131,15 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     final String shellName;
 
     if (Platform.isWindows) {
-      if (preferredShell == 'cmd') {
+      final wslInfo = _parseWslPath(widget.cwd);
+      final shouldUseWsl = preferredShell == 'wsl' ||
+          (preferredShell == null && wslInfo != null);
+
+      if (shouldUseWsl && wslInfo != null) {
+        shellExe = 'wsl.exe';
+        shellArgs = ['-d', wslInfo['distro']!, '--cd', wslInfo['linuxPath']!];
+        shellName = 'WSL (${wslInfo['distro']})';
+      } else if (preferredShell == 'cmd') {
         shellExe = 'cmd.exe';
         shellArgs = ['/k'];
         shellName = 'cmd';
@@ -157,20 +184,24 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     String executable,
     List<String> args,
   ) async {
-    final effectiveCwd = widget.cwd.isNotEmpty && Directory(widget.cwd).existsSync()
+    final isWsl = executable.toLowerCase() == 'wsl.exe';
+    final effectiveCwd = !isWsl &&
+            widget.cwd.isNotEmpty &&
+            Directory(widget.cwd).existsSync()
         ? widget.cwd
         : Directory.current.path;
 
+    final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
     session.terminal.write(
-      'Avvio sessione terminale in: $effectiveCwd\r\n\r\n',
+      'Avvio sessione terminale in: $displayDir\r\n\r\n',
     );
 
     try {
       final process = await Process.start(
         executable,
         args,
-        workingDirectory: effectiveCwd,
-        runInShell: true,
+        workingDirectory: isWsl ? null : effectiveCwd,
+        runInShell: false,
       );
 
       session.process = process;
@@ -400,33 +431,47 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
                       _createNewTab(preferredShell: val);
                     }
                   },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'default',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.terminal, size: 15),
-                          const SizedBox(width: 8),
-                          Text(
-                            Platform.isWindows
-                                ? 'Nuovo terminale (PowerShell)'
-                                : 'Nuovo terminale',
+                  itemBuilder: (context) {
+                    final wslInfo = Platform.isWindows ? _parseWslPath(widget.cwd) : null;
+                    return [
+                      if (wslInfo != null)
+                        PopupMenuItem(
+                          value: 'wsl',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.terminal, size: 15),
+                              const SizedBox(width: 8),
+                              Text('Nuovo terminale WSL (${wslInfo['distro']})'),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    if (Platform.isWindows)
+                        ),
                       PopupMenuItem(
-                        value: 'cmd',
+                        value: 'default',
                         child: Row(
                           children: [
-                            Icon(Icons.terminal, size: 15),
+                            const Icon(Icons.terminal, size: 15),
                             const SizedBox(width: 8),
-                            Text('Command Prompt (cmd)'),
+                            Text(
+                              Platform.isWindows
+                                  ? 'Nuovo terminale (PowerShell)'
+                                  : 'Nuovo terminale',
+                            ),
                           ],
                         ),
                       ),
-                  ],
+                      if (Platform.isWindows)
+                        const PopupMenuItem(
+                          value: 'cmd',
+                          child: Row(
+                            children: [
+                              Icon(Icons.terminal, size: 15),
+                              SizedBox(width: 8),
+                              Text('Command Prompt (cmd)'),
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
                 ),
 
                 const SizedBox(width: 4),

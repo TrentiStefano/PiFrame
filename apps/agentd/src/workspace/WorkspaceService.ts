@@ -77,7 +77,7 @@ export class WorkspaceService {
     if (!repo.isRepo || !repo.rootPath) return '';
     const root = await fs.promises.realpath(repo.rootPath);
     const safePath = filePath === undefined ? undefined : await this.resolvePath(root, filePath, true);
-    return getGitDiff(root, safePath ? path.relative(root, safePath) : undefined);
+    return getGitDiff(root, safePath ? path.relative(root, safePath).split(path.sep).join('/') : undefined);
   }
 
   async listFiles(cwd: string): Promise<{ rootPath: string; files: FileInfo[]; truncated: boolean }> {
