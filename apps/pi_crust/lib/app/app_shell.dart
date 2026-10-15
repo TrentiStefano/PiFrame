@@ -393,19 +393,25 @@ class _AppShellState extends ConsumerState<AppShell>
                         clipBehavior: Clip.none,
                         children: [
                           const Icon(Icons.settings_outlined, size: 18),
-                          if (ref.watch(hasUpdateBadgeProvider))
-                            Positioned(
-                              top: -2,
-                              right: -2,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: tokens.accent,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Consumer(
+                              builder: (context, ref, _) {
+                                if (!ref.watch(hasUpdateBadgeProvider)) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: tokens.accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                );
+                              },
                             ),
+                          ),
                         ],
                       ),
                       onPressed: () =>

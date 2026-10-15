@@ -8,7 +8,6 @@ import 'package:file_selector/file_selector.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
-import '../../domain/session/session_state.dart';
 import 'attachment_chips.dart';
 import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
@@ -593,18 +592,36 @@ class _ComposerState extends ConsumerState<Composer> {
         );
       }
     });
-    final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
+    final (
+      readOnly,
+      readOnlyReason,
+      isStreaming,
+      agentStatus,
+      steeringQueue,
+      followUpQueue,
+      pendingUiRequests,
+      activeToolCallsNotEmpty,
+    ) = ref.watch(sessionStateFamily(widget.sessionId).select((s) => (
+          s.readOnly,
+          s.readOnlyReason,
+          s.isStreaming,
+          s.agentStatus,
+          s.steeringQueue,
+          s.followUpQueue,
+          s.pendingUiRequests,
+          s.activeToolCalls.isNotEmpty,
+        )));
     final sessionNotifier = ref.read(
       sessionStateFamily(widget.sessionId).notifier,
     );
-    if (sessionState.readOnly) {
+    if (readOnly) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              sessionState.readOnlyReason == 'terminal'
+              readOnlyReason == 'terminal'
                   ? 'Pi ha una sessione interattiva aperta in questa cartella. Duplica per evitare scritture concorrenti.'
                   : 'Pi-Crust non può verificare che questa sessione sia chiusa. Duplica per continuare in sicurezza.',
               style: TextStyle(color: tokens.textSecondary),
@@ -614,7 +631,7 @@ class _ComposerState extends ConsumerState<Composer> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (sessionState.readOnlyReason == 'unknown') ...[
+                if (readOnlyReason == 'unknown') ...[
                   TextButton.icon(
                     icon: const Icon(Icons.play_arrow),
                     label: const Text('Continua qui'),
@@ -668,12 +685,10 @@ class _ComposerState extends ConsumerState<Composer> {
         ),
       );
     }
-    final isStreaming = sessionState.isStreaming;
-    final isError = sessionState.agentStatus == AgentStatus.workerError;
-    final totalQueued =
-        sessionState.steeringQueue.length + sessionState.followUpQueue.length;
+    final isError = agentStatus == AgentStatus.workerError;
+    final totalQueued = steeringQueue.length + followUpQueue.length;
 
-    final pendingInteractionRequests = sessionState.pendingUiRequests.where((r) {
+    final pendingInteractionRequests = pendingUiRequests.where((r) {
       final method = r['method']?.toString();
       return r['dialog'] == true ||
           method == 'confirm' ||
@@ -684,14 +699,14 @@ class _ComposerState extends ConsumerState<Composer> {
 
     final isShimmerActive = isSending ||
         isStreaming ||
-        sessionState.agentStatus == AgentStatus.working ||
-        sessionState.agentStatus == AgentStatus.retrying ||
-        sessionState.agentStatus == AgentStatus.compacting ||
-        sessionState.activeToolCalls.isNotEmpty;
+        agentStatus == AgentStatus.working ||
+        agentStatus == AgentStatus.retrying ||
+        agentStatus == AgentStatus.compacting ||
+        activeToolCallsNotEmpty;
 
-    final isAgentAnswering = sessionState.isStreaming ||
-        sessionState.agentStatus == AgentStatus.working ||
-        sessionState.activeToolCalls.isNotEmpty;
+    final isAgentAnswering = isStreaming ||
+        agentStatus == AgentStatus.working ||
+        activeToolCallsNotEmpty;
     final isFocused = _focusNode.hasFocus;
     final hasInputtedText = _hasText || _controller.text.trim().isNotEmpty;
     final hasAttachments = attachments.isNotEmpty;
@@ -754,7 +769,7 @@ class _ComposerState extends ConsumerState<Composer> {
                 ),
               ),
               child: shouldMinimize
-                  ? _buildMinimizedBar(tokens, isStreaming, sessionState)
+                  ? _buildMinimizedBar(tokens, isStreaming)
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -813,14 +828,14 @@ class _ComposerState extends ConsumerState<Composer> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'In coda ($totalQueued): ${sessionState.steeringQueue.length} steer, ${sessionState.followUpQueue.length} follow-up',
+                          'In coda ($totalQueued): ${steeringQueue.length} steer, ${followUpQueue.length} follow-up',
                           style: TextStyle(
                             color: tokens.textSecondary,
                             fontSize: 12,
                           ),
                         ),
                       ),
-                      if (sessionState.steeringQueue.isNotEmpty)
+                      if (steeringQueue.isNotEmpty)
                         IconButton(
                           key: const ValueKey('composer-queue-toggle-expand'),
                           tooltip: _queueExpanded
@@ -858,9 +873,9 @@ class _ComposerState extends ConsumerState<Composer> {
                       ),
                     ],
                   ),
-                  if (_queueExpanded && sessionState.steeringQueue.isNotEmpty) ...[
+                  if (_queueExpanded && steeringQueue.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    for (var i = 0; i < sessionState.steeringQueue.length; i++)
+                    for (var i = 0; i < steeringQueue.length; i++)
                       Container(
                         key: ValueKey('steer-queue-item-$i'),
                         margin: const EdgeInsets.only(bottom: 4),
@@ -893,7 +908,7 @@ class _ComposerState extends ConsumerState<Composer> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                sessionState.steeringQueue[i],
+                                steeringQueue[i],
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -912,7 +927,7 @@ class _ComposerState extends ConsumerState<Composer> {
                               onPressed: () => _showEditSteerDialog(
                                 context,
                                 i,
-                                sessionState.steeringQueue[i],
+                                steeringQueue[i],
                               ),
                             ),
                             IconButton(
@@ -1421,7 +1436,6 @@ class _ComposerState extends ConsumerState<Composer> {
   Widget _buildMinimizedBar(
     CrustTokens tokens,
     bool isStreaming,
-    SessionState sessionState,
   ) {
     return InkWell(
       key: const ValueKey('composer-minimized-bar'),

@@ -244,7 +244,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
         decoration: BoxDecoration(
           color: isExpanded
               ? tokens.surfaceElevated.withValues(alpha: 0.4)
-              : Colors.transparent,
+              : null,
           border: Border(
             bottom: BorderSide(
               color: tokens.border.withValues(alpha: 0.3),
@@ -288,8 +288,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
             // Additions (+ green)
             Text(
               '+${file.additions}',
-              style: const TextStyle(
-                color: Color(0xFF22C55E), // classic green
+              style: TextStyle(
+                color: tokens.diffAddedFg,
                 fontSize: 11.5,
                 fontWeight: FontWeight.bold,
               ),
@@ -298,8 +298,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
             // Deletions (- red)
             Text(
               '-${file.deletions}',
-              style: const TextStyle(
-                color: Color(0xFFEF4444), // classic red
+              style: TextStyle(
+                color: tokens.diffRemovedFg,
                 fontSize: 11.5,
                 fontWeight: FontWeight.bold,
               ),
@@ -323,26 +323,26 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     switch (ext) {
       case 'ts':
       case 'tsx':
-        return _textBadge('TS', const Color(0xFF3178C6));
+        return _textBadge('TS', tokens.syntaxVariable, tokens, textColor: tokens.accentContrast);
       case 'js':
       case 'jsx':
-        return _textBadge('JS', const Color(0xFFF7DF1E), textColor: Colors.black);
+        return _textBadge('JS', tokens.syntaxFunction, tokens, textColor: tokens.textPrimary);
       case 'dart':
-        return _dartBadge();
+        return _dartBadge(tokens);
       case 'json':
-        return _textBadge('{ }', const Color(0xFFCBCB41), textColor: Colors.black);
+        return _textBadge('{ }', tokens.syntaxNumber, tokens, textColor: tokens.textPrimary);
       case 'md':
-        return _textBadge('MD', const Color(0xFF8B5CF6));
+        return _textBadge('MD', tokens.syntaxKeyword, tokens, textColor: tokens.accentContrast);
       case 'py':
-        return _textBadge('PY', const Color(0xFF38BDF8));
+        return _textBadge('PY', tokens.syntaxType, tokens, textColor: tokens.accentContrast);
       case 'yaml':
       case 'yml':
-        return _textBadge('YML', const Color(0xFFF97316));
+        return _textBadge('YML', tokens.syntaxString, tokens, textColor: tokens.accentContrast);
       case 'css':
       case 'scss':
-        return _textBadge('#', const Color(0xFF06B6D4));
+        return _textBadge('#', tokens.syntaxOperator, tokens, textColor: tokens.accentContrast);
       case 'html':
-        return _textBadge('<>', const Color(0xFFE34F26));
+        return _textBadge('<>', tokens.syntaxPunctuation, tokens, textColor: tokens.accentContrast);
       default:
         return Icon(
           Icons.insert_drive_file_outlined,
@@ -352,7 +352,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     }
   }
 
-  Widget _textBadge(String text, Color bgColor, {Color textColor = Colors.white}) {
+  Widget _textBadge(String text, Color bgColor, CrustTokens tokens, {Color? textColor}) {
     return Container(
       width: 18,
       height: 18,
@@ -364,7 +364,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       child: Text(
         text,
         style: TextStyle(
-          color: textColor,
+          color: textColor ?? tokens.accentContrast,
           fontSize: text.length > 2 ? 8 : 9,
           fontWeight: FontWeight.bold,
           height: 1.0,
@@ -373,19 +373,19 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     );
   }
 
-  Widget _dartBadge() {
+  Widget _dartBadge(CrustTokens tokens) {
     return Container(
       width: 18,
       height: 18,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF0175C2),
+        color: tokens.accent,
         borderRadius: BorderRadius.circular(3),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.flutter_dash,
         size: 13,
-        color: Colors.white,
+        color: tokens.accentContrast,
       ),
     );
   }

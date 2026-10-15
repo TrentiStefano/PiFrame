@@ -81,14 +81,18 @@ String encodeAttachmentsTag(List<ChatAttachment> attachments) {
   return '<!--pi-attachments:$listJson-->';
 }
 
+final RegExp _attachmentsRegex = RegExp(r'<!--pi-attachments:(.*?)-->', dotAll: true);
+
 /// Parses attachments from message text and returns the clean text and list of attachments.
 (String cleanText, List<ChatAttachment> attachments) parseAttachmentsFromText(
   String rawText,
 ) {
   if (rawText.isEmpty) return ('', const <ChatAttachment>[]);
+  if (!rawText.contains('<!--pi-attachments:')) {
+    return (rawText, const <ChatAttachment>[]);
+  }
 
-  final regex = RegExp(r'<!--pi-attachments:(.*?)-->', dotAll: true);
-  final match = regex.firstMatch(rawText);
+  final match = _attachmentsRegex.firstMatch(rawText);
 
   if (match == null) {
     return (rawText, const <ChatAttachment>[]);
@@ -113,6 +117,6 @@ String encodeAttachmentsTag(List<ChatAttachment> attachments) {
   }
 
   // Remove the comment tag from the user text
-  final cleanText = rawText.replaceAll(regex, '').trim();
+  final cleanText = rawText.replaceAll(_attachmentsRegex, '').trim();
   return (cleanText, attachments);
 }

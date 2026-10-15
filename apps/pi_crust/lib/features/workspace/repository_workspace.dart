@@ -740,13 +740,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   Widget _fileList(
     CrustTokens tokens,
     RepositoryState repo,
-    String? selectedPath,
-    SessionState session,
-  ) {
+    String? selectedPath, {
+    required bool isCwdEmpty,
+  }) {
     final isAttaching = (repo.error != null &&
             (repo.error!.contains('not found') ||
                 repo.error!.contains('Session not found'))) ||
-        (repo.files.isEmpty && session.cwd.isEmpty);
+        (repo.files.isEmpty && isCwdEmpty);
 
     if (isAttaching || (repo.loading && repo.files.isEmpty)) {
       return Center(
@@ -918,11 +918,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     BuildContext context,
     CrustTokens tokens,
     RepositoryState repo,
-    SessionState session,
     String? path,
     WorkspaceFileBuffer? buffer,
     bool writeBlocked,
     String? blockReason, {
+    required bool readOnly,
     required bool compact,
   }) {
     if (path == null) {
@@ -1083,7 +1083,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 child: TextField(
                   key: ValueKey('repository-editor-${widget.sessionId}'),
                   controller: _editor,
-                  enabled: !session.readOnly,
+                  enabled: !readOnly,
                   onChanged: (value) => ref
                       .read(repositoryStateProvider(widget.sessionId).notifier)
                       .edit(path, value),
@@ -1278,17 +1278,24 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final tokens = context.tokens;
     final editor = _ensureEditor(tokens);
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
-    final session = ref.watch(sessionStateFamily(widget.sessionId));
+    final (readOnly, readOnlyReason, agentStatus, cwd) = ref.watch(
+      sessionStateFamily(widget.sessionId).select(
+        (s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd),
+      ),
+    );
 
-    ref.listen<SessionState>(sessionStateFamily(widget.sessionId), (prev, next) {
-      final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
-      if (next.cwd.isNotEmpty &&
-          (prev == null || prev.cwd.isEmpty || currentRepo.error != null)) {
-        ref
-            .read(repositoryStateProvider(widget.sessionId).notifier)
-            .loadFiles();
-      }
-    });
+    ref.listen<String>(
+      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
+      (prev, next) {
+        final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
+        if (next.isNotEmpty &&
+            (prev == null || prev.isEmpty || currentRepo.error != null)) {
+          ref
+              .read(repositoryStateProvider(widget.sessionId).notifier)
+              .loadFiles();
+        }
+      },
+    );
 
     ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (prev, next) {
       if (next.selectedPath != null && next.selectedPath != prev?.selectedPath) {
@@ -1320,11 +1327,17 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         _updateFileSearch();
       }
     }
-    final writeBlocked = _sessionWritesBlocked(session);
-    final blockReason = session.readOnly
-        ? (session.readOnlyReason ?? 'Sessione in sola lettura')
+    final writeBlocked = readOnly ||
+        const {
+          AgentStatus.working,
+          AgentStatus.retrying,
+          AgentStatus.compacting,
+          AgentStatus.awaitingUser,
+        }.contains(agentStatus);
+    final blockReason = readOnly
+        ? (readOnlyReason ?? 'Sessione in sola lettura')
         : writeBlocked
-        ? 'Salvataggio disabilitato: ${session.agentStatus.label}.'
+        ? 'Salvataggio disabilitato: ${agentStatus.label}.'
         : null;
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
@@ -1351,7 +1364,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     final termSettings = ref.read(terminalSettingsProvider);
                     if (termSettings.mode == TerminalMode.native) {
                       launchNativeTerminal(
-                        cwd: repo.rootPath ?? session.cwd,
+                        cwd: repo.rootPath ??
+                            ref.read(sessionStateFamily(widget.sessionId)).cwd,
                         nativeApp: termSettings.nativeApp,
                         customPath: termSettings.customPath,
                       );
@@ -1432,7 +1446,12 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 final Widget upperContent;
                 if (path == null) {
                   // No file opened: file tree occupies 100% of the pane width!
-                  upperContent = _fileList(tokens, repo, path, session);
+                  upperContent = _fileList(
+                    tokens,
+                    repo,
+                    path,
+                    isCwdEmpty: cwd.isEmpty,
+                  );
                 } else {
                   final compactFiles = constraints.maxWidth < 480;
                   if (compactFiles) {
@@ -1440,11 +1459,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       context,
                       tokens,
                       repo,
-                      session,
                       path,
                       buffer,
                       writeBlocked,
                       blockReason,
+                      readOnly: readOnly,
                       compact: true,
                     );
                   } else {
@@ -1455,7 +1474,12 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       children: [
                         SizedBox(
                           width: treeWidth,
-                          child: _fileList(tokens, repo, path, session),
+                          child: _fileList(
+                            tokens,
+                            repo,
+                            path,
+                            isCwdEmpty: cwd.isEmpty,
+                          ),
                         ),
                         VerticalDivider(width: 1, color: tokens.borderStrong),
                         Expanded(
@@ -1463,11 +1487,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             context,
                             tokens,
                             repo,
-                            session,
                             path,
                             buffer,
                             writeBlocked,
                             blockReason,
+                            readOnly: readOnly,
                             compact: false,
                           ),
                         ),
@@ -1526,7 +1550,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         ),
                         child: IntegratedTerminalPanel(
                           key: ValueKey('integrated_terminal_${widget.sessionId}'),
-                          cwd: repo.rootPath ?? session.cwd,
+                          cwd: repo.rootPath ?? cwd,
                           tokens: tokens,
                           onCollapseDownward: () =>
                               setState(() => _terminalCollapsed = true),
@@ -2043,18 +2067,39 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final session = ref.watch(sessionStateFamily(widget.sessionId));
+    final (readOnly, readOnlyReason, agentStatus, cwd, touchedKey) = ref.watch(
+      sessionStateFamily(widget.sessionId).select(
+        (s) => (
+          s.readOnly,
+          s.readOnlyReason,
+          s.agentStatus,
+          s.cwd,
+          _piTouchedPaths(s).join('\x00'),
+        ),
+      ),
+    );
     final repository = ref.watch(repositoryStateProvider(widget.sessionId));
 
-    ref.listen<SessionState>(sessionStateFamily(widget.sessionId), (prev, next) {
-      if (next.cwd.isNotEmpty &&
-          (prev == null || prev.cwd.isEmpty || _status?['error'] != null)) {
-        _refresh();
-      }
-    });
+    ref.listen<String>(
+      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
+      (prev, next) {
+        if (next.isNotEmpty &&
+            (prev == null || prev.isEmpty || _status?['error'] != null)) {
+          _refresh();
+        }
+      },
+    );
 
-    final piTouchedPaths = _piTouchedPaths(session);
-    final blocked = _sessionWritesBlocked(session);
+    final piTouchedPaths = touchedKey.isEmpty
+        ? const <String>{}
+        : touchedKey.split('\x00').toSet();
+    final blocked = readOnly ||
+        const {
+          AgentStatus.working,
+          AgentStatus.retrying,
+          AgentStatus.compacting,
+          AgentStatus.awaitingUser,
+        }.contains(agentStatus);
     final files = _files;
     final staged = _staged.toSet();
     final stagedFiles = files.where((f) => staged.contains(f['path'].toString())).toList();
@@ -2062,7 +2107,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final isStagedExpanded = ref.watch(gitStagedExpandedProvider(widget.sessionId));
     final isUnstagedExpanded = ref.watch(gitUnstagedExpandedProvider(widget.sessionId));
     final repo = _status?['isRepository'] == true;
-    final root = _status?['rootPath']?.toString() ?? session.cwd;
+    final root = _status?['rootPath']?.toString() ?? cwd;
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
       child: Column(
@@ -2118,8 +2163,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   border: Border.all(color: tokens.border),
                 ),
                 child: Text(
-                  session.readOnly
-                      ? 'Scritture disabilitate: ${session.readOnlyReason ?? 'sessione in sola lettura'}'
+                  readOnly
+                      ? 'Scritture disabilitate: ${readOnlyReason ?? 'sessione in sola lettura'}'
                       : 'Scritture disabilitate mentre Pi sta lavorando.',
                   style: TextStyle(color: tokens.textPrimary, fontSize: 11),
                 ),
@@ -2132,7 +2177,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 final isAttaching = (rawError != null &&
                         (rawError.contains('not found') ||
                             rawError.contains('Session not found'))) ||
-                    (_status == null && session.cwd.isEmpty);
+                    (_status == null && cwd.isEmpty);
 
                 if (_loading || isAttaching) {
                   return Expanded(

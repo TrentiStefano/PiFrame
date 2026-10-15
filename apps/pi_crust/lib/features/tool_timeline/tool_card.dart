@@ -36,6 +36,18 @@ class _ToolCardState extends State<ToolCard> {
   Timer? _liveTimer;
   DateTime? _startedAt;
 
+  static final RegExp _patchRegex = RegExp(
+    r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)',
+    dotAll: true,
+  );
+  static final RegExp _fileRegex = RegExp(
+    r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)',
+  );
+  static final RegExp _nonDigits = RegExp(r'[^0-9]');
+
+  String? _cachedOutput;
+  _ParsedToolOutput? _cachedParsedOutput;
+
   @override
   void initState() {
     super.initState();
@@ -136,7 +148,7 @@ class _ToolCardState extends State<ToolCard> {
         }
         if (val is String) {
           final trimmed = val.trim().toLowerCase();
-          final numPart = int.tryParse(trimmed.replaceAll(RegExp(r'[^0-9]'), ''));
+          final numPart = int.tryParse(trimmed.replaceAll(_nonDigits, ''));
           if (numPart != null) {
             if (trimmed.endsWith('ms')) return (numPart / 1000).ceil();
             if (numPart > 1000) return (numPart / 1000).ceil();
@@ -206,8 +218,16 @@ class _ToolCardState extends State<ToolCard> {
   }
 
   _ParsedToolOutput _parseOutput(ToolExecutionState tool) {
+    if (_cachedParsedOutput != null && _cachedOutput == tool.output) {
+      return _cachedParsedOutput!;
+    }
+
     final raw = tool.output.trim();
-    if (raw.isEmpty) return const _ParsedToolOutput(rawText: '');
+    if (raw.isEmpty) {
+      _cachedOutput = tool.output;
+      _cachedParsedOutput = const _ParsedToolOutput(rawText: '');
+      return _cachedParsedOutput!;
+    }
 
     String? summary;
     String? diff;
@@ -242,7 +262,7 @@ class _ToolCardState extends State<ToolCard> {
       }
     } catch (_) {
       // Not standard JSON - check if details/patch string pattern exists
-      final patchMatch = RegExp(r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)', dotAll: true).firstMatch(raw);
+      final patchMatch = _patchRegex.firstMatch(raw);
       if (patchMatch != null) {
         diff = patchMatch.group(1);
       }
@@ -255,16 +275,18 @@ class _ToolCardState extends State<ToolCard> {
 
     // Infer filename from diff header if needed
     if (filename == null && diff != null) {
-      final fileMatch = RegExp(r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)').firstMatch(diff);
+      final fileMatch = _fileRegex.firstMatch(diff);
       if (fileMatch != null) filename = fileMatch.group(1);
     }
 
-    return _ParsedToolOutput(
+    _cachedOutput = tool.output;
+    _cachedParsedOutput = _ParsedToolOutput(
       summaryText: summary,
       diffText: diff,
       filename: filename,
       rawText: raw,
     );
+    return _cachedParsedOutput!;
   }
 
   @override
@@ -278,9 +300,7 @@ class _ToolCardState extends State<ToolCard> {
 
     if (!_initializedExpansion) {
       _initializedExpansion = true;
-      if (parsed.diffText != null || tool.isRunning) {
-        _isExpanded = true;
-      }
+      _isExpanded = false;
     }
 
     // Format arg preview
@@ -309,8 +329,9 @@ class _ToolCardState extends State<ToolCard> {
     final durationSeconds = durationMs != null ? (durationMs / 1000).floor() : 0;
     final isOver5Seconds = durationSeconds >= 5;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+    return RepaintBoundary(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -509,8 +530,8 @@ class _ToolCardState extends State<ToolCard> {
             ),
           ),
 
-          // Output / command body (if expanded or running)
-          if (canExpand && (_isExpanded || tool.isRunning)) ...[
+          // Output / command body (if expanded)
+          if (canExpand && _isExpanded) ...[
             Divider(color: tokens.border, height: 1),
 
             // Full bash / terminal command section
@@ -704,7 +725,8 @@ class _ToolCardState extends State<ToolCard> {
           ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 

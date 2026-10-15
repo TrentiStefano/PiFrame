@@ -26,41 +26,29 @@ Future<void> _openUrl(String url) async {
   }
 }
 
-class RichContent extends StatelessWidget {
+class RichContent extends StatefulWidget {
   final String text;
 
   const RichContent({super.key, required this.text});
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = context.tokens;
-    final segments = _parseSegments(text);
+  State<RichContent> createState() => _RichContentState();
 
-    return SelectionArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: segments.map((seg) {
-          if (seg is _CodeSegment) {
-            if (seg.language == 'diff') {
-              return DiffBlock(diffText: seg.code);
-            }
-            return CodeBlock(code: seg.code, language: seg.language);
-          } else if (seg is _TextSegment) {
-            return _buildMarkdownText(seg.content, tokens);
-          }
-          return const SizedBox.shrink();
-        }).toList(),
-      ),
-    );
-  }
+  static final RegExp _fenceRegex = RegExp(
+    r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```',
+  );
+  static final RegExp _numberedListRegex = RegExp(r'^(\d+)\.\s');
+  static final RegExp _mdLinkRegex = RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)');
+  static final RegExp _rawUrlRegex = RegExp(r'(?<![\(\[])(https?://[^\s\)]+)');
+  static final RegExp _inlineCodeRegex = RegExp(r'`([^`]+)`');
+  static final RegExp _boldRegex = RegExp(r'\*\*([^*]+)\*\*');
 
-  List<_Segment> _parseSegments(String raw) {
+  static List<_Segment> _parseSegments(String raw) {
     final segments = <_Segment>[];
-    final normalized = raw.replaceAll('\r\n', '\n');
-    final fenceRegex = RegExp(r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```');
+    final normalized = raw.contains('\r') ? raw.replaceAll('\r\n', '\n') : raw;
 
     int lastIndex = 0;
-    for (final match in fenceRegex.allMatches(normalized)) {
+    for (final match in _fenceRegex.allMatches(normalized)) {
       if (match.start > lastIndex) {
         final textPart = normalized.substring(lastIndex, match.start).trim();
         if (textPart.isNotEmpty) {
@@ -88,8 +76,8 @@ class RichContent extends StatelessWidget {
     return segments;
   }
 
-  Widget _buildMarkdownText(String text, CrustTokens tokens) {
-    final rawLines = text.replaceAll('\r\n', '\n').split('\n');
+  static Widget _buildMarkdownText(String text, CrustTokens tokens) {
+    final rawLines = (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split('\n');
     final widgets = <Widget>[];
     final currentPara = StringBuffer();
 
@@ -234,9 +222,9 @@ class RichContent extends StatelessWidget {
             ),
           ),
         );
-      } else if (RegExp(r'^\d+\.\s').hasMatch(trimmed)) {
+      } else if (_numberedListRegex.hasMatch(trimmed)) {
         flushPara();
-        final match = RegExp(r'^(\d+)\.\s').firstMatch(trimmed)!;
+        final match = _numberedListRegex.firstMatch(trimmed)!;
         final numStr = match.group(1)!;
         final itemText = trimmed.substring(match.end).trim();
         widgets.add(
@@ -287,21 +275,30 @@ class RichContent extends StatelessWidget {
     );
   }
 
-  TextSpan _parseInlineSpans(String text, CrustTokens tokens) {
+  static TextSpan _parseInlineSpans(String text, CrustTokens tokens) {
     final spans = <InlineSpan>[];
-    final mdLinkRegex = RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)');
-    final rawUrlRegex = RegExp(r'(?<![\(\[])(https?://[^\s\)]+)');
-    final inlineCodeRegex = RegExp(r'`([^`]+)`');
-    final boldRegex = RegExp(r'\*\*([^*]+)\*\*');
 
     final lines = text.split('\n');
     for (var l = 0; l < lines.length; l++) {
       final line = lines[l];
+      final hasMarkdown = line.contains('[') ||
+          line.contains('http') ||
+          line.contains('`') ||
+          line.contains('*');
+      if (!hasMarkdown) {
+        if (line.isNotEmpty) {
+          spans.add(TextSpan(text: line));
+        }
+        if (l < lines.length - 1) {
+          spans.add(const TextSpan(text: '\n'));
+        }
+        continue;
+      }
 
       final matches = <_InlineMatch>[];
 
       // Markdown links: [label](url)
-      for (final m in mdLinkRegex.allMatches(line)) {
+      for (final m in _mdLinkRegex.allMatches(line)) {
         matches.add(
           _InlineMatch(
             m.start,
@@ -314,7 +311,7 @@ class RichContent extends StatelessWidget {
       }
 
       // Raw URLs: https://...
-      for (final m in rawUrlRegex.allMatches(line)) {
+      for (final m in _rawUrlRegex.allMatches(line)) {
         final start = m.start;
         final end = m.end;
         // Skip if already inside a markdown link match
@@ -337,7 +334,7 @@ class RichContent extends StatelessWidget {
       }
 
       // Inline code: `code`
-      for (final m in inlineCodeRegex.allMatches(line)) {
+      for (final m in _inlineCodeRegex.allMatches(line)) {
         final start = m.start;
         final end = m.end;
         final overlaps = matches.any(
@@ -353,7 +350,7 @@ class RichContent extends StatelessWidget {
       }
 
       // Bold: **text**
-      for (final m in boldRegex.allMatches(line)) {
+      for (final m in _boldRegex.allMatches(line)) {
         final start = m.start;
         final end = m.end;
         final overlaps = matches.any(
@@ -436,6 +433,46 @@ class RichContent extends StatelessWidget {
     }
 
     return TextSpan(children: spans);
+  }
+}
+
+class _RichContentState extends State<RichContent> {
+  String? _cachedText;
+  CrustTokens? _cachedTokens;
+  Widget? _cachedBuiltWidget;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    if (_cachedBuiltWidget != null &&
+        _cachedText == widget.text &&
+        identical(_cachedTokens, tokens)) {
+      return _cachedBuiltWidget!;
+    }
+
+    _cachedText = widget.text;
+    _cachedTokens = tokens;
+
+    final segments = RichContent._parseSegments(widget.text);
+
+    _cachedBuiltWidget = SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: segments.map((seg) {
+          if (seg is _CodeSegment) {
+            if (seg.language == 'diff') {
+              return DiffBlock(diffText: seg.code);
+            }
+            return CodeBlock(code: seg.code, language: seg.language);
+          } else if (seg is _TextSegment) {
+            return RichContent._buildMarkdownText(seg.content, tokens);
+          }
+          return const SizedBox.shrink();
+        }).toList(),
+      ),
+    );
+
+    return _cachedBuiltWidget!;
   }
 }
 

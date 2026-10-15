@@ -133,7 +133,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
 
     final bg = isAdd
         ? tokens.diffAddedBg
-        : (isDel ? tokens.diffRemovedBg : Colors.transparent);
+        : (isDel ? tokens.diffRemovedBg : null);
 
     final prefixColor = isAdd
         ? tokens.diffAddedFg
@@ -247,11 +247,11 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
 
     final leftBg = left?.type == DiffLineType.deletion
         ? tokens.diffRemovedBg
-        : Colors.transparent;
+        : null;
 
     final rightBg = right?.type == DiffLineType.addition
         ? tokens.diffAddedBg
-        : Colors.transparent;
+        : null;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

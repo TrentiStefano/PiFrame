@@ -65,4 +65,30 @@ void main() {
     expect(find.text('edit_file'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
+
+  testWidgets('ToolCard remains collapsed by default even while tool is running', (tester) async {
+    const tool = ToolExecutionState(
+      toolCallId: 'run_call_1',
+      toolName: 'bash',
+      args: {'command': 'git status'},
+      output: 'On branch main',
+      isRunning: true,
+    );
+
+    await tester.pumpWidget(wrapWithTheme(const ToolCard(tool: tool)));
+
+    // Collapsed by default: header shows toolName and command preview
+    expect(find.text('bash'), findsOneWidget);
+    expect(find.text('git status'), findsOneWidget);
+    expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    // Body is NOT expanded
+    expect(find.byKey(const ValueKey('tool-card-expanded-command')), findsNothing);
+
+    // Clicking header expands the command
+    await tester.tap(find.byType(TextButton));
+    await tester.pump();
+
+    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    expect(find.byKey(const ValueKey('tool-card-expanded-command')), findsOneWidget);
+  });
 }

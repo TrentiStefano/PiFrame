@@ -102,7 +102,8 @@ class PcpClient {
 
   void _onMessage(dynamic raw) {
     try {
-      final map = jsonDecode(raw.toString()) as Map<String, dynamic>;
+      final String text = raw is String ? raw : (raw is List<int> ? utf8.decode(raw) : raw.toString());
+      final map = jsonDecode(text) as Map<String, dynamic>;
       final kind = map['kind'] as String?;
 
       if (kind == 'welcome') {

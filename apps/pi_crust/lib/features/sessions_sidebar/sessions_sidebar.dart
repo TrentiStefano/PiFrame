@@ -210,7 +210,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
     final activeSessionCwd = activeId != null
-        ? ref.watch(sessionStateFamily(activeId)).cwd
+        ? ref.watch(sessionStateFamily(activeId).select((s) => s.cwd))
         : '';
 
     return Container(
@@ -485,10 +485,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     if (row.isPinnedHeader) {
                       final hasWorkingPinned = pinnedSessions.any((s) {
                         final sId = s['id'] as String? ?? '';
-                        final st = ref.watch(sessionStateFamily(sId));
-                        return st.agentStatus == AgentStatus.working ||
+                        return ref.watch(sessionStateFamily(sId).select((st) =>
+                            st.agentStatus == AgentStatus.working ||
                             st.isStreaming ||
-                            st.activeToolCalls.isNotEmpty;
+                            st.activeToolCalls.isNotEmpty));
                       });
                       final hasActivePinned = hasWorkingPinned ||
                           pinnedSessions.any((s) => s['isActive'] == true);
@@ -545,12 +545,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         final isPin = pinnedIds.contains(sId);
                         final isAct = s['isActive'] == true;
                         if (isSel || isPin || isAct) {
-                          final st = ref.watch(sessionStateFamily(sId));
-                          if (st.agentStatus == AgentStatus.working ||
+                          final isWorking = ref.watch(sessionStateFamily(sId).select((st) =>
+                              st.agentStatus == AgentStatus.working ||
                               st.agentStatus == AgentStatus.retrying ||
                               st.agentStatus == AgentStatus.compacting ||
                               st.isStreaming ||
-                              st.activeToolCalls.isNotEmpty) {
+                              st.activeToolCalls.isNotEmpty));
+                          if (isWorking) {
                             return true;
                           }
                         }
@@ -974,16 +975,13 @@ class _SessionTile extends ConsumerWidget {
     final preview = session['lastMessagePreview'] as String?;
     final isStaticActive = session['isActive'] == true;
 
-    final sessionState = (isPinned || isSelected || isStaticActive)
-        ? ref.watch(sessionStateFamily(id))
-        : null;
-
-    final isWorking = sessionState != null
-        ? (sessionState.agentStatus == AgentStatus.working ||
-            sessionState.agentStatus == AgentStatus.retrying ||
-            sessionState.agentStatus == AgentStatus.compacting ||
-            sessionState.isStreaming ||
-            sessionState.activeToolCalls.isNotEmpty)
+    final isWorking = (isPinned || isSelected || isStaticActive)
+        ? ref.watch(sessionStateFamily(id).select((s) =>
+            s.agentStatus == AgentStatus.working ||
+            s.agentStatus == AgentStatus.retrying ||
+            s.agentStatus == AgentStatus.compacting ||
+            s.isStreaming ||
+            s.activeToolCalls.isNotEmpty))
         : (session['status'] == 'working' || session['isStreaming'] == true);
 
     final tile = ListTile(

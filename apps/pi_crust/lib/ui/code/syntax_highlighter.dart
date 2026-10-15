@@ -59,6 +59,14 @@ class SyntaxHighlighter {
     return TextSpan(children: allSpans);
   }
 
+  static final RegExp _keywordRegex = RegExp(
+    r'\b(async|await|break|case|catch|class|const|continue|default|def|do|else|enum|export|extends|false|final|finally|fn|for|from|function|if|implements|import|in|interface|is|let|match|mut|new|nil|None|null|package|private|protected|pub|public|return|self|static|struct|super|switch|this|throw|True|true|try|type|typedef|var|void|while|with|yield)\b',
+  );
+  static final RegExp _stringRegex = RegExp(r'''(['"`])(?:(?!\1)[^\\]|\\.)*\1''');
+  static final RegExp _numberRegex = RegExp(r'\b\d+(\.\d+)?\b');
+  static final RegExp _commentRegex = RegExp(r'(//[^\n]*|/\*[\s\S]*?\*/|#[^\n]*)');
+  static final RegExp _typeRegex = RegExp(r'\b[A-Z][a-zA-Z0-9_]*\b');
+
   static List<InlineSpan> highlightLine(
     String line,
     String lang,
@@ -69,29 +77,21 @@ class SyntaxHighlighter {
 
     final baseFg = defaultColor ?? tokens.textPrimary;
 
-    final keywordRegex = RegExp(
-      r'\b(async|await|break|case|catch|class|const|continue|default|def|do|else|enum|export|extends|false|final|finally|fn|for|from|function|if|implements|import|in|interface|is|let|match|mut|new|nil|None|null|package|private|protected|pub|public|return|self|static|struct|super|switch|this|throw|True|true|try|type|typedef|var|void|while|with|yield)\b',
-    );
-    final stringRegex = RegExp(r'''(['"`])(?:(?!\1)[^\\]|\\.)*\1''');
-    final numberRegex = RegExp(r'\b\d+(\.\d+)?\b');
-    final commentRegex = RegExp(r'(//[^\n]*|/\*[\s\S]*?\*/|#[^\n]*)');
-    final typeRegex = RegExp(r'\b[A-Z][a-zA-Z0-9_]*\b');
-
     final matches = <_SyntaxMatch>[];
 
-    for (final m in commentRegex.allMatches(line)) {
+    for (final m in _commentRegex.allMatches(line)) {
       matches.add(_SyntaxMatch(m.start, m.end, tokens.syntaxComment));
     }
-    for (final m in stringRegex.allMatches(line)) {
+    for (final m in _stringRegex.allMatches(line)) {
       matches.add(_SyntaxMatch(m.start, m.end, tokens.syntaxString));
     }
-    for (final m in keywordRegex.allMatches(line)) {
+    for (final m in _keywordRegex.allMatches(line)) {
       matches.add(_SyntaxMatch(m.start, m.end, tokens.syntaxKeyword));
     }
-    for (final m in typeRegex.allMatches(line)) {
+    for (final m in _typeRegex.allMatches(line)) {
       matches.add(_SyntaxMatch(m.start, m.end, tokens.accent));
     }
-    for (final m in numberRegex.allMatches(line)) {
+    for (final m in _numberRegex.allMatches(line)) {
       matches.add(_SyntaxMatch(m.start, m.end, tokens.syntaxNumber));
     }
 

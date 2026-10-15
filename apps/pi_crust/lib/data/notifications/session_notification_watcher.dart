@@ -63,14 +63,27 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SessionState>(sessionStateFamily(widget.sessionId), (prev, next) {
-      _checkNotifications(prev, next);
-    });
+    ref.listen(
+      sessionStateFamily(widget.sessionId).select(
+        (s) => (
+          s.agentStatus,
+          s.isStreaming,
+          s.activeToolCalls.isNotEmpty,
+          s.pendingUiRequests.length,
+          s.entries.length,
+        ),
+      ),
+      (prev, next) {
+        final session = ref.read(sessionStateFamily(widget.sessionId));
+        _checkNotifications(prev, next, session);
+      },
+    );
     return const SizedBox.shrink();
   }
 
   Future<void> _checkNotifications(
-    SessionState? prev,
+    (AgentStatus, bool, bool, int, int)? prev,
+    (AgentStatus, bool, bool, int, int) nextSummary,
     SessionState next,
   ) async {
     final enabled = ref.read(notificationsEnabledProvider);
@@ -82,41 +95,43 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     if (isFocused) return;
 
     // 1. Attention required: interactive choice, question, or confirmation dialog
-    final pendingInteraction = next.pendingUiRequests.where((r) {
-      final method = r['method']?.toString();
-      return r['dialog'] == true ||
-          method == 'confirm' ||
-          method == 'select' ||
-          method == 'input' ||
-          method == 'editor';
-    }).toList();
+    if (nextSummary.$4 > 0) {
+      final pendingInteraction = next.pendingUiRequests.where((r) {
+        final method = r['method']?.toString();
+        return r['dialog'] == true ||
+            method == 'confirm' ||
+            method == 'select' ||
+            method == 'input' ||
+            method == 'editor';
+      }).toList();
 
-    if (pendingInteraction.isNotEmpty) {
-      for (final req in pendingInteraction) {
-        final reqId = req['requestId']?.toString() ?? '';
-        if (reqId.isNotEmpty && !_handledUiRequestIds.contains(reqId)) {
-          _handledUiRequestIds.add(reqId);
-          final sessionName = next.sessionName ?? widget.sessionId;
-          final title = req['title']?.toString() ?? 'Attenzione richiesta';
-          final message = req['message']?.toString() ??
-              'L\'agente richiede una tua risposta o scelta.';
-          unawaited(service.showNotification(
-            title: 'Richiesta attenzione · $sessionName',
-            body: '$title: $message',
-            sessionId: widget.sessionId,
-          ));
+      if (pendingInteraction.isNotEmpty) {
+        for (final req in pendingInteraction) {
+          final reqId = req['requestId']?.toString() ?? '';
+          if (reqId.isNotEmpty && !_handledUiRequestIds.contains(reqId)) {
+            _handledUiRequestIds.add(reqId);
+            final sessionName = next.sessionName ?? widget.sessionId;
+            final title = req['title']?.toString() ?? 'Attenzione richiesta';
+            final message = req['message']?.toString() ??
+                'L\'agente richiede una tua risposta o scelta.';
+            unawaited(service.showNotification(
+              title: 'Richiesta attenzione · $sessionName',
+              body: '$title: $message',
+              sessionId: widget.sessionId,
+            ));
+          }
         }
       }
     }
 
     // 2. Agent completed an answer
     final wasWorking = prev != null &&
-        (prev.agentStatus == AgentStatus.working ||
-            prev.isStreaming ||
-            prev.activeToolCalls.isNotEmpty);
-    final isSettledNow = next.agentStatus != AgentStatus.working &&
-        !next.isStreaming &&
-        next.activeToolCalls.isEmpty;
+        (prev.$1 == AgentStatus.working ||
+            prev.$2 ||
+            prev.$3);
+    final isSettledNow = nextSummary.$1 != AgentStatus.working &&
+        !nextSummary.$2 &&
+        !nextSummary.$3;
 
     if (wasWorking && isSettledNow && next.entries.isNotEmpty) {
       final lastEntry = next.entries.last;

@@ -146,6 +146,9 @@ class CrustMark extends StatelessWidget {
         ? 'assets/branding/app_icon_dark_512.png'
         : 'assets/branding/app_icon_light_512.png';
 
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+    final cacheDim = (size * dpr).round();
+
     return Semantics(
       label: 'Pi-Crust',
       image: true,
@@ -155,6 +158,8 @@ class CrustMark extends StatelessWidget {
           assetPath,
           width: size,
           height: size,
+          cacheWidth: cacheDim,
+          cacheHeight: cacheDim,
           fit: BoxFit.contain,
           excludeFromSemantics: true,
           errorBuilder: (context, error, stackTrace) {

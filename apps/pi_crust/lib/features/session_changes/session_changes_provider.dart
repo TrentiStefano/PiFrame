@@ -269,16 +269,19 @@ final sessionChangesProvider = StateNotifierProvider.family<
 /// Indicates whether the session has modified files and the agent is settled.
 final sessionHasModifiedFilesProvider =
     Provider.family<bool, String>((ref, sessionId) {
-  final session = ref.watch(sessionStateFamily(sessionId));
-  final changes = ref.watch(sessionChangesProvider(sessionId));
-
-  final isSettled = !session.isStreaming &&
+  final isSettled = ref.watch(sessionStateFamily(sessionId).select((session) =>
+      !session.isStreaming &&
       session.agentStatus != AgentStatus.working &&
       session.agentStatus != AgentStatus.retrying &&
-      session.agentStatus != AgentStatus.compacting;
+      session.agentStatus != AgentStatus.compacting));
 
-  final hasTouched = piTouchedPaths(session).isNotEmpty;
+  if (!isSettled) return false;
+
+  final hasTouched = ref.watch(sessionStateFamily(sessionId).select(
+    (session) => piTouchedPaths(session).isNotEmpty,
+  ));
+  final changes = ref.watch(sessionChangesProvider(sessionId));
   final hasGitFiles = changes.files.isNotEmpty;
 
-  return isSettled && (hasTouched || hasGitFiles);
+  return hasTouched || hasGitFiles;
 });

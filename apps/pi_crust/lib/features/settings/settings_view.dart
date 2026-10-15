@@ -1073,50 +1073,48 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             border: Border.all(color: tokens.border),
           ),
-          child: Column(
-            children: [
-              RadioListTile<TerminalMode>(
-                value: TerminalMode.integrated,
-                groupValue: termSettings.mode,
-                activeColor: tokens.accent,
-                onChanged: (mode) {
-                  if (mode != null) notifier.setMode(mode);
-                },
-                title: Text(
-                  'Terminale integrato (in Pi-Crust)',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+          child: RadioGroup<TerminalMode>(
+            groupValue: termSettings.mode,
+            onChanged: (mode) {
+              if (mode != null) notifier.setMode(mode);
+            },
+            child: Column(
+              children: [
+                RadioListTile<TerminalMode>(
+                  value: TerminalMode.integrated,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    'Terminale integrato (in Pi-Crust)',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Scrivi direttamente nella finestra di terminale integrata, con cronologia frecce su/giù e supporto shell di sistema.',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                 ),
-                subtitle: Text(
-                  'Scrivi direttamente nella finestra di terminale integrata, con cronologia frecce su/giù e supporto shell di sistema.',
-                  style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                ),
-              ),
-              Divider(color: tokens.border, height: 1),
-              RadioListTile<TerminalMode>(
-                value: TerminalMode.native,
-                groupValue: termSettings.mode,
-                activeColor: tokens.accent,
-                onChanged: (mode) {
-                  if (mode != null) notifier.setMode(mode);
-                },
-                title: Text(
-                  'Terminale nativo OS (applicazione esterna)',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                Divider(color: tokens.border, height: 1),
+                RadioListTile<TerminalMode>(
+                  value: TerminalMode.native,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    'Terminale nativo OS (applicazione esterna)',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Apre una finestra di terminale esterna nativa direttamente nella cartella del repository.',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                 ),
-                subtitle: Text(
-                  'Apre una finestra di terminale esterna nativa direttamente nella cartella del repository.',
-                  style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -1138,76 +1136,61 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             border: Border.all(color: tokens.border),
           ),
-          child: Column(
-            children: [
-              RadioListTile<NativeTerminalApp>(
-                value: NativeTerminalApp.systemDefault,
-                groupValue: termSettings.nativeApp,
-                activeColor: tokens.accent,
-                onChanged: (app) {
-                  if (app != null) notifier.setNativeApp(app);
-                },
-                title: Text(
-                  Platform.isWindows
-                      ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
-                      : 'Terminale predefinito di sistema',
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                ),
-              ),
-              if (Platform.isWindows) ...[
-                Divider(color: tokens.border, height: 1),
+          child: RadioGroup<NativeTerminalApp>(
+            groupValue: termSettings.nativeApp,
+            onChanged: (app) {
+              if (app != null) notifier.setNativeApp(app);
+            },
+            child: Column(
+              children: [
                 RadioListTile<NativeTerminalApp>(
-                  value: NativeTerminalApp.powershell,
-                  groupValue: termSettings.nativeApp,
+                  value: NativeTerminalApp.systemDefault,
                   activeColor: tokens.accent,
-                  onChanged: (app) {
-                    if (app != null) notifier.setNativeApp(app);
-                  },
                   title: Text(
-                    'PowerShell (powershell.exe)',
+                    Platform.isWindows
+                        ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
+                        : 'Terminale predefinito di sistema',
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
                 ),
+                if (Platform.isWindows) ...[
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.powershell,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'PowerShell (powershell.exe)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.cmd,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'Command Prompt (cmd.exe)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.wsl,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'WSL (Windows Subsystem for Linux)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                ],
                 Divider(color: tokens.border, height: 1),
                 RadioListTile<NativeTerminalApp>(
-                  value: NativeTerminalApp.cmd,
-                  groupValue: termSettings.nativeApp,
+                  value: NativeTerminalApp.custom,
                   activeColor: tokens.accent,
-                  onChanged: (app) {
-                    if (app != null) notifier.setNativeApp(app);
-                  },
                   title: Text(
-                    'Command Prompt (cmd.exe)',
+                    'Applicazione o eseguibile personalizzato',
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
-                ),
-                Divider(color: tokens.border, height: 1),
-                RadioListTile<NativeTerminalApp>(
-                  value: NativeTerminalApp.wsl,
-                  groupValue: termSettings.nativeApp,
-                  activeColor: tokens.accent,
-                  onChanged: (app) {
-                    if (app != null) notifier.setNativeApp(app);
-                  },
-                  title: Text(
-                    'WSL (Windows Subsystem for Linux)',
-                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                  ),
-                ),
-              ],
-              Divider(color: tokens.border, height: 1),
-              RadioListTile<NativeTerminalApp>(
-                value: NativeTerminalApp.custom,
-                groupValue: termSettings.nativeApp,
-                activeColor: tokens.accent,
-                onChanged: (app) {
-                  if (app != null) notifier.setNativeApp(app);
-                },
-                title: Text(
-                  'Applicazione o eseguibile personalizzato',
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                ),
-                subtitle: termSettings.nativeApp == NativeTerminalApp.custom
+                  subtitle: termSettings.nativeApp == NativeTerminalApp.custom
                     ? Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
@@ -1264,6 +1247,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             ],
           ),
         ),
+      ),
         const SizedBox(height: 20),
 
         // Test action button
@@ -1277,22 +1261,21 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             icon: const Icon(Icons.open_in_new, size: 16),
             label: const Text('Testa apertura terminale nativo'),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               final launched = await launchNativeTerminal(
                 cwd: Directory.current.path,
                 nativeApp: termSettings.nativeApp,
                 customPath: termSettings.customPath,
               );
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      launched
-                          ? 'Terminale nativo avviato con successo!'
-                          : 'Impossibile avviare il terminale con la configurazione scelta.',
-                    ),
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    launched
+                        ? 'Terminale nativo avviato con successo!'
+                        : 'Impossibile avviare il terminale con la configurazione scelta.',
                   ),
-                );
-              }
+                ),
+              );
             },
           ),
         ),

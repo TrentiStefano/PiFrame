@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
+import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
@@ -165,33 +166,36 @@ Future<void> deleteSessionWithConfirmation(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Row(
-        children: [
-          Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
-          SizedBox(width: 8),
-          Expanded(child: Text('Elimina sessione')),
-        ],
-      ),
-      content: Text(
-        'Sei sicuro di voler eliminare la sessione "$sessionName"?\n'
-        'Tutti i messaggi e la cronologia della sessione verranno eliminati definitivamente.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Annulla'),
+    builder: (ctx) {
+      final tokens = ctx.tokens;
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.delete_outline, color: tokens.danger, size: 22),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Elimina sessione')),
+          ],
         ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
+        content: Text(
+          'Sei sicuro di voler eliminare la sessione "$sessionName"?\n'
+          'Tutti i messaggi e la cronologia della sessione verranno eliminati definitivamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
           ),
-          onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Elimina'),
-        ),
-      ],
-    ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: tokens.danger,
+              foregroundColor: tokens.surface,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      );
+    },
   );
 
   if (confirmed != true || !context.mounted) return;
@@ -232,106 +236,109 @@ Future<void> removeRepoWithConfirmation(
   // Step 1: Choice dialog
   final choice = await showDialog<String>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.folder_delete_outlined, size: 22),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Rimuovi repository "$repoName"',
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Il repository contiene ${folderSessions.length} session${folderSessions.length == 1 ? 'e' : 'i'}. Scegli cosa desideri fare:',
-            style: const TextStyle(fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          InkWell(
-            key: const ValueKey('hide-repo-only-btn'),
-            onTap: () => Navigator.pop(ctx, 'hide'),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.visibility_off_outlined, color: Colors.blueAccent),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Rimuovi solo dalla vista',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Nasconde il repository dal pannello sessioni. Nessuna sessione viene eliminata dal disco.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    builder: (ctx) {
+      final tokens = ctx.tokens;
+      return AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.folder_delete_outlined, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Rimuovi repository "$repoName"',
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          InkWell(
-            key: const ValueKey('delete-all-repo-sessions-btn'),
-            onTap: () => Navigator.pop(ctx, 'delete_all'),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Elimina repository e tutte le sessioni...',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent, fontSize: 13),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Elimina definitivamente dal disco tutte le sessioni di questo repository.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Annulla'),
+          ],
         ),
-      ],
-    ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Il repository contiene ${folderSessions.length} session${folderSessions.length == 1 ? 'e' : 'i'}. Scegli cosa desideri fare:',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            InkWell(
+              key: const ValueKey('hide-repo-only-btn'),
+              onTap: () => Navigator.pop(ctx, 'hide'),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: tokens.border),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.visibility_off_outlined, color: tokens.accent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Rimuovi solo dalla vista',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Nasconde il repository dal pannello sessioni. Nessuna sessione viene eliminata dal disco.',
+                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              key: const ValueKey('delete-all-repo-sessions-btn'),
+              onTap: () => Navigator.pop(ctx, 'delete_all'),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: tokens.danger.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever_outlined, color: tokens.danger),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Elimina repository e tutte le sessioni...',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: tokens.danger, fontSize: 13),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Elimina definitivamente dal disco tutte le sessioni di questo repository.',
+                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annulla'),
+          ),
+        ],
+      );
+    },
   );
 
   if (choice == null || !context.mounted) return;
@@ -436,14 +443,15 @@ class _DeleteRepoConfirmDialogState extends State<_DeleteRepoConfirmDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final canDelete = _textController.text.trim().toLowerCase() == 'delete';
 
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
-          SizedBox(width: 8),
-          Expanded(child: Text('ATTENZIONE: Eliminazione')),
+          Icon(Icons.warning_amber_rounded, color: tokens.danger, size: 24),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('ATTENZIONE: Eliminazione')),
         ],
       ),
       content: Column(
@@ -477,8 +485,8 @@ class _DeleteRepoConfirmDialogState extends State<_DeleteRepoConfirmDialog> {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
+            backgroundColor: tokens.danger,
+            foregroundColor: tokens.surface,
           ),
           onPressed: canDelete ? () => Navigator.pop(context, true) : null,
           child: const Text('Elimina tutto'),
