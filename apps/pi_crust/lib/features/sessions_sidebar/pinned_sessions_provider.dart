@@ -54,6 +54,13 @@ class PinnedSessionsNotifier extends StateNotifier<Set<String>> {
     _save();
   }
 
+  void unpin(String sessionId) {
+    if (state.contains(sessionId)) {
+      state = Set<String>.from(state)..remove(sessionId);
+      _save();
+    }
+  }
+
   bool isPinned(String sessionId) => state.contains(sessionId);
 }
 

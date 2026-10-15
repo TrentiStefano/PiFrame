@@ -19,6 +19,7 @@ import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
+import '../session_changes/session_changes_provider.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
@@ -1261,7 +1262,68 @@ class _ComposerState extends ConsumerState<Composer> {
                         ),
 
                       // Dynamic action buttons
-                      if (!isStreaming)
+                      if (!isStreaming) ...[
+                        if (ref.watch(sessionHasModifiedFilesProvider(widget.sessionId))) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 2),
+                            child: Tooltip(
+                              message: ref.watch(isReviewingChangesProvider)
+                                  ? 'Chiudi revisione modifiche'
+                                  : 'Rivedi modifiche ai file',
+                              child: PressFeedback(
+                                child: OutlinedButton.icon(
+                                  key: const ValueKey('review-changes-btn'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: ref.watch(isReviewingChangesProvider)
+                                        ? tokens.accent
+                                        : tokens.displayText,
+                                    side: BorderSide(
+                                      color: ref.watch(isReviewingChangesProvider)
+                                          ? tokens.accent
+                                          : tokens.border,
+                                      width: 1,
+                                    ),
+                                    backgroundColor: ref.watch(isReviewingChangesProvider)
+                                        ? tokens.accent.withValues(alpha: 0.12)
+                                        : tokens.surface,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: Icon(
+                                    ref.watch(isReviewingChangesProvider)
+                                        ? Icons.rate_review
+                                        : Icons.rate_review_outlined,
+                                    size: 16,
+                                    color: ref.watch(isReviewingChangesProvider)
+                                        ? tokens.accent
+                                        : tokens.displayText,
+                                  ),
+                                  label: Text(
+                                    'Review changes',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: ref.watch(isReviewingChangesProvider)
+                                          ? tokens.accent
+                                          : tokens.displayText,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    ref.read(isReviewingChangesProvider.notifier).update((v) => !v);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Container(
                           margin: const EdgeInsets.only(bottom: 2),
                           child: Tooltip(
@@ -1274,7 +1336,8 @@ class _ComposerState extends ConsumerState<Composer> {
                               ),
                             ),
                           ),
-                        )
+                        ),
+                      ]
                       else ...[
                         // Steer Button
                         Tooltip(

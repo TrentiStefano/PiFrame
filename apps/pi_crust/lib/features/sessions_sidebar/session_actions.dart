@@ -204,8 +204,7 @@ Future<void> deleteSessionWithConfirmation(
     if (ref.read(activeSessionIdProvider) == sessionId) {
       ref.read(activeSessionIdProvider.notifier).state = null;
     }
-    ref.read(pinnedSessionsProvider.notifier).state =
-        Set<String>.from(ref.read(pinnedSessionsProvider))..remove(sessionId);
+    ref.read(pinnedSessionsProvider.notifier).unpin(sessionId);
 
     ref.invalidate(sessionListProvider);
 
@@ -383,8 +382,7 @@ Future<void> removeRepoWithConfirmation(
             if (id == activeId) {
               ref.read(activeSessionIdProvider.notifier).state = null;
             }
-            ref.read(pinnedSessionsProvider.notifier).state =
-                Set<String>.from(ref.read(pinnedSessionsProvider))..remove(id);
+            ref.read(pinnedSessionsProvider.notifier).unpin(id);
           } catch (_) {}
         }
       }

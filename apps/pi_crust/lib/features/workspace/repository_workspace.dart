@@ -35,7 +35,7 @@ String _repositoryLoadError(Object error) {
   return message;
 }
 
-Set<String> _piTouchedPaths(SessionState session) {
+Set<String> piTouchedPaths(SessionState session) {
   final paths = <String>{};
   final tools = [
     ...session.entries.expand((entry) => entry.toolCalls),
@@ -62,6 +62,8 @@ Set<String> _piTouchedPaths(SessionState session) {
   }
   return paths;
 }
+
+Set<String> _piTouchedPaths(SessionState session) => piTouchedPaths(session);
 
 bool _pathSetContains(Set<String> paths, String path) =>
     paths.contains(path) ||

@@ -24,6 +24,8 @@ import '../data/notifications/notification_providers.dart';
 import '../data/notifications/session_notification_watcher.dart';
 import '../features/settings/updates_watcher.dart';
 import '../data/update/update_providers.dart';
+import '../features/session_changes/session_changes_provider.dart';
+import '../features/session_changes/session_changes_pane.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -57,6 +59,45 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   bool _sidebarCollapsed = false;
+  bool? _preReviewSidebarCollapsed;
+  Map<WorkspacePane, bool>? _preReviewPaneVisibility;
+  Map<WorkspacePane, double>? _preReviewPaneWeights;
+
+  void _enterReviewMode() {
+    _preReviewSidebarCollapsed ??= _sidebarCollapsed;
+    _preReviewPaneVisibility ??= Map.from(_paneVisibility);
+    _preReviewPaneWeights ??= Map.from(_paneWeights);
+
+    setState(() {
+      _sidebarCollapsed = true; // Minimize Sessions pane
+      _paneVisibility[WorkspacePane.repository] = false; // Hide Repository pane
+      _paneVisibility[WorkspacePane.chat] = true;
+      _paneVisibility[WorkspacePane.git] = true; // Use Git slot for Review Changes
+      _paneWeights[WorkspacePane.chat] = 50.0;
+      _paneWeights[WorkspacePane.git] = 50.0;
+      _collapsedPanes.remove(WorkspacePane.chat);
+      _collapsedPanes.remove(WorkspacePane.git);
+    });
+  }
+
+  void _exitReviewMode() {
+    setState(() {
+      if (_preReviewSidebarCollapsed != null) {
+        _sidebarCollapsed = _preReviewSidebarCollapsed!;
+      }
+      if (_preReviewPaneVisibility != null) {
+        _paneVisibility.clear();
+        _paneVisibility.addAll(_preReviewPaneVisibility!);
+      }
+      if (_preReviewPaneWeights != null) {
+        _paneWeights.clear();
+        _paneWeights.addAll(_preReviewPaneWeights!);
+      }
+      _preReviewSidebarCollapsed = null;
+      _preReviewPaneVisibility = null;
+      _preReviewPaneWeights = null;
+    });
+  }
 
   @override
   void initState() {
@@ -133,6 +174,14 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(isReviewingChangesProvider, (prev, next) {
+      if (next) {
+        _enterReviewMode();
+      } else {
+        _exitReviewMode();
+      }
+    });
+
     final tokens = context.tokens;
     final activeId = ref.watch(activeSessionIdProvider);
     final settings = ref.watch(showSettingsProvider);
@@ -461,6 +510,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    final isReviewing = ref.watch(isReviewingChangesProvider);
     final panes = <WorkspacePane, Widget>{
       WorkspacePane.repository: RepositoryPane(
         key: ValueKey('repo_$sessionId'),
@@ -468,11 +518,18 @@ class _AppShellState extends ConsumerState<AppShell>
         onCollapse: () => _collapsePane(WorkspacePane.repository),
       ),
       WorkspacePane.chat: chat(),
-      WorkspacePane.git: GitChangesPane(
-        key: ValueKey('git_$sessionId'),
-        sessionId: sessionId,
-        onCollapse: () => _collapsePane(WorkspacePane.git),
-      ),
+      WorkspacePane.git: isReviewing
+          ? SessionChangesPane(
+              key: ValueKey('review_changes_$sessionId'),
+              sessionId: sessionId,
+              onClose: () =>
+                  ref.read(isReviewingChangesProvider.notifier).state = false,
+            )
+          : GitChangesPane(
+              key: ValueKey('git_$sessionId'),
+              sessionId: sessionId,
+              onCollapse: () => _collapsePane(WorkspacePane.git),
+            ),
     };
     final visible = _visiblePanes(chatFirst: width < 900);
 
@@ -539,7 +596,7 @@ class _AppShellState extends ConsumerState<AppShell>
   String _paneLabel(WorkspacePane pane) => switch (pane) {
     WorkspacePane.chat => 'Chat',
     WorkspacePane.repository => 'Repository',
-    WorkspacePane.git => 'Git Changes',
+    WorkspacePane.git => ref.watch(isReviewingChangesProvider) ? 'Review Changes' : 'Git Changes',
   };
 
   void _togglePane(WorkspacePane pane) {
