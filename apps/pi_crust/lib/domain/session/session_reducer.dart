@@ -22,7 +22,16 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
     case RunEndedEvent(:final willRetry):
       return current.copyWith(
-        agentStatus: willRetry ? AgentStatus.retrying : current.agentStatus,
+        agentStatus: willRetry ? AgentStatus.retrying : AgentStatus.settled,
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        lastAppliedSeq: nextSeq,
+      );
+
+    case TurnEndedEvent():
+      return current.copyWith(
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
         lastAppliedSeq: nextSeq,
       );
 
