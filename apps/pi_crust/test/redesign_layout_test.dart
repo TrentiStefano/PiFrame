@@ -12,6 +12,7 @@ import 'package:pi_crust/data/daemon/pcp_client.dart';
 import 'package:pi_crust/data/theme/theme_providers.dart';
 import 'package:pi_crust/domain/session/session_state.dart';
 import 'package:pi_crust/domain/session/agent_status.dart';
+import 'package:pi_crust/features/composer/composer.dart';
 import 'package:pi_crust/features/command_palette/command_palette.dart';
 import 'package:pi_crust/features/settings/diagnostics.dart';
 import 'package:pi_crust/features/workspace/repository_workspace.dart';
@@ -317,6 +318,23 @@ void main() {
         await tester.tap(find.text('Git Changes').last);
         await tester.pumpAndSettle();
         expect(find.text('Git Changes'), findsOneWidget);
+      } else {
+        expect(
+          find.byKey(const ValueKey('companion-tab-git')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('companion-tab-git')));
+        await tester.pumpAndSettle();
+        expect(find.text('GIT CHANGES'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('companion-tab-repository')),
+          findsOneWidget,
+        );
+        await tester.tap(
+          find.byKey(const ValueKey('companion-tab-repository')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('FILE'), findsOneWidget);
       }
 
       await tester.tap(find.byIcon(Icons.tune));
@@ -358,6 +376,8 @@ void main() {
         agentStatus: AgentStatus.working,
       );
       await tester.pump(const Duration(milliseconds: 240));
+      await tester.tap(find.byType(Composer));
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Steer'), findsOneWidget);
       expect(find.text('Follow-up'), findsOneWidget);
       expect(tester.takeException(), isNull);

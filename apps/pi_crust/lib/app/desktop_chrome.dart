@@ -79,8 +79,8 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
     }) => Tooltip(
       message: label,
       child: SizedBox(
-        width: 46,
-        height: 42,
+        width: 40,
+        height: 38,
         child: TextButton(
           style: TextButton.styleFrom(
             padding: EdgeInsets.zero,
@@ -89,7 +89,7 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
             overlayColor: close ? tokens.signalDanger : tokens.textPrimary,
           ),
           onPressed: action,
-          child: Icon(icon, size: 17),
+          child: Icon(icon, size: 14),
         ),
       ),
     );

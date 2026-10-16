@@ -12,6 +12,7 @@ import '../../ui/code/code_editor_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
+import '../../ui/code/file_icon.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -496,9 +497,15 @@ class RepositoryPane extends ConsumerStatefulWidget {
     super.key,
     required this.sessionId,
     this.onCollapse,
+    this.companionTabs,
+    this.activeCompanionTab,
+    this.onSelectCompanionTab,
   });
   final String sessionId;
   final VoidCallback? onCollapse;
+  final List<WorkspacePane>? companionTabs;
+  final WorkspacePane? activeCompanionTab;
+  final ValueChanged<WorkspacePane>? onSelectCompanionTab;
   @override
   ConsumerState<RepositoryPane> createState() => _RepositoryPaneState();
 }
@@ -622,14 +629,16 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     setState(() {
       _fileSearchCurrentIndex =
           (_fileSearchCurrentIndex - 1 + _fileSearchMatches.length) %
-              _fileSearchMatches.length;
+          _fileSearchMatches.length;
       _editor!.currentMatchIndex = _fileSearchCurrentIndex;
       _jumpToMatch(_fileSearchCurrentIndex);
     });
   }
 
   void _jumpToMatch(int index) {
-    if (_editor == null || index < 0 || index >= _fileSearchMatches.length) return;
+    if (_editor == null || index < 0 || index >= _fileSearchMatches.length) {
+      return;
+    }
     final match = _fileSearchMatches[index];
     _editor!.selection = TextSelection(
       baseOffset: match.start,
@@ -689,14 +698,16 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   Object? _cachedRawFiles;
 
   void _collapseAll() {
-    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = <String>{};
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
+        <String>{};
   }
 
   void _expandAll(List<Map<String, dynamic>> raw) {
     final nodes = _getTreeNodes(raw);
     final allDirs = <String>{};
     _collectAllDirs(nodes, allDirs);
-    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = allDirs;
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
+        allDirs;
   }
 
   List<_TreeNode> _getTreeNodes(List<Map<String, dynamic>> raw) {
@@ -720,12 +731,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         if (filteredChildren.isNotEmpty) {
           matchingDirs.add(node.path);
           matchingDirs.addAll(subMatches);
-          result.add(_TreeNode(
-            name: node.name,
-            path: node.path,
-            isDirectory: true,
-            children: filteredChildren,
-          ));
+          result.add(
+            _TreeNode(
+              name: node.name,
+              path: node.path,
+              isDirectory: true,
+              children: filteredChildren,
+            ),
+          );
         }
       } else {
         if (node.name.toLowerCase().contains(clean) ||
@@ -743,7 +756,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     String? selectedPath, {
     required bool isCwdEmpty,
   }) {
-    final isAttaching = (repo.error != null &&
+    final isAttaching =
+        (repo.error != null &&
             (repo.error!.contains('not found') ||
                 repo.error!.contains('Session not found'))) ||
         (repo.files.isEmpty && isCwdEmpty);
@@ -830,7 +844,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 IconButton(
                   icon: const Icon(Icons.clear, size: 14),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
                   tooltip: 'Cancella ricerca',
                   onPressed: () {
                     _searchController.clear();
@@ -861,9 +878,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   itemBuilder: (context, index) {
                     final row = flatRows[index];
                     final node = row.node;
-                    final selected = !node.isDirectory && node.path == selectedPath;
+                    final selected =
+                        !node.isDirectory && node.path == selectedPath;
                     final isExpanded =
-                        node.isDirectory && effectiveExpanded.contains(node.path);
+                        node.isDirectory &&
+                        effectiveExpanded.contains(node.path);
 
                     return _TreeRow(
                       key: ValueKey(node.path),
@@ -883,20 +902,27 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             next.add(node.path);
                           }
                           ref
-                              .read(
-                                repoExpandedDirsProvider(widget.sessionId).notifier,
-                              )
-                              .state = next;
+                                  .read(
+                                    repoExpandedDirsProvider(widget.sessionId)
+                                        .notifier,
+                                  )
+                                  .state =
+                              next;
                         } else {
                           ref
                               .read(
-                                repositoryStateProvider(widget.sessionId).notifier,
+                                repositoryStateProvider(widget.sessionId)
+                                    .notifier,
                               )
                               .selectFile(node.path);
                         }
                       },
                       onAddToChat: (filePath) {
-                        appendFileMentionToComposer(ref, widget.sessionId, filePath);
+                        appendFileMentionToComposer(
+                          ref,
+                          widget.sessionId,
+                          filePath,
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Aggiunto @$filePath alla chat'),
@@ -1071,9 +1097,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 focusNode: _editorFocusNode,
                 onKeyEvent: (node, event) {
                   if (event is KeyDownEvent) {
-                    final isControl = HardwareKeyboard.instance.isControlPressed ||
+                    final isControl =
+                        HardwareKeyboard.instance.isControlPressed ||
                         HardwareKeyboard.instance.isMetaPressed;
-                    if (isControl && event.logicalKey == LogicalKeyboardKey.keyF) {
+                    if (isControl &&
+                        event.logicalKey == LogicalKeyboardKey.keyF) {
                       _openFileSearch();
                       return KeyEventResult.handled;
                     }
@@ -1142,8 +1170,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         if (event.logicalKey == LogicalKeyboardKey.escape) {
                           _closeFileSearch();
                           return KeyEventResult.handled;
-                        } else if (event.logicalKey == LogicalKeyboardKey.enter ||
-                            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                        } else if (event.logicalKey ==
+                                LogicalKeyboardKey.enter ||
+                            event.logicalKey ==
+                                LogicalKeyboardKey.numpadEnter) {
                           if (HardwareKeyboard.instance.isShiftPressed) {
                             _prevFileSearchMatch();
                           } else {
@@ -1156,7 +1186,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     },
                     child: Container(
                       key: const ValueKey('repository-file-search-bar'),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: tokens.surfaceElevated,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -1178,35 +1211,53 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             width: 170,
                             height: 26,
                             child: TextField(
-                              key: const ValueKey('repository-file-search-field'),
+                              key: const ValueKey(
+                                'repository-file-search-field',
+                              ),
                               controller: _fileSearchQueryController,
                               focusNode: _fileSearchFocusNode,
-                              style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 12,
+                              ),
                               decoration: InputDecoration(
                                 isDense: true,
                                 hintText: 'Cerca nel file...',
-                                hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                                hintStyle: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 12,
+                                ),
                                 border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: tokens.surface,
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusSm,
+                              ),
                             ),
                             child: Text(
                               _fileSearchQueryController.text.isEmpty
                                   ? ''
                                   : _fileSearchMatches.isEmpty
-                                      ? '0 risultati'
-                                      : '${_fileSearchCurrentIndex + 1} di ${_fileSearchMatches.length}',
+                                  ? '0 risultati'
+                                  : '${_fileSearchCurrentIndex + 1} di ${_fileSearchMatches.length}',
                               style: TextStyle(
-                                color: _fileSearchMatches.isEmpty &&
-                                        _fileSearchQueryController.text.isNotEmpty
+                                color:
+                                    _fileSearchMatches.isEmpty &&
+                                        _fileSearchQueryController
+                                            .text
+                                            .isNotEmpty
                                     ? tokens.danger
                                     : tokens.textMuted,
                                 fontSize: 10,
@@ -1220,16 +1271,29 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             tooltip: 'Precedente (Shift+Enter)',
                             icon: const Icon(Icons.keyboard_arrow_up, size: 16),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                            onPressed: _fileSearchMatches.isEmpty ? null : _prevFileSearchMatch,
+                            constraints: const BoxConstraints(
+                              minWidth: 22,
+                              minHeight: 22,
+                            ),
+                            onPressed: _fileSearchMatches.isEmpty
+                                ? null
+                                : _prevFileSearchMatch,
                           ),
                           IconButton(
                             key: const ValueKey('repository-file-search-next'),
                             tooltip: 'Successivo (Enter)',
-                            icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 16,
+                            ),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-                            onPressed: _fileSearchMatches.isEmpty ? null : _nextFileSearchMatch,
+                            constraints: const BoxConstraints(
+                              minWidth: 22,
+                              minHeight: 22,
+                            ),
+                            onPressed: _fileSearchMatches.isEmpty
+                                ? null
+                                : _nextFileSearchMatch,
                           ),
                           IconButton(
                             key: const ValueKey('repository-file-search-case'),
@@ -1245,10 +1309,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                               ),
                             ),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            constraints: const BoxConstraints(
+                              minWidth: 22,
+                              minHeight: 22,
+                            ),
                             onPressed: () {
                               setState(() {
-                                _fileSearchCaseSensitive = !_fileSearchCaseSensitive;
+                                _fileSearchCaseSensitive =
+                                    !_fileSearchCaseSensitive;
                               });
                               _updateFileSearch();
                             },
@@ -1258,7 +1326,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                             tooltip: 'Chiudi (Esc)',
                             icon: const Icon(Icons.close, size: 14),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                            constraints: const BoxConstraints(
+                              minWidth: 22,
+                              minHeight: 22,
+                            ),
                             onPressed: _closeFileSearch,
                           ),
                         ],
@@ -1279,9 +1350,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final editor = _ensureEditor(tokens);
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
     final (readOnly, readOnlyReason, agentStatus, cwd) = ref.watch(
-      sessionStateFamily(widget.sessionId).select(
-        (s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd),
-      ),
+      sessionStateFamily(widget.sessionId)
+          .select((s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd)),
     );
 
     ref.listen<String>(
@@ -1297,13 +1367,20 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       },
     );
 
-    ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (prev, next) {
-      if (next.selectedPath != null && next.selectedPath != prev?.selectedPath) {
-        final currentExpanded = ref.read(repoExpandedDirsProvider(widget.sessionId));
+    ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (
+      prev,
+      next,
+    ) {
+      if (next.selectedPath != null &&
+          next.selectedPath != prev?.selectedPath) {
+        final currentExpanded = ref.read(
+          repoExpandedDirsProvider(widget.sessionId),
+        );
         final updated = Set<String>.from(currentExpanded);
         _expandParentsOf(next.selectedPath!, updated);
         if (updated.length != currentExpanded.length) {
-          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = updated;
+          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
+              updated;
         }
       }
     });
@@ -1327,7 +1404,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         _updateFileSearch();
       }
     }
-    final writeBlocked = readOnly ||
+    final writeBlocked =
+        readOnly ||
         const {
           AgentStatus.working,
           AgentStatus.retrying,
@@ -1348,6 +1426,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             context,
             'Repository',
             Icons.folder_outlined,
+            companionTabs: widget.companionTabs,
+            activeCompanionTab:
+                widget.activeCompanionTab ?? WorkspacePane.repository,
+            onSelectCompanionTab: widget.onSelectCompanionTab,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1355,16 +1437,19 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: ref.watch(terminalSettingsProvider).mode == TerminalMode.native
+                  tooltip:
+                      ref.watch(terminalSettingsProvider).mode ==
+                          TerminalMode.native
                       ? 'Apri terminale nativo (OS)'
                       : (_terminalOpen && !_terminalCollapsed
-                          ? 'Nascondi terminale'
-                          : 'Terminale integrato'),
+                            ? 'Nascondi terminale'
+                            : 'Terminale integrato'),
                   onPressed: () {
                     final termSettings = ref.read(terminalSettingsProvider);
                     if (termSettings.mode == TerminalMode.native) {
                       launchNativeTerminal(
-                        cwd: repo.rootPath ??
+                        cwd:
+                            repo.rootPath ??
                             ref.read(sessionStateFamily(widget.sessionId)).cwd,
                         nativeApp: termSettings.nativeApp,
                         customPath: termSettings.customPath,
@@ -1407,7 +1492,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       ? null
                       : () => ref
                             .read(
-                              repositoryStateProvider(widget.sessionId).notifier,
+                              repositoryStateProvider(widget.sessionId)
+                                  .notifier,
                             )
                             .loadFiles(),
                   icon: const Icon(Icons.refresh, size: 16),
@@ -1515,14 +1601,18 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onVerticalDragUpdate: (details) {
-                            final nextHeight = _terminalHeight - details.delta.dy;
+                            final nextHeight =
+                                _terminalHeight - details.delta.dy;
                             if (nextHeight < 60) {
                               setState(() => _terminalCollapsed = true);
                             } else {
                               setState(() {
                                 _terminalHeight = nextHeight.clamp(
                                   100.0,
-                                  (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
+                                  (constraints.maxHeight * 0.85).clamp(
+                                    120.0,
+                                    1000.0,
+                                  ),
                                 );
                               });
                             }
@@ -1549,7 +1639,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
                         ),
                         child: IntegratedTerminalPanel(
-                          key: ValueKey('integrated_terminal_${widget.sessionId}'),
+                          key: ValueKey(
+                            'integrated_terminal_${widget.sessionId}',
+                          ),
                           cwd: repo.rootPath ?? cwd,
                           tokens: tokens,
                           onCollapseDownward: () =>
@@ -1631,9 +1723,15 @@ class GitChangesPane extends ConsumerStatefulWidget {
     super.key,
     required this.sessionId,
     this.onCollapse,
+    this.companionTabs,
+    this.activeCompanionTab,
+    this.onSelectCompanionTab,
   });
   final String sessionId;
   final VoidCallback? onCollapse;
+  final List<WorkspacePane>? companionTabs;
+  final WorkspacePane? activeCompanionTab;
+  final ValueChanged<WorkspacePane>? onSelectCompanionTab;
   @override
   ConsumerState<GitChangesPane> createState() => _GitChangesPaneState();
 }
@@ -1747,50 +1845,50 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               side: BorderSide(color: tokens.border, width: 1),
             ),
             child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          path,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: context.tokens.monoFontFamily,
-                            color: context.tokens.textPrimary,
+              constraints: const BoxConstraints(maxWidth: 900, maxHeight: 680),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            path,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: context.tokens.monoFontFamily,
+                              color: context.tokens.textPrimary,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Chiudi diff',
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: DiffBlock(
-                        diffText: diff.isEmpty
-                            ? 'Nessuna differenza trovata.'
-                            : diff,
-                        filename: path,
+                        IconButton(
+                          tooltip: 'Chiudi diff',
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: DiffBlock(
+                          diffText: diff.isEmpty
+                              ? 'Nessuna differenza trovata.'
+                              : diff,
+                          filename: path,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1838,7 +1936,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text('L’operazione rimuove modifiche staged e unstaged.'),
+                  const Text(
+                    'L’operazione rimuove modifiche staged e unstaged.',
+                  ),
                 ],
               ),
             );
@@ -1870,7 +1970,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         content: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 520,
-            maxHeight: (MediaQuery.sizeOf(ctx).height * 0.6).clamp(200.0, 420.0),
+            maxHeight: (MediaQuery.sizeOf(ctx).height * 0.6).clamp(
+              200.0,
+              420.0,
+            ),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -1885,7 +1988,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 TextField(
                   controller: _message,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Messaggio commit'),
+                  decoration: const InputDecoration(
+                    labelText: 'Messaggio commit',
+                  ),
                 ),
               ],
             ),
@@ -1995,19 +2100,15 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         minVerticalPadding: 0,
         contentPadding: const EdgeInsets.only(left: 16, right: 8),
         onTap: () => _showDiff(path),
-        leading: Icon(
-          Icons.description_outlined,
-          size: 16,
-          color: isStaged ? tokens.accent : tokens.textMuted,
-        ),
+        leading: FileIcon(path: path, size: 16),
         title: Text(
           path,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: tokens.textPrimary,
-            fontSize: 11,
-            fontFamily: tokens.monoFontFamily,
+            fontSize: 12,
+            fontFamily: tokens.uiFontFamily,
           ),
         ),
         subtitle: Text(
@@ -2033,10 +2134,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   onPressed: blocked || _working
                       ? null
                       : () => _action('unstage', [path]),
-                  icon: const Icon(
-                    Icons.remove_circle_outline,
-                    size: 16,
-                  ),
+                  icon: const Icon(Icons.remove_circle_outline, size: 16),
                 )
               else if (hasUnstagedEdit || !isStaged)
                 IconButton(
@@ -2093,7 +2191,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final piTouchedPaths = touchedKey.isEmpty
         ? const <String>{}
         : touchedKey.split('\x00').toSet();
-    final blocked = readOnly ||
+    final blocked =
+        readOnly ||
         const {
           AgentStatus.working,
           AgentStatus.retrying,
@@ -2102,10 +2201,21 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         }.contains(agentStatus);
     final files = _files;
     final staged = _staged.toSet();
-    final stagedFiles = files.where((f) => staged.contains(f['path'].toString())).toList();
-    final unstagedFiles = files.where((f) => f['unstaged'] == true || !staged.contains(f['path'].toString())).toList();
-    final isStagedExpanded = ref.watch(gitStagedExpandedProvider(widget.sessionId));
-    final isUnstagedExpanded = ref.watch(gitUnstagedExpandedProvider(widget.sessionId));
+    final stagedFiles = files
+        .where((f) => staged.contains(f['path'].toString()))
+        .toList();
+    final unstagedFiles = files
+        .where(
+          (f) =>
+              f['unstaged'] == true || !staged.contains(f['path'].toString()),
+        )
+        .toList();
+    final isStagedExpanded = ref.watch(
+      gitStagedExpandedProvider(widget.sessionId),
+    );
+    final isUnstagedExpanded = ref.watch(
+      gitUnstagedExpandedProvider(widget.sessionId),
+    );
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? cwd;
     return Container(
@@ -2117,13 +2227,19 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             context,
             'Git Changes',
             Icons.source_outlined,
+            companionTabs: widget.companionTabs,
+            activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.git,
+            onSelectCompanionTab: widget.onSelectCompanionTab,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
                   tooltip: 'Aggiorna stato Git',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                   onPressed: _loading ? null : _refresh,
-                  icon: const Icon(Icons.refresh, size: 17),
+                  icon: const Icon(Icons.refresh, size: 16),
                 ),
                 if (widget.onCollapse != null) ...[
                   const SizedBox(width: 4),
@@ -2174,7 +2290,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             Builder(
               builder: (context) {
                 final rawError = _status?['error']?.toString();
-                final isAttaching = (rawError != null &&
+                final isAttaching =
+                    (rawError != null &&
                         (rawError.contains('not found') ||
                             rawError.contains('Session not found'))) ||
                     (_status == null && cwd.isEmpty);
@@ -2259,10 +2376,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           tokens: tokens,
                           onToggle: () {
                             ref
-                                .read(
-                                  gitStagedExpandedProvider(widget.sessionId).notifier,
-                                )
-                                .state = !isStagedExpanded;
+                                    .read(
+                                      gitStagedExpandedProvider(
+                                        widget.sessionId,
+                                      ).notifier,
+                                    )
+                                    .state =
+                                !isStagedExpanded;
                           },
                           trailing: stagedFiles.isEmpty || blocked || _working
                               ? null
@@ -2320,10 +2440,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           tokens: tokens,
                           onToggle: () {
                             ref
-                                .read(
-                                  gitUnstagedExpandedProvider(widget.sessionId).notifier,
-                                )
-                                .state = !isUnstagedExpanded;
+                                    .read(
+                                      gitUnstagedExpandedProvider(
+                                        widget.sessionId,
+                                      ).notifier,
+                                    )
+                                    .state =
+                                !isUnstagedExpanded;
                           },
                           trailing: unstagedFiles.isEmpty || blocked || _working
                               ? null
@@ -2398,30 +2521,135 @@ Widget _paneHeader(
   String title,
   IconData icon, {
   Widget? trailing,
+  List<WorkspacePane>? companionTabs,
+  WorkspacePane? activeCompanionTab,
+  ValueChanged<WorkspacePane>? onSelectCompanionTab,
 }) {
   final tokens = context.tokens;
+  final hasTabs = companionTabs != null && companionTabs.length > 1;
+
   return Container(
-    height: 42,
-    padding: const EdgeInsets.symmetric(horizontal: 12),
+    height: 38,
+    margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: tokens.displaySurface,
-      border: Border(bottom: BorderSide(color: tokens.borderStrong)),
+      color: tokens.surfaceElevated,
+      borderRadius: BorderRadius.circular(tokens.radiusMd),
+      border: Border.all(color: tokens.borderStrong),
     ),
     child: Row(
       children: [
-        Icon(icon, size: 16, color: tokens.accent),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: tokens.displayText,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: .6,
+        if (hasTabs)
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final tab in companionTabs) ...[
+                    Builder(
+                      builder: (context) {
+                        final isActive = tab == activeCompanionTab;
+                        final (tabTitle, tabIcon) = switch (tab) {
+                          WorkspacePane.repository => (
+                            'File',
+                            Icons.folder_outlined,
+                          ),
+                          WorkspacePane.git => (
+                            'Git Changes',
+                            Icons.source_outlined,
+                          ),
+                          WorkspacePane.chat => (
+                            'Chat',
+                            Icons.chat_bubble_outline,
+                          ),
+                        };
+                        return MouseRegion(
+                          cursor: isActive
+                              ? SystemMouseCursors.basic
+                              : SystemMouseCursors.click,
+                          child: GestureDetector(
+                            key: ValueKey('companion-tab-${tab.name}'),
+                            behavior: HitTestBehavior.opaque,
+                            onTap: isActive
+                                ? null
+                                : () => onSelectCompanionTab?.call(tab),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 140),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isActive ? 10 : 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? tokens.surface
+                                    : tokens.surface.withValues(alpha: 0),
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusSm,
+                                ),
+                                border: isActive
+                                    ? Border.all(
+                                        color: tokens.borderStrong,
+                                        width: 1,
+                                    )
+                                    : null,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    tabIcon,
+                                    size: isActive ? 14 : 13,
+                                    color: isActive
+                                        ? tokens.accent
+                                        : tokens.textMuted,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    isActive
+                                        ? tabTitle.toUpperCase()
+                                        : tabTitle,
+                                    style: TextStyle(
+                                      color: isActive
+                                          ? tokens.textPrimary
+                                          : tokens.textMuted,
+                                      fontSize: 11.5,
+                                      fontFamily: tokens.uiFontFamily,
+                                      fontWeight: isActive
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ],
+              ),
+            ),
+          )
+        else ...[
+          Icon(icon, size: 16, color: tokens.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 11.5,
+                fontFamily: tokens.uiFontFamily,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
-        ),
+        ],
         ?trailing,
       ],
     ),
@@ -2476,8 +2704,7 @@ List<_TreeNode> _buildFileTree(List<Map<String, dynamic>> raw) {
     if (rawPath == null || rawPath.isEmpty) continue;
     final normalized = rawPath.replaceAll('\\', '/');
     final cleanPath = normalized.replaceFirst(RegExp(r'^\.?/'), '');
-    final segments =
-        cleanPath.split('/').where((s) => s.isNotEmpty).toList();
+    final segments = cleanPath.split('/').where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) continue;
 
     var curr = root;
@@ -2492,11 +2719,7 @@ List<_TreeNode> _buildFileTree(List<Map<String, dynamic>> raw) {
     }
     final fileName = segments.last;
     curr.files.add(
-      _TreeNode(
-        name: fileName,
-        path: cleanPath,
-        isDirectory: false,
-      ),
+      _TreeNode(name: fileName, path: cleanPath, isDirectory: false),
     );
   }
   return root.toChildren();
@@ -2521,6 +2744,7 @@ List<_FlatTreeRow> _flattenTree(
       }
     }
   }
+
   walk(nodes, 0);
   return result;
 }
@@ -2535,14 +2759,15 @@ void _collectAllDirs(List<_TreeNode> nodes, Set<String> target) {
 }
 
 void _expandParentsOf(String path, Set<String> target) {
-  final normalized =
-      path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\.?/'), '');
-  final segments =
-      normalized.split('/').where((s) => s.isNotEmpty).toList();
+  final normalized = path
+      .replaceAll('\\', '/')
+      .replaceFirst(RegExp(r'^\.?/'), '');
+  final segments = normalized.split('/').where((s) => s.isNotEmpty).toList();
   var accumulated = '';
   for (var i = 0; i < segments.length - 1; i++) {
-    accumulated =
-        accumulated.isEmpty ? segments[i] : '$accumulated/${segments[i]}';
+    accumulated = accumulated.isEmpty
+        ? segments[i]
+        : '$accumulated/${segments[i]}';
     target.add(accumulated);
   }
 }
@@ -2651,21 +2876,16 @@ class _TreeRow extends StatelessWidget {
                           color: tokens.textMuted,
                         ),
                         const SizedBox(width: 4),
-                        Icon(
-                          isExpanded
-                              ? Icons.folder_open_outlined
-                              : Icons.folder_outlined,
+                        FileIcon(
+                          path: node.path,
+                          isDirectory: true,
+                          isExpanded: isExpanded,
                           size: 15,
-                          color: tokens.syntaxFunction,
                         ),
                       ] else ...[
                         const SizedBox(width: 14),
                         const SizedBox(width: 4),
-                        Icon(
-                          Icons.description_outlined,
-                          size: 14,
-                          color: selected ? tokens.accent : tokens.textMuted,
-                        ),
+                        FileIcon(path: node.path, size: 15),
                       ],
                       const SizedBox(width: 6),
                       Expanded(
@@ -2677,10 +2897,10 @@ class _TreeRow extends StatelessWidget {
                             color: selected
                                 ? tokens.accent
                                 : (node.isDirectory
-                                    ? tokens.textPrimary
-                                    : tokens.textSecondary),
+                                      ? tokens.textPrimary
+                                      : tokens.textSecondary),
                             fontSize: 12,
-                            fontFamily: tokens.monoFontFamily,
+                            fontFamily: tokens.uiFontFamily,
                             fontWeight: selected || node.isDirectory
                                 ? FontWeight.w600
                                 : FontWeight.normal,

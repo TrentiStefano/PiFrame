@@ -31,7 +31,8 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
   @override
   void didUpdateWidget(ThinkingBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isExpanded != null && widget.isExpanded != oldWidget.isExpanded) {
+    if (widget.isExpanded != null &&
+        widget.isExpanded != oldWidget.isExpanded) {
       _internalExpanded = widget.isExpanded!;
     }
   }
@@ -71,81 +72,77 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
     final tokens = context.tokens;
     final words = _countWords(trimmed);
     final newlineIdx = trimmed.indexOf('\n');
-    final firstLine = newlineIdx >= 0 ? trimmed.substring(0, newlineIdx) : trimmed;
+    final firstLine = newlineIdx >= 0
+        ? trimmed.substring(0, newlineIdx)
+        : trimmed;
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
           expanded: _effectiveExpanded,
-          child: TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: tokens.textPrimary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              alignment: Alignment.centerLeft,
-            ),
-            onPressed: _toggleExpanded,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.psychology_outlined,
-                  size: 17,
-                  color: tokens.thinking,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Ragionamento',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            onTap: _toggleExpanded,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 14,
+                    color: tokens.thinking,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Ragionamento',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
                     widget.isStreaming && widget.thinkingText.isEmpty
                         ? 'Pensando...'
                         : '$words parole',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
-                ),
-                if (MediaQuery.sizeOf(context).width > 700)
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      _effectiveExpanded ? '' : firstLine,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 12,
+                  if (MediaQuery.sizeOf(context).width > 700) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _effectiveExpanded ? '' : firstLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
                       ),
                     ),
+                  ] else
+                    const Spacer(),
+                  Icon(
+                    _effectiveExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 15,
+                    color: tokens.textSecondary,
                   ),
-                Icon(
-                  _effectiveExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 18,
-                  color: tokens.textSecondary,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
         if (_effectiveExpanded)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+          Container(
+            margin: const EdgeInsets.only(left: 6, top: 4, bottom: 4),
+            padding: const EdgeInsets.only(left: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: tokens.borderStrong, width: 2),
+              ),
+            ),
             child: SelectableText(
               widget.thinkingText.isEmpty
                   ? 'Nessun dettaglio'
                   : widget.thinkingText,
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 13,
-                height: 1.6,
+                fontSize: 12,
+                height: 1.5,
               ),
             ),
           ),
@@ -154,12 +151,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
 
     return RepaintBoundary(
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: tokens.surfaceElevated,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(color: tokens.border),
-        ),
+        margin: const EdgeInsets.symmetric(vertical: 1),
         child: widget.isStreaming
             ? content
             : AnimatedSize(

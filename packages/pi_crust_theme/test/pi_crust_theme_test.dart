@@ -15,7 +15,7 @@ void main() {
       expect(tokens.displayText, const Color(0xFFC6D0F5));
       expect(tokens.accent, const Color(0xFFCA9EE6));
       expect(tokens.agentWorking, const Color(0xFFA6D189));
-      expect(tokens.diffAddedFg, const Color(0xFFC6D0F5));
+      expect(tokens.diffAddedFg, const Color(0xFFA6D189));
       expect(tokens.danger, const Color(0xFFE78284));
       expect(tokens.syntaxKeyword, const Color(0xFFCA9EE6));
       expect(tokens.radiusLg, 14);
@@ -30,7 +30,7 @@ void main() {
     expect(tokens.displayText, const Color(0xFF4C4F69));
     expect(tokens.accent, const Color(0xFF8839EF));
     expect(tokens.warning, const Color(0xFFDF8E1D));
-    expect(tokens.diffAddedFg, const Color(0xFF4C4F69));
+    expect(tokens.diffAddedFg, const Color(0xFF216D18));
     expect(tokens.radiusLg, 14);
   });
 

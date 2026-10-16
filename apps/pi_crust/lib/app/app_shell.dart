@@ -72,7 +72,8 @@ class _AppShellState extends ConsumerState<AppShell>
       _sidebarCollapsed = true; // Minimize Sessions pane
       _paneVisibility[WorkspacePane.repository] = false; // Hide Repository pane
       _paneVisibility[WorkspacePane.chat] = true;
-      _paneVisibility[WorkspacePane.git] = true; // Use Git slot for Review Changes
+      _paneVisibility[WorkspacePane.git] =
+          true; // Use Git slot for Review Changes
       _paneWeights[WorkspacePane.chat] = 50.0;
       _paneWeights[WorkspacePane.git] = 50.0;
       _collapsedPanes.remove(WorkspacePane.chat);
@@ -104,8 +105,7 @@ class _AppShellState extends ConsumerState<AppShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
-    _handlesNativeClose =
-        desktopLifecycle && !ref.read(desktopChromeProvider);
+    _handlesNativeClose = desktopLifecycle && !ref.read(desktopChromeProvider);
     _hasWindowListener = desktopLifecycle;
     if (_hasWindowListener) {
       windowManager.addListener(this);
@@ -276,252 +276,295 @@ class _AppShellState extends ConsumerState<AppShell>
             const UpdatesPeriodicWatcher(),
             SafeArea(
               child: Column(
-            children: [
-              Container(
-                height: 76,
-                margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                decoration: BoxDecoration(
-                  color: tokens.chassis,
-                  borderRadius: BorderRadius.circular(tokens.radiusLg),
-                  border: Border.all(color: tokens.border),
-                ),
-                child: Row(
-                  children: [
-                    if (!showSessionRail)
-                      IconButton(
-                        tooltip: 'Apri sessioni',
-                        icon: const Icon(Icons.menu),
-                        onPressed: () =>
-                            _scaffoldKey.currentState?.openDrawer(),
-                      ),
-                    Expanded(
-                      child: DesktopDragRegion(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: showSessionRail ? 24 : 4,
-                          ),
-                          child: Row(
-                            children: [
-                              const CrustMark(size: 28),
-                              const SizedBox(width: 12),
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: BrandWordmark(size: width < 520 ? 30 : 38),
-                                ),
-                              ),
-                              if (width > 920) ...[
-                                const SizedBox(width: 32),
-                                Icon(
-                                  connected ? Icons.link : Icons.link_off,
-                                  size: 16,
-                                  color: tokens.textPrimary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  connected ? 'Pi locale' : 'Non connesso',
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
+                children: [
+                  Container(
+                    height: 42,
+                    margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                    decoration: BoxDecoration(
+                      color: tokens.chassis,
+                      borderRadius: BorderRadius.circular(tokens.radiusMd),
+                      border: Border.all(color: tokens.border),
                     ),
-                    if (width > 680)
-                      PressFeedback(
-                        child: TextButton.icon(
-                          onPressed: _palette,
-                          icon: const Icon(Icons.search, size: 18),
-                          label: const Text('Comandi'),
-                        ),
-                      ),
-                    if (width >= 900 && activeId != null && !settings)
-                      PopupMenuButton<WorkspacePane>(
-                        tooltip: 'Mostra o nascondi pannelli',
-                        onSelected: _togglePane,
-                        itemBuilder: (context) => [
-                          for (final pane in WorkspacePane.values)
-                            PopupMenuItem(
-                              value: pane,
+                    child: Row(
+                      children: [
+                        if (!showSessionRail)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Apri sessioni',
+                            icon: const Icon(Icons.menu, size: 17),
+                            onPressed: () =>
+                                _scaffoldKey.currentState?.openDrawer(),
+                          ),
+                        Expanded(
+                          child: DesktopDragRegion(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: showSessionRail ? 16 : 4,
+                              ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    _paneVisibility[pane] == true
-                                        ? Icons.check_box_outlined
-                                        : Icons.check_box_outline_blank,
-                                    size: 18,
-                                  ),
+                                  const CrustMark(size: 18),
                                   const SizedBox(width: 8),
-                                  Text(_paneLabel(pane)),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: const BrandWordmark(size: 15),
+                                    ),
+                                  ),
+                                  if (width > 920) ...[
+                                    const SizedBox(width: 20),
+                                    Icon(
+                                      connected ? Icons.link : Icons.link_off,
+                                      size: 14,
+                                      color: tokens.textMuted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      connected ? 'Pi locale' : 'Non connesso',
+                                      style: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
-                        ],
-                      ),
-                    IconButton(
-                      visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
-                      padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
-                      constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
-                      tooltip: Theme.of(context).brightness == Brightness.light
-                          ? 'Tema scuro'
-                          : 'Tema chiaro',
-                      icon: Icon(
-                        Theme.of(context).brightness == Brightness.light
-                            ? Icons.dark_mode_outlined
-                            : Icons.light_mode_outlined,
-                        size: 18,
-                      ),
-                      onPressed: () => ref
-                          .read(activeThemeSpecProvider.notifier)
-                          .setTheme(
-                            Theme.of(context).brightness == Brightness.light
-                                ? 'crust-dark'
-                                : 'crust-light',
                           ),
-                    ),
-                    IconButton(
-                      visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
-                      padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
-                      constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
-                      tooltip: 'Impostazioni',
-                      icon: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Icon(Icons.settings_outlined, size: 18),
-                          Positioned(
-                            top: -2,
-                            right: -2,
-                            child: Consumer(
-                              builder: (context, ref, _) {
-                                if (!ref.watch(hasUpdateBadgeProvider)) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: tokens.accent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                );
-                              },
+                        ),
+                        if (width > 680)
+                          PressFeedback(
+                            child: TextButton.icon(
+                              onPressed: _palette,
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                foregroundColor: tokens.textSecondary,
+                              ),
+                              icon: const Icon(Icons.search, size: 15),
+                              label: const Text(
+                                'Comandi',
+                                style: TextStyle(fontSize: 12),
+                              ),
                             ),
                           ),
+                        if (width >= 900 && activeId != null && !settings)
+                          PopupMenuButton<WorkspacePane>(
+                            tooltip: 'Mostra o nascondi pannelli',
+                            icon: const Icon(
+                              Icons.view_column_outlined,
+                              size: 16,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onSelected: _togglePane,
+                            itemBuilder: (context) => [
+                              for (final pane in WorkspacePane.values)
+                                PopupMenuItem(
+                                  value: pane,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        _paneVisibility[pane] == true
+                                            ? Icons.check_box_outlined
+                                            : Icons.check_box_outline_blank,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(_paneLabel(pane)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          tooltip:
+                              Theme.of(context).brightness == Brightness.light
+                              ? 'Tema scuro'
+                              : 'Tema chiaro',
+                          icon: Icon(
+                            Theme.of(context).brightness == Brightness.light
+                                ? Icons.dark_mode_outlined
+                                : Icons.light_mode_outlined,
+                            size: 16,
+                          ),
+                          onPressed: () => ref
+                              .read(activeThemeSpecProvider.notifier)
+                              .setTheme(
+                                Theme.of(context).brightness == Brightness.light
+                                    ? 'crust-dark'
+                                    : 'crust-light',
+                              ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          tooltip: 'Impostazioni',
+                          icon: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              const Icon(Icons.settings_outlined, size: 16),
+                              Positioned(
+                                top: -2,
+                                right: -2,
+                                child: Consumer(
+                                  builder: (context, ref, _) {
+                                    if (!ref.watch(hasUpdateBadgeProvider)) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: BoxDecoration(
+                                        color: tokens.accent,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          onPressed: () =>
+                              ref.read(showSettingsProvider.notifier).state =
+                                  !settings,
+                        ),
+                        if (activeId != null && !settings)
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            tooltip: 'Modello e azioni sessione',
+                            icon: const Icon(Icons.tune, size: 16),
+                            onPressed: () =>
+                                _scaffoldKey.currentState?.openEndDrawer(),
+                          ),
+                        if (nativeChrome) ...[
+                          Container(
+                            width: 1,
+                            height: 18,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            color: tokens.borderStrong,
+                          ),
+                          DesktopCaptionButtons(
+                            onCloseRequested: () =>
+                                resolveDirtyRepository(context, ref, activeId),
+                          ),
+                        ] else
+                          const SizedBox(width: 6),
+                      ],
+                    ),
+                  ),
+                  if (!connected)
+                    Container(
+                      color: tokens.signalWarning.withValues(alpha: 0.16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.link_off, size: 17, color: tokens.warning),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              connection == DaemonConnectionState.reconnecting
+                                  ? 'Riconnessione al daemon in corso...'
+                                  : 'Daemon non raggiungibile. Le sessioni restano gestite da Pi.',
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              foregroundColor: tokens.textPrimary,
+                            ),
+                            onPressed: () =>
+                                ref.invalidate(daemonEndpointProvider),
+                            child: const Text('Riprova'),
+                          ),
                         ],
                       ),
-                      onPressed: () =>
-                          ref.read(showSettingsProvider.notifier).state =
-                              !settings,
                     ),
-                    if (activeId != null && !settings)
-                      IconButton(
-                        visualDensity: width < 400 ? VisualDensity.compact : VisualDensity.standard,
-                        padding: width < 400 ? EdgeInsets.zero : const EdgeInsets.all(8.0),
-                        constraints: width < 400 ? const BoxConstraints(minWidth: 32, minHeight: 32) : null,
-                        tooltip: 'Modello e azioni sessione',
-                        icon: const Icon(Icons.tune, size: 19),
-                        onPressed: () =>
-                            _scaffoldKey.currentState?.openEndDrawer(),
-                      ),
-                    if (nativeChrome) ...[
-                      Container(
-                        width: 1,
-                        height: 30,
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        color: tokens.borderStrong,
-                      ),
-                      DesktopCaptionButtons(
-                        onCloseRequested: () =>
-                            resolveDirtyRepository(context, ref, activeId),
-                      ),
-                    ] else
-                      const SizedBox(width: 12),
-                  ],
-                ),
-              ),
-              if (!connected)
-                Container(
-                  color: tokens.signalWarning.withValues(alpha: 0.16),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.link_off, size: 17, color: tokens.warning),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          connection == DaemonConnectionState.reconnecting
-                              ? 'Riconnessione al daemon in corso...'
-                              : 'Daemon non raggiungibile. Le sessioni restano gestite da Pi.',
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: tokens.textPrimary,
-                        ),
-                        onPressed: () => ref.invalidate(daemonEndpointProvider),
-                        child: const Text('Riprova'),
-                      ),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: settings
-                    ? SettingsView(
-                        onClose: () =>
-                            ref.read(showSettingsProvider.notifier).state =
-                                false,
-                      )
-                    : Row(
-                        children: [
-                          if (showSessionRail)
-                            _sidebarCollapsed
-                                ? _collapsedSidebarStrip(tokens)
-                                : _bentoPane(
-                                    SizedBox(
-                                      width: 280,
-                                      child: SessionsSidebar(
-                                        onCollapse: () => setState(
-                                          () => _sidebarCollapsed = true,
+                  Expanded(
+                    child: settings
+                        ? SettingsView(
+                            onClose: () =>
+                                ref.read(showSettingsProvider.notifier).state =
+                                    false,
+                          )
+                        : Row(
+                            children: [
+                              if (showSessionRail)
+                                _sidebarCollapsed
+                                    ? _collapsedSidebarStrip(tokens)
+                                    : _bentoPane(
+                                        SizedBox(
+                                          width: 280,
+                                          child: SessionsSidebar(
+                                            onCollapse: () => setState(
+                                              () => _sidebarCollapsed = true,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                          Expanded(
-                            child: activeId == null
-                                ? RepaintBoundary(child: workArea())
-                                : _workspace(activeId, width, workArea),
+                              Expanded(
+                                child: activeId == null
+                                    ? RepaintBoundary(child: workArea())
+                                    : _workspace(activeId, width, workArea),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
       ),
     );
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
     final isReviewing = ref.watch(isReviewingChangesProvider);
+    final visible = _visiblePanes(chatFirst: width < 900);
+    final companions = visible
+        .where((pane) => pane != WorkspacePane.chat)
+        .toList();
+    final companionTabs =
+        width >= 900 && width < 1440 && companions.length > 1
+            ? companions
+            : null;
+    final selectedCompanion = companions.contains(_companionPane)
+        ? _companionPane
+        : (companions.isNotEmpty ? companions.first : null);
+
     final panes = <WorkspacePane, Widget>{
       WorkspacePane.repository: RepositoryPane(
         key: ValueKey('repo_$sessionId'),
         sessionId: sessionId,
         onCollapse: () => _collapsePane(WorkspacePane.repository),
+        companionTabs: companionTabs,
+        activeCompanionTab: selectedCompanion,
+        onSelectCompanionTab: (pane) => setState(() => _companionPane = pane),
       ),
       WorkspacePane.chat: chat(),
       WorkspacePane.git: isReviewing
@@ -530,14 +573,21 @@ class _AppShellState extends ConsumerState<AppShell>
               sessionId: sessionId,
               onClose: () =>
                   ref.read(isReviewingChangesProvider.notifier).state = false,
+              companionTabs: companionTabs,
+              activeCompanionTab: selectedCompanion,
+              onSelectCompanionTab: (pane) =>
+                  setState(() => _companionPane = pane),
             )
           : GitChangesPane(
               key: ValueKey('git_$sessionId'),
               sessionId: sessionId,
               onCollapse: () => _collapsePane(WorkspacePane.git),
+              companionTabs: companionTabs,
+              activeCompanionTab: selectedCompanion,
+              onSelectCompanionTab: (pane) =>
+                  setState(() => _companionPane = pane),
             ),
     };
-    final visible = _visiblePanes(chatFirst: width < 900);
 
     if (width < 900) {
       final selected = visible.contains(_compactPane)
@@ -562,25 +612,10 @@ class _AppShellState extends ConsumerState<AppShell>
     }
 
     if (width < 1440 && _paneVisibility[WorkspacePane.chat] == true) {
-      final companions = visible
-          .where((pane) => pane != WorkspacePane.chat)
-          .toList();
-      if (companions.isNotEmpty) {
-        final selected = companions.contains(_companionPane)
-            ? _companionPane
-            : companions.first;
-        return Column(
-          children: [
-            if (companions.length > 1)
-              _paneSelector(
-                companions,
-                selected,
-                (pane) => setState(() => _companionPane = pane),
-              ),
-            Expanded(
-              child: _resizablePaneRow([WorkspacePane.chat, selected], panes),
-            ),
-          ],
+      if (companions.isNotEmpty && selectedCompanion != null) {
+        return _resizablePaneRow(
+          [WorkspacePane.chat, selectedCompanion],
+          panes,
         );
       }
     }
@@ -602,7 +637,8 @@ class _AppShellState extends ConsumerState<AppShell>
   String _paneLabel(WorkspacePane pane) => switch (pane) {
     WorkspacePane.chat => 'Chat',
     WorkspacePane.repository => 'Repository',
-    WorkspacePane.git => ref.watch(isReviewingChangesProvider) ? 'Review Changes' : 'Git Changes',
+    WorkspacePane.git =>
+      ref.watch(isReviewingChangesProvider) ? 'Review Changes' : 'Git Changes',
   };
 
   void _togglePane(WorkspacePane pane) {
@@ -645,8 +681,9 @@ class _AppShellState extends ConsumerState<AppShell>
 
   void _collapsePane(WorkspacePane pane) {
     final visible = _visiblePanes();
-    final openPanes =
-        visible.where((p) => !_collapsedPanes.contains(p)).toList();
+    final openPanes = visible
+        .where((p) => !_collapsedPanes.contains(p))
+        .toList();
     if (openPanes.length <= 1) return; // Always keep at least one pane open
 
     setState(() {
@@ -682,11 +719,12 @@ class _AppShellState extends ConsumerState<AppShell>
           (sum, p) => sum + (_paneWeights[p] ?? 30),
         );
         final targetOther = (100.0 - restoreWeight).clamp(20.0, 85.0);
-        final factor =
-            totalOther > 0 ? targetOther / totalOther : 1.0;
+        final factor = totalOther > 0 ? targetOther / totalOther : 1.0;
         for (final other in openOthers) {
-          _paneWeights[other] =
-              ((_paneWeights[other] ?? 30) * factor).clamp(10.0, 85.0);
+          _paneWeights[other] = ((_paneWeights[other] ?? 30) * factor).clamp(
+            10.0,
+            85.0,
+          );
         }
       }
     });
@@ -776,7 +814,11 @@ class _AppShellState extends ConsumerState<AppShell>
               const SizedBox(height: 8),
               const CrustMark(size: 20),
               const SizedBox(height: 12),
-              Icon(Icons.chat_bubble_outline, size: 15, color: tokens.textMuted),
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 15,
+                color: tokens.textMuted,
+              ),
               const SizedBox(height: 12),
               Expanded(
                 child: RotatedBox(
@@ -813,10 +855,12 @@ class _AppShellState extends ConsumerState<AppShell>
     return LayoutBuilder(
       builder: (context, constraints) {
         const dividerWidth = 8.0;
-        final collapsedCount =
-            panes.where((p) => _collapsedPanes.contains(p)).length;
+        final collapsedCount = panes
+            .where((p) => _collapsedPanes.contains(p))
+            .length;
         const collapsedWidth = 40.0;
-        final availableWidth = constraints.maxWidth -
+        final availableWidth =
+            constraints.maxWidth -
             dividerWidth * (panes.length - 1) -
             (collapsedWidth * collapsedCount);
 
@@ -893,8 +937,9 @@ class _AppShellState extends ConsumerState<AppShell>
     final minimum = total * 0.15;
     final candidateLeft = leftWeight + delta / availableWidth * total;
 
-    final openCount =
-        _visiblePanes().where((p) => !_collapsedPanes.contains(p)).length;
+    final openCount = _visiblePanes()
+        .where((p) => !_collapsedPanes.contains(p))
+        .length;
     if (openCount > 1) {
       if (candidateLeft < minimum) {
         _collapsePane(left);

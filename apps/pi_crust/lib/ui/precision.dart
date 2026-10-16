@@ -205,7 +205,9 @@ class _MarkPainter extends CustomPainter {
     canvas.scale(size.width / 32, size.height / 32);
     canvas.clipRect(const Rect.fromLTWH(0, 0, 32, 32));
 
-    final overallPhase = curve.transform((progress?.value ?? 1.0).clamp(0.0, 1.0));
+    final overallPhase = curve.transform(
+      (progress?.value ?? 1.0).clamp(0.0, 1.0),
+    );
 
     // 1. 12-lobed fluted pie crust seal rim
     final scallop = Path();
@@ -251,22 +253,46 @@ class _MarkPainter extends CustomPainter {
       ..strokeWidth = 0.75
       ..strokeCap = StrokeCap.round;
     // Above
-    canvas.drawLine(const Offset(14.5, 7.8), const Offset(14.8, 8.8), slitPaint);
-    canvas.drawLine(const Offset(16.0, 7.5), const Offset(16.0, 8.6), slitPaint);
-    canvas.drawLine(const Offset(17.5, 7.8), const Offset(17.2, 8.8), slitPaint);
+    canvas.drawLine(
+      const Offset(14.5, 7.8),
+      const Offset(14.8, 8.8),
+      slitPaint,
+    );
+    canvas.drawLine(
+      const Offset(16.0, 7.5),
+      const Offset(16.0, 8.6),
+      slitPaint,
+    );
+    canvas.drawLine(
+      const Offset(17.5, 7.8),
+      const Offset(17.2, 8.8),
+      slitPaint,
+    );
     // Below
-    canvas.drawLine(const Offset(14.5, 24.2), const Offset(14.8, 23.2), slitPaint);
-    canvas.drawLine(const Offset(16.0, 24.5), const Offset(16.0, 23.4), slitPaint);
-    canvas.drawLine(const Offset(17.5, 24.2), const Offset(17.2, 23.2), slitPaint);
+    canvas.drawLine(
+      const Offset(14.5, 24.2),
+      const Offset(14.8, 23.2),
+      slitPaint,
+    );
+    canvas.drawLine(
+      const Offset(16.0, 24.5),
+      const Offset(16.0, 23.4),
+      slitPaint,
+    );
+    canvas.drawLine(
+      const Offset(17.5, 24.2),
+      const Offset(17.2, 23.2),
+      slitPaint,
+    );
 
     // 4. Official pi-coding-agent geometric mark
     // Center at (16, 16), 4x4 block unit = 3.25
     // P shape parts + i block
     const parts = [
-      Rect.fromLTWH(9.5, 9.5, 3.25, 13.0),   // P stem
-      Rect.fromLTWH(12.75, 9.5, 6.5, 3.25),  // P top bar
-      Rect.fromLTWH(16.0, 12.75, 3.25, 3.25),// P right wall
-      Rect.fromLTWH(12.75, 16.0, 3.25, 3.25),// P bottom loop
+      Rect.fromLTWH(9.5, 9.5, 3.25, 13.0), // P stem
+      Rect.fromLTWH(12.75, 9.5, 6.5, 3.25), // P top bar
+      Rect.fromLTWH(16.0, 12.75, 3.25, 3.25), // P right wall
+      Rect.fromLTWH(12.75, 16.0, 3.25, 3.25), // P bottom loop
       Rect.fromLTWH(19.25, 16.0, 3.25, 6.5), // i block
     ];
 
@@ -293,16 +319,16 @@ class _MarkPainter extends CustomPainter {
 
 class BrandWordmark extends StatelessWidget {
   final double size;
-  const BrandWordmark({super.key, this.size = 32});
+  const BrandWordmark({super.key, this.size = 15});
   @override
   Widget build(BuildContext context) => Text(
     'PI–CRUST',
     style: TextStyle(
-      fontFamily: context.tokens.headingFontFamily,
-      fontWeight: FontWeight.w700,
+      fontFamily: context.tokens.uiFontFamily,
+      fontWeight: FontWeight.w600,
       fontSize: size,
       height: 1,
-      letterSpacing: -0.4,
+      letterSpacing: 0.3,
       color: context.tokens.textPrimary,
     ),
   );

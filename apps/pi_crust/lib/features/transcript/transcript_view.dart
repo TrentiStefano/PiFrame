@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -46,7 +47,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   static final RegExp _nonDigits = RegExp(r'[^0-9]');
   static final RegExp _ansiEscape1 = RegExp(r'\x1B\[[0-9;]*[a-zA-Z]');
   static final RegExp _ansiEscape2 = RegExp(r'\x1B\([B0-9]');
-  static final RegExp _controlChars = RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]');
+  static final RegExp _controlChars = RegExp(
+    r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
+  );
   static final RegExp _splitListDelim = RegExp(r'[,;\s]+');
 
   Widget? _cachedBentoHeader;
@@ -120,7 +123,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+        ref
+            .read(sessionStateFamily(widget.sessionId).notifier)
+            .refreshDefaults();
       }
     });
   }
@@ -140,7 +145,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _userScrolledUp = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+          ref
+              .read(sessionStateFamily(widget.sessionId).notifier)
+              .refreshDefaults();
         }
       });
     }
@@ -205,22 +212,24 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (notification is UserScrollNotification) {
       if (notification.direction == ScrollDirection.forward) {
         // User intentionally scrolled upward towards older messages
-        final dist = _scrollController.position.maxScrollExtent -
+        final dist =
+            _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist > 60 && !_userScrolledUp) {
           setState(() => _userScrolledUp = true);
         }
       } else if (notification.direction == ScrollDirection.reverse) {
         // User scrolled downward towards bottom
-        final dist = _scrollController.position.maxScrollExtent -
+        final dist =
+            _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist < 40 && _userScrolledUp) {
           setState(() => _userScrolledUp = false);
         }
       }
     } else if (notification is ScrollUpdateNotification) {
-      final dist = _scrollController.position.maxScrollExtent -
-          _scrollController.offset;
+      final dist =
+          _scrollController.position.maxScrollExtent - _scrollController.offset;
       if (notification.dragDetails != null) {
         if (dist > 60 && !_userScrolledUp) {
           setState(() => _userScrolledUp = true);
@@ -231,7 +240,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         // Negative scrollDelta means scrolling UP towards older content
         if (notification.scrollDelta! < -2.0 && dist > 60 && !_userScrolledUp) {
           setState(() => _userScrolledUp = true);
-        } else if (notification.scrollDelta! > 2.0 && dist < 40 && _userScrolledUp) {
+        } else if (notification.scrollDelta! > 2.0 &&
+            dist < 40 &&
+            _userScrolledUp) {
           setState(() => _userScrolledUp = false);
         }
       }
@@ -271,7 +282,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           if (!_scrollController.hasClients) return;
           if (_scrollController.position.maxScrollExtent >
               _scrollController.offset) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+            _scrollController.jumpTo(
+              _scrollController.position.maxScrollExtent,
+            );
           }
         });
       } else {
@@ -446,158 +459,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
   }
 
-  Future<void> _showModelPicker(BuildContext chipContext) async {
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final models = await notifier.getAvailableModels();
-    if (!mounted || !chipContext.mounted) return;
-    final tokens = context.tokens;
-    final current = ref.read(sessionStateFamily(widget.sessionId)).currentModel;
-
-    if (models.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nessun modello alternativo disponibile.'),
-        ),
-      );
-      return;
-    }
-
-    final renderBox = chipContext.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final size = renderBox?.size ?? Size.zero;
-
-    final selected = await showMenu<Map<String, dynamic>>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy + size.height + 4,
-        offset.dx + 280,
-        offset.dy + size.height + 400,
-      ),
-      color: tokens.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        side: BorderSide(color: tokens.borderStrong),
-      ),
-      items: models.map((m) {
-        final id = m['id']?.toString() ?? '';
-        final name = m['name']?.toString() ?? id;
-        final isCurrent = id == current || name == current;
-        return PopupMenuItem<Map<String, dynamic>>(
-          value: m,
-          height: 38,
-          child: Row(
-            children: [
-              Icon(
-                Icons.psychology_outlined,
-                size: 15,
-                color: isCurrent ? tokens.accent : tokens.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        color: isCurrent ? tokens.accent : tokens.textPrimary,
-                        fontSize: 12,
-                        fontWeight:
-                            isCurrent ? FontWeight.bold : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (m['provider'] != null)
-                      Text(
-                        m['provider'].toString(),
-                        style: TextStyle(color: tokens.textMuted, fontSize: 10),
-                      ),
-                  ],
-                ),
-              ),
-              if (isCurrent)
-                Icon(Icons.check, size: 14, color: tokens.accent),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-
-    if (selected != null && mounted) {
-      final provider = selected['provider']?.toString() ?? 'default';
-      final id = selected['id']?.toString() ?? '';
-      await notifier.setModel(provider, id);
-    }
-  }
-
-  Future<void> _showThinkingPicker(BuildContext chipContext) async {
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final levels = await notifier.getAvailableThinkingLevels();
-    final effectiveLevels = levels.isNotEmpty
-        ? levels
-        : const ['off', 'low', 'medium', 'high'];
-    if (!mounted || !chipContext.mounted) return;
-    final tokens = context.tokens;
-    final current = ref
-        .read(sessionStateFamily(widget.sessionId))
-        .currentThinkingLevel;
-
-    final renderBox = chipContext.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-    final size = renderBox?.size ?? Size.zero;
-
-    final selected = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy + size.height + 4,
-        offset.dx + 200,
-        offset.dy + size.height + 250,
-      ),
-      color: tokens.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        side: BorderSide(color: tokens.borderStrong),
-      ),
-      items: effectiveLevels.map((lvl) {
-        final isCurrent = lvl.toLowerCase() == (current ?? '').toLowerCase();
-        return PopupMenuItem<String>(
-          value: lvl,
-          height: 34,
-          child: Row(
-            children: [
-              Icon(
-                Icons.bolt_outlined,
-                size: 15,
-                color: isCurrent ? tokens.thinking : tokens.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  lvl.toUpperCase(),
-                  style: TextStyle(
-                    color: isCurrent ? tokens.thinking : tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-              if (isCurrent)
-                Icon(Icons.check, size: 14, color: tokens.thinking),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-
-    if (selected != null && mounted) {
-      await notifier.setThinkingLevel(selected);
-    }
-  }
-
   Future<void> _showContextDialog(
     BuildContext chipContext,
     Map? contextUsage,
@@ -744,7 +605,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
                           ),
                         ),
                         icon: compacting
@@ -868,10 +731,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
     // Windowing / Pagination for long transcripts (excluding internal/junk messages)
-    final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
+    final cleanEntries = sessionState.entries
+        .where((e) => !e.isJunkOrInternal)
+        .toList();
     final totalEntries = cleanEntries.length;
 
-    final isLiveWorking = sessionState.isStreaming ||
+    final isLiveWorking =
+        sessionState.isStreaming ||
         sessionState.agentStatus == AgentStatus.working;
     _syncLiveTimer(isLiveWorking);
 
@@ -889,7 +755,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (!sessionState.isStreaming &&
         _expandedThinkingBlocks.contains('live_${widget.sessionId}')) {
       final lastAssistant = cleanEntries.reversed
-          .where((e) => e.role == 'assistant' && e.thinking != null && e.thinking!.isNotEmpty)
+          .where(
+            (e) =>
+                e.role == 'assistant' &&
+                e.thinking != null &&
+                e.thinking!.isNotEmpty,
+          )
           .firstOrNull;
       if (lastAssistant != null) {
         _expandedThinkingBlocks.remove('live_${widget.sessionId}');
@@ -930,7 +801,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 child: Scrollbar(
                   controller: _scrollController,
                   thumbVisibility: true,
-                  trackVisibility: true,
+                  trackVisibility: false,
                   interactive: true,
                   child: ListView.builder(
                     key: const ValueKey('transcript-scroll'),
@@ -958,8 +829,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 side: BorderSide(color: tokens.border),
                                 foregroundColor: tokens.textSecondary,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(tokens.radiusSm),
+                                  borderRadius: BorderRadius.circular(
+                                    tokens.radiusSm,
+                                  ),
                                 ),
                               ),
                               icon: const Icon(Icons.history, size: 14),
@@ -972,17 +844,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                     _scrollController.position.maxScrollExtent;
                                 final oldOffset = _scrollController.offset;
                                 setState(() {
-                                  _visibleCount =
-                                      (_visibleCount + _pageSize).clamp(
-                                    0,
-                                    totalEntries,
-                                  );
+                                  _visibleCount = (_visibleCount + _pageSize)
+                                      .clamp(0, totalEntries);
                                 });
-                                WidgetsBinding.instance
-                                    .addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   if (!_scrollController.hasClients) return;
-                                  final newMax =
-                                      _scrollController.position.maxScrollExtent;
+                                  final newMax = _scrollController
+                                      .position
+                                      .maxScrollExtent;
                                   final diff = newMax - oldMax;
                                   if (diff > 0) {
                                     _scrollController.jumpTo(oldOffset + diff);
@@ -1008,10 +879,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               elapsedSeconds = (diffMs / 1000).round();
                             }
                           }
-                          if (elapsedSeconds == null && entry.toolCalls.isNotEmpty) {
+                          if (elapsedSeconds == null &&
+                              entry.toolCalls.isNotEmpty) {
                             int totalToolMs = 0;
                             for (final t in entry.toolCalls) {
-                              if (t.durationMs != null) totalToolMs += t.durationMs!;
+                              if (t.durationMs != null) {
+                                totalToolMs += t.durationMs!;
+                              }
                             }
                             if (totalToolMs >= 5000) {
                               elapsedSeconds = (totalToolMs / 1000).round();
@@ -1133,27 +1007,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderExtStatuses = extensionStatuses;
 
     _cachedBentoHeader = Container(
-      margin: EdgeInsets.fromLTRB(
-        isCompact ? 10 : 16,
-        isCompact ? 8 : 10,
-        isCompact ? 10 : 16,
-        2,
-      ),
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
       padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 12 : 16,
-        vertical: isCompact ? 8 : 10,
+        horizontal: isCompact ? 10 : 12,
+        vertical: isCompact ? 5 : 6,
       ),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(color: tokens.borderStrong),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.displaySurface.withValues(alpha: 0.16),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1208,11 +1070,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   ),
                                   decoration: InputDecoration(
                                     isDense: true,
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     filled: true,
                                     fillColor: tokens.surfaceElevated,
                                     border: OutlineInputBorder(
@@ -1248,9 +1109,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                             const SizedBox(width: 4),
                             IconButton(
-                              key: const ValueKey(
-                                'session-name-rename-submit',
-                              ),
+                              key: const ValueKey('session-name-rename-submit'),
                               icon: Icon(
                                 Icons.check,
                                 size: 16,
@@ -1265,9 +1124,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               onPressed: _submitRename,
                             ),
                             IconButton(
-                              key: const ValueKey(
-                                'session-name-rename-cancel',
-                              ),
+                              key: const ValueKey('session-name-rename-cancel'),
                               icon: Icon(
                                 Icons.close,
                                 size: 16,
@@ -1301,7 +1158,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    sessionState.sessionName ?? widget.sessionId,
+                                    sessionState.sessionName ??
+                                        widget.sessionId,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -1361,7 +1219,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1369,39 +1227,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               children: [
                 _metricChip(
                   tokens,
-                  'Modello',
-                  sessionState.currentModel ?? '—',
-                  leadingIcon: Icons.psychology_outlined,
-                  iconColor: tokens.accent,
-                  valueColor: tokens.accent,
-                  trailingIcon: Icons.arrow_drop_down,
-                  onTap: (ctx) => _showModelPicker(ctx),
-                ),
-                const SizedBox(width: 6),
-                _metricChip(
-                  tokens,
-                  'Thinking',
-                  sessionState.currentThinkingLevel ?? '—',
-                  leadingIcon: Icons.bolt_outlined,
-                  iconColor: tokens.thinking,
-                  valueColor: tokens.thinking,
-                  trailingIcon: Icons.arrow_drop_down,
-                  onTap: (ctx) => _showThinkingPicker(ctx),
-                ),
-                const SizedBox(width: 6),
-                _metricChip(
-                  tokens,
                   'Contesto',
                   contextLabel,
                   leadingIcon: Icons.pie_chart_outline,
                   iconColor: tokens.syntaxFunction,
                   trailingIcon: Icons.info_outline,
-                  onTap: (ctx) => _showContextDialog(
-                    ctx,
-                    contextUsage,
-                    stats,
-                    cost,
-                  ),
+                  onTap: (ctx) =>
+                      _showContextDialog(ctx, contextUsage, stats, cost),
                 ),
                 const SizedBox(width: 6),
                 _metricChip(
@@ -1449,16 +1281,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               key: ValueKey('thinking_live_${widget.sessionId}'),
               thinkingText: liveThinking,
               isStreaming: sessionState.isStreaming,
-              isExpanded: _expandedThinkingBlocks
-                  .contains('live_${widget.sessionId}'),
+              isExpanded: _expandedThinkingBlocks.contains(
+                'live_${widget.sessionId}',
+              ),
               onExpansionChanged: (expanded) {
                 setState(() {
                   if (expanded) {
-                    _expandedThinkingBlocks
-                        .add('live_${widget.sessionId}');
+                    _expandedThinkingBlocks.add('live_${widget.sessionId}');
                   } else {
-                    _expandedThinkingBlocks
-                        .remove('live_${widget.sessionId}');
+                    _expandedThinkingBlocks.remove('live_${widget.sessionId}');
                   }
                 });
               },
@@ -1562,6 +1393,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       );
     }
   }
+
   Widget _buildEntryItem(
     SessionEntry entry,
     CrustTokens tokens, {
@@ -1573,23 +1405,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     if (isUser) {
       final (cleanText, attachments) = parseAttachmentsFromText(entry.text);
+      final screenWidth = MediaQuery.sizeOf(context).width;
       return Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        alignment: Alignment.centerLeft,
+        margin: EdgeInsets.only(left: screenWidth < 500 ? 12 : 48, bottom: 12),
+        alignment: Alignment.centerRight,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 820),
-          padding: const EdgeInsets.all(14),
+          constraints: const BoxConstraints(maxWidth: 720),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: tokens.userBubble,
             borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.accent.withValues(alpha: 0.35)),
-            boxShadow: [
-              BoxShadow(
-                color: tokens.accent.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: tokens.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1597,64 +1423,57 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: tokens.accent.withValues(alpha: 0.25),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 13,
+                        color: tokens.accent,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 13,
-                          color: tokens.accent,
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tu',
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Tu',
-                          style: TextStyle(
-                            color: tokens.accent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(4),
-                    onTap: () => _handleFork(entry.id),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.call_split,
-                            size: 12,
-                            color: tokens.syntaxKeyword,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Riparti da qui',
-                            style: TextStyle(
-                              color: tokens.syntaxKeyword,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () => _handleFork(entry.id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.call_split,
+                              size: 12,
+                              color: tokens.textSecondary,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Riparti da qui',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1723,40 +1542,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.syntaxFunction.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
-                              border: Border.all(
-                                color:
-                                    tokens.syntaxFunction.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.auto_awesome,
-                                  size: 12,
-                                  color: tokens.syntaxFunction,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Assistente',
-                                  style: TextStyle(
-                                    color: tokens.syntaxFunction,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 14,
+                            color: tokens.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Assistente',
+                            style: TextStyle(
+                              color: tokens.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (elapsedSeconds != null && elapsedSeconds >= 5) ...[
+                          if (elapsedSeconds != null &&
+                              elapsedSeconds >= 5) ...[
                             const SizedBox(width: 8),
                             Container(
                               key: ValueKey('entry_timer_${entry.id}'),
@@ -1765,12 +1566,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: tokens.syntaxFunction.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                                border: Border.all(
-                                  color: tokens.syntaxFunction.withValues(alpha: 0.3),
-                                  width: 0.8,
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusSm,
                                 ),
+                                border: Border.all(color: tokens.border),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -1778,16 +1578,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   Icon(
                                     Icons.timer_outlined,
                                     size: 11,
-                                    color: tokens.syntaxFunction,
+                                    color: tokens.textMuted,
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
                                     '${elapsedSeconds}s',
                                     style: TextStyle(
-                                      color: tokens.syntaxFunction,
+                                      color: tokens.textMuted,
                                       fontSize: 10,
                                       fontFamily: tokens.monoFontFamily,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   if (timeoutSeconds != null) ...[
@@ -1813,7 +1613,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               ),
                               decoration: BoxDecoration(
                                 color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusSm,
+                                ),
                               ),
                               child: Text(
                                 'limite ${timeoutSeconds}s',
