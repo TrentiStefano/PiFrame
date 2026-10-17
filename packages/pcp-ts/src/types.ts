@@ -99,6 +99,7 @@ export type PcpCommandType =
   | 'session.attach'
   | 'session.detach'
   | 'session.closeWorker'
+  | 'session.delete'
   | 'session.rename'
   | 'session.fork'
   | 'session.clone'

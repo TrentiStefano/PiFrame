@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:xterm/xterm.dart';
+
+import '../../data/terminal/terminal_settings.dart';
 
 class TerminalTabSession {
   final String id;
@@ -16,6 +19,10 @@ class TerminalTabSession {
   int? exitCode;
   StreamSubscription? _stdoutSub;
   StreamSubscription? _stderrSub;
+
+  final List<String> history = [];
+  String currentInput = '';
+  int historyIndex = -1;
 
   TerminalTabSession({
     required this.id,
@@ -31,9 +38,119 @@ class TerminalTabSession {
       process?.kill();
     } catch (_) {}
   }
+
+  void handleInput(String data) {
+    if (process == null) return;
+
+    // Handle Ctrl+C (character code 3)
+    if (data == '\x03') {
+      try {
+        process?.stdin.add([3]);
+      } catch (_) {}
+      terminal.write('^C\r\n');
+      currentInput = '';
+      historyIndex = history.length;
+      return;
+    }
+
+    // Handle Ctrl+L (character code 12 - form feed / clear screen)
+    if (data == '\x0c') {
+      terminal.buffer.clear();
+      terminal.setCursor(0, 0);
+      return;
+    }
+
+    // Handle Arrow Up (\x1b[A)
+    if (data == '\x1b[A') {
+      if (history.isNotEmpty) {
+        if (historyIndex == -1 || historyIndex > history.length) {
+          historyIndex = history.length;
+        }
+        if (historyIndex > 0) {
+          historyIndex--;
+          _replaceCurrentLine(history[historyIndex]);
+        }
+      }
+      return;
+    }
+
+    // Handle Arrow Down (\x1b[B)
+    if (data == '\x1b[B') {
+      if (history.isNotEmpty && historyIndex < history.length - 1) {
+        historyIndex++;
+        _replaceCurrentLine(history[historyIndex]);
+      } else if (historyIndex == history.length - 1) {
+        historyIndex = history.length;
+        _replaceCurrentLine('');
+      }
+      return;
+    }
+
+    // Process character sequence
+    for (int i = 0; i < data.length; i++) {
+      final char = data[i];
+      final code = char.codeUnitAt(0);
+
+      // Backspace (\x08 or \x7f)
+      if (code == 8 || code == 127) {
+        if (currentInput.isNotEmpty) {
+          currentInput = currentInput.substring(0, currentInput.length - 1);
+          terminal.write('\b \b');
+        }
+      }
+      // Enter (\r or \n)
+      else if (code == 10 || code == 13) {
+        terminal.write('\r\n');
+        final lineToSend = currentInput;
+        currentInput = '';
+        if (lineToSend.trim().isNotEmpty) {
+          history.add(lineToSend);
+        }
+        historyIndex = history.length;
+        try {
+          process?.stdin.writeln(lineToSend);
+        } catch (_) {}
+      }
+      // Tab (\t)
+      else if (code == 9) {
+        currentInput += '\t';
+        terminal.write('\t');
+      }
+      // Skip ANSI escape codes starting with 27
+      else if (code == 27) {
+        continue;
+      }
+      // Regular printable characters
+      else if (code >= 32) {
+        currentInput += char;
+        terminal.write(char);
+      }
+    }
+  }
+
+  void _replaceCurrentLine(String newLine) {
+    if (currentInput.isNotEmpty) {
+      terminal.write('\b \b' * currentInput.length);
+    }
+    currentInput = newLine;
+    terminal.write(newLine);
+  }
+
+  void sendCommand(String command) {
+    if (process == null) return;
+    final trimmed = command.trim();
+    if (trimmed.isNotEmpty) {
+      history.add(trimmed);
+      historyIndex = history.length;
+    }
+    terminal.write('$command\r\n');
+    try {
+      process!.stdin.writeln(command);
+    } catch (_) {}
+  }
 }
 
-class IntegratedTerminalPanel extends StatefulWidget {
+class IntegratedTerminalPanel extends ConsumerStatefulWidget {
   final String cwd;
   final CrustTokens tokens;
   final VoidCallback onCollapseDownward;
@@ -48,18 +165,15 @@ class IntegratedTerminalPanel extends StatefulWidget {
   });
 
   @override
-  State<IntegratedTerminalPanel> createState() =>
+  ConsumerState<IntegratedTerminalPanel> createState() =>
       _IntegratedTerminalPanelState();
 }
 
-class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
+class _IntegratedTerminalPanelState
+    extends ConsumerState<IntegratedTerminalPanel> {
   final List<TerminalTabSession> _tabs = [];
   int _activeTabIndex = 0;
   int _counter = 0;
-
-  final TextEditingController _cmdInputController = TextEditingController();
-  final FocusNode _cmdFocusNode = FocusNode();
-  final List<String> _history = [];
 
   @override
   void initState() {
@@ -72,8 +186,6 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     for (final tab in _tabs) {
       tab.dispose();
     }
-    _cmdInputController.dispose();
-    _cmdFocusNode.dispose();
     super.dispose();
   }
 
@@ -105,6 +217,25 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     );
   }
 
+  Map<String, String>? _parseWslPath(String path) {
+    final normalized =
+        path.trim().replaceFirst(RegExp(r'^[\\/]+'), '//').replaceAll('\\', '/');
+    final match = RegExp(
+      r'^//(wsl(?:\.localhost|\$))/([^/]+)(?:/(.*))?$',
+      caseSensitive: false,
+    ).firstMatch(normalized);
+    if (match == null) return null;
+    final distro = match.group(2)!;
+    final rest = match.group(3) ?? '';
+    final linuxPath = '/$rest'.replaceAll(RegExp(r'/+'), '/');
+    return {
+      'distro': distro,
+      'linuxPath': linuxPath.length > 1 && linuxPath.endsWith('/')
+          ? linuxPath.substring(0, linuxPath.length - 1)
+          : linuxPath,
+    };
+  }
+
   void _createNewTab({String? preferredShell}) {
     _counter++;
     final String shellExe;
@@ -112,7 +243,15 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     final String shellName;
 
     if (Platform.isWindows) {
-      if (preferredShell == 'cmd') {
+      final wslInfo = _parseWslPath(widget.cwd);
+      final shouldUseWsl = preferredShell == 'wsl' ||
+          (preferredShell == null && wslInfo != null);
+
+      if (shouldUseWsl && wslInfo != null) {
+        shellExe = 'wsl.exe';
+        shellArgs = ['-d', wslInfo['distro']!, '--cd', wslInfo['linuxPath']!];
+        shellName = 'WSL (${wslInfo['distro']})';
+      } else if (preferredShell == 'cmd') {
         shellExe = 'cmd.exe';
         shellArgs = ['/k'];
         shellName = 'cmd';
@@ -157,29 +296,31 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     String executable,
     List<String> args,
   ) async {
-    final effectiveCwd = widget.cwd.isNotEmpty && Directory(widget.cwd).existsSync()
+    final isWsl = executable.toLowerCase() == 'wsl.exe';
+    final effectiveCwd = !isWsl &&
+            widget.cwd.isNotEmpty &&
+            Directory(widget.cwd).existsSync()
         ? widget.cwd
         : Directory.current.path;
 
+    final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
     session.terminal.write(
-      'Avvio sessione terminale in: $effectiveCwd\r\n\r\n',
+      'Avvio sessione terminale in: $displayDir\r\n\r\n',
     );
 
     try {
       final process = await Process.start(
         executable,
         args,
-        workingDirectory: effectiveCwd,
-        runInShell: true,
+        workingDirectory: isWsl ? null : effectiveCwd,
+        runInShell: false,
       );
 
       session.process = process;
       session.isRunning = true;
 
       session.terminal.onOutput = (data) {
-        try {
-          process.stdin.write(data);
-        } catch (_) {}
+        session.handleInput(data);
       };
 
       session._stdoutSub = process.stdout.listen((bytes) {
@@ -231,37 +372,25 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
     });
   }
 
-  void _sendCommand(String command) {
-    if (_tabs.isEmpty) return;
-    final currentTab = _tabs[_activeTabIndex];
-    if (currentTab.process == null) return;
-
-    final trimmed = command.trim();
-    if (trimmed.isNotEmpty) {
-      _history.add(trimmed);
-    }
-
-    try {
-      currentTab.process!.stdin.writeln(command);
-    } catch (_) {}
-    _cmdInputController.clear();
-    _cmdFocusNode.requestFocus();
-  }
-
-  void _sendInterrupt() {
-    if (_tabs.isEmpty) return;
-    final currentTab = _tabs[_activeTabIndex];
-    try {
-      // Send Ctrl+C (character code 3)
-      currentTab.process?.stdin.add([3]);
-    } catch (_) {}
-  }
-
   void _clearScreen() {
     if (_tabs.isEmpty) return;
     final currentTab = _tabs[_activeTabIndex];
     currentTab.terminal.buffer.clear();
     currentTab.terminal.setCursor(0, 0);
+  }
+
+  void _sendInterrupt() {
+    if (_tabs.isEmpty) return;
+    _tabs[_activeTabIndex].handleInput('\x03');
+  }
+
+  void _openInNativeTerminal() {
+    final termSettings = ref.read(terminalSettingsProvider);
+    launchNativeTerminal(
+      cwd: widget.cwd,
+      nativeApp: termSettings.nativeApp,
+      customPath: termSettings.customPath,
+    );
   }
 
   @override
@@ -339,8 +468,8 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
                             border: Border(
                               right: BorderSide(color: tokens.border),
                               bottom: isSelected
-                                  ? BorderSide(color: tokens.accent, width: 2)
-                                  : BorderSide.none,
+                                    ? BorderSide(color: tokens.accent, width: 2)
+                                    : BorderSide.none,
                             ),
                           ),
                           child: Row(
@@ -400,33 +529,59 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
                       _createNewTab(preferredShell: val);
                     }
                   },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'default',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.terminal, size: 15),
-                          const SizedBox(width: 8),
-                          Text(
-                            Platform.isWindows
-                                ? 'Nuovo terminale (PowerShell)'
-                                : 'Nuovo terminale',
+                  itemBuilder: (context) {
+                    final wslInfo = Platform.isWindows ? _parseWslPath(widget.cwd) : null;
+                    return [
+                      if (wslInfo != null)
+                        PopupMenuItem(
+                          value: 'wsl',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.terminal, size: 15),
+                              const SizedBox(width: 8),
+                              Text('Nuovo terminale WSL (${wslInfo['distro']})'),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    if (Platform.isWindows)
+                        ),
                       PopupMenuItem(
-                        value: 'cmd',
+                        value: 'default',
                         child: Row(
                           children: [
-                            Icon(Icons.terminal, size: 15),
+                            const Icon(Icons.terminal, size: 15),
                             const SizedBox(width: 8),
-                            Text('Command Prompt (cmd)'),
+                            Text(
+                              Platform.isWindows
+                                  ? 'Nuovo terminale (PowerShell)'
+                                  : 'Nuovo terminale',
+                            ),
                           ],
                         ),
                       ),
-                  ],
+                      if (Platform.isWindows)
+                        const PopupMenuItem(
+                          value: 'cmd',
+                          child: Row(
+                            children: [
+                              Icon(Icons.terminal, size: 15),
+                              SizedBox(width: 8),
+                              Text('Command Prompt (cmd)'),
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
+                ),
+
+                const SizedBox(width: 4),
+
+                // Interrupt button (Ctrl+C)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Interrompi processo (Ctrl+C)',
+                  icon: Icon(Icons.stop_circle_outlined, size: 15, color: tokens.danger),
+                  onPressed: _sendInterrupt,
                 ),
 
                 const SizedBox(width: 4),
@@ -439,6 +594,18 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
                   tooltip: 'Pulisci schermo (Clear)',
                   icon: const Icon(Icons.block, size: 14),
                   onPressed: _clearScreen,
+                ),
+
+                const SizedBox(width: 4),
+
+                // Open in Native Terminal action
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Apri nel terminale nativo (OS)',
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  onPressed: _openInNativeTerminal,
                 ),
 
                 const SizedBox(width: 4),
@@ -470,7 +637,7 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
           ),
 
           // -------------------------------------------------------------
-          // Terminal View Body
+          // Terminal View Body (Direct Interactive Typing)
           // -------------------------------------------------------------
           Expanded(
             child: Container(
@@ -483,153 +650,11 @@ class _IntegratedTerminalPanelState extends State<IntegratedTerminalPanel> {
                   fontSize: 12,
                   fontFamily: tokens.monoFontFamily,
                 ),
-                autofocus: false,
+                autofocus: true,
               ),
             ),
           ),
-
-          // -------------------------------------------------------------
-          // Quick Action Bar & Command Input Line
-          // -------------------------------------------------------------
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 520;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: tokens.surface,
-                  border: Border(
-                    top: BorderSide(color: tokens.border, width: 1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Quick chips
-                    if (!isNarrow) ...[
-                      _buildQuickChip('git status', tokens),
-                      const SizedBox(width: 4),
-                      _buildQuickChip('git diff', tokens),
-                      const SizedBox(width: 4),
-                      _buildQuickChip('pi --version', tokens),
-                      const SizedBox(width: 8),
-                    ],
-
-                    // Interrupt button
-                Tooltip(
-                  message: 'Interrompi processo corrente (Ctrl+C)',
-                  child: InkWell(
-                    onTap: _sendInterrupt,
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: tokens.danger.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.danger.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.stop, size: 12, color: tokens.danger),
-                          const SizedBox(width: 2),
-                          Text(
-                            'Ctrl+C',
-                            style: TextStyle(
-                              color: tokens.danger,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Command Input Field
-                Expanded(
-                  child: SizedBox(
-                    height: 26,
-                    child: TextField(
-                      controller: _cmdInputController,
-                      focusNode: _cmdFocusNode,
-                      style: TextStyle(
-                        color: tokens.displayText,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'Invia comando al terminale...',
-                        hintStyle: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          borderSide: BorderSide(color: tokens.border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          borderSide: BorderSide(color: tokens.accent),
-                        ),
-                      ),
-                      onSubmitted: (value) {
-                        if (value.isNotEmpty) {
-                          _sendCommand(value);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  tooltip: 'Invia comando',
-                  icon: Icon(Icons.arrow_forward, size: 14, color: tokens.accent),
-                  onPressed: () {
-                    final text = _cmdInputController.text;
-                    if (text.isNotEmpty) {
-                      _sendCommand(text);
-                    }
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQuickChip(String command, CrustTokens tokens) {
-    return InkWell(
-      onTap: () => _sendCommand(command),
-      borderRadius: BorderRadius.circular(tokens.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        decoration: BoxDecoration(
-          color: tokens.displaySurface,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(color: tokens.border),
-        ),
-        child: Text(
-          command,
-          style: TextStyle(
-            color: tokens.displayText,
-            fontSize: 10,
-            fontFamily: tokens.monoFontFamily,
-          ),
-        ),
       ),
     );
   }

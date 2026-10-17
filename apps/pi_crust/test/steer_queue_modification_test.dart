@@ -51,6 +51,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byType(Composer));
+    await tester.pumpAndSettle();
 
     // Verify queue bar is visible with the 2 queued items
     expect(find.byKey(const ValueKey('composer-queue-bar')), findsOneWidget);

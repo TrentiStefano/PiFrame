@@ -148,6 +148,29 @@ export class SessionIndex {
     return list.slice(0, limit);
   }
 
+  public removeSession(sessionId: string): string | null {
+    let deletedPath: string | null = null;
+    for (const [filePath, cached] of this.cache.entries()) {
+      if (
+        cached.summary.id === sessionId ||
+        path.basename(filePath, path.extname(filePath)) === sessionId
+      ) {
+        deletedPath = filePath;
+        this.cache.delete(filePath);
+        break;
+      }
+    }
+    if (deletedPath && fs.existsSync(deletedPath)) {
+      try {
+        fs.unlinkSync(deletedPath);
+      } catch (err) {
+        console.error('Failed to unlink session file:', deletedPath, err);
+      }
+    }
+    this.saveCache();
+    return deletedPath;
+  }
+
   public readTranscript(filePath: string): Array<Record<string, unknown>> {
     const entries: any[] = [];
     for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {

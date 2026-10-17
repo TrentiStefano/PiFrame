@@ -67,7 +67,17 @@ Do not darken or replace palette hues to make semantic colors pass as small text
 
 ## Typography and identity
 
-Keep Pi-Crust's existing name, mark, and bundled typography. Barlow Condensed marks identity and headings; Schibsted Grotesk carries UI/body text; Source Code Pro is reserved for paths, source and diffs. Do not revive retired external styling references.
+Keep Pi-Crust's existing name, mark, and bundled typography. Barlow Condensed marks identity and headings; Schibsted Grotesk carries UI/body text; Source Code Pro is reserved strictly for paths, source and diffs. Repository file tree items MUST use Schibsted Grotesk (UI font), not monospace code font. Do not revive retired external styling references.
+
+## Density & Activity Timeline
+
+- **Intermediate chat activity**: Reasoning/thinking, tool calls, and command rows are rendered as compact, low-height summary rows (~26-28px) with status indicators and micro-typography (inspired by Antigravity), avoiding bloated cards. Clicking expands full details.
+- **Scrollbar**: Transcript scrollbars omit background tracks (`trackVisibility: false`), showing only the thumb.
+- **Chat alignment**: User messages are indented and offset to the right; agent turns align to the left.
+- **Unified pane headers**: Repository, Git Changes, and Review Changes share the chat pane's subtle card top bar styling at a slimmer 38px profile.
+- **App toolbar**: Compact 42px height with subtle branding wordmark (15px) and discrete icon buttons.
+- **Composer**: Space-efficient layout with icon-only action buttons, model and thinking selectors located on the bottom-left row, and send/attach on the bottom-right.
+- **Visual hierarchy & Color**: Colorful semantic Catppuccin file icons (`FileIcon`), syntax tokens, and git status counters (+added, -removed) provide clear scannability without the triple-tinted "AI-generated" look (colored fill + lighter outline + colored text).
 
 ## Interaction and adaptation
 

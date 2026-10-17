@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ulid } from 'ulid';
 import { Session } from './Session.js';
@@ -373,6 +374,41 @@ export class SessionRegistry {
 
   public async closeWorker(sessionId: string): Promise<void> {
     await this.supervisor.stopWorker(sessionId);
+  }
+
+  public async deleteSession(sessionId: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    let sessionFile = session?.sessionFile;
+    if (session) {
+      await this.closeWorker(sessionId);
+      await session.close();
+      this.sessions.delete(sessionId);
+    }
+
+    const removedFile = this.index.removeSession(sessionId);
+    if (!sessionFile && removedFile) {
+      sessionFile = removedFile;
+    }
+    if (sessionFile && fs.existsSync(sessionFile)) {
+      try {
+        fs.unlinkSync(sessionFile);
+      } catch (_) {}
+    }
+
+    this.connectionManager.broadcastAll({
+      protocol: 1,
+      kind: 'event',
+      id: `evt_${ulid()}`,
+      ts: Date.now(),
+      sessionId: '@daemon',
+      seq: 0,
+      type: 'session.indexChanged',
+      payload: {
+        removed: [sessionId]
+      }
+    } as any);
+
+    return true;
   }
 
   public async closeAll(graceMs = 5000): Promise<void> {

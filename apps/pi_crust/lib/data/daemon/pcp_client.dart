@@ -109,7 +109,8 @@ class PcpClient {
 
   void _onMessage(dynamic raw) {
     try {
-      final map = jsonDecode(raw.toString()) as Map<String, dynamic>;
+      final String text = raw is String ? raw : (raw is List<int> ? utf8.decode(raw) : raw.toString());
+      final map = jsonDecode(text) as Map<String, dynamic>;
       final kind = map['kind'] as String?;
 
       if (kind == 'welcome') {
@@ -850,6 +851,19 @@ class PcpClient {
       commandId: newCommandId('rns'),
       type: 'session.rename',
       payload: {'name': name},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> deleteSession(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('del'),
+      type: 'session.delete',
+      payload: {},
     );
     return sendCommand(cmd);
   }

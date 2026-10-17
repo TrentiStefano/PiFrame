@@ -269,7 +269,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Aggiungi file al contesto'));
+    await tester.tap(find.byTooltip('Allega file, link o immagine'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('File dal repository'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('lib/main.dart'));
     await tester.pumpAndSettle();

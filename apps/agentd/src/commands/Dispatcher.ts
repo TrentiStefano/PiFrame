@@ -534,6 +534,12 @@ export class Dispatcher {
         return { closed: true };
       }
 
+      case 'session.delete': {
+        if (!sessionId) throw new Error('sessionId is required for session.delete');
+        await this.registry.deleteSession(sessionId);
+        return { deleted: true, sessionId };
+      }
+
       // -----------------------------------------------------------------------
       // Agent Commands
       // -----------------------------------------------------------------------

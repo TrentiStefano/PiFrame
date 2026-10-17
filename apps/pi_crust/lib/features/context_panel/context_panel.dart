@@ -138,19 +138,29 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
+    final currentModel = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
+    );
+    final currentThinkingLevel = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.currentThinkingLevel),
+    );
+    final usage = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.usage),
+    );
+    final readOnly = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.readOnly),
+    );
     final sessionNotifier = ref.read(
       sessionStateFamily(widget.sessionId).notifier,
     );
 
     final currentModelName =
-        sessionState.currentModel ??
+        currentModel ??
         (_models.isNotEmpty
             ? (_models.first['name'] ?? _models.first['id'])
             : 'Default');
-    final currentThinking = sessionState.currentThinkingLevel ?? 'medium';
+    final currentThinking = currentThinkingLevel ?? 'medium';
 
-    final usage = sessionState.usage;
     final tokensMap = usage?['tokens'] as Map<String, dynamic>?;
     final totalTokens = (tokensMap?['total'] as num?)?.toInt() ?? 0;
     final contextUsage = usage?['contextUsage'] as Map<String, dynamic>?;
@@ -218,9 +228,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                       )
                     : _models.isEmpty
                     ? Text(
-                        sessionState.currentModel == null
+                        currentModel == null
                             ? 'Nessun modello abilitato in Pi.'
-                            : '${sessionState.currentModel}\nElenco modelli non disponibile.',
+                            : '$currentModel\nElenco modelli non disponibile.',
                         style: TextStyle(color: tokens.textMuted, fontSize: 12),
                       )
                     : Container(
@@ -264,7 +274,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                                 ),
                               );
                             }).toList(),
-                            onChanged: sessionState.readOnly
+                            onChanged: readOnly
                                 ? null
                                 : (newModel) {
                                     if (newModel != null) {
@@ -335,7 +345,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           child: Text(lvl.toUpperCase()),
                         );
                       }).toList(),
-                      onChanged: sessionState.readOnly
+                      onChanged: readOnly
                           ? null
                           : (newLevel) {
                               if (newLevel != null) {
@@ -425,7 +435,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   label: Text(
                     _isCompacting ? 'Compattazione...' : 'Compatta contesto',
                   ),
-                  onPressed: _isCompacting || sessionState.readOnly
+                  onPressed: _isCompacting || readOnly
                       ? null
                       : _triggerCompaction,
                 ),

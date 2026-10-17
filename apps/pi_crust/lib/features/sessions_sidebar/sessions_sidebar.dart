@@ -10,6 +10,7 @@ import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
+import 'removed_repos_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../data/update/update_providers.dart';
 
@@ -209,7 +210,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
     final activeSessionCwd = activeId != null
-        ? ref.watch(sessionStateFamily(activeId)).cwd
+        ? ref.watch(sessionStateFamily(activeId).select((s) => s.cwd))
         : '';
 
     return Container(
@@ -366,9 +367,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           Expanded(
             child: sessionsAsync.when(
               data: (allSessions) {
+                final removedRepos = ref.watch(removedReposProvider);
+
                 // Apply search and filter
                 final filtered = allSessions.where((s) {
                   if (_isWorkerSession(s)) return false;
+                  final folder = _sessionFolder(s);
+                  if (_searchQuery.isEmpty && removedRepos.contains(folder)) {
+                    return false;
+                  }
                   final id = (s['id'] as String? ?? '').toLowerCase();
                   final name = (s['name'] as String? ?? '').toLowerCase();
                   final cwd = (s['cwd'] as String? ?? '').toLowerCase();
@@ -422,6 +429,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 final pinnedIds = ref.watch(pinnedSessionsProvider);
                 final pinnedSessions = allSessions.where((s) {
                   if (_isWorkerSession(s)) return false;
+                  final folder = _sessionFolder(s);
+                  if (_searchQuery.isEmpty && removedRepos.contains(folder)) {
+                    return false;
+                  }
                   final id = s['id'] as String? ?? '';
                   return pinnedIds.contains(id);
                 }).toList();
@@ -469,15 +480,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     vertical: 4,
                   ),
                   itemCount: rows.length,
-                  itemBuilder: (context, index) {
+                  itemBuilder: (rowContext, index) {
                     final row = rows[index];
                     if (row.isPinnedHeader) {
                       final hasWorkingPinned = pinnedSessions.any((s) {
                         final sId = s['id'] as String? ?? '';
-                        final st = ref.watch(sessionStateFamily(sId));
-                        return st.agentStatus == AgentStatus.working ||
+                        return ref.watch(sessionStateFamily(sId).select((st) =>
+                            st.agentStatus == AgentStatus.working ||
                             st.isStreaming ||
-                            st.activeToolCalls.isNotEmpty;
+                            st.activeToolCalls.isNotEmpty));
                       });
                       final hasActivePinned = hasWorkingPinned ||
                           pinnedSessions.any((s) => s['isActive'] == true);
@@ -527,11 +538,31 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       final folder = row.folder ?? '';
                       final expanded = _expandedFolders.contains(folder);
                       final hasActive = activeFolders.contains(folder);
+                      final folderSessions = grouped[folder] ?? [];
+                      final hasWorking = folderSessions.any((s) {
+                        final sId = s['id'] as String? ?? '';
+                        final isSel = sId == activeId;
+                        final isPin = pinnedIds.contains(sId);
+                        final isAct = s['isActive'] == true;
+                        if (isSel || isPin || isAct) {
+                          final isWorking = ref.watch(sessionStateFamily(sId).select((st) =>
+                              st.agentStatus == AgentStatus.working ||
+                              st.agentStatus == AgentStatus.retrying ||
+                              st.agentStatus == AgentStatus.compacting ||
+                              st.isStreaming ||
+                              st.activeToolCalls.isNotEmpty));
+                          if (isWorking) {
+                            return true;
+                          }
+                        }
+                        return s['status'] == 'working' || s['isStreaming'] == true;
+                      });
 
                       Widget folderTile = ListTile(
                         key: ValueKey('session-folder:$folder'),
                         dense: true,
                         visualDensity: VisualDensity.compact,
+                        minLeadingWidth: 18,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                         ),
@@ -542,10 +573,17 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               expanded
                                   ? Icons.folder_open_outlined
                                   : Icons.folder_outlined,
-                              size: 17,
-                              color: hasActive ? tokens.accent : tokens.accent.withValues(alpha: 0.8),
+                              size: 16,
+                              color: hasWorking
+                                  ? tokens.agentWorking
+                                  : (hasActive
+                                      ? tokens.accent
+                                      : tokens.accent.withValues(alpha: 0.8)),
                             ),
-                            if (hasActive) ...[
+                            if (hasWorking) ...[
+                              const SizedBox(width: 4),
+                              _WorkingDot(color: tokens.agentWorking, size: 6),
+                            ] else if (hasActive) ...[
                               const SizedBox(width: 4),
                               Container(
                                 width: 6,
@@ -572,6 +610,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontWeight: FontWeight.w600,
+                            fontSize: 12,
                           ),
                         ),
                         subtitle: Text(
@@ -590,8 +629,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               key: ValueKey('repo-instructions-btn-$folder'),
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                              icon: Icon(Icons.description_outlined, size: 16, color: tokens.textSecondary),
+                              style: IconButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                minimumSize: const Size(20, 20),
+                                padding: EdgeInsets.zero,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                              icon: Icon(Icons.description_outlined, size: 14, color: tokens.textSecondary),
                               tooltip: 'Istruzioni repository (AGENTS.md, CLAUDE.md...)',
                               onPressed: () {
                                 final activeSid = activeFolders.contains(folder) ? activeId : null;
@@ -600,10 +644,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             ),
                             const SizedBox(width: 2),
                             IconButton(
+                              key: ValueKey('repo-new-session-btn-$folder'),
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                              icon: Icon(Icons.add, size: 16, color: tokens.accent),
+                              style: IconButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                minimumSize: const Size(20, 20),
+                                padding: EdgeInsets.zero,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                              icon: Icon(Icons.add, size: 14, color: tokens.accent),
                               tooltip: 'Nuova sessione in questa cartella',
                               onPressed: () async {
                                 setState(() => _expandedFolders.add(folder));
@@ -612,9 +662,32 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               },
                             ),
                             const SizedBox(width: 2),
+                            IconButton(
+                              key: ValueKey('repo-remove-btn-$folder'),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              style: IconButton.styleFrom(
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                minimumSize: const Size(20, 20),
+                                padding: EdgeInsets.zero,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                              icon: Icon(Icons.close, size: 14, color: tokens.textSecondary),
+                              tooltip: 'Rimuovi repository dal riquadro',
+                              onPressed: () {
+                                removeRepoWithConfirmation(
+                                  context,
+                                  ref,
+                                  folder: folder,
+                                  repoName: _folderName(folder),
+                                  folderSessions: folderSessions,
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 2),
                             Icon(
                               expanded ? Icons.expand_more : Icons.chevron_right,
-                              size: 18,
+                              size: 16,
                               color: tokens.textMuted,
                             ),
                           ],
@@ -628,7 +701,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         }),
                       );
 
-                      if (hasActive) {
+                      if (hasWorking) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2),
                           child: ShimmerBorder(
@@ -676,6 +749,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         context,
                         folder: folder,
                         sessionId: sId,
+                      ),
+                      onDelete: (sId, sName) => deleteSessionWithConfirmation(
+                        context,
+                        ref,
+                        sessionId: sId,
+                        sessionName: sName,
                       ),
                     );
                   },
@@ -871,6 +950,7 @@ class _SessionTile extends ConsumerWidget {
   final void Function(String id) onTree;
   final void Function(String id) onClone;
   final void Function(String id, String folder)? onInstructions;
+  final void Function(String id, String name)? onDelete;
 
   const _SessionTile({
     required this.session,
@@ -883,6 +963,7 @@ class _SessionTile extends ConsumerWidget {
     required this.onTree,
     required this.onClone,
     this.onInstructions,
+    this.onDelete,
   });
 
   @override
@@ -894,14 +975,13 @@ class _SessionTile extends ConsumerWidget {
     final preview = session['lastMessagePreview'] as String?;
     final isStaticActive = session['isActive'] == true;
 
-    final sessionState = (isPinned || isSelected)
-        ? ref.watch(sessionStateFamily(id))
-        : null;
-
-    final isWorking = sessionState != null
-        ? (sessionState.agentStatus == AgentStatus.working ||
-            sessionState.isStreaming ||
-            sessionState.activeToolCalls.isNotEmpty)
+    final isWorking = (isPinned || isSelected || isStaticActive)
+        ? ref.watch(sessionStateFamily(id).select((s) =>
+            s.agentStatus == AgentStatus.working ||
+            s.agentStatus == AgentStatus.retrying ||
+            s.agentStatus == AgentStatus.compacting ||
+            s.isStreaming ||
+            s.activeToolCalls.isNotEmpty))
         : (session['status'] == 'working' || session['isStreaming'] == true);
 
     final tile = ListTile(
@@ -913,6 +993,7 @@ class _SessionTile extends ConsumerWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       minVerticalPadding: 2,
+      minLeadingWidth: 14,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 8,
         vertical: 0,
@@ -992,6 +1073,8 @@ class _SessionTile extends ConsumerWidget {
             onClone(id);
           } else if (action == 'instructions') {
             onInstructions?.call(id, _sessionFolder(session));
+          } else if (action == 'delete') {
+            onDelete?.call(id, name);
           }
         },
         itemBuilder: (ctx) => [
@@ -999,6 +1082,7 @@ class _SessionTile extends ConsumerWidget {
             value: 'pin',
             height: 32,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   isPinned ? Icons.push_pin_outlined : Icons.push_pin,
@@ -1020,6 +1104,7 @@ class _SessionTile extends ConsumerWidget {
             value: 'instructions',
             height: 32,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.description_outlined,
@@ -1028,7 +1113,7 @@ class _SessionTile extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Istruzioni repository',
+                  'Istruzioni',
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
@@ -1041,6 +1126,7 @@ class _SessionTile extends ConsumerWidget {
             value: 'rename',
             height: 32,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.edit_outlined,
@@ -1062,6 +1148,7 @@ class _SessionTile extends ConsumerWidget {
             value: 'tree',
             height: 32,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.account_tree_outlined,
@@ -1083,6 +1170,7 @@ class _SessionTile extends ConsumerWidget {
             value: 'clone',
             height: 32,
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.copy_outlined,
@@ -1094,6 +1182,29 @@ class _SessionTile extends ConsumerWidget {
                   'Duplica',
                   style: TextStyle(
                     color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem(
+            value: 'delete',
+            height: 32,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.delete_outline,
+                  size: 14,
+                  color: tokens.danger,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Elimina sessione',
+                  style: TextStyle(
+                    color: tokens.danger,
                     fontSize: 12,
                   ),
                 ),

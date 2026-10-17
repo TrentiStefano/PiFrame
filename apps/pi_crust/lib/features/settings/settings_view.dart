@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import '../../data/daemon/daemon_locator.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/terminal/terminal_settings.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import 'diagnostics.dart';
@@ -34,6 +37,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   String? _configStatusMessage;
   bool _isLoadingPackages = true;
   bool _isWorkingWithPackage = false;
+  bool _isRestartingDaemon = false;
   String? _packageError;
   List<Map<String, dynamic>> _packages = [];
 
@@ -41,7 +45,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 8,
+      length: 9,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -74,6 +78,35 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           _isLoadingConfig = false;
         });
       }
+    }
+  }
+
+  Future<void> _restartDaemon() async {
+    setState(() => _isRestartingDaemon = true);
+    try {
+      final endpoint = await DaemonLocator.restartDaemon();
+      if (mounted) {
+        if (endpoint != null) {
+          ref.invalidate(daemonEndpointProvider);
+          _fetchDaemonConfig();
+          _fetchPiPackages();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Daemon riavviato con successo')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Riavvio daemon non riuscito')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore durante il riavvio: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRestartingDaemon = false);
     }
   }
 
@@ -472,6 +505,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     Tab(text: 'PRIVACY'),
                     Tab(text: 'DIAGNOSTICA'),
                     Tab(text: 'AGGIORNAMENTI'),
+                    Tab(text: 'TERMINALE'),
                     Tab(text: 'ACCESSO REMOTO'),
                   ],
                 ),
@@ -652,17 +686,27 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         const SizedBox(height: 24),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Tooltip(
-                            message: 'Riavvio disabilitato quando sono presenti worker attivi per proteggere le sessioni.',
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: tokens.surfaceElevated,
-                                foregroundColor: tokens.textMuted,
-                              ),
-                              icon: const Icon(Icons.restart_alt, size: 16),
-                              label: const Text('Riavvia Daemon'),
-                              onPressed: null, // Disabled when workers exist
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: tokens.surfaceElevated,
+                              foregroundColor: tokens.textPrimary,
                             ),
+                            icon: _isRestartingDaemon
+                                ? SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accent,
+                                    ),
+                                  )
+                                : const Icon(Icons.restart_alt, size: 16),
+                            label: Text(
+                              _isRestartingDaemon
+                                  ? 'Riavvio in corso...'
+                                  : 'Riavvia Daemon',
+                            ),
+                            onPressed: _isRestartingDaemon ? null : _restartDaemon,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -979,7 +1023,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     const UpdatesSection(),
 
                     // -------------------------------------------------------------
-                    // Tab 8: Accesso Remoto Sicuro
+                    // Tab 8: Terminale & Ambiente di Esecuzione
+                    // -------------------------------------------------------------
+                    _buildTerminalSettingsTab(tokens),
+
+                    // -------------------------------------------------------------
+                    // Tab 9: Accesso Remoto Sicuro
                     // -------------------------------------------------------------
                     const RemoteSection(),
                   ],
@@ -989,6 +1038,255 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTerminalSettingsTab(CrustTokens tokens) {
+    final termSettings = ref.watch(terminalSettingsProvider);
+    final notifier = ref.read(terminalSettingsProvider.notifier);
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Text(
+          'Terminale & Ambiente di Esecuzione',
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Scegli se utilizzare il terminale integrato direttamente nell\'interfaccia o aprire il terminale nativo del sistema operativo (es. Windows Terminal, PowerShell, CMD, WSL, o un eseguibile personalizzato).',
+          style: TextStyle(color: tokens.textMuted, fontSize: 12),
+        ),
+        const SizedBox(height: 20),
+
+        // Section 1: Modalità di esecuzione
+        Text(
+          'MODALITÀ PREFERITA',
+          style: TextStyle(
+            color: tokens.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            border: Border.all(color: tokens.border),
+          ),
+          child: RadioGroup<TerminalMode>(
+            groupValue: termSettings.mode,
+            onChanged: (mode) {
+              if (mode != null) notifier.setMode(mode);
+            },
+            child: Column(
+              children: [
+                RadioListTile<TerminalMode>(
+                  value: TerminalMode.integrated,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    'Terminale integrato (in Pi-Crust)',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Scrivi direttamente nella finestra di terminale integrata, con cronologia frecce su/giù e supporto shell di sistema.',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                  ),
+                ),
+                Divider(color: tokens.border, height: 1),
+                RadioListTile<TerminalMode>(
+                  value: TerminalMode.native,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    'Terminale nativo OS (applicazione esterna)',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Apre una finestra di terminale esterna nativa direttamente nella cartella del repository.',
+                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Section 2: Scelta applicazione terminale nativo
+        Text(
+          'APPLICAZIONE TERMINALE NATIVO (OS)',
+          style: TextStyle(
+            color: tokens.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            border: Border.all(color: tokens.border),
+          ),
+          child: RadioGroup<NativeTerminalApp>(
+            groupValue: termSettings.nativeApp,
+            onChanged: (app) {
+              if (app != null) notifier.setNativeApp(app);
+            },
+            child: Column(
+              children: [
+                RadioListTile<NativeTerminalApp>(
+                  value: NativeTerminalApp.systemDefault,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    Platform.isWindows
+                        ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
+                        : 'Terminale predefinito di sistema',
+                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                  ),
+                ),
+                if (Platform.isWindows) ...[
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.powershell,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'PowerShell (powershell.exe)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.cmd,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'Command Prompt (cmd.exe)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                  Divider(color: tokens.border, height: 1),
+                  RadioListTile<NativeTerminalApp>(
+                    value: NativeTerminalApp.wsl,
+                    activeColor: tokens.accent,
+                    title: Text(
+                      'WSL (Windows Subsystem for Linux)',
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                ],
+                Divider(color: tokens.border, height: 1),
+                RadioListTile<NativeTerminalApp>(
+                  value: NativeTerminalApp.custom,
+                  activeColor: tokens.accent,
+                  title: Text(
+                    'Applicazione o eseguibile personalizzato',
+                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                  ),
+                  subtitle: termSettings.nativeApp == NativeTerminalApp.custom
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: TextEditingController(
+                                  text: termSettings.customPath,
+                                )..selection = TextSelection.collapsed(
+                                    offset: termSettings.customPath.length,
+                                  ),
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 12,
+                                  fontFamily: tokens.monoFontFamily,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: Platform.isWindows
+                                      ? 'C:\\Percorso\\A\\terminal.exe'
+                                      : '/usr/bin/alacritty',
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(tokens.radiusSm),
+                                  ),
+                                ),
+                                onSubmitted: (val) =>
+                                    notifier.setCustomPath(val.trim()),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.folder_open, size: 14),
+                              label: const Text('Sfoglia'),
+                              onPressed: () async {
+                                final file = await openFile(
+                                  acceptedTypeGroups: [
+                                    const XTypeGroup(
+                                      label: 'Eseguibile',
+                                      extensions: ['exe', 'bat', 'cmd', 'sh'],
+                                    ),
+                                  ],
+                                );
+                                if (file != null) {
+                                  notifier.setCustomPath(file.path);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+        const SizedBox(height: 20),
+
+        // Test action button
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: tokens.accent,
+              foregroundColor: tokens.surface,
+            ),
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Testa apertura terminale nativo'),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final launched = await launchNativeTerminal(
+                cwd: Directory.current.path,
+                nativeApp: termSettings.nativeApp,
+                customPath: termSettings.customPath,
+              );
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    launched
+                        ? 'Terminale nativo avviato con successo!'
+                        : 'Impossibile avviare il terminale con la configurazione scelta.',
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

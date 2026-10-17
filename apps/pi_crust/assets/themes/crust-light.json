@@ -38,9 +38,9 @@
     "userBubble": "#e6e9ef",
     "thinking": "#7287fd",
     "diffAddedBg": "#40a02b26",
-    "diffAddedFg": "#4c4f69",
+    "diffAddedFg": "#216d18",
     "diffRemovedBg": "#d20f3926",
-    "diffRemovedFg": "#4c4f69",
+    "diffRemovedFg": "#b0002c",
     "diffContextFg": "#5c5f77"
   },
   "syntax": {

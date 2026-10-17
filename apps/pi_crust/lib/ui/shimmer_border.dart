@@ -73,6 +73,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
 
     return AnimatedBuilder(
       animation: _controller,
+      child: RepaintBoundary(child: widget.child),
       builder: (context, child) {
         final angle = _controller.value * 2 * math.pi;
         final pulse = 0.16 + 0.10 * math.sin(angle);
@@ -97,7 +98,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
                 ),
               ],
             ),
-            child: widget.child,
+            child: child,
           ),
         );
       },
