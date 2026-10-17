@@ -58,7 +58,18 @@
         "workspace.listFiles",
         "workspace.readFile",
         "workspace.saveFile",
-        "workspace.gitAction"
+        "workspace.gitAction",
+        "remote.getStatus",
+        "remote.start",
+        "remote.stop",
+        "remote.generatePairing",
+        "remote.setDeviceMode",
+        "remote.installCloudflared",
+        "remote.installTailscale",
+        "remote.setTailscaleHostname",
+        "remote.revokeDevice",
+        "remote.revokeAll",
+        "remote.setOptions"
       ]
     },
     "payload": { "type": "object" }

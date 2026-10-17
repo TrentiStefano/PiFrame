@@ -140,7 +140,7 @@ void main() {
     );
   });
 
-  testWidgets('SettingsView renders seven settings tabs', (tester) async {
+  testWidgets('SettingsView renders all settings tabs including remote', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
@@ -159,6 +159,7 @@ void main() {
       'PRIVACY',
       'DIAGNOSTICA',
       'AGGIORNAMENTI',
+      'ACCESSO REMOTO',
     ]) {
       await tester.ensureVisible(find.text(tab).first);
       expect(find.text(tab), findsOneWidget);

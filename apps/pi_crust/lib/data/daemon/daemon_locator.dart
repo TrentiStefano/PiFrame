@@ -4,10 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 class DaemonEndpoint {
+  final String host;
   final int port;
   final String token;
+  final bool isSecure;
 
-  const DaemonEndpoint({required this.port, required this.token});
+  const DaemonEndpoint({
+    this.host = '127.0.0.1',
+    required this.port,
+    required this.token,
+    this.isSecure = false,
+  });
 }
 
 class DaemonLocator {
@@ -31,18 +38,28 @@ class DaemonLocator {
     if (kIsWeb) {
       // Browsers cannot inspect native runtime files. Use daemon-hosted same-origin bootstrap.
       final base = Uri.base;
-      if (base.host != '127.0.0.1' && base.host != 'localhost') return null;
+      final isSecure = base.scheme == 'https';
+      final port = base.hasPort && base.port != 0 ? base.port : (isSecure ? 443 : 80);
+
+      // Request session bootstrap (authenticated via cookie or local loopback)
       try {
         final response = await http.get(base.resolve('/api/session-bootstrap'))
-            .timeout(const Duration(seconds: 3));
-        if (response.statusCode != 200) return null;
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final token = data['token'] as String?;
-        if (token == null || token.isEmpty) return null;
-        return DaemonEndpoint(port: base.port, token: token);
-      } catch (_) {
-        return null;
-      }
+            .timeout(const Duration(seconds: 4));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final token = data['token'] as String?;
+          if (token != null && token.isNotEmpty) {
+            return DaemonEndpoint(
+              host: base.host,
+              port: port,
+              token: token,
+              isSecure: isSecure,
+            );
+          }
+        }
+      } catch (_) {}
+
+      return null;
     }
     // 1. Try reading existing runtime files and health probe
     var endpoint = await _probeActiveDaemon();

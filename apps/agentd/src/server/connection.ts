@@ -1,7 +1,6 @@
 import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
 import type {
-  ClientMessage,
   ServerMessage,
   PcpEnvelope,
   PcpWelcomePayload,
@@ -9,6 +8,8 @@ import type {
 } from '@pi-crust/pcp-ts';
 import { parseIncoming, encode } from '@pi-crust/pcp-ts';
 import { timingSafeEqualStrings } from './auth.js';
+import type { RemoteManager } from '../remote/RemoteManager.js';
+import type { RemoteDeviceMode } from '../remote/types.js';
 
 export type ConnectionState = 'authenticating' | 'ready' | 'attached' | 'closed';
 
@@ -18,6 +19,9 @@ export interface ConnectionOptions {
   daemonVersion: string;
   startedAt: number;
   piInfo: { path: string; version: string; supported: boolean };
+  remoteManager?: RemoteManager;
+  viaRemoteListener?: boolean;
+  clientIp?: string;
   onCommand: (conn: Connection, cmd: any) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
@@ -28,6 +32,13 @@ export class Connection {
   public readonly id: string;
   public state: ConnectionState = 'authenticating';
   public authenticated = false;
+  public isRemote = false;
+  public deviceId?: string;
+  public deviceMode?: RemoteDeviceMode;
+  public readonly viaRemoteListener: boolean;
+  public readonly clientIp: string;
+  public authFailed = false;
+
   private cleanedUp = false;
   public attachedSessions = new Set<string>();
 
@@ -36,6 +47,7 @@ export class Connection {
   private daemonVersion: string;
   private startedAt: number;
   private piInfo: { path: string; version: string; supported: boolean };
+  private remoteManager?: RemoteManager;
   private onCommandCallback: (conn: Connection, cmd: any) => Promise<void>;
   private onAttachCallback?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   private onDetachCallback?: (conn: Connection, sessionId: string) => Promise<void>;
@@ -46,10 +58,8 @@ export class Connection {
   private pongTimeout?: NodeJS.Timeout;
 
   // Bounded output queue
-  private readonly maxQueueMessages = 2000;
   private readonly maxQueueBytes = 16 * 1024 * 1024; // 16 MB
   private queuedBytes = 0;
-  private isDraining = false;
   private hasEmittedGapWarning = false;
 
   // Rate limiting (max 200 commands/sec)
@@ -62,6 +72,9 @@ export class Connection {
     this.daemonVersion = opts.daemonVersion;
     this.startedAt = opts.startedAt;
     this.piInfo = opts.piInfo;
+    this.remoteManager = opts.remoteManager;
+    this.viaRemoteListener = Boolean(opts.viaRemoteListener);
+    this.clientIp = opts.clientIp || 'unknown';
     this.onCommandCallback = opts.onCommand;
     this.onAttachCallback = opts.onAttach;
     this.onDetachCallback = opts.onDetach;
@@ -74,6 +87,7 @@ export class Connection {
     // Handshake timeout: 5 seconds
     this.handshakeTimer = setTimeout(() => {
       if (this.state === 'authenticating') {
+        this.authFailed = true;
         this.close(4001, 'Handshake timeout (no hello within 5s)');
       }
     }, 5000);
@@ -102,6 +116,7 @@ export class Connection {
 
     if (this.state === 'authenticating') {
       if (msg.kind !== 'hello') {
+        this.authFailed = true;
         this.close(4003, 'Expected hello frame');
         return;
       }
@@ -178,9 +193,50 @@ export class Connection {
     }
 
     const token = msg.payload?.token;
-    if (!token || !timingSafeEqualStrings(token, this.expectedToken)) {
-      this.close(4003, 'Authentication failed');
+    if (!token || typeof token !== 'string') {
+      this.authFailed = true;
+      this.close(4003, 'Authentication failed: missing token');
       return;
+    }
+
+    if (this.viaRemoteListener) {
+      // MASTER TOKEN IS STRICTLY REJECTED ON THE REMOTE LISTENER (H2)
+      // Only paired device tokens are accepted.
+      if (!this.remoteManager) {
+        this.authFailed = true;
+        this.close(4003, 'Remote access not configured');
+        return;
+      }
+      const matchedDevice = this.remoteManager.getAuthManager().verifyDeviceToken(token);
+      if (!matchedDevice) {
+        this.authFailed = true;
+        this.close(4003, 'Authentication failed: invalid remote device token');
+        return;
+      }
+      this.isRemote = true;
+      this.deviceId = matchedDevice.deviceId;
+      this.deviceMode = matchedDevice.mode;
+    } else {
+      // LOCAL LISTENER: accepts master token (desktop app) or device token
+      const isMaster = timingSafeEqualStrings(token, this.expectedToken);
+      let matchedDevice: any = null;
+      if (!isMaster && this.remoteManager) {
+        matchedDevice = this.remoteManager.getAuthManager().verifyDeviceToken(token);
+      }
+
+      if (!isMaster && !matchedDevice) {
+        this.authFailed = true;
+        this.close(4003, 'Authentication failed');
+        return;
+      }
+
+      if (matchedDevice) {
+        this.isRemote = true;
+        this.deviceId = matchedDevice.deviceId;
+        this.deviceMode = matchedDevice.mode;
+      } else {
+        this.isRemote = false;
+      }
     }
 
     this.authenticated = true;

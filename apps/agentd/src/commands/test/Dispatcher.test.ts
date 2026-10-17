@@ -285,3 +285,136 @@ test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates run
   const errRes = JSON.parse(ws.sentMessages[3]);
   assert.equal(errRes.payload.state, 'rejected');
 });
+
+test('Dispatcher: executes remote.* commands and enforces remote allowlist', async () => {
+  const { RemoteManager } = await import('../../remote/RemoteManager.js');
+  const { RemoteAuthManager } = await import('../../remote/RemoteAuthManager.js');
+  const manager = new ConnectionManager();
+  const registry = new SessionRegistry({
+    piExecutablePath: 'node',
+    capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
+    workerIdleTimeoutMs: 60000,
+    connectionManager: manager
+  });
+
+  const devFile = path.join(os.tmpdir(), `pi_remote_disp_${Date.now()}.json`);
+  const authManager = new RemoteAuthManager(devFile);
+  const remoteManager = new RemoteManager(undefined, authManager);
+  const dispatcher = new Dispatcher(registry, manager, undefined, remoteManager);
+
+  // Set fake listener port so remoteManager can start
+  remoteManager.setListenerPort(55555);
+
+  const ws = new MockWebSocket();
+  const conn = new Connection({
+    ws: ws as any,
+    expectedToken: 'tok',
+    daemonVersion: '0.1.0',
+    startedAt: Date.now(),
+    piInfo: { path: 'node', version: '0.85.1', supported: true },
+    onCommand: async () => {},
+    onClose: () => {}
+  });
+  conn.state = 'ready';
+
+  function getLastResult(mockWs: MockWebSocket): any {
+    for (let i = mockWs.sentMessages.length - 1; i >= 0; i--) {
+      const msg = JSON.parse(mockWs.sentMessages[i]);
+      if (msg.kind === 'result') return msg;
+    }
+    return null;
+  }
+
+  // 1. remote.getStatus
+  await dispatcher.handle(conn, {
+    protocol: 1, kind: 'command', id: 'cmd_rg', ts: Date.now(),
+    commandId: 'c_rem_get', type: 'remote.getStatus', payload: {}
+  });
+  const res1 = getLastResult(ws);
+  assert.equal(res1.payload.state, 'completed');
+  assert.equal(res1.payload.data.enabled, false);
+
+  // 2. remote.setOptions
+  await dispatcher.handle(conn, {
+    protocol: 1, kind: 'command', id: 'cmd_opt', ts: Date.now(),
+    commandId: 'c_rem_opt', type: 'remote.setOptions', payload: { defaultMode: 'control' }
+  });
+  const res2 = getLastResult(ws);
+  assert.equal(res2.payload.state, 'completed');
+  assert.equal(res2.payload.data.options.defaultMode, 'control');
+
+  // Pair a test device
+  const pairing = authManager.generatePairing(60000);
+  const paired = authManager.pair(pairing.secret, 'Test Client', '127.0.0.1', 'view');
+
+  // 3. Remote connection in 'view' mode:
+  const remoteWs = new MockWebSocket();
+  const remoteConn = new Connection({
+    ws: remoteWs as any,
+    expectedToken: 'tok',
+    daemonVersion: '0.1.0',
+    startedAt: Date.now(),
+    piInfo: { path: 'node', version: '0.85.1', supported: true },
+    remoteManager,
+    onCommand: async () => {},
+    onClose: () => {}
+  });
+  remoteConn.state = 'ready';
+  remoteConn.isRemote = true;
+  remoteConn.deviceId = paired.deviceId;
+
+  // Remote attempts remote.* -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_rem_att', ts: Date.now(),
+    commandId: 'c_rem_att', type: 'remote.getStatus', payload: {}
+  });
+  const res3 = getLastResult(remoteWs);
+  assert.equal(res3.payload.state, 'rejected');
+  assert.ok(res3.payload.error.includes('not permitted'));
+
+  // Remote attempts daemon.setConfig -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_cfg_att', ts: Date.now(),
+    commandId: 'c_cfg_att', type: 'daemon.setConfig', payload: { workerIdleTimeoutMs: 5000 }
+  });
+  const res4 = getLastResult(remoteWs);
+  assert.equal(res4.payload.state, 'rejected');
+
+  // Remote attempts pi.packages.* -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_pkg_att', ts: Date.now(),
+    commandId: 'c_pkg_att', type: 'pi.packages.list', payload: {}
+  });
+  const res5 = getLastResult(remoteWs);
+  assert.equal(res5.payload.state, 'rejected');
+
+  // Remote in view mode attempts workspace.saveFile -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_write_blocked', ts: Date.now(),
+    commandId: 'c_blk_write', type: 'workspace.saveFile',
+    payload: { path: 'a.txt', content: 'hello', revision: '0'.repeat(64) }
+  });
+  const res6 = getLastResult(remoteWs);
+  assert.equal(res6.payload.state, 'rejected');
+
+  // Remote in view mode attempts agent.prompt -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_prompt_blocked', ts: Date.now(),
+    commandId: 'c_blk_prompt', type: 'agent.prompt',
+    payload: { text: 'hello' }, sessionId: 'sess_1'
+  });
+  const res7 = getLastResult(remoteWs);
+  assert.equal(res7.payload.state, 'rejected');
+
+  // Local connection attempts daemon.setConfig { remote: ... } -> MUST BE BLOCKED with CONFIG_INVALID
+  await dispatcher.handle(conn, {
+    protocol: 1, kind: 'command', id: 'cmd_inj_cfg', ts: Date.now(),
+    commandId: 'c_inj_cfg', type: 'daemon.setConfig',
+    payload: { remote: { customTunnelCommand: 'calc.exe' } }
+  });
+  const res8 = getLastResult(ws);
+  assert.equal(res8.payload.state, 'rejected');
+  assert.ok(res8.payload.error.includes('cannot modify "remote"'));
+
+  try { fs.unlinkSync(devFile); } catch {}
+});

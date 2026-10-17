@@ -18,8 +18,10 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
     data: (endpoint) {
       if (endpoint == null) return null;
       final client = PcpClient(
+        host: endpoint.host,
         port: endpoint.port,
         token: endpoint.token,
+        isSecure: endpoint.isSecure,
         rediscover: () async {
           final found = await DaemonLocator.locateOrProbe();
           return found == null ? null : (port: found.port, token: found.token);

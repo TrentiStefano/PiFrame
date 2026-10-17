@@ -48,6 +48,8 @@ class PcpClient {
   int _reconnectDelaySeconds = 1;
   Timer? _reconnectTimer;
 
+  final bool isSecure;
+
   // Attached sessions with lastSeq
   final _attachedSessions = <String, int?>{};
 
@@ -55,6 +57,7 @@ class PcpClient {
     this.host = '127.0.0.1',
     required this.port,
     required this.token,
+    this.isSecure = false,
     this.rediscover,
   });
 
@@ -63,7 +66,11 @@ class PcpClient {
     _setConnectionState(DaemonConnectionState.connecting);
 
     try {
-      final uri = Uri.parse('ws://$host:$port');
+      final scheme = isSecure ? 'wss' : 'ws';
+      final portSuffix = (isSecure && port == 443) || (!isSecure && port == 80)
+          ? ''
+          : ':$port';
+      final uri = Uri.parse('$scheme://$host$portSuffix');
       _channel = WebSocketChannel.connect(uri);
 
       _subscription = _channel!.stream.listen(
@@ -583,6 +590,173 @@ class PcpClient {
       commandId: newCommandId('sdc'),
       type: 'daemon.setConfig',
       payload: config,
+    );
+    return sendCommand(cmd);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Remote Connection Management
+  // ---------------------------------------------------------------------------
+
+  Future<Map<String, dynamic>> getRemoteStatus() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_stat'),
+      type: 'remote.getStatus',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> startRemoteTunnel({
+    String? tunnelProvider,
+    String? customCommand,
+    String? customUrl,
+  }) {
+    final payload = <String, dynamic>{};
+    if (tunnelProvider != null) payload['tunnelProvider'] = tunnelProvider;
+    if (customCommand != null) payload['customCommand'] = customCommand;
+    if (customUrl != null) payload['customUrl'] = customUrl;
+
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_start'),
+      type: 'remote.start',
+      payload: payload,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> installCloudflared() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_inst_cf'),
+      type: 'remote.installCloudflared',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> installTailscale() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_inst_ts'),
+      type: 'remote.installTailscale',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setTailscaleHostname(String hostname) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_set_ts_host'),
+      type: 'remote.setTailscaleHostname',
+      payload: {'hostname': hostname},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> stopRemoteTunnel() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_stop'),
+      type: 'remote.stop',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> generateRemotePairing({int? ttlMs}) {
+    final payload = <String, dynamic>{};
+    if (ttlMs != null) payload['ttlMs'] = ttlMs;
+
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_pair'),
+      type: 'remote.generatePairing',
+      payload: payload,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> revokeRemoteDevice(String deviceId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_rev'),
+      type: 'remote.revokeDevice',
+      payload: {'deviceId': deviceId},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> revokeAllRemoteDevices() {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_rev_all'),
+      type: 'remote.revokeAll',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setRemoteDeviceMode({
+    required String deviceId,
+    required String mode,
+  }) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_dev_mode'),
+      type: 'remote.setDeviceMode',
+      payload: {'deviceId': deviceId, 'mode': mode},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setRemoteOptions({
+    String? defaultMode,
+  }) {
+    final payload = <String, dynamic>{};
+    if (defaultMode != null) payload['defaultMode'] = defaultMode;
+
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: '@daemon',
+      commandId: newCommandId('rem_opt'),
+      type: 'remote.setOptions',
+      payload: payload,
     );
     return sendCommand(cmd);
   }

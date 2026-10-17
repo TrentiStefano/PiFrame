@@ -130,7 +130,18 @@ export type PcpCommandType =
   | 'workspace.listFiles'
   | 'workspace.readFile'
   | 'workspace.saveFile'
-  | 'workspace.gitAction';
+  | 'workspace.gitAction'
+  | 'remote.getStatus'
+  | 'remote.start'
+  | 'remote.stop'
+  | 'remote.generatePairing'
+  | 'remote.setDeviceMode'
+  | 'remote.installCloudflared'
+  | 'remote.installTailscale'
+  | 'remote.setTailscaleHostname'
+  | 'remote.revokeDevice'
+  | 'remote.revokeAll'
+  | 'remote.setOptions';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
@@ -257,7 +268,8 @@ export type PcpEventType =
   | 'worker.crashed'
   | 'journal.gap'
   | 'session.indexChanged'
-  | 'daemon.configChanged';
+  | 'daemon.configChanged'
+  | 'remote.statusChanged';
 
 export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'event';
@@ -298,6 +310,45 @@ export interface RuntimeMeta {
 export interface TranscriptMeta {
   entries: Array<Record<string, unknown>>;
   leafId?: string | null;
+}
+
+export type RemoteDeviceMode = 'view' | 'control';
+
+export interface RemoteDeviceRecord {
+  deviceId: string;
+  name: string;
+  userAgent?: string;
+  mode: RemoteDeviceMode;
+  createdAt: number;
+  lastUsedAt: number;
+  expiresAt: number;
+  remoteIp?: string;
+}
+
+export interface RemoteStatusPayload {
+  enabled: boolean;
+  state: 'stopped' | 'starting' | 'running' | 'error';
+  url?: string;
+  tunnelProvider: string;
+  cloudflaredInstalled: boolean;
+  cloudflaredPath?: string;
+  tailscale?: {
+    installed: boolean;
+    running: boolean;
+    hostname?: string;
+    domain?: string;
+    magicDnsSuffix?: string;
+  };
+  error?: string;
+  localPort?: number;
+  devices: RemoteDeviceRecord[];
+  pairingPending?: {
+    expiresAt: number;
+    url?: string;
+  };
+  options: {
+    defaultMode: RemoteDeviceMode;
+  };
 }
 
 export interface PcpSnapshotPayload {

@@ -9,6 +9,7 @@ import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import 'diagnostics.dart';
 import 'pi_cli_section.dart';
+import 'remote_section.dart';
 import 'updates_section.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
@@ -40,7 +41,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 7,
+      length: 8,
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
@@ -471,6 +472,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     Tab(text: 'PRIVACY'),
                     Tab(text: 'DIAGNOSTICA'),
                     Tab(text: 'AGGIORNAMENTI'),
+                    Tab(text: 'ACCESSO REMOTO'),
                   ],
                 ),
               ],
@@ -975,6 +977,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     // Tab 7: Aggiornamenti Ufficiali GitHub
                     // -------------------------------------------------------------
                     const UpdatesSection(),
+
+                    // -------------------------------------------------------------
+                    // Tab 8: Accesso Remoto Sicuro
+                    // -------------------------------------------------------------
+                    const RemoteSection(),
                   ],
                 ),
               ),

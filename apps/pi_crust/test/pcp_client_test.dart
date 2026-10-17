@@ -115,4 +115,89 @@ void main() {
     client.dispose();
     await assertion;
   });
+
+  test('remote connection commands format correct payloads and complete', () async {
+    final statusFuture = client.getRemoteStatus();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.getStatus');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'enabled': false, 'state': 'stopped'}},
+    }));
+    final status = await statusFuture;
+    final statusData = status['data'] as Map<String, dynamic>;
+    expect(statusData['enabled'], false);
+
+    final startFuture = client.startRemoteTunnel(
+      tunnelProvider: 'cloudflared',
+      customUrl: null,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.start');
+    expect(commands.last['payload']['tunnelProvider'], 'cloudflared');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'enabled': true, 'state': 'running'}},
+    }));
+    await startFuture;
+
+    final pairFuture = client.generateRemotePairing(ttlMs: 300000);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.generatePairing');
+    expect(commands.last['payload']['ttlMs'], 300000);
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'secret': 'pair_tok_test'}},
+    }));
+    final pair = await pairFuture;
+    final pairData = pair['data'] as Map<String, dynamic>;
+    expect(pairData['secret'], 'pair_tok_test');
+
+    final optFuture = client.setRemoteOptions(defaultMode: 'control');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.setOptions');
+    expect(commands.last['payload']['defaultMode'], 'control');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {}},
+    }));
+    await optFuture;
+
+    final modeFuture = client.setRemoteDeviceMode(deviceId: 'dev_test_123', mode: 'control');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.setDeviceMode');
+    expect(commands.last['payload']['deviceId'], 'dev_test_123');
+    expect(commands.last['payload']['mode'], 'control');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'ok': true}},
+    }));
+    await modeFuture;
+
+    final revFuture = client.revokeRemoteDevice('dev_test_123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.revokeDevice');
+    expect(commands.last['payload']['deviceId'], 'dev_test_123');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'ok': true}},
+    }));
+    await revFuture;
+
+    final stopFuture = client.stopRemoteTunnel();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.stop');
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.last['commandId'],
+      'payload': {'state': 'completed', 'data': {'enabled': false, 'state': 'stopped'}},
+    }));
+    await stopFuture;
+  });
 }

@@ -56,7 +56,8 @@
         "worker.crashed",
         "journal.gap",
         "session.indexChanged",
-        "daemon.configChanged"
+        "daemon.configChanged",
+        "remote.statusChanged"
       ]
     },
     "payload": { "type": "object" }
