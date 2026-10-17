@@ -170,9 +170,9 @@ async function main() {
     // 2. Stop workers gracefully
     await registry.closeAll(3000);
 
-    // 2b. Flush and stop remote tunnel
+    // 2b. Flush and stop remote tunnel without resetting enabled state in config
     remoteManager.flush();
-    await remoteManager.stop().catch(() => {});
+    await remoteManager.stop({ persistEnabled: false }).catch(() => {});
 
     // 3. Close HTTP/WS servers
     await Promise.all([

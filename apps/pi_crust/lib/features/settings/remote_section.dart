@@ -313,7 +313,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       if (enable) {
         final res = await client.startRemoteTunnel(
           tunnelProvider: _tunnelProvider,
-          customUrl: _customUrlController.text.trim().isEmpty ? null : _customUrlController.text.trim(),
+          customUrl: _tunnelProvider == 'tailscale'
+              ? (_tailscaleDomain != null ? 'https://$_tailscaleDomain' : null)
+              : (_customUrlController.text.trim().isEmpty ? null : _customUrlController.text.trim()),
           customCommand: _customCommandController.text.trim().isEmpty ? null : _customCommandController.text.trim(),
         );
         final data = res['data'] as Map<String, dynamic>? ?? res;

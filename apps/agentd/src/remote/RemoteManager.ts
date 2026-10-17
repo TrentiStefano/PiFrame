@@ -164,13 +164,15 @@ export class RemoteManager extends EventEmitter {
     return this.startPromise;
   }
 
-  public async stop(): Promise<RemoteStatus> {
-    this.config = patchConfig({
-      remote: {
-        ...this.config.remote,
-        enabled: false
-      }
-    });
+  public async stop(options?: { persistEnabled?: boolean }): Promise<RemoteStatus> {
+    if (options?.persistEnabled !== false) {
+      this.config = patchConfig({
+        remote: {
+          ...this.config.remote,
+          enabled: false
+        }
+      });
+    }
 
     await this.tunnelProvider.stop();
     this.expectedHost = undefined;
@@ -322,28 +324,47 @@ export class RemoteManager extends EventEmitter {
     return socketIp;
   }
 
+  private getTargetExpectedHost(): string | undefined {
+    if (this.expectedHost) return this.expectedHost;
+    if (this.config.remote.tunnelProvider === 'tailscale') {
+      const ts = TailscaleTunnelProvider.getTailscaleInfo();
+      if (ts.domain) return ts.domain.toLowerCase();
+    } else if (this.config.remote.customTunnelUrl) {
+      try {
+        return new URL(this.config.remote.customTunnelUrl).host.toLowerCase();
+      } catch {}
+    }
+    return undefined;
+  }
+
   public isRemoteHostAllowed(host: string | undefined): boolean {
-    if (!this.config.remote.enabled || this.tunnelProvider.getState() !== 'running' || !this.expectedHost || !host) {
+    if (!this.config.remote.enabled || this.tunnelProvider.getState() !== 'running' || !host) {
       return false;
     }
+    const expected = this.getTargetExpectedHost();
+    if (!expected) return false;
+
     try {
       // Host may contain port (e.g. example.com:443 or tunnel.example.com)
       const parsed = new URL(`https://${host}`);
       if (parsed.username || parsed.password) return false;
-      return parsed.host.toLowerCase() === this.expectedHost;
+      return parsed.host.toLowerCase() === expected;
     } catch {
       return false;
     }
   }
 
   public isRemoteOriginAllowed(origin: string | undefined): boolean {
-    if (!this.config.remote.enabled || this.tunnelProvider.getState() !== 'running' || !this.expectedHost || !origin) {
+    if (!this.config.remote.enabled || this.tunnelProvider.getState() !== 'running' || !origin) {
       return false;
     }
+    const expected = this.getTargetExpectedHost();
+    if (!expected) return false;
+
     try {
       const parsed = new URL(origin);
       if (parsed.protocol !== 'https:') return false;
-      return parsed.host.toLowerCase() === this.expectedHost;
+      return parsed.host.toLowerCase() === expected;
     } catch {
       return false;
     }
