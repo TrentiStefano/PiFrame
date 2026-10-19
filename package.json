@@ -15,6 +15,9 @@
     "smoke:agentd-bundle": "node tools/scripts/smoke-agentd-bundle.mjs",
     "run:daemon": "pnpm --filter @pi-crust/agentd build && pnpm --filter @pi-crust/agentd run dev",
     "run:app": "pnpm run build:agentd && cd apps/pi_crust && flutter run",
+    "generate:promos": "node tools/generate-release-promos.cjs",
+    "generate:promos:hero": "node tools/generate-release-promos.cjs --hero",
+    "generate:promos:clips": "node tools/generate-release-promos.cjs --clips",
     "build:all": "pnpm -r run build && pnpm run build:agentd"
   },
   "devDependencies": {

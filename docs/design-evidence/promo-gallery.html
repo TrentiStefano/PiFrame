@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pi-Crust — Release Promotional Video Suite</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Schibsted+Grotesk:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --card-bg: #292c3c;
+      --card-border: #414559;
+      --accent: #8caaee;
+      --accent-contrast: #181926;
+      --text-pri: #c6d0f5;
+      --text-sec: #a5adce;
+      --success: #a6d189;
+      --warning: #e5c890;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 0%, #292c3c 0%, #1e1e2e 50%, #11111b 100%);
+      color: var(--text-pri);
+      font-family: 'Schibsted Grotesk', -apple-system, sans-serif;
+      padding: 40px 24px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    .brand-tag {
+      background: rgba(140, 170, 238, 0.15);
+      border: 1px solid rgba(140, 170, 238, 0.3);
+      color: var(--accent);
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-family: 'Schibsted Grotesk', sans-serif;
+      font-weight: 600;
+    }
+    .subtitle {
+      color: var(--text-sec);
+      font-size: 16px;
+      max-width: 680px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 28px;
+    }
+    .video-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .video-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+    }
+    .hero-card {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+    }
+    @media (max-width: 900px) {
+      .hero-card { grid-template-columns: 1fr; }
+    }
+    .card-badge {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(24, 25, 38, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--success);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      z-index: 2;
+      letter-spacing: 0.5px;
+    }
+    .video-player {
+      width: 100%;
+      height: 100%;
+      min-height: 260px;
+      background: #11111b;
+      display: block;
+      object-fit: cover;
+    }
+    .hero-card .video-player {
+      min-height: 420px;
+    }
+    .card-info {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--text-sec);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .card-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .btn {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--accent-contrast);
+    }
+    .btn-primary:hover {
+      background: #b4befe;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-pri);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: var(--text-pri);
+    }
+    .btn-accent {
+      background: rgba(202, 158, 230, 0.15);
+      color: #ca9ee6;
+      border: 1px solid rgba(202, 158, 230, 0.3);
+    }
+    .btn-accent:hover {
+      background: rgba(202, 158, 230, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <span>🥧 PI-CRUST</span>
+        <span class="brand-tag">ACTUAL FLUTTER UI · RELEASE PROMOS</span>
+      </div>
+      <p class="subtitle">
+        Automated promotional showcase suite generated from the actual Flutter desktop application with Recordly aesthetics: Catppuccin canvas wallpaper, macOS window chrome, dynamic camera zoom, and native .recordly project manifests.
+      </p>
+    </header>
+
+    <div class="video-grid">
+      
+      <div class="video-card hero-card">
+        <div class="card-badge">⭐ HERO MASTER WALKTHROUGH</div>
+        <video controls loop muted preload="metadata" poster="hero-30s-bento-walkthrough.webp" class="video-player">
+          <source src="hero-30s-bento-walkthrough.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Hero 30s Master Walkthrough</h3>
+          <p class="card-desc">Master tour of the actual Pi-Crust UI: Bento workspace, Command Palette (Ctrl+K), in-file syntax & Ctrl+F search, in-flight steer queue editing, thinking block, live Git diff review, and Catppuccin theme hot-reload.</p>
+          <div class="card-links">
+            <a href="hero-30s-bento-walkthrough.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="hero-30s-bento-walkthrough.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="hero-30s-bento-walkthrough.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/hero-30s-bento-walkthrough.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-01-bento-workspace.webp" class="video-player">
+          <source src="clip-01-bento-workspace.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 1: Bento Triptych Workspace</h3>
+          <p class="card-desc">Three co-visible work areas (Sessions Rail, Repository Workspace, Chat & Transcript, Git Changes) with responsive ergonomic layout.</p>
+          <div class="card-links">
+            <a href="clip-01-bento-workspace.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-01-bento-workspace.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-01-bento-workspace.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-01-bento-workspace.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-02-command-palette.webp" class="video-player">
+          <source src="clip-02-command-palette.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 2: Command Palette (Ctrl+K Quick Actions)</h3>
+          <p class="card-desc">Keyboard-first command palette modal for instant navigation, file searching, session operations, and workspace commands.</p>
+          <div class="card-links">
+            <a href="clip-02-command-palette.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-02-command-palette.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-02-command-palette.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-02-command-palette.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-03-code-search.webp" class="video-player">
+          <source src="clip-03-code-search.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 3: In-File Code Search & Syntax Highlighting</h3>
+          <p class="card-desc">Real syntax highlighting in code viewer, live Ctrl+F search overlay, typing queries, and occurrence match cycling (1 di 2).</p>
+          <div class="card-links">
+            <a href="clip-03-code-search.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-03-code-search.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-03-code-search.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-03-code-search.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-04-steer-queue.webp" class="video-player">
+          <source src="clip-04-steer-queue.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 4: In-Flight Steer Queue Editing</h3>
+          <p class="card-desc">Composer expansion and modal dialog to modify queued steering directives on the fly without interrupting the active agent stream.</p>
+          <div class="card-links">
+            <a href="clip-04-steer-queue.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-04-steer-queue.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-04-steer-queue.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-04-steer-queue.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-05-context-analytics.webp" class="video-player">
+          <source src="clip-05-context-analytics.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 5: Context Window & Cost Analytics</h3>
+          <p class="card-desc">Real-time context window token gauge (32k / 200k, 16%), token breakdown, cost tracking ($0.1800), and model configuration drawer.</p>
+          <div class="card-links">
+            <a href="clip-05-context-analytics.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-05-context-analytics.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-05-context-analytics.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-05-context-analytics.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-06-reasoning-stream.webp" class="video-player">
+          <source src="clip-06-reasoning-stream.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 6: Collapsible Deep Reasoning Streams</h3>
+          <p class="card-desc">Collapsible deep thinking block (Ragionamento) with real-time word count, thinking tokens, live duration stopwatch, and toggle.</p>
+          <div class="card-links">
+            <a href="clip-06-reasoning-stream.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-06-reasoning-stream.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-06-reasoning-stream.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-06-reasoning-stream.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-07-tool-timeline.webp" class="video-player">
+          <source src="clip-07-tool-timeline.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 7: Tool Execution Timeline & Test Runner</h3>
+          <p class="card-desc">Interactive ToolCard widget with execution latency badge (4100ms), verified success indicator (✓), and expandable stdout terminal output.</p>
+          <div class="card-links">
+            <a href="clip-07-tool-timeline.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-07-tool-timeline.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-07-tool-timeline.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-07-tool-timeline.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-08-git-staging.webp" class="video-player">
+          <source src="clip-08-git-staging.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 8: Live Git Changes & Staging Desk</h3>
+          <p class="card-desc">Live git tracking, unstaged modifications, visual unified diff modal dialog with additions and deletions, and 1-click stage.</p>
+          <div class="card-links">
+            <a href="clip-08-git-staging.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-08-git-staging.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-08-git-staging.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-08-git-staging.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-09-session-tree.webp" class="video-player">
+          <source src="clip-09-session-tree.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 9: Conversation Branching & Session Tree</h3>
+          <p class="card-desc">Visual conversation lineage tree dialog showing branches, message nodes, and timeline checkpoints for branching off past turns.</p>
+          <div class="card-links">
+            <a href="clip-09-session-tree.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-09-session-tree.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-09-session-tree.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-09-session-tree.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-10-catppuccin-themes.webp" class="video-player">
+          <source src="clip-10-catppuccin-themes.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 10: Catppuccin Theme Engine</h3>
+          <p class="card-desc">Hot-reloadable seamless switch between Catppuccin Frappé (dark) and Catppuccin Latte (light) across all window widgets.</p>
+          <div class="card-links">
+            <a href="clip-10-catppuccin-themes.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-10-catppuccin-themes.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-10-catppuccin-themes.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-10-catppuccin-themes.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+      <div class="video-card ">
+        <div class="card-badge">FEATURE CLIP</div>
+        <video controls loop muted preload="metadata" poster="clip-11-disconnect-safe.webp" class="video-player">
+          <source src="clip-11-disconnect-safe.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+        <div class="card-info">
+          <h3 class="card-title">Clip 11: Disconnect-Safe Local Daemon & Notifications</h3>
+          <p class="card-desc">Resilient local daemon connection badge (Pi locale, 100% offline & zero telemetry) and native desktop notification toast banner.</p>
+          <div class="card-links">
+            <a href="clip-11-disconnect-safe.mp4" download class="btn btn-primary">⬇ MP4 (1080p)</a>
+            <a href="clip-11-disconnect-safe.webp" download class="btn btn-secondary">⬇ Animated WebP</a>
+            <a href="clip-11-disconnect-safe.gif" download class="btn btn-secondary">⬇ GIF</a>
+            <a href="recordly-projects/clip-11-disconnect-safe.recordly" download class="btn btn-accent">📂 .recordly Project</a>
+          </div>
+        </div>
+      </div>
+    
+    </div>
+  </div>
+</body>
+</html>
