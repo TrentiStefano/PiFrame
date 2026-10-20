@@ -384,7 +384,27 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case UsageUpdatedEvent(:final usage):
-      return current.copyWith(usage: usage, lastAppliedSeq: nextSeq);
+      final nextStats = Map<String, dynamic>.from(current.sessionStats ?? const {});
+      if (usage.containsKey('cost')) {
+        final c = usage['cost'];
+        if (c is Map && c['total'] != null) {
+          nextStats['cost'] = c['total'];
+        } else if (c is num) {
+          nextStats['cost'] = c;
+        }
+      }
+      if (usage.containsKey('totalTokens')) {
+        nextStats['tokens'] = {
+          'total': usage['totalTokens'],
+          'input': usage['input'] ?? usage['inputTokens'] ?? 0,
+          'output': usage['output'] ?? usage['outputTokens'] ?? 0,
+        };
+      }
+      return current.copyWith(
+        usage: usage,
+        sessionStats: nextStats.isNotEmpty ? nextStats : current.sessionStats,
+        lastAppliedSeq: nextSeq,
+      );
 
     case UiStatusEvent(:final statusKey, :final statusText):
       final statuses = Map<String, String>.from(current.extensionStatuses);

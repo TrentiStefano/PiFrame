@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "projectId": "pi-crust-clip-10-catppuccin-themes",
+  "videoPath": "../clip-10-catppuccin-themes.mp4",
+  "metadata": {
+    "title": "Clip 10: Catppuccin Theme Engine",
+    "description": "Hot-reloadable seamless switch between Catppuccin Frappé (dark) and Catppuccin Latte (light) across all window widgets.",
+    "recordedAt": "2026-10-19T14:09:36.201Z",
+    "durationSeconds": 3.4,
+    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+  },
+  "editor": {
+    "wallpaper": "catppuccin-frappe",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#8caaee",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-theme",
+        "startMs": 0,
+        "endMs": 4200,
+        "scale": 1.04,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-crust-clip-07-tool-timeline",
+  "videoPath": "../clip-07-tool-timeline.mp4",
+  "metadata": {
+    "title": "Clip 7: Tool Execution Timeline & Test Runner",
+    "description": "Interactive ToolCard widget with execution latency badge (4100ms), verified success indicator (✓), and expandable stdout terminal output.",
+    "recordedAt": "2026-10-19T14:09:24.220Z",
+    "durationSeconds": 3.6,
+    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+  },
+  "editor": {
+    "wallpaper": "catppuccin-frappe",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#8caaee",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-tools-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.2,
+        "focusX": 0.55,
+        "focusY": 0.42
+      },
+      {
+        "id": "zoom-tools-hold",
+        "startMs": 800,
+        "endMs": 3200,
+        "scale": 1.2,
+        "focusX": 0.55,
+        "focusY": 0.42
+      },
+      {
+        "id": "zoom-tools-out",
+        "startMs": 3200,
+        "endMs": 3800,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

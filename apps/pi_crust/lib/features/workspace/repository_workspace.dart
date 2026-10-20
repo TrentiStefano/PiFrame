@@ -13,6 +13,7 @@ import '../../ui/code/diff_block.dart';
 import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
+import '../transcript/rich_content.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -513,6 +514,8 @@ class RepositoryPane extends ConsumerStatefulWidget {
 class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   CodeEditorController? _editor;
   String? _editorPath;
+  bool _previewMarkdown = true;
+  final _markdownScrollController = ScrollController();
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -671,6 +674,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       _searchController.clear();
       _searchQuery = '';
       _showFileSearch = false;
+      _previewMarkdown = true;
       _fileSearchQueryController.clear();
       _fileSearchMatches = const [];
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -691,6 +695,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     _editorFocusNode.dispose();
     _editor?.dispose();
     _searchController.dispose();
+    _markdownScrollController.dispose();
     super.dispose();
   }
 
@@ -1058,6 +1063,28 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 },
                 icon: const Icon(Icons.add_comment_outlined, size: 16),
               ),
+              if (path.toLowerCase().endsWith('.md') ||
+                  path.toLowerCase().endsWith('.markdown')) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const ValueKey('repository-markdown-toggle-btn'),
+                  tooltip: _previewMarkdown
+                      ? 'Modifica markdown sorgente'
+                      : 'Visualizza anteprima formattata',
+                  onPressed: () {
+                    setState(() {
+                      _previewMarkdown = !_previewMarkdown;
+                    });
+                  },
+                  icon: Icon(
+                    _previewMarkdown
+                        ? Icons.edit_note_outlined
+                        : Icons.visibility_outlined,
+                    size: 18,
+                    color: _previewMarkdown ? tokens.accent : tokens.textMuted,
+                  ),
+                ),
+              ],
               const SizedBox(width: 4),
               IconButton(
                 key: const ValueKey('repository-editor-search-btn'),
@@ -1091,9 +1118,34 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             ),
           ),
         Expanded(
-          child: Stack(
-            children: [
-              Focus(
+          child: (path.toLowerCase().endsWith('.md') ||
+                      path.toLowerCase().endsWith('.markdown')) &&
+                  _previewMarkdown
+              ? Container(
+                  color: tokens.background,
+                  child: Scrollbar(
+                    controller: _markdownScrollController,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _markdownScrollController,
+                      primary: false,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: SelectionArea(
+                        child: RichContent(
+                          key: ValueKey('repository-md-preview-$path'),
+                          text: buffer.content,
+                          cwd: repo.rootPath,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : Stack(
+                  children: [
+                    Focus(
                 focusNode: _editorFocusNode,
                 onKeyEvent: (node, event) {
                   if (event is KeyDownEvent) {
@@ -1389,6 +1441,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final buffer = path == null ? null : repo.buffers[path];
     if (path != _editorPath) {
       _editorPath = path;
+      _previewMarkdown = true;
       editor.filePath = path;
       editor.value = TextEditingValue(text: buffer?.content ?? '');
       if (_showFileSearch) {
@@ -1784,7 +1837,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   List<Map<String, dynamic>> get _files =>
       ((_status?['files'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
-          .where((file) => file['status'] != 'untracked')
           .toList();
   List<String> get _staged =>
       _files
@@ -2183,6 +2235,24 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       (prev, next) {
         if (next.isNotEmpty &&
             (prev == null || prev.isEmpty || _status?['error'] != null)) {
+          _refresh();
+        }
+      },
+    );
+
+    ref.listen<String>(
+      sessionStateFamily(widget.sessionId).select((s) => _piTouchedPaths(s).join('\x00')),
+      (prev, next) {
+        if (prev != null && prev != next) {
+          _refresh();
+        }
+      },
+    );
+
+    ref.listen<AgentStatus>(
+      sessionStateFamily(widget.sessionId).select((s) => s.agentStatus),
+      (prev, next) {
+        if (prev != null && prev != next && next == AgentStatus.idle) {
           _refresh();
         }
       },

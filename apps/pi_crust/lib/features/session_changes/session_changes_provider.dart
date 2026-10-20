@@ -155,7 +155,7 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
 
       for (final f in rawFiles) {
         final path = f['path']?.toString() ?? '';
-        if (path.isEmpty || f['status'] == 'untracked') continue;
+        if (path.isEmpty) continue;
         final add = (f['additions'] as num?)?.toInt() ?? 0;
         final del = (f['deletions'] as num?)?.toInt() ?? 0;
         totalAdd += add;
@@ -167,7 +167,9 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
           directory: _extractDirectory(path),
           additions: add,
           deletions: del,
-          status: f['status']?.toString() ?? 'modified',
+          status: f['status'] == 'untracked'
+              ? 'added'
+              : (f['status']?.toString() ?? 'modified'),
         );
       }
 

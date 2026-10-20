@@ -108,6 +108,7 @@ class SessionState {
   final Map<String, dynamic>? usage;
   final Map<String, dynamic>? sessionStats;
   final Map<String, String> extensionStatuses;
+  final int? contextWindowOverride;
   final int lastAppliedSeq;
 
   const SessionState({
@@ -130,6 +131,7 @@ class SessionState {
     this.usage,
     this.sessionStats,
     this.extensionStatuses = const {},
+    this.contextWindowOverride,
     this.lastAppliedSeq = 0,
   });
 
@@ -162,6 +164,7 @@ class SessionState {
     Map<String, dynamic>? usage,
     Map<String, dynamic>? sessionStats,
     Map<String, String>? extensionStatuses,
+    int? contextWindowOverride,
     int? lastAppliedSeq,
   }) {
     return SessionState(
@@ -185,6 +188,8 @@ class SessionState {
       usage: usage ?? this.usage,
       sessionStats: sessionStats ?? this.sessionStats,
       extensionStatuses: extensionStatuses ?? this.extensionStatuses,
+      contextWindowOverride:
+          contextWindowOverride ?? this.contextWindowOverride,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
     );
   }

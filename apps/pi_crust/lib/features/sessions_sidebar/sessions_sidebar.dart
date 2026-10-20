@@ -14,11 +14,21 @@ import 'removed_repos_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../data/update/update_providers.dart';
 
-bool _isWorkerSession(Map<String, dynamic> session) {
+bool _isSubsession(Map<String, dynamic> session) {
+  if (session['isSubsession'] == true) return true;
+  final parentSession = (session['parentSession'] ?? '').toString().trim();
+  if (parentSession.isNotEmpty) return true;
   final name = (session['name'] ?? '').toString().toLowerCase();
   final id = (session['id'] ?? '').toString().toLowerCase();
-  return name.contains('worker#') || id.contains('worker#');
+  return name.contains('worker#') ||
+      id.contains('worker#') ||
+      name.contains('#') ||
+      id.contains('#') ||
+      name.startsWith('subagent') ||
+      id.startsWith('subagent');
 }
+
+bool _isWorkerSession(Map<String, dynamic> session) => _isSubsession(session);
 
 String _sessionFolder(Map<String, dynamic> session) {
   final gitRoot = (session['gitRoot'] ?? '').toString().trim();

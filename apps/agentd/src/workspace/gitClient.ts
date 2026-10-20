@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const execFileAsync = promisify(execFile);
@@ -215,5 +215,25 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
   if (diff && diff.length > 0) return diff;
   const unstagedArgs = ['diff'];
   if (normalizedPath) unstagedArgs.push('--', normalizedPath);
-  return (await runGit(unstagedArgs, cwd)) ?? '';
+  const unstagedDiff = await runGit(unstagedArgs, cwd);
+  if (unstagedDiff && unstagedDiff.length > 0) return unstagedDiff;
+
+  if (normalizedPath) {
+    try {
+      const fullPath = path.resolve(cwd, ...normalizedPath.split('/'));
+      if (fs.existsSync(fullPath)) {
+        try {
+          const out = await executeGit(['diff', '--no-index', '--', '/dev/null', normalizedPath], cwd);
+          if (out && out.length > 0) return out.trim();
+        } catch (err: any) {
+          const stdout = err?.stdout;
+          if (typeof stdout === 'string' && stdout.trim().length > 0) {
+            return stdout.trim();
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return '';
 }

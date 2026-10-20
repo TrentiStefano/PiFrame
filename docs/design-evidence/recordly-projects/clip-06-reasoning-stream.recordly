@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-crust-clip-06-reasoning-stream",
+  "videoPath": "../clip-06-reasoning-stream.mp4",
+  "metadata": {
+    "title": "Clip 6: Collapsible Deep Reasoning Streams",
+    "description": "Collapsible deep thinking block (Ragionamento) with real-time word count, thinking tokens, live duration stopwatch, and toggle.",
+    "recordedAt": "2026-10-19T14:09:20.411Z",
+    "durationSeconds": 4.4,
+    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+  },
+  "editor": {
+    "wallpaper": "catppuccin-frappe",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#8caaee",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-reasoning-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.2,
+        "focusX": 0.55,
+        "focusY": 0.45
+      },
+      {
+        "id": "zoom-reasoning-hold",
+        "startMs": 800,
+        "endMs": 3600,
+        "scale": 1.2,
+        "focusX": 0.55,
+        "focusY": 0.45
+      },
+      {
+        "id": "zoom-reasoning-out",
+        "startMs": 3600,
+        "endMs": 4200,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

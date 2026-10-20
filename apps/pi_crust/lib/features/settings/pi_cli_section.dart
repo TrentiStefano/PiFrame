@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
+import 'mcp_servers_dialog.dart';
+
 class PiCommandItem {
   final String label;
   final String command;
@@ -542,8 +544,9 @@ class _PiCliSectionState extends State<PiCliSection> {
   Widget _buildActionCard(CrustTokens tokens, PiCommandItem item) {
     final isSelected = _currentCommand == item.command;
     final isRunning = isSelected && _isExecuting;
+    final isMcpCard = item.command == 'pi mcp list';
 
-    return Container(
+    final cardContent = Container(
       width: 440,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -552,10 +555,12 @@ class _PiCliSectionState extends State<PiCliSection> {
             : tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(
-          color: item.isPrimary
-              ? tokens.accent.withValues(alpha: 0.5)
-              : tokens.border,
-          width: item.isPrimary ? 1.5 : 1.0,
+          color: isMcpCard
+              ? tokens.syntaxFunction.withValues(alpha: 0.5)
+              : item.isPrimary
+                  ? tokens.accent.withValues(alpha: 0.5)
+                  : tokens.border,
+          width: (item.isPrimary || isMcpCard) ? 1.5 : 1.0,
         ),
       ),
       child: Column(
@@ -566,15 +571,21 @@ class _PiCliSectionState extends State<PiCliSection> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: item.isPrimary
-                      ? tokens.accent.withValues(alpha: 0.15)
-                      : tokens.displaySurface,
+                  color: isMcpCard
+                      ? tokens.syntaxFunction.withValues(alpha: 0.15)
+                      : item.isPrimary
+                          ? tokens.accent.withValues(alpha: 0.15)
+                          : tokens.displaySurface,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
                 ),
                 child: Icon(
                   item.icon,
                   size: 16,
-                  color: item.isPrimary ? tokens.accent : tokens.displayText,
+                  color: isMcpCard
+                      ? tokens.syntaxFunction
+                      : item.isPrimary
+                          ? tokens.accent
+                          : tokens.displayText,
                 ),
               ),
               const SizedBox(width: 10),
@@ -603,6 +614,23 @@ class _PiCliSectionState extends State<PiCliSection> {
                 ),
               ),
               const SizedBox(width: 8),
+              if (isMcpCard) ...[
+                OutlinedButton(
+                  key: const ValueKey('btn-manage-mcp-servers'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.syntaxFunction,
+                    side: BorderSide(color: tokens.syntaxFunction.withValues(alpha: 0.5)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    ),
+                  ),
+                  onPressed: () => McpServersDialog.show(context, tokens),
+                  child: const Text('Gestisci', style: TextStyle(fontSize: 11)),
+                ),
+                const SizedBox(width: 6),
+              ],
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: item.isPrimary
@@ -651,5 +679,22 @@ class _PiCliSectionState extends State<PiCliSection> {
         ],
       ),
     );
+
+    if (isMcpCard) {
+      return Material(
+        key: const ValueKey('pi-cli-card-pi-mcp-list'),
+        color: Colors.transparent,
+        child: Tooltip(
+          message: 'Clicca sulla scheda per visualizzare e abilitare/disabilitare i server MCP',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            onTap: () => McpServersDialog.show(context, tokens),
+            child: cardContent,
+          ),
+        ),
+      );
+    }
+
+    return cardContent;
   }
 }

@@ -215,6 +215,7 @@ export class Dispatcher {
         'session.getStats',
         'session.getEntries',
         'session.getTree',
+        'session.subagents',
         'agent.getModels',
         'agent.getThinkingLevels',
         'agent.getCommands',
@@ -478,8 +479,18 @@ export class Dispatcher {
       // Session Management
       // -----------------------------------------------------------------------
       case 'session.list': {
-        const sessions = await this.registry.listSessions(payload?.query, payload?.limit);
+        const sessions = await this.registry.listSessions(
+          payload?.query,
+          payload?.limit,
+          payload?.includeSubsessions === true
+        );
         return { sessions };
+      }
+
+      case 'session.subagents': {
+        if (!sessionId) throw new Error('sessionId is required for session.subagents');
+        const subagents = await this.registry.getSubagents(sessionId);
+        return { subagents };
       }
 
       case 'session.create': {

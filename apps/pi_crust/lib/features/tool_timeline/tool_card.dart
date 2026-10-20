@@ -340,7 +340,7 @@ class _ToolCardState extends State<ToolCard> {
 
     return RepaintBoundary(
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 1),
+        margin: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -388,7 +388,7 @@ class _ToolCardState extends State<ToolCard> {
                     ),
                     if (argPreview.isNotEmpty) ...[
                       const SizedBox(width: 6),
-                      Expanded(
+                      Flexible(
                         child: Text(
                           argPreview,
                           maxLines: 1,
@@ -403,8 +403,8 @@ class _ToolCardState extends State<ToolCard> {
                           ),
                         ),
                       ),
-                    ] else
-                      const Spacer(),
+                    ],
+                    const Spacer(),
                     // Seconds counter or ms duration badge
                     if (isOver5Seconds) ...[
                       const SizedBox(width: 6),
