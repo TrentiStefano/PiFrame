@@ -81,7 +81,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   final PcpClient? client;
   StreamSubscription? _sub;
   StreamSubscription? _snapSub;
-  bool _statsLoading = false;
 
   SessionStateNotifier(this.sessionId, this.client)
     : super(SessionState(sessionId: sessionId, cwd: '')) {
@@ -99,7 +98,11 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
     _sub = client!.events(sessionId).listen((event) {
       state = reduceSessionState(state, event);
-      if (event.type == 'usage.updated' || event.type == 'run.settled') {
+      if (event.type == 'usage.updated' ||
+          event.type == 'run.settled' ||
+          event.type == 'message.completed' ||
+          event.type == 'turn.ended' ||
+          event.type == 'tool.completed') {
         unawaited(refreshSessionStats());
       }
     });
@@ -177,11 +180,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
+  bool _statsLoading = false;
+  bool _hasPendingStatsRefresh = false;
+
   Future<void> refreshSessionStats() async {
-    if (client == null ||
-        state.readOnly ||
-        (state.currentModel == null && state.entries.isEmpty) ||
-        _statsLoading) {
+    if (client == null || state.readOnly) {
+      return;
+    }
+    if (_statsLoading) {
+      _hasPendingStatsRefresh = true;
       return;
     }
     _statsLoading = true;
@@ -195,6 +202,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       // Older Pi/agentd builds may not expose session statistics.
     } finally {
       _statsLoading = false;
+      if (_hasPendingStatsRefresh) {
+        _hasPendingStatsRefresh = false;
+        unawaited(refreshSessionStats());
+      }
     }
   }
 
@@ -319,6 +330,31 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     } catch (_) {
       return [];
     }
+  }
+
+  Future<void> setContextWindow(int? size) async {
+    Map<String, dynamic>? updatedStats;
+    if (state.sessionStats != null) {
+      updatedStats = Map<String, dynamic>.from(state.sessionStats!);
+      final cu = updatedStats['contextUsage'] as Map?;
+      final tokens = (cu?['tokens'] as num?)?.toDouble() ??
+          (state.usage?['totalTokens'] as num?)?.toDouble() ??
+          0.0;
+      final win = size ?? (cu?['contextWindow'] as num?)?.toInt();
+      if (win != null && win > 0) {
+        final pct = (tokens / win) * 100.0;
+        updatedStats['contextUsage'] = {
+          if (cu != null) ...Map<String, dynamic>.from(cu),
+          'contextWindow': win,
+          'percent': pct,
+          'tokens': tokens.toInt(),
+        };
+      }
+    }
+    state = state.copyWith(
+      contextWindowOverride: size,
+      sessionStats: updatedStats ?? state.sessionStats,
+    );
   }
 
   @override
