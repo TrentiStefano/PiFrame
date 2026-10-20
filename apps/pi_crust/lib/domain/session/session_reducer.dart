@@ -1,6 +1,7 @@
 import 'package:pi_crust_protocol/pi_crust_protocol.dart';
 
 import 'agent_status.dart';
+import 'attachment_model.dart';
 import 'session_state.dart';
 
 SessionState reduceSessionState(SessionState current, PcpEvent event) {
@@ -127,6 +128,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
                   .join();
             }
           }
+          final isError = msg['isError'] == true;
           if (toolCallId != null && output != null) {
             final nextOutputs = Map<String, String>.from(current.toolOutputs);
             nextOutputs[toolCallId] = output;
@@ -137,16 +139,130 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               updatedTools[toolCallId] = existing.copyWith(
                 output: output.isNotEmpty ? output : existing.output,
                 isRunning: false,
+                isError: isError || existing.isError,
               );
             }
+            // Also update any existing entries that contain this tool call
+            final updatedEntries = current.entries.map((entry) {
+              if (entry.toolCalls.any((t) => t.toolCallId == toolCallId)) {
+                final updatedToolCalls = entry.toolCalls.map((t) {
+                  if (t.toolCallId == toolCallId) {
+                    return t.copyWith(
+                      output: output!.isNotEmpty ? output : t.output,
+                      isRunning: false,
+                      isError: isError || t.isError,
+                    );
+                  }
+                  return t;
+                }).toList();
+                return entry.copyWith(toolCalls: updatedToolCalls);
+              }
+              return entry;
+            }).toList();
+
             return current.copyWith(
               activeToolCalls: updatedTools,
               toolOutputs: nextOutputs,
+              entries: updatedEntries,
               lastAppliedSeq: nextSeq,
             );
           }
         }
         return current.copyWith(lastAppliedSeq: nextSeq);
+      }
+
+      if (role == 'bashExecution') {
+        final command = (msg['command'] ?? msg['cmd'])?.toString() ?? '!bash';
+        final output = (msg['output'] ?? msg['result'] ?? '')?.toString() ?? '';
+        final exitCode = msg['exitCode'] is num ? (msg['exitCode'] as num).toInt() : null;
+        final cancelled = msg['cancelled'] == true;
+        final truncated = msg['truncated'] == true;
+        final entry = SessionEntry(
+          id: (msg['id'] ?? 'bash_${current.entries.length}').toString(),
+          role: 'bashExecution',
+          text: output,
+          timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'command': command,
+            'exitCode': exitCode,
+            'cancelled': cancelled,
+            'truncated': truncated,
+          },
+        );
+        return current.copyWith(
+          entries: [...current.entries, entry],
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
+      if (role == 'branchSummary') {
+        final summary = (msg['summary'] ?? msg['text'])?.toString() ?? '';
+        final fromId = (msg['fromId'] ?? msg['from_id'])?.toString() ?? '';
+        final entry = SessionEntry(
+          id: (msg['id'] ?? 'branch_${current.entries.length}').toString(),
+          role: 'branchSummary',
+          text: summary,
+          timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          metadata: {'fromId': fromId},
+        );
+        return current.copyWith(
+          entries: [...current.entries, entry],
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
+      if (role == 'compactionSummary') {
+        final summary = (msg['summary'] ?? msg['text'])?.toString() ?? '';
+        final tokensBefore = (msg['tokensBefore'] ?? msg['tokens_before'] as num?)?.toInt();
+        final entry = SessionEntry(
+          id: (msg['id'] ?? 'compact_${current.entries.length}').toString(),
+          role: 'compactionSummary',
+          text: summary,
+          timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          metadata: {'tokensBefore': tokensBefore},
+        );
+        return current.copyWith(
+          entries: [...current.entries, entry],
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
+      if (role == 'custom') {
+        final customType = (msg['customType'] ?? msg['custom_type'] ?? 'custom')?.toString() ?? 'custom';
+        final display = msg['display'] != false;
+        String text = '';
+        if (msg['content'] is String) {
+          text = msg['content'] as String;
+        } else if (msg['content'] is List) {
+          text = (msg['content'] as List)
+              .whereType<Map>()
+              .where((b) => b['type'] == 'text')
+              .map((b) => b['text']?.toString() ?? '')
+              .join();
+        }
+        final entry = SessionEntry(
+          id: (msg['id'] ?? 'custom_${current.entries.length}').toString(),
+          role: 'custom',
+          text: text,
+          timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'customType': customType,
+            'display': display,
+            'details': msg['details'],
+          },
+        );
+        return current.copyWith(
+          entries: [...current.entries, entry],
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          lastAppliedSeq: nextSeq,
+        );
       }
 
       // Extract text content if message contains content blocks
@@ -162,6 +278,28 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
       if (text.isEmpty && current.currentStreamingText.isNotEmpty) {
         text = current.currentStreamingText;
+      }
+
+      // If content has image blocks, convert to ChatAttachment:
+      if (msg['content'] is List) {
+        final attachments = <ChatAttachment>[];
+        for (final block in (msg['content'] as List).whereType<Map>()) {
+          if (block['type'] == 'image') {
+            final data = block['data']?.toString() ?? '';
+            final mimeType = block['mimeType']?.toString() ?? 'image/png';
+            if (data.isNotEmpty) {
+              attachments.add(ChatAttachment(
+                id: 'att_${attachments.length}',
+                name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
+                type: AttachmentType.image,
+                pathOrUrl: 'data:$mimeType;base64,$data',
+              ));
+            }
+          }
+        }
+        if (attachments.isNotEmpty && !text.contains('<!--pi-attachments:')) {
+          text = '$text\n${encodeAttachmentsTag(attachments)}'.trim();
+        }
       }
 
       // Extract thinking from streaming blocks or message content blocks

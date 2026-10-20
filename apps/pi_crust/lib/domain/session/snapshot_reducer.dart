@@ -1,4 +1,5 @@
 import 'agent_status.dart';
+import 'attachment_model.dart';
 import 'session_state.dart';
 
 String _contentText(dynamic content, String type) {
@@ -34,6 +35,7 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
 
   // Pre-collect outputs from toolResult messages keyed by toolCallId
   final toolResults = <String, String>{};
+  final toolErrors = <String, bool>{};
   for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? '';
@@ -45,6 +47,9 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
       if (callId != null && out != null) {
         toolResults[callId] = out;
       }
+      if (callId != null) {
+        toolErrors[callId] = message['isError'] == true;
+      }
     }
   }
 
@@ -52,8 +57,111 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? 'assistant';
     if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
-    final text = _contentText(message['content'] ?? message['text'], 'text');
+
+    final timestampRaw = message['timestamp'] ?? raw['timestamp'];
+    final timestamp = timestampRaw is num
+        ? timestampRaw.toInt()
+        : DateTime.tryParse(timestampRaw?.toString() ?? '')?.millisecondsSinceEpoch ?? 0;
+    final entryId = (raw['id'] ?? message['id'])?.toString() ?? 'snapshot_${entries.length}';
+
+    if (role == 'bashExecution') {
+      final command = (message['command'] ?? message['cmd'])?.toString() ?? '!bash';
+      final output = (message['output'] ?? message['result'] ?? '')?.toString() ?? '';
+      final exitCode = message['exitCode'] is num ? (message['exitCode'] as num).toInt() : null;
+      final cancelled = message['cancelled'] == true;
+      final truncated = message['truncated'] == true;
+      entries.add(SessionEntry(
+        id: entryId,
+        role: 'bashExecution',
+        text: output,
+        timestamp: timestamp,
+        metadata: {
+          'command': command,
+          'exitCode': exitCode,
+          'cancelled': cancelled,
+          'truncated': truncated,
+        },
+      ));
+      continue;
+    }
+
+    if (role == 'branchSummary') {
+      final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
+      final fromId = (message['fromId'] ?? message['from_id'])?.toString() ?? '';
+      entries.add(SessionEntry(
+        id: entryId,
+        role: 'branchSummary',
+        text: summary,
+        timestamp: timestamp,
+        metadata: {'fromId': fromId},
+      ));
+      continue;
+    }
+
+    if (role == 'compactionSummary') {
+      final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
+      final tokensBefore = (message['tokensBefore'] ?? message['tokens_before'] as num?)?.toInt();
+      entries.add(SessionEntry(
+        id: entryId,
+        role: 'compactionSummary',
+        text: summary,
+        timestamp: timestamp,
+        metadata: {'tokensBefore': tokensBefore},
+      ));
+      continue;
+    }
+
+    if (role == 'custom') {
+      final customType = (message['customType'] ?? message['custom_type'] ?? 'custom')?.toString() ?? 'custom';
+      final display = message['display'] != false;
+      String customText = '';
+      if (message['content'] is String) {
+        customText = message['content'] as String;
+      } else if (message['content'] is List) {
+        customText = (message['content'] as List)
+            .whereType<Map>()
+            .where((b) => b['type'] == 'text')
+            .map((b) => b['text']?.toString() ?? '')
+            .join();
+      }
+      entries.add(SessionEntry(
+        id: entryId,
+        role: 'custom',
+        text: customText,
+        timestamp: timestamp,
+        metadata: {
+          'customType': customType,
+          'display': display,
+          'details': message['details'],
+        },
+      ));
+      continue;
+    }
+
+    var text = _contentText(message['content'] ?? message['text'], 'text');
     final thinking = _contentText(message['content'], 'thinking');
+
+    // Extract image blocks into ChatAttachment tags if present
+    if (message['content'] is List) {
+      final attachments = <ChatAttachment>[];
+      for (final block in (message['content'] as List).whereType<Map>()) {
+        if (block['type'] == 'image') {
+          final data = block['data']?.toString() ?? '';
+          final mimeType = block['mimeType']?.toString() ?? 'image/png';
+          if (data.isNotEmpty) {
+            attachments.add(ChatAttachment(
+              id: 'att_${attachments.length}',
+              name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
+              type: AttachmentType.image,
+              pathOrUrl: 'data:$mimeType;base64,$data',
+            ));
+          }
+        }
+      }
+      if (attachments.isNotEmpty && !text.contains('<!--pi-attachments:')) {
+        text = '$text\n${encodeAttachmentsTag(attachments)}'.trim();
+      }
+    }
 
     // Extract tool calls from message
     final entryToolCalls = <ToolExecutionState>[];
@@ -69,12 +177,14 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
           final args = Map<String, dynamic>.from((b['args'] ?? b['input']) as Map? ?? {});
           final out = toolResults[callId] ?? b['output']?.toString() ?? '';
+          final hasError = (toolErrors[callId] == true) || (b['isError'] == true);
           entryToolCalls.add(ToolExecutionState(
             toolCallId: callId,
             toolName: name,
             args: args,
             output: out,
             isRunning: false,
+            isError: hasError,
           ));
         }
       }
@@ -83,15 +193,13 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     if (isInternalOrJunkMessageText(text)) continue;
     if (text.trim().isEmpty && thinking.trim().isEmpty && entryToolCalls.isEmpty) continue;
 
-    final timestamp = message['timestamp'] ?? raw['timestamp'];
     final entry = SessionEntry(
-      id: (raw['id'] ?? message['id'])?.toString() ?? 'snapshot_${entries.length}',
+      id: entryId,
       role: role,
       text: text,
       thinking: thinking.isNotEmpty ? thinking : null,
       toolCalls: entryToolCalls,
-      timestamp: timestamp is num ? timestamp.toInt() :
-          DateTime.tryParse(timestamp?.toString() ?? '')?.millisecondsSinceEpoch ?? 0,
+      timestamp: timestamp,
     );
 
     // If previous entry was an assistant entry with empty text and this is an assistant entry with text,

@@ -91,7 +91,7 @@ export class RemoteManager extends EventEmitter {
 
   public async start(
     options?: {
-      tunnelProvider?: 'cloudflared' | 'custom';
+      tunnelProvider?: 'cloudflared' | 'tailscale' | 'custom';
       customCommand?: string;
       customUrl?: string;
     },

@@ -236,10 +236,16 @@ export class SessionIndex {
             const message = entry.message || entry;
             if (message.role === 'system') continue;
             messageCount++;
-            const text = typeof message.content === 'string' ? message.content :
+            let text = typeof message.content === 'string' ? message.content :
               (Array.isArray(message.content) ? message.content
                 .filter((block: any) => block.type === 'text')
                 .map((block: any) => block.text || '').join('') : '');
+            if (!text && message.role === 'bashExecution') {
+              text = message.command ? `!${message.command}` : (message.output || '');
+            }
+            if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) {
+              text = message.summary || '';
+            }
             if (text) lastMessagePreview = text.slice(0, 100);
           }
         } catch {}

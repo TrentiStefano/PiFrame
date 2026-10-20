@@ -1497,6 +1497,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       );
     }
 
+    if (entry.role == 'bashExecution') {
+      return _buildBashExecutionItem(entry, tokens);
+    }
+
+    if (entry.role == 'branchSummary') {
+      return _buildBranchSummaryItem(entry, tokens);
+    }
+
+    if (entry.role == 'compactionSummary') {
+      return _buildCompactionSummaryItem(entry, tokens);
+    }
+
+    if (entry.role == 'custom') {
+      return _buildCustomItem(entry, tokens);
+    }
+
     // Assistant entry
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -1648,10 +1664,287 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  RichContent(text: entry.text),
+                  Builder(
+                    builder: (context) {
+                      final (cleanText, attachments) =
+                          parseAttachmentsFromText(entry.text);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (attachments.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            AttachmentListBar(
+                              key: ValueKey('asst-attachments-${entry.id}'),
+                              attachments: attachments,
+                              isEditable: false,
+                            ),
+                          ],
+                          if (cleanText.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            RichContent(text: cleanText),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBashExecutionItem(SessionEntry entry, CrustTokens tokens) {
+    final command = entry.metadata?['command']?.toString() ?? '!command';
+    final exitCode = entry.metadata?['exitCode'] as int?;
+    final cancelled = entry.metadata?['cancelled'] == true;
+    final truncated = entry.metadata?['truncated'] == true;
+    final output = entry.text;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        border: Border.all(color: tokens.borderStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(tokens.radiusMd),
+              ),
+              border: Border(bottom: BorderSide(color: tokens.border)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.terminal, size: 14, color: tokens.accent),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    command,
+                    style: TextStyle(
+                      fontFamily: tokens.monoFontFamily,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: tokens.textPrimary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (cancelled) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tokens.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.warning.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'annullato',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: tokens.warning,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ] else if (exitCode != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: exitCode == 0
+                          ? tokens.success.withValues(alpha: 0.15)
+                          : tokens.danger.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(
+                        color: (exitCode == 0 ? tokens.success : tokens.danger)
+                            .withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'exit $exitCode',
+                      style: TextStyle(
+                        fontFamily: tokens.monoFontFamily,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: exitCode == 0 ? tokens.success : tokens.danger,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 6),
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 13),
+                  tooltip: 'Copia output',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: output));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Output copiato'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (output.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SelectableText(
+                output,
+                style: TextStyle(
+                  fontFamily: tokens.monoFontFamily,
+                  fontSize: 11.5,
+                  height: 1.4,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ),
+          if (truncated)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(
+                'Output parziale (troncato)',
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  fontSize: 10,
+                  color: tokens.textMuted,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBranchSummaryItem(SessionEntry entry, CrustTokens tokens) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        border: Border.all(color: tokens.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.call_split, size: 14, color: tokens.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              entry.text.isNotEmpty
+                  ? entry.text
+                  : 'Diramazione creata da ${entry.metadata?['fromId'] ?? ''}',
+              style: TextStyle(
+                fontSize: 11,
+                color: tokens.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (entry.metadata?['fromId'] != null)
+            Text(
+              'orig: ${entry.metadata!['fromId']}',
+              style: TextStyle(
+                fontFamily: tokens.monoFontFamily,
+                fontSize: 10,
+                color: tokens.textMuted,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactionSummaryItem(SessionEntry entry, CrustTokens tokens) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        border: Border.all(color: tokens.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.compress, size: 14, color: tokens.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              entry.text.isNotEmpty ? entry.text : 'Contesto compattato',
+              style: TextStyle(
+                fontSize: 11,
+                color: tokens.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (entry.metadata?['tokensBefore'] != null)
+            Text(
+              '${entry.metadata!['tokensBefore']} token iniziali',
+              style: TextStyle(
+                fontFamily: tokens.monoFontFamily,
+                fontSize: 10,
+                color: tokens.textMuted,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomItem(SessionEntry entry, CrustTokens tokens) {
+    final customType =
+        entry.metadata?['customType']?.toString() ?? 'Estensione';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        border: Border.all(color: tokens.borderStrong),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(tokens.radiusMd),
+              ),
+              border: Border(bottom: BorderSide(color: tokens.border)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.extension_outlined, size: 13, color: tokens.accent),
+                const SizedBox(width: 6),
+                Text(
+                  customType,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: tokens.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (entry.text.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: RichContent(text: entry.text),
             ),
         ],
       ),

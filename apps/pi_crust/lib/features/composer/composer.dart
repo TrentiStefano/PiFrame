@@ -850,6 +850,13 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final isMobile = screenWidth < 600;
+    final horizontalMargin = isMobile ? 14.0 : 8.0;
+    final bottomMargin = isMobile
+        ? (bottomPadding > 0 ? bottomPadding + 4.0 : 12.0)
+        : 8.0;
     final isSending = ref.watch(composerSendingProvider(widget.sessionId));
     final attachments = ref.watch(
       composerAttachmentsProvider(widget.sessionId),
@@ -1027,7 +1034,12 @@ class _ComposerState extends ConsumerState<Composer> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOutCubic,
-        margin: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        margin: EdgeInsets.fromLTRB(
+          horizontalMargin,
+          4,
+          horizontalMargin,
+          bottomMargin,
+        ),
         child: ShimmerBorder(
           isActive: isShimmerActive,
           borderRadius: BorderRadius.circular(tokens.radiusLg),

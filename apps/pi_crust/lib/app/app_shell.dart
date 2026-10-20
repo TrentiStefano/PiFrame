@@ -279,7 +279,12 @@ class _AppShellState extends ConsumerState<AppShell>
                 children: [
                   Container(
                     height: 42,
-                    margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                    margin: EdgeInsets.fromLTRB(
+                      width < 600 ? 12 : 8,
+                      width < 600 ? 6 : 4,
+                      width < 600 ? 12 : 8,
+                      4,
+                    ),
                     decoration: BoxDecoration(
                       color: tokens.chassis,
                       borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -663,15 +668,21 @@ class _AppShellState extends ConsumerState<AppShell>
 
   Widget _bentoPane(Widget child) {
     final tokens = context.tokens;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 600;
     return RepaintBoundary(
       child: Padding(
-        padding: const EdgeInsets.all(3),
+        padding: isMobile
+            ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
+            : const EdgeInsets.all(3),
         child: Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: tokens.surface,
             border: Border.all(color: tokens.border),
-            borderRadius: BorderRadius.circular(tokens.radiusLg),
+            borderRadius: BorderRadius.circular(
+              isMobile ? tokens.radiusMd : tokens.radiusLg,
+            ),
           ),
           child: child,
         ),
@@ -965,6 +976,8 @@ class _AppShellState extends ConsumerState<AppShell>
     bool showLayoutMenu = false,
   }) {
     final tokens = context.tokens;
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width < 600;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => 'Chat',
       WorkspacePane.repository => 'File',
@@ -972,7 +985,7 @@ class _AppShellState extends ConsumerState<AppShell>
     };
     return Container(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 6, vertical: 2),
       decoration: BoxDecoration(
         color: tokens.chassis,
         border: Border(bottom: BorderSide(color: tokens.borderStrong)),

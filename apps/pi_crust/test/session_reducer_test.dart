@@ -390,6 +390,237 @@ void main() {
       expect(state.currentStreamingThinking, 'Live thinking');
       expect(state.activeToolCalls.containsKey('c1'), isTrue);
     });
+
+    test('SessionReducer processes bashExecution message and sets metadata', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: const [],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {
+              'id': 'bash_1',
+              'role': 'bashExecution',
+              'command': 'git status -s',
+              'output': ' M lib/main.dart\n',
+              'exitCode': 0,
+              'cancelled': false,
+              'truncated': false,
+            },
+          },
+        ),
+      );
+
+      expect(next.entries.length, 1);
+      final entry = next.entries.first;
+      expect(entry.role, 'bashExecution');
+      expect(entry.text, ' M lib/main.dart\n');
+      expect(entry.metadata?['command'], 'git status -s');
+      expect(entry.metadata?['exitCode'], 0);
+      expect(entry.isJunkOrInternal, isFalse);
+    });
+
+    test('SessionReducer processes branchSummary and compactionSummary messages', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: const [],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final s1 = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {
+              'id': 'b1',
+              'role': 'branchSummary',
+              'summary': 'Branch from checkpoint',
+              'fromId': 'chk_99',
+            },
+          },
+        ),
+      );
+
+      final s2 = reduceSessionState(
+        s1,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e3',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 3,
+          payload: {
+            'message': {
+              'id': 'c1',
+              'role': 'compactionSummary',
+              'summary': 'Compacted conversation',
+              'tokensBefore': 54000,
+            },
+          },
+        ),
+      );
+
+      expect(s2.entries.length, 2);
+      expect(s2.entries[0].role, 'branchSummary');
+      expect(s2.entries[0].text, 'Branch from checkpoint');
+      expect(s2.entries[0].metadata?['fromId'], 'chk_99');
+
+      expect(s2.entries[1].role, 'compactionSummary');
+      expect(s2.entries[1].text, 'Compacted conversation');
+      expect(s2.entries[1].metadata?['tokensBefore'], 54000);
+    });
+
+    test('SessionReducer processes custom messages and flags display: false as internal', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: const [],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final sVisible = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {
+              'id': 'cust_1',
+              'role': 'custom',
+              'customType': 'git-hook',
+              'content': 'Pre-commit checks passed',
+              'display': true,
+            },
+          },
+        ),
+      );
+
+      final sHidden = reduceSessionState(
+        sVisible,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e3',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 3,
+          payload: {
+            'message': {
+              'id': 'cust_2',
+              'role': 'custom',
+              'customType': 'internal-telemetry',
+              'content': 'hidden telemetry',
+              'display': false,
+            },
+          },
+        ),
+      );
+
+      expect(sHidden.entries.length, 2);
+      expect(sHidden.entries[0].isJunkOrInternal, isFalse);
+      expect(sHidden.entries[1].isJunkOrInternal, isTrue);
+    });
+
+    test('SessionReducer toolResult updates output and isError in existing transcript entries', () {
+      final entryWithRunningTool = SessionEntry(
+        id: 'msg_assistant',
+        role: 'assistant',
+        text: 'Eseguo il test...',
+        timestamp: 1000,
+        toolCalls: [
+          const ToolExecutionState(
+            toolCallId: 't_fail',
+            toolName: 'bash',
+            args: {'command': 'pnpm test'},
+            output: '',
+            isRunning: true,
+            isError: false,
+          ),
+        ],
+      );
+
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.working,
+        entries: [entryWithRunningTool],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: {
+          't_fail': entryWithRunningTool.toolCalls.first,
+        },
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {
+              'role': 'toolResult',
+              'toolCallId': 't_fail',
+              'result': 'FAIL test/foo.spec.ts',
+              'isError': true,
+            },
+          },
+        ),
+      );
+
+      expect(next.entries.first.toolCalls.first.isRunning, isFalse);
+      expect(next.entries.first.toolCalls.first.isError, isTrue);
+      expect(next.entries.first.toolCalls.first.output, 'FAIL test/foo.spec.ts');
+    });
   });
 }
 

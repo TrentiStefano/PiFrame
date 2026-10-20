@@ -1,0 +1,41 @@
+FROM node:22-bookworm-slim
+
+# Install git and essential tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN npm install -g pnpm@9
+
+WORKDIR /workspace
+
+# Copy repository
+COPY . /workspace
+
+# Clean out existing node_modules and builds to test a truly clean installation
+RUN rm -rf node_modules apps/agentd/node_modules packages/*/node_modules tools/*/node_modules test/e2e/node_modules \
+    apps/agentd/dist packages/*/dist tools/*/dist test/e2e/dist
+
+# 1. Install dependencies from scratch
+RUN pnpm install --frozen-lockfile
+
+# 2. Build protocol, types, and daemon bundle
+RUN pnpm build:all
+
+# 3. Verify bundles and version sync
+RUN pnpm run check:version && \
+    pnpm run check:agentd-bundle && \
+    pnpm run smoke:agentd-bundle
+
+# 4. Run TypeScript unit and security tests in Linux
+RUN pnpm --filter @pi-crust/agentd run test
+
+# 5. Run cross-component E2E fault injection and resilience tests in Linux
+RUN pnpm run test:e2e
+
+# 6. Verify daemon starts and serves on Linux
+CMD ["node", "dist/pi-agentd.cjs"]
