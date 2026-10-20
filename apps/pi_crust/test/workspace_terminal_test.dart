@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
@@ -137,5 +138,48 @@ void main() {
 
     // IntegratedTerminalPanel should be expanded again
     expect(find.byType(IntegratedTerminalPanel), findsOneWidget);
+  });
+
+  testWidgets('TerminalView accepts user typing and sends to process', (tester) async {
+    const tokens = CrustTokens.dark;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 400,
+            width: 600,
+            child: IntegratedTerminalPanel(
+              cwd: '',
+              tokens: tokens,
+              onCollapseDownward: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap on terminal to ensure it is focused
+    await tester.tap(find.byType(TerminalView));
+    await tester.pumpAndSettle();
+
+    // Type "dir"
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyR);
+    await tester.pumpAndSettle();
+
+    final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+    expect(terminalView.terminal.buffer.getText().contains('dir'), isTrue);
+
+    // Test backspace (delete 'r')
+    await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await tester.pumpAndSettle();
+    expect(terminalView.terminal.buffer.getText().contains('di'), isTrue);
+
+    // Test Enter
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
   });
 }

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:xterm/xterm.dart';
@@ -40,8 +42,6 @@ class TerminalTabSession {
   }
 
   void handleInput(String data) {
-    if (process == null) return;
-
     // Handle Ctrl+C (character code 3)
     if (data == '\x03') {
       try {
@@ -137,7 +137,6 @@ class TerminalTabSession {
   }
 
   void sendCommand(String command) {
-    if (process == null) return;
     final trimmed = command.trim();
     if (trimmed.isNotEmpty) {
       history.add(trimmed);
@@ -145,7 +144,7 @@ class TerminalTabSession {
     }
     terminal.write('$command\r\n');
     try {
-      process!.stdin.writeln(command);
+      process?.stdin.writeln(command);
     } catch (_) {}
   }
 }
@@ -174,15 +173,23 @@ class _IntegratedTerminalPanelState
   final List<TerminalTabSession> _tabs = [];
   int _activeTabIndex = 0;
   int _counter = 0;
+  late final FocusNode _terminalFocusNode;
 
   @override
   void initState() {
     super.initState();
+    _terminalFocusNode = FocusNode();
     _createNewTab();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _terminalFocusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _terminalFocusNode.dispose();
     for (final tab in _tabs) {
       tab.dispose();
     }
@@ -287,6 +294,7 @@ class _IntegratedTerminalPanelState
       _tabs.add(session);
       _activeTabIndex = _tabs.length - 1;
     });
+    _terminalFocusNode.requestFocus();
 
     _startProcessForTab(session, shellExe, shellArgs);
   }
@@ -458,7 +466,10 @@ class _IntegratedTerminalPanelState
                       final isSelected = index == _activeTabIndex;
 
                       return InkWell(
-                        onTap: () => setState(() => _activeTabIndex = index),
+                        onTap: () {
+                          setState(() => _activeTabIndex = index);
+                          _terminalFocusNode.requestFocus();
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
@@ -640,22 +651,106 @@ class _IntegratedTerminalPanelState
           // Terminal View Body (Direct Interactive Typing)
           // -------------------------------------------------------------
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-              color: tokens.chassis,
-              child: TerminalView(
-                activeTab.terminal,
-                theme: _buildTerminalTheme(tokens),
-                textStyle: TerminalStyle(
-                  fontSize: 12,
-                  fontFamily: tokens.monoFontFamily,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _terminalFocusNode.requestFocus(),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                color: tokens.chassis,
+                child: TerminalView(
+                  activeTab.terminal,
+                  focusNode: _terminalFocusNode,
+                  theme: _buildTerminalTheme(tokens),
+                  textStyle: TerminalStyle(
+                    fontSize: 12,
+                    fontFamily: tokens.monoFontFamily,
+                  ),
+                  autofocus: true,
+                  hardwareKeyboardOnly: !kIsWeb,
+                  onKeyEvent: _handleTerminalKeyEvent,
                 ),
-                autofocus: true,
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    if (_tabs.isEmpty || _activeTabIndex >= _tabs.length) {
+      return KeyEventResult.ignored;
+    }
+    final activeTab = _tabs[_activeTabIndex];
+
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final isMeta = HardwareKeyboard.instance.isMetaPressed;
+
+    // Ctrl+C: Interrupt
+    if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyC) {
+      activeTab.handleInput('\x03');
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl+L: Clear screen
+    if (isCtrl && event.logicalKey == LogicalKeyboardKey.keyL) {
+      activeTab.handleInput('\x0c');
+      return KeyEventResult.handled;
+    }
+
+    // Ctrl+V: Paste from clipboard
+    if ((isCtrl || isMeta) && event.logicalKey == LogicalKeyboardKey.keyV) {
+      Clipboard.getData('text/plain').then((clip) {
+        if (clip?.text != null && clip!.text!.isNotEmpty) {
+          activeTab.handleInput(clip.text!);
+        }
+      });
+      return KeyEventResult.handled;
+    }
+
+    // Enter / Return
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      activeTab.handleInput('\r');
+      return KeyEventResult.handled;
+    }
+
+    // Backspace
+    if (event.logicalKey == LogicalKeyboardKey.backspace) {
+      activeTab.handleInput('\x08');
+      return KeyEventResult.handled;
+    }
+
+    // Tab
+    if (event.logicalKey == LogicalKeyboardKey.tab) {
+      activeTab.handleInput('\t');
+      return KeyEventResult.handled;
+    }
+
+    // Arrow Up / Down
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      activeTab.handleInput('\x1b[A');
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      activeTab.handleInput('\x1b[B');
+      return KeyEventResult.handled;
+    }
+
+    // Printable characters
+    if (!isCtrl && !isAlt && !isMeta) {
+      final character = event.character;
+      if (character != null && character.isNotEmpty) {
+        activeTab.handleInput(character);
+        return KeyEventResult.handled;
+      }
+    }
+
+    return KeyEventResult.ignored;
   }
 }
