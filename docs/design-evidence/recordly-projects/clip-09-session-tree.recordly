@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-crust-clip-09-session-tree",
+  "videoPath": "../clip-09-session-tree.mp4",
+  "metadata": {
+    "title": "Clip 9: Conversation Branching & Session Tree",
+    "description": "Visual conversation lineage tree dialog showing branches, message nodes, and timeline checkpoints for branching off past turns.",
+    "recordedAt": "2026-10-19T14:09:32.455Z",
+    "durationSeconds": 3.7,
+    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+  },
+  "editor": {
+    "wallpaper": "catppuccin-frappe",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#8caaee",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-tree-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.06,
+        "focusX": 0.5,
+        "focusY": 0.5
+      },
+      {
+        "id": "zoom-tree-hold",
+        "startMs": 800,
+        "endMs": 3000,
+        "scale": 1.06,
+        "focusX": 0.5,
+        "focusY": 0.5
+      },
+      {
+        "id": "zoom-tree-out",
+        "startMs": 3000,
+        "endMs": 3500,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

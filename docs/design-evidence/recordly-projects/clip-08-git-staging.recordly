@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-crust-clip-08-git-staging",
+  "videoPath": "../clip-08-git-staging.mp4",
+  "metadata": {
+    "title": "Clip 8: Live Git Changes & Staging Desk",
+    "description": "Live git tracking, unstaged modifications, visual unified diff modal dialog with additions and deletions, and 1-click stage.",
+    "recordedAt": "2026-10-19T14:09:28.632Z",
+    "durationSeconds": 4.4,
+    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+  },
+  "editor": {
+    "wallpaper": "catppuccin-frappe",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#8caaee",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-git-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.18,
+        "focusX": 0.77,
+        "focusY": 0.47
+      },
+      {
+        "id": "zoom-git-diff",
+        "startMs": 800,
+        "endMs": 3500,
+        "scale": 1.08,
+        "focusX": 0.5,
+        "focusY": 0.5
+      },
+      {
+        "id": "zoom-git-out",
+        "startMs": 3500,
+        "endMs": 4200,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}
