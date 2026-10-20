@@ -228,3 +228,31 @@ test('full snapshot preserves live text, thinking, tools, queue and UI requests'
   assert.equal(s.getSnapshot().activeTools?.length, 0);
   await s.close();
 });
+
+test('subsessions are hidden from listSessions by default and discoverable via getSubagents', async () => {
+  const subFile = path.join(sessionsDir, 'timestamp_subagent1.jsonl');
+  fs.writeFileSync(subFile, [
+    { type: 'session', id: 'subagent_01', cwd: process.cwd(), parentSession: sourceFile },
+    { type: 'model_change', id: 'm1', modelId: 'gpt-6-luna' },
+    { type: 'session_info', id: 's1', name: 'reviewer#123' },
+    { type: 'message', id: 'msg1', message: { role: 'assistant', content: 'Subagent finding report' }, usage: { cost: 0.015 } },
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+
+  const r = registry();
+  try {
+    const list = await r.listSessions();
+    assert.ok(list.some((s) => s.id === 'external'), 'external session should be in list');
+    assert.ok(!list.some((s) => s.id === 'subagent_01'), 'subagent session should be excluded from listSessions');
+
+    const subs = await r.getSubagents('external');
+    assert.equal(subs.length, 1);
+    assert.equal(subs[0].id, 'subagent_01');
+    assert.equal(subs[0].name, 'reviewer#123');
+    assert.equal(subs[0].model, 'gpt-6-luna');
+    assert.equal(subs[0].cost, 0.015);
+    assert.equal(subs[0].output, 'Subagent finding report');
+  } finally {
+    if (fs.existsSync(subFile)) fs.unlinkSync(subFile);
+    await r.closeAll();
+  }
+});

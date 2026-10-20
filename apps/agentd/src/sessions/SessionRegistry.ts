@@ -60,7 +60,7 @@ export class SessionRegistry {
     return this.piExecutablePath;
   }
 
-  public async listSessions(query?: string, limit = 50): Promise<SessionSummary[]> {
+  public async listSessions(query?: string, limit = 50, includeSubsessions = false): Promise<SessionSummary[]> {
     const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
     const merged = new Map((await this.index.scan(activeIds)).map((s) => [s.id, s]));
     for (const session of this.sessions.values()) {
@@ -75,9 +75,23 @@ export class SessionRegistry {
     }
     const q = query?.trim().toLowerCase();
     return Array.from(merged.values())
+      .filter((s) => includeSubsessions || !s.isSubsession)
       .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
       .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
+  }
+
+  public async getSubagents(sessionId: string): Promise<Array<{
+    id: string;
+    name: string;
+    model?: string;
+    cost?: number;
+    output: string;
+    status: string;
+    description?: string;
+  }>> {
+    const session = this.getSession(sessionId);
+    return this.index.getSubagents(sessionId, session?.sessionFile);
   }
 
   public async createSession(opts: { cwd?: string; name?: string; announce?: boolean }): Promise<Session> {

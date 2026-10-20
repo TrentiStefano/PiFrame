@@ -21,6 +21,8 @@ export interface SessionSummary {
   messageCount: number;
   lastMessagePreview?: string;
   isActive: boolean;
+  parentSession?: string;
+  isSubsession?: boolean;
 }
 
 export class SessionIndex {
@@ -130,9 +132,14 @@ export class SessionIndex {
   public async listSessions(
     activeSessionIds = new Set<string>(),
     query?: string,
-    limit: number = 50
+    limit: number = 50,
+    includeSubsessions = false
   ): Promise<SessionSummary[]> {
     let list = await this.scan(activeSessionIds);
+
+    if (!includeSubsessions) {
+      list = list.filter((s) => !s.isSubsession);
+    }
 
     if (query && query.trim().length > 0) {
       const q = query.trim().toLowerCase();
@@ -207,6 +214,7 @@ export class SessionIndex {
     let name: string | undefined = sessionId;
     let messageCount = 0;
     let lastMessagePreview: string | undefined;
+    let parentSession: string | undefined;
 
     try {
       // Skip test/temporary projects before reading entire transcripts.
@@ -218,7 +226,10 @@ export class SessionIndex {
       const firstLine = headerBuffer.subarray(0, headerBytes).toString('utf8').split('\n', 1)[0];
       try {
         const header = JSON.parse(firstLine);
-        if (header.type === 'session' && header.cwd && isTemporarySessionCwd(header.cwd)) return null;
+        if (header.type === 'session') {
+          if (header.cwd && isTemporarySessionCwd(header.cwd)) return null;
+          if (header.parentSession) parentSession = header.parentSession;
+        }
       } catch { /* Legacy or incomplete headers use the normal parser below. */ }
 
       const content = fs.readFileSync(filePath, 'utf8');
@@ -229,6 +240,7 @@ export class SessionIndex {
           if (entry.type === 'session') {
             if (entry.id) sessionId = entry.id;
             if (entry.cwd) cwd = entry.cwd;
+            if (entry.parentSession) parentSession = entry.parentSession;
           }
           if (entry.type === 'session_info') name = entry.name;
           if (entry.sessionName) name = entry.sessionName;
@@ -248,6 +260,10 @@ export class SessionIndex {
 
     if (isTemporarySessionCwd(cwd)) return null;
 
+    const isSubsession = Boolean(parentSession) ||
+      Boolean(name && (name.includes('worker#') || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
+      Boolean(sessionId && (sessionId.includes('worker#') || /#([0-9a-fA-F]+)/.test(sessionId) || sessionId.startsWith('subagent')));
+
     return {
       id: sessionId,
       name,
@@ -259,7 +275,84 @@ export class SessionIndex {
       sizeBytes: stat.size,
       messageCount,
       lastMessagePreview,
-      isActive: false
+      isActive: false,
+      parentSession,
+      isSubsession,
     };
+  }
+
+  public async getSubagents(parentSessionId: string, parentSessionFile?: string | null): Promise<Array<{
+    id: string;
+    name: string;
+    model?: string;
+    cost?: number;
+    output: string;
+    status: string;
+    description?: string;
+  }>> {
+    const all = await this.scan();
+    const parentBasename = parentSessionFile ? path.basename(parentSessionFile) : undefined;
+    const children = all.filter((s) =>
+      s.isSubsession &&
+      s.parentSession &&
+      (s.parentSession.includes(parentSessionId) || (parentBasename && s.parentSession.includes(parentBasename)))
+    );
+
+    const result: Array<{
+      id: string;
+      name: string;
+      model?: string;
+      cost?: number;
+      output: string;
+      status: string;
+      description?: string;
+    }> = [];
+
+    for (const child of children) {
+      let output = '';
+      let model: string | undefined;
+      let cost: number | undefined;
+      try {
+        if (child.sessionFile && fs.existsSync(child.sessionFile)) {
+          const lines = fs.readFileSync(child.sessionFile, 'utf8').split('\n').filter(Boolean);
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line);
+              if (entry.type === 'model_change' && entry.modelId) {
+                model = entry.modelId;
+              }
+              if (entry.usage?.cost) {
+                cost = Number(entry.usage.cost);
+              }
+              if (entry.type === 'message' || entry.role) {
+                const msg = entry.message || entry;
+                if (msg.role === 'assistant') {
+                  const content = msg.content;
+                  if (typeof content === 'string') {
+                    output += (output ? '\n' : '') + content;
+                  } else if (Array.isArray(content)) {
+                    for (const b of content) {
+                      if (b.type === 'text' && b.text) output += (output ? '\n' : '') + b.text;
+                    }
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+
+      result.push({
+        id: child.id,
+        name: child.name || child.id,
+        model,
+        cost,
+        output: output.trim() || child.lastMessagePreview || '',
+        status: child.isActive ? 'running' : 'completed',
+        description: child.lastMessagePreview
+      });
+    }
+
+    return result;
   }
 }
