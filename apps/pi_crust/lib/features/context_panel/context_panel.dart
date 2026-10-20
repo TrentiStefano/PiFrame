@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../domain/session/context_pricing_helper.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 
@@ -147,6 +148,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final usage = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.usage),
     );
+    final sessionStats = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.sessionStats),
+    );
     final readOnly = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.readOnly),
     );
@@ -161,10 +165,32 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             : 'Default');
     final currentThinking = currentThinkingLevel ?? 'medium';
 
-    final tokensMap = usage?['tokens'] as Map<String, dynamic>?;
-    final totalTokens = (tokensMap?['total'] as num?)?.toInt() ?? 0;
-    final contextUsage = usage?['contextUsage'] as Map<String, dynamic>?;
+    final tokensMap = (sessionStats?['tokens'] as Map<String, dynamic>?) ??
+        (usage?['tokens'] as Map<String, dynamic>?);
+    final totalTokens = (tokensMap?['total'] as num?)?.toInt() ??
+        (usage?['totalTokens'] as num?)?.toInt() ?? 0;
+    final contextUsage = (sessionStats?['contextUsage'] as Map<String, dynamic>?) ??
+        (usage?['contextUsage'] as Map<String, dynamic>?);
     final percent = (contextUsage?['percent'] as num?)?.toDouble();
+
+    final activeModelMap = _models.firstWhere(
+      (m) =>
+          m['name'] == currentModelName ||
+          m['id'] == currentModelName,
+      orElse: () => _models.isNotEmpty ? _models.first : const {},
+    );
+    final isVariablePricing = hasVariableContextPricing(activeModelMap);
+    final contextSizes = getVariableContextSizes(activeModelMap);
+    final fullWindow = (activeModelMap['contextWindow'] as num?)?.toInt() ?? 1000000;
+    final contextOverride = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.contextWindowOverride),
+    );
+    final effectiveWindow = contextOverride ??
+        (contextUsage?['contextWindow'] as num?)?.toInt() ??
+        fullWindow;
+    final effectivePercent = effectiveWindow > 0
+        ? (totalTokens / effectiveWindow * 100.0)
+        : percent;
 
     return Container(
       width: 320,
@@ -307,7 +333,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                       ),
                 const SizedBox(height: 16),
 
-                // 3. Livello Reasoning / Thinking
+                // 2. Livello Reasoning / Thinking
                 Text(
                   'Livello Thinking',
                   style: TextStyle(
@@ -361,6 +387,90 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 ),
                 const SizedBox(height: 16),
 
+                // 3. Dimensione Contesto (Pricing Variabile: Luna, Haiku...)
+                if (isVariablePricing && contextSizes.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Dimensione Contesto',
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        ),
+                        child: Text(
+                          'Pricing Variabile',
+                          style: TextStyle(
+                            color: tokens.accent,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(
+                        color: tokens.accent.withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        key: const ValueKey(
+                          'context-panel-context-size-dropdown',
+                        ),
+                        isExpanded: true,
+                        borderRadius: BorderRadius.circular(tokens.radiusMd),
+                        dropdownColor: tokens.surfaceElevated,
+                        value: contextSizes.contains(effectiveWindow)
+                            ? effectiveWindow
+                            : (contextSizes.isNotEmpty
+                                  ? contextSizes.first
+                                  : null),
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: 13,
+                          fontFamily: tokens.uiFontFamily,
+                        ),
+                        items: contextSizes.map((size) {
+                          return DropdownMenuItem<int>(
+                            value: size,
+                            child: Text(
+                              formatContextSize(size, fullWindow),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: readOnly
+                            ? null
+                            : (newSize) {
+                                if (newSize != null) {
+                                  sessionNotifier.setContextWindow(newSize);
+                                }
+                              },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 // 4. Finestra di Contesto
                 Text(
                   'Utilizzo Contesto',
@@ -371,16 +481,18 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (percent != null)
+                if (effectivePercent != null)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
                     child: LinearProgressIndicator(
-                      value: (percent / 100.0).clamp(0.0, 1.0),
+                      value: (effectivePercent / 100.0).clamp(0.0, 1.0),
                       backgroundColor: tokens.background,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        percent > 80
+                        effectivePercent > 80
                             ? tokens.danger
-                            : (percent > 60 ? tokens.warning : tokens.success),
+                            : (effectivePercent > 60
+                                  ? tokens.warning
+                                  : tokens.success),
                       ),
                       minHeight: 8,
                     ),
@@ -390,14 +502,14 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      usage == null
+                      usage == null && sessionStats == null
                           ? 'Dati non disponibili'
-                          : '$totalTokens token',
+                          : '$totalTokens / ${formatTokens(effectiveWindow)} token',
                       style: TextStyle(color: tokens.textMuted, fontSize: 11),
                     ),
-                    if (percent != null)
+                    if (effectivePercent != null)
                       Text(
-                        '${percent.toStringAsFixed(1)} %',
+                        '${effectivePercent.toStringAsFixed(1)} %',
                         style: TextStyle(
                           color: tokens.textMuted,
                           fontSize: 11,
