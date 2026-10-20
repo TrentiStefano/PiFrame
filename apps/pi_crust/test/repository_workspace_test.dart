@@ -79,6 +79,7 @@ class _FakeWorkspaceClient extends PcpClient {
         'rootPath': '/repo',
         'files': [
           {'path': 'lib/main.dart', 'sizeBytes': diskContent.length},
+          {'path': 'README.md', 'sizeBytes': 25},
         ],
         'truncated': false,
       },
@@ -93,7 +94,7 @@ class _FakeWorkspaceClient extends PcpClient {
     'data': {
       'rootPath': '/repo',
       'path': path,
-      'content': diskContent,
+      'content': path == 'README.md' ? '# Welcome\nDocumentation file.' : diskContent,
       'revision': diskRevision,
       'sizeBytes': diskContent.length,
     },
@@ -225,7 +226,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('lib/main.dart'), findsOneWidget);
-    expect(find.text('notes.txt'), findsNothing);
+    expect(find.text('notes.txt'), findsOneWidget);
     await tester.tap(find.text('lib/main.dart'));
     await tester.pumpAndSettle();
     expect(client.requestedDiff, 'lib/main.dart');
@@ -236,6 +237,12 @@ void main() {
     await tester.tap(find.byTooltip('Metti in stage lib/main.dart'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'stage');
+
+    expect(find.byTooltip('Metti in stage notes.txt'), findsOneWidget);
+    await tester.tap(find.byTooltip('Metti in stage notes.txt'));
+    await tester.pumpAndSettle();
+    expect(client.gitActions.last['action'], 'stage');
+    expect(client.gitActions.last['paths'], ['notes.txt']);
 
     await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
     await tester.pumpAndSettle();
@@ -483,4 +490,83 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'RepositoryPane renders .md files in formatted preview by default and toggles to editor',
+    (tester) async {
+      final client = _FakeWorkspaceClient();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pcpClientProvider.overrideWithValue(client),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state =
+                    const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [CrustTokens.light],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: RepositoryPane(sessionId: 'session-a'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open README.md
+      expect(find.text('README.md'), findsOneWidget);
+      await tester.tap(find.text('README.md'));
+      await tester.pumpAndSettle();
+
+      // In preview mode by default: preview widget is present, raw editor TextField is absent
+      expect(
+        find.byKey(const ValueKey('repository-md-preview-README.md')),
+        findsOneWidget,
+      );
+      expect(find.text('Welcome'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsNothing,
+      );
+
+      // Markdown toggle button is visible
+      final toggleBtn = find.byKey(const ValueKey('repository-markdown-toggle-btn'));
+      expect(toggleBtn, findsOneWidget);
+
+      // Tap toggle button to switch to raw editor
+      await tester.tap(toggleBtn);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('repository-md-preview-README.md')),
+        findsNothing,
+      );
+
+      // Tap toggle button again to return to preview mode
+      await tester.tap(toggleBtn);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('repository-md-preview-README.md')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('repository-editor-session-a')),
+        findsNothing,
+      );
+    },
+  );
 }
+
