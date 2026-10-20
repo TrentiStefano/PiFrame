@@ -43,16 +43,18 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown> {
       }
     }
 
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return Container(
       key: const ValueKey('subagents-popdown-panel'),
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+      margin: EdgeInsets.fromLTRB(isMobile ? 14 : 8, 0, isMobile ? 14 : 8, 6),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(color: tokens.borderStrong, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
+            color: tokens.overlay.withValues(alpha: 0.18),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

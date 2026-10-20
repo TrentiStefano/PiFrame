@@ -98,6 +98,7 @@ void main() {
         overrides: [
           daemonEndpointProvider.overrideWith((ref) async => null),
           themeRepositoryProvider.overrideWithValue(repository),
+          themeStorageProvider.overrideWithValue(MemoryThemeStorage('crust-light')),
         ],
         child: Consumer(
           builder: (context, ref, _) => MaterialApp(
@@ -129,7 +130,7 @@ void main() {
 
     await tester.tap(find.text('ASPETTO'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byKey(const ValueKey('settings-theme-dropdown')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Catppuccin Frappé (dark)').last);
     await tester.pumpAndSettle();

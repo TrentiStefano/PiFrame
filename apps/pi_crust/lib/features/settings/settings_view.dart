@@ -861,6 +861,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
+                                    key: const ValueKey('settings-theme-dropdown'),
                                     isExpanded: true,
                                     borderRadius: BorderRadius.circular(
                                       tokens.radiusMd,

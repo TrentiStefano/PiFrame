@@ -267,6 +267,6 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
   }
 }
 
-final todosFamily = StateNotifierProvider.family<TodoNotifier, List<TodoItem>, String>(
+final todosFamily = StateNotifierProvider.autoDispose.family<TodoNotifier, List<TodoItem>, String>(
   (ref, sessionId) => TodoNotifier(ref, sessionId),
 );

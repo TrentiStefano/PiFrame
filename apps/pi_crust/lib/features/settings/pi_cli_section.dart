@@ -683,7 +683,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     if (isMcpCard) {
       return Material(
         key: const ValueKey('pi-cli-card-pi-mcp-list'),
-        color: Colors.transparent,
+        type: MaterialType.transparency,
         child: Tooltip(
           message: 'Clicca sulla scheda per visualizzare e abilitare/disabilitare i server MCP',
           child: InkWell(

@@ -266,9 +266,11 @@ export class SessionIndex {
 
     if (isTemporarySessionCwd(cwd)) return null;
 
-    const isSubsession = Boolean(parentSession) ||
-      Boolean(name && (name.includes('worker#') || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
-      Boolean(sessionId && (sessionId.includes('worker#') || /#([0-9a-fA-F]+)/.test(sessionId) || sessionId.startsWith('subagent')));
+    const isSubagentNameOrId =
+      Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
+      Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
+
+    const isSubsession = Boolean(parentSession && isSubagentNameOrId);
 
     return {
       id: sessionId,

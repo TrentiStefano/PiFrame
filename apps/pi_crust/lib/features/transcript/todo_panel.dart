@@ -46,17 +46,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     final inProgressCount = todos.where((t) => t.isInProgress).length;
     final totalCount = todos.length;
     final percent = totalCount > 0 ? (completedCount / totalCount) : 0.0;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
 
     return Container(
       key: const ValueKey('todo-popdown-panel'),
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      margin: EdgeInsets.fromLTRB(isMobile ? 14 : 8, 0, isMobile ? 14 : 8, 8),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(color: tokens.borderStrong),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: tokens.overlay.withValues(alpha: 0.15),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

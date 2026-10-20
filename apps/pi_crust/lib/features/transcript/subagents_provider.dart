@@ -83,16 +83,27 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   void _init() {
     _syncFromSessionState();
     _fetchFromDaemon();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _syncFromSessionState();
-      _fetchFromDaemon();
-      _readOutputFiles();
-    });
+    _checkTimer();
+  }
+
+  void _checkTimer() {
+    final hasActive = state.any((s) => s.status == 'running');
+    if (hasActive) {
+      _refreshTimer ??= Timer.periodic(const Duration(seconds: 2), (_) {
+        _syncFromSessionState();
+        _fetchFromDaemon();
+        _readOutputFiles();
+      });
+    } else {
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
+    }
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _refreshTimer = null;
     super.dispose();
   }
 
@@ -153,6 +164,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       }
 
       state = itemsMap.values.toList();
+      _checkTimer();
     } catch (_) {}
   }
 
@@ -198,6 +210,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       }
 
       state = itemsMap.values.toList();
+      _checkTimer();
     } catch (_) {}
   }
 
@@ -354,6 +367,6 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   }
 }
 
-final subagentsFamily = StateNotifierProvider.family<SubagentsNotifier, List<SubagentItem>, String>(
+final subagentsFamily = StateNotifierProvider.autoDispose.family<SubagentsNotifier, List<SubagentItem>, String>(
   (ref, sessionId) => SubagentsNotifier(ref, sessionId),
 );

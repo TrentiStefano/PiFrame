@@ -499,36 +499,53 @@ class RichContent extends StatefulWidget {
         }
         if (m.type == _InlineType.code) {
           final isFile = isLikelyFilePath(m.text);
+          if (!isFile) {
+            spans.add(
+              TextSpan(
+                text: m.text,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  backgroundColor: tokens.surfaceElevated,
+                  fontFamily: tokens.monoFontFamily,
+                  fontSize: 12,
+                ),
+              ),
+            );
+            lastEnd = m.end;
+            continue;
+          }
+
           Widget codeWidget = Container(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
             margin: const EdgeInsets.symmetric(horizontal: 2),
+            constraints: const BoxConstraints(maxWidth: 320),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
               borderRadius: BorderRadius.circular(tokens.radiusSm),
               border: Border.all(
-                color: isFile
-                    ? tokens.accent.withValues(alpha: 0.5)
-                    : tokens.border,
+                color: tokens.accent.withValues(alpha: 0.5),
                 width: 1,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (isFile) ...[
-                  Icon(
-                    Icons.insert_drive_file_outlined,
-                    size: 11,
-                    color: tokens.accent,
-                  ),
-                  const SizedBox(width: 3),
-                ],
-                Text(
-                  m.text,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontFamily: tokens.monoFontFamily,
-                    fontSize: 12,
+                Icon(
+                  Icons.insert_drive_file_outlined,
+                  size: 11,
+                  color: tokens.accent,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    m.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontFamily: tokens.monoFontFamily,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
