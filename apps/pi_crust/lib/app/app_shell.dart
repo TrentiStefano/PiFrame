@@ -26,6 +26,8 @@ import '../features/settings/updates_watcher.dart';
 import '../data/update/update_providers.dart';
 import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
+import '../data/pi_install/pi_install_service.dart';
+import '../features/dialogs/pi_install_dialog.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -113,6 +115,19 @@ class _AppShellState extends ConsumerState<AppShell>
         unawaited(windowManager.setPreventClose(true));
       }
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFirstRunPiInstall();
+    });
+  }
+
+  Future<void> _checkFirstRunPiInstall() async {
+    final service = ref.read(piInstallServiceProvider);
+    final isFirst = await service.isFirstRun();
+    if (!isFirst || !mounted) return;
+    final isInstalled = await service.isPiInstalled();
+    if (!isInstalled && mounted) {
+      await PiInstallDialog.show(context);
+    }
   }
 
   @override
@@ -132,6 +147,14 @@ class _AppShellState extends ConsumerState<AppShell>
     } else {
       ref.read(appFocusProvider.notifier).state = false;
     }
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    ref.read(activeThemeSpecProvider.notifier).onPlatformBrightnessChanged(
+      WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
   }
 
   @override
