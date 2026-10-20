@@ -10,6 +10,7 @@ import 'package:file_selector/file_selector.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
+import '../../domain/session/context_pricing_helper.dart';
 import 'attachment_chips.dart';
 import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
@@ -50,6 +51,18 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _isHovered = false;
   Timer? _hoverGraceTimer;
   bool _hasText = false;
+  bool _isInputEnlarged = false;
+  List<Map<String, dynamic>> _models = [];
+
+  Future<void> _loadModels() async {
+    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    final models = await notifier.getAvailableModels();
+    if (mounted) {
+      setState(() {
+        _models = models;
+      });
+    }
+  }
 
   void _onFocusChanged() {
     if (mounted) setState(() {});
@@ -172,6 +185,7 @@ class _ComposerState extends ConsumerState<Composer> {
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _loadCommands();
+    _loadModels();
   }
 
   Future<void> _loadCommands() async {
@@ -736,6 +750,76 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
+  Future<void> _showContextSizePicker(
+    BuildContext chipContext,
+    Map<String, dynamic> activeModel,
+  ) async {
+    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    final contextSizes = getVariableContextSizes(activeModel);
+    final fullWindow =
+        (activeModel['contextWindow'] as num?)?.toInt() ?? 1000000;
+    if (contextSizes.isEmpty || !mounted || !chipContext.mounted) return;
+
+    final tokens = context.tokens;
+    final currentOverride = ref
+        .read(sessionStateFamily(widget.sessionId))
+        .contextWindowOverride;
+    final effectiveSize = currentOverride ?? fullWindow;
+
+    final renderBox = chipContext.findRenderObject() as RenderBox?;
+    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+
+    final selected = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        (offset.dy - (contextSizes.length * 36).toDouble() - 10).clamp(
+          40.0,
+          double.infinity,
+        ),
+        offset.dx + 240,
+        offset.dy,
+      ),
+      color: tokens.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        side: BorderSide(color: tokens.borderStrong),
+      ),
+      items: contextSizes.map((size) {
+        final isCurrent = size == effectiveSize;
+        return PopupMenuItem<int>(
+          value: size,
+          height: 34,
+          child: Row(
+            children: [
+              Icon(
+                Icons.data_usage_outlined,
+                size: 14,
+                color: isCurrent ? tokens.accent : tokens.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  formatContextSize(size, fullWindow),
+                  style: TextStyle(
+                    color: isCurrent ? tokens.accent : tokens.textPrimary,
+                    fontSize: 12,
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (isCurrent) Icon(Icons.check, size: 14, color: tokens.accent),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+
+    if (selected != null && mounted) {
+      await notifier.setContextWindow(selected);
+    }
+  }
+
   Widget _buildAttachButton(CrustTokens tokens) {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
@@ -882,6 +966,7 @@ class _ComposerState extends ConsumerState<Composer> {
       activeToolCallsNotEmpty,
       currentModel,
       currentThinkingLevel,
+      contextOverride,
     ) = ref.watch(
       sessionStateFamily(widget.sessionId).select(
         (s) => (
@@ -895,6 +980,7 @@ class _ComposerState extends ConsumerState<Composer> {
           s.activeToolCalls.isNotEmpty,
           s.currentModel,
           s.currentThinkingLevel,
+          s.contextWindowOverride,
         ),
       ),
     );
@@ -974,6 +1060,20 @@ class _ComposerState extends ConsumerState<Composer> {
     }
     final isError = agentStatus == AgentStatus.workerError;
     final totalQueued = steeringQueue.length + followUpQueue.length;
+
+    final activeModelMap = _models.firstWhere(
+      (m) => m['name'] == currentModel || m['id'] == currentModel,
+      orElse: () => _models.isNotEmpty ? _models.first : const {},
+    );
+    final isVariablePricing = hasVariableContextPricing(activeModelMap) ||
+        (currentModel != null &&
+            (currentModel.toLowerCase().contains('luna') ||
+                currentModel.toLowerCase().contains('haiku')));
+    final effectiveContextWindow = contextOverride ??
+        (activeModelMap['contextWindow'] as num?)?.toInt() ??
+        1000000;
+    final isLongPrompt =
+        _controller.text.length > 80 || _controller.text.contains('\n');
 
     final pendingInteractionRequests = pendingUiRequests.where((r) {
       final method = r['method']?.toString();
@@ -1456,33 +1556,118 @@ class _ComposerState extends ConsumerState<Composer> {
                                           )
                                           .remove(a.id),
                                     ),
-                                  TextField(
-                                    key: const ValueKey('composer-text-field'),
-                                    cursorColor: tokens.accent,
-                                    controller: _controller,
-                                    focusNode: _focusNode,
-                                    maxLines: 5,
-                                    minLines: 2,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 14.5,
-                                      height: 1.45,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: isStreaming
-                                          ? 'Aggiungi istruzioni o prepara il prossimo turno...'
-                                          : 'Cosa vuoi realizzare? Digita / per i comandi.',
-                                      hintStyle: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 13.5,
+                                  Stack(
+                                    children: [
+                                      TextField(
+                                        key: const ValueKey('composer-text-field'),
+                                        cursorColor: tokens.accent,
+                                        controller: _controller,
+                                        focusNode: _focusNode,
+                                        maxLines: _isInputEnlarged ? 16 : 5,
+                                        minLines: _isInputEnlarged ? 8 : 2,
+                                        onChanged: (_) {
+                                          if (mounted) setState(() {});
+                                        },
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 14.5,
+                                          height: 1.45,
+                                        ),
+                                        decoration: InputDecoration(
+                                          hintText: isStreaming
+                                              ? 'Aggiungi istruzioni o prepara il prossimo turno...'
+                                              : 'Cosa vuoi realizzare? Digita / per i comandi.',
+                                          hintStyle: TextStyle(
+                                            color: tokens.textMuted,
+                                            fontSize: 13.5,
+                                          ),
+                                          filled: false,
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          contentPadding: EdgeInsets.fromLTRB(
+                                            4,
+                                            2,
+                                            (isLongPrompt || _isInputEnlarged)
+                                                ? 80
+                                                : 4,
+                                            6,
+                                          ),
+                                        ),
                                       ),
-                                      filled: false,
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      contentPadding:
-                                          const EdgeInsets.fromLTRB(4, 2, 4, 6),
-                                    ),
+                                      if (isLongPrompt || _isInputEnlarged)
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: Tooltip(
+                                            message: _isInputEnlarged
+                                                ? 'Riduci area di testo'
+                                                : 'Ingrandisci area di testo',
+                                            child: InkWell(
+                                              key: const ValueKey(
+                                                'composer-enlarge-prompt-btn',
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    tokens.radiusSm,
+                                                  ),
+                                              onTap: () => setState(
+                                                () => _isInputEnlarged =
+                                                    !_isInputEnlarged,
+                                              ),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 3,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: tokens.surfaceElevated,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        tokens.radiusSm,
+                                                      ),
+                                                  border: Border.all(
+                                                    color: _isInputEnlarged
+                                                        ? tokens.accent
+                                                        : tokens.border,
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      _isInputEnlarged
+                                                          ? Icons.close_fullscreen
+                                                          : Icons.open_in_full,
+                                                      size: 11,
+                                                      color: _isInputEnlarged
+                                                          ? tokens.accent
+                                                          : tokens.textSecondary,
+                                                    ),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      _isInputEnlarged
+                                                          ? 'Riduci'
+                                                          : 'Ingrandisci',
+                                                      style: TextStyle(
+                                                        color: _isInputEnlarged
+                                                            ? tokens.accent
+                                                            : tokens.textSecondary,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(height: 4),
                                   Row(
@@ -1666,10 +1851,125 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 ),
                                               ),
                                             ),
+                                            if (isVariablePricing) ...[
+                                              const SizedBox(width: 4),
+                                              Builder(
+                                                builder: (chipCtx) => Tooltip(
+                                                  message:
+                                                      'Dimensione contesto (pricing variabile)',
+                                                  child: InkWell(
+                                                    key: const ValueKey(
+                                                      'composer-context-size-picker-btn',
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                    onTap: () =>
+                                                        _showContextSizePicker(
+                                                          chipCtx,
+                                                          activeModelMap,
+                                                        ),
+                                                    child: Container(
+                                                      height: 26,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 7,
+                                                            vertical: 3,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            tokens
+                                                                .surfaceElevated,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              tokens.radiusSm,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: tokens.accent
+                                                              .withValues(
+                                                                alpha: 0.35,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.tune,
+                                                            size: 12,
+                                                            color:
+                                                                tokens.accent,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 3,
+                                                          ),
+                                                          Text(
+                                                            formatTokens(
+                                                              effectiveContextWindow,
+                                                            ),
+                                                            style: TextStyle(
+                                                              color:
+                                                                  tokens.accent,
+                                                              fontSize: 10.5,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 2,
+                                                          ),
+                                                          Icon(
+                                                            Icons
+                                                                .keyboard_arrow_down,
+                                                            size: 12,
+                                                            color:
+                                                                tokens
+                                                                    .textMuted,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
                                     ),
+                                      Tooltip(
+                                        message: _isInputEnlarged
+                                            ? 'Riduci area di testo'
+                                            : 'Ingrandisci area di testo',
+                                        child: IconButton(
+                                          key: const ValueKey(
+                                            'composer-enlarge-toggle-btn',
+                                          ),
+                                          icon: Icon(
+                                            _isInputEnlarged
+                                                ? Icons.close_fullscreen
+                                                : Icons.open_in_full,
+                                            size: 15,
+                                            color: (_isInputEnlarged || isLongPrompt)
+                                                ? tokens.accent
+                                                : tokens.textMuted,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                            minWidth: 28,
+                                            minHeight: 28,
+                                          ),
+                                          onPressed: () => setState(
+                                            () => _isInputEnlarged =
+                                                !_isInputEnlarged,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
                                       _buildAttachButton(tokens),
                                       const SizedBox(width: 4),
                                       if (isStreaming ||
