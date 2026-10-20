@@ -18,6 +18,8 @@ import 'rich_content.dart';
 import 'thinking_block.dart';
 import 'subagent_panel.dart';
 import 'subagents_provider.dart';
+import 'todo_panel.dart';
+import 'todo_provider.dart';
 
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
@@ -69,6 +71,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int? _cachedHeaderSubagentCount;
   bool? _cachedHeaderSubagentsExpanded;
   bool _subagentsExpanded = true;
+  int? _cachedHeaderTodoCount;
+  bool? _cachedHeaderTodosExpanded;
+  bool _todosExpanded = true;
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -486,12 +491,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             final currentUsage =
                 currentStats?['contextUsage'] as Map? ??
                 currentSession.usage?['contextUsage'] as Map?;
-            final pct = (currentUsage?['percent'] as num?)?.toDouble() ?? 0.0;
             final tokensUsed =
                 currentUsage?['tokens'] ??
                 currentSession.usage?['totalTokens'] ??
                 '—';
-            final maxWindow = currentUsage?['contextWindow'] ?? '—';
+            final maxWindow = currentSession.contextWindowOverride ?? currentUsage?['contextWindow'] ?? '—';
+            final pct = (currentSession.contextWindowOverride != null && tokensUsed is num && currentSession.contextWindowOverride! > 0)
+                ? (tokensUsed.toDouble() / currentSession.contextWindowOverride! * 100.0)
+                : ((currentUsage?['percent'] as num?)?.toDouble() ?? 0.0);
             final inTokens =
                 currentSession.usage?['inputTokens'] ??
                 currentStats?['inputTokens'] ??
@@ -703,14 +710,20 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final contextUsage =
         stats?['contextUsage'] as Map? ??
         sessionState.usage?['contextUsage'] as Map?;
-    final contextPercent = contextUsage?['percent'] as num?;
-    final contextWindow = contextUsage?['contextWindow'];
+    final effectiveContextWindow = sessionState.contextWindowOverride ?? contextUsage?['contextWindow'];
+    final effectiveTokens = contextUsage?['tokens'] ?? sessionState.usage?['totalTokens'];
+    final effectivePercent = (sessionState.contextWindowOverride != null && effectiveTokens is num && sessionState.contextWindowOverride! > 0)
+        ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
+        : (contextUsage?['percent'] as num?);
     final contextLabel = contextUsage == null
         ? 'non disponibile'
-        : contextPercent == null
-        ? 'post-compattazione · —/${_formatTokens(contextWindow)}'
-        : '${contextPercent.toStringAsFixed(1)}% · ${_formatTokens(contextUsage['tokens'])}/${_formatTokens(contextWindow)}';
-    final cost = stats?['cost'] as num?;
+        : effectivePercent == null
+        ? 'post-compattazione · —/${_formatTokens(effectiveContextWindow)}'
+        : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
+    final cost = (stats?['cost'] as num?) ??
+        (sessionState.usage?['cost'] is Map
+            ? (sessionState.usage!['cost']['total'] as num?)
+            : (sessionState.usage?['cost'] as num?));
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
@@ -786,6 +799,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
 
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
+    final todos = ref.watch(todosFamily(widget.sessionId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -800,7 +814,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           cost,
           extensionStatuses,
           subagents,
+          todos,
         ),
+        if (_todosExpanded && todos.isNotEmpty)
+          TodoPopDown(
+            sessionId: widget.sessionId,
+            onClose: () => setState(() => _todosExpanded = false),
+          ),
         if (_subagentsExpanded && subagents.isNotEmpty)
           SubagentsPopDown(
             sessionId: widget.sessionId,
@@ -991,6 +1011,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     num? cost,
     List<MapEntry<String, dynamic>> extensionStatuses,
     List<SubagentItem> subagents,
+    List<TodoItem> todos,
   ) {
     final effectiveSessionName = sessionState.sessionName ?? widget.sessionId;
     if (_cachedBentoHeader != null &&
@@ -1006,7 +1027,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         identical(_cachedHeaderTokens, tokens) &&
         _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses) &&
         _cachedHeaderSubagentCount == subagents.length &&
-        _cachedHeaderSubagentsExpanded == _subagentsExpanded) {
+        _cachedHeaderSubagentsExpanded == _subagentsExpanded &&
+        _cachedHeaderTodoCount == todos.length &&
+        _cachedHeaderTodosExpanded == _todosExpanded) {
       return _cachedBentoHeader!;
     }
 
@@ -1023,6 +1046,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderExtStatuses = extensionStatuses;
     _cachedHeaderSubagentCount = subagents.length;
     _cachedHeaderSubagentsExpanded = _subagentsExpanded;
+    _cachedHeaderTodoCount = todos.length;
+    _cachedHeaderTodosExpanded = _todosExpanded;
 
     _cachedBentoHeader = Container(
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
@@ -1272,6 +1297,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     iconColor: tokens.syntaxKeyword,
                   ),
                 ],
+                if (todos.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _todoChip(
+                    tokens,
+                    todos,
+                    _todosExpanded,
+                    onTap: () {
+                      setState(() {
+                        _todosExpanded = !_todosExpanded;
+                      });
+                    },
+                  ),
+                ],
                 if (subagents.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   _subagentChip(
@@ -1292,6 +1330,66 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       ),
     );
     return _cachedBentoHeader!;
+  }
+
+  Widget _todoChip(
+    CrustTokens tokens,
+    List<TodoItem> todos,
+    bool isExpanded, {
+    required VoidCallback onTap,
+  }) {
+    final completedCount = todos.where((t) => t.isCompleted).length;
+    final inProgressCount = todos.where((t) => t.isInProgress).length;
+    final color = inProgressCount > 0 ? tokens.syntaxFunction : tokens.syntaxKeyword;
+
+    return InkWell(
+      key: const ValueKey('todos-header-chip'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(tokens.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isExpanded ? 0.2 : 0.1),
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(
+            color: color.withValues(alpha: isExpanded ? 0.6 : 0.3),
+            width: isExpanded ? 1.2 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.checklist_rounded, size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'Attività ($completedCount/${todos.length})',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (inProgressCount > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: tokens.syntaxFunction,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+            const SizedBox(width: 2),
+            Icon(
+              isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              size: 14,
+              color: tokens.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _subagentChip(
@@ -1360,13 +1458,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     String liveText,
     bool hasActiveTools,
   ) {
+    final hasLiveThinking = liveThinking.isNotEmpty ||
+        sessionState.agentStatus == AgentStatus.working;
+    final hasLiveText = liveText.isNotEmpty;
+    final hasLoadingIndicator = sessionState.agentStatus == AgentStatus.working &&
+        liveThinking.isEmpty &&
+        !hasActiveTools;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (liveThinking.isNotEmpty ||
-              sessionState.agentStatus == AgentStatus.working)
+          if (hasLiveThinking) ...[
             ThinkingBlock(
               key: ValueKey('thinking_live_${widget.sessionId}'),
               thinkingText: liveThinking,
@@ -1384,11 +1488,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 });
               },
             ),
-          if (hasActiveTools)
+            if (hasActiveTools || hasLiveText || hasLoadingIndicator)
+              const SizedBox(height: 6),
+          ],
+          if (hasActiveTools) ...[
             ToolTimeline(
               toolCalls: sessionState.activeToolCalls.values.toList(),
             ),
-          if (liveText.isNotEmpty)
+            if (hasLiveText || hasLoadingIndicator)
+              const SizedBox(height: 6),
+          ],
+          if (hasLiveText) ...[
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -1397,10 +1507,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 border: Border.all(color: tokens.borderStrong),
               ),
               child: RichContent(text: liveText, cwd: sessionState.cwd),
-            )
-          else if (sessionState.agentStatus == AgentStatus.working &&
-              liveThinking.isEmpty &&
-              !hasActiveTools)
+            ),
+            const SizedBox(height: 6),
+          ] else if (hasLoadingIndicator) ...[
             Row(
               children: [
                 SizedBox(
@@ -1422,6 +1531,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+          ],
           // Seconds counter for live turn taking >= 5s
           _LiveTurnTimerWidget(
             startTime: _liveTurnStartTime,
@@ -1591,13 +1702,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
 
     // Assistant entry
+    final isToolOnly = entry.text.isEmpty &&
+        (entry.toolCalls.isNotEmpty ||
+            (entry.thinking != null && entry.thinking!.isNotEmpty));
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: EdgeInsets.only(bottom: isToolOnly ? 6 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Thinking block if present
-          if (entry.thinking != null && entry.thinking!.isNotEmpty)
+          if (entry.thinking != null && entry.thinking!.isNotEmpty) ...[
             ThinkingBlock(
               key: ValueKey('thinking_${entry.id}'),
               thinkingText: entry.thinking!,
@@ -1612,10 +1726,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 });
               },
             ),
+            if (entry.toolCalls.isNotEmpty || entry.text.isNotEmpty)
+              const SizedBox(height: 6),
+          ],
 
           // Tool calls timeline if present
-          if (entry.toolCalls.isNotEmpty)
+          if (entry.toolCalls.isNotEmpty) ...[
             ToolTimeline(toolCalls: entry.toolCalls),
+            if (entry.text.isNotEmpty)
+              const SizedBox(height: 6),
+          ],
 
           // Message content
           if (entry.text.isNotEmpty)
@@ -1649,9 +1769,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                           if (elapsedSeconds != null &&
                               elapsedSeconds >= 5) ...[
-                            const SizedBox(width: 8),
                             Container(
                               key: ValueKey('entry_timer_${entry.id}'),
                               padding: const EdgeInsets.symmetric(
@@ -1696,8 +1820,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 6),
                           ] else if (timeoutSeconds != null) ...[
-                            const SizedBox(width: 8),
                             Container(
                               key: ValueKey('entry_timeout_${entry.id}'),
                               padding: const EdgeInsets.symmetric(
@@ -1719,25 +1843,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 6),
                           ],
-                        ],
-                      ),
-                      IconButton(
-                        tooltip: 'Copia messaggio',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: entry.text));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Messaggio copiato negli appunti'),
-                              duration: Duration(seconds: 1),
+                          IconButton(
+                            tooltip: 'Copia messaggio',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: entry.text));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Messaggio copiato negli appunti'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                            icon: Icon(
+                              Icons.copy_outlined,
+                              size: 16,
+                              color: tokens.textMuted,
                             ),
-                          );
-                        },
-                        icon: Icon(
-                          Icons.copy_outlined,
-                          size: 16,
-                          color: tokens.textMuted,
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
