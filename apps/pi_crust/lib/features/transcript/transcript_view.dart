@@ -16,6 +16,8 @@ import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
+import 'subagent_panel.dart';
+import 'subagents_provider.dart';
 
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
@@ -64,6 +66,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   bool? _cachedHeaderIsCompact;
   CrustTokens? _cachedHeaderTokens;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
+  int? _cachedHeaderSubagentCount;
+  bool? _cachedHeaderSubagentsExpanded;
+  bool _subagentsExpanded = true;
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -780,6 +785,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       });
     }
 
+    final subagents = ref.watch(subagentsFamily(widget.sessionId));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -792,7 +799,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           stats,
           cost,
           extensionStatuses,
+          subagents,
         ),
+        if (_subagentsExpanded && subagents.isNotEmpty)
+          SubagentsPopDown(
+            sessionId: widget.sessionId,
+            onClose: () => setState(() => _subagentsExpanded = false),
+          ),
         Expanded(
           child: Stack(
             children: [
@@ -977,6 +990,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     Map? stats,
     num? cost,
     List<MapEntry<String, dynamic>> extensionStatuses,
+    List<SubagentItem> subagents,
   ) {
     final effectiveSessionName = sessionState.sessionName ?? widget.sessionId;
     if (_cachedBentoHeader != null &&
@@ -990,7 +1004,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _cachedHeaderIsRenaming == _isRenaming &&
         _cachedHeaderIsCompact == isCompact &&
         identical(_cachedHeaderTokens, tokens) &&
-        _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses)) {
+        _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses) &&
+        _cachedHeaderSubagentCount == subagents.length &&
+        _cachedHeaderSubagentsExpanded == _subagentsExpanded) {
       return _cachedBentoHeader!;
     }
 
@@ -1005,6 +1021,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderIsCompact = isCompact;
     _cachedHeaderTokens = tokens;
     _cachedHeaderExtStatuses = extensionStatuses;
+    _cachedHeaderSubagentCount = subagents.length;
+    _cachedHeaderSubagentsExpanded = _subagentsExpanded;
 
     _cachedBentoHeader = Container(
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
@@ -1254,6 +1272,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     iconColor: tokens.syntaxKeyword,
                   ),
                 ],
+                if (subagents.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _subagentChip(
+                    tokens,
+                    subagents,
+                    _subagentsExpanded,
+                    onTap: () {
+                      setState(() {
+                        _subagentsExpanded = !_subagentsExpanded;
+                      });
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -1261,6 +1292,65 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       ),
     );
     return _cachedBentoHeader!;
+  }
+
+  Widget _subagentChip(
+    CrustTokens tokens,
+    List<SubagentItem> subagents,
+    bool isExpanded, {
+    required VoidCallback onTap,
+  }) {
+    final runningCount = subagents.where((s) => s.isRunning).length;
+    final color = runningCount > 0 ? tokens.syntaxKeyword : tokens.syntaxFunction;
+
+    return InkWell(
+      key: const ValueKey('subagents-header-chip'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(tokens.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isExpanded ? 0.2 : 0.1),
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(
+            color: color.withValues(alpha: isExpanded ? 0.6 : 0.3),
+            width: isExpanded ? 1.2 : 1.0,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hub_outlined, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'Subagenti (${subagents.length})',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (runningCount > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: tokens.syntaxKeyword,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+            const SizedBox(width: 2),
+            Icon(
+              isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              size: 14,
+              color: tokens.textMuted,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLiveStream(

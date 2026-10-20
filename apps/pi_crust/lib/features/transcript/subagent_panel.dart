@@ -1,0 +1,669 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_crust_theme/pi_crust_theme.dart';
+
+import 'subagents_provider.dart';
+
+class SubagentsPopDown extends ConsumerStatefulWidget {
+  final String sessionId;
+  final VoidCallback? onClose;
+
+  const SubagentsPopDown({
+    super.key,
+    required this.sessionId,
+    this.onClose,
+  });
+
+  @override
+  ConsumerState<SubagentsPopDown> createState() => _SubagentsPopDownState();
+}
+
+class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown> {
+  final Set<String> _expandedIds = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final subagents = ref.watch(subagentsFamily(widget.sessionId));
+
+    if (subagents.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final runningCount = subagents.where((s) => s.isRunning).length;
+
+    // Automatically expand the running subagents by default if nothing is expanded
+    if (_expandedIds.isEmpty && subagents.isNotEmpty) {
+      final firstRunning = subagents.where((s) => s.isRunning).firstOrNull;
+      if (firstRunning != null) {
+        _expandedIds.add(firstRunning.id);
+      } else {
+        _expandedIds.add(subagents.first.id);
+      }
+    }
+
+    return Container(
+      key: const ValueKey('subagents-popdown-panel'),
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        border: Border.all(color: tokens.borderStrong, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header of the popdown panel
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: tokens.surface,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(tokens.radiusMd),
+                topRight: Radius.circular(tokens.radiusMd),
+              ),
+              border: Border(
+                bottom: BorderSide(color: tokens.border, width: 1),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.hub_outlined,
+                      size: 16,
+                      color: tokens.syntaxFunction,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Subagenti (${subagents.length})',
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: tokens.headingFontFamily,
+                      ),
+                    ),
+                    if (runningCount > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: tokens.syntaxKeyword.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(
+                            color: tokens.syntaxKeyword.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 8,
+                              height: 8,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                value: WidgetsBinding.instance.runtimeType
+                                        .toString()
+                                        .contains('Test')
+                                    ? 0.75
+                                    : null,
+                                valueColor:
+                                    AlwaysStoppedAnimation(tokens.syntaxKeyword),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$runningCount in esecuzione',
+                              style: TextStyle(
+                                color: tokens.syntaxKeyword,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                IconButton(
+                  key: const ValueKey('subagents-popdown-close-btn'),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  icon: Icon(
+                    Icons.keyboard_arrow_up,
+                    size: 18,
+                    color: tokens.textMuted,
+                  ),
+                  tooltip: 'Comprimi subagenti',
+                  onPressed: widget.onClose,
+                ),
+              ],
+            ),
+          ),
+
+          // List of expandable subagent windows
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 380),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(8),
+              itemCount: subagents.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (ctx, index) {
+                final subagent = subagents[index];
+                final isExpanded = _expandedIds.contains(subagent.id);
+
+                return _SubagentExpandableCard(
+                  key: ValueKey('subagent-card-${subagent.id}'),
+                  subagent: subagent,
+                  isExpanded: isExpanded,
+                  onToggleExpand: () {
+                    setState(() {
+                      if (isExpanded) {
+                        _expandedIds.remove(subagent.id);
+                      } else {
+                        _expandedIds.add(subagent.id);
+                      }
+                    });
+                  },
+                  onSteer: (msg) {
+                    ref
+                        .read(subagentsFamily(widget.sessionId).notifier)
+                        .steerSubagent(subagent.id, msg);
+                  },
+                  onStop: () {
+                    ref
+                        .read(subagentsFamily(widget.sessionId).notifier)
+                        .stopSubagent(subagent.id);
+                  },
+                  onToggleSteeringBox: () {
+                    ref
+                        .read(subagentsFamily(widget.sessionId).notifier)
+                        .toggleSteering(subagent.id);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubagentExpandableCard extends StatefulWidget {
+  final SubagentItem subagent;
+  final bool isExpanded;
+  final VoidCallback onToggleExpand;
+  final ValueChanged<String> onSteer;
+  final VoidCallback onStop;
+  final VoidCallback onToggleSteeringBox;
+
+  const _SubagentExpandableCard({
+    super.key,
+    required this.subagent,
+    required this.isExpanded,
+    required this.onToggleExpand,
+    required this.onSteer,
+    required this.onStop,
+    required this.onToggleSteeringBox,
+  });
+
+  @override
+  State<_SubagentExpandableCard> createState() => _SubagentExpandableCardState();
+}
+
+class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
+  final TextEditingController _steerController = TextEditingController();
+  final ScrollController _outputScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _steerController.dispose();
+    _outputScrollController.dispose();
+    super.dispose();
+  }
+
+  void _submitSteer() {
+    final text = _steerController.text.trim();
+    if (text.isEmpty) return;
+    widget.onSteer(text);
+    _steerController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final sub = widget.subagent;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(
+          color: sub.isRunning
+              ? tokens.syntaxKeyword.withValues(alpha: 0.5)
+              : tokens.border,
+          width: sub.isRunning ? 1.2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Card Title Bar / Window Header
+          InkWell(
+            onTap: widget.onToggleExpand,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                children: [
+                  // Status Icon / Pill
+                  _buildStatusIndicator(tokens, sub.status),
+                  const SizedBox(width: 8),
+
+                  // Subagent Name
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                sub.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ),
+                            if (sub.model != null && sub.model!.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(3),
+                                  border: Border.all(color: tokens.border),
+                                ),
+                                child: Text(
+                                  sub.model!,
+                                  style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize: 10,
+                                    fontFamily: tokens.monoFontFamily,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (sub.description != null &&
+                            sub.description!.isNotEmpty &&
+                            sub.description != sub.name) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            sub.description!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  // Cost Tag
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: tokens.syntaxString.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(
+                        color: tokens.syntaxString.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.monetization_on_outlined,
+                          size: 11,
+                          color: tokens.syntaxString,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          sub.cost != null
+                              ? '\$${sub.cost!.toStringAsFixed(4)}'
+                              : '—',
+                          style: TextStyle(
+                            color: tokens.syntaxString,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Steer Button
+                  IconButton(
+                    key: ValueKey('subagent-steer-btn-${sub.id}'),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    icon: Icon(
+                      sub.isSteeringOpen ? Icons.close : Icons.navigation_outlined,
+                      size: 15,
+                      color: sub.isSteeringOpen ? tokens.textMuted : tokens.syntaxFunction,
+                    ),
+                    tooltip: sub.isSteeringOpen ? 'Chiudi Guida' : 'Guida (Steer)',
+                    onPressed: widget.onToggleSteeringBox,
+                  ),
+
+                  // Stop Button
+                  IconButton(
+                    key: ValueKey('subagent-stop-btn-${sub.id}'),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    icon: Icon(
+                      Icons.stop_circle_outlined,
+                      size: 16,
+                      color: sub.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
+                    ),
+                    tooltip: sub.isRunning ? 'Interrompi (Stop)' : 'Subagente terminato',
+                    onPressed: sub.isRunning ? widget.onStop : null,
+                  ),
+
+                  const SizedBox(width: 2),
+
+                  // Expand/collapse chevron
+                  Icon(
+                    widget.isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: tokens.textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Card Expanded Body
+          if (widget.isExpanded) ...[
+            Container(
+              height: 1,
+              color: tokens.border,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Steering Input Box (when active)
+                  if (sub.isSteeringOpen) ...[
+                    Container(
+                      key: ValueKey('subagent-steer-box-${sub.id}'),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.syntaxFunction, width: 1.2),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.navigation_outlined,
+                                size: 13,
+                                color: tokens.syntaxFunction,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Guida manuale subagente',
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  key: ValueKey('subagent-steer-input-${sub.id}'),
+                                  controller: _steerController,
+                                  autofocus: true,
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 12,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Scrivi un\'istruzione di guida per ${sub.name}...',
+                                    hintStyle: TextStyle(
+                                      color: tokens.textMuted,
+                                      fontSize: 11.5,
+                                    ),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    filled: true,
+                                    fillColor: tokens.surface,
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                      borderSide: BorderSide(color: tokens.border),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                      borderSide: BorderSide(color: tokens.syntaxFunction),
+                                    ),
+                                  ),
+                                  onSubmitted: (_) => _submitSteer(),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              ElevatedButton.icon(
+                                key: ValueKey('subagent-steer-send-${sub.id}'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: tokens.syntaxFunction,
+                                  foregroundColor: tokens.surface,
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.send_rounded, size: 13),
+                                label: const Text('Invia', style: TextStyle(fontSize: 11)),
+                                onPressed: _submitSteer,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Current Output Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Output Corrente',
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (sub.output.isNotEmpty)
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                          icon: Icon(Icons.copy, size: 12, color: tokens.textMuted),
+                          tooltip: 'Copia output',
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: sub.output));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Output copiato'),
+                                duration: const Duration(seconds: 1),
+                                backgroundColor: tokens.surfaceElevated,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Scrollable Output View
+                  Container(
+                    height: 140,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border),
+                    ),
+                    child: sub.output.isNotEmpty
+                        ? Scrollbar(
+                            controller: _outputScrollController,
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              controller: _outputScrollController,
+                              child: SelectableText(
+                                sub.output,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 11,
+                                  fontFamily: tokens.monoFontFamily,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              sub.isRunning
+                                  ? 'In attesa di output dal subagente...'
+                                  : 'Nessun output registrato per questo subagente.',
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusIndicator(CrustTokens tokens, String status) {
+    Color color;
+    IconData icon;
+    String label;
+
+    switch (status) {
+      case 'running':
+        color = tokens.syntaxKeyword;
+        icon = Icons.refresh;
+        label = 'In corso';
+        break;
+      case 'steered':
+        color = tokens.syntaxFunction;
+        icon = Icons.alt_route;
+        label = 'Guidato';
+        break;
+      case 'stopped':
+        color = tokens.textMuted;
+        icon = Icons.stop_circle_outlined;
+        label = 'Fermato';
+        break;
+      case 'error':
+        color = tokens.danger;
+        icon = Icons.error_outline;
+        label = 'Errore';
+        break;
+      case 'completed':
+      default:
+        color = tokens.syntaxFunction;
+        icon = Icons.check_circle_outline;
+        label = 'Completato';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

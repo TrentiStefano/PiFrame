@@ -569,6 +569,49 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('sub'),
+      type: 'session.subagents',
+      payload: {},
+    );
+    try {
+      final res = await sendCommand(cmd);
+      final list = res['subagents'];
+      if (list is List) {
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<Map<String, dynamic>> steerSubagent(
+    String sessionId,
+    String subagentId,
+    String message,
+  ) {
+    return sendPrompt(
+      sessionId,
+      'Steer subagent $subagentId: $message',
+      streamingBehavior: 'steer',
+    );
+  }
+
+  Future<Map<String, dynamic>> stopSubagent(
+    String sessionId,
+    String subagentId,
+  ) {
+    return sendPrompt(
+      sessionId,
+      'Stop subagent $subagentId immediately.',
+      streamingBehavior: 'steer',
+    );
+  }
+
   Future<Map<String, dynamic>> getDaemonConfig() {
     final cmd = PcpCommand(
       protocol: 1,

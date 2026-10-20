@@ -1,0 +1,359 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/daemon/daemon_providers.dart';
+import '../../domain/session/session_state.dart';
+
+class SubagentItem {
+  final String id;
+  final String name;
+  final String? model;
+  final double? cost;
+  final String output;
+  final String status; // 'running', 'completed', 'steered', 'stopped', 'error'
+  final String? description;
+  final String? toolCallId;
+  final String? outputFile;
+  final int? timestamp;
+  final bool isSteeringOpen;
+
+  const SubagentItem({
+    required this.id,
+    required this.name,
+    this.model,
+    this.cost,
+    this.output = '',
+    this.status = 'running',
+    this.description,
+    this.toolCallId,
+    this.outputFile,
+    this.timestamp,
+    this.isSteeringOpen = false,
+  });
+
+  bool get isRunning => status == 'running' || status == 'steered';
+  bool get isCompleted => status == 'completed';
+  bool get isStopped => status == 'stopped';
+  bool get isSteered => status == 'steered';
+  bool get isError => status == 'error';
+
+  SubagentItem copyWith({
+    String? id,
+    String? name,
+    String? model,
+    double? cost,
+    String? output,
+    String? status,
+    String? description,
+    String? toolCallId,
+    String? outputFile,
+    int? timestamp,
+    bool? isSteeringOpen,
+  }) {
+    return SubagentItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      model: model ?? this.model,
+      cost: cost ?? this.cost,
+      output: output ?? this.output,
+      status: status ?? this.status,
+      description: description ?? this.description,
+      toolCallId: toolCallId ?? this.toolCallId,
+      outputFile: outputFile ?? this.outputFile,
+      timestamp: timestamp ?? this.timestamp,
+      isSteeringOpen: isSteeringOpen ?? this.isSteeringOpen,
+    );
+  }
+}
+
+class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
+  final Ref ref;
+  final String sessionId;
+  Timer? _refreshTimer;
+  final Set<String> _locallyStopped = <String>{};
+  final Set<String> _locallySteered = <String>{};
+  final Set<String> _openSteeringIds = <String>{};
+
+  SubagentsNotifier(this.ref, this.sessionId) : super([]) {
+    _init();
+  }
+
+  void _init() {
+    _syncFromSessionState();
+    _fetchFromDaemon();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _syncFromSessionState();
+      _fetchFromDaemon();
+      _readOutputFiles();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncFromSessionState() {
+    try {
+      final sessionState = ref.read(sessionStateFamily(sessionId));
+      final Map<String, SubagentItem> itemsMap = {
+        for (final item in state) item.id: item
+      };
+
+      // 1. Process active tool calls in sessionState
+      for (final tool in sessionState.activeToolCalls.values) {
+        if (_isSubagentTool(tool.toolName)) {
+          final subagent = _parseFromTool(tool, sessionState.currentModel);
+          if (subagent != null) {
+            final existing = itemsMap[subagent.id];
+            final status = _locallyStopped.contains(subagent.id)
+                ? 'stopped'
+                : _locallySteered.contains(subagent.id)
+                ? 'steered'
+                : subagent.status;
+            final isSteeringOpen = _openSteeringIds.contains(subagent.id);
+            itemsMap[subagent.id] = subagent.copyWith(
+              output: subagent.output.isNotEmpty
+                  ? subagent.output
+                  : existing?.output ?? '',
+              status: status,
+              isSteeringOpen: isSteeringOpen,
+            );
+          }
+        }
+      }
+
+      // 2. Process historical tool calls in session entries
+      for (final entry in sessionState.entries) {
+        for (final tool in entry.toolCalls) {
+          if (_isSubagentTool(tool.toolName)) {
+            final subagent = _parseFromTool(tool, sessionState.currentModel);
+            if (subagent != null) {
+              final existing = itemsMap[subagent.id];
+              final status = _locallyStopped.contains(subagent.id)
+                  ? 'stopped'
+                  : _locallySteered.contains(subagent.id)
+                  ? 'steered'
+                  : (existing?.status == 'running' ? 'running' : subagent.status);
+              final isSteeringOpen = _openSteeringIds.contains(subagent.id);
+              itemsMap[subagent.id] = subagent.copyWith(
+                output: subagent.output.isNotEmpty
+                    ? subagent.output
+                    : existing?.output ?? '',
+                cost: subagent.cost ?? existing?.cost,
+                status: status,
+                isSteeringOpen: isSteeringOpen,
+              );
+            }
+          }
+        }
+      }
+
+      state = itemsMap.values.toList();
+    } catch (_) {}
+  }
+
+  Future<void> _fetchFromDaemon() async {
+    try {
+      final client = ref.read(pcpClientProvider);
+      if (client == null) return;
+      final daemonSubagents = await client.getSubagents(sessionId);
+      if (daemonSubagents.isEmpty) return;
+
+      final Map<String, SubagentItem> itemsMap = {
+        for (final item in state) item.id: item
+      };
+
+      for (final raw in daemonSubagents) {
+        final id = (raw['id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        final name = (raw['name'] ?? id).toString();
+        final model = raw['model']?.toString();
+        final cost = (raw['cost'] as num?)?.toDouble();
+        final output = (raw['output'] ?? '').toString();
+        final status = _locallyStopped.contains(id)
+            ? 'stopped'
+            : _locallySteered.contains(id)
+            ? 'steered'
+            : (raw['status'] ?? 'completed').toString();
+
+        final existing = itemsMap[id];
+        final isSteeringOpen = _openSteeringIds.contains(id);
+        itemsMap[id] = SubagentItem(
+          id: id,
+          name: name,
+          model: model ?? existing?.model,
+          cost: cost ?? existing?.cost,
+          output: output.isNotEmpty ? output : (existing?.output ?? ''),
+          status: status,
+          description: raw['description']?.toString() ?? existing?.description,
+          toolCallId: existing?.toolCallId,
+          outputFile: existing?.outputFile,
+          timestamp: existing?.timestamp,
+          isSteeringOpen: isSteeringOpen,
+        );
+      }
+
+      state = itemsMap.values.toList();
+    } catch (_) {}
+  }
+
+  void _readOutputFiles() {
+    bool changed = false;
+    final updated = state.map((item) {
+      if (item.outputFile != null && item.outputFile!.isNotEmpty) {
+        try {
+          final file = File(item.outputFile!);
+          if (file.existsSync()) {
+            final content = file.readAsStringSync();
+            if (content.isNotEmpty && content != item.output) {
+              changed = true;
+              return item.copyWith(output: content);
+            }
+          }
+        } catch (_) {}
+      }
+      return item;
+    }).toList();
+
+    if (changed) {
+      state = updated;
+    }
+  }
+
+  bool _isSubagentTool(String toolName) {
+    final lower = toolName.toLowerCase();
+    return lower == 'agent' ||
+        lower == 'subagent' ||
+        lower == 'delegate' ||
+        lower.contains('subagent');
+  }
+
+  SubagentItem? _parseFromTool(ToolExecutionState tool, String? fallbackModel) {
+    final args = tool.args;
+    String id = tool.toolCallId;
+    String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? 'Subagente').toString();
+    String? model = args['model']?.toString() ?? fallbackModel;
+    String? description = args['description']?.toString() ?? args['prompt']?.toString();
+    double? cost;
+    String? outputFile;
+
+    final output = tool.output;
+    if (output.isNotEmpty) {
+      // Parse Agent ID: xxx
+      final idMatch = RegExp(r'Agent ID:\s*([^\r\n]+)').firstMatch(output);
+      if (idMatch != null && idMatch.group(1) != null) {
+        id = idMatch.group(1)!.trim();
+      }
+
+      // Parse Type: xxx
+      final typeMatch = RegExp(r'Type:\s*([^\r\n]+)').firstMatch(output);
+      if (typeMatch != null && typeMatch.group(1) != null) {
+        name = typeMatch.group(1)!.trim();
+      }
+
+      // Parse Output file: xxx
+      final fileMatch = RegExp(r'Output file:\s*([^\r\n]+)').firstMatch(output);
+      if (fileMatch != null && fileMatch.group(1) != null) {
+        outputFile = fileMatch.group(1)!.trim();
+      }
+
+      // Parse Cost: $xxx
+      final costMatch = RegExp(r'Cost:\s*\$?([0-9.]+)').firstMatch(output);
+      if (costMatch != null && costMatch.group(1) != null) {
+        cost = double.tryParse(costMatch.group(1)!);
+      }
+    }
+
+    String status = 'completed';
+    if (tool.isRunning) {
+      status = 'running';
+    } else if (tool.isError) {
+      status = 'error';
+    }
+
+    return SubagentItem(
+      id: id,
+      name: name,
+      model: model,
+      cost: cost,
+      output: output,
+      status: status,
+      description: description,
+      toolCallId: tool.toolCallId,
+      outputFile: outputFile,
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      isSteeringOpen: _openSteeringIds.contains(id),
+    );
+  }
+
+  void toggleSteering(String subagentId) {
+    if (_openSteeringIds.contains(subagentId)) {
+      _openSteeringIds.remove(subagentId);
+    } else {
+      _openSteeringIds.add(subagentId);
+    }
+    state = state.map((item) {
+      if (item.id == subagentId) {
+        return item.copyWith(isSteeringOpen: _openSteeringIds.contains(subagentId));
+      }
+      return item;
+    }).toList();
+  }
+
+  Future<void> steerSubagent(String subagentId, String message) async {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty) return;
+
+    _locallySteered.add(subagentId);
+    _openSteeringIds.remove(subagentId);
+
+    state = state.map((item) {
+      if (item.id == subagentId) {
+        return item.copyWith(
+          status: 'steered',
+          isSteeringOpen: false,
+          output: '${item.output}\n\n[Guida utente]: $trimmed',
+        );
+      }
+      return item;
+    }).toList();
+
+    try {
+      final client = ref.read(pcpClientProvider);
+      if (client != null) {
+        await client.steerSubagent(sessionId, subagentId, trimmed);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> stopSubagent(String subagentId) async {
+    _locallyStopped.add(subagentId);
+    _openSteeringIds.remove(subagentId);
+
+    state = state.map((item) {
+      if (item.id == subagentId) {
+        return item.copyWith(
+          status: 'stopped',
+          isSteeringOpen: false,
+          output: '${item.output}\n\n[Interrotto dall\'utente]',
+        );
+      }
+      return item;
+    }).toList();
+
+    try {
+      final client = ref.read(pcpClientProvider);
+      if (client != null) {
+        await client.stopSubagent(sessionId, subagentId);
+      }
+    } catch (_) {}
+  }
+}
+
+final subagentsFamily = StateNotifierProvider.family<SubagentsNotifier, List<SubagentItem>, String>(
+  (ref, sessionId) => SubagentsNotifier(ref, sessionId),
+);
