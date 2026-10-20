@@ -74,4 +74,34 @@ void main() {}
     expect(find.byType(CodeBlock), findsOneWidget);
     expect(find.byType(DiffBlock), findsOneWidget);
   });
+
+  test('isLikelyFilePath correctly identifies file paths', () {
+    expect(isLikelyFilePath('lib/main.dart'), isTrue);
+    expect(isLikelyFilePath('apps/agentd/src/workspace/gitClient.ts'), isTrue);
+    expect(isLikelyFilePath('README.md'), isTrue);
+    expect(isLikelyFilePath('C:\\Personale\\Repos\\project\\file.dart'), isTrue);
+    expect(isLikelyFilePath('file:///c:/path/to/file.dart'), isTrue);
+    expect(isLikelyFilePath('config.json'), isTrue);
+
+    expect(isLikelyFilePath(''), isFalse);
+    expect(isLikelyFilePath('hello world'), isFalse);
+    expect(isLikelyFilePath('https://github.com/flutter/flutter'), isFalse);
+    expect(isLikelyFilePath('git status'), isFalse);
+  });
+
+  testWidgets('RichContent marks file code mentions with file icon and CTRL+click tooltip', (tester) async {
+    const textWithFile = 'Ho modificato il file `lib/main.dart` e creato `README.md`.';
+
+    await tester.pumpWidget(
+      wrapWithTheme(
+        const RichContent(text: textWithFile, cwd: '/dummy/project'),
+      ),
+    );
+
+    expect(find.text('lib/main.dart'), findsOneWidget);
+    expect(find.text('README.md'), findsOneWidget);
+    expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
+    expect(find.byTooltip('CTRL+clic per aprire in Esplora file'), findsWidgets);
+  });
 }
+

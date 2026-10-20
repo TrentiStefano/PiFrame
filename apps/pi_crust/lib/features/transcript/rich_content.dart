@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -26,10 +28,90 @@ Future<void> _openUrl(String url) async {
   }
 }
 
+Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
+  try {
+    String resolved = rawPath.trim();
+    if (resolved.startsWith('file://')) {
+      final uri = Uri.tryParse(resolved);
+      if (uri != null && uri.toFilePath().isNotEmpty) {
+        resolved = uri.toFilePath();
+      } else {
+        resolved = resolved.replaceFirst(RegExp(r'^file://+'), '');
+      }
+    }
+    // Remove query, anchor or line:col numbers like :42:10 or #L10-20
+    resolved = resolved.replaceAll(RegExp(r'#.*$'), '');
+    resolved = resolved.replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
+
+    String targetPath = resolved;
+    if (cwd != null && cwd.isNotEmpty) {
+      final isAbsolute = Platform.isWindows
+          ? RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(targetPath) ||
+                targetPath.startsWith(r'\\')
+          : targetPath.startsWith('/');
+      if (!isAbsolute) {
+        final separator = Platform.isWindows ? '\\' : '/';
+        final normalizedCwd = cwd.endsWith('/') || cwd.endsWith('\\')
+            ? cwd.substring(0, cwd.length - 1)
+            : cwd;
+        targetPath = '$normalizedCwd$separator$targetPath';
+      }
+    }
+
+    if (Platform.isWindows) {
+      final winPath = targetPath.replaceAll('/', '\\');
+      final file = File(winPath);
+      final dir = Directory(winPath);
+      if (file.existsSync()) {
+        await Process.run('explorer.exe', ['/select,', winPath]);
+      } else if (dir.existsSync()) {
+        await Process.run('explorer.exe', [winPath]);
+      } else {
+        await Process.run('explorer.exe', ['/select,', winPath]);
+      }
+    } else if (Platform.isMacOS) {
+      final file = File(targetPath);
+      if (file.existsSync()) {
+        await Process.run('open', ['-R', targetPath]);
+      } else {
+        await Process.run('open', [targetPath]);
+      }
+    } else if (Platform.isLinux) {
+      final file = File(targetPath);
+      if (file.existsSync()) {
+        await Process.run('xdg-open', [file.parent.path]);
+      } else {
+        await Process.run('xdg-open', [targetPath]);
+      }
+    }
+  } catch (e) {
+    debugPrint('openInOsFileExplorer error: $e');
+  }
+}
+
+bool isLikelyFilePath(String s) {
+  final clean = s.trim();
+  if (clean.isEmpty || clean.contains('\n') || clean.length > 300) return false;
+  if (clean.startsWith('http://') || clean.startsWith('https://')) return false;
+  if (clean.startsWith('file://')) return true;
+  if (RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(clean)) return true;
+  final hasSep = clean.contains('/') || clean.contains(r'\');
+  final hasExt = RegExp(
+    r'\.(dart|ts|js|jsx|tsx|json|yaml|yml|md|markdown|txt|html|css|scss|sh|ps1|bat|cpp|c|h|hpp|rs|go|py|lock|toml|env|gradle|properties|xml|svg|png|jpg|jpeg|gif|webp|ico|wasm)$',
+    caseSensitive: false,
+  ).hasMatch(clean);
+  if (hasExt) return true;
+  if (hasSep && RegExp(r'[\w\-.]+$').hasMatch(clean)) {
+    return true;
+  }
+  return false;
+}
+
 class RichContent extends StatefulWidget {
   final String text;
+  final String? cwd;
 
-  const RichContent({super.key, required this.text});
+  const RichContent({super.key, required this.text, this.cwd});
 
   @override
   State<RichContent> createState() => _RichContentState();
@@ -38,10 +120,15 @@ class RichContent extends StatefulWidget {
     r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```',
   );
   static final RegExp _numberedListRegex = RegExp(r'^(\d+)\.\s');
-  static final RegExp _mdLinkRegex = RegExp(r'\[([^\]]+)\]\((https?://[^)]+)\)');
-  static final RegExp _rawUrlRegex = RegExp(r'(?<![\(\[])(https?://[^\s\)]+)');
+  static final RegExp _mdLinkRegex = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
+  static final RegExp _rawUrlRegex = RegExp(
+    r'(?<![\(\[])(https?://[^\s\)]+|file://[^\s\)]+)',
+  );
   static final RegExp _inlineCodeRegex = RegExp(r'`([^`]+)`');
   static final RegExp _boldRegex = RegExp(r'\*\*([^*]+)\*\*');
+  static final RegExp _rawFilePathRegex = RegExp(
+    r'(?<![/\w\-])((?:[a-zA-Z]:[\\/]|(?:\.{1,2}[\\/])|(?:[\w\-]+[\\/]))[\w\-./\\]+\.(?:dart|ts|js|jsx|tsx|json|yaml|yml|md|txt|html|css|sh|ps1|bat|cpp|c|h|rs|go|py|lock|toml))\b',
+  );
 
   static List<_Segment> _parseSegments(String raw) {
     final segments = <_Segment>[];
@@ -76,8 +163,15 @@ class RichContent extends StatefulWidget {
     return segments;
   }
 
-  static Widget _buildMarkdownText(String text, CrustTokens tokens) {
-    final rawLines = (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split('\n');
+  static Widget _buildMarkdownText(
+    String text,
+    CrustTokens tokens, {
+    String? cwd,
+  }) {
+    final rawLines =
+        (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split(
+          '\n',
+        );
     final widgets = <Widget>[];
     final currentPara = StringBuffer();
 
@@ -89,7 +183,7 @@ class RichContent extends StatefulWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text.rich(
-                _parseInlineSpans(content, tokens),
+                _parseInlineSpans(content, tokens, cwd: cwd),
                 style: TextStyle(
                   color: tokens.textPrimary,
                   fontSize: 13.5,
@@ -179,7 +273,7 @@ class RichContent extends StatefulWidget {
               ),
             ),
             child: Text.rich(
-              _parseInlineSpans(trimmed.substring(2).trim(), tokens),
+              _parseInlineSpans(trimmed.substring(2).trim(), tokens, cwd: cwd),
               style: TextStyle(
                 color: tokens.textSecondary,
                 fontSize: 13,
@@ -210,7 +304,11 @@ class RichContent extends StatefulWidget {
                 ),
                 Expanded(
                   child: Text.rich(
-                    _parseInlineSpans(trimmed.substring(2).trim(), tokens),
+                    _parseInlineSpans(
+                      trimmed.substring(2).trim(),
+                      tokens,
+                      cwd: cwd,
+                    ),
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 13.5,
@@ -248,7 +346,7 @@ class RichContent extends StatefulWidget {
                 ),
                 Expanded(
                   child: Text.rich(
-                    _parseInlineSpans(itemText, tokens),
+                    _parseInlineSpans(itemText, tokens, cwd: cwd),
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 13.5,
@@ -275,16 +373,24 @@ class RichContent extends StatefulWidget {
     );
   }
 
-  static TextSpan _parseInlineSpans(String text, CrustTokens tokens) {
+  static TextSpan _parseInlineSpans(
+    String text,
+    CrustTokens tokens, {
+    String? cwd,
+  }) {
     final spans = <InlineSpan>[];
 
     final lines = text.split('\n');
     for (var l = 0; l < lines.length; l++) {
       final line = lines[l];
-      final hasMarkdown = line.contains('[') ||
+      final hasMarkdown =
+          line.contains('[') ||
           line.contains('http') ||
+          line.contains('file') ||
           line.contains('`') ||
-          line.contains('*');
+          line.contains('*') ||
+          line.contains('/') ||
+          line.contains(r'\');
       if (!hasMarkdown) {
         if (line.isNotEmpty) {
           spans.add(TextSpan(text: line));
@@ -297,7 +403,7 @@ class RichContent extends StatefulWidget {
 
       final matches = <_InlineMatch>[];
 
-      // Markdown links: [label](url)
+      // Markdown links: [label](target)
       for (final m in _mdLinkRegex.allMatches(line)) {
         matches.add(
           _InlineMatch(
@@ -310,7 +416,7 @@ class RichContent extends StatefulWidget {
         );
       }
 
-      // Raw URLs: https://...
+      // Raw URLs: https://... or file://...
       for (final m in _rawUrlRegex.allMatches(line)) {
         final start = m.start;
         final end = m.end;
@@ -343,9 +449,7 @@ class RichContent extends StatefulWidget {
               (end > other.start && end <= other.end),
         );
         if (!overlaps) {
-          matches.add(
-            _InlineMatch(start, end, m.group(1)!, _InlineType.code),
-          );
+          matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.code));
         }
       }
 
@@ -359,8 +463,28 @@ class RichContent extends StatefulWidget {
               (end > other.start && end <= other.end),
         );
         if (!overlaps) {
+          matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.bold));
+        }
+      }
+
+      // Raw file paths in text (e.g. apps/pi_crust/lib/main.dart)
+      for (final m in _rawFilePathRegex.allMatches(line)) {
+        final start = m.start;
+        final end = m.end;
+        final overlaps = matches.any(
+          (other) =>
+              (start >= other.start && start < other.end) ||
+              (end > other.start && end <= other.end),
+        );
+        if (!overlaps) {
           matches.add(
-            _InlineMatch(start, end, m.group(1)!, _InlineType.bold),
+            _InlineMatch(
+              start,
+              end,
+              m.group(1)!,
+              _InlineType.filePath,
+              target: m.group(1)!,
+            ),
           );
         }
       }
@@ -374,18 +498,32 @@ class RichContent extends StatefulWidget {
           spans.add(TextSpan(text: line.substring(lastEnd, m.start)));
         }
         if (m.type == _InlineType.code) {
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.border, width: 1),
-                ),
-                child: Text(
+          final isFile = isLikelyFilePath(m.text);
+          Widget codeWidget = Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              border: Border.all(
+                color: isFile
+                    ? tokens.accent.withValues(alpha: 0.5)
+                    : tokens.border,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isFile) ...[
+                  Icon(
+                    Icons.insert_drive_file_outlined,
+                    size: 11,
+                    color: tokens.accent,
+                  ),
+                  const SizedBox(width: 3),
+                ],
+                Text(
                   m.text,
                   style: TextStyle(
                     color: tokens.textPrimary,
@@ -393,7 +531,35 @@ class RichContent extends StatefulWidget {
                     fontSize: 12,
                   ),
                 ),
+              ],
+            ),
+          );
+
+          if (isFile) {
+            codeWidget = Tooltip(
+              message: 'CTRL+clic per aprire in Esplora file',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    final isControl =
+                        HardwareKeyboard.instance.isControlPressed ||
+                        HardwareKeyboard.instance.isMetaPressed;
+                    if (isControl) {
+                      openInOsFileExplorer(m.text, cwd: cwd);
+                    }
+                  },
+                  child: codeWidget,
+                ),
               ),
+            );
+          }
+
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: codeWidget,
             ),
           );
         } else if (m.type == _InlineType.bold) {
@@ -403,8 +569,34 @@ class RichContent extends StatefulWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           );
+        } else if (m.type == _InlineType.filePath) {
+          final target = m.target ?? m.text;
+          spans.add(
+            TextSpan(
+              text: m.text,
+              style: TextStyle(
+                color: tokens.accent,
+                decoration: TextDecoration.underline,
+                decorationColor: tokens.accent.withValues(alpha: 0.5),
+                fontFamily: tokens.monoFontFamily,
+                fontSize: 12.5,
+              ),
+              mouseCursor: SystemMouseCursors.click,
+              recognizer: TapGestureRecognizer()
+                ..onTap = () {
+                  final isControl =
+                      HardwareKeyboard.instance.isControlPressed ||
+                      HardwareKeyboard.instance.isMetaPressed;
+                  if (isControl) {
+                    openInOsFileExplorer(target, cwd: cwd);
+                  }
+                },
+            ),
+          );
         } else if (m.type == _InlineType.link) {
           final targetUrl = m.target ?? m.text;
+          final isFile =
+              targetUrl.startsWith('file://') || isLikelyFilePath(targetUrl);
           spans.add(
             TextSpan(
               text: m.text,
@@ -416,7 +608,23 @@ class RichContent extends StatefulWidget {
               ),
               mouseCursor: SystemMouseCursors.click,
               recognizer: TapGestureRecognizer()
-                ..onTap = () => _openUrl(targetUrl),
+                ..onTap = () {
+                  final isControl =
+                      HardwareKeyboard.instance.isControlPressed ||
+                      HardwareKeyboard.instance.isMetaPressed;
+                  if (isFile || isControl) {
+                    if (isFile) {
+                      openInOsFileExplorer(targetUrl, cwd: cwd);
+                    } else if (targetUrl.startsWith('http://') ||
+                        targetUrl.startsWith('https://')) {
+                      _openUrl(targetUrl);
+                    } else {
+                      openInOsFileExplorer(targetUrl, cwd: cwd);
+                    }
+                  } else {
+                    _openUrl(targetUrl);
+                  }
+                },
             ),
           );
         }
@@ -439,6 +647,7 @@ class RichContent extends StatefulWidget {
 class _RichContentState extends State<RichContent> {
   String? _cachedText;
   CrustTokens? _cachedTokens;
+  String? _cachedCwd;
   Widget? _cachedBuiltWidget;
 
   @override
@@ -446,12 +655,14 @@ class _RichContentState extends State<RichContent> {
     final tokens = context.tokens;
     if (_cachedBuiltWidget != null &&
         _cachedText == widget.text &&
+        _cachedCwd == widget.cwd &&
         identical(_cachedTokens, tokens)) {
       return _cachedBuiltWidget!;
     }
 
     _cachedText = widget.text;
     _cachedTokens = tokens;
+    _cachedCwd = widget.cwd;
 
     final segments = RichContent._parseSegments(widget.text);
 
@@ -465,7 +676,11 @@ class _RichContentState extends State<RichContent> {
             }
             return CodeBlock(code: seg.code, language: seg.language);
           } else if (seg is _TextSegment) {
-            return RichContent._buildMarkdownText(seg.content, tokens);
+            return RichContent._buildMarkdownText(
+              seg.content,
+              tokens,
+              cwd: widget.cwd,
+            );
           }
           return const SizedBox.shrink();
         }).toList(),
@@ -476,7 +691,7 @@ class _RichContentState extends State<RichContent> {
   }
 }
 
-enum _InlineType { code, bold, link }
+enum _InlineType { code, bold, link, filePath }
 
 class _InlineMatch {
   final int start;

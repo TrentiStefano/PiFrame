@@ -1306,7 +1306,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                 border: Border.all(color: tokens.borderStrong),
               ),
-              child: RichContent(text: liveText),
+              child: RichContent(text: liveText, cwd: sessionState.cwd),
             )
           else if (sessionState.agentStatus == AgentStatus.working &&
               liveThinking.isEmpty &&
@@ -1401,6 +1401,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     int? timeoutSeconds,
   }) {
     if (entry.isJunkOrInternal) return const SizedBox.shrink();
+    final cwd = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
+    );
     final isUser = entry.role == 'user';
 
     if (isUser) {
@@ -1489,7 +1492,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               ],
               if (cleanText.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                RichContent(text: cleanText),
+                RichContent(text: cleanText, cwd: cwd),
               ],
             ],
           ),
@@ -1649,7 +1652,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  RichContent(text: entry.text),
+                  RichContent(text: entry.text, cwd: cwd),
                 ],
               ),
             ),
