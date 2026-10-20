@@ -1,6 +1,10 @@
+@Timeout(Duration(seconds: 30))
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_crust/data/daemon/daemon_providers.dart';
 import 'package:pi_crust/data/theme/theme_providers.dart';
 import 'package:pi_crust/features/settings/settings_view.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
@@ -113,6 +117,8 @@ void main() {
         ProviderScope(
           overrides: [
             themeStorageProvider.overrideWithValue(storage),
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            pcpClientProvider.overrideWithValue(null),
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
@@ -130,5 +136,67 @@ void main() {
       expect(find.byKey(const ValueKey('settings-import-theme-btn')), findsOneWidget);
       expect(find.text('Importa tema JSON (VSCode / Pi-Crust)'), findsOneWidget);
     });
+
+    test('default dark and light themes persist and update independently', () {
+      final storage = MemoryThemeStorage();
+      final container = ProviderContainer(
+        overrides: [
+          themeStorageProvider.overrideWithValue(storage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(activeThemeSpecProvider.notifier);
+      expect(notifier.settings.defaultDarkThemeId, 'crust-dark');
+      expect(notifier.settings.defaultLightThemeId, 'crust-light');
+      expect(notifier.settings.useSystemTheme, isFalse);
+
+      notifier.setDefaultDarkTheme('catppuccin-mocha');
+      expect(notifier.settings.defaultDarkThemeId, 'catppuccin-mocha');
+      expect(storage.loadSettingsSync().defaultDarkThemeId, 'catppuccin-mocha');
+
+      notifier.setDefaultLightTheme('solar-light');
+      expect(notifier.settings.defaultLightThemeId, 'solar-light');
+      expect(storage.loadSettingsSync().defaultLightThemeId, 'solar-light');
+
+      notifier.setUseSystemTheme(true);
+      expect(notifier.settings.useSystemTheme, isTrue);
+      expect(storage.loadSettingsSync().useSystemTheme, isTrue);
+    });
+
+    testWidgets('SettingsView displays system theme switch and default theme dropdowns', (tester) async {
+      final storage = MemoryThemeStorage();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            themeStorageProvider.overrideWithValue(storage),
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            pcpClientProvider.overrideWithValue(null),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+            home: Scaffold(
+              body: SettingsView(
+                onClose: () {},
+                initialTabIndex: 3, // Aspetto tab
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('settings-theme-system-switch')), findsOneWidget);
+      expect(find.text('Usa tema di sistema'), findsOneWidget);
+      expect(find.text('Tema Scuro Predefinito:'), findsOneWidget);
+      expect(find.text('Tema Chiaro Predefinito:'), findsOneWidget);
+
+      // Toggle system theme switch
+      await tester.tap(find.byKey(const ValueKey('settings-theme-system-switch')));
+      await tester.pumpAndSettle();
+
+      expect(storage.loadSettingsSync().useSystemTheme, isTrue);
+    });
   });
 }
+

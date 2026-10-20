@@ -23,6 +23,58 @@ class ThemeRepository {
       version: '1.0.0',
       variant: 'dark',
     );
+    final mochaBuiltIn = ThemeSpec(
+      id: 'catppuccin-mocha',
+      name: 'Catppuccin Mocha',
+      author: 'Catppuccin Org',
+      version: '1.0.0',
+      variant: 'dark',
+      rawColors: {
+        'background': '#1e1e2e',
+        'surface': '#181825',
+        'surfaceElevated': '#313244',
+        'border': '#45475a',
+        'borderStrong': '#585b70',
+        'textPrimary': '#cdd6f4',
+        'textSecondary': '#bac2de',
+        'textMuted': '#a6adc8',
+        'accent': '#cba6f7',
+        'accentContrast': '#11111b',
+        'focusRing': '#cba6f7',
+        'success': '#a6e3a1',
+        'warning': '#f9e2af',
+        'danger': '#f38ba8',
+        'info': '#89b4fa',
+        'userBubble': '#313244',
+        'thinking': '#b4befe',
+      },
+    );
+    final nordDarkBuiltIn = ThemeSpec(
+      id: 'nord-dark',
+      name: 'Nord Dark',
+      author: 'Arctic Ice Studio',
+      version: '1.0.0',
+      variant: 'dark',
+      rawColors: {
+        'background': '#2e3440',
+        'surface': '#3b4252',
+        'surfaceElevated': '#434c5e',
+        'border': '#4c566a',
+        'borderStrong': '#5e81ac',
+        'textPrimary': '#eceff4',
+        'textSecondary': '#e5e9f0',
+        'textMuted': '#d8dee9',
+        'accent': '#88c0d0',
+        'accentContrast': '#2e3440',
+        'focusRing': '#88c0d0',
+        'success': '#a3be8c',
+        'warning': '#ebcb8b',
+        'danger': '#bf616a',
+        'info': '#81a1c1',
+        'userBubble': '#434c5e',
+        'thinking': '#b48ead',
+      },
+    );
     final lightBuiltIn = ThemeSpec(
       id: 'crust-light',
       name: 'Crust Light',
@@ -30,8 +82,65 @@ class ThemeRepository {
       version: '1.0.0',
       variant: 'light',
     );
+    final latteBuiltIn = ThemeSpec(
+      id: 'catppuccin-latte',
+      name: 'Catppuccin Latte',
+      author: 'Catppuccin Org',
+      version: '1.0.0',
+      variant: 'light',
+      rawColors: {
+        'background': '#eff1f5',
+        'surface': '#e6e9ef',
+        'surfaceElevated': '#dce0e8',
+        'border': '#ccd0da',
+        'borderStrong': '#bcc0cc',
+        'textPrimary': '#4c4f69',
+        'textSecondary': '#5c5f77',
+        'textMuted': '#6c6f85',
+        'accent': '#8839ef',
+        'accentContrast': '#eff1f5',
+        'focusRing': '#8839ef',
+        'success': '#40a02b',
+        'warning': '#df8e1d',
+        'danger': '#d20f39',
+        'info': '#1e66f5',
+        'userBubble': '#dce0e8',
+        'thinking': '#7287fd',
+      },
+    );
+    final solarLightBuiltIn = ThemeSpec(
+      id: 'solar-light',
+      name: 'Solar Light',
+      author: 'Ethan Schoonover',
+      version: '1.0.0',
+      variant: 'light',
+      rawColors: {
+        'background': '#fdf6e3',
+        'surface': '#eee8d5',
+        'surfaceElevated': '#e0dac6',
+        'border': '#93a1a1',
+        'borderStrong': '#657b83',
+        'textPrimary': '#073642',
+        'textSecondary': '#586e75',
+        'textMuted': '#657b83',
+        'accent': '#268bd2',
+        'accentContrast': '#fdf6e3',
+        'focusRing': '#268bd2',
+        'success': '#859900',
+        'warning': '#b58900',
+        'danger': '#dc322f',
+        'info': '#2aa198',
+        'userBubble': '#eee8d5',
+        'thinking': '#6c71c4',
+      },
+    );
+
     _rawThemes['crust-dark'] = darkBuiltIn;
+    _rawThemes['catppuccin-mocha'] = mochaBuiltIn;
+    _rawThemes['nord-dark'] = nordDarkBuiltIn;
     _rawThemes['crust-light'] = lightBuiltIn;
+    _rawThemes['catppuccin-latte'] = latteBuiltIn;
+    _rawThemes['solar-light'] = solarLightBuiltIn;
     _resolveAll();
   }
 
@@ -46,7 +155,7 @@ class ThemeRepository {
       _resolvedThemes.containsKey(id) || _rawThemes.containsKey(id);
 
   void setActiveTheme(String id) {
-    if (_resolvedThemes.containsKey(id)) {
+    if (_resolvedThemes.containsKey(id) && _activeThemeId != id) {
       _activeThemeId = id;
       if (!_controller.isClosed) {
         _controller.add(availableThemes);

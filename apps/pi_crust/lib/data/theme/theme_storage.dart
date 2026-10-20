@@ -2,7 +2,81 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 
+class ThemeSettings {
+  final String activeThemeId;
+  final String defaultDarkThemeId;
+  final String defaultLightThemeId;
+  final bool useSystemTheme;
+
+  const ThemeSettings({
+    this.activeThemeId = 'crust-dark',
+    this.defaultDarkThemeId = 'crust-dark',
+    this.defaultLightThemeId = 'crust-light',
+    this.useSystemTheme = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'activeThemeId': activeThemeId,
+    'defaultDarkThemeId': defaultDarkThemeId,
+    'defaultLightThemeId': defaultLightThemeId,
+    'useSystemTheme': useSystemTheme,
+  };
+
+  factory ThemeSettings.fromJson(Map<String, dynamic> json) {
+    return ThemeSettings(
+      activeThemeId:
+          (json['activeThemeId'] as String?)?.trim().isNotEmpty == true
+              ? (json['activeThemeId'] as String).trim()
+              : 'crust-dark',
+      defaultDarkThemeId:
+          (json['defaultDarkThemeId'] as String?)?.trim().isNotEmpty == true
+              ? (json['defaultDarkThemeId'] as String).trim()
+              : 'crust-dark',
+      defaultLightThemeId:
+          (json['defaultLightThemeId'] as String?)?.trim().isNotEmpty == true
+              ? (json['defaultLightThemeId'] as String).trim()
+              : 'crust-light',
+      useSystemTheme: json['useSystemTheme'] as bool? ?? false,
+    );
+  }
+
+  ThemeSettings copyWith({
+    String? activeThemeId,
+    String? defaultDarkThemeId,
+    String? defaultLightThemeId,
+    bool? useSystemTheme,
+  }) {
+    return ThemeSettings(
+      activeThemeId: activeThemeId ?? this.activeThemeId,
+      defaultDarkThemeId: defaultDarkThemeId ?? this.defaultDarkThemeId,
+      defaultLightThemeId: defaultLightThemeId ?? this.defaultLightThemeId,
+      useSystemTheme: useSystemTheme ?? this.useSystemTheme,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ThemeSettings &&
+          runtimeType == other.runtimeType &&
+          activeThemeId == other.activeThemeId &&
+          defaultDarkThemeId == other.defaultDarkThemeId &&
+          defaultLightThemeId == other.defaultLightThemeId &&
+          useSystemTheme == other.useSystemTheme;
+
+  @override
+  int get hashCode =>
+      activeThemeId.hashCode ^
+      defaultDarkThemeId.hashCode ^
+      defaultLightThemeId.hashCode ^
+      useSystemTheme.hashCode;
+}
+
 abstract class ThemeStorage {
+  ThemeSettings loadSettingsSync();
+  Future<ThemeSettings> loadSettings();
+  Future<void> saveSettings(ThemeSettings settings);
+
   String? loadActiveThemeIdSync();
   Future<String?> loadActiveThemeId();
   Future<void> saveActiveThemeId(String themeId);
@@ -54,19 +128,38 @@ class FileThemeStorage implements ThemeStorage {
   }
 
   @override
-  String? loadActiveThemeIdSync() {
+  ThemeSettings loadSettingsSync() {
     final file = _resolveSettingsFile();
     if (file != null && file.existsSync()) {
       try {
         final content = file.readAsStringSync();
         final json = jsonDecode(content);
-        if (json is Map && json['activeThemeId'] is String) {
-          final id = json['activeThemeId'] as String;
-          if (id.trim().isNotEmpty) return id.trim();
+        if (json is Map) {
+          return ThemeSettings.fromJson(Map<String, dynamic>.from(json));
         }
       } catch (_) {}
     }
-    return null;
+    return const ThemeSettings();
+  }
+
+  @override
+  Future<ThemeSettings> loadSettings() async {
+    return loadSettingsSync();
+  }
+
+  @override
+  Future<void> saveSettings(ThemeSettings settings) async {
+    final file = _resolveSettingsFile();
+    if (file != null) {
+      try {
+        await file.writeAsString(jsonEncode(settings.toJson()));
+      } catch (_) {}
+    }
+  }
+
+  @override
+  String? loadActiveThemeIdSync() {
+    return loadSettingsSync().activeThemeId;
   }
 
   @override
@@ -76,12 +169,8 @@ class FileThemeStorage implements ThemeStorage {
 
   @override
   Future<void> saveActiveThemeId(String themeId) async {
-    final file = _resolveSettingsFile();
-    if (file != null) {
-      try {
-        await file.writeAsString(jsonEncode({'activeThemeId': themeId}));
-      } catch (_) {}
-    }
+    final current = loadSettingsSync();
+    await saveSettings(current.copyWith(activeThemeId: themeId));
   }
 
   @override
@@ -89,7 +178,8 @@ class FileThemeStorage implements ThemeStorage {
     final dir = resolveUserThemesDir();
     if (dir == null) return null;
     try {
-      final sanitizedName = filename.endsWith('.json') ? filename : '$filename.json';
+      final sanitizedName =
+          filename.endsWith('.json') ? filename : '$filename.json';
       final file = File('${dir.path}/$sanitizedName');
       await file.writeAsString(content);
       return file;
@@ -100,20 +190,36 @@ class FileThemeStorage implements ThemeStorage {
 }
 
 class MemoryThemeStorage implements ThemeStorage {
-  String? _activeThemeId;
+  ThemeSettings _settings;
   final Map<String, String> userThemes = {};
 
-  MemoryThemeStorage([this._activeThemeId]);
+  MemoryThemeStorage([dynamic initial])
+      : _settings = initial is ThemeSettings
+            ? initial
+            : initial is String
+                ? ThemeSettings(activeThemeId: initial)
+                : const ThemeSettings();
 
   @override
-  String? loadActiveThemeIdSync() => _activeThemeId;
+  ThemeSettings loadSettingsSync() => _settings;
 
   @override
-  Future<String?> loadActiveThemeId() async => _activeThemeId;
+  Future<ThemeSettings> loadSettings() async => _settings;
+
+  @override
+  Future<void> saveSettings(ThemeSettings settings) async {
+    _settings = settings;
+  }
+
+  @override
+  String? loadActiveThemeIdSync() => _settings.activeThemeId;
+
+  @override
+  Future<String?> loadActiveThemeId() async => _settings.activeThemeId;
 
   @override
   Future<void> saveActiveThemeId(String themeId) async {
-    _activeThemeId = themeId;
+    _settings = _settings.copyWith(activeThemeId: themeId);
   }
 
   @override
@@ -125,3 +231,4 @@ class MemoryThemeStorage implements ThemeStorage {
   @override
   Directory? resolveUserThemesDir() => null;
 }
+

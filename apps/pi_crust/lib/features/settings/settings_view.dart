@@ -756,8 +756,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     Consumer(
                       builder: (context, ref, _) {
                         final activeTheme = ref.watch(activeThemeSpecProvider);
+                        final settings = ref.watch(themeSettingsProvider);
                         final repo = ref.watch(themeRepositoryProvider);
                         final themes = repo.availableThemes;
+                        final darkThemes = themes
+                            .where((t) => t.variant == 'dark')
+                            .toList();
+                        final lightThemes = themes
+                            .where((t) => t.variant == 'light')
+                            .toList();
 
                         return ListView(
                           padding: const EdgeInsets.all(24),
@@ -779,62 +786,274 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               ),
                             ),
                             const SizedBox(height: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Seleziona Tema: ',
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusMd,
                                 ),
-                                const SizedBox(width: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Usa tema di sistema',
+                                          style: TextStyle(
+                                            color: tokens.textPrimary,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Adatta automaticamente l\'aspetto in base alla modalità chiara o scura del sistema operativo.',
+                                          style: TextStyle(
+                                            color: tokens.textMuted,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: tokens.surfaceElevated,
+                                  Switch(
+                                    key: const ValueKey(
+                                      'settings-theme-system-switch',
+                                    ),
+                                    value: settings.useSystemTheme,
+                                    onChanged: (val) {
+                                      ref
+                                          .read(
+                                            themeSettingsProvider.notifier,
+                                          )
+                                          .setUseSystemTheme(val);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (!settings.useSystemTheme) ...[
+                              Text(
+                                'Seleziona Tema Attivo: ',
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.surfaceElevated,
+                                  borderRadius: BorderRadius.circular(
+                                    tokens.radiusMd,
+                                  ),
+                                  border: Border.all(color: tokens.border),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
                                     borderRadius: BorderRadius.circular(
                                       tokens.radiusMd,
                                     ),
-                                    border: Border.all(color: tokens.border),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      isExpanded: true,
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusMd,
-                                      ),
-                                      value: activeTheme.id,
-                                      dropdownColor: tokens.surfaceElevated,
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 13,
-                                        fontFamily: tokens.uiFontFamily,
-                                      ),
-                                      items: themes.map((t) {
-                                        return DropdownMenuItem<String>(
-                                          value: t.id,
-                                          child: Text(
-                                            '${t.name} (${t.variant})',
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: (newId) {
-                                        if (newId != null) {
-                                          ref
-                                              .read(
-                                                activeThemeSpecProvider
-                                                    .notifier,
-                                              )
-                                              .setTheme(newId);
-                                        }
-                                      },
+                                    value: activeTheme.id,
+                                    dropdownColor: tokens.surfaceElevated,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontFamily: tokens.uiFontFamily,
                                     ),
+                                    items: themes.map((t) {
+                                      return DropdownMenuItem<String>(
+                                        value: t.id,
+                                        child: Text(
+                                          '${t.name} (${t.variant})',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (newId) {
+                                      if (newId != null) {
+                                        ref
+                                            .read(
+                                              activeThemeSpecProvider.notifier,
+                                            )
+                                            .setTheme(newId);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tema Scuro Predefinito:',
+                                        style: TextStyle(
+                                          color: tokens.textSecondary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: tokens.surfaceElevated,
+                                          borderRadius: BorderRadius.circular(
+                                            tokens.radiusMd,
+                                          ),
+                                          border: Border.all(
+                                            color: tokens.border,
+                                          ),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                  tokens.radiusMd,
+                                                ),
+                                            value: darkThemes.any(
+                                                  (t) =>
+                                                      t.id ==
+                                                      settings
+                                                          .defaultDarkThemeId,
+                                                )
+                                                ? settings.defaultDarkThemeId
+                                                : (darkThemes.isNotEmpty
+                                                      ? darkThemes.first.id
+                                                      : null),
+                                            dropdownColor:
+                                                tokens.surfaceElevated,
+                                            style: TextStyle(
+                                              color: tokens.textPrimary,
+                                              fontSize: 13,
+                                              fontFamily: tokens.uiFontFamily,
+                                            ),
+                                            items: darkThemes.map((t) {
+                                              return DropdownMenuItem<String>(
+                                                value: t.id,
+                                                child: Text(
+                                                  t.name,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (newId) {
+                                              if (newId != null) {
+                                                ref
+                                                    .read(
+                                                      themeSettingsProvider
+                                                          .notifier,
+                                                    )
+                                                    .setDefaultDarkTheme(
+                                                      newId,
+                                                    );
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tema Chiaro Predefinito:',
+                                        style: TextStyle(
+                                          color: tokens.textSecondary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: tokens.surfaceElevated,
+                                          borderRadius: BorderRadius.circular(
+                                            tokens.radiusMd,
+                                          ),
+                                          border: Border.all(
+                                            color: tokens.border,
+                                          ),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                  tokens.radiusMd,
+                                                ),
+                                            value: lightThemes.any(
+                                                  (t) =>
+                                                      t.id ==
+                                                      settings
+                                                          .defaultLightThemeId,
+                                                )
+                                                ? settings.defaultLightThemeId
+                                                : (lightThemes.isNotEmpty
+                                                      ? lightThemes.first.id
+                                                      : null),
+                                            dropdownColor:
+                                                tokens.surfaceElevated,
+                                            style: TextStyle(
+                                              color: tokens.textPrimary,
+                                              fontSize: 13,
+                                              fontFamily: tokens.uiFontFamily,
+                                            ),
+                                            items: lightThemes.map((t) {
+                                              return DropdownMenuItem<String>(
+                                                value: t.id,
+                                                child: Text(
+                                                  t.name,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: (newId) {
+                                              if (newId != null) {
+                                                ref
+                                                    .read(
+                                                      themeSettingsProvider
+                                                          .notifier,
+                                                    )
+                                                    .setDefaultLightTheme(
+                                                      newId,
+                                                    );
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
