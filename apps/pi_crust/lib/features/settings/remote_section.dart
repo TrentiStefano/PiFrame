@@ -202,7 +202,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(data['message'] as String? ?? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.'),
-            backgroundColor: tokens.info,
+            backgroundColor: tokens.accent,
           ),
         );
       }
@@ -598,11 +598,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                       final qrWidget = Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: tokens.surface,
+                          color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: tokens.overlay,
+                              color: tokens.overlay.withValues(alpha: 0.15),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -612,7 +612,15 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           data: qrData,
                           version: QrVersions.auto,
                           size: 160.0,
-                          backgroundColor: tokens.surface,
+                          backgroundColor: tokens.surfaceElevated,
+                          dataModuleStyle: QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: tokens.textPrimary,
+                          ),
+                          eyeStyle: QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       );
 
@@ -845,7 +853,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                                         decoration: BoxDecoration(
-                                          color: isControl ? tokens.accent.withValues(alpha: 0.2) : tokens.info.withValues(alpha: 0.2),
+                                          color: isControl
+                                              ? tokens.accent.withValues(alpha: 0.2)
+                                              : tokens.info.withValues(alpha: 0.2),
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
@@ -980,7 +990,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             icon: _isInstallingTailscale
-                                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accentContrast))
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accentContrast,
+                                    ),
+                                  )
                                 : const Icon(Icons.download, size: 18),
                             label: Text(_isInstallingTailscale ? 'Avvio installazione...' : 'Installa Tailscale automaticamente'),
                             onPressed: _isInstallingTailscale ? null : _installTailscale,
@@ -1027,7 +1044,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                               Expanded(
                                 child: Text(
                                   'Tailscale è attivo e connesso',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: tokens.info),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: tokens.info,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1061,7 +1082,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                               FilledButton(
                                 onPressed: _isSavingTailscaleHostname ? null : _saveTailscaleHostname,
                                 child: _isSavingTailscaleHostname
-                                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accentContrast))
+                                    ? SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: tokens.accentContrast,
+                                        ),
+                                      )
                                     : const Text('Salva nome'),
                               ),
                             ],
@@ -1091,7 +1119,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                               children: [
                                 Text(
                                   'cloudflared rilevato e pronto all\'uso',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: tokens.success),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: tokens.success,
+                                  ),
                                 ),
                                 if (_cloudflaredPath != null)
                                   Text(
@@ -1135,7 +1167,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             icon: _isInstallingCloudflared
-                                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: tokens.accentContrast))
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accentContrast,
+                                    ),
+                                  )
                                 : const Icon(Icons.download, size: 18),
                             label: Text(_isInstallingCloudflared ? 'Download e installazione in corso...' : 'Installa cloudflared automaticamente'),
                             onPressed: _isInstallingCloudflared ? null : _installCloudflared,
@@ -1203,13 +1242,13 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         label = 'AVVIO...';
         break;
       case 'error':
-        bg = colorScheme.error.withValues(alpha: 0.2);
-        fg = colorScheme.error;
+        bg = tokens.danger.withValues(alpha: 0.2);
+        fg = tokens.danger;
         label = 'ERRORE';
         break;
       default:
-        bg = colorScheme.onSurface.withValues(alpha: 0.1);
-        fg = colorScheme.onSurfaceVariant;
+        bg = tokens.textMuted.withValues(alpha: 0.1);
+        fg = tokens.textMuted;
         label = 'DISATTIVATO';
     }
 

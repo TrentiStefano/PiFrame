@@ -39,11 +39,12 @@ class ToolExecutionState {
 
 class SessionEntry {
   final String id;
-  final String role; // 'user', 'assistant', 'system'
+  final String role; // 'user', 'assistant', 'system', 'bashExecution', 'custom', 'branchSummary', 'compactionSummary'
   final String text;
   final String? thinking;
   final List<ToolExecutionState> toolCalls;
   final int timestamp;
+  final Map<String, dynamic>? metadata;
 
   const SessionEntry({
     required this.id,
@@ -52,13 +53,35 @@ class SessionEntry {
     this.thinking,
     this.toolCalls = const [],
     required this.timestamp,
+    this.metadata,
   });
 
-  bool get isJunkOrInternal =>
-      role == 'system' ||
-      role == 'toolResult' ||
-      role == 'tool' ||
-      isInternalOrJunkMessageText(text);
+  SessionEntry copyWith({
+    String? id,
+    String? role,
+    String? text,
+    String? thinking,
+    List<ToolExecutionState>? toolCalls,
+    int? timestamp,
+    Map<String, dynamic>? metadata,
+  }) {
+    return SessionEntry(
+      id: id ?? this.id,
+      role: role ?? this.role,
+      text: text ?? this.text,
+      thinking: thinking ?? this.thinking,
+      toolCalls: toolCalls ?? this.toolCalls,
+      timestamp: timestamp ?? this.timestamp,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+
+  bool get isJunkOrInternal {
+    if (role == 'system' || role == 'toolResult' || role == 'tool') return true;
+    if (role == 'custom' && metadata?['display'] == false) return true;
+    if (role == 'assistant' && isInternalOrJunkMessageText(text)) return true;
+    return false;
+  }
 }
 
 bool isInternalOrJunkMessageText(String text) {

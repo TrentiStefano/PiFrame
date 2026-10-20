@@ -388,5 +388,67 @@ void main() {
       expect(attachments[1].name, 'diagram.png');
       expect(attachments[1].type, AttachmentType.image);
     });
+
+    testWidgets('renders assistant attachments and base64 data URIs without leaking raw attachment tags', (tester) async {
+      // 1x1 transparent GIF base64 data URI
+      const dataUri = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+      final asstAttachments = [
+        const ChatAttachment(
+          id: 'asst_att_img',
+          type: AttachmentType.image,
+          name: 'generated_chart.gif',
+          pathOrUrl: dataUri,
+        ),
+      ];
+
+      final tag = encodeAttachmentsTag(asstAttachments);
+      final rawAsstText = 'Here is the chart you requested.\n$tag';
+
+      final entry = SessionEntry(
+        id: 'msg_asst_1',
+        role: 'assistant',
+        text: rawAsstText,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      final state = SessionState(
+        sessionId: 's_asst_att_test',
+        cwd: '/test',
+        entries: [entry],
+        agentStatus: AgentStatus.settled,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('s_asst_att_test').overrideWith(
+              (ref) => SessionStateNotifier('s_asst_att_test', null)..state = state,
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 800,
+                height: 600,
+                child: TranscriptView(sessionId: 's_asst_att_test'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 1. Image thumbnail is rendered for the assistant attachment
+      final imgChipFinder = find.byKey(const ValueKey('attachment-image-asst_att_img'));
+      expect(imgChipFinder, findsOneWidget);
+
+      // 2. Clean message text is visible
+      expect(find.textContaining('Here is the chart you requested.'), findsOneWidget);
+
+      // 3. Raw attachment comment tag is NOT leaked to user
+      expect(find.textContaining('<!--pi-attachments:'), findsNothing);
+    });
   });
 }

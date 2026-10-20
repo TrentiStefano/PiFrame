@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../app/app_version.dart';
 import '../../domain/update/semver.dart';
+import 'web_token_stub.dart' if (dart.library.html) 'web_token_html.dart';
 
 class DaemonEndpoint {
   final String host;
@@ -64,13 +65,19 @@ class DaemonLocator {
       final isSecure = base.scheme == 'https';
       final port = base.hasPort && base.port != 0 ? base.port : (isSecure ? 443 : 80);
 
-      // Request session bootstrap (authenticated via cookie or local loopback)
+      final webToken = await getWebDeviceToken();
+
+      // Request session bootstrap (authenticated via cookie, Authorization header, or local loopback)
       try {
-        final response = await http.get(base.resolve('/api/session-bootstrap'))
+        final headers = <String, String>{};
+        if (webToken != null && webToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $webToken';
+        }
+        final response = await http.get(base.resolve('/api/session-bootstrap'), headers: headers)
             .timeout(const Duration(seconds: 4));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
-          final token = data['token'] as String?;
+          final token = (data['token'] as String?) ?? webToken;
           if (token != null && token.isNotEmpty) {
             return DaemonEndpoint(
               host: base.host,
@@ -79,8 +86,27 @@ class DaemonLocator {
               isSecure: isSecure,
             );
           }
+        } else if (response.statusCode != 401 &&
+            response.statusCode != 403 &&
+            webToken != null &&
+            webToken.isNotEmpty) {
+          return DaemonEndpoint(
+            host: base.host,
+            port: port,
+            token: webToken,
+            isSecure: isSecure,
+          );
         }
-      } catch (_) {}
+      } catch (_) {
+        if (webToken != null && webToken.isNotEmpty) {
+          return DaemonEndpoint(
+            host: base.host,
+            port: port,
+            token: webToken,
+            isSecure: isSecure,
+          );
+        }
+      }
 
       return null;
     }

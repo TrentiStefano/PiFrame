@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_crust_theme/pi_crust_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -199,7 +200,6 @@ class ImagePreviewDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final isLocal = !pathOrUrl.startsWith('http://') && !pathOrUrl.startsWith('https://');
 
     return Dialog(
       key: const ValueKey('image-lightbox-dialog'),
@@ -288,17 +288,11 @@ class ImagePreviewDialog extends StatelessWidget {
                       maxScale: 5.0,
                       minScale: 0.5,
                       child: Center(
-                        child: isLocal
-                            ? Image.file(
-                                File(pathOrUrl),
-                                fit: BoxFit.contain,
-                                errorBuilder: (ctx, err, stack) => _buildError(tokens),
-                              )
-                            : Image.network(
-                                pathOrUrl,
-                                fit: BoxFit.contain,
-                                errorBuilder: (ctx, err, stack) => _buildError(tokens),
-                              ),
+                        child: buildAttachmentImage(
+                          pathOrUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (ctx, err, stack) => _buildError(tokens),
+                        ),
                       ),
                     ),
                   ),
@@ -481,10 +475,6 @@ class AttachmentChip extends StatelessWidget {
   }
 
   Widget _buildImageThumbnail(BuildContext context, CrustTokens tokens) {
-    final isLocal =
-        !attachment.pathOrUrl.startsWith('http://') &&
-        !attachment.pathOrUrl.startsWith('https://');
-
     return Stack(
       key: ValueKey('attachment-image-${attachment.id}'),
       clipBehavior: Clip.none,
@@ -509,29 +499,17 @@ class AttachmentChip extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(tokens.radiusSm - 1),
-                child: isLocal
-                    ? Image.file(
-                        File(attachment.pathOrUrl),
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (ctx, err, stack) => Icon(
-                          Icons.image_not_supported_outlined,
-                          size: 22,
-                          color: tokens.textMuted,
-                        ),
-                      )
-                    : Image.network(
-                        attachment.pathOrUrl,
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (ctx, err, stack) => Icon(
-                          Icons.image_not_supported_outlined,
-                          size: 22,
-                          color: tokens.textMuted,
-                        ),
-                      ),
+                child: buildAttachmentImage(
+                  attachment.pathOrUrl,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, stack) => Icon(
+                    Icons.image_not_supported_outlined,
+                    size: 22,
+                    color: tokens.textMuted,
+                  ),
+                ),
               ),
             ),
           ),
@@ -558,6 +536,49 @@ class AttachmentChip extends StatelessWidget {
       ],
     );
   }
+}
+
+Widget buildAttachmentImage(
+  String pathOrUrl, {
+  double? width,
+  double? height,
+  required BoxFit fit,
+  required Widget Function(BuildContext, Object, StackTrace?) errorBuilder,
+}) {
+  if (pathOrUrl.startsWith('data:')) {
+    final uri = Uri.tryParse(pathOrUrl);
+    final bytes = uri?.data?.contentAsBytes();
+    if (bytes != null) {
+      return Image.memory(
+        bytes,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: errorBuilder,
+      );
+    }
+  }
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    return Image.network(
+      pathOrUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: errorBuilder,
+    );
+  }
+  if (!kIsWeb) {
+    return Image.file(
+      File(pathOrUrl),
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: errorBuilder,
+    );
+  }
+  return Builder(
+    builder: (ctx) => errorBuilder(ctx, StateError('Unsupported image source'), null),
+  );
 }
 
 class AttachmentListBar extends StatelessWidget {

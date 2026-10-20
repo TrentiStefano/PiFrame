@@ -16,7 +16,7 @@
 
     if (pairSecret) {
       // Wipe the sensitive secret from browser history and URL bar immediately (M2)
-      window.history.replaceState(null, '', window.location.pathname);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
       fetch('/api/remote/pair', {
         method: 'POST',
@@ -26,6 +26,14 @@
       })
         .then(function (res) {
           return res.json();
+        })
+        .then(function (data) {
+          if (data && data.deviceToken) {
+            try {
+              sessionStorage.setItem('pcp_device_token', data.deviceToken);
+              localStorage.setItem('pcp_device_token', data.deviceToken);
+            } catch (e) {}
+          }
         })
         .catch(function (err) {
           console.warn('[PairBootstrap] Failed to pair device:', err);
