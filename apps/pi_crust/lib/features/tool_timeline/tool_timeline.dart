@@ -17,7 +17,13 @@ class ToolTimeline extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: toolCalls.map((t) => ToolCard(key: ValueKey(t.toolCallId), tool: t)).toList(),
+        children: [
+          for (int i = 0; i < toolCalls.length; i++) ...[
+            ToolCard(key: ValueKey(toolCalls[i].toolCallId), tool: toolCalls[i]),
+            if (i < toolCalls.length - 1)
+              const SizedBox(height: 4),
+          ],
+        ],
       ),
     );
   }
