@@ -1,4 +1,4 @@
-import type { PcpEvent } from '@pi-crust/pcp-ts';
+import type { PcpEvent } from '@piframe/pcp-ts';
 
 export interface PendingUiRequest {
   requestId: string;

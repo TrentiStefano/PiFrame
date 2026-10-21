@@ -7,11 +7,11 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const temporaryHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-test-'));
-const previousHome = process.env.PI_CRUST_HOME;
-process.env.PI_CRUST_HOME = temporaryHome;
+const previousHome = process.env.PI_FRAME_HOME;
+process.env.PI_FRAME_HOME = temporaryHome;
 test.after(() => {
-  if (previousHome === undefined) delete process.env.PI_CRUST_HOME;
-  else process.env.PI_CRUST_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.PI_FRAME_HOME;
+  else process.env.PI_FRAME_HOME = previousHome;
   fs.rmSync(temporaryHome, { recursive: true, force: true });
 });
 import { Dispatcher } from '../Dispatcher.js';
@@ -69,7 +69,7 @@ function createGitRepo(): { root: string; cleanup: () => void } {
   const git = (args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
   git(['init', '-q']);
   git(['config', 'user.email', 'test@example.com']);
-  git(['config', 'user.name', 'Pi Crust Test']);
+  git(['config', 'user.name', 'PiFrame Test']);
   git(['config', 'core.autocrlf', 'false']);
   fs.writeFileSync(path.join(root, 'file.txt'), 'original\n');
   git(['add', 'file.txt']);

@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
-import { getPiCrustBaseDir } from '../config/config.js';
+import { getPiFrameBaseDir } from '../config/config.js';
 import { BaseTunnelProvider, killProcessTree, type TunnelStartResult } from './TunnelProvider.js';
 
 const START_TIMEOUT_MS = 30_000;
@@ -17,8 +17,8 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
     const isWin = process.platform === 'win32';
     const binName = isWin ? 'cloudflared.exe' : 'cloudflared';
 
-    // 1. ~/.pi-crust/bin/cloudflared (user-managed location)
-    const localBin = path.join(getPiCrustBaseDir(), 'bin', binName);
+    // 1. ~/.piframe/bin/cloudflared (user-managed location)
+    const localBin = path.join(getPiFrameBaseDir(), 'bin', binName);
     if (fs.existsSync(localBin)) return localBin;
 
     // 2. System PATH
@@ -37,13 +37,13 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
   }
 
   /**
-   * Downloads official Cloudflare release binary directly into ~/.pi-crust/bin/.
+   * Downloads official Cloudflare release binary directly into ~/.piframe/bin/.
    * Operates completely in user space without requiring administrator elevation or system PATH modification.
    */
   public static async downloadAndInstall(): Promise<string> {
     const isWin = process.platform === 'win32';
     const binName = isWin ? 'cloudflared.exe' : 'cloudflared';
-    const binDir = path.join(getPiCrustBaseDir(), 'bin');
+    const binDir = path.join(getPiFrameBaseDir(), 'bin');
     fs.mkdirSync(binDir, { recursive: true });
     const destFile = path.join(binDir, binName);
     const tmpFile = `${destFile}.tmp.${process.pid}.${Date.now()}`;
@@ -94,7 +94,7 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
     const binPath = CloudflaredTunnelProvider.findBinary();
     if (!binPath) {
       const message =
-        'cloudflared binary not found on PATH or in ~/.pi-crust/bin/. ' +
+        'cloudflared binary not found on PATH or in ~/.piframe/bin/. ' +
         'Please install it using the button in Settings or via your package manager ("winget install Cloudflare.cloudflared" / "brew install cloudflared").';
       this.setState('error', { error: message });
       throw new Error(message);

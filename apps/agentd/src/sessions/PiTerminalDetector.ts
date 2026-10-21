@@ -31,7 +31,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Diagnostics;
-public static class PiCrustProcessDirectory {
+public static class PiFrameProcessDirectory {
   [StructLayout(LayoutKind.Sequential)] public struct BasicInfo {
     public IntPtr Reserved1; public IntPtr PebBaseAddress; public IntPtr Reserved2a;
     public IntPtr Reserved2b; public IntPtr UniqueProcessId; public IntPtr Reserved3;
@@ -77,7 +77,7 @@ $items = @(Get-CimInstance Win32_Process | Where-Object {
   $_.CommandLine -like '*pi-coding-agent*' -and
   $_.CommandLine -notlike '*--mode rpc*'
 } | ForEach-Object {
-  $directory = [PiCrustProcessDirectory]::Read([int]$_.ProcessId)
+  $directory = [PiFrameProcessDirectory]::Read([int]$_.ProcessId)
   [PSCustomObject]@{ pid = [int]$_.ProcessId; cwd = $directory; commandLine = $_.CommandLine }
 })
 ConvertTo-Json -InputObject $items -Compress

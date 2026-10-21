@@ -13,8 +13,8 @@ import { DEFAULT_CONFIG } from '../../config/config.js';
 
 test('RemoteServer: two-listener architecture (local loopback vs dedicated remote listener)', async () => {
   const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-server-test-home-'));
-  const origHome = process.env.PI_CRUST_HOME;
-  process.env.PI_CRUST_HOME = testHome;
+  const origHome = process.env.PI_FRAME_HOME;
+  process.env.PI_FRAME_HOME = testHome;
 
   const tmpDevices = path.join(testHome, `pi_test_server_dev_${Date.now()}.json`);
   const authManager = new RemoteAuthManager(tmpDevices);
@@ -280,8 +280,8 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
     wss.close();
     localServer.close();
     remoteServer.close();
-    if (origHome) process.env.PI_CRUST_HOME = origHome;
-    else delete process.env.PI_CRUST_HOME;
+    if (origHome) process.env.PI_FRAME_HOME = origHome;
+    else delete process.env.PI_FRAME_HOME;
     try { fs.rmSync(testHome, { recursive: true, force: true }); } catch {}
   }
 });

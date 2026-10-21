@@ -3,7 +3,7 @@ import { EventJournal } from '../journal/EventJournal.js';
 import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilder.js';
 import { adaptPiEvent, type SessionContext } from '../pi/PiEventAdapter.js';
 import type { StdioPiTransport } from '../pi/StdioPiTransport.js';
-import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@pi-crust/pcp-ts';
+import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@piframe/pcp-ts';
 import type { PiEvent } from '../pi/piCommands.js';
 import { UiRequestBroker } from '../ui/UiRequestBroker.js';
 

@@ -1,0 +1,73 @@
+{
+  "$schema": "./theme.schema.json",
+  "schemaVersion": 1,
+  "id": "piframe-light",
+  "name": "PiFrame Light",
+  "author": "PiFrame",
+  "version": "1.0.0",
+  "variant": "light",
+  "extends": null,
+  "colors": {
+    "background": "#f4f5f8",
+    "chassis": "#eaecef",
+    "displaySurface": "#dbe0e8",
+    "displayText": "#0f172a",
+    "signalWarning": "#a15c0d",
+    "signalDanger": "#b92f24",
+    "surface": "#ffffff",
+    "surfaceElevated": "#ffffff",
+    "overlay": "#e2e5ebb3",
+    "border": "#e2e5eb",
+    "borderStrong": "#cbd2dc",
+    "textPrimary": "#0f172a",
+    "textSecondary": "#334155",
+    "textMuted": "#475569",
+    "accent": "#24638a",
+    "accentContrast": "#ffffff",
+    "focusRing": "#24638a",
+    "success": "#15803d",
+    "warning": "#a15c0d",
+    "danger": "#b92f24",
+    "info": "#24638a",
+    "agentWorking": "#15803d",
+    "agentRetrying": "#a15c0d",
+    "agentCompacting": "#24638a",
+    "agentSettled": "#15803d",
+    "agentAwaitingUser": "#a15c0d",
+    "agentError": "#b92f24",
+    "userBubble": "#edf0f4",
+    "thinking": "#24638a",
+    "diffAddedBg": "#15803d26",
+    "diffAddedFg": "#15803d",
+    "diffRemovedBg": "#b92f2426",
+    "diffRemovedFg": "#b92f24",
+    "diffContextFg": "#475569"
+  },
+  "syntax": {
+    "keyword": "#24638a",
+    "string": "#15803d",
+    "number": "#a15c0d",
+    "comment": "#475569",
+    "function": "#b92f24",
+    "type": "#a15c0d",
+    "variable": "#0f172a",
+    "operator": "#334155",
+    "punctuation": "#475569",
+    "invalid": "#b92f24"
+  },
+  "typography": {
+    "uiFontFamily": "SchibstedGrotesk",
+    "headingFontFamily": "BarlowCondensed",
+    "monoFontFamily": "SourceCodePro"
+  },
+  "radii": {
+    "sm": 6.0,
+    "md": 10.0,
+    "lg": 14.0,
+    "pill": 999.0
+  },
+  "motion": {
+    "fast": 120,
+    "normal": 240
+  }
+}

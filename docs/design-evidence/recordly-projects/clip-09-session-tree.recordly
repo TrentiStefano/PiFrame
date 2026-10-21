@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-09-session-tree",
+  "projectId": "pi-frame-clip-09-session-tree",
   "videoPath": "../clip-09-session-tree.mp4",
   "metadata": {
     "title": "Clip 9: Conversation Branching & Session Tree",
     "description": "Visual conversation lineage tree dialog showing branches, message nodes, and timeline checkpoints for branching off past turns.",
     "recordedAt": "2026-10-19T14:09:32.455Z",
     "durationSeconds": 3.7,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

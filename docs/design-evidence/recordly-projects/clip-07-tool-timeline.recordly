@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-07-tool-timeline",
+  "projectId": "pi-frame-clip-07-tool-timeline",
   "videoPath": "../clip-07-tool-timeline.mp4",
   "metadata": {
     "title": "Clip 7: Tool Execution Timeline & Test Runner",
     "description": "Interactive ToolCard widget with execution latency badge (4100ms), verified success indicator (✓), and expandable stdout terminal output.",
     "recordedAt": "2026-10-19T14:09:24.220Z",
     "durationSeconds": 3.6,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

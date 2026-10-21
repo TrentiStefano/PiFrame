@@ -16,7 +16,7 @@ import type {
   PcpAck,
   PcpResult,
   PcpError
-} from '@pi-crust/pcp-ts';
+} from '@piframe/pcp-ts';
 
 export class Dispatcher {
   private registry: SessionRegistry;

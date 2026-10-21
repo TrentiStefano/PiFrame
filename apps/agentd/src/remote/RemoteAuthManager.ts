@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { ulid } from 'ulid';
-import { getPiCrustBaseDir } from '../config/config.js';
+import { getPiFrameBaseDir } from '../config/config.js';
 import { timingSafeEqualStrings } from '../server/auth.js';
 import type {
   PairedDevice,
@@ -55,7 +55,7 @@ function sanitizeText(value: string, max: number): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max);
 }
 
-const DUMMY_HASH = sha256Hex('pi-crust-dummy-device-secret');
+const DUMMY_HASH = sha256Hex('piframe-dummy-device-secret');
 
 export class RemoteAuthManager {
   private devicesFile: string;
@@ -67,7 +67,7 @@ export class RemoteAuthManager {
   private now: () => number;
 
   constructor(customDevicesFile?: string, clock?: () => number) {
-    this.devicesFile = customDevicesFile || path.join(getPiCrustBaseDir(), 'remote_devices.json');
+    this.devicesFile = customDevicesFile || path.join(getPiFrameBaseDir(), 'remote_devices.json');
     this.now = clock ?? Date.now;
     this.loadDevices();
   }

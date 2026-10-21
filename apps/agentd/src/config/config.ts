@@ -158,15 +158,15 @@ export const DEFAULT_CONFIG: DaemonConfig = {
   }
 };
 
-export function getPiCrustBaseDir(): string {
-  if (process.env.PI_CRUST_HOME) {
-    return path.resolve(process.env.PI_CRUST_HOME);
+export function getPiFrameBaseDir(): string {
+  if (process.env.PI_FRAME_HOME) {
+    return path.resolve(process.env.PI_FRAME_HOME);
   }
-  return path.join(os.homedir(), '.pi-crust');
+  return path.join(os.homedir(), '.piframe');
 }
 
 export function getConfigFilePath(): string {
-  return path.join(getPiCrustBaseDir(), 'config.json');
+  return path.join(getPiFrameBaseDir(), 'config.json');
 }
 
 /** Config on disk is untrusted input: drop anything that does not validate (fail closed). */
@@ -207,7 +207,7 @@ export function loadConfig(): DaemonConfig {
 }
 
 export function saveConfig(config: DaemonConfig): void {
-  const baseDir = getPiCrustBaseDir();
+  const baseDir = getPiFrameBaseDir();
   fs.mkdirSync(baseDir, { recursive: true });
   const configFile = getConfigFilePath();
   const tempFile = `${configFile}.tmp.${process.pid}.${Date.now()}`;

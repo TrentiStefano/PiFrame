@@ -28,10 +28,10 @@ function hashDirectory(dir: string): Record<string, string> {
   return result;
 }
 
-test('uninstallPreservation: uninstallation removes ~/.pi-crust/ while strictly preserving ~/.pi/ untouched', async (t) => {
-  const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-crust-uninstall-test-'));
+test('uninstallPreservation: uninstallation removes ~/.piframe/ while strictly preserving ~/.pi/ untouched', async (t) => {
+  const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-uninstall-test-'));
   const piDir = path.join(testRoot, '.pi');
-  const piCrustDir = path.join(testRoot, '.pi-crust');
+  const piFrameDir = path.join(testRoot, '.piframe');
 
   t.after(() => {
     fs.rmSync(testRoot, { recursive: true, force: true });
@@ -53,26 +53,26 @@ test('uninstallPreservation: uninstallation removes ~/.pi-crust/ while strictly 
   const baselinePiHashes = hashDirectory(piDir);
   assert.strictEqual(Object.keys(baselinePiHashes).length, 3, 'Baseline ~/.pi must have 3 files');
 
-  // 2. Setup simulated ~/.pi-crust environment (runtime lock, tokens, journal, themes, index)
-  fs.mkdirSync(path.join(piCrustDir, 'runtime'), { recursive: true });
-  fs.mkdirSync(path.join(piCrustDir, 'journal', 'sess_original_1'), { recursive: true });
-  fs.mkdirSync(path.join(piCrustDir, 'themes'), { recursive: true });
+  // 2. Setup simulated ~/.piframe environment (runtime lock, tokens, journal, themes, index)
+  fs.mkdirSync(path.join(piFrameDir, 'runtime'), { recursive: true });
+  fs.mkdirSync(path.join(piFrameDir, 'journal', 'sess_original_1'), { recursive: true });
+  fs.mkdirSync(path.join(piFrameDir, 'themes'), { recursive: true });
 
-  fs.writeFileSync(path.join(piCrustDir, 'config.json'), '{"workerIdleTimeoutMs": 1800000}', 'utf8');
-  fs.writeFileSync(path.join(piCrustDir, 'index.json'), '[]', 'utf8');
-  fs.writeFileSync(path.join(piCrustDir, 'runtime', 'daemon.token'), 'simulated-token-abc', 'utf8');
-  fs.writeFileSync(path.join(piCrustDir, 'runtime', 'daemon.lock'), '12345', 'utf8');
-  fs.writeFileSync(path.join(piCrustDir, 'journal', 'sess_original_1', 'journal.jsonl'), '{"seq":1}\n', 'utf8');
+  fs.writeFileSync(path.join(piFrameDir, 'config.json'), '{"workerIdleTimeoutMs": 1800000}', 'utf8');
+  fs.writeFileSync(path.join(piFrameDir, 'index.json'), '[]', 'utf8');
+  fs.writeFileSync(path.join(piFrameDir, 'runtime', 'daemon.token'), 'simulated-token-abc', 'utf8');
+  fs.writeFileSync(path.join(piFrameDir, 'runtime', 'daemon.lock'), '12345', 'utf8');
+  fs.writeFileSync(path.join(piFrameDir, 'journal', 'sess_original_1', 'journal.jsonl'), '{"seq":1}\n', 'utf8');
 
-  assert.ok(fs.existsSync(piCrustDir), '~/.pi-crust should exist before uninstall');
+  assert.ok(fs.existsSync(piFrameDir), '~/.piframe should exist before uninstall');
 
   // 3. Execute simulated uninstall procedure (as documented in docs/install.md):
-  // Remove ~/.pi-crust completely
-  fs.rmSync(piCrustDir, { recursive: true, force: true });
+  // Remove ~/.piframe completely
+  fs.rmSync(piFrameDir, { recursive: true, force: true });
 
   // 4. Verify post-uninstall assertions:
-  // a) ~/.pi-crust must be completely removed
-  assert.strictEqual(fs.existsSync(piCrustDir), false, '~/.pi-crust must be deleted');
+  // a) ~/.piframe must be completely removed
+  assert.strictEqual(fs.existsSync(piFrameDir), false, '~/.piframe must be deleted');
 
   // b) ~/.pi must remain completely intact with identical hashes
   assert.ok(fs.existsSync(piDir), '~/.pi must still exist');
@@ -81,6 +81,6 @@ test('uninstallPreservation: uninstallation removes ~/.pi-crust/ while strictly 
   assert.deepStrictEqual(
     postUninstallPiHashes,
     baselinePiHashes,
-    'All files in ~/.pi must remain 100% untouched and byte-identical after Pi-Crust uninstall'
+    'All files in ~/.pi must remain 100% untouched and byte-identical after PiFrame uninstall'
   );
 });

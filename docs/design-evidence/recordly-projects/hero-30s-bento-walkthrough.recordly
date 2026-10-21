@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-hero-30s-bento-walkthrough",
+  "projectId": "pi-frame-hero-30s-bento-walkthrough",
   "videoPath": "../hero-30s-bento-walkthrough.mp4",
   "metadata": {
     "title": "Hero 30s Master Walkthrough",
-    "description": "Master tour of the actual Pi-Crust UI: Bento workspace, Command Palette (Ctrl+K), in-file syntax & Ctrl+F search, in-flight steer queue editing, thinking block, live Git diff review, and Catppuccin theme hot-reload.",
+    "description": "Master tour of the actual PiFrame UI: Bento workspace, Command Palette (Ctrl+K), in-file syntax & Ctrl+F search, in-flight steer queue editing, thinking block, live Git diff review, and Catppuccin theme hot-reload.",
     "recordedAt": "2026-10-19T14:08:58.051Z",
     "durationSeconds": 43.3,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

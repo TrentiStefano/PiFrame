@@ -1,4 +1,4 @@
-# Security & Quality Review — Feature "Accesso Remoto" (pi-crust)
+# Security & Quality Review — Feature "Accesso Remoto" (pi-frame)
 
 - **Ambito**: sottosistema remote — `apps/agentd/src/remote/*`, `server/*`, `commands/Dispatcher.ts`, `config/config.ts`, client Flutter (`daemon_locator.dart`, `pcp_client.dart`, `remote_section.dart`), `docs/security.md`, test.
 - **Metodo**: lettura del riassunto dell'agente, review del codice nel working tree (non ancora committato) e **PoC eseguiti contro il build reale di `agentd`** (`pnpm build`) per confermare i sospetti più gravi.
@@ -279,7 +279,7 @@ Ad ogni avvio del daemon (anche all'avvio del PC, senza nessuno davanti) il tunn
 ## 🟡 M9 — Trust boundary Cloudflare e provenienza di `cloudflared`
 
 - Con i Quick Tunnel **Cloudflare termina TLS e vede in chiaro tutto il traffico** (prompt, codice sorgente, token dispositivo, segreto di pairing). Non è citato in `docs/security.md`: l'utente deve saperlo. I Quick Tunnel inoltre non hanno SLA e l'URL, pur casuale, è pubblico e scansionabile (nessun controllo d'accesso a livello edge).
-- `cloudflared` è cercato in `~/.pi-crust/bin` e poi nel `PATH` senza verifica di integrità/firma; su Windows un binario in `PATH` scrivibile dall'utente equivale a esecuzione di codice. Mostrare all'utente il path/versione del binario usato.
+- `cloudflared` è cercato in `~/.piframe/bin` e poi nel `PATH` senza verifica di integrità/firma; su Windows un binario in `PATH` scrivibile dall'utente equivale a esecuzione di codice. Mostrare all'utente il path/versione del binario usato.
 - **Raccomandazione di prodotto**: proporre come opzione "consigliata" una rete privata (**Tailscale `serve`** — non `funnel` — o WireGuard) dove il daemon non è mai esposto a Internet; tenere Cloudflare Quick Tunnel come opzione "comoda ma esposta". Documentare le differenze di esposizione nella UI.
 
 ---

@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-05-context-analytics",
+  "projectId": "pi-frame-clip-05-context-analytics",
   "videoPath": "../clip-05-context-analytics.mp4",
   "metadata": {
     "title": "Clip 5: Context Window & Cost Analytics",
     "description": "Real-time context window token gauge (32k / 200k, 16%), token breakdown, cost tracking ($0.1800), and model configuration drawer.",
     "recordedAt": "2026-10-19T14:09:16.540Z",
     "durationSeconds": 4.4,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

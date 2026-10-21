@@ -1,5 +1,5 @@
 /**
- * PCP/1 (Pi-Crust Protocol) TypeScript Type Definitions
+ * PCP/1 (PiFrame Protocol) TypeScript Type Definitions
  * Normative contract for client-daemon communication.
  */
 

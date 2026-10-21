@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-10-catppuccin-themes",
+  "projectId": "pi-frame-clip-10-catppuccin-themes",
   "videoPath": "../clip-10-catppuccin-themes.mp4",
   "metadata": {
     "title": "Clip 10: Catppuccin Theme Engine",
     "description": "Hot-reloadable seamless switch between Catppuccin Frappé (dark) and Catppuccin Latte (light) across all window widgets.",
     "recordedAt": "2026-10-19T14:09:36.201Z",
     "durationSeconds": 3.4,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

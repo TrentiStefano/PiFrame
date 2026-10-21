@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/pcp/schema/error.schema.json",
+  "$id": "https://pi-frame.dev/pcp/schema/error.schema.json",
   "title": "PcpError",
   "type": "object",
   "required": ["protocol", "kind", "id", "ts", "type", "payload"],

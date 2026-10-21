@@ -7,7 +7,7 @@
 
 ## Context
 
-Users installing Pi-Crust must not be forced to manually install or manage Node.js.
+Users installing PiFrame must not be forced to manually install or manage Node.js.
 
 ## Decision
 
@@ -15,7 +15,7 @@ Bundle daemon with esbuild and package as single-file Node Single Executable App
 
 ## Consequences
 
-Self-contained distribution. Pi remains independent. Uninstalling Pi-Crust removes app and daemon without touching ~/.pi/.
+Self-contained distribution. Pi remains independent. Uninstalling PiFrame removes app and daemon without touching ~/.pi/.
 
 ## Alternatives Rejected
 

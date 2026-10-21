@@ -53,7 +53,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
   const isRemoteListener = opts.listener === 'remote';
   const getToken = () => (typeof opts.token === 'function' ? opts.token() : opts.token);
 
-  const blobsDir = path.join(os.homedir(), '.pi-crust', 'blobs');
+  const blobsDir = path.join(os.homedir(), '.piframe', 'blobs');
   if (!fs.existsSync(blobsDir)) {
     try {
       fs.mkdirSync(blobsDir, { recursive: true });
@@ -331,7 +331,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
       // 7. Static files (served over remote listener)
       if (req.method === 'GET' || req.method === 'HEAD') {
         const handled = serveStaticFile(req, res, {
-          staticDir: opts.staticDir || process.env.PI_CRUST_WEB_DIR,
+          staticDir: opts.staticDir || process.env.PI_FRAME_WEB_DIR,
           version,
           token: opts.token,
           remoteManager: opts.remoteManager,
@@ -419,7 +419,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         return;
       }
 
-      const themesDir = path.join(os.homedir(), '.pi-crust', 'themes');
+      const themesDir = path.join(os.homedir(), '.piframe', 'themes');
       const themes: any[] = [];
       if (fs.existsSync(themesDir)) {
         try {
@@ -504,7 +504,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
     // 7. Static files (local listener)
     if (req.method === 'GET' || req.method === 'HEAD') {
       const handled = serveStaticFile(req, res, {
-        staticDir: opts.staticDir || process.env.PI_CRUST_WEB_DIR,
+        staticDir: opts.staticDir || process.env.PI_FRAME_WEB_DIR,
         version,
         token: opts.token,
         remoteManager: opts.remoteManager,

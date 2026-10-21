@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-08-git-staging",
+  "projectId": "pi-frame-clip-08-git-staging",
   "videoPath": "../clip-08-git-staging.mp4",
   "metadata": {
     "title": "Clip 8: Live Git Changes & Staging Desk",
     "description": "Live git tracking, unstaged modifications, visual unified diff modal dialog with additions and deletions, and 1-click stage.",
     "recordedAt": "2026-10-19T14:09:28.632Z",
     "durationSeconds": 4.4,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

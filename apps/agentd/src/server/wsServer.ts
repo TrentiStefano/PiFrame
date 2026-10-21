@@ -4,7 +4,7 @@ import { Connection } from './connection.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';
 import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
-import type { ServerMessage, PcpEnvelope } from '@pi-crust/pcp-ts';
+import type { ServerMessage, PcpEnvelope } from '@piframe/pcp-ts';
 
 export interface WsServerOptions {
   httpServer: http.Server;

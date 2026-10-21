@@ -32,7 +32,7 @@ RUN pnpm run check:version && \
     pnpm run smoke:agentd-bundle
 
 # 4. Run TypeScript unit and security tests in Linux
-RUN pnpm --filter @pi-crust/agentd run test
+RUN pnpm --filter @piframe/agentd run test
 
 # 5. Run cross-component E2E fault injection and resilience tests in Linux
 RUN pnpm run test:e2e

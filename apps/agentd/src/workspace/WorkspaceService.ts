@@ -157,7 +157,7 @@ export class WorkspaceService {
       await this.assertRevision(target, expectedRevision);
       const parent = path.dirname(target);
       const mode = (await fs.promises.stat(target)).mode;
-      const tempPath = path.join(parent, `.pi-crust-${randomUUID()}.tmp`);
+      const tempPath = path.join(parent, `.piframe-${randomUUID()}.tmp`);
       let handle: fs.promises.FileHandle | undefined;
       try {
         handle = await fs.promises.open(tempPath, 'wx', mode & 0o777);

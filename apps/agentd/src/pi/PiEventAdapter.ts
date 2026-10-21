@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import type { PiEvent } from './piCommands.js';
-import type { PcpEvent, PcpEventType } from '@pi-crust/pcp-ts';
+import type { PcpEvent, PcpEventType } from '@piframe/pcp-ts';
 
 export interface SessionContext {
   sessionId: string;

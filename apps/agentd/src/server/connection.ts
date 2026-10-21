@@ -5,8 +5,8 @@ import type {
   PcpEnvelope,
   PcpWelcomePayload,
   PcpError
-} from '@pi-crust/pcp-ts';
-import { parseIncoming, encode } from '@pi-crust/pcp-ts';
+} from '@piframe/pcp-ts';
+import { parseIncoming, encode } from '@piframe/pcp-ts';
 import { timingSafeEqualStrings } from './auth.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';

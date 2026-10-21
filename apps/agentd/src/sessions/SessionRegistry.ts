@@ -7,7 +7,7 @@ import { WorkerSupervisor } from './WorkerSupervisor.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
-import type { PcpSnapshot, PcpSnapshotPayload } from '@pi-crust/pcp-ts';
+import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 
 export interface SessionRegistryOptions {

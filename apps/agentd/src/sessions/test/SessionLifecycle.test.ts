@@ -8,11 +8,11 @@ import { SessionRegistry } from '../SessionRegistry.js';
 import { Session } from '../Session.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-session-lifecycle-'));
-const previousHome = process.env.PI_CRUST_HOME;
-process.env.PI_CRUST_HOME = path.join(root, 'crust');
+const previousHome = process.env.PI_FRAME_HOME;
+process.env.PI_FRAME_HOME = path.join(root, 'frame');
 test.after(() => {
-  if (previousHome === undefined) delete process.env.PI_CRUST_HOME;
-  else process.env.PI_CRUST_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.PI_FRAME_HOME;
+  else process.env.PI_FRAME_HOME = previousHome;
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -51,7 +51,7 @@ const adrs = [
     title: 'Daemon Exposes Normalized Events, Not Raw Pi JSONL',
     section10Ref: null,
     context: 'Directly forwarding Pi JSONL couples Flutter UI to internal changes of Pi, violating isolation requirements.',
-    decision: 'The daemon normalizes all Pi events into stable Pi-Crust Protocol (PCP/1) events via PiEventAdapter.',
+    decision: 'The daemon normalizes all Pi events into stable PiFrame Protocol (PCP/1) events via PiEventAdapter.',
     consequences: 'Insulates UI from Pi upstream changes. An optional debug capability (debug.raw-pi-events) allows inspection when needed. Adapter covered by golden test fixtures.',
     alternatives: 'Pure passthrough (tightly couples Flutter to specific Pi versions).'
   },
@@ -61,7 +61,7 @@ const adrs = [
     title: 'Journal: Ring Buffer in Memory + Disk Spill per Session',
     section10Ref: null,
     context: 'Replay must survive GUI disconnects and transient daemon restarts without turning into a secondary authoritative transcript database.',
-    decision: 'Implement an in-memory ring buffer with append-only disk spill under ~/.pi-crust/journal/<sessionId>/ and periodic snapshots.',
+    decision: 'Implement an in-memory ring buffer with append-only disk spill under ~/.piframe/journal/<sessionId>/ and periodic snapshots.',
     consequences: 'Zero data loss during UI disconnects. Bounded resource usage with guaranteed monotonic sequence numbering.',
     alternatives: 'SQLite (heavyweight for bounded append-only stream); Memory-only (loses replay on daemon restart).'
   },
@@ -108,7 +108,7 @@ const adrs = [
   {
     num: '0011',
     slug: 'authentication-and-tokens',
-    title: 'Authentication: 256-Bit Token in ~/.pi-crust/runtime/daemon.token + Web Bootstrap Cookie',
+    title: 'Authentication: 256-Bit Token in ~/.piframe/runtime/daemon.token + Web Bootstrap Cookie',
     section10Ref: 6,
     context: 'The daemon executes agent commands on loopback. Web browsers cannot set custom headers during WebSocket handshake and query strings leak into logs.',
     decision: 'Generate a random 256-bit token on daemon startup in daemon.token (chmod 600). Transmit in PCP hello frame. Web client uses HttpOnly SameSite=Strict cookie via GET /api/session-bootstrap.',
@@ -140,9 +140,9 @@ const adrs = [
     slug: 'daemon-distribution-sidecar',
     title: 'Distribution: Daemon as Sidecar Binary (Node SEA) Inside App Bundle',
     section10Ref: 3,
-    context: 'Users installing Pi-Crust must not be forced to manually install or manage Node.js.',
+    context: 'Users installing PiFrame must not be forced to manually install or manage Node.js.',
     decision: 'Bundle daemon with esbuild and package as single-file Node Single Executable Application (SEA) bundled inside the Flutter app.',
-    consequences: 'Self-contained distribution. Pi remains independent. Uninstalling Pi-Crust removes app and daemon without touching ~/.pi/.',
+    consequences: 'Self-contained distribution. Pi remains independent. Uninstalling PiFrame removes app and daemon without touching ~/.pi/.',
     alternatives: 'Requiring user to pre-install Node 22 (poor desktop app onboarding experience).'
   },
   {
@@ -150,7 +150,7 @@ const adrs = [
     slug: 'minimum-supported-pi-version',
     title: 'Minimum Supported Pi Version: v0.85.0',
     section10Ref: 5,
-    context: 'Pi-Crust requires the modern Pi RPC interface, including session trees, assistantMessageEvent framing, and extension UI capabilities.',
+    context: 'PiFrame requires the modern Pi RPC interface, including session trees, assistantMessageEvent framing, and extension UI capabilities.',
     decision: 'Enforce v0.85.0 as the minimum supported Pi version, verified via semver probe on startup.',
     consequences: 'Daemon enters degraded state with actionable upgrade instructions if Pi < v0.85.0 or missing.',
     alternatives: 'Supporting legacy Pi versions (requires fragile polyfills and breaks protocol consistency).'

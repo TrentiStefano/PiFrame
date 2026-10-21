@@ -10,7 +10,7 @@ Directly forwarding Pi JSONL couples Flutter UI to internal changes of Pi, viola
 
 ## Decision
 
-The daemon normalizes all Pi events into stable Pi-Crust Protocol (PCP/1) events via PiEventAdapter.
+The daemon normalizes all Pi events into stable PiFrame Protocol (PCP/1) events via PiEventAdapter.
 
 ## Consequences
 

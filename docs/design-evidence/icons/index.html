@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pi-Crust App Icon System — Official Specification</title>
+  <title>PiFrame App Icon System — Official Specification</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
       /* Catppuccin Frappé (Dark Theme) */
       --frappe-base: #303446;
       --frappe-mantle: #292c3c;
-      --frappe-crust: #232634;
+      --frappe-darker: #232634;
       --frappe-surface0: #414559;
       --frappe-surface1: #51576d;
       --frappe-border: #51576d;
@@ -23,7 +23,7 @@
       /* Catppuccin Latte (Light Theme) */
       --latte-base: #eff1f5;
       --latte-mantle: #e6e9ef;
-      --latte-crust: #dce0e8;
+      --latte-darker: #dce0e8;
       --latte-surface0: #ccd0da;
       --latte-surface1: #bcc0cc;
       --latte-border: #bcc0cc;
@@ -32,7 +32,7 @@
       --latte-mauve: #8839ef;
 
       /* Active theme */
-      --bg: var(--frappe-crust);
+      --bg: var(--frappe-darker);
       --card-bg: var(--frappe-mantle);
       --surface: var(--frappe-surface0);
       --border: var(--frappe-border);
@@ -45,7 +45,7 @@
     }
 
     body.theme-latte {
-      --bg: var(--latte-crust);
+      --bg: var(--latte-darker);
       --card-bg: var(--latte-base);
       --surface: var(--latte-mantle);
       --border: var(--latte-border);
@@ -100,33 +100,35 @@
       padding: 4px 10px;
       border-radius: 999px;
       background: rgba(202, 158, 230, 0.15);
-      color: var(--accent);
       border: 1px solid var(--accent);
+      color: var(--accent);
+      text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     .brand-sub {
-      font-size: 14.5px;
+      font-size: 15px;
       color: var(--text-muted);
       margin-top: 6px;
-      max-width: 850px;
+      max-width: 720px;
     }
 
     .theme-toggle-btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-family: var(--font-ui);
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
+
     .theme-toggle-btn:hover {
       border-color: var(--accent);
       color: var(--accent);
@@ -137,56 +139,75 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 32px;
-      margin-bottom: 36px;
-      box-shadow: 0 12px 36px rgba(0,0,0,0.2);
+      margin-bottom: 32px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
     }
 
     .hero-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 32px;
-      align-items: center;
     }
 
-    @media (max-width: 768px) {
-      .hero-grid { grid-template-columns: 1fr; }
+    @media (max-width: 820px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .icon-showcase-panel {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      background: var(--bg);
-      padding: 28px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-    }
-
-    .icon-wrap {
-      width: 220px;
-      height: 220px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .icon-wrap:hover {
-      transform: scale(1.06);
-    }
-    .icon-wrap img {
-      width: 100%;
-      height: 100%;
-      border-radius: 48px;
-      display: block;
+      padding: 24px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .panel-tag {
       font-family: var(--font-mono);
       font-size: 12px;
-      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .icon-wrap {
+      width: 256px;
+      height: 256px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .icon-wrap img {
+      width: 256px;
+      height: 256px;
+      filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.35));
+    }
+
+    .action-bar {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: var(--surface);
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
       color: var(--accent);
     }
 
@@ -194,33 +215,28 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 28px;
-      margin-bottom: 36px;
+      padding: 32px;
+      margin-bottom: 32px;
     }
 
     .scale-ladder {
       display: flex;
       flex-wrap: wrap;
       align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
+      gap: 28px;
+      margin-top: 24px;
       padding: 24px;
-      background: var(--surface);
+      background: rgba(0, 0, 0, 0.15);
       border-radius: 12px;
-      border: 1px solid var(--border);
-      margin-top: 16px;
     }
 
     .scale-box {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    .scale-box img {
-      display: block;
-      border-radius: 22%;
-    }
+
     .scale-num {
       font-family: var(--font-mono);
       font-size: 11px;
@@ -229,81 +245,57 @@
 
     .concept-split {
       display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 28px;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
       align-items: center;
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 28px;
-      margin-bottom: 36px;
+      padding: 32px;
+      margin-bottom: 32px;
     }
 
-    @media (max-width: 800px) {
-      .concept-split { grid-template-columns: 1fr; }
+    @media (max-width: 820px) {
+      .concept-split {
+        grid-template-columns: 1fr;
+      }
     }
 
     .concept-split img {
       width: 100%;
-      border-radius: 14px;
+      border-radius: 12px;
       border: 1px solid var(--border);
-    }
-
-    .action-bar {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 18px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      font-family: var(--font-ui);
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: rgba(202, 158, 230, 0.1);
     }
 
     .spec-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13.5px;
-      margin-top: 14px;
+      margin-top: 16px;
     }
+
     .spec-table th, .spec-table td {
-      padding: 10px 14px;
-      text-align: left;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--border);
+      text-align: left;
     }
+
     .spec-table th {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-muted);
+      font-family: var(--font-heading);
+      font-size: 14px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      color: var(--accent);
     }
+
     .color-dot {
       display: inline-block;
-      width: 13px;
-      height: 13px;
-      border-radius: 4px;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 8px;
       vertical-align: middle;
-      margin-right: 6px;
-      border: 1px solid rgba(0,0,0,0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
   </style>
 </head>
@@ -312,11 +304,11 @@
     <header>
       <div>
         <h1 class="brand-title">
-          <span>🥧</span> Pi-Crust Official App Icon
+          <span>📐</span> PiFrame Official App Icon
           <span class="brand-badge">Production Asset</span>
         </h1>
         <p class="brand-sub">
-          Official stylized 3D "slice of a pie" icon adhering to pure Catppuccin theme color tokens. Features a <strong>1-piece cohesive crust</strong>, a <strong>dead-centered official Pi coding-agent logo</strong>, and zero food/bakery colors or neon glows.
+          Official PiFrame application icon system. Features geometric precision, crisp typography framing, and harmonious light &amp; dark palettes matching Catppuccin theme tokens.
         </p>
       </div>
       <div>
@@ -332,22 +324,22 @@
         <div class="icon-showcase-panel">
           <div class="panel-tag">🌙 Dark Theme (Catppuccin Frappé)</div>
           <div class="icon-wrap">
-            <img id="main-dark-img" src="pi-crust-dark.svg" alt="Pi-Crust Dark Icon">
+            <img id="main-dark-img" src="piframe-dark.svg" alt="PiFrame Dark Icon">
           </div>
           <div class="action-bar">
-            <a class="btn" href="pi-crust-dark.svg" download="pi-crust-dark.svg">Download SVG</a>
-            <a class="btn" href="pi-crust-dark-1024.png" download="pi-crust-dark-1024.png">1024px PNG</a>
+            <a class="btn" href="piframe-dark.svg" download="piframe-dark.svg">Download SVG</a>
+            <a class="btn" href="piframe-dark-1024.png" download="piframe-dark-1024.png">1024px PNG</a>
           </div>
         </div>
 
         <div class="icon-showcase-panel">
           <div class="panel-tag">☀️ Light Theme (Catppuccin Latte)</div>
           <div class="icon-wrap">
-            <img id="main-light-img" src="pi-crust-light.svg" alt="Pi-Crust Light Icon">
+            <img id="main-light-img" src="piframe-light.svg" alt="PiFrame Light Icon">
           </div>
           <div class="action-bar">
-            <a class="btn" href="pi-crust-light.svg" download="pi-crust-light.svg">Download SVG</a>
-            <a class="btn" href="pi-crust-light-1024.png" download="pi-crust-light-1024.png">1024px PNG</a>
+            <a class="btn" href="piframe-light.svg" download="piframe-light.svg">Download SVG</a>
+            <a class="btn" href="piframe-light-1024.png" download="piframe-light-1024.png">1024px PNG</a>
           </div>
         </div>
       </div>
@@ -364,51 +356,51 @@
 
       <div class="scale-ladder">
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 128px; height: 128px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 128px; height: 128px;">
           <span class="scale-num">128px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 96px; height: 96px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 96px; height: 96px;">
           <span class="scale-num">96px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 64px; height: 64px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 64px; height: 64px;">
           <span class="scale-num">64px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 48px; height: 48px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 48px; height: 48px;">
           <span class="scale-num">48px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 32px; height: 32px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 32px; height: 32px;">
           <span class="scale-num">32px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 24px; height: 24px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 24px; height: 24px;">
           <span class="scale-num">24px</span>
         </div>
         <div class="scale-box">
-          <img class="scale-img" src="pi-crust-dark.svg" style="width: 16px; height: 16px;">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 16px; height: 16px;">
           <span class="scale-num">16px</span>
         </div>
       </div>
     </div>
 
-    <!-- 3D Material Study & Geometry Validation -->
+    <!-- Architectural Geometry & Hierarchy -->
     <div class="concept-split">
       <div>
-        <img src="pi-crust-concept.jpg" alt="3D Material Study">
+        <img src="piframe-concept.jpg" alt="Design Geometry Study">
       </div>
       <div>
         <div class="panel-tag">Design Foundations</div>
         <h3 style="font-family: var(--font-heading); font-size: 26px; text-transform: uppercase; color: var(--accent); margin: 6px 0 12px;">
-          Architectural Geometry & Hierarchy
+          Architectural Geometry &amp; Hierarchy
         </h3>
         <ul style="font-size: 13.5px; color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
-          <li><strong>1-Piece Cohesive Crust:</strong> The crust forms the continuous bottom foundation slab of the pie slice and wraps seamlessly up into the curved back fluted rim—zero gaps, zero floating parts.</li>
-          <li><strong>Darker Tone for Crust:</strong> The crust is rendered in a slightly darker matte tone than the filling facet, providing physical ground weight.</li>
-          <li><strong>Dead-Centered Pi Logo:</strong> Positioned at the exact surface centroid with balanced 33px margins to both the left and right edges, projected flat in true perspective.</li>
-          <li><strong>Strict Palette Discipline:</strong> 100% Catppuccin tokens (Frappé & Latte) with signature Mauve used strictly as a hairline pinstripe accent.</li>
+          <li><strong>Interlocking PiFrame Geometry:</strong> The stylized 'P' and bounding frame interlock to communicate structural stability and workspace organization.</li>
+          <li><strong>Cohesive Theme Contrast:</strong> Designed with dedicated dark and light variants that harmonize with desktop system dark/light modes.</li>
+          <li><strong>Crisp Squircle Silhouette:</strong> Continuous squircle curvature matches native macOS and modern Windows application canvas standards.</li>
+          <li><strong>Strict Palette Discipline:</strong> Coordinated pastel blue, coral, and amber accents over neutral dark navy and soft off-white canvases.</li>
         </ul>
       </div>
     </div>
@@ -430,49 +422,44 @@
         <tbody>
           <tr>
             <td><strong>Squircle Canvas</strong></td>
-            <td><span class="color-dot" style="background:#303446"></span>#303446 (Base)</td>
-            <td><span class="color-dot" style="background:#eff1f5"></span>#eff1f5 (Base)</td>
+            <td><span class="color-dot" style="background:#181a24"></span>#181a24 (Dark Base)</td>
+            <td><span class="color-dot" style="background:#f2f2f4"></span>#f2f2f4 (Light Base)</td>
             <td>Matte desktop background tile</td>
           </tr>
           <tr>
-            <td><strong>1-Piece Crust</strong></td>
-            <td><span class="color-dot" style="background:#292c3c"></span>#292c3c → #232634</td>
-            <td><span class="color-dot" style="background:#ccd0da"></span>#ccd0da → #bcc0cc</td>
-            <td>Darker foundation slab + back fluted rim</td>
+            <td><strong>Pi Glyph (Blue)</strong></td>
+            <td><span class="color-dot" style="background:#5c90b0"></span>#5c90b0 (Soft Blue)</td>
+            <td><span class="color-dot" style="background:#5c90b0"></span>#5c90b0 (Soft Blue)</td>
+            <td>Primary Pi identifier element</td>
           </tr>
           <tr>
-            <td><strong>Pie Filling Top</strong></td>
-            <td><span class="color-dot" style="background:#414559"></span>#414559 (Surface0)</td>
-            <td><span class="color-dot" style="background:#eff1f5"></span>#eff1f5 (Base)</td>
-            <td>Lighter, smooth top surface facet</td>
+            <td><strong>Frame (Coral)</strong></td>
+            <td><span class="color-dot" style="background:#ec8072"></span>#ec8072 (Coral)</td>
+            <td><span class="color-dot" style="background:#ec8072"></span>#ec8072 (Coral)</td>
+            <td>Bounding structural frame</td>
           </tr>
           <tr>
-            <td><strong>Official Pi Glyph</strong></td>
-            <td><span class="color-dot" style="background:#c6d0f5"></span>#c6d0f5 (Text)</td>
-            <td><span class="color-dot" style="background:#4c4f69"></span>#4c4f69 (Text)</td>
-            <td>Centered coding agent geometric mark</td>
-          </tr>
-          <tr>
-            <td><strong>Hairline Seam Accent</strong></td>
-            <td><span class="color-dot" style="background:#ca9ee6"></span>#ca9ee6 (Mauve)</td>
-            <td><span class="color-dot" style="background:#8839ef"></span>#8839ef (Mauve)</td>
-            <td>Discrete 2.5px inner lip contour (no glow)</td>
+            <td><strong>Accent Dot (Amber)</strong></td>
+            <td><span class="color-dot" style="background:#eab348"></span>#eab348 (Warm Amber)</td>
+            <td><span class="color-dot" style="background:#eab348"></span>#eab348 (Warm Amber)</td>
+            <td>Focal visual anchor point</td>
           </tr>
         </tbody>
       </table>
     </div>
-
   </div>
 
   <script>
+    let isLatte = false;
     function toggleTheme() {
-      const isLatte = document.body.classList.toggle('theme-latte');
+      isLatte = !isLatte;
+      document.body.classList.toggle('theme-latte', isLatte);
       document.getElementById('theme-icon').textContent = isLatte ? '🌙' : '☀️';
       document.getElementById('theme-text').textContent = isLatte ? 'Switch to Frappé (Dark)' : 'Switch to Latte (Light)';
-
-      const scaleImgs = document.querySelectorAll('.scale-img');
-      const activeSrc = isLatte ? 'pi-crust-light.svg' : 'pi-crust-dark.svg';
-      scaleImgs.forEach(img => img.src = activeSrc);
+      const activeSrc = isLatte ? 'piframe-light.svg' : 'piframe-dark.svg';
+      document.querySelectorAll('.scale-img').forEach(img => {
+        img.src = activeSrc;
+      });
     }
   </script>
 </body>

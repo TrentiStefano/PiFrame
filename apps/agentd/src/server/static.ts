@@ -2,7 +2,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { isLoopbackHost } from './origin.js';
-import { getPiCrustBaseDir } from '../config/config.js';
+import { getPiFrameBaseDir } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 
 export interface StaticServerOptions {
@@ -15,20 +15,20 @@ export interface StaticServerOptions {
 
 export function findStaticDir(customDir?: string): string | undefined {
   if (customDir && fs.existsSync(customDir)) return customDir;
-  if (process.env.PI_CRUST_WEB_DIR && fs.existsSync(process.env.PI_CRUST_WEB_DIR)) {
-    return process.env.PI_CRUST_WEB_DIR;
+  if (process.env.PI_FRAME_WEB_DIR && fs.existsSync(process.env.PI_FRAME_WEB_DIR)) {
+    return process.env.PI_FRAME_WEB_DIR;
   }
 
-  const baseDir = getPiCrustBaseDir();
+  const baseDir = getPiFrameBaseDir();
   const userWebDir = path.join(baseDir, 'web');
   if (fs.existsSync(userWebDir)) return userWebDir;
 
   const scriptDir = typeof __dirname !== 'undefined' ? __dirname : '';
   const candidates = [
-    path.join(process.cwd(), 'apps', 'pi_crust', 'build', 'web'),
+    path.join(process.cwd(), 'apps', 'pi_frame', 'build', 'web'),
     path.join(process.cwd(), 'build', 'web'),
-    path.resolve(scriptDir, '..', '..', 'pi_crust', 'build', 'web'),
-    path.resolve(scriptDir, '..', '..', '..', 'apps', 'pi_crust', 'build', 'web'),
+    path.resolve(scriptDir, '..', '..', 'pi_frame', 'build', 'web'),
+    path.resolve(scriptDir, '..', '..', '..', 'apps', 'pi_frame', 'build', 'web'),
     path.resolve(scriptDir, 'web')
   ];
 
@@ -133,7 +133,7 @@ export function serveStaticFile(
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Pi-Crust</title>
+  <title>PiFrame</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #11141b; color: #f0f3f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     .card { background: #1a1e28; padding: 32px; border-radius: 12px; border: 1px solid #2d3446; text-align: center; max-width: 420px; }
@@ -144,7 +144,7 @@ export function serveStaticFile(
 </head>
 <body>
   <div class="card">
-    <h1>Pi-Crust Daemon</h1>
+    <h1>PiFrame Daemon</h1>
     <p>Il daemon locale è attivo e operativo su loopback.</p>
     <div class="status">v${opts.version} • ONLINE</div>
   </div>

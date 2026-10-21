@@ -6,9 +6,9 @@ const baseDir = path.resolve(__dirname, '../docs/design-evidence');
 
 const files = [
   path.join(baseDir, 'bento-triptych-fixture-dark-wide.png'),
-  path.join(baseDir, 'pi-crust-live-settings-frappe.png'),
+  path.join(baseDir, 'piframe-live-settings-frappe.png'),
   path.join(baseDir, 'bento-triptych-fixture-wide.png'),
-  path.join(baseDir, 'pi-crust-live-settings-latte.png'),
+  path.join(baseDir, 'piframe-live-settings-latte.png'),
   path.join(baseDir, 'bento-triptych-fixture-dark-compact-git.png'),
   path.join(baseDir, 'bento-triptych-fixture-dark-wide.png'),
 ];
@@ -52,8 +52,8 @@ for (let i = 1; i < files.length; i++) {
 // Remove trailing semicolon
 filter = filter.replace(/;$/, '');
 
-const outMp4 = path.join(baseDir, 'pi-crust-showcase.mp4');
-const outWebp = path.join(baseDir, 'pi-crust-showcase.webp');
+const outMp4 = path.join(baseDir, 'piframe-showcase.mp4');
+const outWebp = path.join(baseDir, 'piframe-showcase.webp');
 
 console.log('Generating MP4...');
 const cmdMp4 = `ffmpeg ${inputArgs} -filter_complex "${filter}" -map "[vout]" -pix_fmt yuv420p -r 24 -y "${outMp4}"`;

@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-11-disconnect-safe",
+  "projectId": "pi-frame-clip-11-disconnect-safe",
   "videoPath": "../clip-11-disconnect-safe.mp4",
   "metadata": {
     "title": "Clip 11: Disconnect-Safe Local Daemon & Notifications",
     "description": "Resilient local daemon connection badge (Pi locale, 100% offline & zero telemetry) and native desktop notification toast banner.",
     "recordedAt": "2026-10-19T14:09:39.917Z",
     "durationSeconds": 3.4,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

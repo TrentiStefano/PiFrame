@@ -1,4 +1,4 @@
-# ADR 0011: Authentication: 256-Bit Token in ~/.pi-crust/runtime/daemon.token + Web Bootstrap Cookie
+# ADR 0011: Authentication: 256-Bit Token in ~/.piframe/runtime/daemon.token + Web Bootstrap Cookie
 
 - **Status:** Accepted
 - **Confirmation Date:** 2026-09-18

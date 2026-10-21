@@ -14,7 +14,7 @@ import { RemoteManager } from './remote/RemoteManager.js';
 const VERSION = '1.3.0'; // x-release-please-version
 
 async function main() {
-  console.log(`[agentd] Starting Pi-Crust Daemon v${VERSION}...`);
+  console.log(`[agentd] Starting PiFrame Daemon v${VERSION}...`);
 
   // 1. Single-instance mutex lock
   const lockHandle = acquireSingleInstanceLock();
@@ -107,7 +107,7 @@ async function main() {
     });
   }
 
-  // 5. Initialize runtime directory (~/.pi-crust/runtime/daemon.json, daemon.token, etc.)
+  // 5. Initialize runtime directory (~/.piframe/runtime/daemon.json, daemon.token, etc.)
   token = generateAndSaveToken();
   writeRuntimeInfo({
     port: actualPort,

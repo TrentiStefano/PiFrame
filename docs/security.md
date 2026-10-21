@@ -1,6 +1,6 @@
-# Baseline di Sicurezza e Modello di Minaccia di Pi-Crust
+# Baseline di Sicurezza e Modello di Minaccia di PiFrame
 
-Questo documento descrive l'architettura di sicurezza, le difese implementate e il modello di minaccia per il runtime **Pi-Crust** e il daemon `pi-agentd`.
+Questo documento descrive l'architettura di sicurezza, le difese implementate e il modello di minaccia per il runtime **PiFrame** e il daemon `pi-agentd`.
 
 ---
 
@@ -24,7 +24,7 @@ Il daemon `pi-agentd` è un servizio locale ad alto privilegio in grado di inter
   - Sul listener remoto dedicato, qualsiasi tentativo di autenticazione con il token master viene rifiutato con chiusura immediata della connessione WebSocket (`4003`) o `401 Unauthorized` su HTTP.
   - L'endpoint `/api/session-bootstrap` sul listener remoto non restituisce mai il token master.
 - **File di Runtime**:
-  - Il token master è memorizzato in `~/.pi-crust/runtime/daemon.token` con permessi owner-only (`0600`).
+  - Il token master è memorizzato in `~/.piframe/runtime/daemon.token` con permessi owner-only (`0600`).
 - **Confronto a Tempo Costante**: La verifica del token utilizza `crypto.timingSafeEqual` (`timingSafeEqualStrings`) per prevenire attacchi di tipo *timing attack*.
 - **Divieto di Token in URL o Query String**: I token e i segreti non viaggiano mai come parametri di query HTTP (prevenendo leak nei log di server/proxy e header Referer).
 
@@ -69,8 +69,8 @@ Il daemon `pi-agentd` è un servizio locale ad alto privilegio in grado di inter
 ## 5. Privacy e Divieto di Telemetria Remota (D16)
 
 - **Zero Raccolta Dati Remota**:
-  - Pi-Crust non include alcun SDK o endpoint di telemetria, analytics o crash reporting verso server di terzi.
-  - Tutti i log rimangono confinati nel filesystem locale dell'utente (`~/.pi-crust/runtime/daemon.log`).
+  - PiFrame non include alcun SDK o endpoint di telemetria, analytics o crash reporting verso server di terzi.
+  - Tutti i log rimangono confinati nel filesystem locale dell'utente (`~/.piframe/runtime/daemon.log`).
 - **Redazione Automatica dei Segreti**:
   - Qualsiasi funzionalità di esportazione redige automaticamente token e chiavi API (`[REDACTED]`).
 
@@ -78,7 +78,7 @@ Il daemon `pi-agentd` è un servizio locale ad alto privilegio in grado di inter
 
 ## 6. Accesso Remoto Sicuro & Associazione Dispositivi (Safe Remote Access)
 
-L'accesso remoto consente di interagire con il daemon Pi-Crust dallo smartphone o dal browser esterno adottando un'architettura rigorosamente blindata:
+L'accesso remoto consente di interagire con il daemon PiFrame dallo smartphone o dal browser esterno adottando un'architettura rigorosamente blindata:
 
 ### 1. Opt-in per Default
 Nessun listener remoto, processo di tunneling o porta viene avviata se l'utente non abilita esplicitamente l'opzione nelle impostazioni. All'avvio del sistema, l'auto-start non genera segreti di associazione effimeri finché l'utente non li richiede.

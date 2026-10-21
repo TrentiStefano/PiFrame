@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-02-command-palette",
+  "projectId": "pi-frame-clip-02-command-palette",
   "videoPath": "../clip-02-command-palette.mp4",
   "metadata": {
     "title": "Clip 2: Command Palette (Ctrl+K Quick Actions)",
     "description": "Keyboard-first command palette modal for instant navigation, file searching, session operations, and workspace commands.",
     "recordedAt": "2026-10-19T14:09:05.421Z",
     "durationSeconds": 4.5,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

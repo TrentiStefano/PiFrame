@@ -7,7 +7,7 @@
 
 ## Context
 
-Pi-Crust requires the modern Pi RPC interface, including session trees, assistantMessageEvent framing, and extension UI capabilities.
+PiFrame requires the modern Pi RPC interface, including session trees, assistantMessageEvent framing, and extension UI capabilities.
 
 ## Decision
 

@@ -129,8 +129,8 @@ async function main() {
   const mp4Hero = path.join(outDir, 'hero.mp4');
   const gifHero = path.join(outDir, 'hero.gif');
   const webpHero = path.join(outDir, 'hero.webp');
-  const mp4Showcase = path.join(outDir, 'pi-crust-showcase.mp4');
-  const webpShowcase = path.join(outDir, 'pi-crust-showcase.webp');
+  const mp4Showcase = path.join(outDir, 'piframe-showcase.mp4');
+  const webpShowcase = path.join(outDir, 'piframe-showcase.webp');
 
   // Determine actual capture fps
   const durationSec = (Date.now() - startTime) / 1000;

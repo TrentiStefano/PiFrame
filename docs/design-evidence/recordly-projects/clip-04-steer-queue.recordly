@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-04-steer-queue",
+  "projectId": "pi-frame-clip-04-steer-queue",
   "videoPath": "../clip-04-steer-queue.mp4",
   "metadata": {
     "title": "Clip 4: In-Flight Steer Queue Editing",
     "description": "Composer expansion and modal dialog to modify queued steering directives on the fly without interrupting the active agent stream.",
     "recordedAt": "2026-10-19T14:09:12.603Z",
     "durationSeconds": 5.1,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

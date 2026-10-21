@@ -50,7 +50,7 @@ jobs:
         run: pnpm -r run build
 
       - name: Build daemon bundle
-        run: pnpm --filter @pi-crust/agentd run build:bundle
+        run: pnpm --filter @piframe/agentd run build:bundle
 
       - name: Verify and smoke-test daemon bundle
         run: |
@@ -62,9 +62,9 @@ jobs:
 
       - name: Run Flutter tests and analyzers
         run: |
-          cd packages/pi_crust_protocol && flutter test
-          cd ../pi_crust_theme && flutter test
-          cd ../../apps/pi_crust && flutter analyze && flutter test
+          cd packages/pi_frame_protocol && flutter test
+          cd ../pi_frame_theme && flutter test
+          cd ../../apps/pi_frame && flutter analyze && flutter test
 
   release-please:
     name: Prepare semantic release
@@ -177,54 +177,54 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build protocol package
-        run: pnpm --filter @pi-crust/pcp-ts run build
+        run: pnpm --filter @piframe/pcp-ts run build
 
       - name: Build daemon bundle
-        run: pnpm --filter @pi-crust/agentd run build:bundle
+        run: pnpm --filter @piframe/agentd run build:bundle
 
       - name: Build Flutter desktop app
-        working-directory: apps/pi_crust
-        run: flutter build ${{ matrix.platform }} --release --build-name ${{ needs.release-meta.outputs.version }} --build-number ${{ github.run_number }} --dart-define=PI_CRUST_VERSION=${{ needs.release-meta.outputs.version }}
+        working-directory: apps/pi_frame
+        run: flutter build ${{ matrix.platform }} --release --build-name ${{ needs.release-meta.outputs.version }} --build-number ${{ github.run_number }} --dart-define=PI_FRAME_VERSION=${{ needs.release-meta.outputs.version }}
 
       - name: Build Windows installer
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          $bundle = Join-Path $env:GITHUB_WORKSPACE 'apps/pi_crust/build/windows/x64/runner/Release'
+          $bundle = Join-Path $env:GITHUB_WORKSPACE 'apps/pi_frame/build/windows/x64/runner/Release'
           if (!(Test-Path (Join-Path $bundle 'pi-agentd.cjs'))) {
             Copy-Item 'apps/agentd/dist/pi-agentd.cjs' $bundle
           }
           $nodePath = (Get-Command node).Source
           Copy-Item $nodePath (Join-Path $bundle 'node.exe') -Force
           Copy-Item (Join-Path (Split-Path $nodePath -Parent) 'LICENSE') (Join-Path $bundle 'NODE-LICENSE.txt') -Force
-          if (!(Test-Path (Join-Path $bundle 'pi_crust.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt'))) {
+          if (!(Test-Path (Join-Path $bundle 'pi_frame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt'))) {
             throw 'Windows app bundle is missing app, daemon, or Node runtime.'
           }
           New-Item -ItemType Directory -Force dist | Out-Null
           choco install innosetup --yes --no-progress
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
-          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$bundle" "/DOutputDir=$env:GITHUB_WORKSPACE/dist" 'packaging/windows/pi-crust.iss'
+          & $iscc "/DAppVersion=$env:APP_VERSION" "/DSourceDir=$bundle" "/DOutputDir=$env:GITHUB_WORKSPACE/dist" 'packaging/windows/piframe.iss'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build macOS DMG
         if: matrix.platform == 'macos'
         shell: bash
         run: |
-          app='apps/pi_crust/build/macos/Build/Products/Release/pi_crust.app'
+          app='apps/pi_frame/build/macos/Build/Products/Release/pi_frame.app'
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" dist/dmg
           cp apps/agentd/dist/pi-agentd.cjs "$app/Contents/MacOS/pi-agentd.cjs"
           node_bin="$(command -v node)"
           cp "$node_bin" "$app/Contents/MacOS/node"
           cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
           chmod +x "$app/Contents/MacOS/node"
-          cp -R "$app" dist/dmg/Pi-Crust.app
-          codesign --force --deep --sign - dist/dmg/Pi-Crust.app
+          cp -R "$app" dist/dmg/PiFrame.app
+          codesign --force --deep --sign - dist/dmg/PiFrame.app
           ln -s /Applications dist/dmg/Applications
-          test -x "$app/Contents/MacOS/pi_crust"
+          test -x "$app/Contents/MacOS/pi_frame"
           test -x "$app/Contents/MacOS/node"
           test -s "$app/Contents/MacOS/pi-agentd.cjs"
           test -s "$app/Contents/Resources/NODE-LICENSE.txt"
-          hdiutil create -volname 'Pi-Crust' -srcfolder dist/dmg -ov -format UDZO "dist/Pi-Crust-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
+          hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
           rm -rf dist/dmg
 
       - name: Build Linux Debian installer
@@ -235,26 +235,26 @@ jobs:
         if: matrix.platform == 'linux'
         shell: bash
         run: |
-          package="dist/Pi-Crust-${APP_VERSION}-linux-amd64.deb"
+          package="dist/PiFrame-${APP_VERSION}-linux-amd64.deb"
           temp_dir="$(mktemp -d)"
           trap 'rm -rf "$temp_dir"' EXIT
           dpkg-deb --extract "$package" "$temp_dir"
-          export PI_CRUST_HOME="$temp_dir/home"
-          export APP_BIN="$temp_dir/opt/pi-crust/pi_crust"
-          mkdir -p "$PI_CRUST_HOME"
+          export PI_FRAME_HOME="$temp_dir/home"
+          export APP_BIN="$temp_dir/opt/pi-frame/pi_frame"
+          mkdir -p "$PI_FRAME_HOME"
           xvfb-run -a -s '-screen 0 1280x720x24' bash -c '
             "$APP_BIN" &
             app_pid=$!
             trap "kill $app_pid 2>/dev/null || true" EXIT
             for _ in $(seq 1 20); do
-              [[ -s "$PI_CRUST_HOME/runtime/daemon.json" ]] && break
+              [[ -s "$PI_FRAME_HOME/runtime/daemon.json" ]] && break
               sleep 0.5
             done
-            test -s "$PI_CRUST_HOME/runtime/daemon.json"
+            test -s "$PI_FRAME_HOME/runtime/daemon.json"
             sleep 2
-            import -window root "$GITHUB_WORKSPACE/dist/pi-crust-screenshot.png"
+            import -window root "$GITHUB_WORKSPACE/dist/piframe-screenshot.png"
           '
-          test -s dist/pi-crust-screenshot.png
+          test -s dist/piframe-screenshot.png
 
       - uses: actions/upload-artifact@v7
         with:

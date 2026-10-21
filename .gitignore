@@ -93,10 +93,10 @@ ios/Flutter/ephemeral/
 *.map
 
 # ==============================================================================
-# Pi-Crust Runtime & Local Storage
+# PiFrame Runtime & Local Storage
 # ==============================================================================
-.pi-crust/
-**/.pi-crust/
+.piframe/
+**/.piframe/
 runtime/
 daemon.token
 daemon.pid

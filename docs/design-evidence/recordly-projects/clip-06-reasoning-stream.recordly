@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-06-reasoning-stream",
+  "projectId": "pi-frame-clip-06-reasoning-stream",
   "videoPath": "../clip-06-reasoning-stream.mp4",
   "metadata": {
     "title": "Clip 6: Collapsible Deep Reasoning Streams",
     "description": "Collapsible deep thinking block (Ragionamento) with real-time word count, thinking tokens, live duration stopwatch, and toggle.",
     "recordedAt": "2026-10-19T14:09:20.411Z",
     "durationSeconds": 4.4,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

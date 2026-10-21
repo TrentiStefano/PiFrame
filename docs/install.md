@@ -1,15 +1,15 @@
-# Installazione, Ciclo di Vita e Disinstallazione di Pi-Crust
+# Installazione, Ciclo di Vita e Disinstallazione di PiFrame
 
-Questa guida documenta la distribuzione, l'avvio on-demand, la gestione degli aggiornamenti e la procedura di disinstallazione sicura di **Pi-Crust**.
+Questa guida documenta la distribuzione, l'avvio on-demand, la gestione degli aggiornamenti e la procedura di disinstallazione sicura di **PiFrame**.
 
 ---
 
 ## 1. Architettura di Distribuzione (D8, D14)
 
-Pi-Crust è progettato come un'applicazione desktop a doppio componente:
+PiFrame è progettato come un'applicazione desktop a doppio componente:
 1. **Interfaccia Grafica (Flutter App)**: app desktop per Windows, macOS e Linux; Web locale resta disponibile da sorgente.
 2. **Daemon di Runtime (`pi-agentd`)**: sidecar Node.js incluso negli installer insieme al runtime Node. Gestisce la connessione con Pi (`pi --mode rpc`), il journal degli eventi e lo stato delle sessioni.
-3. **Pi CLI Originale**: l'installazione di Pi (`v0.85.0+`) rimane completamente esterna ed intatta in `~/.pi/`. Pi-Crust **non modifica, non sposta e non sovrascrive mai** file all'interno di `~/.pi/`.
+3. **Pi CLI Originale**: l'installazione di Pi (`v0.85.0+`) rimane completamente esterna ed intatta in `~/.pi/`. PiFrame **non modifica, non sposta e non sovrascrive mai** file all'interno di `~/.pi/`.
 
 ---
 
@@ -26,32 +26,32 @@ Pi-Crust è progettato come un'applicazione desktop a doppio componente:
 
 ### MCP Dart/Flutter per Pi
 
-Pi-Crust usa il server ufficiale integrato Dart/Flutter configurato a livello utente in `~/.pi/agent/mcp.json` (`dart mcp-server`, esposizione differita). Serve Flutter/Dart SDK su `PATH`. Da root del progetto, verifica con `pi mcp list`; lo stato atteso è `dart · connected`. Pi-Crust avvia worker RPC con la workspace come `cwd`, quindi il server si aggancia al progetto attivo senza richiedere trust locale. Gli strumenti sono scoperti on demand tramite `tool_search`.
+PiFrame usa il server ufficiale integrato Dart/Flutter configurato a livello utente in `~/.pi/agent/mcp.json` (`dart mcp-server`, esposizione differita). Serve Flutter/Dart SDK su `PATH`. Da root del progetto, verifica con `pi mcp list`; lo stato atteso è `dart · connected`. PiFrame avvia worker RPC con la workspace come `cwd`, quindi il server si aggancia al progetto attivo senza richiedere trust locale. Gli strumenti sono scoperti on demand tramite `tool_search`.
 
 ---
 
 ## 3. Installazione
 
-Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.com/TrentiStefano/pi-crust/releases/latest). I commit Conventional (`fix`, `feat`, `BREAKING CHANGE`) aggiornano il PR di release SemVer; quando il PR viene unito, GitHub Actions pubblica installer Windows, macOS Intel/Apple silicon e Linux x64 con screenshot aggiornato.
+Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.com/TrentiStefano/piframe/releases/latest). I commit Conventional (`fix`, `feat`, `BREAKING CHANGE`) aggiornano il PR di release SemVer; quando il PR viene unito, GitHub Actions pubblica installer Windows, macOS Intel/Apple silicon e Linux x64 con screenshot aggiornato.
 
 ### macOS
-1. Apri il DMG e trascina `Pi-Crust.app` in `/Applications`.
-2. Al primo avvio, Pi-Crust avvia `pi-agentd` usando il runtime Node incluso.
+1. Apri il DMG e trascina `PiFrame.app` in `/Applications`.
+2. Al primo avvio, PiFrame avvia `pi-agentd` usando il runtime Node incluso.
 3. Build non firmate/notarizzate possono richiedere **Control-click → Open** al primo avvio.
 
 ### Windows
-1. Avvia `Pi-Crust-Setup-…-windows-x64.exe`.
+1. Avvia `PiFrame-Setup-…-windows-x64.exe`.
 2. L'installer aggiunge collegamenti nel menu Start; icona desktop è facoltativa.
-3. Pi-Crust include e avvia `pi-agentd` con Node incluso. Installer non firmato può mostrare l'avviso SmartScreen.
+3. PiFrame include e avvia `pi-agentd` con Node incluso. Installer non firmato può mostrare l'avviso SmartScreen.
 
 ### Linux (Debian / Ubuntu)
 Installa il pacchetto `.deb` scaricato:
 
 ```bash
-sudo apt install ./Pi-Crust-…-linux-amd64.deb
+sudo apt install ./PiFrame-…-linux-amd64.deb
 ```
 
-Il pacchetto aggiunge Pi-Crust al menu applicazioni e include daemon e runtime Node.
+Il pacchetto aggiunge PiFrame al menu applicazioni e include daemon e runtime Node.
 
 ### Web Locale (`http://127.0.0.1:<porta>/`)
 1. Il daemon `pi-agentd` include un server statico HTTP integrato per gli asset web di Flutter.
@@ -63,11 +63,11 @@ Il pacchetto aggiunge Pi-Crust al menu applicazioni e include daemon e runtime N
 
 - **Avvio on-demand**: Il daemon non è un servizio di sistema persistente. La GUI controlla `GET http://127.0.0.1:<porta>/api/health`; se non attivo, avvia il bundle `pi-agentd.cjs` con il runtime Node incluso in modalità `detached`.
 - **Lock e Token**:
-  - File di runtime: `~/.pi-crust/runtime/daemon.json` (porta e PID).
-  - File di lock: `~/.pi-crust/runtime/daemon.lock` per prevenire istanze duplicate.
-  - Token di autenticazione: generato a 256 bit in `~/.pi-crust/runtime/daemon.token` con permessi ristretti (0600).
+  - File di runtime: `~/.piframe/runtime/daemon.json` (porta e PID).
+  - File di lock: `~/.piframe/runtime/daemon.lock` per prevenire istanze duplicate.
+  - Token di autenticazione: generato a 256 bit in `~/.piframe/runtime/daemon.token` con permessi ristretti (0600).
 - **Log Rotativo**:
-  - File di log: `~/.pi-crust/runtime/daemon.log`.
+  - File di log: `~/.piframe/runtime/daemon.log`.
   - Rotazione automatica a 5 file da 5 MB ciascuno.
 - **Inattività dei Worker (D9)**:
   - Timeout di inattività configurabile (default 30 minuti, regolabile da Impostazioni).
@@ -84,23 +84,23 @@ Il pacchetto aggiunge Pi-Crust al menu applicazioni e include daemon e runtime N
 
 ## 6. Disinstallazione
 
-La rimozione di Pi-Crust è pulita, confinata e reversibile:
+La rimozione di PiFrame è pulita, confinata e reversibile:
 
 1. **Rimuovi l'applicazione GUI**:
-   - macOS: Sposta `Pi-Crust.app` nel Cestino.
+   - macOS: Sposta `PiFrame.app` nel Cestino.
    - Windows: Elimina la cartella dell'applicazione o disinstalla da Impostazioni Applicazioni.
 2. **Arresta il daemon** (se attivo):
    - Termina il processo `pi-agentd` dal task manager o tramite `kill <PID>`.
-3. **Elimina i dati locali di Pi-Crust**:
+3. **Elimina i dati locali di PiFrame**:
    ```bash
    # macOS / Linux
-   rm -rf ~/.pi-crust
+   rm -rf ~/.piframe
 
    # Windows PowerShell
-   Remove-Item -Recurse -Force "$HOME\.pi-crust"
+   Remove-Item -Recurse -Force "$HOME\.piframe"
    ```
 
 ### Garanzia di Integrità per `~/.pi/`
 > [!IMPORTANT]
-> Pi-Crust opera rigorosamente con approccio non invasivo. La directory di Pi (`~/.pi/`), contenente la cronologia delle sessioni, le credenziali e le estensioni, **non viene toccata né rimossa**.
-> Tutte le sessioni originali rimangono pienamente utilizzabili dal CLI ufficiale di Pi anche dopo la disinstallazione di Pi-Crust.
+> PiFrame opera rigorosamente con approccio non invasivo. La directory di Pi (`~/.pi/`), contenente la cronologia delle sessioni, le credenziali e le estensioni, **non viene toccata né rimossa**.
+> Tutte le sessioni originali rimangono pienamente utilizzabili dal CLI ufficiale di Pi anche dopo la disinstallazione di PiFrame.

@@ -1,8 +1,8 @@
 {
-  "name": "@pi-crust/pcp-spec",
+  "name": "@piframe/pcp-spec",
   "version": "0.1.0",
   "private": true,
-  "description": "Source of truth for the Pi-Crust Protocol (PCP/1) specification and JSON Schemas",
+  "description": "Source of truth for the PiFrame Protocol (PCP/1) specification and JSON Schemas",
   "scripts": {
     "test": "node test/validate-schemas.js"
   },

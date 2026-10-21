@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getPiCrustBaseDir } from '../config/config.js';
+import { getPiFrameBaseDir } from '../config/config.js';
 import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { Session } from './Session.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
@@ -75,7 +75,7 @@ export class WorkerSupervisor {
         session.readOnlyReason = terminalOwner === true ? 'terminal' : 'unknown';
         throw new Error(terminalOwner === true
           ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
-          : 'Pi-Crust could not verify which session is open in this project. Confirm before continuing.');
+          : 'PiFrame could not verify which session is open in this project. Confirm before continuing.');
       }
     }
 
@@ -173,9 +173,9 @@ export class WorkerSupervisor {
       if (!health.alive && !this.stoppingWorkers.delete(worker)) {
         const exitInfo = await worker.stop({ graceMs: 1000 });
 
-        // Persist crash diagnostics to ~/.pi-crust/journal/<sessionId>/crash-<ts>.log
+        // Persist crash diagnostics to ~/.piframe/journal/<sessionId>/crash-<ts>.log
         try {
-          const journalDir = path.join(getPiCrustBaseDir(), 'journal', session.id);
+          const journalDir = path.join(getPiFrameBaseDir(), 'journal', session.id);
           fs.mkdirSync(journalDir, { recursive: true });
           const crashLogPath = path.join(journalDir, `crash-${Date.now()}.log`);
           const crashContent = [

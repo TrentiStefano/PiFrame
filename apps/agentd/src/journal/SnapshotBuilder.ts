@@ -3,7 +3,7 @@ import type {
   SessionMeta,
   RuntimeMeta,
   TranscriptMeta
-} from '@pi-crust/pcp-ts';
+} from '@piframe/pcp-ts';
 
 export interface SnapshotContext {
   sessionMeta: SessionMeta;

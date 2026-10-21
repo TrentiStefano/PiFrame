@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "projectId": "pi-crust-clip-03-code-search",
+  "projectId": "pi-frame-clip-03-code-search",
   "videoPath": "../clip-03-code-search.mp4",
   "metadata": {
     "title": "Clip 3: In-File Code Search & Syntax Highlighting",
     "description": "Real syntax highlighting in code viewer, live Ctrl+F search overlay, typing queries, and occurrence match cycling (1 di 2).",
     "recordedAt": "2026-10-19T14:09:08.541Z",
     "durationSeconds": 2.5,
-    "source": "Pi-Crust Flutter Native Application (apps/pi_crust)"
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
     "wallpaper": "catppuccin-frappe",

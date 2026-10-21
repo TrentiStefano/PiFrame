@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pi-Crust — Live Application Run</title>
+  <title>PiFrame — Live Application Run</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -841,9 +841,9 @@
   <!-- Top Navigation / Titlebar -->
   <header class="app-titlebar">
     <div class="titlebar-left">
-      <img src="icons/pi-crust-dark-1024.png" id="appIcon" class="brand-icon" alt="Pi-Crust Icon">
+      <img src="icons/piframe-dark-1024.png" id="appIcon" class="brand-icon" alt="PiFrame Icon">
       <span class="brand-name">
-        Pi-Crust
+        PiFrame
         <span class="badge-status">
           <span class="status-dot-pulse"></span>
           DAEMON CONNECTED
@@ -853,7 +853,7 @@
 
     <div class="titlebar-center">
       <span style="color: var(--text-dim);">Workspace:</span>
-      <strong style="color: var(--text);">pi-crust/apps/pi_crust</strong>
+      <strong style="color: var(--text);">pi-frame/apps/pi_frame</strong>
       <span style="color: var(--border);">·</span>
       <span style="color: var(--blue);">git:(UI_improvements)</span>
     </div>
@@ -917,7 +917,7 @@
       <!-- Syntax-Highlighted Code Editor View -->
       <div class="code-editor-area" id="codeEditorArea">
         <div class="code-line"><span class="line-num">1</span><span class="line-text"><span class="kw">import</span> <span class="str">'package:flutter/material.dart'</span>;</span></div>
-        <div class="code-line"><span class="line-num">2</span><span class="line-text"><span class="kw">import</span> <span class="str">'package:pi_crust/ui/code/syntax_highlighter.dart'</span>;</span></div>
+        <div class="code-line"><span class="line-num">2</span><span class="line-text"><span class="kw">import</span> <span class="str">'package:pi_frame/ui/code/syntax_highlighter.dart'</span>;</span></div>
         <div class="code-line"><span class="line-num">3</span><span class="line-text"></span></div>
         <div class="code-line"><span class="line-num">4</span><span class="line-text"><span class="comm">/// Dynamic code controller with syntax & search highlighting.</span></span></div>
         <div class="code-line"><span class="line-num">5</span><span class="line-text"><span class="kw">class</span> <span class="fn">CodeEditorController</span> <span class="kw">extends</span> TextEditingController {</span></div>
@@ -1076,9 +1076,9 @@
 
   <!-- Native OS Notification Toast -->
   <div class="os-notification-toast" id="osToast">
-    <img src="icons/pi-crust-dark-1024.png" id="toastIcon" class="notif-icon" alt="Pi-Crust">
+    <img src="icons/piframe-dark-1024.png" id="toastIcon" class="notif-icon" alt="PiFrame">
     <div>
-      <div class="notif-title">Pi-Crust · Risposta completata</div>
+      <div class="notif-title">PiFrame · Risposta completata</div>
       <div class="notif-desc">L'agente ha completato con successo il refactoring richiesto.</div>
     </div>
   </div>
@@ -1088,9 +1088,9 @@
     function toggleTheme() {
       const isLatte = document.body.classList.toggle('theme-latte');
       document.getElementById('themeIcon').textContent = isLatte ? '🌙' : '☀️';
-      document.getElementById('themeToggleBtn').innerHTML = isLatte ? '<span>🌙</span> Frappé Theme' : '<span>☀️</span> Latte Theme';
-      document.getElementById('appIcon').src = isLatte ? 'icons/pi-crust-light-1024.png' : 'icons/pi-crust-dark-1024.png';
-      document.getElementById('toastIcon').src = isLatte ? 'icons/pi-crust-light-1024.png' : 'icons/pi-crust-dark-1024.png';
+      document.getElementById('themeToggleBtn').innerHTML = isLatte ? '<span>🌙</span> Dark Theme' : '<span>☀️</span> Light Theme';
+      document.getElementById('appIcon').src = isLatte ? 'icons/piframe-light-1024.png' : 'icons/piframe-dark-1024.png';
+      document.getElementById('toastIcon').src = isLatte ? 'icons/piframe-light-1024.png' : 'icons/piframe-dark-1024.png';
     }
 
     let thinkingOpen = true;

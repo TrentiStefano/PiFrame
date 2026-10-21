@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { getPiCrustBaseDir } from '../config/config.js';
+import { getPiFrameBaseDir } from '../config/config.js';
 
 export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boolean {
   const pathApi = path.win32.isAbsolute(cwd) || path.win32.isAbsolute(tempDir) ? path.win32 : path;
@@ -33,7 +33,7 @@ export class SessionIndex {
   constructor(opts: { sessionsDir?: string; cachePath?: string } = {}) {
     this.sessionsDir = opts.sessionsDir || process.env.PI_CODING_AGENT_SESSION_DIR ||
       path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent'), 'sessions');
-    this.cachePath = opts.cachePath || path.join(getPiCrustBaseDir(), 'index.json');
+    this.cachePath = opts.cachePath || path.join(getPiFrameBaseDir(), 'index.json');
     this.loadCache();
   }
 

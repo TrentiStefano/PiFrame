@@ -3,8 +3,8 @@ apps/*/node_modules
 packages/*/node_modules
 tools/*/node_modules
 test/*/node_modules
-apps/pi_crust/build
-apps/pi_crust/.dart_tool
+apps/pi_frame/build
+apps/pi_frame/.dart_tool
 .git
 .pi
 dist

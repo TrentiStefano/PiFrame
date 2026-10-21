@@ -11,8 +11,8 @@ const outDir = path.resolve(__dirname, '../docs/design-evidence');
 const mp4Hero = path.join(outDir, 'hero.mp4');
 const gifHero = path.join(outDir, 'hero.gif');
 const webpHero = path.join(outDir, 'hero.webp');
-const mp4Showcase = path.join(outDir, 'pi-crust-showcase.mp4');
-const webpShowcase = path.join(outDir, 'pi-crust-showcase.webp');
+const mp4Showcase = path.join(outDir, 'piframe-showcase.mp4');
+const webpShowcase = path.join(outDir, 'piframe-showcase.webp');
 
 console.log('1. Encoding hero.mp4...');
 execSync(`ffmpeg -framerate 20 -i "${path.join(framesDir, 'frame_%05d.png')}" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -crf 19 -r 24 -y "${mp4Hero}"`, { stdio: 'inherit' });
