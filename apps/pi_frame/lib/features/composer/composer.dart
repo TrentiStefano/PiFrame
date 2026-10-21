@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,8 +49,12 @@ class _ComposerState extends ConsumerState<Composer> {
   int _fileMentionSelectedIndex = 0;
   List<Map<String, dynamic>> _matchingMentionFiles = [];
   bool _queueExpanded = true;
-  bool _isHovered = false;
+  bool _isManuallyExpanded = false;
+  bool _isPointerOver = false;
   Timer? _hoverGraceTimer;
+  Timer? _expand5sTimer;
+  final ValueNotifier<Offset?> _minimizedHoverOffsetNotifier =
+      ValueNotifier<Offset?>(null);
   bool _hasText = false;
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
@@ -298,6 +303,8 @@ class _ComposerState extends ConsumerState<Composer> {
   @override
   void dispose() {
     _hoverGraceTimer?.cancel();
+    _expand5sTimer?.cancel();
+    _minimizedHoverOffsetNotifier.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -314,6 +321,7 @@ class _ComposerState extends ConsumerState<Composer> {
         ref.read(composerSendingProvider(widget.sessionId))) {
       return;
     }
+    _isManuallyExpanded = false;
     final savedDraft = ref.read(
       composerDraftProvider(widget.sessionId).notifier,
     );
@@ -1103,33 +1111,65 @@ class _ComposerState extends ConsumerState<Composer> {
         isStreaming ||
         agentStatus == AgentStatus.working ||
         activeToolCallsNotEmpty;
+
+    if (!isAgentAnswering && _isManuallyExpanded) {
+      _isManuallyExpanded = false;
+    }
+
     final isFocused = _focusNode.hasFocus;
     final hasInputtedText = _hasText || _controller.text.trim().isNotEmpty;
     final hasAttachments = attachments.isNotEmpty;
     final shouldMinimize =
         isAgentAnswering &&
         !isFocused &&
-        !_isHovered &&
+        !_isManuallyExpanded &&
         !hasInputtedText &&
         !hasAttachments &&
         pendingInteractionRequests.isEmpty;
 
     return MouseRegion(
       key: const ValueKey('composer-mouse-region'),
-      onEnter: (_) {
+      onEnter: (event) {
+        _isPointerOver = true;
         _hoverGraceTimer?.cancel();
         _hoverGraceTimer = null;
-        if (!_isHovered) {
-          setState(() => _isHovered = true);
+        if (shouldMinimize) {
+          _expand5sTimer?.cancel();
+          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted && _isPointerOver) {
+              setState(() {
+                _isManuallyExpanded = true;
+                _minimizedHoverOffsetNotifier.value = null;
+              });
+            }
+          });
+        }
+      },
+      onHover: (event) {
+        if (shouldMinimize && _expand5sTimer == null && _isPointerOver) {
+          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted && _isPointerOver) {
+              setState(() {
+                _isManuallyExpanded = true;
+                _minimizedHoverOffsetNotifier.value = null;
+              });
+            }
+          });
         }
       },
       onExit: (_) {
-        _hoverGraceTimer?.cancel();
-        _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
-          if (mounted && _isHovered) {
-            setState(() => _isHovered = false);
-          }
-        });
+        _isPointerOver = false;
+        _minimizedHoverOffsetNotifier.value = null;
+        _expand5sTimer?.cancel();
+        _expand5sTimer = null;
+        if (_isManuallyExpanded) {
+          _hoverGraceTimer?.cancel();
+          _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
+            if (mounted && !_isPointerOver) {
+              setState(() => _isManuallyExpanded = false);
+            }
+          });
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 350),
@@ -1169,7 +1209,38 @@ class _ComposerState extends ConsumerState<Composer> {
                   ),
                 ),
                 child: shouldMinimize
-                    ? _buildMinimizedBar(tokens, isStreaming)
+                    ? MouseRegion(
+                        onEnter: (event) {
+                          _minimizedHoverOffsetNotifier.value =
+                              event.localPosition;
+                        },
+                        onHover: (event) {
+                          _minimizedHoverOffsetNotifier.value =
+                              event.localPosition;
+                        },
+                        onExit: (_) {
+                          _minimizedHoverOffsetNotifier.value = null;
+                        },
+                        child: ValueListenableBuilder<Offset?>(
+                          valueListenable: _minimizedHoverOffsetNotifier,
+                          builder: (context, hoverOffset, childWidget) {
+                            return CustomPaint(
+                              painter: hoverOffset == null
+                                  ? null
+                                  : _GlowPointerPainter(
+                                      pointerPosition: hoverOffset,
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusLg,
+                                      ),
+                                      glowColor: tokens.accent,
+                                      borderColor: tokens.accent,
+                                    ),
+                              child: childWidget,
+                            );
+                          },
+                          child: _buildMinimizedBar(tokens, isStreaming),
+                        ),
+                      )
                     : Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -2301,7 +2372,10 @@ class _ComposerState extends ConsumerState<Composer> {
       key: const ValueKey('composer-minimized-bar'),
       borderRadius: BorderRadius.circular(tokens.radiusLg),
       onTap: () {
-        setState(() => _isHovered = true);
+        _expand5sTimer?.cancel();
+        _expand5sTimer = null;
+        _minimizedHoverOffsetNotifier.value = null;
+        setState(() => _isManuallyExpanded = true);
         _focusNode.requestFocus();
       },
       child: Padding(
@@ -2371,5 +2445,72 @@ class _ComposerState extends ConsumerState<Composer> {
         ),
       ),
     );
+  }
+}
+
+class _GlowPointerPainter extends CustomPainter {
+  final Offset? pointerPosition;
+  final BorderRadius borderRadius;
+  final Color glowColor;
+  final Color borderColor;
+  static const double radius = 120.0;
+
+  const _GlowPointerPainter({
+    required this.pointerPosition,
+    required this.borderRadius,
+    required this.glowColor,
+    required this.borderColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pos = pointerPosition;
+    if (pos == null) return;
+
+    final rect = Offset.zero & size;
+    final rrect = borderRadius.toRRect(rect);
+
+    // 1. Subtle inner ambient glow following pointer, clipped to card
+    canvas.save();
+    canvas.clipRRect(rrect);
+
+    final glowPaint = Paint()
+      ..shader = ui.Gradient.radial(
+        pos,
+        radius,
+        [
+          glowColor.withValues(alpha: 0.22),
+          glowColor.withValues(alpha: 0.08),
+          glowColor.withValues(alpha: 0.0),
+        ],
+        const [0.0, 0.45, 1.0],
+      );
+
+    canvas.drawRect(rect, glowPaint);
+    canvas.restore();
+
+    // 2. Glowing border highlight following pointer
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..shader = ui.Gradient.radial(
+        pos,
+        radius,
+        [
+          borderColor.withValues(alpha: 0.85),
+          glowColor.withValues(alpha: 0.4),
+          glowColor.withValues(alpha: 0.0),
+        ],
+        const [0.0, 0.5, 1.0],
+      );
+
+    canvas.drawRRect(rrect, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlowPointerPainter oldDelegate) {
+    return oldDelegate.pointerPosition != pointerPosition ||
+        oldDelegate.glowColor != glowColor ||
+        oldDelegate.borderColor != borderColor;
   }
 }

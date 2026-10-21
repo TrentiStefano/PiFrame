@@ -49,7 +49,7 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
     });
 
-    testWidgets('maximizes chat input window when mouse hovers over it', (tester) async {
+    testWidgets('shows glowing pointer effect and keeps chat input window minimized during hover < 5s, then expands at >= 5s', (tester) async {
       final state = const SessionState(
         sessionId: 's_min_test',
         cwd: '/test',
@@ -70,6 +70,14 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.byType(Composer)));
       await tester.pump(const Duration(milliseconds: 300));
 
+      // At 300ms hover, it is STILL minimized (with glowing pointer effect)!
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
+
+      // After 5 seconds of keeping pointer over it, it expands
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(milliseconds: 350));
+
       // Now maximized: full text field and steer/interrupt controls are visible
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.text('Steer'), findsOneWidget);
@@ -83,6 +91,54 @@ void main() {
       // After grace period (600ms + animation) expires, it minimizes back
       await tester.pump(const Duration(milliseconds: 700));
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+    });
+
+    testWidgets('expands chat input window immediately when user clicks on minimized bar', (tester) async {
+      final state = const SessionState(
+        sessionId: 's_min_test',
+        cwd: '/test',
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Generating answer...'},
+      );
+
+      await tester.pumpWidget(wrapComposer(state: state));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+
+      // Tap on minimized bar expands immediately
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+    });
+
+    testWidgets('minimized chat interrupt button and text use signalDanger color matching maximized stop button', (tester) async {
+      final state = const SessionState(
+        sessionId: 's_min_test',
+        cwd: '/test',
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Generating answer...'},
+      );
+
+      await tester.pumpWidget(wrapComposer(state: state));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final interruptIcon = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('composer-minimized-interrupt')),
+          matching: find.byIcon(Icons.stop_circle_outlined),
+        ),
+      );
+      final interruptText = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('composer-minimized-interrupt')),
+          matching: find.text('Interrompi'),
+        ),
+      );
+
+      expect(interruptIcon.color, FrameTokens.dark.signalDanger);
+      expect(interruptText.style?.color, FrameTokens.dark.signalDanger);
     });
 
     testWidgets('does not minimize if text has been inputted even if user clicks away while model is generating', (tester) async {
@@ -180,43 +236,5 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
     });
-
-    testWidgets('minimized bar interrupt button and text use signalDanger color', (tester) async {
-      final sessionNotifier = SessionStateNotifier('s_min_color', null)
-        ..state = const SessionState(
-          sessionId: 's_min_color',
-          cwd: '/test',
-          agentStatus: AgentStatus.working,
-          streamingTextBlocks: {0: 'Streaming response...'},
-        );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStateFamily('s_min_color').overrideWith((ref) => sessionNotifier),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-            home: const Scaffold(
-              body: Column(
-                children: [
-                  Expanded(child: SizedBox()),
-                  Composer(sessionId: 's_min_color'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      final interruptIcon = tester.widget<Icon>(find.byIcon(Icons.stop_circle_outlined));
-      expect(interruptIcon.color, FrameTokens.dark.signalDanger);
-
-      final interruptText = tester.widget<Text>(find.text('Interrompi'));
-      expect(interruptText.style?.color, FrameTokens.dark.signalDanger);
-    });
   });
 }
-

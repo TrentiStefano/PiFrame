@@ -1,5 +1,4 @@
-﻿import 'dart:async';
-import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,7 +43,7 @@ void main() {
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(
-              extensions: const [CrustTokens.dark],
+              extensions: const [FrameTokens.dark],
             ),
             home: Scaffold(
               body: Consumer(
@@ -107,7 +106,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
-            extensions: const [CrustTokens.dark],
+            extensions: const [FrameTokens.dark],
           ),
           home: const Scaffold(body: Composer(sessionId: 'rejecting')),
         ),
@@ -132,7 +131,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
-            extensions: const [CrustTokens.dark],
+            extensions: const [FrameTokens.dark],
           ),
           home: Scaffold(
             body: Consumer(
@@ -177,7 +176,7 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(extensions: [CrustTokens.dark]),
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
           home: const Scaffold(body: Composer(sessionId: 's_test')),
         ),
       ),
@@ -209,7 +208,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: [CrustTokens.dark]),
+            theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: const Scaffold(body: Composer(sessionId: 's_test')),
           ),
         ),
@@ -220,11 +219,8 @@ void main() {
       // Initially minimized while streaming
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
 
-      // Hover to maximize
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(Composer)));
+      // Tap minimized bar to expand
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
       await tester.pumpAndSettle();
 
       // Steer & Follow-up buttons should now be visible
@@ -254,7 +250,7 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(extensions: [CrustTokens.dark]),
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
           home: const Scaffold(body: Composer(sessionId: 's_test')),
         ),
       ),
@@ -265,11 +261,8 @@ void main() {
     // Initially minimized while answering/working
     expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
 
-    // Hover to maximize
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await gesture.addPointer(location: Offset.zero);
-    addTearDown(gesture.removePointer);
-    await gesture.moveTo(tester.getCenter(find.byType(Composer)));
+    // Tap minimized bar to expand
+    await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
     await tester.pumpAndSettle();
 
     expect(
