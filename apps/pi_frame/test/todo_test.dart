@@ -1,6 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/transcript/todo_panel.dart';
 import 'package:pi_frame/features/transcript/todo_provider.dart';
 
@@ -70,6 +72,89 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('2 / 2 completati'), findsOneWidget);
+    });
+  });
+
+  group('TodoNotifier synchronization and stability', () {
+    test('does not accumulate tasks repeatedly during streaming updates', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-stream-test').overrideWith(
+            (ref) => SessionStateNotifier('session-stream-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-stream-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: 'Creating todo...',
+                    timestamp: 1000,
+                    toolCalls: [
+                      ToolExecutionState(
+                        toolCallId: 'tool-call-1',
+                        toolName: 'todo',
+                        args: {'action': 'create', 'subject': 'Single task'},
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-stream-test').notifier);
+      final sessionNotifier = container.read(sessionStateFamily('session-stream-test').notifier);
+
+      expect(notifier.state.length, 1);
+      expect(notifier.state.first.subject, 'Single task');
+
+      // Simulate 30 rapid token stream chunks
+      for (int i = 0; i < 30; i++) {
+        sessionNotifier.state = sessionNotifier.state.copyWith(
+          streamingTextBlocks: {0: 'Chunk $i'},
+        );
+      }
+
+      // Must remain exactly 1 task, NOT 31 tasks!
+      expect(notifier.state.length, 1);
+      expect(notifier.state.first.subject, 'Single task');
+    });
+
+    test('ignores non-todo tools named task', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-task-test').overrideWith(
+            (ref) => SessionStateNotifier('session-task-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-task-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: 'Running background task...',
+                    timestamp: 1000,
+                    toolCalls: [
+                      ToolExecutionState(
+                        toolCallId: 'task-runner-1',
+                        toolName: 'task',
+                        args: {'CommandLine': 'npm test', 'WaitMs': 5000},
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-task-test').notifier);
+      // Unrelated task tool should not produce any todo items
+      expect(notifier.state, isEmpty);
     });
   });
 }
