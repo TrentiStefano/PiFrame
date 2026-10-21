@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +17,7 @@ void main() {
         ),
       ],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: const Scaffold(
           body: Column(
             children: [
@@ -100,7 +100,7 @@ void main() {
             sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
               body: Column(
                 children: [
@@ -151,7 +151,7 @@ void main() {
             sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: const [CrustTokens.dark]),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
               body: Column(
                 children: [
@@ -180,5 +180,43 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
     });
+
+    testWidgets('minimized bar interrupt button and text use signalDanger color', (tester) async {
+      final sessionNotifier = SessionStateNotifier('s_min_color', null)
+        ..state = const SessionState(
+          sessionId: 's_min_color',
+          cwd: '/test',
+          agentStatus: AgentStatus.working,
+          streamingTextBlocks: {0: 'Streaming response...'},
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('s_min_color').overrideWith((ref) => sessionNotifier),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  Expanded(child: SizedBox()),
+                  Composer(sessionId: 's_min_color'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      final interruptIcon = tester.widget<Icon>(find.byIcon(Icons.stop_circle_outlined));
+      expect(interruptIcon.color, FrameTokens.dark.signalDanger);
+
+      final interruptText = tester.widget<Text>(find.text('Interrompi'));
+      expect(interruptText.style?.color, FrameTokens.dark.signalDanger);
+    });
   });
 }
+

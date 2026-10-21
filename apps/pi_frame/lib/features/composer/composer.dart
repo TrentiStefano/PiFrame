@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -820,7 +820,7 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
-  Widget _buildAttachButton(CrustTokens tokens) {
+  Widget _buildAttachButton(FrameTokens tokens) {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
       tooltip: 'Allega file, link o immagine',
@@ -2294,7 +2294,7 @@ class _ComposerState extends ConsumerState<Composer> {
     );
   }
 
-  Widget _buildMinimizedBar(CrustTokens tokens, bool isStreaming) {
+  Widget _buildMinimizedBar(FrameTokens tokens, bool isStreaming) {
     final isTest =
         WidgetsBinding.instance.runtimeType.toString().contains('Test');
     return InkWell(
@@ -2349,13 +2349,13 @@ class _ComposerState extends ConsumerState<Composer> {
                       Icon(
                         Icons.stop_circle_outlined,
                         size: 13,
-                        color: tokens.agentWorking,
+                        color: tokens.signalDanger,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Interrompi',
                         style: TextStyle(
-                          color: tokens.agentWorking,
+                          color: tokens.signalDanger,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
