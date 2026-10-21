@@ -73,6 +73,95 @@ void main() {
 
       expect(find.text('2 / 2 completati'), findsOneWidget);
     });
+
+    testWidgets('clicking on a collapsed task expands and shows description', (tester) async {
+      final initialTasks = [
+        const TodoItem(
+          id: 1,
+          subject: 'Database Migration',
+          status: 'pending',
+          description: 'Run flyway migration scripts for user table schema change',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-desc-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-desc-test', initialTasks),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TodoPopDown(sessionId: 'session-desc-test'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Description is initially not visible
+      expect(
+        find.text('Run flyway migration scripts for user table schema change'),
+        findsNothing,
+      );
+
+      // Tap on the task row
+      await tester.tap(find.byKey(const ValueKey('todo-item-row-1')));
+      await tester.pumpAndSettle();
+
+      // Description is now visible
+      expect(
+        find.text('Run flyway migration scripts for user table schema change'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('collapsed TodoPopDown shows peek tab and expands on tap', (tester) async {
+      final initialTasks = [
+        const TodoItem(id: 1, subject: 'Fix bug', status: 'pending'),
+      ];
+
+      bool expanded = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-peek-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-peek-test', initialTasks),
+            ),
+          ],
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return MaterialApp(
+                home: Scaffold(
+                  body: TodoPopDown(
+                    sessionId: 'session-peek-test',
+                    isExpanded: expanded,
+                    onToggleExpand: () => setState(() => expanded = !expanded),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // When collapsed, the peek tab is visible, main panel is not
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+
+      // Tap the peek tab
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+
+      // Now expanded
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+      expect(find.text('Fix bug'), findsOneWidget);
+    });
   });
 
   group('TodoNotifier synchronization and stability', () {

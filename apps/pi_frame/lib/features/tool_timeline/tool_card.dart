@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
+import '../transcript/task_notification_card.dart';
 
 class _ParsedToolOutput {
   final String? summaryText;
@@ -717,33 +718,44 @@ class _ToolCardState extends State<ToolCard> {
                   ),
                 ),
               ] else if (hasOutput) ...[
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  constraints: BoxConstraints(
-                    maxHeight: _isExpanded ? 320 : 120,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isTerminal
-                        ? tokens.background
-                        : tokens.surfaceElevated.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(tokens.radiusSm),
-                      bottomRight: Radius.circular(tokens.radiusSm),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      tool.output,
-                      style: TextStyle(
-                        color: tool.isError
-                            ? tokens.agentError
-                            : tokens.textSecondary,
-                        fontSize: 11.5,
-                        fontFamily: tokens.monoFontFamily,
-                        height: 1.4,
+                Builder(
+                  builder: (context) {
+                    final notifData = TaskNotificationData.tryParse(tool.output);
+                    if (notifData != null) {
+                      return Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: TaskNotificationCard(data: notifData),
+                      );
+                    }
+                    return Container(
+                      padding: const EdgeInsets.all(8),
+                      constraints: BoxConstraints(
+                        maxHeight: _isExpanded ? 320 : 120,
                       ),
-                    ),
-                  ),
+                      decoration: BoxDecoration(
+                        color: isTerminal
+                            ? tokens.background
+                            : tokens.surfaceElevated.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(tokens.radiusSm),
+                          bottomRight: Radius.circular(tokens.radiusSm),
+                        ),
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          tool.output,
+                          style: TextStyle(
+                            color: tool.isError
+                                ? tokens.agentError
+                                : tokens.textSecondary,
+                            fontSize: 11.5,
+                            fontFamily: tokens.monoFontFamily,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ],

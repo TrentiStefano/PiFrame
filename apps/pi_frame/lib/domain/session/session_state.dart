@@ -87,13 +87,7 @@ class SessionEntry {
 bool isInternalOrJunkMessageText(String text) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return false;
-  // 1. Task notifications
-  if (trimmed.startsWith('<task-notification>') ||
-      (trimmed.contains('<task-notification>') &&
-          trimmed.contains('</task-notification>'))) {
-    return true;
-  }
-  // 2. Pure (exit 0, no output)
+  // 1. Pure (exit 0, no output)
   if (trimmed == '(exit 0, no output)') {
     return true;
   }

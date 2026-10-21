@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/session_state.dart';
+import 'task_notification_card.dart';
 
 class SubagentItem {
   final String id;
@@ -139,6 +140,33 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
       // 2. Process historical tool calls in session entries
       for (final entry in sessionState.entries) {
+        if (entry.text.contains('<task-notification>')) {
+          final notif = TaskNotificationData.tryParse(entry.text);
+          if (notif != null) {
+            String subName = notif.taskId;
+            final agentNameMatch = RegExp(r'Agent\s+"([^"]+)"').firstMatch(notif.summary);
+            if (agentNameMatch != null && agentNameMatch.group(1) != null) {
+              subName = agentNameMatch.group(1)!;
+            } else if (notif.summary.isNotEmpty) {
+              subName = notif.summary;
+            }
+            final existing = itemsMap[notif.taskId];
+            itemsMap[notif.taskId] = SubagentItem(
+              id: notif.taskId,
+              name: subName,
+              model: existing?.model ?? sessionState.currentModel,
+              cost: existing?.cost,
+              output: notif.result.isNotEmpty ? notif.result : notif.summary,
+              status: notif.status.toLowerCase().contains('wrapped') ||
+                      notif.status.toLowerCase().contains('steered')
+                  ? 'steered'
+                  : 'completed',
+              description: notif.summary,
+              outputFile: notif.outputFile,
+              timestamp: entry.timestamp,
+            );
+          }
+        }
         for (final tool in entry.toolCalls) {
           if (_isSubagentTool(tool.toolName)) {
             final subagent = _parseFromTool(tool, sessionState.currentModel);
@@ -256,6 +284,23 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
     final output = tool.output;
     if (output.isNotEmpty) {
+      final notif = TaskNotificationData.tryParse(output);
+      if (notif != null) {
+        id = notif.taskId;
+        final agentNameMatch = RegExp(r'Agent\s+"([^"]+)"').firstMatch(notif.summary);
+        if (agentNameMatch != null && agentNameMatch.group(1) != null) {
+          name = agentNameMatch.group(1)!;
+        } else if (notif.summary.isNotEmpty) {
+          name = notif.summary;
+        }
+        if (notif.outputFile != null) {
+          outputFile = notif.outputFile;
+        }
+        if (description == null && notif.summary.isNotEmpty) {
+          description = notif.summary;
+        }
+      }
+
       // Parse Agent ID: xxx
       final idMatch = RegExp(r'Agent ID:\s*([^\r\n]+)').firstMatch(output);
       if (idMatch != null && idMatch.group(1) != null) {

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
+import 'task_notification_card.dart';
 
 Future<void> _openUrl(String url) async {
   try {
@@ -129,6 +130,32 @@ class RichContent extends StatefulWidget {
   static final RegExp _rawFilePathRegex = RegExp(
     r'(?<![/\w\-])((?:[a-zA-Z]:[\\/]|(?:\.{1,2}[\\/])|(?:[\w\-]+[\\/]))[\w\-./\\]+\.(?:dart|ts|js|jsx|tsx|json|yaml|yml|md|txt|html|css|sh|ps1|bat|cpp|c|h|rs|go|py|lock|toml))\b',
   );
+  static final RegExp _taskNotifRegex = RegExp(
+    r'<task-notification>[\s\S]*?</task-notification>(?:\s*Full transcript available at:\s*[^\r\n]+)?',
+    caseSensitive: false,
+  );
+
+  static void _addTextOrNotification(List<_Segment> segments, String text) {
+    int lastIdx = 0;
+    for (final m in _taskNotifRegex.allMatches(text)) {
+      if (m.start > lastIdx) {
+        final pre = text.substring(lastIdx, m.start).trim();
+        if (pre.isNotEmpty) segments.add(_TextSegment(pre));
+      }
+      final notifStr = m.group(0)!;
+      final data = TaskNotificationData.tryParse(notifStr);
+      if (data != null) {
+        segments.add(_TaskNotificationSegment(data));
+      } else {
+        segments.add(_TextSegment(notifStr));
+      }
+      lastIdx = m.end;
+    }
+    if (lastIdx < text.length) {
+      final post = text.substring(lastIdx).trim();
+      if (post.isNotEmpty) segments.add(_TextSegment(post));
+    }
+  }
 
   static List<_Segment> _parseSegments(String raw) {
     final segments = <_Segment>[];
@@ -139,7 +166,7 @@ class RichContent extends StatefulWidget {
       if (match.start > lastIndex) {
         final textPart = normalized.substring(lastIndex, match.start).trim();
         if (textPart.isNotEmpty) {
-          segments.add(_TextSegment(textPart));
+          _addTextOrNotification(segments, textPart);
         }
       }
 
@@ -152,12 +179,12 @@ class RichContent extends StatefulWidget {
     if (lastIndex < normalized.length) {
       final remaining = normalized.substring(lastIndex).trim();
       if (remaining.isNotEmpty) {
-        segments.add(_TextSegment(remaining));
+        _addTextOrNotification(segments, remaining);
       }
     }
 
     if (segments.isEmpty && normalized.isNotEmpty) {
-      segments.add(_TextSegment(normalized));
+      _addTextOrNotification(segments, normalized);
     }
 
     return segments;
@@ -692,6 +719,11 @@ class _RichContentState extends State<RichContent> {
               return DiffBlock(diffText: seg.code);
             }
             return CodeBlock(code: seg.code, language: seg.language);
+          } else if (seg is _TaskNotificationSegment) {
+            return TaskNotificationCard(
+              data: seg.data,
+              cwd: widget.cwd,
+            );
           } else if (seg is _TextSegment) {
             return RichContent._buildMarkdownText(
               seg.content,
@@ -724,6 +756,11 @@ abstract class _Segment {}
 class _TextSegment extends _Segment {
   final String content;
   _TextSegment(this.content);
+}
+
+class _TaskNotificationSegment extends _Segment {
+  final TaskNotificationData data;
+  _TaskNotificationSegment(this.data);
 }
 
 class _CodeSegment extends _Segment {

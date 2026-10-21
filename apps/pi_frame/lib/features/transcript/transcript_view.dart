@@ -74,6 +74,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int? _cachedHeaderTodoCount;
   bool? _cachedHeaderTodosExpanded;
   bool _todosExpanded = true;
+  int _lastActiveTodoCount = 0;
+  bool _userManuallyToggledTodos = false;
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -153,6 +155,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _visibleCount = _pageSize;
       _initialScrollDone = false;
       _userScrolledUp = false;
+      _userManuallyToggledTodos = false;
+      _lastActiveTodoCount = 0;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -702,6 +706,547 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
   }
 
+  Future<void> _showCostBreakdownDialog(
+    BuildContext chipContext,
+    double mainAgentCost,
+    double subagentsCost,
+    SessionState sessionState,
+    List<SubagentItem> subagents,
+  ) async {
+    final tokens = context.tokens;
+    final totalCost = mainAgentCost + subagentsCost;
+
+    final Map<String, double> agentModelCosts = {};
+    if (sessionState.usage?['models'] is Map) {
+      final modelsMap = sessionState.usage!['models'] as Map;
+      for (final entry in modelsMap.entries) {
+        final mName = entry.key.toString();
+        final mCost = (entry.value is Map ? entry.value['cost'] : entry.value) as num?;
+        if (mCost != null) {
+          agentModelCosts[mName] = mCost.toDouble();
+        }
+      }
+    } else if (sessionState.usage?['byModel'] is Map) {
+      final modelsMap = sessionState.usage!['byModel'] as Map;
+      for (final entry in modelsMap.entries) {
+        final mName = entry.key.toString();
+        final mCost = (entry.value is Map ? entry.value['cost'] : entry.value) as num?;
+        if (mCost != null) {
+          agentModelCosts[mName] = mCost.toDouble();
+        }
+      }
+    }
+
+    if (agentModelCosts.isEmpty) {
+      final entryModels = sessionState.entries
+          .map((e) => e.metadata?['model']?.toString())
+          .whereType<String>()
+          .toSet();
+      if (entryModels.isNotEmpty) {
+        final costPerModel = entryModels.isNotEmpty ? (mainAgentCost / entryModels.length) : 0.0;
+        for (final m in entryModels) {
+          agentModelCosts[m] = costPerModel;
+        }
+      } else {
+        final activeModel = sessionState.currentModel ?? 'Modello Principale';
+        agentModelCosts[activeModel] = mainAgentCost;
+      }
+    }
+
+    await showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        int level = 0; // 0: Overview, 1: Main Agent Models, 2: Subagents Breakdown
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Widget content;
+            String title;
+            IconData titleIcon;
+
+            if (level == 1) {
+              // Level 1: Agent Models
+              title = 'Costi Modelli Agente';
+              titleIcon = Icons.smart_toy_outlined;
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Totale Agente Principale',
+                            style: TextStyle(
+                              color: tokens.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '\$${mainAgentCost.toStringAsFixed(4)}',
+                          style: TextStyle(
+                            color: tokens.syntaxString,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: tokens.monoFontFamily,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      children: agentModelCosts.entries.map((entry) {
+                        return Container(
+                          key: ValueKey('agent-model-cost-${entry.key}'),
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: tokens.surface,
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.memory_outlined,
+                                      size: 13,
+                                      color: tokens.syntaxKeyword,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        entry.key,
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '\$${entry.value.toStringAsFixed(4)}',
+                                style: TextStyle(
+                                  color: tokens.syntaxString,
+                                  fontFamily: tokens.monoFontFamily,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              );
+            } else if (level == 2) {
+              // Level 2: Subagents Breakdown
+              title = 'Costi Subagenti & Modelli';
+              titleIcon = Icons.hub_outlined;
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Totale Subagenti (${subagents.length})',
+                            style: TextStyle(
+                              color: tokens.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '\$${subagentsCost.toStringAsFixed(4)}',
+                          style: TextStyle(
+                            color: tokens.syntaxString,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: tokens.monoFontFamily,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (subagents.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: Text(
+                          'Nessun subagente eseguito.',
+                          style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        ),
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: subagents.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 6),
+                        itemBuilder: (ctx, i) {
+                          final sub = subagents[i];
+                          final subCost = sub.cost != null
+                              ? '\$${sub.cost!.toStringAsFixed(4)}'
+                              : '—';
+                          final subModel = sub.model ?? 'default';
+
+                          return Container(
+                            key: ValueKey('subagent-cost-item-${sub.id}'),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        sub.name.isNotEmpty ? sub.name : 'Subagente #${i + 1}',
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.memory_outlined,
+                                            size: 10,
+                                            color: tokens.syntaxFunction,
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            subModel,
+                                            style: TextStyle(
+                                              color: tokens.textSecondary,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  subCost,
+                                  style: TextStyle(
+                                    color: tokens.syntaxString,
+                                    fontFamily: tokens.monoFontFamily,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              );
+            } else {
+              // Level 0: Main Overview (Total, Agent, Subagents)
+              title = 'Dettaglio Costi Sessione';
+              titleIcon = Icons.monetization_on_outlined;
+              content = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Costo Totale Sessione',
+                            style: TextStyle(
+                              color: tokens.textSecondary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '\$${totalCost.toStringAsFixed(4)}',
+                          style: TextStyle(
+                            color: tokens.syntaxString,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: tokens.monoFontFamily,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Seleziona una voce per visualizzare i modelli e i costi specifici:',
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Agent Cost Row (Clickable)
+                  InkWell(
+                    key: const ValueKey('cost-breakdown-agent-row'),
+                    onTap: () => setDialogState(() => level = 1),
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 15,
+                            color: tokens.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Agente Principale',
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  sessionState.currentModel ?? 'Modello sessione',
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '\$${mainAgentCost.toStringAsFixed(4)}',
+                            style: TextStyle(
+                              color: tokens.syntaxString,
+                              fontFamily: tokens.monoFontFamily,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: tokens.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Subagents Cost Row (Clickable)
+                  InkWell(
+                    key: const ValueKey('cost-breakdown-subagents-row'),
+                    onTap: () => setDialogState(() => level = 2),
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.hub_outlined,
+                            size: 15,
+                            color: tokens.syntaxFunction,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Subagenti',
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  '${subagents.length} subagenti eseguiti',
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '\$${subagentsCost.toStringAsFixed(4)}',
+                            style: TextStyle(
+                              color: tokens.syntaxString,
+                              fontFamily: tokens.monoFontFamily,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: tokens.textMuted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Dialog(
+              backgroundColor: tokens.surfaceElevated,
+              alignment: const Alignment(0.0, -0.45),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                side: BorderSide(color: tokens.borderStrong),
+              ),
+              child: SizedBox(
+                width: 350,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                if (level != 0) ...[
+                                  IconButton(
+                                    key: const ValueKey('cost-breakdown-back-btn'),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                    icon: Icon(Icons.arrow_back, size: 16, color: tokens.textPrimary),
+                                    onPressed: () => setDialogState(() => level = 0),
+                                  ),
+                                  const SizedBox(width: 4),
+                                ] else ...[
+                                  Icon(titleIcon, size: 16, color: tokens.syntaxString),
+                                  const SizedBox(width: 6),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: tokens.headingFontFamily,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            key: const ValueKey('cost-breakdown-close-btn'),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(Icons.close, size: 16, color: tokens.textMuted),
+                            onPressed: () => Navigator.of(dialogCtx).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      content,
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
@@ -720,10 +1265,33 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         : effectivePercent == null
         ? 'post-compattazione · —/${_formatTokens(effectiveContextWindow)}'
         : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
-    final cost = (stats?['cost'] as num?) ??
-        (sessionState.usage?['cost'] is Map
+    final subagents = ref.watch(subagentsFamily(widget.sessionId));
+    final todos = ref.watch(todosFamily(widget.sessionId));
+
+    final mainAgentCost = (sessionState.usage?['cost'] is Map
             ? (sessionState.usage!['cost']['total'] as num?)
-            : (sessionState.usage?['cost'] as num?));
+            : (sessionState.usage?['cost'] as num?)) ??
+        (stats?['cost'] as num?) ??
+        0.0;
+    final subagentsCost = subagents.fold<double>(
+      0.0,
+      (acc, s) => acc + (s.cost ?? 0.0),
+    );
+    final totalSessionCost = mainAgentCost.toDouble() + subagentsCost;
+    final hasAnyCost = (stats?['cost'] != null) ||
+        (sessionState.usage?['cost'] != null) ||
+        subagentsCost > 0;
+    final cost = hasAnyCost ? totalSessionCost : null;
+
+    final activeTodoCount = todos.where((t) => !t.isCompleted).length;
+    if (activeTodoCount > _lastActiveTodoCount) {
+      _todosExpanded = true;
+      _userManuallyToggledTodos = false;
+    } else if (!_userManuallyToggledTodos && activeTodoCount > 0) {
+      _todosExpanded = true;
+    }
+    _lastActiveTodoCount = activeTodoCount;
+
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
@@ -798,9 +1366,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       });
     }
 
-    final subagents = ref.watch(subagentsFamily(widget.sessionId));
-    final todos = ref.watch(todosFamily(widget.sessionId));
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -815,15 +1380,27 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           extensionStatuses,
           subagents,
           todos,
+          mainAgentCost: mainAgentCost.toDouble(),
+          subagentsCost: subagentsCost,
         ),
-        if (_todosExpanded && todos.isNotEmpty)
+        if (todos.isNotEmpty)
           TodoPopDown(
             sessionId: widget.sessionId,
-            onClose: () => setState(() => _todosExpanded = false),
+            isExpanded: _todosExpanded,
+            onToggleExpand: () => setState(() {
+              _todosExpanded = !_todosExpanded;
+              _userManuallyToggledTodos = true;
+            }),
+            onClose: () => setState(() {
+              _todosExpanded = false;
+              _userManuallyToggledTodos = true;
+            }),
           ),
-        if (_subagentsExpanded && subagents.isNotEmpty)
+        if (subagents.isNotEmpty)
           SubagentsPopDown(
             sessionId: widget.sessionId,
+            isExpanded: _subagentsExpanded,
+            onToggleExpand: () => setState(() => _subagentsExpanded = !_subagentsExpanded),
             onClose: () => setState(() => _subagentsExpanded = false),
           ),
         Expanded(
@@ -1011,8 +1588,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     num? cost,
     List<MapEntry<String, dynamic>> extensionStatuses,
     List<SubagentItem> subagents,
-    List<TodoItem> todos,
-  ) {
+    List<TodoItem> todos, {
+    double mainAgentCost = 0.0,
+    double subagentsCost = 0.0,
+  }) {
     final effectiveSessionName = sessionState.sessionName ?? widget.sessionId;
     if (_cachedBentoHeader != null &&
         _cachedHeaderSessionName == effectiveSessionName &&
@@ -1286,6 +1865,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   leadingIcon: Icons.monetization_on_outlined,
                   iconColor: tokens.syntaxString,
                   valueColor: tokens.syntaxString,
+                  trailingIcon: Icons.arrow_drop_down,
+                  onTap: (ctx) => _showCostBreakdownDialog(
+                    ctx,
+                    mainAgentCost,
+                    subagentsCost,
+                    sessionState,
+                    subagents,
+                  ),
                 ),
                 for (final status in extensionStatuses) ...[
                   const SizedBox(width: 6),
@@ -1306,6 +1893,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     onTap: () {
                       setState(() {
                         _todosExpanded = !_todosExpanded;
+                        _userManuallyToggledTodos = true;
                       });
                     },
                   ),

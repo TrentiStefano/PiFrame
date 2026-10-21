@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -8,19 +7,37 @@ import 'subagents_provider.dart';
 class SubagentsPopDown extends ConsumerStatefulWidget {
   final String sessionId;
   final VoidCallback? onClose;
+  final bool? isExpanded;
+  final VoidCallback? onToggleExpand;
 
   const SubagentsPopDown({
     super.key,
     required this.sessionId,
     this.onClose,
+    this.isExpanded,
+    this.onToggleExpand,
   });
 
   @override
   ConsumerState<SubagentsPopDown> createState() => _SubagentsPopDownState();
 }
 
-class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown> {
+class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
+    with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
+  bool _internalExpanded = true;
+
+  bool get _isExpanded => widget.isExpanded ?? _internalExpanded;
+
+  void _handleToggle() {
+    if (widget.onToggleExpand != null) {
+      widget.onToggleExpand!();
+    } else if (widget.onClose != null && _isExpanded) {
+      widget.onClose!();
+    } else {
+      setState(() => _internalExpanded = !_internalExpanded);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,164 +62,282 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown> {
 
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    return Container(
-      key: const ValueKey('subagents-popdown-panel'),
-      margin: EdgeInsets.fromLTRB(isMobile ? 14 : 8, 0, isMobile ? 14 : 8, 6),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(color: tokens.borderStrong, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.overlay.withValues(alpha: 0.18),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header of the popdown panel
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(tokens.radiusMd),
-                topRight: Radius.circular(tokens.radiusMd),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: _isExpanded
+          ? Container(
+              key: const ValueKey('subagents-popdown-panel'),
+              margin: EdgeInsets.fromLTRB(
+                isMobile ? 12 : 8,
+                0,
+                isMobile ? 12 : 8,
+                6,
               ),
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                border: Border.all(color: tokens.borderStrong, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: tokens.overlay.withValues(alpha: 0.16),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.hub_outlined,
-                      size: 16,
-                      color: tokens.syntaxFunction,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Subagenti (${subagents.length})',
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: tokens.headingFontFamily,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header of the popdown panel
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(tokens.radiusMd),
+                        topRight: Radius.circular(tokens.radiusMd),
+                      ),
+                      border: Border(
+                        bottom: BorderSide(color: tokens.border, width: 1),
                       ),
                     ),
-                    if (runningCount > 0) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: tokens.syntaxKeyword.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(
-                            color: tokens.syntaxKeyword.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            SizedBox(
-                              width: 8,
-                              height: 8,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                value: WidgetsBinding.instance.runtimeType
-                                        .toString()
-                                        .contains('Test')
-                                    ? 0.75
-                                    : null,
-                                valueColor:
-                                    AlwaysStoppedAnimation(tokens.syntaxKeyword),
+                            Icon(
+                              Icons.hub_outlined,
+                              size: 16,
+                              color: tokens.syntaxFunction,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Subagenti (${subagents.length})',
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: tokens.headingFontFamily,
                               ),
                             ),
+                            if (runningCount > 0) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.syntaxKeyword.withValues(alpha: 0.15),
+                                  borderRadius:
+                                      BorderRadius.circular(tokens.radiusSm),
+                                  border: Border.all(
+                                    color: tokens.syntaxKeyword.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.5,
+                                        value: WidgetsBinding.instance.runtimeType
+                                                .toString()
+                                                .contains('Test')
+                                            ? 0.75
+                                            : null,
+                                        valueColor: AlwaysStoppedAnimation(
+                                          tokens.syntaxKeyword,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '$runningCount in esecuzione',
+                                      style: TextStyle(
+                                        color: tokens.syntaxKeyword,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        IconButton(
+                          key: const ValueKey('subagents-popdown-close-btn'),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          icon: Icon(
+                            Icons.keyboard_arrow_up,
+                            size: 18,
+                            color: tokens.textMuted,
+                          ),
+                          tooltip: 'Comprimi subagenti',
+                          onPressed: _handleToggle,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // List of expandable subagent windows
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 340),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.all(8),
+                      itemCount: subagents.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (ctx, index) {
+                        final subagent = subagents[index];
+                        final isExpanded = _expandedIds.contains(subagent.id);
+
+                        return _SubagentExpandableCard(
+                          key: ValueKey('subagent-card-${subagent.id}'),
+                          subagent: subagent,
+                          isExpanded: isExpanded,
+                          onToggleExpand: () {
+                            setState(() {
+                              if (isExpanded) {
+                                _expandedIds.remove(subagent.id);
+                              } else {
+                                _expandedIds.add(subagent.id);
+                              }
+                            });
+                          },
+                          onSteer: (msg) {
+                            ref
+                                .read(subagentsFamily(widget.sessionId).notifier)
+                                .steerSubagent(subagent.id, msg);
+                          },
+                          onStop: () {
+                            ref
+                                .read(subagentsFamily(widget.sessionId).notifier)
+                                .stopSubagent(subagent.id);
+                          },
+                          onToggleSteeringBox: () {
+                            ref
+                                .read(subagentsFamily(widget.sessionId).notifier)
+                                .toggleSteering(subagent.id);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            )
+          // Collapsed: reveals small border peeking behind session info pane and book tab
+          : Container(
+              margin: EdgeInsets.only(
+                left: isMobile ? 16 : 14,
+                right: isMobile ? 16 : 14,
+                bottom: 4,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Subtle border peeking from underneath the bottom edge of session info pane
+                  Container(
+                    height: 2.5,
+                    decoration: BoxDecoration(
+                      color: tokens.syntaxFunction.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                  // Small book tab protruding below the border
+                  InkWell(
+                    key: const ValueKey('subagents-book-tab'),
+                    onTap: _handleToggle,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(6),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(6),
+                        ),
+                        border: Border(
+                          left: BorderSide(
+                            color: tokens.borderStrong,
+                            width: 1,
+                          ),
+                          right: BorderSide(
+                            color: tokens.borderStrong,
+                            width: 1,
+                          ),
+                          bottom: BorderSide(
+                            color: tokens.borderStrong,
+                            width: 1,
+                          ),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tokens.overlay.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.hub_outlined,
+                            size: 12,
+                            color: tokens.syntaxFunction,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Subagenti (${subagents.length})',
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (runningCount > 0) ...[
                             const SizedBox(width: 5),
-                            Text(
-                              '$runningCount in esecuzione',
-                              style: TextStyle(
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
                                 color: tokens.syntaxKeyword,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
+                                shape: BoxShape.circle,
                               ),
                             ),
                           ],
-                        ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 13,
+                            color: tokens.textMuted,
+                          ),
+                        ],
                       ),
-                    ],
-                  ],
-                ),
-                IconButton(
-                  key: const ValueKey('subagents-popdown-close-btn'),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  icon: Icon(
-                    Icons.keyboard_arrow_up,
-                    size: 18,
-                    color: tokens.textMuted,
+                    ),
                   ),
-                  tooltip: 'Comprimi subagenti',
-                  onPressed: widget.onClose,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          // List of expandable subagent windows
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 380),
-            child: ListView.separated(
-              shrinkWrap: true,
-              padding: const EdgeInsets.all(8),
-              itemCount: subagents.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (ctx, index) {
-                final subagent = subagents[index];
-                final isExpanded = _expandedIds.contains(subagent.id);
-
-                return _SubagentExpandableCard(
-                  key: ValueKey('subagent-card-${subagent.id}'),
-                  subagent: subagent,
-                  isExpanded: isExpanded,
-                  onToggleExpand: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedIds.remove(subagent.id);
-                      } else {
-                        _expandedIds.add(subagent.id);
-                      }
-                    });
-                  },
-                  onSteer: (msg) {
-                    ref
-                        .read(subagentsFamily(widget.sessionId).notifier)
-                        .steerSubagent(subagent.id, msg);
-                  },
-                  onStop: () {
-                    ref
-                        .read(subagentsFamily(widget.sessionId).notifier)
-                        .stopSubagent(subagent.id);
-                  },
-                  onToggleSteeringBox: () {
-                    ref
-                        .read(subagentsFamily(widget.sessionId).notifier)
-                        .toggleSteering(subagent.id);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -279,7 +414,7 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                   _buildStatusIndicator(tokens, sub.status),
                   const SizedBox(width: 8),
 
-                  // Subagent Name
+                  // Subagent Name & Model
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,34 +427,41 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: tokens.textPrimary,
+                                  color: sub.isCompleted
+                                      ? tokens.textMuted
+                                      : tokens.textPrimary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12.5,
+                                  decoration: sub.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: tokens.textMuted,
                                 ),
                               ),
                             ),
-                            if (sub.model != null && sub.model!.isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tokens.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(3),
-                                  border: Border.all(color: tokens.border),
-                                ),
-                                child: Text(
-                                  sub.model!,
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: 10,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
+                            // Always display the model used for each subagent
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: Text(
+                                sub.model != null && sub.model!.isNotEmpty
+                                    ? sub.model!
+                                    : 'default',
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 10,
+                                  fontFamily: tokens.monoFontFamily,
                                 ),
                               ),
-                            ],
+                            ),
                           ],
                         ),
                         if (sub.description != null &&
@@ -384,7 +526,9 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                     icon: Icon(
                       sub.isSteeringOpen ? Icons.close : Icons.navigation_outlined,
                       size: 15,
-                      color: sub.isSteeringOpen ? tokens.textMuted : tokens.syntaxFunction,
+                      color: sub.isSteeringOpen
+                          ? tokens.textMuted
+                          : tokens.syntaxFunction,
                     ),
                     tooltip: sub.isSteeringOpen ? 'Chiudi Guida' : 'Guida (Steer)',
                     onPressed: widget.onToggleSteeringBox,
@@ -399,9 +543,13 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                     icon: Icon(
                       Icons.stop_circle_outlined,
                       size: 16,
-                      color: sub.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
+                      color: sub.isRunning
+                          ? tokens.danger
+                          : tokens.textMuted.withValues(alpha: 0.4),
                     ),
-                    tooltip: sub.isRunning ? 'Interrompi (Stop)' : 'Subagente terminato',
+                    tooltip: sub.isRunning
+                        ? 'Interrompi (Stop)'
+                        : 'Subagente terminato',
                     onPressed: sub.isRunning ? widget.onStop : null,
                   ),
 
@@ -441,7 +589,10 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                       decoration: BoxDecoration(
                         color: tokens.surfaceElevated,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.syntaxFunction, width: 1.2),
+                        border: Border.all(
+                          color: tokens.syntaxFunction,
+                          width: 1.2,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -478,7 +629,8 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                                     fontSize: 12,
                                   ),
                                   decoration: InputDecoration(
-                                    hintText: 'Scrivi un\'istruzione di guida per ${sub.name}...',
+                                    hintText:
+                                        'Invia istruzioni per guidare il subagente...',
                                     hintStyle: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 11.5,
@@ -489,36 +641,40 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                                       vertical: 6,
                                     ),
                                     filled: true,
-                                    fillColor: tokens.surface,
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                                      borderSide: BorderSide(color: tokens.border),
+                                    fillColor: tokens.background,
+                                    border: OutlineInputBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(tokens.radiusSm),
+                                      borderSide:
+                                          BorderSide(color: tokens.border),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                                      borderSide: BorderSide(color: tokens.syntaxFunction),
+                                      borderRadius:
+                                          BorderRadius.circular(tokens.radiusSm),
+                                      borderSide: BorderSide(
+                                        color: tokens.syntaxFunction,
+                                        width: 1.2,
+                                      ),
                                     ),
                                   ),
                                   onSubmitted: (_) => _submitSteer(),
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              ElevatedButton.icon(
+                              FilledButton.icon(
                                 key: ValueKey('subagent-steer-send-${sub.id}'),
-                                style: ElevatedButton.styleFrom(
+                                style: FilledButton.styleFrom(
                                   backgroundColor: tokens.syntaxFunction,
                                   foregroundColor: tokens.surface,
-                                  visualDensity: VisualDensity.compact,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
                                     vertical: 8,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                                  ),
+                                  visualDensity: VisualDensity.compact,
                                 ),
-                                icon: const Icon(Icons.send_rounded, size: 13),
-                                label: const Text('Invia', style: TextStyle(fontSize: 11)),
+                                icon: const Icon(Icons.send, size: 12),
+                                label: const Text('Invia',
+                                    style: TextStyle(fontSize: 11)),
                                 onPressed: _submitSteer,
                               ),
                             ],
@@ -528,46 +684,12 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                     ),
                   ],
 
-                  // Current Output Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Output Corrente',
-                        style: TextStyle(
-                          color: tokens.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (sub.output.isNotEmpty)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                          icon: Icon(Icons.copy, size: 12, color: tokens.textMuted),
-                          tooltip: 'Copia output',
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: sub.output));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Output copiato'),
-                                duration: const Duration(seconds: 1),
-                                backgroundColor: tokens.surfaceElevated,
-                              ),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Scrollable Output View
+                  // Output Terminal/Console Display
                   Container(
-                    height: 140,
+                    constraints: const BoxConstraints(maxHeight: 180),
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
+                      color: tokens.background,
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       border: Border.all(color: tokens.border),
                     ),
@@ -583,7 +705,7 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                                   color: tokens.textPrimary,
                                   fontSize: 11,
                                   fontFamily: tokens.monoFontFamily,
-                                  height: 1.35,
+                                  height: 1.4,
                                 ),
                               ),
                             ),

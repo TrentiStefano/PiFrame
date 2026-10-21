@@ -391,6 +391,15 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             DateTime.now().millisecondsSinceEpoch,
       );
 
+      final isTaskNotif = text.contains('<task-notification>');
+      if (isTaskNotif) {
+        final nextEntries = List<SessionEntry>.from(current.entries)..add(entry);
+        return current.copyWith(
+          entries: nextEntries,
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
       final nextEntries = List<SessionEntry>.from(current.entries);
       if (role == 'assistant' &&
           nextEntries.isNotEmpty &&
