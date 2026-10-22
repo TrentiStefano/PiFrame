@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -172,6 +173,15 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
   Future<ThemeSpec> importThemeFromJson(String jsonContent) async {
     final spec = VsCodeThemeConverter.parseAnyThemeJson(jsonContent);
     final filename = '${spec.id}.json';
+    await _storage.saveUserThemeFile(filename, jsonContent);
+    _repo.registerTheme(spec);
+    setTheme(spec.id);
+    return spec;
+  }
+
+  Future<ThemeSpec> saveCustomTheme(ThemeSpec spec) async {
+    final filename = '${spec.id}.json';
+    final jsonContent = const JsonEncoder.withIndent('  ').convert(spec.toJson());
     await _storage.saveUserThemeFile(filename, jsonContent);
     _repo.registerTheme(spec);
     setTheme(spec.id);

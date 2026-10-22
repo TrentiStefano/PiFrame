@@ -15,6 +15,7 @@ import 'diagnostics.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
 import 'updates_section.dart';
+import 'theme_editor_dialog.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -1135,6 +1136,39 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               spacing: 12,
                               runSpacing: 8,
                               children: [
+                                OutlinedButton.icon(
+                                  key: const ValueKey(
+                                    'settings-open-theme-editor-btn',
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: tokens.accent),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: Icon(
+                                    Icons.palette_outlined,
+                                    size: 16,
+                                    color: tokens.accent,
+                                  ),
+                                  label: Text(
+                                    strings.openThemeEditorBtn,
+                                    style: TextStyle(
+                                      color: tokens.accent,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    ThemeEditorDialog.show(context);
+                                  },
+                                ),
                                 OutlinedButton.icon(
                                   key: const ValueKey(
                                     'settings-import-theme-btn',

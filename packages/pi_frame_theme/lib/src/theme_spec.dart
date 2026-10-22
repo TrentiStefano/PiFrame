@@ -184,6 +184,62 @@ class ThemeSpec {
     );
   }
 
+  ThemeSpec copyWith({
+    int? schemaVersion,
+    String? id,
+    String? name,
+    String? author,
+    String? version,
+    String? variant,
+    String? extendsTheme,
+    Map<String, dynamic>? rawColors,
+    Map<String, dynamic>? rawSyntax,
+    Map<String, dynamic>? rawTypography,
+    Map<String, dynamic>? rawSpacing,
+    Map<String, dynamic>? rawRadii,
+    Map<String, dynamic>? rawElevation,
+    Map<String, dynamic>? rawMotion,
+    Map<String, dynamic>? rawComponents,
+    List<String>? diagnostics,
+  }) {
+    return ThemeSpec(
+      schemaVersion: schemaVersion ?? this.schemaVersion,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      author: author ?? this.author,
+      version: version ?? this.version,
+      variant: variant ?? this.variant,
+      extendsTheme: extendsTheme ?? this.extendsTheme,
+      rawColors: rawColors ?? this.rawColors,
+      rawSyntax: rawSyntax ?? this.rawSyntax,
+      rawTypography: rawTypography ?? this.rawTypography,
+      rawSpacing: rawSpacing ?? this.rawSpacing,
+      rawRadii: rawRadii ?? this.rawRadii,
+      rawElevation: rawElevation ?? this.rawElevation,
+      rawMotion: rawMotion ?? this.rawMotion,
+      rawComponents: rawComponents ?? this.rawComponents,
+      diagnostics: diagnostics ?? this.diagnostics,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'schemaVersion': schemaVersion,
+    'id': id,
+    'name': name,
+    if (author.isNotEmpty) 'author': author,
+    'version': version,
+    'variant': variant,
+    if (extendsTheme != null) 'extends': extendsTheme,
+    if (rawColors.isNotEmpty) 'colors': rawColors,
+    if (rawSyntax.isNotEmpty) 'syntax': rawSyntax,
+    if (rawTypography.isNotEmpty) 'typography': rawTypography,
+    if (rawSpacing.isNotEmpty) 'spacing': rawSpacing,
+    if (rawRadii.isNotEmpty) 'radii': rawRadii,
+    if (rawElevation.isNotEmpty) 'elevation': rawElevation,
+    if (rawMotion.isNotEmpty) 'motion': rawMotion,
+    if (rawComponents.isNotEmpty) 'components': rawComponents,
+  };
+
   FrameTokens toTokens() {
     final baseTokens = variant == 'light'
         ? FrameTokens.light
