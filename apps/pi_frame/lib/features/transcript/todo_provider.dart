@@ -121,6 +121,13 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
 
     // 2. Process historical entries
     for (final entry in sessionState.entries) {
+      if (entry.text.isNotEmpty &&
+          (entry.text.contains('activeForm') ||
+              entry.text.contains('status:') ||
+              entry.text.contains('"status"') ||
+              entry.text.contains('nextId:'))) {
+        _extractTasksFromText(entry.text, currentTasks);
+      }
       for (final tool in entry.toolCalls) {
         _processToolCall(tool, currentTasks);
       }
@@ -131,7 +138,18 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       _processToolCall(tool, currentTasks);
     }
 
-    // 4. Apply user status overrides
+    // 4. Process streaming text in real time
+    for (final text in sessionState.streamingTextBlocks.values) {
+      if (text.isNotEmpty &&
+          (text.contains('activeForm') ||
+              text.contains('status:') ||
+              text.contains('"status"') ||
+              text.contains('nextId:'))) {
+        _extractTasksFromText(text, currentTasks);
+      }
+    }
+
+    // 5. Apply user status overrides
     for (final overrideEntry in _userStatusOverrides.entries) {
       final task = currentTasks[overrideEntry.key];
       if (task != null) {
@@ -152,9 +170,9 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
 
   bool _isTodoTool(ToolExecutionState tool) {
     final name = tool.toolName.toLowerCase();
-    if (name == 'todo' || name == 'todos') return true;
-    if (name == 'task') {
-      // Only treat 'task' as a todo tool if it has todo-like args or output
+    if (name == 'todo' || name == 'todos' || name == 'tasks') return true;
+    if (name == 'task' || name.contains('todo') || name.contains('task')) {
+      // Treat as todo tool if it has todo-like args or output
       if (tool.args.containsKey('action') ||
           tool.args.containsKey('subject') ||
           tool.args.containsKey('todos') ||
@@ -162,45 +180,157 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
           (tool.args.containsKey('status') && tool.args.containsKey('id'))) {
         return true;
       }
-      if (tool.output.contains('"tasks"') || tool.output.contains('"details"')) {
+      final out = tool.output;
+      if (out.contains('tasks') ||
+          out.contains('details') ||
+          out.contains('activeForm') ||
+          out.contains('nextId') ||
+          (out.contains('id') && out.contains('status'))) {
         return true;
       }
     }
     return false;
   }
 
-  void _processToolCall(ToolExecutionState tool, Map<int, TodoItem> tasks) {
-    if (!_isTodoTool(tool)) {
-      return;
-    }
+  void _extractTasksFromText(String rawText, Map<int, TodoItem> tasks) {
+    if (rawText.isEmpty) return;
 
-    // 1. Check details in output/result (authoritative snapshot from rpiv-todo)
-    if (tool.output.isNotEmpty) {
+    // 1. First attempt JSON decode if structured
+    if (rawText.contains('{') || rawText.contains('[')) {
       try {
-        final decoded = jsonDecode(tool.output);
+        final decoded = jsonDecode(rawText);
         if (decoded is Map<String, dynamic>) {
           final details = decoded['details'] ?? decoded;
-          if (details is Map && details['tasks'] is List) {
-            final list = details['tasks'] as List;
-            for (final item in list) {
+          final dynamic rawList = details is Map
+              ? (details['tasks'] ?? details['todos'])
+              : null;
+          if (rawList is List) {
+            for (final item in rawList) {
               if (item is Map) {
                 final todo = TodoItem.fromMap(Map<String, dynamic>.from(item));
-                tasks[todo.id] = todo;
+                _mergeOrAddTask(tasks, todo);
               }
             }
             return;
           }
+        } else if (decoded is List) {
+          for (final item in decoded) {
+            if (item is Map && (item.containsKey('id') || item.containsKey('subject'))) {
+              final todo = TodoItem.fromMap(Map<String, dynamic>.from(item));
+              _mergeOrAddTask(tasks, todo);
+            }
+          }
+          return;
         }
       } catch (_) {}
     }
 
-    // 2. Fallback to args
+    // 2. Robust regex extraction for unquoted / relaxed object notation:
+    // e.g. {id: 2, subject: ..., status: completed, description: ..., activeForm: ...}
+    final idMatches = RegExp(r"""\{(?:\s*['"]?id['"]?\s*:\s*(\d+))""").allMatches(rawText).toList();
+    if (idMatches.isNotEmpty) {
+      for (int i = 0; i < idMatches.length; i++) {
+        final startIdx = idMatches[i].start;
+        final endIdx = (i + 1 < idMatches.length)
+            ? idMatches[i + 1].start
+            : rawText.length;
+        var block = rawText.substring(startIdx, endIdx);
+        final closeIdx = block.lastIndexOf('}');
+        if (closeIdx != -1) {
+          block = block.substring(0, closeIdx + 1);
+        }
+
+        final idStr = RegExp(r"""['"]?id['"]?\s*:\s*(\d+)""").firstMatch(block)?.group(1);
+        final id = idStr != null ? int.tryParse(idStr) ?? 0 : 0;
+        if (id <= 0) continue;
+
+        final statusRaw = RegExp(r"""['"]?status['"]?\s*:\s*['"]?([a-zA-Z0-9_-]+)['"]?""")
+            .firstMatch(block)
+            ?.group(1);
+        final status = _normalizeStatus(statusRaw);
+
+        String? extractField(String key) {
+          final pattern = "['\"]?$key"
+              r"""['"]?\s*:\s*['"]?((?:(?!\s*,\s*['"]?(?:id|status|subject|title|description|activeForm|blockedBy|owner|metadata|nextId)['"]?\s*:).)+)""";
+          final m = RegExp(pattern, dotAll: true).firstMatch(block);
+          var val = m?.group(1)?.trim();
+          if (val == null) return null;
+          if (val.endsWith('}')) val = val.substring(0, val.length - 1).trim();
+          if (val.endsWith(',')) val = val.substring(0, val.length - 1).trim();
+          if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) {
+            val = val.substring(1, val.length - 1);
+          } else if (val.startsWith("'") && val.endsWith("'") && val.length >= 2) {
+            val = val.substring(1, val.length - 1);
+          }
+          return val.isNotEmpty ? val : null;
+        }
+
+        final subject = extractField('subject') ?? extractField('title');
+        final description = extractField('description');
+        final activeForm = extractField('activeForm');
+        final owner = extractField('owner');
+
+        final item = TodoItem(
+          id: id,
+          subject: subject ?? tasks[id]?.subject ?? 'Task #$id',
+          status: status ?? tasks[id]?.status ?? 'pending',
+          description: description ?? tasks[id]?.description,
+          activeForm: activeForm ?? tasks[id]?.activeForm,
+          owner: owner ?? tasks[id]?.owner,
+        );
+
+        _mergeOrAddTask(tasks, item);
+      }
+    }
+  }
+
+  void _mergeOrAddTask(Map<int, TodoItem> tasks, TodoItem incoming) {
+    final existing = tasks[incoming.id];
+    if (existing == null) {
+      tasks[incoming.id] = incoming;
+    } else {
+      tasks[incoming.id] = existing.copyWith(
+        subject: incoming.subject.isNotEmpty ? incoming.subject : existing.subject,
+        status: incoming.status,
+        description: incoming.description ?? existing.description,
+        activeForm: incoming.activeForm ?? existing.activeForm,
+        owner: incoming.owner ?? existing.owner,
+        blockedBy: incoming.blockedBy.isNotEmpty ? incoming.blockedBy : existing.blockedBy,
+      );
+    }
+  }
+
+  String? _normalizeStatus(String? raw) {
+    if (raw == null) return null;
+    final lower = raw.trim().toLowerCase();
+    if (lower == 'completed' || lower == 'done' || lower == 'closed' || lower == 'finished') {
+      return 'completed';
+    }
+    if (lower == 'in_progress' || lower == 'inprogress' || lower == 'running' || lower == 'working') {
+      return 'in_progress';
+    }
+    if (lower == 'pending' || lower == 'todo' || lower == 'open') {
+      return 'pending';
+    }
+    return lower;
+  }
+
+  void _processToolCall(ToolExecutionState tool, Map<int, TodoItem> tasks) {
+    if (tool.output.isNotEmpty) {
+      _extractTasksFromText(tool.output, tasks);
+    }
+
+    if (!_isTodoTool(tool)) {
+      return;
+    }
+
+    // Fallback to args
     final args = tool.args;
     final action = args['action']?.toString().toLowerCase();
     final rawId = args['id'];
     final id = rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? '0') ?? 0;
     final subject = args['subject']?.toString() ?? args['title']?.toString();
-    final status = args['status']?.toString().toLowerCase();
+    final status = _normalizeStatus(args['status']?.toString());
 
     // If neither action nor subject is provided, do not treat as a todo command
     if (action == null && subject == null) {

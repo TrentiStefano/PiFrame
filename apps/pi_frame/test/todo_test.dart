@@ -245,6 +245,50 @@ void main() {
       // Unrelated task tool should not produce any todo items
       expect(notifier.state, isEmpty);
     });
+
+    test('correctly parses unquoted relaxed JS object syntax and updates completed status', () {
+      const chatSnippet = '''
+only Phase 0., activeForm: auditing native camera drivers}, {id: 2, subject: Audit Dart consumers and Flutter Linux graphics integration, status: completed, description: Trace bridge, UI consumers, runner, registrar ownership, shutdown, and installed engine graphics/thread contracts. No edits., activeForm: auditing Dart and Flutter graphics integration}, {id: 3, subject: Validate target architecture and deliver migration report, status: completed, description: Completed read-only Phase 0 audit, pinned Flutter texture/context/thread contract validation, independent legacy defect verification, and phased migration/report synthesis. Architecture conditionally suitable; identified required corrections and CM5 hardware proof gates. No implementation authorized or performed., activeForm: validating architecture and drafting Phase 0 report}, {id: 19, subject: Test nativi su Pi: ctest core/dispatcher con ASan/UBSan e TSan, status: in_progress, description: Apt completato dall\'utente su Pi. Verifico header e clang++ prima della build. Nessun riavvio necessario., activeForm: verificando dipendenze native sul Pi}], nextId: 30}}
+''';
+
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-relaxed-test').overrideWith(
+            (ref) => SessionStateNotifier('session-relaxed-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-relaxed-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: chatSnippet,
+                    timestamp: 1000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-relaxed-test').notifier);
+      expect(notifier.state.length, 3);
+
+      final task2 = notifier.state.firstWhere((t) => t.id == 2);
+      expect(task2.subject, 'Audit Dart consumers and Flutter Linux graphics integration');
+      expect(task2.isCompleted, isTrue);
+      expect(task2.status, 'completed');
+
+      final task3 = notifier.state.firstWhere((t) => t.id == 3);
+      expect(task3.isCompleted, isTrue);
+      expect(task3.status, 'completed');
+
+      final task19 = notifier.state.firstWhere((t) => t.id == 19);
+      expect(task19.subject, 'Test nativi su Pi: ctest core/dispatcher con ASan/UBSan e TSan');
+      expect(task19.isInProgress, isTrue);
+      expect(task19.isCompleted, isFalse);
+    });
   });
 }
 
