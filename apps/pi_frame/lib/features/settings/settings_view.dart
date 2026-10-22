@@ -10,6 +10,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
+import '../../data/language/language_settings.dart';
 import 'diagnostics.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
@@ -442,6 +443,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final endpointAsync = ref.watch(daemonEndpointProvider);
     final endpoint = endpointAsync.value;
 
@@ -465,19 +467,22 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      tooltip: 'Torna alla conversazione',
+                      tooltip: strings.backToChatTooltip,
                       color: tokens.displayText,
                       onPressed: widget.onClose,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Impostazioni PiFrame',
-                      style: TextStyle(
-                        color: tokens.displayText,
-                        fontSize: 28,
-                        height: 1,
-                        fontFamily: tokens.headingFontFamily,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        strings.settingsTitle,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tokens.displayText,
+                          fontSize: 28,
+                          height: 1,
+                          fontFamily: tokens.headingFontFamily,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -497,16 +502,16 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.7,
                   ),
-                  tabs: const [
-                    Tab(text: 'PI CLI'),
-                    Tab(text: 'PACCHETTI'),
-                    Tab(text: 'DAEMON'),
-                    Tab(text: 'ASPETTO'),
-                    Tab(text: 'PRIVACY'),
-                    Tab(text: 'DIAGNOSTICA'),
-                    Tab(text: 'AGGIORNAMENTI'),
-                    Tab(text: 'TERMINALE'),
-                    Tab(text: 'ACCESSO REMOTO'),
+                  tabs: [
+                    Tab(text: strings.tabPiCli),
+                    Tab(text: strings.tabPackages),
+                    Tab(text: strings.tabDaemon),
+                    Tab(text: strings.tabAppearance),
+                    Tab(text: strings.tabPrivacy),
+                    Tab(text: strings.tabDiagnostics),
+                    Tab(text: strings.tabUpdates),
+                    Tab(text: strings.tabTerminal),
+                    Tab(text: strings.tabRemote),
                   ],
                 ),
               ],
@@ -770,7 +775,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                           padding: const EdgeInsets.all(24),
                           children: [
                             Text(
-                              'Personalizzazione Tema e UI',
+                              strings.languageSectionTitle,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 16,
@@ -779,7 +784,73 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'PiFrame supporta temi personalizzati definiti via file JSON in ~/.piframe/themes/.',
+                              strings.languageSectionSubtitle,
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusMd,
+                                ),
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<AppLanguage>(
+                                  key: const ValueKey('settings-language-dropdown'),
+                                  isExpanded: true,
+                                  value: ref.watch(appLanguageProvider),
+                                  dropdownColor: tokens.surfaceElevated,
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 13,
+                                    fontFamily: tokens.uiFontFamily,
+                                  ),
+                                  items: AppLanguage.values.map((lang) {
+                                    return DropdownMenuItem<AppLanguage>(
+                                      value: lang,
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            lang.flag,
+                                            style: const TextStyle(fontSize: 16),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(lang.label),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (newLang) {
+                                    if (newLang != null) {
+                                      ref
+                                          .read(appLanguageProvider.notifier)
+                                          .setLanguage(newLang);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              strings.appearanceTitle,
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              strings.appearanceSubtitle,
                               style: TextStyle(
                                 color: tokens.textMuted,
                                 fontSize: 13,
@@ -803,7 +874,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Usa tema di sistema',
+                                          strings.useSystemTheme,
                                           style: TextStyle(
                                             color: tokens.textPrimary,
                                             fontSize: 14,
@@ -812,7 +883,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Adatta automaticamente l\'aspetto in base alla modalità chiara o scura del sistema operativo.',
+                                          strings.useSystemThemeSubtitle,
                                           style: TextStyle(
                                             color: tokens.textMuted,
                                             fontSize: 12,
@@ -840,7 +911,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             const SizedBox(height: 16),
                             if (!settings.useSystemTheme) ...[
                               Text(
-                                'Seleziona Tema Attivo: ',
+                                strings.selectActiveTheme,
                                 style: TextStyle(
                                   color: tokens.textSecondary,
                                   fontSize: 14,
@@ -904,7 +975,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Tema Scuro Predefinito:',
+                                        strings.defaultDarkTheme,
                                         style: TextStyle(
                                           color: tokens.textSecondary,
                                           fontSize: 13,
@@ -984,7 +1055,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Tema Chiaro Predefinito:',
+                                        strings.defaultLightTheme,
                                         style: TextStyle(
                                           color: tokens.textSecondary,
                                           fontSize: 13,
@@ -1060,74 +1131,92 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: OutlinedButton.icon(
-                                key: const ValueKey('settings-import-theme-btn'),
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: tokens.borderStrong),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 10,
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  key: const ValueKey(
+                                    'settings-import-theme-btn',
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      tokens.radiusSm,
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: tokens.borderStrong,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                icon: Icon(
-                                  Icons.file_upload_outlined,
-                                  size: 16,
-                                  color: tokens.accent,
-                                ),
-                                label: Text(
-                                  'Importa tema JSON (VSCode / PiFrame)',
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
+                                  icon: Icon(
+                                    Icons.file_upload_outlined,
+                                    size: 16,
+                                    color: tokens.accent,
                                   ),
+                                  label: Text(
+                                    strings.importThemeBtn,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      final file = await openFile(
+                                        acceptedTypeGroups: [
+                                          const XTypeGroup(
+                                            label: 'Tema JSON (*.json)',
+                                            extensions: ['json'],
+                                          ),
+                                        ],
+                                      );
+                                      if (file == null || !context.mounted) {
+                                        return;
+                                      }
+                                      final content =
+                                          await file.readAsString();
+                                      final importedSpec = await ref
+                                          .read(
+                                            activeThemeSpecProvider.notifier,
+                                          )
+                                          .importThemeFromJson(content);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Tema "${importedSpec.name}" importato e attivato con successo!',
+                                            ),
+                                            behavior:
+                                                SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Errore durante l\'importazione del tema: $e',
+                                            ),
+                                            behavior:
+                                                SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
                                 ),
-                                onPressed: () async {
-                                  try {
-                                    final file = await openFile(
-                                      acceptedTypeGroups: [
-                                        const XTypeGroup(
-                                          label: 'Tema JSON (*.json)',
-                                          extensions: ['json'],
-                                        ),
-                                      ],
-                                    );
-                                    if (file == null || !context.mounted) return;
-                                    final content = await file.readAsString();
-                                    final importedSpec = await ref
-                                        .read(activeThemeSpecProvider.notifier)
-                                        .importThemeFromJson(content);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Tema "${importedSpec.name}" importato e attivato con successo!',
-                                          ),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Errore durante l\'importazione del tema: $e',
-                                          ),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
+                              ],
                             ),
                             const SizedBox(height: 16),
                             _buildInfoCard(tokens, [

@@ -112,6 +112,10 @@ void main() {
     });
 
     testWidgets('SettingsView displays Import Theme button', (tester) async {
+      tester.view.physicalSize = const Size(1280, 1024);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final storage = MemoryThemeStorage('piframe-dark');
       await tester.pumpWidget(
         ProviderScope(
@@ -133,7 +137,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('settings-import-theme-btn')), findsOneWidget);
+      final importBtn = find.byKey(const ValueKey('settings-import-theme-btn'));
+      expect(importBtn, findsOneWidget);
       expect(find.text('Importa tema JSON (VSCode / PiFrame)'), findsOneWidget);
     });
 
