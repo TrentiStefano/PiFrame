@@ -21,6 +21,8 @@ import 'subagents_provider.dart';
 import 'todo_panel.dart';
 import 'todo_provider.dart';
 
+enum _ActiveBookTab { none, todos, subagents }
+
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -68,16 +70,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   bool? _cachedHeaderIsCompact;
   FrameTokens? _cachedHeaderTokens;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
-  int? _cachedHeaderSubagentCount;
-  bool? _cachedHeaderSubagentsExpanded;
-  bool _subagentsExpanded = true;
+  _ActiveBookTab _activeBookTab = _ActiveBookTab.none;
   int _lastRunningSubagentCount = 0;
-  bool _userManuallyToggledSubagents = false;
-  int? _cachedHeaderTodoCount;
-  bool? _cachedHeaderTodosExpanded;
-  bool _todosExpanded = true;
   int _lastActiveTodoCount = 0;
-  bool _userManuallyToggledTodos = false;
+  bool _userManuallyToggledTabs = false;
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -157,7 +153,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _visibleCount = _pageSize;
       _initialScrollDone = false;
       _userScrolledUp = false;
-      _userManuallyToggledTodos = false;
+      _userManuallyToggledTabs = false;
       _lastActiveTodoCount = 0;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -1270,37 +1266,40 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final todos = ref.watch(todosFamily(widget.sessionId));
 
-    final mainAgentCost = (sessionState.usage?['cost'] is Map
-            ? (sessionState.usage!['cost']['total'] as num?)
-            : (sessionState.usage?['cost'] as num?)) ??
-        (stats?['cost'] as num?) ??
-        0.0;
+    final sessionStatsCost = (stats?['cost'] as num?)?.toDouble();
+    final turnCost = (sessionState.usage?['cost'] is Map
+            ? (sessionState.usage!['cost']['total'] as num? ??
+                sessionState.usage!['cost']['amount'] as num?)
+            : (sessionState.usage?['cost'] as num?))
+        ?.toDouble();
+    final mainAgentCost = sessionStatsCost != null
+        ? (turnCost != null && turnCost > sessionStatsCost
+            ? turnCost
+            : sessionStatsCost)
+        : (turnCost ?? 0.0);
     final subagentsCost = subagents.fold<double>(
       0.0,
       (acc, s) => acc + (s.cost ?? 0.0),
     );
-    final totalSessionCost = mainAgentCost.toDouble() + subagentsCost;
+    final totalSessionCost = mainAgentCost + subagentsCost;
     final hasAnyCost = (stats?['cost'] != null) ||
         (sessionState.usage?['cost'] != null) ||
         subagentsCost > 0;
     final cost = hasAnyCost ? totalSessionCost : null;
 
     final activeTodoCount = todos.where((t) => !t.isCompleted).length;
-    if (activeTodoCount > _lastActiveTodoCount) {
-      _todosExpanded = true;
-      _userManuallyToggledTodos = false;
-    } else if (!_userManuallyToggledTodos && activeTodoCount > 0) {
-      _todosExpanded = true;
+    final runningSubagentCount = subagents.where((s) => s.isRunning).length;
+
+    if (runningSubagentCount > _lastRunningSubagentCount) {
+      if (!_userManuallyToggledTabs) {
+        _activeBookTab = _ActiveBookTab.subagents;
+      }
+    } else if (activeTodoCount > _lastActiveTodoCount) {
+      if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
+        _activeBookTab = _ActiveBookTab.todos;
+      }
     }
     _lastActiveTodoCount = activeTodoCount;
-
-    final runningSubagentCount = subagents.where((s) => s.isRunning).length;
-    if (runningSubagentCount > _lastRunningSubagentCount) {
-      _subagentsExpanded = true;
-      _userManuallyToggledSubagents = false;
-    } else if (!_userManuallyToggledSubagents && runningSubagentCount > 0) {
-      _subagentsExpanded = true;
-    }
     _lastRunningSubagentCount = runningSubagentCount;
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
@@ -1394,32 +1393,42 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           mainAgentCost: mainAgentCost.toDouble(),
           subagentsCost: subagentsCost,
         ),
-        if (todos.isNotEmpty)
-          TodoPopDown(
-            sessionId: widget.sessionId,
-            isExpanded: _todosExpanded,
-            onToggleExpand: () => setState(() {
-              _todosExpanded = !_todosExpanded;
-              _userManuallyToggledTodos = true;
-            }),
-            onClose: () => setState(() {
-              _todosExpanded = false;
-              _userManuallyToggledTodos = true;
-            }),
+        if (todos.isNotEmpty || subagents.isNotEmpty)
+          _buildUnifiedBookTabsBar(
+            context,
+            tokens,
+            todos,
+            subagents,
+            subagentsCost,
+            runningSubagentCount,
+            isCompact,
           ),
-        if (subagents.isNotEmpty)
-          SubagentsPopDown(
-            sessionId: widget.sessionId,
-            isExpanded: _subagentsExpanded,
-            onToggleExpand: () => setState(() {
-              _subagentsExpanded = !_subagentsExpanded;
-              _userManuallyToggledSubagents = true;
-            }),
-            onClose: () => setState(() {
-              _subagentsExpanded = false;
-              _userManuallyToggledSubagents = true;
-            }),
-          ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
+              ? TodoPopDown(
+                  sessionId: widget.sessionId,
+                  isExpanded: true,
+                  hideBookTab: true,
+                  onClose: () => setState(() {
+                    _activeBookTab = _ActiveBookTab.none;
+                    _userManuallyToggledTabs = true;
+                  }),
+                )
+              : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
+                  ? SubagentsPopDown(
+                      sessionId: widget.sessionId,
+                      isExpanded: true,
+                      hideBookTab: true,
+                      onClose: () => setState(() {
+                        _activeBookTab = _ActiveBookTab.none;
+                        _userManuallyToggledTabs = true;
+                      }),
+                    )
+                  : const SizedBox.shrink(),
+        ),
         Expanded(
           child: Stack(
             children: [
@@ -1621,11 +1630,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _cachedHeaderIsRenaming == _isRenaming &&
         _cachedHeaderIsCompact == isCompact &&
         identical(_cachedHeaderTokens, tokens) &&
-        _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses) &&
-        _cachedHeaderSubagentCount == subagents.length &&
-        _cachedHeaderSubagentsExpanded == _subagentsExpanded &&
-        _cachedHeaderTodoCount == todos.length &&
-        _cachedHeaderTodosExpanded == _todosExpanded) {
+        _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses)) {
       return _cachedBentoHeader!;
     }
 
@@ -1640,10 +1645,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderIsCompact = isCompact;
     _cachedHeaderTokens = tokens;
     _cachedHeaderExtStatuses = extensionStatuses;
-    _cachedHeaderSubagentCount = subagents.length;
-    _cachedHeaderSubagentsExpanded = _subagentsExpanded;
-    _cachedHeaderTodoCount = todos.length;
-    _cachedHeaderTodosExpanded = _todosExpanded;
 
     _cachedBentoHeader = Container(
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
@@ -1901,19 +1902,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     iconColor: tokens.syntaxKeyword,
                   ),
                 ],
-                if (subagents.isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  _subagentChip(
-                    tokens,
-                    subagents,
-                    _subagentsExpanded,
-                    onTap: () {
-                      setState(() {
-                        _subagentsExpanded = !_subagentsExpanded;
-                      });
-                    },
-                  ),
-                ],
               ],
             ),
           ),
@@ -1924,61 +1912,232 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
 
-  Widget _subagentChip(
+  Widget _buildUnifiedBookTabsBar(
+    BuildContext context,
     FrameTokens tokens,
+    List<TodoItem> todos,
     List<SubagentItem> subagents,
-    bool isExpanded, {
-    required VoidCallback onTap,
-  }) {
-    final runningCount = subagents.where((s) => s.isRunning).length;
-    final color = runningCount > 0 ? tokens.syntaxKeyword : tokens.syntaxFunction;
+    double subagentsCost,
+    int runningSubagentCount,
+    bool isCompact,
+  ) {
+    final completedCount = todos.where((t) => t.isCompleted).length;
+    final totalCount = todos.length;
 
-    return InkWell(
-      key: const ValueKey('subagents-header-chip'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(tokens.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: isExpanded ? 0.2 : 0.1),
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: color.withValues(alpha: isExpanded ? 0.6 : 0.3),
-            width: isExpanded ? 1.2 : 1.0,
+    return Container(
+      margin: EdgeInsets.only(
+        left: isCompact ? 16 : 14,
+        right: isCompact ? 16 : 14,
+        bottom: 4,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 2.5,
+            decoration: BoxDecoration(
+              color: tokens.borderStrong.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(1.5),
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.hub_outlined, size: 12, color: color),
-            const SizedBox(width: 4),
-            Text(
-              'Subagenti (${subagents.length})',
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (runningCount > 0) ...[
-              const SizedBox(width: 4),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: tokens.syntaxKeyword,
-                  shape: BoxShape.circle,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (todos.isNotEmpty)
+                InkWell(
+                  key: const ValueKey('todo-peek-tab'),
+                  onTap: () => setState(() {
+                    _activeBookTab = (_activeBookTab == _ActiveBookTab.todos)
+                        ? _ActiveBookTab.none
+                        : _ActiveBookTab.todos;
+                    _userManuallyToggledTabs = true;
+                  }),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(6),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _activeBookTab == _ActiveBookTab.todos
+                          ? tokens.surfaceElevated
+                          : tokens.surface,
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(6),
+                      ),
+                      border: Border(
+                        left: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.todos
+                              ? tokens.accent
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                        right: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.todos
+                              ? tokens.accent
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                        bottom: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.todos
+                              ? tokens.accent
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: tokens.overlay.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.checklist_rtl_rounded,
+                          size: 11,
+                          color: tokens.accent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Attività ($completedCount/$totalCount)',
+                          style: TextStyle(
+                            color: _activeBookTab == _ActiveBookTab.todos
+                                ? tokens.textPrimary
+                                : tokens.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _activeBookTab == _ActiveBookTab.todos
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 12,
+                          color: tokens.textMuted,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              if (todos.isNotEmpty && subagents.isNotEmpty)
+                const SizedBox(width: 8),
+              if (subagents.isNotEmpty)
+                InkWell(
+                  key: const ValueKey('subagents-book-tab'),
+                  onTap: () => setState(() {
+                    _activeBookTab = (_activeBookTab == _ActiveBookTab.subagents)
+                        ? _ActiveBookTab.none
+                        : _ActiveBookTab.subagents;
+                    _userManuallyToggledTabs = true;
+                  }),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(6),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _activeBookTab == _ActiveBookTab.subagents
+                          ? tokens.surfaceElevated
+                          : tokens.surface,
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(6),
+                      ),
+                      border: Border(
+                        left: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.subagents
+                              ? tokens.syntaxFunction
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                        right: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.subagents
+                              ? tokens.syntaxFunction
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                        bottom: BorderSide(
+                          color: _activeBookTab == _ActiveBookTab.subagents
+                              ? tokens.syntaxFunction
+                              : tokens.borderStrong,
+                          width: 1,
+                        ),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: tokens.overlay.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.hub_outlined,
+                          size: 12,
+                          color: tokens.syntaxFunction,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Subagenti (${subagents.length})',
+                          style: TextStyle(
+                            color: _activeBookTab == _ActiveBookTab.subagents
+                                ? tokens.textPrimary
+                                : tokens.textSecondary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (subagentsCost > 0) ...[
+                          const SizedBox(width: 5),
+                          Text(
+                            '\$${subagentsCost.toStringAsFixed(4)}',
+                            style: TextStyle(
+                              color: tokens.syntaxString,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: tokens.monoFontFamily,
+                            ),
+                          ),
+                        ],
+                        if (runningSubagentCount > 0) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: tokens.syntaxKeyword,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 4),
+                        Icon(
+                          _activeBookTab == _ActiveBookTab.subagents
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 13,
+                          color: tokens.textMuted,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
-            const SizedBox(width: 2),
-            Icon(
-              isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              size: 14,
-              color: tokens.textMuted,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

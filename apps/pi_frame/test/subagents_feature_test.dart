@@ -9,6 +9,7 @@ import 'package:pi_frame/features/sessions_sidebar/removed_repos_provider.dart';
 import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
 import 'package:pi_frame/features/transcript/subagent_panel.dart';
 import 'package:pi_frame/features/transcript/subagents_provider.dart';
+import 'package:pi_frame/features/transcript/todo_provider.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -26,6 +27,12 @@ class _TestRemovedNotifier extends RemovedReposNotifier {
 
 class _MockSubagentsNotifier extends SubagentsNotifier {
   _MockSubagentsNotifier(super.ref, super.sessionId, List<SubagentItem> initial) {
+    state = initial;
+  }
+}
+
+class _MockTodoNotifier extends TodoNotifier {
+  _MockTodoNotifier(super.ref, super.sessionId, List<TodoItem> initial) {
     state = initial;
   }
 }
@@ -270,11 +277,11 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Subagents header chip should be visible
-      expect(find.byKey(const ValueKey('subagents-header-chip')), findsOneWidget);
+      // Subagents header chip should NOT be in the session info card (removed per request)
+      expect(find.byKey(const ValueKey('subagents-header-chip')), findsNothing);
       expect(find.text('Subagenti (1)'), findsWidgets);
 
-      // SubagentsPopDown should be displayed by default
+      // SubagentsPopDown should be displayed by default when running
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
       expect(find.text('Active Subagent'), findsOneWidget);
 
@@ -292,6 +299,89 @@ void main() {
 
       // Popdown is visible again
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+    });
+
+    testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
+      final subagents = [
+        const SubagentItem(
+          id: 'sub_agent_exclusive',
+          name: 'Worker Agent',
+          model: 'sonnet',
+          cost: 0.005,
+          output: 'Doing work...',
+          status: 'running',
+        ),
+      ];
+      final todos = [
+        const TodoItem(
+          id: 1,
+          subject: 'Review database queries',
+          status: 'pending',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_tabs_1').overrideWith(
+              (ref) => SessionStateNotifier('sess_tabs_1', null)
+                ..state = const SessionState(
+                  sessionId: 'sess_tabs_1',
+                  sessionName: 'Tabs Test',
+                  cwd: 'C:/projects/app',
+                  agentStatus: AgentStatus.settled,
+                ),
+            ),
+            subagentsFamily('sess_tabs_1').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_tabs_1', subagents),
+            ),
+            todosFamily('sess_tabs_1').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'sess_tabs_1', todos),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: TranscriptView(
+                sessionId: 'sess_tabs_1',
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Both book tabs exist side-by-side
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      // Subagent is running, so subagents panel is initially auto-opened
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+
+      // Tap on Activities (todos) book tab -> subagents closes, todos opens
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+
+      // Tap on Subagents book tab -> todos closes, subagents opens
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+
+      // Tap on active subagents tab again -> collapses it so neither is expanded
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
     });
 
     testWidgets('Subagent task does not have user checkmark and crosses out title when completed', (tester) async {

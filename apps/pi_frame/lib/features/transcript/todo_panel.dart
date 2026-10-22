@@ -9,6 +9,7 @@ class TodoPopDown extends ConsumerStatefulWidget {
   final VoidCallback? onClose;
   final bool? isExpanded;
   final VoidCallback? onToggleExpand;
+  final bool hideBookTab;
 
   const TodoPopDown({
     super.key,
@@ -16,6 +17,7 @@ class TodoPopDown extends ConsumerStatefulWidget {
     this.onClose,
     this.isExpanded,
     this.onToggleExpand,
+    this.hideBookTab = false,
   });
 
   @override
@@ -373,82 +375,84 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
         ],
       ),
     )
-  : Container(
-      margin: EdgeInsets.only(
-        left: isMobile ? 16 : 14,
-        right: isMobile ? 16 : 14,
-        bottom: 4,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 2.5,
-            decoration: BoxDecoration(
-              color: tokens.accent.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(1.5),
-            ),
+  : (widget.hideBookTab
+      ? const SizedBox.shrink()
+      : Container(
+          margin: EdgeInsets.only(
+            left: isMobile ? 16 : 14,
+            right: isMobile ? 16 : 14,
+            bottom: 4,
           ),
-          InkWell(
-            key: const ValueKey('todo-peek-tab'),
-            onTap: _handleToggle,
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(6),
-            ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2.5,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 2.5,
+                decoration: BoxDecoration(
+                  color: tokens.accent.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
               ),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
+              InkWell(
+                key: const ValueKey('todo-peek-tab'),
+                onTap: _handleToggle,
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(6),
                 ),
-                border: Border(
-                  left: BorderSide(color: tokens.borderStrong, width: 1),
-                  right: BorderSide(color: tokens.borderStrong, width: 1),
-                  bottom: BorderSide(color: tokens.borderStrong, width: 1),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: tokens.overlay.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2.5,
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.checklist_rtl_rounded,
-                    size: 11,
-                    color: tokens.accent,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Attività ($completedCount/$totalCount)',
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(6),
                     ),
+                    border: Border(
+                      left: BorderSide(color: tokens.borderStrong, width: 1),
+                      right: BorderSide(color: tokens.borderStrong, width: 1),
+                      bottom: BorderSide(color: tokens.borderStrong, width: 1),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: tokens.overlay.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 12,
-                    color: tokens.textMuted,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.checklist_rtl_rounded,
+                        size: 11,
+                        color: tokens.accent,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Attività ($completedCount/$totalCount)',
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 12,
+                        color: tokens.textMuted,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    ),
+        )),
 );
   }
 
