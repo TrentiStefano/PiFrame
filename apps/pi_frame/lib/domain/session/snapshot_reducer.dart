@@ -249,6 +249,70 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
   final text = _contentText(live['content'], 'text');
   final thinking = _contentText(live['content'], 'thinking');
   final model = runtime['model'];
+  final rawUsage = Map<String, dynamic>.from(payload['usage'] as Map? ?? {});
+
+  // Aggregate usage from transcript entries if payload['usage'] is empty or missing cost
+  double aggregatedCost = 0.0;
+  bool foundEntryCost = false;
+  int aggregatedTotalTokens = 0;
+  int aggregatedInputTokens = 0;
+  int aggregatedOutputTokens = 0;
+  bool foundEntryTokens = false;
+
+  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
+    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+    final u = message['usage'] is Map
+        ? message['usage'] as Map
+        : (raw['usage'] is Map ? raw['usage'] as Map : null);
+    if (u != null) {
+      if (u['cost'] != null) {
+        final c = u['cost'];
+        final num? val = (c is Map ? (c['total'] ?? c['amount']) : c) as num?;
+        if (val != null) {
+          aggregatedCost += val.toDouble();
+          foundEntryCost = true;
+        }
+      }
+      final tokens = u['tokens'] is Map ? u['tokens'] as Map : null;
+      if (tokens != null) {
+        if (tokens['total'] is num) {
+          aggregatedTotalTokens = (tokens['total'] as num).toInt();
+          foundEntryTokens = true;
+        }
+        if (tokens['input'] is num) aggregatedInputTokens = (tokens['input'] as num).toInt();
+        if (tokens['output'] is num) aggregatedOutputTokens = (tokens['output'] as num).toInt();
+      } else if (u['totalTokens'] is num) {
+        aggregatedTotalTokens = (u['totalTokens'] as num).toInt();
+        foundEntryTokens = true;
+      }
+    }
+  }
+
+  if (rawUsage['cost'] == null && foundEntryCost) {
+    rawUsage['cost'] = aggregatedCost;
+  }
+  if (rawUsage['totalTokens'] == null && foundEntryTokens) {
+    rawUsage['totalTokens'] = aggregatedTotalTokens;
+    rawUsage['inputTokens'] = aggregatedInputTokens;
+    rawUsage['outputTokens'] = aggregatedOutputTokens;
+  }
+
+  Map<String, dynamic>? initialStats;
+  if (rawUsage.isNotEmpty) {
+    initialStats = {
+      if (rawUsage['cost'] != null)
+        'cost': rawUsage['cost'] is Map
+            ? (rawUsage['cost']['total'] ?? rawUsage['cost']['amount'])
+            : rawUsage['cost'],
+      if (rawUsage['totalTokens'] != null)
+        'tokens': {
+          'total': rawUsage['totalTokens'],
+          'input': rawUsage['inputTokens'],
+          'output': rawUsage['outputTokens'],
+        },
+    };
+  }
+
   return SessionState(
     sessionId: sessionId,
     sessionName: meta['name']?.toString(),
@@ -268,7 +332,8 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
         ? (model['name'] ?? model['id'])?.toString()
         : (model is String && model.isNotEmpty ? model : null),
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
-    usage: Map<String, dynamic>.from(payload['usage'] as Map? ?? {}),
+    usage: rawUsage,
+    sessionStats: initialStats,
     lastAppliedSeq: seq,
   );
 }

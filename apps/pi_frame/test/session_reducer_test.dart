@@ -3,6 +3,7 @@ import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/session_reducer.dart';
+import 'package:pi_frame/domain/session/snapshot_reducer.dart';
 
 void main() {
   group('SessionReducer', () {
@@ -620,6 +621,62 @@ void main() {
       expect(next.entries.first.toolCalls.first.isRunning, isFalse);
       expect(next.entries.first.toolCalls.first.isError, isTrue);
       expect(next.entries.first.toolCalls.first.output, 'FAIL test/foo.spec.ts');
+    });
+  });
+
+  group('applySessionSnapshot', () {
+    test('restores session cost and tokens directly from payload usage', () {
+      final state = applySessionSnapshot('session-cost', 10, {
+        'session': {'id': 'session-cost', 'name': 'Cost Session', 'cwd': '/workspace'},
+        'runtime': {'status': 'settled', 'model': 'claude-3-5-sonnet'},
+        'usage': {
+          'cost': 0.0845,
+          'totalTokens': 15000,
+          'inputTokens': 12000,
+          'outputTokens': 3000,
+        },
+      });
+
+      expect(state.usage?['cost'], 0.0845);
+      expect(state.sessionStats?['cost'], 0.0845);
+      expect(state.sessionStats?['tokens']['total'], 15000);
+      expect(state.sessionStats?['tokens']['input'], 12000);
+      expect(state.sessionStats?['tokens']['output'], 3000);
+    });
+
+    test('aggregates session cost and tokens from transcript entries when payload usage is empty', () {
+      final state = applySessionSnapshot('session-fallback', 10, {
+        'session': {'id': 'session-fallback', 'name': 'Fallback Session', 'cwd': '/workspace'},
+        'runtime': {'status': 'settled', 'model': 'claude-3-5-sonnet'},
+        'usage': {},
+        'transcript': {
+          'entries': [
+            {
+              'id': 'msg-1',
+              'role': 'assistant',
+              'content': 'First step',
+              'usage': {
+                'cost': {'total': 0.025},
+                'tokens': {'total': 5000, 'input': 4000, 'output': 1000},
+              },
+            },
+            {
+              'id': 'msg-2',
+              'role': 'assistant',
+              'content': 'Second step',
+              'usage': {
+                'cost': 0.035,
+                'tokens': {'total': 12000, 'input': 9000, 'output': 3000},
+              },
+            },
+          ],
+        },
+      });
+
+      // Total cost should be 0.025 + 0.035 = 0.060
+      expect(state.usage?['cost'], closeTo(0.060, 0.0001));
+      expect(state.sessionStats?['cost'], closeTo(0.060, 0.0001));
+      expect(state.sessionStats?['tokens']['total'], 12000);
     });
   });
 }

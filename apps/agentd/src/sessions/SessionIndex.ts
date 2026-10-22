@@ -329,8 +329,14 @@ export class SessionIndex {
               if (entry.type === 'model_change' && entry.modelId) {
                 model = entry.modelId;
               }
-              if (entry.usage?.cost) {
-                cost = Number(entry.usage.cost);
+              if (entry.usage?.cost !== undefined) {
+                const rawCost = typeof entry.usage.cost === 'object' && entry.usage.cost !== null
+                  ? (entry.usage.cost.total ?? entry.usage.cost.amount)
+                  : entry.usage.cost;
+                const numCost = Number(rawCost);
+                if (!Number.isNaN(numCost)) {
+                  cost = (cost ?? 0) + numCost;
+                }
               }
               if (entry.type === 'message' || entry.role) {
                 const msg = entry.message || entry;
@@ -363,4 +369,86 @@ export class SessionIndex {
 
     return result;
   }
+
+  public extractSessionMetadata(filePath: string): {
+    usage?: Record<string, unknown>;
+    model?: string | null;
+    thinkingLevel?: string | null;
+  } {
+    let model: string | null = null;
+    let thinkingLevel: string | null = null;
+    let totalCost = 0;
+    let hasCost = false;
+    let totalTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let hasTokens = false;
+
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n').filter(Boolean);
+        for (const line of lines) {
+          try {
+            const entry = JSON.parse(line);
+            if (entry.type === 'model_change' && entry.modelId) {
+              model = entry.modelId;
+            }
+            if (entry.type === 'thinking_change' && entry.thinkingLevel) {
+              thinkingLevel = entry.thinkingLevel;
+            }
+            if (entry.thinkingLevel) {
+              thinkingLevel = entry.thinkingLevel;
+            }
+
+            const u = entry.usage || entry.message?.usage;
+            if (u) {
+              if (u.cost !== undefined) {
+                const rawCost = typeof u.cost === 'object' && u.cost !== null
+                  ? (u.cost.total ?? u.cost.amount)
+                  : u.cost;
+                const numCost = Number(rawCost);
+                if (!Number.isNaN(numCost)) {
+                  totalCost += numCost;
+                  hasCost = true;
+                }
+              }
+              if (u.tokens && typeof u.tokens === 'object') {
+                if (typeof u.tokens.total === 'number') totalTokens = u.tokens.total;
+                if (typeof u.tokens.input === 'number') inputTokens = u.tokens.input;
+                if (typeof u.tokens.output === 'number') outputTokens = u.tokens.output;
+                hasTokens = true;
+              } else if (u.totalTokens !== undefined) {
+                totalTokens = Number(u.totalTokens) || totalTokens;
+                hasTokens = true;
+              } else if (u.total !== undefined) {
+                totalTokens = Number(u.total) || totalTokens;
+                hasTokens = true;
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+
+    const usage: Record<string, unknown> = {};
+    if (hasCost) {
+      usage.cost = totalCost;
+    }
+    if (hasTokens) {
+      usage.totalTokens = totalTokens;
+      usage.tokens = {
+        total: totalTokens,
+        input: inputTokens,
+        output: outputTokens,
+      };
+    }
+
+    return {
+      usage: Object.keys(usage).length > 0 ? usage : undefined,
+      model,
+      thinkingLevel,
+    };
+  }
 }
+
