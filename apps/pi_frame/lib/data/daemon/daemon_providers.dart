@@ -66,6 +66,7 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
 
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
 final showSettingsProvider = StateProvider<bool>((ref) => false);
+final settingsTabIndexProvider = StateProvider<int>((ref) => 0);
 
 final sessionStateFamily =
     StateNotifierProvider.family<SessionStateNotifier, SessionState, String>((

@@ -28,6 +28,8 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
+import '../features/updates/startup_update_banner.dart';
+import '../features/updates/startup_updates_watcher.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -297,6 +299,7 @@ class _AppShellState extends ConsumerState<AppShell>
           children: [
             const SessionNotificationWatcher(),
             const UpdatesPeriodicWatcher(),
+            const StartupUpdatesWatcher(),
             SafeArea(
               child: Column(
                 children: [
@@ -535,6 +538,8 @@ class _AppShellState extends ConsumerState<AppShell>
                   Expanded(
                     child: settings
                         ? SettingsView(
+                            initialTabIndex:
+                                ref.watch(settingsTabIndexProvider),
                             onClose: () =>
                                 ref.read(showSettingsProvider.notifier).state =
                                     false,
@@ -565,6 +570,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 ],
               ),
             ),
+            const StartupUpdateBanner(),
           ],
         ),
       ),
