@@ -44,8 +44,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           final last = updatedEntries.last;
           final mergedTools = List<ToolExecutionState>.from(last.toolCalls);
           for (final t in current.activeToolCalls.values) {
-            if (!mergedTools.any((e) => e.toolCallId == t.toolCallId)) {
-              mergedTools.add(t);
+            final completedT = t.isRunning ? t.copyWith(isRunning: false) : t;
+            if (!mergedTools.any((e) => e.toolCallId == completedT.toolCallId)) {
+              mergedTools.add(completedT);
             }
           }
           final newThinking = current.currentStreamingThinking.isNotEmpty
@@ -77,7 +78,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               thinking: current.currentStreamingThinking.isNotEmpty
                   ? current.currentStreamingThinking
                   : null,
-              toolCalls: current.activeToolCalls.values.toList(),
+              toolCalls: current.activeToolCalls.values
+                  .map((t) => t.isRunning ? t.copyWith(isRunning: false) : t)
+                  .toList(),
               timestamp: DateTime.now().millisecondsSinceEpoch,
             ));
         }
@@ -534,18 +537,26 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       final nextStats = Map<String, dynamic>.from(current.sessionStats ?? const {});
       if (usage.containsKey('cost')) {
         final c = usage['cost'];
-        if (c is Map && c['total'] != null) {
-          nextStats['cost'] = c['total'];
-        } else if (c is num) {
-          nextStats['cost'] = c;
+        final num? rawCost = c is Map
+            ? (c['total'] as num? ?? c['amount'] as num?)
+            : (c is num ? c : null);
+        if (rawCost != null) {
+          final existingCost = (nextStats['cost'] as num?)?.toDouble() ?? 0.0;
+          if (rawCost > existingCost) {
+            nextStats['cost'] = rawCost;
+          }
         }
       }
       if (usage.containsKey('totalTokens')) {
-        nextStats['tokens'] = {
-          'total': usage['totalTokens'],
-          'input': usage['input'] ?? usage['inputTokens'] ?? 0,
-          'output': usage['output'] ?? usage['outputTokens'] ?? 0,
-        };
+        final currentTotal = ((nextStats['tokens'] as Map?)?['total'] as num?)?.toInt() ?? 0;
+        final newTotal = (usage['totalTokens'] as num?)?.toInt() ?? 0;
+        if (newTotal >= currentTotal) {
+          nextStats['tokens'] = {
+            'total': newTotal,
+            'input': usage['input'] ?? usage['inputTokens'] ?? 0,
+            'output': usage['output'] ?? usage['outputTokens'] ?? 0,
+          };
+        }
       }
       return current.copyWith(
         usage: usage,

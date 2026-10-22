@@ -270,7 +270,7 @@ export class SessionIndex {
       Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
       Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
 
-    const isSubsession = Boolean(parentSession && isSubagentNameOrId);
+    const isSubsession = Boolean(parentSession) || isSubagentNameOrId;
 
     return {
       id: sessionId,
@@ -300,11 +300,10 @@ export class SessionIndex {
   }>> {
     const all = await this.scan();
     const parentBasename = parentSessionFile ? path.basename(parentSessionFile) : undefined;
-    const children = all.filter((s) =>
-      s.isSubsession &&
-      s.parentSession &&
-      (s.parentSession.includes(parentSessionId) || (parentBasename && s.parentSession.includes(parentBasename)))
-    );
+    const children = all.filter((s) => {
+      if (!s.parentSession) return false;
+      return s.parentSession.includes(parentSessionId) || (parentBasename ? s.parentSession.includes(parentBasename) : false);
+    });
 
     const result: Array<{
       id: string;
