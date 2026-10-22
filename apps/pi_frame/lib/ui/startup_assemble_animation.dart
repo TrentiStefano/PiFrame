@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -120,7 +119,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
                 onPointerDown: (_) => _finish(),
                 child: Focus(
                   canRequestFocus: false,
-                  onKeyEvent: (_, __) {
+                  onKeyEvent: (_, event) {
                     _finish();
                     return KeyEventResult.ignored;
                   },
