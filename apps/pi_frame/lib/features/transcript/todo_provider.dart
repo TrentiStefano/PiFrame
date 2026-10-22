@@ -122,7 +122,10 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     // 2. Process historical entries
     for (final entry in sessionState.entries) {
       if (entry.text.isNotEmpty &&
-          (entry.text.contains('activeForm') ||
+          (entry.text.contains('Updated #') ||
+              entry.text.contains('Updated task') ||
+              entry.text.contains('->') ||
+              entry.text.contains('activeForm') ||
               entry.text.contains('status:') ||
               entry.text.contains('"status"') ||
               entry.text.contains('nextId:'))) {
@@ -141,7 +144,10 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     // 4. Process streaming text in real time
     for (final text in sessionState.streamingTextBlocks.values) {
       if (text.isNotEmpty &&
-          (text.contains('activeForm') ||
+          (text.contains('Updated #') ||
+              text.contains('Updated task') ||
+              text.contains('->') ||
+              text.contains('activeForm') ||
               text.contains('status:') ||
               text.contains('"status"') ||
               text.contains('nextId:'))) {
@@ -282,6 +288,37 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
         _mergeOrAddTask(tasks, item);
       }
     }
+
+    // 3. Regex extraction for task status transitions, e.g.:
+    // "Updated #36 (in_progress -> completed)"
+    // "Updated task #36 (in_progress -> completed)"
+    // "#36 (in_progress -> completed)"
+    // "Task #36 marked as completed"
+    final transitionMatches = RegExp(
+      r'(?:Updated|Update|Task|Marked)?\s*(?:task\s*)?#(\d+)\s*(?:\((?:[^->\n]+)\s*->\s*([^)\n]+)\)|:\s*(?:[^->\n]+)\s*->\s*([^\n]+)|(?:as|to)\s+([a-zA-Z_-]+))',
+      caseSensitive: false,
+    ).allMatches(rawText);
+
+    for (final match in transitionMatches) {
+      final idStr = match.group(1);
+      final rawStatus = match.group(2) ?? match.group(3) ?? match.group(4);
+      if (idStr != null && rawStatus != null) {
+        final id = int.tryParse(idStr);
+        final status = _normalizeStatus(rawStatus);
+        if (id != null && id > 0 && status != null) {
+          final existing = tasks[id];
+          if (existing != null) {
+            tasks[id] = existing.copyWith(status: status);
+          } else {
+            tasks[id] = TodoItem(
+              id: id,
+              subject: 'Task #$id',
+              status: status,
+            );
+          }
+        }
+      }
+    }
   }
 
   void _mergeOrAddTask(Map<int, TodoItem> tasks, TodoItem incoming) {
@@ -331,6 +368,26 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     final id = rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? '0') ?? 0;
     final subject = args['subject']?.toString() ?? args['title']?.toString();
     final status = _normalizeStatus(args['status']?.toString());
+
+    // Direct status update when id and status are provided
+    if (id > 0 && status != null && (action == null || action == 'update')) {
+      final existing = tasks[id];
+      if (existing != null) {
+        tasks[id] = existing.copyWith(
+          status: status,
+          subject: subject ?? existing.subject,
+          description: args['description']?.toString() ?? existing.description,
+        );
+      } else {
+        tasks[id] = TodoItem(
+          id: id,
+          subject: subject ?? 'Task #$id',
+          status: status,
+          description: args['description']?.toString(),
+        );
+      }
+      return;
+    }
 
     // If neither action nor subject is provided, do not treat as a todo command
     if (action == null && subject == null) {

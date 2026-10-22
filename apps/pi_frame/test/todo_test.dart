@@ -289,6 +289,42 @@ only Phase 0., activeForm: auditing native camera drivers}, {id: 2, subject: Aud
       expect(task19.isInProgress, isTrue);
       expect(task19.isCompleted, isFalse);
     });
+
+    test('correctly updates in_progress task to completed on "Updated #36 (in_progress -> completed)"', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-transition-test').overrideWith(
+            (ref) => SessionStateNotifier('session-transition-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-transition-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: '{id: 36, subject: "Audit graphics pipeline", status: in_progress}',
+                    timestamp: 1000,
+                  ),
+                  SessionEntry(
+                    id: 'msg-2',
+                    role: 'assistant',
+                    text: 'Updated #36 (in_progress -> completed)',
+                    timestamp: 2000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-transition-test').notifier);
+      expect(notifier.state.length, 1);
+      final task36 = notifier.state.first;
+      expect(task36.id, 36);
+      expect(task36.status, 'completed');
+      expect(task36.isCompleted, isTrue);
+    });
   });
 }
 
