@@ -16,6 +16,12 @@ class StartupAssembleOverlay extends StatefulWidget {
     this.onAnimationComplete,
   });
 
+  static CustomPainter createAssemblePainter({
+    required double progress,
+    required FrameTokens tokens,
+  }) =>
+      _AssemblePainter(progress: progress, tokens: tokens);
+
   @override
   State<StartupAssembleOverlay> createState() => _StartupAssembleOverlayState();
 }
