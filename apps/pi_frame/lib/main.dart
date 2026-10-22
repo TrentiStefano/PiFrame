@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
+import 'data/window/window_state_service.dart';
+import 'ui/startup_assemble_animation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +32,7 @@ Future<void> main() async {
       );
     }
     await DesktopNotificationService.instance.initialize();
+    await WindowStateService.instance.restoreWindow();
   }
   runApp(
     ProviderScope(
@@ -54,8 +57,11 @@ class PiFrameApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       theme: themeData,
-      builder: (context, child) =>
-          LaunchReveal(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => LaunchReveal(
+        child: StartupAssembleOverlay(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
     );
   }
 }

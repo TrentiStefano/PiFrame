@@ -30,6 +30,7 @@ import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
 import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
+import '../data/window/window_state_service.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -160,10 +161,41 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   @override
+  void onWindowResize() {
+    WindowStateService.instance.debounceRecordCurrentState();
+  }
+
+  @override
+  void onWindowMove() {
+    WindowStateService.instance.debounceRecordCurrentState();
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    WindowStateService.instance.recordCurrentWindowState();
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    WindowStateService.instance.recordCurrentWindowState();
+  }
+
+  @override
+  void onWindowMaximize() {
+    WindowStateService.instance.recordCurrentWindowState();
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    WindowStateService.instance.recordCurrentWindowState();
+  }
+
+  @override
   void onWindowClose() async {
     if (_closingWindow || !_handlesNativeClose) return;
     _closingWindow = true;
     try {
+      unawaited(WindowStateService.instance.recordCurrentWindowState());
       final allowClose = await resolveDirtyRepository(
         context,
         ref,
