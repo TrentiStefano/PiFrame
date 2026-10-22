@@ -72,6 +72,7 @@ class SubagentItem {
 class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   final Ref ref;
   final String sessionId;
+  ProviderSubscription? _subscription;
   Timer? _refreshTimer;
   final Set<String> _locallyStopped = <String>{};
   final Set<String> _locallySteered = <String>{};
@@ -82,9 +83,18 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   }
 
   void _init() {
-    _syncFromSessionState();
+    _listenToSession();
     _fetchFromDaemon();
-    _checkTimer();
+  }
+
+  void _listenToSession() {
+    _subscription = ref.listen<SessionState>(
+      sessionStateFamily(sessionId),
+      (prev, next) {
+        _syncFromSessionState(next);
+      },
+      fireImmediately: true,
+    );
   }
 
   void _checkTimer() {
@@ -103,44 +113,24 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
   @override
   void dispose() {
+    _subscription?.close();
     _refreshTimer?.cancel();
     _refreshTimer = null;
     super.dispose();
   }
 
-  void _syncFromSessionState() {
+  void _syncFromSessionState([SessionState? currentSessionState]) {
     try {
-      final sessionState = ref.read(sessionStateFamily(sessionId));
+      final SessionState? sessionState = currentSessionState ?? ref.read(sessionStateFamily(sessionId));
+      if (sessionState == null) return;
       final Map<String, SubagentItem> itemsMap = {
         for (final item in state) item.id: item
       };
 
-      // 1. Process active tool calls in sessionState
-      for (final tool in sessionState.activeToolCalls.values) {
-        if (_isSubagentTool(tool.toolName)) {
-          final subagent = _parseFromTool(tool, sessionState.currentModel);
-          if (subagent != null) {
-            final existing = itemsMap[subagent.id];
-            final status = _locallyStopped.contains(subagent.id)
-                ? 'stopped'
-                : _locallySteered.contains(subagent.id)
-                ? 'steered'
-                : subagent.status;
-            final isSteeringOpen = _openSteeringIds.contains(subagent.id);
-            itemsMap[subagent.id] = subagent.copyWith(
-              output: subagent.output.isNotEmpty
-                  ? subagent.output
-                  : existing?.output ?? '',
-              status: status,
-              isSteeringOpen: isSteeringOpen,
-            );
-          }
-        }
-      }
-
-      // 2. Process historical tool calls in session entries
+      // 1. Process historical tool calls in session entries
       for (final entry in sessionState.entries) {
-        if (entry.text.contains('<task-notification>')) {
+        if (entry.text.contains('<task-notification>') ||
+            entry.text.contains('<task_notification>')) {
           final notif = TaskNotificationData.tryParse(entry.text);
           if (notif != null) {
             String subName = notif.taskId;
@@ -155,7 +145,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
               id: notif.taskId,
               name: subName,
               model: existing?.model ?? sessionState.currentModel,
-              cost: existing?.cost,
+              cost: notif.cost ?? existing?.cost,
               output: notif.result.isNotEmpty ? notif.result : notif.summary,
               status: notif.status.toLowerCase().contains('wrapped') ||
                       notif.status.toLowerCase().contains('steered')
@@ -167,8 +157,17 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
             );
           }
         }
+        double? entryCost;
+        if (entry.text.isNotEmpty) {
+          final costMatch = RegExp(r'(?:cost|cost_usd)\s*[:=]\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(entry.text) ??
+              RegExp(r'Cost:\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(entry.text);
+          if (costMatch != null && costMatch.group(1) != null) {
+            entryCost = double.tryParse(costMatch.group(1)!);
+          }
+        }
+
         for (final tool in entry.toolCalls) {
-          if (_isSubagentTool(tool.toolName)) {
+          if (_isSubagentTool(tool)) {
             final subagent = _parseFromTool(tool, sessionState.currentModel);
             if (subagent != null) {
               final existing = itemsMap[subagent.id];
@@ -176,17 +175,41 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
                   ? 'stopped'
                   : _locallySteered.contains(subagent.id)
                   ? 'steered'
-                  : (existing?.status == 'running' ? 'running' : subagent.status);
+                  : subagent.status;
               final isSteeringOpen = _openSteeringIds.contains(subagent.id);
               itemsMap[subagent.id] = subagent.copyWith(
                 output: subagent.output.isNotEmpty
                     ? subagent.output
                     : existing?.output ?? '',
-                cost: subagent.cost ?? existing?.cost,
+                cost: subagent.cost ?? entryCost ?? existing?.cost,
                 status: status,
                 isSteeringOpen: isSteeringOpen,
               );
             }
+          }
+        }
+      }
+
+      // 2. Process active tool calls in sessionState (overriding historical with active state)
+      for (final tool in sessionState.activeToolCalls.values) {
+        if (_isSubagentTool(tool)) {
+          final subagent = _parseFromTool(tool, sessionState.currentModel);
+          if (subagent != null) {
+            final existing = itemsMap[subagent.id];
+            final status = _locallyStopped.contains(subagent.id)
+                ? 'stopped'
+                : _locallySteered.contains(subagent.id)
+                ? 'steered'
+                : (tool.isRunning ? 'running' : subagent.status);
+            final isSteeringOpen = _openSteeringIds.contains(subagent.id);
+            itemsMap[subagent.id] = subagent.copyWith(
+              output: subagent.output.isNotEmpty
+                  ? subagent.output
+                  : existing?.output ?? '',
+              status: status,
+              cost: subagent.cost ?? existing?.cost,
+              isSteeringOpen: isSteeringOpen,
+            );
           }
         }
       }
@@ -265,19 +288,37 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     }
   }
 
-  bool _isSubagentTool(String toolName) {
-    final lower = toolName.toLowerCase();
-    return lower == 'agent' ||
+  bool _isSubagentTool(ToolExecutionState tool) {
+    final lower = tool.toolName.toLowerCase();
+    if (lower == 'agent' ||
         lower == 'subagent' ||
         lower == 'delegate' ||
-        lower.contains('subagent');
+        lower.contains('subagent') ||
+        lower.contains('sub_agent') ||
+        lower.contains('sub-agent') ||
+        lower.contains('delegate') ||
+        lower == 'spawn_agent' ||
+        lower == 'run_agent' ||
+        lower == 'invoke_agent') {
+      return true;
+    }
+    final args = tool.args;
+    if (args.containsKey('subagent_type') ||
+        args.containsKey('subagent') ||
+        args.containsKey('subagent_model') ||
+        args.containsKey('agent_model') ||
+        args.containsKey('agent_type') ||
+        args.containsKey('delegate')) {
+      return true;
+    }
+    return false;
   }
 
   SubagentItem? _parseFromTool(ToolExecutionState tool, String? fallbackModel) {
     final args = tool.args;
     String id = tool.toolCallId;
     String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? 'Subagente').toString();
-    String? model = args['model']?.toString() ?? fallbackModel;
+    String? model = args['subagent_model']?.toString() ?? args['model']?.toString() ?? fallbackModel;
     String? description = args['description']?.toString() ?? args['prompt']?.toString();
     double? cost;
     String? outputFile;
@@ -299,6 +340,9 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
         if (description == null && notif.summary.isNotEmpty) {
           description = notif.summary;
         }
+        if (notif.cost != null) {
+          cost = notif.cost;
+        }
       }
 
       // Parse Agent ID: xxx
@@ -319,11 +363,18 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
         outputFile = fileMatch.group(1)!.trim();
       }
 
-      // Parse Cost: $xxx
-      final costMatch = RegExp(r'Cost:\s*\$?([0-9.]+)').firstMatch(output);
+      // Parse Cost: $xxx, cost: xxx, cost_usd: xxx
+      final costMatch = RegExp(r'(?:cost|cost_usd)\s*[:=]\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(output) ??
+          RegExp(r'\$?([0-9.]+)\s*(?:USD|total cost)', caseSensitive: false).firstMatch(output) ??
+          RegExp(r'Cost:\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(output);
       if (costMatch != null && costMatch.group(1) != null) {
         cost = double.tryParse(costMatch.group(1)!);
       }
+    }
+
+    if (cost == null && args['cost'] != null) {
+      final c = args['cost'];
+      cost = c is num ? c.toDouble() : double.tryParse(c.toString());
     }
 
     String status = 'completed';

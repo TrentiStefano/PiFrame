@@ -150,7 +150,7 @@ void main() {
       expect(find.textContaining('Subagenti (1)'), findsOneWidget);
       expect(find.text('Explore Agent'), findsOneWidget);
       expect(find.text('gpt-6-luna'), findsOneWidget);
-      expect(find.text('\$0.0175'), findsOneWidget);
+      expect(find.text('\$0.0175'), findsNWidgets(2));
       expect(find.textContaining('In corso'), findsWidgets);
 
       // Output should be displayed
@@ -510,6 +510,118 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
         ),
         findsOneWidget,
       );
+    });
+
+    test('SubagentsNotifier updates in real time when activeToolCalls are added to SessionState', () {
+      final sessionNotifier = SessionStateNotifier('realtime_subagent_test', null)
+        ..state = const SessionState(
+          sessionId: 'realtime_subagent_test',
+          cwd: 'C:/test',
+        );
+
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('realtime_subagent_test').overrideWith(
+            (ref) => sessionNotifier,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final subagentsNotifier = container.read(subagentsFamily('realtime_subagent_test').notifier);
+      expect(subagentsNotifier.state, isEmpty);
+
+      // Simulate a subagent tool being launched in real time
+      sessionNotifier.state = sessionNotifier.state.copyWith(
+        activeToolCalls: {
+          'tool-subagent-1': const ToolExecutionState(
+            toolCallId: 'tool-subagent-1',
+            toolName: 'delegate',
+            args: {
+              'description': 'Run native core tests',
+              'subagent_type': 'reviewer',
+              'model': 'gpt-6-luna',
+            },
+            isRunning: true,
+          ),
+        },
+      );
+
+      // SubagentsNotifier must reactively pick up the running subagent in real-time
+      expect(subagentsNotifier.state.length, 1);
+      final sub = subagentsNotifier.state.first;
+      expect(sub.id, 'tool-subagent-1');
+      expect(sub.name, 'reviewer');
+      expect(sub.description, 'Run native core tests');
+      expect(sub.model, 'gpt-6-luna');
+      expect(sub.isRunning, isTrue);
+
+      // Complete the tool call
+      sessionNotifier.state = sessionNotifier.state.copyWith(
+        activeToolCalls: {},
+        entries: [
+          const SessionEntry(
+            id: 'entry-sub-complete',
+            role: 'assistant',
+            text: 'Subagent completed successfully. Cost: \$0.0150',
+            timestamp: 2000,
+            toolCalls: [
+              ToolExecutionState(
+                toolCallId: 'tool-subagent-1',
+                toolName: 'delegate',
+                args: {
+                  'description': 'Run native core tests',
+                  'subagent_type': 'reviewer',
+                  'model': 'gpt-6-luna',
+                },
+                output: 'All tests passed',
+                isRunning: false,
+              ),
+            ],
+          ),
+        ],
+      );
+
+      expect(subagentsNotifier.state.length, 1);
+      final completedSub = subagentsNotifier.state.first;
+      expect(completedSub.isCompleted, isTrue);
+      expect(completedSub.output, 'All tests passed');
+      expect(completedSub.cost, 0.0150);
+    });
+
+    testWidgets('SubagentPopDown and subagents-book-tab render cost badge correctly', (tester) async {
+      final subagents = [
+        const SubagentItem(
+          id: 'sub-1',
+          name: 'Worker Alpha',
+          model: 'claude-3-5-sonnet',
+          cost: 0.025,
+          status: 'completed',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subagentsFamily('test_cost_sub').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'test_cost_sub', subagents),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: SubagentsPopDown(sessionId: 'test_cost_sub'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Check header cost badge and item row
+      expect(find.text('\$0.0250'), findsNWidgets(2));
     });
   });
 }

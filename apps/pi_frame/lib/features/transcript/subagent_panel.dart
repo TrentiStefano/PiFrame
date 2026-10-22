@@ -124,6 +124,43 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                                 fontFamily: tokens.headingFontFamily,
                               ),
                             ),
+                            if (subagents.any((s) => (s.cost ?? 0) > 0)) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.syntaxString.withValues(alpha: 0.15),
+                                  borderRadius:
+                                      BorderRadius.circular(tokens.radiusSm),
+                                  border: Border.all(
+                                    color: tokens.syntaxString.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.monetization_on_outlined,
+                                      size: 11,
+                                      color: tokens.syntaxString,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '\$${subagents.fold<double>(0.0, (acc, s) => acc + (s.cost ?? 0.0)).toStringAsFixed(4)}',
+                                      style: TextStyle(
+                                        color: tokens.syntaxString,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: tokens.monoFontFamily,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                             if (runningCount > 0) ...[
                               const SizedBox(width: 8),
                               Container(
@@ -314,6 +351,18 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (subagents.any((s) => (s.cost ?? 0) > 0)) ...[
+                            const SizedBox(width: 5),
+                            Text(
+                              '\$${subagents.fold<double>(0.0, (acc, s) => acc + (s.cost ?? 0.0)).toStringAsFixed(4)}',
+                              style: TextStyle(
+                                color: tokens.syntaxString,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: tokens.monoFontFamily,
+                              ),
+                            ),
+                          ],
                           if (runningCount > 0) ...[
                             const SizedBox(width: 5),
                             Container(
