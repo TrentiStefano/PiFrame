@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PiFrame App Icon System — Official Specification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* PiFrame Dark Theme */
+      --dark-base: #161c27;
+      --dark-mantle: #121721;
+      --dark-darker: #0e131b;
+      --dark-surface0: #1c2432;
+      --dark-surface1: #242e40;
+      --dark-border: #2e3c53;
+      --dark-text: #f8fafc;
+      --dark-subtext: #a3b2c5;
+      --dark-accent: #5f9fc5;
+
+      /* PiFrame Light Theme */
+      --light-base: #f1f3f7;
+      --light-mantle: #e6e9f0;
+      --light-darker: #dde2eb;
+      --light-surface0: #ffffff;
+      --light-surface1: #f8fafc;
+      --light-border: #d3dae4;
+      --light-text: #0f172a;
+      --light-subtext: #566376;
+      --light-accent: #24638a;
+
+      /* Active theme */
+      --bg: var(--dark-darker);
+      --card-bg: var(--dark-mantle);
+      --surface: var(--dark-surface0);
+      --border: var(--dark-border);
+      --text: var(--dark-text);
+      --text-muted: var(--dark-subtext);
+      --accent: var(--dark-accent);
+      --font-ui: 'Schibsted Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-heading: 'Barlow Condensed', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body.theme-light {
+      --bg: var(--light-darker);
+      --card-bg: var(--light-base);
+      --surface: var(--light-surface0);
+      --border: var(--light-border);
+      --text: var(--light-text);
+      --text-muted: var(--light-subtext);
+      --accent: var(--light-accent);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      line-height: 1.5;
+      padding: 36px 24px 80px;
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-title {
+      font-family: var(--font-heading);
+      font-size: 34px;
+      letter-spacing: -0.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(202, 158, 230, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-sub {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      max-width: 720px;
+    }
+
+    .theme-toggle-btn {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .hero-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    @media (max-width: 820px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .icon-showcase-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .panel-tag {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .icon-wrap {
+      width: 256px;
+      height: 256px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .icon-wrap img {
+      width: 256px;
+      height: 256px;
+      filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.35));
+    }
+
+    .action-bar {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      background: var(--surface);
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .scale-test-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+
+    .scale-ladder {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 28px;
+      margin-top: 24px;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+    }
+
+    .scale-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scale-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .concept-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 820px) {
+      .concept-split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .concept-split img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin-top: 16px;
+    }
+
+    .spec-table th, .spec-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .spec-table th {
+      font-family: var(--font-heading);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+    }
+
+    .color-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 8px;
+      vertical-align: middle;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1 class="brand-title">
+          <span>📐</span> PiFrame Official App Icon
+          <span class="brand-badge">Production Asset</span>
+        </h1>
+        <p class="brand-sub">
+          Official PiFrame application icon system. Features geometric precision, crisp typography framing, and harmonious light &amp; dark palettes matching PiFrame theme tokens.
+        </p>
+      </div>
+      <div>
+        <button class="theme-toggle-btn" onclick="toggleTheme()">
+          <span id="theme-icon">☀️</span> <span id="theme-text">Switch to PiFrame Light</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Side-by-Side Pair -->
+    <div class="hero-card">
+      <div class="hero-grid">
+        <div class="icon-showcase-panel">
+          <div class="panel-tag">🌙 PiFrame Dark Theme</div>
+          <div class="icon-wrap">
+            <img id="main-dark-img" src="piframe-dark.svg" alt="PiFrame Dark Icon">
+          </div>
+          <div class="action-bar">
+            <a class="btn" href="piframe-dark.svg" download="piframe-dark.svg">Download SVG</a>
+            <a class="btn" href="piframe-dark-1024.png" download="piframe-dark-1024.png">1024px PNG</a>
+          </div>
+        </div>
+
+        <div class="icon-showcase-panel">
+          <div class="panel-tag">☀️ PiFrame Light Theme</div>
+          <div class="icon-wrap">
+            <img id="main-light-img" src="piframe-light.svg" alt="PiFrame Light Icon">
+          </div>
+          <div class="action-bar">
+            <a class="btn" href="piframe-light.svg" download="piframe-light.svg">Download SVG</a>
+            <a class="btn" href="piframe-light-1024.png" download="piframe-light-1024.png">1024px PNG</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multi-Scale Verification Ladder -->
+    <div class="scale-test-card">
+      <h3 style="font-family: var(--font-heading); font-size: 22px; text-transform: uppercase; color: var(--accent);">
+        Multi-Resolution Legibility Ladder (512px down to 16px)
+      </h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+        Verifying crisp silhouette, centered glyph recognition, and lack of visual blur across standard desktop display densities.
+      </p>
+
+      <div class="scale-ladder">
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 128px; height: 128px;">
+          <span class="scale-num">128px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 96px; height: 96px;">
+          <span class="scale-num">96px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 64px; height: 64px;">
+          <span class="scale-num">64px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 48px; height: 48px;">
+          <span class="scale-num">48px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 32px; height: 32px;">
+          <span class="scale-num">32px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 24px; height: 24px;">
+          <span class="scale-num">24px</span>
+        </div>
+        <div class="scale-box">
+          <img class="scale-img" src="piframe-dark.svg" style="width: 16px; height: 16px;">
+          <span class="scale-num">16px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Architectural Geometry & Hierarchy -->
+    <div class="concept-split">
+      <div>
+        <img src="piframe-concept.jpg" alt="Design Geometry Study">
+      </div>
+      <div>
+        <div class="panel-tag">Design Foundations</div>
+        <h3 style="font-family: var(--font-heading); font-size: 26px; text-transform: uppercase; color: var(--accent); margin: 6px 0 12px;">
+          Architectural Geometry &amp; Hierarchy
+        </h3>
+        <ul style="font-size: 13.5px; color: var(--text-muted); line-height: 1.8; padding-left: 20px;">
+          <li><strong>Interlocking PiFrame Geometry:</strong> The stylized 'P' and bounding frame interlock to communicate structural stability and workspace organization.</li>
+          <li><strong>Cohesive Theme Contrast:</strong> Designed with dedicated dark and light variants that harmonize with desktop system dark/light modes.</li>
+          <li><strong>Crisp Squircle Silhouette:</strong> Continuous squircle curvature matches native macOS and modern Windows application canvas standards.</li>
+          <li><strong>Strict Palette Discipline:</strong> Coordinated pastel blue, coral, and amber accents over neutral dark navy and soft off-white canvases.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Color Spec Table -->
+    <div class="hero-card">
+      <h3 style="font-family: var(--font-heading); font-size: 20px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px;">
+        Theme Palette Color Mapping
+      </h3>
+      <table class="spec-table">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>PiFrame Dark</th>
+            <th>PiFrame Light</th>
+            <th>Design Function</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Squircle Canvas</strong></td>
+            <td><span class="color-dot" style="background:#181a24"></span>#181a24 (Dark Base)</td>
+            <td><span class="color-dot" style="background:#f2f2f4"></span>#f2f2f4 (Light Base)</td>
+            <td>Matte desktop background tile</td>
+          </tr>
+          <tr>
+            <td><strong>Pi Glyph (Blue)</strong></td>
+            <td><span class="color-dot" style="background:#5c90b0"></span>#5c90b0 (Soft Blue)</td>
+            <td><span class="color-dot" style="background:#5c90b0"></span>#5c90b0 (Soft Blue)</td>
+            <td>Primary Pi identifier element</td>
+          </tr>
+          <tr>
+            <td><strong>Frame (Coral)</strong></td>
+            <td><span class="color-dot" style="background:#ec8072"></span>#ec8072 (Coral)</td>
+            <td><span class="color-dot" style="background:#ec8072"></span>#ec8072 (Coral)</td>
+            <td>Bounding structural frame</td>
+          </tr>
+          <tr>
+            <td><strong>Accent Dot (Amber)</strong></td>
+            <td><span class="color-dot" style="background:#eab348"></span>#eab348 (Warm Amber)</td>
+            <td><span class="color-dot" style="background:#eab348"></span>#eab348 (Warm Amber)</td>
+            <td>Focal visual anchor point</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let isLight = false;
+    function toggleTheme() {
+      isLight = !isLight;
+      document.body.classList.toggle('theme-light', isLight);
+      document.getElementById('theme-icon').textContent = isLight ? '🌙' : '☀️';
+      document.getElementById('theme-text').textContent = isLight ? 'Switch to PiFrame Dark' : 'Switch to PiFrame Light';
+      const activeSrc = isLight ? 'piframe-light.svg' : 'piframe-dark.svg';
+      document.querySelectorAll('.scale-img').forEach(img => {
+        img.src = activeSrc;
+      });
+    }
+  </script>
+</body>
+</html>

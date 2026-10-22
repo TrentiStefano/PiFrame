@@ -248,7 +248,7 @@ void main() {
           id: 'a1',
           role: 'assistant',
           timestamp: 2,
-          thinking: '1. Creo CodeEditorController integrando SyntaxHighlighter.\n2. Aggiungo overlay con contatore match e navigazione.\n3. Verifico la compatibilità con i token di tema Catppuccin.',
+          thinking: '1. Creo CodeEditorController integrando SyntaxHighlighter.\n2. Aggiungo overlay con contatore match e navigazione.\n3. Verifico la compatibilità con i token di tema PiFrame.',
           toolCalls: [
             ToolExecutionState(
               toolCallId: 't1',

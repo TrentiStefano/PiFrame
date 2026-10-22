@@ -2,22 +2,24 @@
 name: PiFrame — Bento Workbench
 description: "A coherent, local-first workbench for Pi sessions."
 colors:
-  latte-base: "#eff1f5"
-  latte-mantle: "#e6e9ef"
-  latte-surface0: "#ccd0da"
-  latte-text: "#4c4f69"
-  latte-mauve: "#8839ef"
-  latte-green: "#40a02b"
-  latte-yellow: "#df8e1d"
-  latte-red: "#d20f39"
-  frappe-base: "#303446"
-  frappe-mantle: "#292c3c"
-  frappe-surface0: "#414559"
-  frappe-text: "#c6d0f5"
-  frappe-mauve: "#ca9ee6"
-  frappe-green: "#a6d189"
-  frappe-yellow: "#e5c890"
-  frappe-red: "#e78284"
+  piframe-dark-background: "#161c27"
+  piframe-dark-chassis: "#121721"
+  piframe-dark-surface: "#1c2432"
+  piframe-dark-border: "#2e3c53"
+  piframe-dark-text: "#f8fafc"
+  piframe-dark-accent: "#5f9fc5"
+  piframe-dark-success: "#a1d9b0"
+  piframe-dark-warning: "#f6bd53"
+  piframe-dark-danger: "#f1887a"
+  piframe-light-background: "#f1f3f7"
+  piframe-light-chassis: "#e6e9f0"
+  piframe-light-surface: "#ffffff"
+  piframe-light-border: "#d3dae4"
+  piframe-light-text: "#0f172a"
+  piframe-light-accent: "#24638a"
+  piframe-light-success: "#336c42"
+  piframe-light-warning: "#895706"
+  piframe-light-danger: "#882316"
 rounded:
   sm: "6px"
   md: "10px"
@@ -43,24 +45,33 @@ PiFrame is a local-first Pi session workbench. Bento means three related work ar
 
 ## Color
 
-Use official Catppuccin Latte for light and Frappé for dark. Source of truth: `themes/piframe-light.json`, `themes/piframe-dark.json`, and matching bundled assets in `apps/pi_frame/assets/themes/`.
+Use official PiFrame default themes: PiFrame Light for light mode and PiFrame Dark for dark mode. Source of truth: `themes/piframe-light.json`, `themes/piframe-dark.json`, and matching bundled assets in `apps/pi_frame/assets/themes/`.
 
-| Role | Latte | Frappé |
+| Role | PiFrame Light | PiFrame Dark |
 |---|---|---|
-| Base | `#eff1f5` | `#303446` |
-| Mantle | `#e6e9ef` | `#292c3c` |
-| Surface 0 | `#ccd0da` | `#414559` |
-| Text | `#4c4f69` | `#c6d0f5` |
-| Mauve / primary accent | `#8839ef` | `#ca9ee6` |
-| Green / success | `#40a02b` | `#a6d189` |
-| Yellow / warning | `#df8e1d` | `#e5c890` |
-| Red / danger | `#d20f39` | `#e78284` |
+| Background / Base | `#f1f3f7` | `#161c27` |
+| Chassis / Mantle | `#e6e9f0` | `#121721` |
+| Surface | `#ffffff` | `#1c2432` |
+| Surface Elevated | `#ffffff` | `#242e40` |
+| Display Surface | `#dae0ea` | `#242e40` |
+| Display Text | `#0f172a` | `#f1f5f9` |
+| Border | `#d3dae4` | `#2e3c53` |
+| Border Strong | `#a3afc1` | `#475a77` |
+| Text Primary | `#0f172a` | `#f8fafc` |
+| Text Secondary | `#3d4a5c` | `#a3b2c5` |
+| Text Muted | `#566376` | `#8696ab` |
+| Accent (Steel Blue) | `#24638a` | `#5f9fc5` |
+| Success | `#336c42` | `#a1d9b0` |
+| Warning | `#895706` | `#f6bd53` |
+| Danger | `#882316` | `#f1887a` |
+| User Bubble | `#d3e3ef` | `#21344a` |
+| Thinking / Working | `#436e89` | `#81b2cf` |
 
 Do not darken or replace palette hues to make semantic colors pass as small text. Use named text colors for labels and accents for borders, icons or tinted state surfaces. Primary-action foreground/background pair must meet contrast requirements.
 
 ## Surface grammar
 
-- Use a 1px Catppuccin border and modest radius on functional surfaces throughout the app: panes, settings sections, session rows, transcript/tool/code blocks, composer, inputs, dialogs and menus.
+- Use a 1px subtle border and modest radius on functional surfaces throughout the app: panes, settings sections, session rows, transcript/tool/code blocks, composer, inputs, dialogs and menus.
 - Semantic radii: 6px small, 10px medium, 14px large. Keep Bento gutters narrow and content dense.
 - Use surface contrast and alignment before elevation. No squared borderless cards, deep shadows, gradients, glass or decorative card stacks.
 - Do not wrap every text row in a card; borders clarify meaningful controls and content groups.
@@ -77,7 +88,7 @@ Keep PiFrame's existing name, mark, and bundled typography. Barlow Condensed mar
 - **Unified pane headers**: Repository, Git Changes, and Review Changes share the chat pane's subtle card top bar styling at a slimmer 38px profile.
 - **App toolbar**: Compact 42px height with subtle branding wordmark (15px) and discrete icon buttons.
 - **Composer**: Space-efficient layout with icon-only action buttons, model and thinking selectors located on the bottom-left row, and send/attach on the bottom-right.
-- **Visual hierarchy & Color**: Colorful semantic Catppuccin file icons (`FileIcon`), syntax tokens, and git status counters (+added, -removed) provide clear scannability without the triple-tinted "AI-generated" look (colored fill + lighter outline + colored text).
+- **Visual hierarchy & Color**: Colorful semantic file icons (`FileIcon`), syntax tokens, and git status counters (+added, -removed) provide clear scannability without the triple-tinted "AI-generated" look (colored fill + lighter outline + colored text).
 
 ## Interaction and adaptation
 

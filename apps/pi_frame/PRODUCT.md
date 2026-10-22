@@ -33,7 +33,7 @@ Users run PiFrame on Windows, macOS, or Web alongside the PiFrame daemon. They s
 
 ## Brand Commitments
 
-The product name and original mark are PiFrame. The visual direction is Bento spatial grouping with official Catppuccin Latte/Frappé colors and modest rounded, subtly bordered surfaces throughout the application. Root `DESIGN.md` is authoritative; prior external design-language references are retired.
+The product name and original mark are PiFrame. The visual direction is Bento spatial grouping with official PiFrame Dark and PiFrame Light themes with steel blue accents, high-contrast typography, and modest rounded, subtly bordered surfaces throughout the application. Root `DESIGN.md` is authoritative; prior external design-language references are retired.
 
 ## Evidence on Hand
 

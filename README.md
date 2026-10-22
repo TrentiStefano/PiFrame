@@ -116,15 +116,15 @@ Most AI coding assistants lock you into a monolithic web app or terminal session
 
 ## 📸 Screenshots
 
-| Catppuccin Frappé (Dark) | Catppuccin Latte (Light) |
+| PiFrame Dark | PiFrame Light |
 | :---: | :---: |
-| [![Frappe Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![Latte Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
-| *Bento Triptych workspace in dark mode* | *Bento Triptych workspace in light mode* |
+| [![PiFrame Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![PiFrame Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
+| *Bento Triptych workspace in PiFrame Dark (#161c27)* | *Bento Triptych workspace in PiFrame Light (#f1f3f7)* |
 
-| Model & Extension Settings | Compact / Single-Pane Mode |
+| Theme Customizer | Compact / Single-Pane Mode |
 | :---: | :---: |
-| [![Settings](docs/design-evidence/piframe-live-settings-frappe.png)](docs/design-evidence/piframe-live-settings-frappe.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
-| *Model selection, thinking effort, and Pi extensions* | *Compact responsive layout for smaller screens* |
+| [![Theme Editor](docs/design-evidence/recordly-projects/04_theme_editor.png)](docs/design-evidence/recordly-projects/04_theme_editor.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
+| *Theme token editor, custom color picker, and live component preview* | *Compact responsive layout for smaller screens* |
 
 ---
 

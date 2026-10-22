@@ -10,13 +10,13 @@
     "source": "PiFrame Flutter Native Application (apps/pi_frame)"
   },
   "editor": {
-    "wallpaper": "catppuccin-frappe",
+    "wallpaper": "piframe-dark",
     "shadowIntensity": 0.65,
     "backgroundBlur": 12,
     "showCursor": true,
     "cursorStyle": "default",
     "cursorClickEffect": "ring",
-    "cursorClickEffectColor": "#8caaee",
+    "cursorClickEffectColor": "#5f9fc5",
     "cursorSize": 1,
     "cursorSmoothing": 0.75,
     "borderRadius": 16,
