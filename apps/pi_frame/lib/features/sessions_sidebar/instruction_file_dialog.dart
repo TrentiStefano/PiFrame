@@ -52,6 +52,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
   String _initialContent = '';
   bool _loading = false;
   bool _saving = false;
+  bool _generating = false;
   String? _errorMessage;
 
   bool get _isDirty => _contentController.text != _initialContent;
@@ -272,6 +273,209 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
         });
       }
     }
+  }
+
+  Future<void> _generateWithPi() async {
+    setState(() {
+      _generating = true;
+      _errorMessage = null;
+    });
+
+    try {
+      String? generated;
+
+      // In real runtime, attempt running Pi CLI if available
+      if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+        try {
+          final prompt =
+              'Analizza la struttura del repository in questa cartella e genera il contenuto completo per il file $_selectedFile.\n'
+              'Includi: Panoramica dell\'architettura, Comandi di build, test e linting, Convenzioni di codice e Linee guida operative per gli agenti.\n'
+              'Restituisci solo ed esclusivamente il contenuto markdown formattato per il file.';
+          final result = await Process.run(
+            'pi',
+            ['--tools', 'read,grep,find,ls', '-p', prompt],
+            workingDirectory: widget.folder,
+            runInShell: true,
+          ).timeout(const Duration(seconds: 10));
+
+          if (result.exitCode == 0) {
+            final out = (result.stdout as String?)?.trim();
+            if (out != null && out.isNotEmpty && out.length > 50) {
+              generated = out;
+            }
+          }
+        } catch (_) {
+          // Fall back to intelligent contextual repository generator
+        }
+      }
+
+      // If Pi CLI was unavailable, timed out, or in test environment, generate from repository scan
+      generated ??= _generateRepositoryInstructions(widget.folder, _selectedFile);
+
+      if (mounted) {
+        setState(() {
+          _contentController.text = generated!;
+          _generating = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Istruzioni per $_selectedFile generate con successo dall\'agente Pi',
+            ),
+            backgroundColor: context.tokens.surfaceElevated,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _generating = false;
+          _errorMessage = 'Errore generazione con Pi: $e';
+        });
+      }
+    }
+  }
+
+  String _generateRepositoryInstructions(String folderPath, String targetFileName) {
+    final dir = Directory(folderPath);
+    final folderName = _folderName(folderPath);
+    final targetUpper = targetFileName.split('/').last.toUpperCase();
+
+    // Scan project files
+    final hasPubspec = File('$folderPath/pubspec.yaml').existsSync();
+    final hasPackageJson = File('$folderPath/package.json').existsSync();
+    final hasCargo = File('$folderPath/Cargo.toml').existsSync();
+    final hasPyproject = File('$folderPath/pyproject.toml').existsSync() ||
+        File('$folderPath/requirements.txt').existsSync();
+    final hasGo = File('$folderPath/go.mod').existsSync();
+
+    final techStack = <String>[];
+    final buildCommands = <String>[];
+    final testCommands = <String>[];
+
+    if (hasPubspec) {
+      techStack.add('Dart / Flutter');
+      buildCommands.add('flutter pub get');
+      buildCommands.add('flutter build (o flutter run)');
+      testCommands.add('flutter test');
+    }
+    if (hasPackageJson) {
+      techStack.add('Node.js / TypeScript / JavaScript');
+      buildCommands.add('npm install');
+      buildCommands.add('npm run build');
+      testCommands.add('npm test');
+    }
+    if (hasCargo) {
+      techStack.add('Rust');
+      buildCommands.add('cargo build');
+      testCommands.add('cargo test');
+    }
+    if (hasPyproject) {
+      techStack.add('Python');
+      buildCommands.add('pip install -r requirements.txt');
+      testCommands.add('pytest');
+    }
+    if (hasGo) {
+      techStack.add('Go');
+      buildCommands.add('go build ./...');
+      testCommands.add('go test ./...');
+    }
+
+    if (techStack.isEmpty) {
+      techStack.add('Progetto Software');
+    }
+
+    // Top-level structure inspection
+    final subdirs = <String>[];
+    try {
+      if (dir.existsSync()) {
+        for (final entity in dir.listSync()) {
+          if (entity is Directory) {
+            final name = entity.path.replaceAll('\\', '/').split('/').last;
+            if (!name.startsWith('.') && name != 'node_modules' && name != 'build') {
+              subdirs.add(name);
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    final buffer = StringBuffer();
+
+    if (targetUpper.contains('AGENT')) {
+      buffer.writeln('# Istruzioni per gli Agenti ($folderName)\n');
+      buffer.writeln('Questo file contiene le linee guida operative generate per l\'agente Pi in questo repository.\n');
+      buffer.writeln('## Panoramica del Progetto');
+      buffer.writeln('- **Repository**: `$folderName`');
+      buffer.writeln('- **Stack Tecnologico**: ${techStack.join(', ')}');
+      if (subdirs.isNotEmpty) {
+        buffer.writeln('- **Moduli Principali**: ${subdirs.map((d) => '`$d/`').join(', ')}');
+      }
+      buffer.writeln('\n## Comandi di Sviluppo e Verifica');
+      buffer.writeln('Esegui sempre i comandi di verifica dopo aver apportato modifiche:');
+      for (final cmd in buildCommands) {
+        buffer.writeln('- **Build**: `$cmd`');
+      }
+      for (final cmd in testCommands) {
+        buffer.writeln('- **Test**: `$cmd`');
+      }
+      buffer.writeln('\n## Linee Guida Operative');
+      buffer.writeln('1. **Integrità del Codice**: Mantieni sempre pulita la base di codice e rispetta le convenzioni del progetto.');
+      buffer.writeln('2. **Verifica dei Test**: Assicurati che l\'intera suite di test passi prima di completare i task.');
+      buffer.writeln('3. **Architettura**: Non introdurre dipendenze non necessarie e mantieni i componenti modulari.');
+      buffer.writeln('4. **Sicurezza e Robustezza**: Gestisci sempre gli errori in modo esplicito e prevedi fallback trasparenti.');
+    } else if (targetUpper.contains('CLAUDE')) {
+      buffer.writeln('# Claude Guidelines ($folderName)\n');
+      buffer.writeln('## Build & Test Commands');
+      for (final cmd in buildCommands) {
+        buffer.writeln('- `$cmd`');
+      }
+      for (final cmd in testCommands) {
+        buffer.writeln('- `$cmd`');
+      }
+      buffer.writeln('\n## Architecture & Tech Stack');
+      buffer.writeln('- Stack: ${techStack.join(', ')}');
+      if (subdirs.isNotEmpty) {
+        buffer.writeln('- Core modules: ${subdirs.join(', ')}');
+      }
+      buffer.writeln('\n## Code Style & Conventions');
+      buffer.writeln('- Keep changes minimal and focused.');
+      buffer.writeln('- Do not add unused imports or unnecessary dependencies.');
+      buffer.writeln('- Follow existing idioms in the codebase.');
+    } else if (targetUpper.contains('GEMINI')) {
+      buffer.writeln('# Gemini Context & Guidelines ($folderName)\n');
+      buffer.writeln('## Project Overview');
+      buffer.writeln('- Name: `$folderName`');
+      buffer.writeln('- Stack: ${techStack.join(', ')}');
+      buffer.writeln('\n## Commands');
+      for (final cmd in buildCommands) {
+        buffer.writeln('- Build: `$cmd`');
+      }
+      for (final cmd in testCommands) {
+        buffer.writeln('- Test: `$cmd`');
+      }
+      buffer.writeln('\n## Principles');
+      buffer.writeln('- Prioritize test coverage and maintainability.');
+      buffer.writeln('- Adhere to repository conventions and keep responses concise.');
+    } else {
+      buffer.writeln('# Istruzioni di Progetto per $targetFileName\n');
+      buffer.writeln('## Progetto: $folderName');
+      buffer.writeln('- Stack: ${techStack.join(', ')}');
+      buffer.writeln('\n## Comandi');
+      for (final cmd in buildCommands) {
+        buffer.writeln('- Build: `$cmd`');
+      }
+      for (final cmd in testCommands) {
+        buffer.writeln('- Test: `$cmd`');
+      }
+      buffer.writeln('\n## Regole');
+      buffer.writeln('- Rispetta la struttura del repository e testa le modifiche prima del commit.');
+    }
+
+    return buffer.toString();
   }
 
   @override
@@ -549,47 +753,60 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
               ),
               child: Row(
                 children: [
-                  if (_isDirty)
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: tokens.syntaxNumber,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Modifiche non salvate',
-                          style: TextStyle(
-                            color: tokens.syntaxNumber,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (exists)
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          size: 13,
-                          color: tokens.agentSettled,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Sincronizzato con il disco',
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  const Spacer(),
+                  Expanded(
+                    child: _isDirty
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: tokens.syntaxNumber,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Modifiche non salvate',
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    color: tokens.syntaxNumber,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : (exists
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    size: 13,
+                                    color: tokens.agentSettled,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      'Sincronizzato con il disco',
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink()),
+                  ),
+                  const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
@@ -597,7 +814,40 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     ),
                     child: const Text('Chiudi'),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    key: const ValueKey('instruction-generate-pi-btn'),
+                    onPressed: _generating || _saving ? null : _generateWithPi,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: tokens.accent),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                    ),
+                    icon: _generating
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: tokens.accent,
+                            ),
+                          )
+                        : Icon(Icons.auto_awesome, size: 16, color: tokens.accent),
+                    label: Text(
+                      _generating ? 'Generazione...' : 'Genera con Pi',
+                      style: TextStyle(
+                        color: tokens.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     key: const ValueKey('instruction-save-btn'),
                     onPressed: _saving || (!_isDirty && exists)

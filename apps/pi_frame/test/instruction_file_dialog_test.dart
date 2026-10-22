@@ -139,5 +139,45 @@ void main() {
       expect(copilotFile.existsSync(), isTrue);
       expect(copilotFile.readAsStringSync(), contains('Copilot Custom Instructions'));
     });
+
+    testWidgets('generates instructions using Pi button and saves to disk', (tester) async {
+      // Setup repo structure in tempDir
+      File('${tempDir.path}/pubspec.yaml').writeAsStringSync('name: my_flutter_app\n');
+      Directory('${tempDir.path}/lib').createSync();
+
+      await tester.pumpWidget(
+        wrapWithTheme(
+          InstructionFileDialog(folder: tempDir.path),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final generateBtn = find.byKey(const ValueKey('instruction-generate-pi-btn'));
+      expect(generateBtn, findsOneWidget);
+
+      // Tap generate button
+      await tester.tap(generateBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Check that editor has received generated instruction content
+      final editorFinder = find.byKey(const ValueKey('instruction-editor-AGENTS.md'));
+      expect(editorFinder, findsOneWidget);
+      expect(find.textContaining('Istruzioni per gli Agenti'), findsOneWidget);
+      expect(find.textContaining('flutter test'), findsOneWidget);
+
+      // Save
+      final saveBtn = find.byKey(const ValueKey('instruction-save-btn'));
+      await tester.tap(saveBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Verify AGENTS.md saved on disk
+      final agentsFile = File('${tempDir.path}/AGENTS.md');
+      expect(agentsFile.existsSync(), isTrue);
+      expect(agentsFile.readAsStringSync(), contains('flutter test'));
+    });
   });
 }
+
