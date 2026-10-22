@@ -9,6 +9,7 @@ class SubagentsPopDown extends ConsumerStatefulWidget {
   final VoidCallback? onClose;
   final bool? isExpanded;
   final VoidCallback? onToggleExpand;
+  final bool hideBookTab;
 
   const SubagentsPopDown({
     super.key,
@@ -16,6 +17,7 @@ class SubagentsPopDown extends ConsumerStatefulWidget {
     this.onClose,
     this.isExpanded,
     this.onToggleExpand,
+    this.hideBookTab = false,
   });
 
   @override
@@ -25,6 +27,8 @@ class SubagentsPopDown extends ConsumerStatefulWidget {
 class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
     with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
+  final Set<String> _userCollapsedIds = <String>{};
+  final Set<String> _seenSubagentIds = <String>{};
   bool _internalExpanded = true;
 
   bool get _isExpanded => widget.isExpanded ?? _internalExpanded;
@@ -50,13 +54,13 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
 
     final runningCount = subagents.where((s) => s.isRunning).length;
 
-    // Automatically expand the running subagents by default if nothing is expanded
-    if (_expandedIds.isEmpty && subagents.isNotEmpty) {
-      final firstRunning = subagents.where((s) => s.isRunning).firstOrNull;
-      if (firstRunning != null) {
-        _expandedIds.add(firstRunning.id);
-      } else {
-        _expandedIds.add(subagents.first.id);
+    // Automatically expand newly discovered subagents unless manually collapsed by user
+    for (final s in subagents) {
+      if (!_seenSubagentIds.contains(s.id)) {
+        _seenSubagentIds.add(s.id);
+        if (!_userCollapsedIds.contains(s.id)) {
+          _expandedIds.add(s.id);
+        }
       }
     }
 
@@ -249,8 +253,10 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                             setState(() {
                               if (isExpanded) {
                                 _expandedIds.remove(subagent.id);
+                                _userCollapsedIds.add(subagent.id);
                               } else {
                                 _expandedIds.add(subagent.id);
+                                _userCollapsedIds.remove(subagent.id);
                               }
                             });
                           },
@@ -277,7 +283,9 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
               ),
             )
           // Collapsed: reveals small border peeking behind session info pane and book tab
-          : Container(
+          : (widget.hideBookTab
+              ? const SizedBox.shrink()
+              : Container(
               margin: EdgeInsets.only(
                 left: isMobile ? 16 : 14,
                 right: isMobile ? 16 : 14,
@@ -386,7 +394,7 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                   ),
                 ],
               ),
-            ),
+            )),
     );
   }
 }
@@ -552,9 +560,7 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          sub.cost != null
-                              ? '\$${sub.cost!.toStringAsFixed(4)}'
-                              : '—',
+                          '\$${(sub.cost ?? 0.0).toStringAsFixed(4)}',
                           style: TextStyle(
                             color: tokens.syntaxString,
                             fontSize: 10.5,
@@ -760,14 +766,22 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                             ),
                           )
                         : Center(
-                            child: Text(
-                              sub.isRunning
-                                  ? 'In attesa di output dal subagente...'
-                                  : 'Nessun output registrato per questo subagente.',
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 11,
-                                fontStyle: FontStyle.italic,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Text(
+                                sub.isRunning
+                                    ? (sub.description != null && sub.description!.isNotEmpty
+                                        ? 'Attività: ${sub.description}\n\nIn attesa di output dal subagente...'
+                                        : 'In attesa di output dal subagente...')
+                                    : (sub.description != null && sub.description!.isNotEmpty
+                                        ? 'Attività: ${sub.description}\n\nCompletato.'
+                                        : 'Nessun output registrato per questo subagente.'),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
                           ),

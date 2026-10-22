@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
 
@@ -92,6 +93,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       sessionStateFamily(sessionId),
       (prev, next) {
         _syncFromSessionState(next);
+        _fetchFromDaemon();
       },
       fireImmediately: true,
     );
@@ -210,6 +212,17 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
               cost: subagent.cost ?? existing?.cost,
               isSteeringOpen: isSteeringOpen,
             );
+          }
+        }
+      }
+      // 3. Reconcile running status: when main agent is not working and no active tools are running,
+      // all subagents that were running must be marked completed!
+      if (sessionState.agentStatus != AgentStatus.working &&
+          sessionState.activeToolCalls.values.where((t) => t.isRunning).isEmpty) {
+        for (final key in itemsMap.keys.toList()) {
+          final item = itemsMap[key]!;
+          if (item.isRunning) {
+            itemsMap[key] = item.copyWith(status: 'completed');
           }
         }
       }
@@ -364,7 +377,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       }
 
       // Parse Cost: $xxx, cost: xxx, cost_usd: xxx
-      final costMatch = RegExp(r'(?:cost|cost_usd)\s*[:=]\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(output) ??
+      final costMatch = RegExp(r'(?:cost|cost_usd|total_cost|total cost|price)\s*[:=]\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(output) ??
           RegExp(r'\$?([0-9.]+)\s*(?:USD|total cost)', caseSensitive: false).firstMatch(output) ??
           RegExp(r'Cost:\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(output);
       if (costMatch != null && costMatch.group(1) != null) {
@@ -372,9 +385,11 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       }
     }
 
-    if (cost == null && args['cost'] != null) {
-      final c = args['cost'];
-      cost = c is num ? c.toDouble() : double.tryParse(c.toString());
+    if (cost == null) {
+      final rawCost = args['cost'] ?? args['price'] ?? (args['usage'] is Map ? args['usage']['cost'] : null);
+      if (rawCost != null) {
+        cost = rawCost is num ? rawCost.toDouble() : double.tryParse(rawCost.toString());
+      }
     }
 
     String status = 'completed';
