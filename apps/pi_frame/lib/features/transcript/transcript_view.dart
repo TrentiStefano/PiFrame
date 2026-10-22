@@ -71,6 +71,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int? _cachedHeaderSubagentCount;
   bool? _cachedHeaderSubagentsExpanded;
   bool _subagentsExpanded = true;
+  int _lastRunningSubagentCount = 0;
+  bool _userManuallyToggledSubagents = false;
   int? _cachedHeaderTodoCount;
   bool? _cachedHeaderTodosExpanded;
   bool _todosExpanded = true;
@@ -1292,6 +1294,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
     _lastActiveTodoCount = activeTodoCount;
 
+    final runningSubagentCount = subagents.where((s) => s.isRunning).length;
+    if (runningSubagentCount > _lastRunningSubagentCount) {
+      _subagentsExpanded = true;
+      _userManuallyToggledSubagents = false;
+    } else if (!_userManuallyToggledSubagents && runningSubagentCount > 0) {
+      _subagentsExpanded = true;
+    }
+    _lastRunningSubagentCount = runningSubagentCount;
+
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
@@ -1400,8 +1411,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           SubagentsPopDown(
             sessionId: widget.sessionId,
             isExpanded: _subagentsExpanded,
-            onToggleExpand: () => setState(() => _subagentsExpanded = !_subagentsExpanded),
-            onClose: () => setState(() => _subagentsExpanded = false),
+            onToggleExpand: () => setState(() {
+              _subagentsExpanded = !_subagentsExpanded;
+              _userManuallyToggledSubagents = true;
+            }),
+            onClose: () => setState(() {
+              _subagentsExpanded = false;
+              _userManuallyToggledSubagents = true;
+            }),
           ),
         Expanded(
           child: Stack(
@@ -1884,20 +1901,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     iconColor: tokens.syntaxKeyword,
                   ),
                 ],
-                if (todos.isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  _todoChip(
-                    tokens,
-                    todos,
-                    _todosExpanded,
-                    onTap: () {
-                      setState(() {
-                        _todosExpanded = !_todosExpanded;
-                        _userManuallyToggledTodos = true;
-                      });
-                    },
-                  ),
-                ],
                 if (subagents.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   _subagentChip(
@@ -1920,65 +1923,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     return _cachedBentoHeader!;
   }
 
-  Widget _todoChip(
-    FrameTokens tokens,
-    List<TodoItem> todos,
-    bool isExpanded, {
-    required VoidCallback onTap,
-  }) {
-    final completedCount = todos.where((t) => t.isCompleted).length;
-    final inProgressCount = todos.where((t) => t.isInProgress).length;
-    final color = inProgressCount > 0 ? tokens.syntaxFunction : tokens.syntaxKeyword;
-
-    return InkWell(
-      key: const ValueKey('todos-header-chip'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(tokens.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: isExpanded ? 0.2 : 0.1),
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: color.withValues(alpha: isExpanded ? 0.6 : 0.3),
-            width: isExpanded ? 1.2 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.checklist_rounded, size: 13, color: color),
-            const SizedBox(width: 4),
-            Text(
-              'Attività ($completedCount/${todos.length})',
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (inProgressCount > 0) ...[
-              const SizedBox(width: 4),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: tokens.syntaxFunction,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-            const SizedBox(width: 2),
-            Icon(
-              isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-              size: 14,
-              color: tokens.textMuted,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _subagentChip(
     FrameTokens tokens,
