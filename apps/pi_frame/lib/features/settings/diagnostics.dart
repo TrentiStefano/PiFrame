@@ -8,6 +8,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../app/app_version.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../ui/frame_snack_bar.dart';
 
 /// Tests may label synthetic diagnostic fixtures without changing runtime UI.
 final diagnosticsFixtureLabelProvider = Provider<String?>((ref) => null);
@@ -80,12 +81,9 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
           _exportSuccess = 'Bundle diagnostico copiato negli appunti (tutti i segreti sono stati redatti con [REDACTED])';
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Bundle diagnostico copiato negli appunti!'),
-            backgroundColor: context.tokens.surfaceElevated,
-            duration: const Duration(seconds: 3),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Bundle diagnostico copiato negli appunti!',
         );
       }
     } catch (e) {

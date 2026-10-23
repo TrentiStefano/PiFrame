@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
 import 'task_notification_card.dart';
@@ -29,46 +28,130 @@ Future<void> _openUrl(String url) async {
   }
 }
 
+String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
+  String resolved = rawPath.trim();
+  if (resolved.startsWith('file://')) {
+    final uri = Uri.tryParse(resolved);
+    if (uri != null) {
+      if (uri.host.isNotEmpty) {
+        resolved = '\\\\${uri.host}${uri.path}'.replaceAll('/', '\\');
+      } else if (Platform.isWindows && RegExp(r'^/[a-zA-Z]:').hasMatch(uri.path)) {
+        resolved = uri.path.substring(1).replaceAll('/', '\\');
+      } else {
+        resolved = uri.path;
+      }
+    } else {
+      resolved = resolved.replaceFirst(RegExp(r'^file://+'), '');
+    }
+  }
+
+  // Remove query, anchor or line:col numbers like :42:10 or #L10-20
+  resolved = resolved.replaceAll(RegExp(r'#.*$'), '');
+  resolved = resolved.replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
+
+  if (!Platform.isWindows) {
+    if (cwd != null && cwd.isNotEmpty && !resolved.startsWith('/')) {
+      final sep = cwd.endsWith('/') ? '' : '/';
+      return '$cwd$sep$resolved';
+    }
+    return resolved;
+  }
+
+  // Windows platform handling:
+  // 1. Check if resolved is already a WSL UNC path (e.g. \\wsl.localhost\... or \\wsl$\...)
+  final directWsl = parseWslPath(resolved);
+  if (directWsl != null) {
+    final host = resolved.contains(r'wsl$') ? r'wsl$' : 'wsl.localhost';
+    final p = directWsl['linuxPath'] ?? '';
+    return '\\\\$host\\${directWsl['distro']}$p'.replaceAll('/', '\\');
+  }
+
+  // 2. Check if cwd is a WSL path
+  final cwdWsl = cwd != null ? parseWslPath(cwd) : null;
+  if (cwdWsl != null) {
+    final host = cwd!.contains(r'wsl$') ? r'wsl$' : 'wsl.localhost';
+    final distro = cwdWsl['distro']!;
+    final baseLinux = cwdWsl['linuxPath']!;
+    if (resolved.startsWith('/')) {
+      return '\\\\$host\\$distro$resolved'.replaceAll('/', '\\');
+    }
+    final sep = baseLinux.endsWith('/') || resolved.startsWith('/') ? '' : '/';
+    return '\\\\$host\\$distro$baseLinux$sep$resolved'.replaceAll('/', '\\');
+  }
+
+  // 3. What if cwd or resolved starts with '/' (pure Linux path on Windows)?
+  if (cwd != null && (cwd.startsWith('/') || resolved.startsWith('/'))) {
+    final targetLinux = resolved.startsWith('/')
+        ? resolved
+        : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
+    return '\\\\wsl.localhost\\LMD_env$targetLinux'.replaceAll('/', '\\');
+  }
+
+  // 4. Standard Windows path
+  if (cwd != null && cwd.isNotEmpty) {
+    final isAbsolute = RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(resolved) ||
+        resolved.startsWith(r'\\');
+    if (!isAbsolute) {
+      final separator = cwd.endsWith('\\') || cwd.endsWith('/') ? '' : '\\';
+      return '$cwd$separator$resolved'.replaceAll('/', '\\');
+    }
+  }
+
+  return resolved.replaceAll('/', '\\');
+}
+
 Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
   try {
-    String resolved = rawPath.trim();
-    if (resolved.startsWith('file://')) {
-      final uri = Uri.tryParse(resolved);
-      if (uri != null && uri.toFilePath().isNotEmpty) {
-        resolved = uri.toFilePath();
-      } else {
-        resolved = resolved.replaceFirst(RegExp(r'^file://+'), '');
-      }
-    }
-    // Remove query, anchor or line:col numbers like :42:10 or #L10-20
-    resolved = resolved.replaceAll(RegExp(r'#.*$'), '');
-    resolved = resolved.replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
-
-    String targetPath = resolved;
-    if (cwd != null && cwd.isNotEmpty) {
-      final isAbsolute = Platform.isWindows
-          ? RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(targetPath) ||
-                targetPath.startsWith(r'\\')
-          : targetPath.startsWith('/');
-      if (!isAbsolute) {
-        final separator = Platform.isWindows ? '\\' : '/';
-        final normalizedCwd = cwd.endsWith('/') || cwd.endsWith('\\')
-            ? cwd.substring(0, cwd.length - 1)
-            : cwd;
-        targetPath = '$normalizedCwd$separator$targetPath';
-      }
-    }
+    final targetPath = resolvePathForOsExplorer(rawPath, cwd: cwd);
 
     if (Platform.isWindows) {
-      final winPath = targetPath.replaceAll('/', '\\');
-      final file = File(winPath);
-      final dir = Directory(winPath);
+      String winPath = targetPath.replaceAll('/', '\\');
+      var file = File(winPath);
+      var dir = Directory(winPath);
+
+      // If target does not exist and appears to be WSL, try dynamic resolution via wslpath
+      if (!file.existsSync() &&
+          !dir.existsSync() &&
+          (cwd?.contains('wsl') == true ||
+              rawPath.contains('wsl') ||
+              rawPath.startsWith('/'))) {
+        try {
+          final rawClean = rawPath
+              .replaceFirst(RegExp(r'^file://+'), '')
+              .replaceAll(RegExp(r'#.*$'), '')
+              .replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
+          final targetLinux = rawClean.startsWith('/')
+              ? rawClean
+              : (cwd != null
+                  ? '${parseWslPath(cwd)?['linuxPath'] ?? cwd}/$rawClean'
+                  : rawClean);
+          final res = await Process.run(
+            'wsl.exe',
+            ['wslpath', '-w', targetLinux],
+          ).timeout(const Duration(seconds: 1));
+          if (res.exitCode == 0) {
+            final out = (res.stdout as String).trim();
+            if (out.isNotEmpty &&
+                (File(out).existsSync() || Directory(out).existsSync())) {
+              winPath = out;
+              file = File(winPath);
+              dir = Directory(winPath);
+            }
+          }
+        } catch (_) {}
+      }
+
       if (file.existsSync()) {
-        await Process.run('explorer.exe', ['/select,', winPath]);
+        await Process.run('explorer.exe', ['/select,$winPath']);
       } else if (dir.existsSync()) {
         await Process.run('explorer.exe', [winPath]);
       } else {
-        await Process.run('explorer.exe', ['/select,', winPath]);
+        final parentDir = file.parent;
+        if (parentDir.existsSync()) {
+          await Process.run('explorer.exe', [parentDir.path]);
+        } else {
+          await Process.run('explorer.exe', ['/select,$winPath']);
+        }
       }
     } else if (Platform.isMacOS) {
       final file = File(targetPath);
@@ -542,68 +625,12 @@ class RichContent extends StatefulWidget {
             continue;
           }
 
-          Widget codeWidget = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            constraints: const BoxConstraints(maxWidth: 320),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border.all(
-                color: tokens.accent.withValues(alpha: 0.5),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.insert_drive_file_outlined,
-                  size: 11,
-                  color: tokens.accent,
-                ),
-                const SizedBox(width: 3),
-                Flexible(
-                  child: Text(
-                    m.text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontFamily: tokens.monoFontFamily,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-
-          if (isFile) {
-            codeWidget = Tooltip(
-              message: 'CTRL+clic per aprire in Esplora file',
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    final isControl =
-                        HardwareKeyboard.instance.isControlPressed ||
-                        HardwareKeyboard.instance.isMetaPressed;
-                    if (isControl) {
-                      openInOsFileExplorer(m.text, cwd: cwd);
-                    }
-                  },
-                  child: codeWidget,
-                ),
-              ),
-            );
-          }
-
           spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: codeWidget,
+            _buildFileChip(
+              displayText: m.text,
+              targetPath: m.text,
+              tokens: tokens,
+              cwd: cwd,
             ),
           );
         } else if (m.type == _InlineType.bold) {
@@ -616,61 +643,35 @@ class RichContent extends StatefulWidget {
         } else if (m.type == _InlineType.filePath) {
           final target = m.target ?? m.text;
           spans.add(
-            TextSpan(
-              text: m.text,
-              style: TextStyle(
-                color: tokens.accent,
-                decoration: TextDecoration.underline,
-                decorationColor: tokens.accent.withValues(alpha: 0.5),
-                fontFamily: tokens.monoFontFamily,
-                fontSize: 12.5,
-              ),
-              mouseCursor: SystemMouseCursors.click,
-              recognizer: TapGestureRecognizer()
-                ..onTap = () {
-                  final isControl =
-                      HardwareKeyboard.instance.isControlPressed ||
-                      HardwareKeyboard.instance.isMetaPressed;
-                  if (isControl) {
-                    openInOsFileExplorer(target, cwd: cwd);
-                  }
-                },
+            _buildFileChip(
+              displayText: m.text,
+              targetPath: target,
+              tokens: tokens,
+              cwd: cwd,
             ),
           );
         } else if (m.type == _InlineType.link) {
           final targetUrl = m.target ?? m.text;
           final isFile =
               targetUrl.startsWith('file://') || isLikelyFilePath(targetUrl);
-          spans.add(
-            TextSpan(
-              text: m.text,
-              style: TextStyle(
-                color: tokens.accent,
-                decoration: TextDecoration.underline,
-                decorationColor: tokens.accent.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w500,
+          if (isFile) {
+            spans.add(
+              _buildFileChip(
+                displayText: m.text,
+                targetPath: targetUrl,
+                tokens: tokens,
+                cwd: cwd,
               ),
-              mouseCursor: SystemMouseCursors.click,
-              recognizer: TapGestureRecognizer()
-                ..onTap = () {
-                  final isControl =
-                      HardwareKeyboard.instance.isControlPressed ||
-                      HardwareKeyboard.instance.isMetaPressed;
-                  if (isFile || isControl) {
-                    if (isFile) {
-                      openInOsFileExplorer(targetUrl, cwd: cwd);
-                    } else if (targetUrl.startsWith('http://') ||
-                        targetUrl.startsWith('https://')) {
-                      _openUrl(targetUrl);
-                    } else {
-                      openInOsFileExplorer(targetUrl, cwd: cwd);
-                    }
-                  } else {
-                    _openUrl(targetUrl);
-                  }
-                },
-            ),
-          );
+            );
+          } else {
+            spans.add(
+              _buildWebLink(
+                displayText: m.text,
+                targetUrl: targetUrl,
+                tokens: tokens,
+              ),
+            );
+          }
         }
         lastEnd = m.end;
       }
@@ -686,7 +687,102 @@ class RichContent extends StatefulWidget {
 
     return TextSpan(children: spans);
   }
+
+  static InlineSpan _buildFileChip({
+    required String displayText,
+    required String targetPath,
+    required FrameTokens tokens,
+    String? cwd,
+  }) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      constraints: const BoxConstraints(maxWidth: 360),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(
+          color: tokens.accent.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.insert_drive_file_outlined,
+            size: 11,
+            color: tokens.accent,
+          ),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              displayText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontFamily: tokens.monoFontFamily,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: SelectionContainer.disabled(
+        child: Tooltip(
+          message: 'CTRL+clic per aprire in Esplora file',
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                openInOsFileExplorer(targetPath, cwd: cwd);
+              },
+              child: chip,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static InlineSpan _buildWebLink({
+    required String displayText,
+    required String targetUrl,
+    required FrameTokens tokens,
+  }) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: SelectionContainer.disabled(
+        child: Tooltip(
+          message: targetUrl,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _openUrl(targetUrl),
+              child: Text(
+                displayText,
+                style: TextStyle(
+                  color: tokens.accent,
+                  decoration: TextDecoration.underline,
+                  decorationColor: tokens.accent.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
 
 class _RichContentState extends State<RichContent> {
   String? _cachedText;

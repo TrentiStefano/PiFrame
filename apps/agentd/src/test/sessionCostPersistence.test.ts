@@ -45,8 +45,49 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
   assert.strictEqual(meta.model, 'claude-3-5-sonnet');
   assert.strictEqual(meta.thinkingLevel, 'high');
   assert.ok(meta.usage);
-  assert.strictEqual(Math.abs((meta.usage.cost as number) - 0.040) < 0.0001, true);
+  assert.ok((meta.usage as any).byModel);
+  assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.040) < 0.0001, true);
   assert.strictEqual((meta.usage.tokens as any).total, 6500);
+});
+
+test('SessionIndex: extractSessionMetadata extracts per-model costs across multiple models', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-multi-cost-test-'));
+  const sessionFile = path.join(tmpDir, 'test-session.jsonl');
+
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const lines = [
+    JSON.stringify({ type: 'model_change', modelId: 'github-copilot/gpt-6.1-sol' }),
+    JSON.stringify({
+      type: 'message',
+      role: 'assistant',
+      usage: { cost: 46.818, tokens: { total: 100000000 } },
+    }),
+    JSON.stringify({ type: 'model_change', modelId: 'github-copilot/claude-haiku-5-5' }),
+    JSON.stringify({
+      type: 'message',
+      role: 'assistant',
+      usage: { cost: 27.539, tokens: { total: 356000000 } },
+    }),
+    JSON.stringify({
+      type: 'compaction',
+      usage: { cost: 1.183, tokens: { total: 43000000 } },
+    }),
+  ];
+
+  fs.writeFileSync(sessionFile, lines.join('\n'), 'utf8');
+
+  const index = new SessionIndex();
+  const meta = index.extractSessionMetadata(sessionFile);
+
+  assert.ok(meta.usage);
+  const byModel = (meta.usage as any).byModel;
+  assert.ok(byModel);
+  assert.strictEqual(Math.abs(byModel['github-copilot/gpt-6.1-sol'].cost - 46.818) < 0.001, true);
+  assert.strictEqual(Math.abs(byModel['github-copilot/claude-haiku-5-5'].cost - 27.539) < 0.001, true);
+  assert.strictEqual(Math.abs(byModel['Tools/summaries'].cost - 1.183) < 0.001, true);
 });
 
 test('SessionIndex: getSubagents parses object and number costs without NaN', async (t) => {

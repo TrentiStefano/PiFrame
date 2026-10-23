@@ -92,7 +92,13 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               margin: EdgeInsets.fromLTRB(isMobile ? 12 : 8, 0, isMobile ? 12 : 8, 6),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                borderRadius: widget.hideBookTab
+                    ? BorderRadius.only(
+                        topRight: Radius.circular(tokens.radiusMd),
+                        bottomLeft: Radius.circular(tokens.radiusMd),
+                        bottomRight: Radius.circular(tokens.radiusMd),
+                      )
+                    : BorderRadius.circular(tokens.radiusMd),
                 border: Border.all(
                   color: tokens.borderStrong,
                   width: 1.0,
@@ -114,9 +120,13 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: tokens.surface,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(tokens.radiusMd),
-              ),
+              borderRadius: widget.hideBookTab
+                  ? BorderRadius.only(
+                      topRight: Radius.circular(tokens.radiusMd),
+                    )
+                  : BorderRadius.vertical(
+                      top: Radius.circular(tokens.radiusMd),
+                    ),
               border: Border(
                 bottom: BorderSide(color: tokens.border.withValues(alpha: 0.6)),
               ),

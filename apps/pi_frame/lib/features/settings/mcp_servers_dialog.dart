@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class McpServerItem {
   final String name;
@@ -307,8 +308,9 @@ class _McpServersDialogState extends State<McpServersDialog> {
     } catch (e) {
       debugPrint('Error updating server ${server.name} in ${server.sourcePath}: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore nel salvataggio: $e')),
+        FrameSnackBar.show(
+          context,
+          message: 'Errore nel salvataggio: $e',
         );
       }
     } finally {
@@ -729,11 +731,10 @@ class _McpServersDialogState extends State<McpServersDialog> {
                       child: InkWell(
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: server.transport));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Comando copiato'),
-                              duration: Duration(seconds: 1),
-                            ),
+                          FrameSnackBar.show(
+                            context,
+                            message: 'Comando copiato',
+                            duration: const Duration(seconds: 1),
                           );
                         },
                         child: Padding(

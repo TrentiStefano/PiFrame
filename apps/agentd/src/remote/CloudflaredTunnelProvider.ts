@@ -26,7 +26,8 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
       const checkCmd = isWin ? 'where.exe' : 'which';
       const out = child_process.execFileSync(checkCmd, [binName], {
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true
       });
       const firstLine = out.trim().split(/\r?\n/)[0];
       if (firstLine && fs.existsSync(firstLine)) return firstLine;

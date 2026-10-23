@@ -99,9 +99,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    widget.isStreaming && widget.thinkingText.isEmpty
-                        ? 'Pensando...'
-                        : '$words parole',
+                    '$words parole',
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                   if (MediaQuery.sizeOf(context).width > 700) ...[
@@ -136,9 +134,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
               ),
             ),
             child: SelectableText(
-              widget.thinkingText.isEmpty
-                  ? 'Nessun dettaglio'
-                  : widget.thinkingText,
+              widget.thinkingText,
               style: TextStyle(
                 color: tokens.textSecondary,
                 fontSize: 12,

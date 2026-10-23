@@ -86,6 +86,7 @@ class RuntimeMeta {
   final bool autoCompaction;
   final List<String> steeringQueue;
   final List<String> followUpQueue;
+  final int? contextWindowOverride;
 
   const RuntimeMeta({
     required this.status,
@@ -98,6 +99,7 @@ class RuntimeMeta {
     required this.autoCompaction,
     required this.steeringQueue,
     required this.followUpQueue,
+    this.contextWindowOverride,
   });
 
   factory RuntimeMeta.fromJson(Map<String, dynamic> json) {
@@ -113,6 +115,7 @@ class RuntimeMeta {
       autoCompaction: json['autoCompaction'] as bool? ?? true,
       steeringQueue: (queue['steering'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       followUpQueue: (queue['followUp'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      contextWindowOverride: (json['contextWindowOverride'] as num?)?.toInt(),
     );
   }
 }

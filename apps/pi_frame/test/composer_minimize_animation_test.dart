@@ -6,6 +6,7 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/features/composer/composer.dart';
+import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
@@ -236,5 +237,87 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
     });
+
+    testWidgets('transcript scroll stays locked and scrolls synchronously as composer expands', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final entries = List.generate(
+        30,
+        (i) => SessionEntry(
+          id: 'e_$i',
+          role: i.isEven ? 'user' : 'assistant',
+          text: 'Message $i with extra content lines to fill height\nLine 2\nLine 3',
+          timestamp: 1000 + i,
+        ),
+      );
+
+      final sessionNotifier = SessionStateNotifier('s_sync', null)
+        ..state = SessionState(
+          sessionId: 's_sync',
+          cwd: '/test',
+          agentStatus: AgentStatus.settled,
+          entries: entries,
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionStateFamily('s_sync').overrideWith((ref) => sessionNotifier),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  Expanded(child: TranscriptView(sessionId: 's_sync')),
+                  Composer(sessionId: 's_sync'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollController = tester.widget<ListView>(find.byKey(const ValueKey('transcript-scroll'))).controller!;
+      final initialOffset = scrollController.offset;
+      final initialMax = scrollController.position.maxScrollExtent;
+      expect((initialMax - initialOffset).abs(), lessThan(5.0));
+
+      // Now agent starts working -> composer minimizes
+      sessionNotifier.state = sessionNotifier.state.copyWith(
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Thinking...'},
+      );
+      await tester.pumpAndSettle();
+
+      // Minimized bar is visible
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      final minimizedOffset = scrollController.offset;
+      final minimizedMax = scrollController.position.maxScrollExtent;
+      expect((minimizedMax - minimizedOffset).abs(), lessThan(5.0));
+
+      // Tap to expand
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+
+      // Pump mid-animation frame (140ms into 280ms)
+      await tester.pump(const Duration(milliseconds: 140));
+      final midOffset = scrollController.offset;
+      final midMax = scrollController.position.maxScrollExtent;
+      // During expansion, scroll position stays glued to the bottom without snapping
+      expect((midMax - midOffset).abs(), lessThan(5.0));
+
+      // Complete expansion
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      final finalOffset = scrollController.offset;
+      final finalMax = scrollController.position.maxScrollExtent;
+      expect((finalMax - finalOffset).abs(), lessThan(5.0));
+      expect(finalOffset, greaterThanOrEqualTo(midOffset));
+    });
   });
 }
+

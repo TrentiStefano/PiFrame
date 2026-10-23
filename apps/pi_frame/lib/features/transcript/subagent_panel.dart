@@ -81,7 +81,13 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
               ),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
+                borderRadius: widget.hideBookTab
+                    ? BorderRadius.only(
+                        topRight: Radius.circular(tokens.radiusMd),
+                        bottomLeft: Radius.circular(tokens.radiusMd),
+                        bottomRight: Radius.circular(tokens.radiusMd),
+                      )
+                    : BorderRadius.circular(tokens.radiusMd),
                 border: Border.all(color: tokens.borderStrong, width: 1.2),
                 boxShadow: [
                   BoxShadow(
@@ -100,10 +106,14 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: tokens.surface,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(tokens.radiusMd),
-                        topRight: Radius.circular(tokens.radiusMd),
-                      ),
+                      borderRadius: widget.hideBookTab
+                          ? BorderRadius.only(
+                              topRight: Radius.circular(tokens.radiusMd),
+                            )
+                          : BorderRadius.only(
+                              topLeft: Radius.circular(tokens.radiusMd),
+                              topRight: Radius.circular(tokens.radiusMd),
+                            ),
                       border: Border(
                         bottom: BorderSide(color: tokens.border, width: 1),
                       ),

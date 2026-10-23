@@ -234,6 +234,7 @@ export class Dispatcher {
         'agent.followUp',
         'agent.clearQueue',
         'agent.compact',
+        'agent.setContextWindowOverride',
         'agent.setAutoCompaction',
         'agent.setAutoRetry',
         'agent.setSteeringMode',
@@ -526,7 +527,17 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for session.getStats');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_session_stats' });
-        return res.data;
+        const data = (res && res.data) ? { ...res.data } : {};
+        const session = this.registry.getSession(sessionId);
+        const sessionFile = data.sessionFile || session?.sessionFile;
+        if (sessionFile) {
+          const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
+          if (meta.usage && (meta.usage as any).byModel) {
+            data.byModel = (meta.usage as any).byModel;
+            data.models = (meta.usage as any).models;
+          }
+        }
+        return data;
       }
 
       case 'session.getEntries': {
@@ -572,6 +583,23 @@ export class Dispatcher {
         }
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
+
+        if (session && session.contextWindowOverride && session.contextWindowOverride > 0 && !session.isCompacting) {
+          try {
+            const statsRes = await worker.send({ command: 'get_session_stats' });
+            const stats = statsRes.data || {};
+            const cu = stats.contextUsage || {};
+            const tokens = typeof cu.tokens === 'number'
+              ? cu.tokens
+              : (typeof stats.tokens?.total === 'number' ? stats.tokens.total : 0);
+            const threshold = Math.round(session.contextWindowOverride * 0.80);
+            if (tokens >= threshold) {
+              await worker.send({ command: 'compact' });
+            }
+          } catch (_) {
+            // Best effort pre-compaction before prompt
+          }
+        }
 
         if (payload.streamingBehavior === 'steer') {
           const res = await worker.send({
@@ -657,6 +685,16 @@ export class Dispatcher {
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'compact' });
         return res.data;
+      }
+
+      case 'agent.setContextWindowOverride': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        const limit = typeof payload.limit === 'number' && payload.limit > 0 ? payload.limit : null;
+        if (session) {
+          session.contextWindowOverride = limit;
+        }
+        return { success: true, contextWindowOverride: limit };
       }
 
       case 'agent.setAutoCompaction': {

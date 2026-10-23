@@ -31,7 +31,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
       const checkCmd = isWin ? 'where.exe' : 'which';
       const out = child_process.execFileSync(checkCmd, ['tailscale'], {
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true
       });
       const firstLine = out.trim().split(/\r?\n/)[0];
       if (firstLine && fs.existsSync(firstLine)) return firstLine;
@@ -48,7 +49,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
       const out = child_process.execFileSync(bin, ['status', '--json'], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 4000
+        timeout: 4000,
+        windowsHide: true
       });
       const parsed = JSON.parse(out);
       const running = parsed.BackendState === 'Running';
@@ -82,7 +84,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
       child_process.execFileSync(bin, ['set', `--hostname=${clean}`], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 5000
+        timeout: 5000,
+        windowsHide: true
       });
     } catch (err: any) {
       throw new Error(`Errore durante l'aggiornamento del nome host in Tailscale: ${err.message}`);
@@ -136,7 +139,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
       child_process.execFileSync(bin, ['serve', '--bg', '--https=443', `127.0.0.1:${localPort}`], {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 6000
+        timeout: 6000,
+        windowsHide: true
       });
     } catch (err: any) {
       const msg = `Errore durante l'avvio di tailscale serve: ${err.message}`;
@@ -156,7 +160,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
         child_process.execFileSync(bin, ['serve', '--https=443', 'off'], {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'ignore'],
-          timeout: 4000
+          timeout: 4000,
+          windowsHide: true
         });
       } catch {}
     }

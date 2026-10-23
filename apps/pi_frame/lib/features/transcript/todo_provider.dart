@@ -4,6 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/session_state.dart';
 
+int parseTodoId(dynamic val) {
+  if (val is num) return val.toInt();
+  if (val == null) return 0;
+  final str = val.toString().trim();
+  final match = RegExp(r'\d+').firstMatch(str);
+  return match != null ? (int.tryParse(match.group(0)!) ?? 0) : 0;
+}
+
 class TodoItem {
   final int id;
   final String subject;
@@ -49,8 +57,8 @@ class TodoItem {
   }
 
   factory TodoItem.fromMap(Map<String, dynamic> map) {
-    final rawId = map['id'];
-    final id = rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? '0') ?? 0;
+    final rawId = map['id'] ?? map['taskId'] ?? map['task_id'];
+    final id = parseTodoId(rawId);
     final subject = map['subject']?.toString() ?? map['title']?.toString() ?? 'Task #$id';
     final status = map['status']?.toString().toLowerCase() ?? 'pending';
     final description = map['description']?.toString();
@@ -148,12 +156,14 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       _cachedHistoricalTasks.clear();
       for (final entry in sessionState.entries) {
         if (entry.text.isNotEmpty &&
-            (entry.text.contains('Updated #') ||
-                entry.text.contains('Updated task') ||
+            (entry.text.contains('#') ||
+                entry.text.contains('task') ||
+                entry.text.contains('Task') ||
+                entry.text.contains('todo') ||
+                entry.text.contains('Todo') ||
                 entry.text.contains('->') ||
                 entry.text.contains('activeForm') ||
-                entry.text.contains('status:') ||
-                entry.text.contains('"status"') ||
+                entry.text.contains('status') ||
                 entry.text.contains('nextId:'))) {
           _extractTasksFromText(entry.text, _cachedHistoricalTasks);
         }
@@ -174,12 +184,14 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     // 4. Process streaming text in real time
     for (final text in sessionState.streamingTextBlocks.values) {
       if (text.isNotEmpty &&
-          (text.contains('Updated #') ||
-              text.contains('Updated task') ||
+          (text.contains('#') ||
+              text.contains('task') ||
+              text.contains('Task') ||
+              text.contains('todo') ||
+              text.contains('Todo') ||
               text.contains('->') ||
               text.contains('activeForm') ||
-              text.contains('status:') ||
-              text.contains('"status"') ||
+              text.contains('status') ||
               text.contains('nextId:'))) {
         _extractTasksFromText(text, currentTasks);
       }
@@ -327,12 +339,61 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
           if (existing != null) {
             tasks[id] = existing.copyWith(status: status);
           } else {
-            tasks[id] = TodoItem(
-              id: id,
-              subject: 'Task #$id',
-              status: status,
-            );
+            // Check if there is an existing task with a temporary generated ID that was awaiting this update
+            int? candidateId;
+            TodoItem? candidate;
+            for (final entry in tasks.entries) {
+              if (_toolCallIdToTaskId.values.contains(entry.key) &&
+                  (entry.value.isInProgress || entry.value.isPending)) {
+                candidateId = entry.key;
+                candidate = entry.value;
+                break;
+              }
+            }
+            if (candidate != null && candidateId != null) {
+              tasks.remove(candidateId);
+              tasks[id] = candidate.copyWith(id: id, status: status);
+              for (final mapEntry in _toolCallIdToTaskId.entries) {
+                if (mapEntry.value == candidateId) {
+                  _toolCallIdToTaskId[mapEntry.key] = id;
+                }
+              }
+            } else {
+              tasks[id] = TodoItem(
+                id: id,
+                subject: 'Task #$id',
+                status: status,
+              );
+            }
           }
+        }
+      }
+    }
+
+    // 4. Regex extraction for task creation / declaration lines:
+    // e.g. "Created task #46: Subject", "Task #46 (in_progress): Subject", "Added task #46: Subject"
+    final creationMatches = RegExp(
+      r'(?:Created|Added)\s+(?:task\s*)?#(\d+)(?:\s*\(([^)\n]+)\))?[:\s-]+([^\n]+)',
+      caseSensitive: false,
+    ).allMatches(rawText);
+    for (final m in creationMatches) {
+      final id = int.tryParse(m.group(1) ?? '');
+      if (id != null && id > 0) {
+        final rawSt = m.group(2);
+        final st = _normalizeStatus(rawSt) ?? 'pending';
+        final sub = m.group(3)?.trim() ?? 'Task #$id';
+        final existing = tasks[id];
+        if (existing != null) {
+          tasks[id] = existing.copyWith(
+            subject: sub.isNotEmpty ? sub : existing.subject,
+            status: rawSt != null ? st : existing.status,
+          );
+        } else {
+          tasks[id] = TodoItem(
+            id: id,
+            subject: sub,
+            status: st,
+          );
         }
       }
     }
@@ -390,16 +451,49 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     }
   }
 
+  static int? _extractIdFromToolOutput(String output) {
+    final trimmed = output.trim();
+    if (trimmed.isEmpty) return null;
+    final exactNum = int.tryParse(trimmed);
+    if (exactNum != null && exactNum > 0) return exactNum;
+
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) {
+          final raw = decoded['id'] ?? decoded['taskId'] ?? decoded['task_id'];
+          if (raw != null) {
+            final parsed = parseTodoId(raw);
+            if (parsed > 0) return parsed;
+          }
+        }
+      } catch (_) {}
+    }
+
+    final match = RegExp(
+      r'(?:created|added|task|todo)?\s*#(\d+)|(?:task|todo)\s+(\d+)',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (match != null) {
+      final numStr = match.group(1) ?? match.group(2);
+      if (numStr != null) {
+        final parsed = int.tryParse(numStr);
+        if (parsed != null && parsed > 0) return parsed;
+      }
+    }
+    return null;
+  }
+
   String? _normalizeStatus(String? raw) {
     if (raw == null) return null;
     final lower = raw.trim().toLowerCase();
-    if (lower == 'completed' || lower == 'done' || lower == 'closed' || lower == 'finished') {
+    if (lower == 'completed' || lower == 'done' || lower == 'closed' || lower == 'finished' || lower == 'completato' || lower == 'completata') {
       return 'completed';
     }
-    if (lower == 'in_progress' || lower == 'inprogress' || lower == 'running' || lower == 'working') {
+    if (lower == 'in_progress' || lower == 'inprogress' || lower == 'running' || lower == 'working' || lower == 'in corso') {
       return 'in_progress';
     }
-    if (lower == 'pending' || lower == 'todo' || lower == 'open') {
+    if (lower == 'pending' || lower == 'todo' || lower == 'open' || lower == 'da fare') {
       return 'pending';
     }
     return lower;
@@ -417,8 +511,27 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     // Fallback to args
     final args = tool.args;
     final action = args['action']?.toString().toLowerCase();
-    final rawId = args['id'];
-    final id = rawId is num ? rawId.toInt() : int.tryParse(rawId?.toString() ?? '0') ?? 0;
+    final rawId = args['id'] ?? args['taskId'] ?? args['task_id'] ?? args['todoId'] ?? args['todo_id'];
+    var id = parseTodoId(rawId);
+
+    // If id not in args, try to extract id from tool output
+    if (id <= 0 && tool.output.isNotEmpty) {
+      final outId = _extractIdFromToolOutput(tool.output);
+      if (outId != null && outId > 0) {
+        id = outId;
+      }
+    }
+
+    // If this tool was previously assigned a temporary ID, migrate it to the real ID
+    final prevAssignedId = _toolCallIdToTaskId[tool.toolCallId];
+    if (id > 0 && prevAssignedId != null && prevAssignedId != id) {
+      final prevItem = tasks.remove(prevAssignedId);
+      if (prevItem != null) {
+        tasks[id] = prevItem.copyWith(id: id);
+      }
+      _toolCallIdToTaskId[tool.toolCallId] = id;
+    }
+
     final subject = args['subject']?.toString() ?? args['title']?.toString();
     final status = _normalizeStatus(args['status']?.toString());
 
@@ -463,6 +576,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       final int taskId;
       if (id > 0) {
         taskId = id;
+        _toolCallIdToTaskId[tool.toolCallId] = id;
       } else {
         taskId = _toolCallIdToTaskId.putIfAbsent(tool.toolCallId, () {
           while (tasks.containsKey(_nextGeneratedId) || _userManualTasks.containsKey(_nextGeneratedId)) {
@@ -473,12 +587,21 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       }
       final newSubject = subject ?? 'Nuovo task #$taskId';
       final newStatus = status ?? 'pending';
-      tasks[taskId] = TodoItem(
-        id: taskId,
-        subject: newSubject,
-        status: newStatus,
-        description: args['description']?.toString(),
-      );
+      final existing = tasks[taskId];
+      if (existing != null) {
+        tasks[taskId] = existing.copyWith(
+          subject: subject ?? existing.subject,
+          status: newStatus,
+          description: args['description']?.toString() ?? existing.description,
+        );
+      } else {
+        tasks[taskId] = TodoItem(
+          id: taskId,
+          subject: newSubject,
+          status: newStatus,
+          description: args['description']?.toString(),
+        );
+      }
     } else if ((effectiveAction == 'update' || effectiveAction == 'toggle') && id > 0) {
       final existing = tasks[id];
       if (existing != null) {

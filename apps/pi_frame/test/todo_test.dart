@@ -326,6 +326,89 @@ only Phase 0., activeForm: auditing native camera drivers}, {id: 2, subject: Aud
       expect(task36.isCompleted, isTrue);
     });
 
+    test('updates task #46 correctly from tool creation to completed without duplicate task', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-task46-test').overrideWith(
+            (ref) => SessionStateNotifier('session-task46-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-task46-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: 'Creo il task per la feature telecamera.',
+                    toolCalls: [
+                      ToolExecutionState(
+                        toolCallId: 'tc_create_46',
+                        toolName: 'task',
+                        args: {'action': 'create', 'subject': 'New Camera Plugin'},
+                        output: 'Task #46 created: New Camera Plugin',
+                        isRunning: false,
+                      ),
+                    ],
+                    timestamp: 1000,
+                  ),
+                  SessionEntry(
+                    id: 'msg-2',
+                    role: 'assistant',
+                    text: 'Updated #46 (in_progress -> completed)',
+                    timestamp: 2000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-task46-test').notifier);
+      expect(notifier.state.length, 1);
+      final task46 = notifier.state.first;
+      expect(task46.id, 46);
+      expect(task46.subject, 'New Camera Plugin');
+      expect(task46.status, 'completed');
+      expect(task46.isCompleted, isTrue);
+    });
+
+    test('updates task #46 created in text correctly to completed without leaving pending task', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-text46-test').overrideWith(
+            (ref) => SessionStateNotifier('session-text46-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-text46-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-1',
+                    role: 'assistant',
+                    text: 'Created task #46: New Camera Plugin',
+                    timestamp: 1000,
+                  ),
+                  SessionEntry(
+                    id: 'msg-2',
+                    role: 'assistant',
+                    text: 'Updated #46 (in_progress -> completed)',
+                    timestamp: 2000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(todosFamily('session-text46-test').notifier);
+      expect(notifier.state.length, 1);
+      final task46 = notifier.state.first;
+      expect(task46.id, 46);
+      expect(task46.subject, 'New Camera Plugin');
+      expect(task46.status, 'completed');
+      expect(task46.isCompleted, isTrue);
+    });
+
     test('extracts tasks from unquoted multiline block with commas safely without freeze', () {
       final container = ProviderContainer(
         overrides: [

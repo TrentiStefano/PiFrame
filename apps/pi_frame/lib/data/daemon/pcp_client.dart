@@ -380,6 +380,22 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<Map<String, dynamic>> setContextWindowOverride(
+    String sessionId,
+    int? limit,
+  ) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('scw'),
+      type: 'agent.setContextWindowOverride',
+      payload: {'limit': limit},
+    );
+    return sendCommand(cmd);
+  }
+
   Future<Map<String, dynamic>> setModel(
     String sessionId,
     String provider,

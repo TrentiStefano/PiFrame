@@ -6,6 +6,7 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class ContextPanel extends ConsumerStatefulWidget {
   final String sessionId;
@@ -50,9 +51,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       await action();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
       }
     }
   }
@@ -68,8 +67,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       res = (result?['data'] as Map<String, dynamic>?) ?? result;
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Compattazione non riuscita: $error')),
+        FrameSnackBar.show(
+          context,
+          message: 'Compattazione non riuscita: $error',
         );
       }
     } finally {
@@ -132,8 +132,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Duplicazione non riuscita: $error')),
+        FrameSnackBar.show(
+          context,
+          message: 'Duplicazione non riuscita: $error',
         );
       }
     }

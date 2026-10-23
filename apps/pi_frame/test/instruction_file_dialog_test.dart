@@ -108,7 +108,10 @@ void main() {
       // Save
       await tester.tap(find.byKey(const ValueKey('instruction-save-btn')));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      ScaffoldMessenger.of(
+        tester.element(find.byType(InstructionFileDialog)),
+      ).clearSnackBars();
+      await tester.pumpAndSettle();
 
       // Verify created on disk
       final claudeFile = File('${tempDir.path}/CLAUDE.md');

@@ -115,6 +115,7 @@ export type PcpCommandType =
   | 'agent.clearQueue'
   | 'agent.interrupt'
   | 'agent.compact'
+  | 'agent.setContextWindowOverride'
   | 'agent.setAutoCompaction'
   | 'agent.setAutoRetry'
   | 'agent.abortRetry'
@@ -307,6 +308,7 @@ export interface RuntimeMeta {
     steering: string[];
     followUp: string[];
   };
+  contextWindowOverride?: number | null;
 }
 
 export interface TranscriptMeta {

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'mcp_servers_dialog.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class PiCommandItem {
   final String label;
@@ -226,12 +227,10 @@ class _PiCliSectionState extends State<PiCliSection> {
   void _copyConsoleOutput() {
     if (_consoleOutput.isEmpty) return;
     Clipboard.setData(ClipboardData(text: _consoleOutput));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Output del comando copiato negli appunti'),
-        backgroundColor: widget.tokens.surfaceElevated,
-        duration: const Duration(seconds: 2),
-      ),
+    FrameSnackBar.show(
+      context,
+      message: 'Output del comando copiato negli appunti',
+      duration: const Duration(seconds: 2),
     );
   }
 

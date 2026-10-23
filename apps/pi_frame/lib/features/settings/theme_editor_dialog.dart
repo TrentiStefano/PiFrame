@@ -4,6 +4,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/theme/theme_providers.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class ThemeEditorDialog extends ConsumerStatefulWidget {
   final ThemeSpec? initialTheme;
@@ -243,11 +244,9 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Tema "$name" salvato e attivato con successo!'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Tema "$name" salvato e attivato con successo!',
         );
       }
     } catch (e) {

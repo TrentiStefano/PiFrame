@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_snack_bar.dart';
 import '../../ui/shimmer_border.dart';
 import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
@@ -148,22 +149,17 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           await client.renameSession(sessionId, newName);
           ref.invalidate(sessionListProvider);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Sessione rinominata in "$newName"'),
-                backgroundColor: tokens.surfaceElevated,
-                duration: const Duration(seconds: 2),
-              ),
+            FrameSnackBar.show(
+              context,
+              message: 'Sessione rinominata in "$newName"',
             );
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Errore rinomina: $e'),
-                backgroundColor: tokens.danger,
-                duration: const Duration(seconds: 2),
-              ),
+            FrameSnackBar.show(
+              context,
+              message: 'Errore rinomina: $e',
+              backgroundColor: tokens.danger,
             );
           }
         }
@@ -192,23 +188,18 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         if (!await switchSessionSafely(context, ref, newSid)) return;
         ref.invalidate(sessionListProvider);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Sessione duplicata: $newSid'),
-              backgroundColor: tokens.surfaceElevated,
-              duration: const Duration(seconds: 2),
-            ),
+          FrameSnackBar.show(
+            context,
+            message: 'Sessione duplicata: $newSid',
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore duplicazione: $e'),
-            backgroundColor: tokens.danger,
-            duration: const Duration(seconds: 2),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Errore duplicazione: $e',
+          backgroundColor: tokens.danger,
         );
       }
     }
@@ -636,24 +627,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              key: ValueKey('repo-instructions-btn-$folder'),
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                minimumSize: const Size(20, 20),
-                                padding: EdgeInsets.zero,
-                              ),
-                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                              icon: Icon(Icons.description_outlined, size: 14, color: tokens.textSecondary),
-                              tooltip: 'Istruzioni repository (AGENTS.md, CLAUDE.md...)',
-                              onPressed: () {
-                                final activeSid = activeFolders.contains(folder) ? activeId : null;
-                                InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
-                              },
-                            ),
-                            const SizedBox(width: 2),
-                            IconButton(
                               key: ValueKey('repo-new-session-btn-$folder'),
                               visualDensity: VisualDensity.compact,
                               padding: EdgeInsets.zero,
@@ -672,29 +645,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               },
                             ),
                             const SizedBox(width: 2),
-                            IconButton(
-                              key: ValueKey('repo-remove-btn-$folder'),
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                minimumSize: const Size(20, 20),
-                                padding: EdgeInsets.zero,
-                              ),
-                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                              icon: Icon(Icons.close, size: 14, color: tokens.textSecondary),
-                              tooltip: 'Rimuovi repository dal riquadro',
-                              onPressed: () {
-                                removeRepoWithConfirmation(
-                                  context,
-                                  ref,
-                                  folder: folder,
-                                  repoName: _folderName(folder),
-                                  folderSessions: folderSessions,
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 2),
                             Icon(
                               expanded ? Icons.expand_more : Icons.chevron_right,
                               size: 16,
@@ -709,6 +659,130 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             _expandedFolders.add(folder);
                           }
                         }),
+                      );
+
+                      folderTile = GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onSecondaryTapDown: (details) async {
+                          final pos = details.globalPosition;
+                          final action = await showMenu<String>(
+                            context: context,
+                            color: tokens.surfaceElevated,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              side: BorderSide(color: tokens.border),
+                            ),
+                            position: RelativeRect.fromLTRB(
+                              pos.dx,
+                              pos.dy,
+                              pos.dx + 1,
+                              pos.dy + 1,
+                            ),
+                            items: [
+                              PopupMenuItem(
+                                value: 'instructions',
+                                height: 32,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.description_outlined,
+                                      size: 14,
+                                      color: tokens.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Istruzioni repository',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'new_session',
+                                height: 32,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.add,
+                                      size: 14,
+                                      color: tokens.accent,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Nuova sessione',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(height: 1),
+                              PopupMenuItem(
+                                value: 'remove_repo',
+                                height: 32,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: tokens.danger,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Rimuovi repository dal riquadro',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: tokens.danger,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+
+                          if (!context.mounted || action == null) return;
+                          if (action == 'instructions') {
+                            final activeSid = activeFolders.contains(folder) ? activeId : null;
+                            InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
+                          } else if (action == 'new_session') {
+                            setState(() => _expandedFolders.add(folder));
+                            await createSession(context, ref, cwd: folder);
+                            if (mounted) widget.onSessionSelected?.call();
+                          } else if (action == 'remove_repo') {
+                            removeRepoWithConfirmation(
+                              context,
+                              ref,
+                              folder: folder,
+                              repoName: _folderName(folder),
+                              folderSessions: folderSessions,
+                            );
+                          }
+                        },
+                        child: folderTile,
                       );
 
                       if (hasWorking) {
@@ -759,6 +833,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         context,
                         folder: folder,
                         sessionId: sId,
+                      ),
+                      onRemoveRepo: (folder) => removeRepoWithConfirmation(
+                        context,
+                        ref,
+                        folder: folder,
+                        repoName: _folderName(folder),
+                        folderSessions: grouped[folder] ?? [s],
                       ),
                       onDelete: (sId, sName) => deleteSessionWithConfirmation(
                         context,
@@ -960,6 +1041,7 @@ class _SessionTile extends ConsumerWidget {
   final void Function(String id) onTree;
   final void Function(String id) onClone;
   final void Function(String id, String folder)? onInstructions;
+  final void Function(String folder)? onRemoveRepo;
   final void Function(String id, String name)? onDelete;
 
   const _SessionTile({
@@ -973,8 +1055,232 @@ class _SessionTile extends ConsumerWidget {
     required this.onTree,
     required this.onClone,
     this.onInstructions,
+    this.onRemoveRepo,
     this.onDelete,
   });
+
+  List<PopupMenuEntry<String>> _buildMenuItems(
+    BuildContext context,
+    FrameTokens tokens,
+  ) {
+    return [
+      PopupMenuItem(
+        value: 'pin',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+              size: 14,
+              color: tokens.accent,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'instructions',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 14,
+              color: tokens.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Istruzioni repository',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'rename',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.edit_outlined,
+              size: 14,
+              color: tokens.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Rinomina',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'tree',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.account_tree_outlined,
+              size: 14,
+              color: tokens.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Albero rami',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem(
+        value: 'clone',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.copy_outlined,
+              size: 14,
+              color: tokens.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Duplica',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(height: 1),
+      if (onRemoveRepo != null) ...[
+        PopupMenuItem(
+          value: 'remove_repo',
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.close,
+                size: 14,
+                color: tokens.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Rimuovi repository dal riquadro',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      PopupMenuItem(
+        value: 'delete',
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.delete_outline,
+              size: 14,
+              color: tokens.danger,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Elimina sessione',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.danger,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  void _handleAction(
+    String action,
+    String id,
+    String name,
+    String folder,
+  ) {
+    if (action == 'pin') {
+      onPinToggle();
+    } else if (action == 'instructions') {
+      onInstructions?.call(id, folder);
+    } else if (action == 'rename') {
+      onRename(id, name);
+    } else if (action == 'tree') {
+      onTree(id);
+    } else if (action == 'clone') {
+      onClone(id);
+    } else if (action == 'remove_repo') {
+      onRemoveRepo?.call(folder);
+    } else if (action == 'delete') {
+      onDelete?.call(id, name);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -984,6 +1290,7 @@ class _SessionTile extends ConsumerWidget {
     final cwd = session['cwd'] as String? ?? '';
     final preview = session['lastMessagePreview'] as String?;
     final isStaticActive = session['isActive'] == true;
+    final folder = _sessionFolder(session);
 
     final isWorking = (isPinned || isSelected || isStaticActive)
         ? ref.watch(sessionStateFamily(id).select((s) =>
@@ -1072,156 +1379,8 @@ class _SessionTile extends ConsumerWidget {
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           side: BorderSide(color: tokens.border),
         ),
-        onSelected: (action) {
-          if (action == 'pin') {
-            onPinToggle();
-          } else if (action == 'rename') {
-            onRename(id, name);
-          } else if (action == 'tree') {
-            onTree(id);
-          } else if (action == 'clone') {
-            onClone(id);
-          } else if (action == 'instructions') {
-            onInstructions?.call(id, _sessionFolder(session));
-          } else if (action == 'delete') {
-            onDelete?.call(id, name);
-          }
-        },
-        itemBuilder: (ctx) => [
-          PopupMenuItem(
-            value: 'pin',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-                  size: 14,
-                  color: tokens.accent,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: 'instructions',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.description_outlined,
-                  size: 14,
-                  color: tokens.textSecondary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Istruzioni',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: 'rename',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.edit_outlined,
-                  size: 14,
-                  color: tokens.textSecondary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Rinomina',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: 'tree',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.account_tree_outlined,
-                  size: 14,
-                  color: tokens.textSecondary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Albero rami',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: 'clone',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.copy_outlined,
-                  size: 14,
-                  color: tokens.textSecondary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Duplica',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const PopupMenuDivider(height: 1),
-          PopupMenuItem(
-            value: 'delete',
-            height: 32,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.delete_outline,
-                  size: 14,
-                  color: tokens.danger,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Elimina sessione',
-                  style: TextStyle(
-                    color: tokens.danger,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        onSelected: (action) => _handleAction(action, id, name, folder),
+        itemBuilder: (ctx) => _buildMenuItems(ctx, tokens),
       ),
       onTap: onTap,
     );
@@ -1240,6 +1399,32 @@ class _SessionTile extends ConsumerWidget {
       child: tile,
     );
 
+    final interactiveCard = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: (details) async {
+        final pos = details.globalPosition;
+        final action = await showMenu<String>(
+          context: context,
+          color: tokens.surfaceElevated,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            side: BorderSide(color: tokens.border),
+          ),
+          position: RelativeRect.fromLTRB(
+            pos.dx,
+            pos.dy,
+            pos.dx + 1,
+            pos.dy + 1,
+          ),
+          items: _buildMenuItems(context, tokens),
+        );
+        if (action != null) {
+          _handleAction(action, id, name, folder);
+        }
+      },
+      child: card,
+    );
+
     if (isWorking) {
       return Padding(
         padding: EdgeInsets.only(
@@ -1251,7 +1436,7 @@ class _SessionTile extends ConsumerWidget {
           isActive: true,
           strokeWidth: 1.0,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
-          child: card,
+          child: interactiveCard,
         ),
       );
     }
@@ -1262,7 +1447,9 @@ class _SessionTile extends ConsumerWidget {
         right: 4,
         bottom: 3,
       ),
-      child: card,
+      child: interactiveCard,
     );
   }
 }
+
+

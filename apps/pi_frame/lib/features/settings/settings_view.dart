@@ -16,6 +16,7 @@ import 'pi_cli_section.dart';
 import 'remote_section.dart';
 import 'updates_section.dart';
 import 'theme_editor_dialog.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -94,19 +95,22 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           ref.invalidate(daemonEndpointProvider);
           _fetchDaemonConfig();
           _fetchPiPackages();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Daemon riavviato con successo')),
+          FrameSnackBar.show(
+            context,
+            message: 'Daemon riavviato con successo',
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Riavvio daemon non riuscito')),
+          FrameSnackBar.show(
+            context,
+            message: 'Riavvio daemon non riuscito',
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore durante il riavvio: $e')),
+        FrameSnackBar.show(
+          context,
+          message: 'Errore durante il riavvio: $e',
         );
       }
     } finally {
@@ -178,21 +182,18 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     try {
       await action(client);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
+        FrameSnackBar.show(
+          context,
+          message:
               '$successMessage: $source. Riavvia Pi per applicare le modifiche.',
-            ),
-          ),
         );
       }
       await _fetchPiPackages();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Operazione sul pacchetto non riuscita: $error'),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Operazione sul pacchetto non riuscita: $error',
         );
       }
     } finally {
@@ -538,6 +539,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                 constraints: const BoxConstraints(maxWidth: 960),
                 child: TabBarView(
                   controller: _tabController,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
                     // -------------------------------------------------------------
                     // Tab 1: Pi CLI
@@ -1236,30 +1238,18 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                           )
                                           .importThemeFromJson(content);
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(
+                                        FrameSnackBar.show(
                                           context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
+                                          message:
                                               'Tema "${importedSpec.name}" importato e attivato con successo!',
-                                            ),
-                                            behavior:
-                                                SnackBarBehavior.floating,
-                                          ),
                                         );
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(
+                                        FrameSnackBar.show(
                                           context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
+                                          message:
                                               'Errore durante l\'importazione del tema: $e',
-                                            ),
-                                            behavior:
-                                                SnackBarBehavior.floating,
-                                          ),
                                         );
                                       }
                                     }
@@ -1626,21 +1616,19 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             icon: const Icon(Icons.open_in_new, size: 16),
             label: const Text('Testa apertura terminale nativo'),
             onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
               final launched = await launchNativeTerminal(
                 cwd: Directory.current.path,
                 nativeApp: termSettings.nativeApp,
                 customPath: termSettings.customPath,
               );
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    launched
-                        ? 'Terminale nativo avviato con successo!'
-                        : 'Impossibile avviare il terminale con la configurazione scelta.',
-                  ),
-                ),
-              );
+              if (mounted) {
+                FrameSnackBar.show(
+                  context,
+                  message: launched
+                      ? 'Terminale nativo avviato con successo!'
+                      : 'Impossibile avviare il terminale con la configurazione scelta.',
+                );
+              }
             },
           ),
         ),

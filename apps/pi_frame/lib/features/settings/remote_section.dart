@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class RemoteSection extends ConsumerStatefulWidget {
   const RemoteSection({super.key});
@@ -166,11 +167,10 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       final installedPath = data['path'] as String? ?? '~/.piframe/bin/cloudflared';
       if (mounted) {
         final tokens = context.tokens;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('cloudflared scaricato e pronto in $installedPath!'),
-            backgroundColor: tokens.success,
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'cloudflared scaricato e pronto in $installedPath!',
+          backgroundColor: tokens.success,
         );
       }
       await _fetchStatus();
@@ -199,11 +199,10 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       if (mounted) {
         final tokens = context.tokens;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] as String? ?? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.'),
-            backgroundColor: tokens.accent,
-          ),
+        FrameSnackBar.show(
+          context,
+          message: data['message'] as String? ?? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.',
+          backgroundColor: tokens.accent,
         );
       }
       await _fetchStatus();
@@ -233,11 +232,10 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       if (mounted) {
         final tokens = context.tokens;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Nome host Tailscale aggiornato! Nuovo dominio: ${data['domain'] ?? text}'),
-            backgroundColor: tokens.success,
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Nome host Tailscale aggiornato! Nuovo dominio: ${data['domain'] ?? text}',
+          backgroundColor: tokens.success,
         );
       }
       await _fetchStatus();
@@ -661,8 +659,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                                 label: const Text('Copia Link di Associazione'),
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: _pairingUrl ?? _url!));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Link di associazione copiato negli appunti!')),
+                                  FrameSnackBar.show(
+                                    context,
+                                    message: 'Link di associazione copiato negli appunti!',
                                   );
                                 },
                               ),

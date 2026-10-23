@@ -14,6 +14,7 @@ import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
 import '../transcript/rich_content.dart';
+import '../../ui/frame_snack_bar.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -928,13 +929,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           widget.sessionId,
                           filePath,
                         );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Aggiunto @$filePath alla chat'),
-                            duration: const Duration(seconds: 2),
-                            behavior: SnackBarBehavior.floating,
-                            width: 320,
-                          ),
+                        FrameSnackBar.show(
+                          context,
+                          message: 'Aggiunto @$filePath alla chat',
                         );
                       },
                     );
@@ -1035,12 +1032,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           );
                         } catch (error) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Salvataggio non riuscito: $error',
-                                ),
-                              ),
+                            FrameSnackBar.show(
+                              context,
+                              message: 'Salvataggio non riuscito: $error',
                             );
                           }
                         }
@@ -1052,13 +1046,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 tooltip: 'Aggiungi file alla chat',
                 onPressed: () {
                   appendFileMentionToComposer(ref, widget.sessionId, path);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Aggiunto @$path alla chat'),
-                      duration: const Duration(seconds: 2),
-                      behavior: SnackBarBehavior.floating,
-                      width: 320,
-                    ),
+                  FrameSnackBar.show(
+                    context,
+                    message: 'Aggiunto @$path alla chat',
                   );
                 },
                 icon: const Icon(Icons.add_comment_outlined, size: 16),
@@ -1867,8 +1857,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       await _refresh();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Operazione Git non riuscita: $error')),
+        FrameSnackBar.show(
+          context,
+          message: 'Operazione Git non riuscita: $error',
         );
       }
     } finally {
@@ -1943,9 +1934,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        FrameSnackBar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('Diff non disponibile: $error')));
+          message: 'Diff non disponibile: $error',
+        );
       }
     }
   }
@@ -2917,13 +2909,9 @@ class _TreeRow extends StatelessWidget {
                   } else if (choice == 'copy') {
                     Clipboard.setData(ClipboardData(text: node.path));
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Percorso copiato: ${node.path}'),
-                          duration: const Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                          width: 280,
-                        ),
+                      FrameSnackBar.show(
+                        context,
+                        message: 'Percorso copiato: ${node.path}',
                       );
                     }
                   }

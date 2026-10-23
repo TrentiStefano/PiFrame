@@ -382,6 +382,8 @@ export class SessionIndex {
     let inputTokens = 0;
     let outputTokens = 0;
     let hasTokens = false;
+    let currentModel: string | null = null;
+    const byModel: Record<string, { cost: number; tokens: { total: number; input: number; output: number } }> = {};
 
     try {
       if (filePath && fs.existsSync(filePath)) {
@@ -390,8 +392,9 @@ export class SessionIndex {
         for (const line of lines) {
           try {
             const entry = JSON.parse(line);
-            if (entry.type === 'model_change' && entry.modelId) {
-              model = entry.modelId;
+            if (entry.type === 'model_change' && (entry.modelId || entry.model)) {
+              model = entry.modelId || entry.model;
+              currentModel = model;
             }
             if (entry.type === 'thinking_change' && entry.thinkingLevel) {
               thinkingLevel = entry.thinkingLevel;
@@ -399,9 +402,17 @@ export class SessionIndex {
             if (entry.thinkingLevel) {
               thinkingLevel = entry.thinkingLevel;
             }
+            if (entry.message?.model) {
+              currentModel = entry.message.model;
+            }
+            if (entry.modelId || entry.model) {
+              currentModel = entry.modelId || entry.model;
+            }
 
             const u = entry.usage || entry.message?.usage;
             if (u) {
+              let lineCost = 0;
+              let hasLineCost = false;
               if (u.cost !== undefined) {
                 const rawCost = typeof u.cost === 'object' && u.cost !== null
                   ? (u.cost.total ?? u.cost.amount)
@@ -409,20 +420,56 @@ export class SessionIndex {
                 const numCost = Number(rawCost);
                 if (!Number.isNaN(numCost)) {
                   totalCost += numCost;
+                  lineCost = numCost;
                   hasCost = true;
+                  hasLineCost = true;
                 }
               }
+
+              let lineTotalTokens = 0;
+              let lineInputTokens = 0;
+              let lineOutputTokens = 0;
+              let hasLineTokens = false;
+
               if (u.tokens && typeof u.tokens === 'object') {
                 if (typeof u.tokens.total === 'number') totalTokens = u.tokens.total;
                 if (typeof u.tokens.input === 'number') inputTokens = u.tokens.input;
                 if (typeof u.tokens.output === 'number') outputTokens = u.tokens.output;
+                lineTotalTokens = Number(u.tokens.total) || 0;
+                lineInputTokens = Number(u.tokens.input) || 0;
+                lineOutputTokens = Number(u.tokens.output) || 0;
                 hasTokens = true;
+                hasLineTokens = true;
               } else if (u.totalTokens !== undefined) {
                 totalTokens = Number(u.totalTokens) || totalTokens;
+                lineTotalTokens = Number(u.totalTokens) || 0;
                 hasTokens = true;
+                hasLineTokens = true;
               } else if (u.total !== undefined) {
                 totalTokens = Number(u.total) || totalTokens;
+                lineTotalTokens = Number(u.total) || 0;
                 hasTokens = true;
+                hasLineTokens = true;
+              }
+
+              if (hasLineCost || hasLineTokens) {
+                let modelKey = entry.message?.model || entry.model || entry.modelId || currentModel;
+                if (entry.type === 'compaction' || entry.role === 'compactionSummary' || entry.type === 'summary') {
+                  modelKey = 'Tools/summaries';
+                } else if (!modelKey) {
+                  modelKey = model || 'Modello Principale';
+                }
+                if (!byModel[modelKey]) {
+                  byModel[modelKey] = { cost: 0, tokens: { total: 0, input: 0, output: 0 } };
+                }
+                if (hasLineCost) {
+                  byModel[modelKey].cost += lineCost;
+                }
+                if (hasLineTokens) {
+                  byModel[modelKey].tokens.total += lineTotalTokens;
+                  byModel[modelKey].tokens.input += lineInputTokens;
+                  byModel[modelKey].tokens.output += lineOutputTokens;
+                }
               }
             }
           } catch {}
@@ -441,6 +488,10 @@ export class SessionIndex {
         input: inputTokens,
         output: outputTokens,
       };
+    }
+    if (Object.keys(byModel).length > 0) {
+      usage.byModel = byModel;
+      usage.models = byModel;
     }
 
     return {

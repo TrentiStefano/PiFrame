@@ -23,6 +23,7 @@ import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import '../session_changes/session_changes_provider.dart';
+import '../../ui/frame_snack_bar.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
@@ -146,13 +147,10 @@ class _ComposerState extends ConsumerState<Composer> {
                 sessionNotifier.removeSteerMessage(index);
                 _controller.text = textController.text;
                 _focusNode.requestFocus();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Messaggio caricato nel composer per la modifica',
-                    ),
-                    duration: Duration(seconds: 2),
-                  ),
+                FrameSnackBar.show(
+                  context,
+                  message: 'Messaggio caricato nel composer per la modifica',
+                  duration: const Duration(seconds: 2),
                 );
               },
               child: Text(
@@ -351,9 +349,7 @@ class _ComposerState extends ConsumerState<Composer> {
       if (mounted && _controller.text == draft) _controller.clear();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Invio non riuscito: $error')));
+        FrameSnackBar.show(context, message: 'Invio non riuscito: $error');
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -391,9 +387,7 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.invalidate(sessionStateFamily(widget.sessionId));
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ripresa non riuscita: $error')));
+        FrameSnackBar.show(context, message: 'Ripresa non riuscita: $error');
       }
     }
   }
@@ -403,9 +397,7 @@ class _ComposerState extends ConsumerState<Composer> {
       await action();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
       }
     }
   }
@@ -435,12 +427,9 @@ class _ComposerState extends ConsumerState<Composer> {
     if (!mounted) return;
     final state = repository.currentState;
     if (state.files.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            state.error ?? 'Nessun file disponibile nella sessione.',
-          ),
-        ),
+      FrameSnackBar.show(
+        context,
+        message: state.error ?? 'Nessun file disponibile nella sessione.',
       );
       return;
     }
@@ -550,9 +539,7 @@ class _ComposerState extends ConsumerState<Composer> {
       res = await sessionNotifier.interrupt();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Interruzione non riuscita: $error')),
-        );
+        FrameSnackBar.show(context, message: 'Interruzione non riuscita: $error');
       }
     } finally {
       if (mounted) setState(() => _isInterrupting = false);
@@ -577,13 +564,11 @@ class _ComposerState extends ConsumerState<Composer> {
           _controller.text = '${_controller.text}\n$restored';
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
+          FrameSnackBar.show(
+            context,
+            message:
                 'Interrotto. I messaggi non eseguiti in coda sono stati ripristinati nel composer.',
-              ),
-              duration: Duration(seconds: 3),
-            ),
+            duration: const Duration(seconds: 3),
           );
         }
       }
@@ -610,10 +595,9 @@ class _ComposerState extends ConsumerState<Composer> {
     final current = ref.read(sessionStateFamily(widget.sessionId)).currentModel;
 
     if (models.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nessun modello alternativo disponibile.'),
-        ),
+      FrameSnackBar.show(
+        context,
+        message: 'Nessun modello alternativo disponibile.',
       );
       return;
     }
@@ -1061,10 +1045,9 @@ class _ComposerState extends ConsumerState<Composer> {
                       }
                     } catch (error) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Duplicazione non riuscita: $error'),
-                          ),
+                        FrameSnackBar.show(
+                          context,
+                          message: 'Duplicazione non riuscita: $error',
                         );
                       }
                     }
@@ -1175,7 +1158,7 @@ class _ComposerState extends ConsumerState<Composer> {
         }
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 280),
         curve: Curves.easeInOutCubic,
         margin: EdgeInsets.fromLTRB(
           horizontalMargin,
@@ -1187,13 +1170,30 @@ class _ComposerState extends ConsumerState<Composer> {
           isActive: isShimmerActive,
           borderRadius: BorderRadius.circular(tokens.radiusLg),
           child: AnimatedSize(
-            duration: const Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 280),
             curve: Curves.easeInOutCubic,
-            alignment: Alignment.topCenter,
+            alignment: Alignment.bottomCenter,
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
+              duration: const Duration(milliseconds: 280),
+              switchInCurve: Curves.easeInOutCubic,
+              switchOutCurve: Curves.easeInOutCubic,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  alignment: Alignment.bottomCenter,
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    ...previousChildren.map(
+                      (child) => Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: child,
+                      ),
+                    ),
+                    ?currentChild,
+                  ],
+                );
+              },
               transitionBuilder: (child, animation) =>
                   FadeTransition(opacity: animation, child: child),
               child: Container(

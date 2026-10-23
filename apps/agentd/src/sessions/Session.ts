@@ -37,6 +37,7 @@ export class Session {
   public isStreaming: boolean = false;
   public isCompacting: boolean = false;
   public autoCompaction: boolean = true;
+  public contextWindowOverride: number | null = null;
   public model: any = null;
   public thinkingLevel: string | null = 'medium';
   public steeringMode: string | null = 'one-at-a-time';
@@ -115,6 +116,7 @@ export class Session {
       isStreaming: this.isStreaming,
       isCompacting: this.isCompacting,
       autoCompaction: this.autoCompaction,
+      contextWindowOverride: this.contextWindowOverride,
       queue: this.queue,
       entries: this.entries,
       pendingUiRequests: this.uiBroker.getPending(),

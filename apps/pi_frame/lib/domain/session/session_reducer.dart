@@ -86,9 +86,11 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
     case RunSettledEvent():
       var updatedEntries = current.entries;
+      final liveThinking = current.currentStreamingThinking.trim();
+      final liveText = current.currentStreamingText.trim();
       if (current.activeToolCalls.isNotEmpty ||
-          current.currentStreamingThinking.isNotEmpty ||
-          (current.currentStreamingText.isNotEmpty &&
+          liveThinking.isNotEmpty ||
+          (liveText.isNotEmpty &&
               !isInternalOrJunkMessageText(current.currentStreamingText))) {
         if (updatedEntries.isNotEmpty &&
             updatedEntries.last.role == 'assistant') {
@@ -100,14 +102,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               mergedTools.add(completedT);
             }
           }
-          final newThinking = current.currentStreamingThinking.isNotEmpty
-              ? current.currentStreamingThinking
-              : null;
-          final combinedThinking = last.thinking != null &&
+          final newThinking = liveThinking.isNotEmpty ? liveThinking : null;
+          final lastThinking = last.thinking?.trim();
+          final combinedThinking = lastThinking != null &&
                   newThinking != null &&
-                  last.thinking != newThinking
-              ? '${last.thinking}\n\n$newThinking'
-              : (last.thinking ?? newThinking);
+                  lastThinking != newThinking
+              ? '$lastThinking\n\n$newThinking'
+              : (lastThinking ?? newThinking);
           final updatedLast = SessionEntry(
             id: last.id,
             role: last.role,
@@ -117,6 +118,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             thinking: combinedThinking,
             toolCalls: mergedTools,
             timestamp: last.timestamp,
+            metadata: last.metadata,
           );
           updatedEntries = List<SessionEntry>.from(updatedEntries)
             ..[updatedEntries.length - 1] = updatedLast;
@@ -126,13 +128,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
               role: 'assistant',
               text: current.currentStreamingText,
-              thinking: current.currentStreamingThinking.isNotEmpty
-                  ? current.currentStreamingThinking
-                  : null,
+              thinking: liveThinking.isNotEmpty ? liveThinking : null,
               toolCalls: current.activeToolCalls.values
                   .map((t) => t.isRunning ? t.copyWith(isRunning: false) : t)
                   .toList(),
               timestamp: DateTime.now().millisecondsSinceEpoch,
+              metadata: {
+                if (current.currentModel != null) 'model': current.currentModel,
+              },
             ));
         }
       }
@@ -357,15 +360,16 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
 
       // Extract thinking from streaming blocks or message content blocks
-      String? thinking = current.currentStreamingThinking.isNotEmpty
-          ? current.currentStreamingThinking
-          : (msg['thinking']?.toString().isNotEmpty == true ? msg['thinking'].toString() : null);
+      String? thinking = current.currentStreamingThinking.trim().isNotEmpty
+          ? current.currentStreamingThinking.trim()
+          : (msg['thinking']?.toString().trim().isNotEmpty == true ? msg['thinking'].toString().trim() : null);
       if (thinking == null && msg['content'] is List) {
         final tb = (msg['content'] as List)
             .whereType<Map>()
             .where((b) => b['type'] == 'thinking' || b['type'] == 'thought')
             .map((b) => (b['thinking'] ?? b['thought'] ?? b['text'])?.toString() ?? '')
-            .join();
+            .join()
+            .trim();
         if (tb.isNotEmpty) thinking = tb;
       }
 
@@ -434,6 +438,8 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           (msg['id'] as String?) ??
           'msg_${DateTime.now().millisecondsSinceEpoch}';
 
+      final entryModel = msg['model'] ?? msg['modelId'] ?? current.currentModel;
+      final entryUsage = msg['usage'];
       final entry = SessionEntry(
         id: id,
         role: role,
@@ -443,6 +449,10 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         timestamp:
             (msg['timestamp'] as num?)?.toInt() ??
             DateTime.now().millisecondsSinceEpoch,
+        metadata: {
+          'model': ?entryModel,
+          'usage': ?entryUsage,
+        },
       );
 
       final isTaskNotif = text.contains('<task-notification>');
@@ -467,11 +477,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             mergedTools.add(t);
           }
         }
-        final combinedThinking = prev.thinking != null &&
-                entry.thinking != null &&
-                prev.thinking != entry.thinking
-            ? '${prev.thinking}\n\n${entry.thinking}'
-            : (prev.thinking ?? entry.thinking);
+        final prevThinking = prev.thinking?.trim();
+        final entryThinking = entry.thinking?.trim();
+        final combinedThinking = prevThinking != null &&
+                entryThinking != null &&
+                prevThinking != entryThinking
+            ? '$prevThinking\n\n$entryThinking'
+            : (prevThinking ?? entryThinking);
         nextEntries.add(SessionEntry(
           id: prev.id,
           role: 'assistant',
@@ -479,6 +491,10 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           thinking: combinedThinking,
           toolCalls: mergedTools,
           timestamp: prev.timestamp,
+          metadata: {
+            if (prev.metadata != null) ...prev.metadata!,
+            if (entry.metadata != null) ...entry.metadata!,
+          },
         ));
       } else {
         nextEntries.add(entry);
@@ -628,6 +644,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             'output': usage['output'] ?? usage['outputTokens'] ?? 0,
           };
         }
+      }
+      if (usage.containsKey('byModel')) {
+        nextStats['byModel'] = usage['byModel'];
+        nextStats['models'] = usage['byModel'];
+      } else if (usage.containsKey('models')) {
+        nextStats['models'] = usage['models'];
+        nextStats['byModel'] = usage['models'];
       }
       return current.copyWith(
         usage: usage,

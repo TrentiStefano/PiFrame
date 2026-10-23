@@ -193,6 +193,8 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     if (isInternalOrJunkMessageText(text)) continue;
     if (text.trim().isEmpty && thinking.trim().isEmpty && entryToolCalls.isEmpty) continue;
 
+    final entryModel = message['model'] ?? message['modelId'];
+    final entryUsage = message['usage'];
     final entry = SessionEntry(
       id: entryId,
       role: role,
@@ -200,6 +202,10 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
       thinking: thinking.isNotEmpty ? thinking : null,
       toolCalls: entryToolCalls,
       timestamp: timestamp,
+      metadata: {
+        'model': ?entryModel,
+        'usage': ?entryUsage,
+      },
     );
 
     // If previous entry was an assistant entry with empty text and this is an assistant entry with text,
@@ -216,11 +222,13 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
           mergedTools.add(t);
         }
       }
-      final combinedThinking = prev.thinking != null &&
-              entry.thinking != null &&
-              prev.thinking != entry.thinking
-          ? '${prev.thinking}\n\n${entry.thinking}'
-          : (prev.thinking ?? entry.thinking);
+      final prevThinking = prev.thinking?.trim();
+      final entryThinking = entry.thinking?.trim();
+      final combinedThinking = prevThinking != null &&
+              entryThinking != null &&
+              prevThinking != entryThinking
+          ? '$prevThinking\n\n$entryThinking'
+          : (prevThinking ?? entryThinking);
       entries.add(SessionEntry(
         id: prev.id,
         role: 'assistant',
@@ -228,6 +236,10 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
         thinking: combinedThinking,
         toolCalls: mergedTools,
         timestamp: prev.timestamp,
+        metadata: {
+          if (prev.metadata != null) ...prev.metadata!,
+          if (entry.metadata != null) ...entry.metadata!,
+        },
       ));
     } else {
       entries.add(entry);
@@ -332,6 +344,8 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
         ? (model['name'] ?? model['id'])?.toString()
         : (model is String && model.isNotEmpty ? model : null),
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
+    contextWindowOverride: (runtime['contextWindowOverride'] as num?)?.toInt() ??
+        (meta['contextWindowOverride'] as num?)?.toInt(),
     usage: rawUsage,
     sessionStats: initialStats,
     lastAppliedSeq: seq,

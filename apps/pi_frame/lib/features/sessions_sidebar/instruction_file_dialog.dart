@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../workspace/repository_workspace.dart';
+import '../../ui/frame_snack_bar.dart';
 
 class InstructionFileDialog extends ConsumerStatefulWidget {
   final String folder;
@@ -257,12 +258,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
         setState(() {
           _saving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('File $_selectedFile salvato con successo'),
-            backgroundColor: context.tokens.surfaceElevated,
-            duration: const Duration(seconds: 2),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'File $_selectedFile salvato con successo',
         );
       }
     } catch (e) {
@@ -318,15 +316,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
           _generating = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Istruzioni per $_selectedFile generate con successo dall\'agente Pi',
-            ),
-            backgroundColor: context.tokens.surfaceElevated,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Istruzioni per $_selectedFile generate con successo dall\'agente Pi',
         );
       }
     } catch (e) {

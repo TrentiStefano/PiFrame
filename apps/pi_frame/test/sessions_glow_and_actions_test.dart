@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -186,10 +187,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final removeRepoBtn = find.byTooltip('Rimuovi repository dal riquadro');
-      expect(removeRepoBtn, findsOneWidget);
+      // Right-click on folder tile to open context menu
+      await tester.tap(find.text('demo_repo'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
 
-      await tester.tap(removeRepoBtn);
+      final removeRepoItem = find.text('Rimuovi repository dal riquadro');
+      expect(removeRepoItem, findsOneWidget);
+
+      await tester.tap(removeRepoItem);
       await tester.pumpAndSettle();
 
       // Dialog should appear with removal options
@@ -221,6 +226,58 @@ void main() {
 
       // Confirm button is now enabled
       expect(tester.widget<FilledButton>(confirmBtn).onPressed, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'session context menu on right click shows repository and session options',
+    (tester) async {
+      final mockSessions = [
+        {
+          'id': 'sess_repo_1',
+          'name': 'Test Session',
+          'cwd': 'C:/projects/demo_repo',
+          'isActive': false,
+          'lastMessagePreview': 'Hello',
+        },
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionListProvider.overrideWith(
+              (ref) => Future.value(mockSessions),
+            ),
+            pinnedSessionsProvider.overrideWith(
+              (ref) => _TestPinnedNotifier({}),
+            ),
+            removedReposProvider.overrideWith(
+              (ref) => _TestRemovedNotifier({}),
+            ),
+            activeSessionIdProvider.overrideWith((ref) => null),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(body: SessionsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Expand folder to show session
+      await tester.tap(find.text('demo_repo'));
+      await tester.pumpAndSettle();
+
+      // Right-click on session tile
+      await tester.tap(find.text('Test Session'), buttons: kSecondaryMouseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Istruzioni repository'), findsOneWidget);
+      expect(find.text('Rimuovi repository dal riquadro'), findsOneWidget);
+      expect(find.text('Elimina sessione'), findsOneWidget);
     },
   );
 

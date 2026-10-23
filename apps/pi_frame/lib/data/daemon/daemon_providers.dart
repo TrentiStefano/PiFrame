@@ -104,7 +104,12 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null) return;
 
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
-      state = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
+      final prevOverride = state.contextWindowOverride;
+      var nextState = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
+      if (nextState.contextWindowOverride == null && prevOverride != null) {
+        nextState = nextState.copyWith(contextWindowOverride: prevOverride);
+      }
+      state = nextState;
       unawaited(refreshSessionStats());
       unawaited(refreshDefaults());
     });
@@ -212,7 +217,22 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       final result = await client!.getSessionStats(sessionId);
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
-        state = state.copyWith(sessionStats: Map<String, dynamic>.from(data));
+        final updatedData = Map<String, dynamic>.from(data);
+        if (state.contextWindowOverride != null && state.contextWindowOverride! > 0) {
+          final cu = updatedData['contextUsage'] as Map?;
+          final tokens = (cu?['tokens'] as num?)?.toDouble() ??
+              (state.usage?['totalTokens'] as num?)?.toDouble() ??
+              0.0;
+          final win = state.contextWindowOverride!;
+          final pct = (tokens / win) * 100.0;
+          updatedData['contextUsage'] = {
+            if (cu != null) ...Map<String, dynamic>.from(cu),
+            'contextWindow': win,
+            'percent': pct,
+            'tokens': tokens.toInt(),
+          };
+        }
+        state = state.copyWith(sessionStats: updatedData);
       }
     } catch (_) {
       // Older Pi/agentd builds may not expose session statistics.
@@ -227,6 +247,24 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
     if (client == null) throw StateError('Daemon non connesso');
+
+    if (streamingBehavior == null &&
+        state.contextWindowOverride != null &&
+        state.contextWindowOverride! > 0) {
+      final cu = state.sessionStats?['contextUsage'] as Map?;
+      final tokens = (cu?['tokens'] as num?)?.toInt() ??
+          (state.usage?['totalTokens'] as num?)?.toInt() ??
+          0;
+      final threshold = (state.contextWindowOverride! * 0.80).round();
+      if (tokens >= threshold &&
+          state.agentStatus != AgentStatus.compacting &&
+          state.agentStatus != AgentStatus.working) {
+        try {
+          await compact();
+        } catch (_) {}
+      }
+    }
+
     final prevEntries = state.entries;
     final prevStatus = state.agentStatus;
     if (streamingBehavior == null) {
@@ -374,6 +412,11 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> setContextWindow(int? size) async {
+    if (client != null) {
+      try {
+        await client!.setContextWindowOverride(sessionId, size);
+      } catch (_) {}
+    }
     Map<String, dynamic>? updatedStats;
     if (state.sessionStats != null) {
       updatedStats = Map<String, dynamic>.from(state.sessionStats!);
@@ -396,6 +439,20 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       contextWindowOverride: size,
       sessionStats: updatedStats ?? state.sessionStats,
     );
+
+    if (size != null &&
+        size > 0 &&
+        (state.agentStatus == AgentStatus.idle || state.agentStatus == AgentStatus.settled)) {
+      final cu = (updatedStats ?? state.sessionStats)?['contextUsage'] as Map?;
+      final tokens = (cu?['tokens'] as num?)?.toInt() ??
+          (state.usage?['totalTokens'] as num?)?.toInt() ??
+          0;
+      if (tokens >= (size * 0.80).round()) {
+        try {
+          await compact();
+        } catch (_) {}
+      }
+    }
   }
 
   @override

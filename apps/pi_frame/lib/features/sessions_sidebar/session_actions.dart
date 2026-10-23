@@ -10,6 +10,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import 'removed_repos_provider.dart';
+import '../../ui/frame_snack_bar.dart';
 
 Future<String?> _chooseSessionDirectory(
   BuildContext context,
@@ -47,8 +48,9 @@ class _SessionDirectoryDialogState extends State<_SessionDirectoryDialog> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cartella non disponibile: $error')),
+        FrameSnackBar.show(
+          context,
+          message: 'Cartella non disponibile: $error',
         );
       }
     }
@@ -151,9 +153,7 @@ Future<void> createSession(
     }
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Creazione non riuscita: $error')));
+      FrameSnackBar.show(context, message: 'Creazione non riuscita: $error');
     }
   }
 }
@@ -213,14 +213,16 @@ Future<void> deleteSessionWithConfirmation(
     ref.invalidate(sessionListProvider);
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sessione "$sessionName" eliminata.')),
+      FrameSnackBar.show(
+        context,
+        message: 'Sessione "$sessionName" eliminata.',
       );
     }
   } catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Eliminazione non riuscita: $error')),
+      FrameSnackBar.show(
+        context,
+        message: 'Eliminazione non riuscita: $error',
       );
     }
   }
@@ -347,16 +349,15 @@ Future<void> removeRepoWithConfirmation(
     ref.read(removedReposProvider.notifier).removeRepo(folder);
     ref.invalidate(sessionListProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Repository "$repoName" rimosso dal riquadro.'),
-          action: SnackBarAction(
-            label: 'Ripristina',
-            onPressed: () {
-              ref.read(removedReposProvider.notifier).restoreRepo(folder);
-              ref.invalidate(sessionListProvider);
-            },
-          ),
+      FrameSnackBar.show(
+        context,
+        message: 'Repository "$repoName" rimosso dal riquadro.',
+        action: SnackBarAction(
+          label: 'Ripristina',
+          onPressed: () {
+            ref.read(removedReposProvider.notifier).restoreRepo(folder);
+            ref.invalidate(sessionListProvider);
+          },
         ),
       );
     }
@@ -398,18 +399,16 @@ Future<void> removeRepoWithConfirmation(
       ref.invalidate(sessionListProvider);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Tutte le sessioni di "$repoName" sono state eliminate.',
-            ),
-          ),
+        FrameSnackBar.show(
+          context,
+          message: 'Tutte le sessioni di "$repoName" sono state eliminate.',
         );
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore durante l\'eliminazione: $error')),
+        FrameSnackBar.show(
+          context,
+          message: 'Errore durante l\'eliminazione: $error',
         );
       }
     }

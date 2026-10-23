@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
+import '../../ui/frame_snack_bar.dart';
 import '../transcript/task_notification_card.dart';
 
 class _ParsedToolOutput {
@@ -619,13 +620,10 @@ class _ToolCardState extends State<ToolCard> {
                               Clipboard.setData(
                                 ClipboardData(text: commandText),
                               );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Comando copiato negli appunti',
-                                  ),
-                                  duration: Duration(seconds: 1),
-                                ),
+                              FrameSnackBar.show(
+                                context,
+                                message: 'Comando copiato negli appunti',
+                                duration: const Duration(seconds: 1),
                               );
                             },
                             child: Padding(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_snack_bar.dart';
 import '../composer/composer_draft.dart';
 import '../sessions_sidebar/session_actions.dart';
 
@@ -72,9 +73,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Azione non riuscita: $error')));
+        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
       }
     } finally {
       if (mounted) setState(() => _executing = false);

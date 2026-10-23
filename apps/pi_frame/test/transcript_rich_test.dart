@@ -37,17 +37,19 @@ void main() {
     expect(find.textContaining('Dettaglio lungo del ragionamento'), findsOneWidget);
   });
 
-  testWidgets('ThinkingBlock disappears completely when thinking text is empty', (tester) async {
+  testWidgets('ThinkingBlock disappears completely when thinking text is empty or whitespace even when streaming', (tester) async {
     await tester.pumpWidget(
       wrapWithTheme(
         const ThinkingBlock(
-          thinkingText: '',
-          isStreaming: false,
+          thinkingText: '   \n  \t ',
+          isStreaming: true,
         ),
       ),
     );
 
     expect(find.text('Ragionamento'), findsNothing);
+    expect(find.byType(ThinkingBlock), findsOneWidget);
+    expect(find.byType(SizedBox), findsWidgets);
   });
 
   testWidgets('RichContent separates text, headers, and code fences', (tester) async {
@@ -102,6 +104,69 @@ void main() {}
     expect(find.text('README.md'), findsOneWidget);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
     expect(find.byTooltip('CTRL+clic per aprire in Esplora file'), findsWidgets);
+
+    // Verify SelectionContainer.disabled is present so that SelectionArea does not override mouse cursor
+    final disabledContainers = find.descendant(
+      of: find.byType(RichContent),
+      matching: find.byType(SelectionContainer),
+    );
+    expect(disabledContainers, findsWidgets);
+
+    // Verify MouseRegion with click cursor exists for file chips
+    final clickMouseRegions = find.descendant(
+      of: find.byType(RichContent),
+      matching: find.byWidgetPredicate(
+        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.click,
+      ),
+    );
+    expect(clickMouseRegions, findsWidgets);
+  });
+
+  test('resolvePathForOsExplorer correctly resolves WSL and Windows paths', () {
+    // 1. WSL UNC cwd with relative path
+    const wslCwd = r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo';
+    final res1 = resolvePathForOsExplorer('lib/main.dart', cwd: wslCwd);
+    expect(res1, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+
+    // 2. WSL UNC cwd with Linux absolute path
+    final res2 = resolvePathForOsExplorer('/home/strenti/Repos/my_repo/lib/main.dart', cwd: wslCwd);
+    expect(res2, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+
+    // 3. WSL file:// URI
+    final res3 = resolvePathForOsExplorer('file:///home/strenti/Repos/my_repo/test.dart', cwd: wslCwd);
+    expect(res3, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\test.dart');
+
+    // 4. Already full WSL UNC path
+    final res4 = resolvePathForOsExplorer(r'\\wsl$\LMD_env\home\strenti\file.txt');
+    expect(res4, r'\\wsl$\LMD_env\home\strenti\file.txt');
+
+    // 5. Line numbers and anchor stripped
+    final res5 = resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: wslCwd);
+    expect(res5, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+
+    // 6. Windows cwd with relative path
+    const winCwd = r'C:\Personale\Repos\my_repo';
+    final res6 = resolvePathForOsExplorer('lib/main.dart', cwd: winCwd);
+    expect(res6, r'C:\Personale\Repos\my_repo\lib\main.dart');
+  });
+
+  testWidgets('RichContent renders raw file paths and markdown links with file chips', (tester) async {
+    const textWithVariousLinks =
+        'Vedi apps/pi_frame/lib/main.dart per i dettagli oppure consulta [la guida](docs/guide.md).';
+
+    await tester.pumpWidget(
+      wrapWithTheme(
+        const RichContent(
+          text: textWithVariousLinks,
+          cwd: r'\\wsl.localhost\LMD_env\home\strenti\repo',
+        ),
+      ),
+    );
+
+    expect(find.text('apps/pi_frame/lib/main.dart'), findsOneWidget);
+    expect(find.text('la guida'), findsOneWidget);
+    expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
   });
 }
+
 

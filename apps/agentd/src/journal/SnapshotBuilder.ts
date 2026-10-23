@@ -19,6 +19,7 @@ export interface SnapshotContext {
     steering: string[];
     followUp: string[];
   };
+  contextWindowOverride?: number | null;
   entries: Array<Record<string, unknown>>;
   pendingUiRequests: Array<Record<string, unknown>>;
   liveMessage?: Record<string, unknown> | null;
@@ -38,7 +39,8 @@ export class SnapshotBuilder {
       isStreaming: ctx.isStreaming,
       isCompacting: ctx.isCompacting,
       autoCompaction: ctx.autoCompaction,
-      queue: ctx.queue
+      queue: ctx.queue,
+      contextWindowOverride: ctx.contextWindowOverride ?? null
     };
 
     const transcript: TranscriptMeta = {

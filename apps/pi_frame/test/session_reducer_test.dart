@@ -791,6 +791,20 @@ void main() {
       expect(state.sessionStats?['cost'], closeTo(0.060, 0.0001));
       expect(state.sessionStats?['tokens']['total'], 12000);
     });
+
+    test('extracts contextWindowOverride from snapshot runtime meta', () {
+      final state = applySessionSnapshot('session-override', 1, {
+        'session': {'id': 'session-override', 'cwd': '/workspace'},
+        'runtime': {
+          'status': 'idle',
+          'model': 'claude-haiku-5-5',
+          'contextWindowOverride': 100000,
+        },
+        'transcript': {'entries': []},
+      });
+
+      expect(state.contextWindowOverride, 100000);
+    });
   });
 }
 
