@@ -157,8 +157,8 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     );
     try {
       final result = await client.listWorkspaceFiles(sessionId);
-      final data = result['data'] as Map<String, dynamic>;
-      final files = (data['files'] as List).cast<Map<String, dynamic>>();
+      final data = (result['data'] as Map<String, dynamic>?) ?? result;
+      final files = (data['files'] as List? ?? []).cast<Map<String, dynamic>>();
       state = RepositoryState(
         rootPath: data['rootPath'] as String?,
         files: files,
@@ -197,7 +197,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     if (cached != null || client == null) return;
     try {
       final result = await client.readWorkspaceFile(sessionId, path);
-      final data = result['data'] as Map<String, dynamic>;
+      final data = (result['data'] as Map<String, dynamic>?) ?? result;
       final updatedBuffers = Map<String, WorkspaceFileBuffer>.of(state.buffers);
       updatedBuffers[path] = WorkspaceFileBuffer(
         data['content'] as String,
@@ -267,7 +267,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
       'content': content,
       'revision': revisionOverride ?? buffer.revision,
     });
-    final data = result['data'] as Map<String, dynamic>;
+    final data = (result['data'] as Map<String, dynamic>?) ?? result;
     final buffers = Map<String, WorkspaceFileBuffer>.of(state.buffers);
     buffers[path] = WorkspaceFileBuffer(
       content,
@@ -303,7 +303,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     final client = _readClient();
     if (client == null) throw StateError('Daemon non connesso');
     final result = await client.readWorkspaceFile(sessionId, path);
-    final data = result['data'] as Map<String, dynamic>;
+    final data = (result['data'] as Map<String, dynamic>?) ?? result;
     return (
       content: data['content'] as String,
       revision: data['revision'].toString(),
@@ -1825,7 +1825,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     try {
       final result = await client.refreshWorkspace(widget.sessionId);
       if (mounted) {
-        setState(() => _status = result['data'] as Map<String, dynamic>?);
+        setState(() => _status = (result['data'] as Map<String, dynamic>?) ?? result);
       }
     } catch (e) {
       if (mounted) setState(() => _status = {'error': e.toString()});
@@ -1884,7 +1884,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         widget.sessionId,
         filePath: path,
       );
-      final diff = result['data']?['diff']?.toString() ?? '';
+      final diff = (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -1959,7 +1959,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         widget.sessionId,
         filePath: path,
       );
-      diff = result['data']?['diff']?.toString() ?? '';
+      diff = (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
     } catch (_) {}
     if (!mounted) return;
     final confirmed = await showDialog<bool>(

@@ -58,7 +58,7 @@ export class Connection {
   private pongTimeout?: NodeJS.Timeout;
 
   // Bounded output queue
-  private readonly maxQueueBytes = 16 * 1024 * 1024; // 16 MB
+  private readonly maxQueueBytes = 64 * 1024 * 1024; // 64 MB
   private queuedBytes = 0;
   private hasEmittedGapWarning = false;
 
@@ -301,7 +301,7 @@ export class Connection {
     // Check backpressure buffer
     if (this.queuedBytes + byteLength > this.maxQueueBytes * 2) {
       // Exceeded double threshold -> terminate slow client
-      this.close(4009, 'Client too slow (backpressure buffer exceeded 32MB)');
+      this.close(4009, 'Client too slow (backpressure buffer exceeded 128MB)');
       return false;
     }
 

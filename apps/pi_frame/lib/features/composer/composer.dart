@@ -1047,15 +1047,18 @@ class _ComposerState extends ConsumerState<Composer> {
                         widget.sessionId,
                       );
                       if (!mounted || !context.mounted) return;
-                      final data = result['data'] as Map<String, dynamic>;
-                      if (!await switchSessionSafely(
-                        context,
-                        ref,
-                        data['sessionId'] as String,
-                      )) {
-                        return;
+                      final data = (result['data'] as Map<String, dynamic>?) ?? result;
+                      final targetSessionId = (data['sessionId'] ?? data['id']) as String?;
+                      if (targetSessionId != null) {
+                        if (!await switchSessionSafely(
+                          context,
+                          ref,
+                          targetSessionId,
+                        )) {
+                          return;
+                        }
+                        ref.invalidate(sessionListProvider);
                       }
-                      ref.invalidate(sessionListProvider);
                     } catch (error) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

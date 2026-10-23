@@ -15,6 +15,51 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       : current.lastAppliedSeq;
 
   switch (event) {
+    case SessionStatusEvent(:final status):
+      final normalizedStatus = status.toLowerCase();
+      final AgentStatus newStatus;
+      switch (normalizedStatus) {
+        case 'working':
+          newStatus = AgentStatus.working;
+          break;
+        case 'retrying':
+          newStatus = AgentStatus.retrying;
+          break;
+        case 'compacting':
+          newStatus = AgentStatus.compacting;
+          break;
+        case 'awaiting_user':
+          newStatus = AgentStatus.awaitingUser;
+          break;
+        case 'worker_error':
+        case 'error':
+          newStatus = AgentStatus.workerError;
+          break;
+        case 'settled':
+        case 'idle':
+        default:
+          newStatus = AgentStatus.settled;
+          break;
+      }
+
+      if (newStatus == AgentStatus.settled) {
+        final updatedTools = current.activeToolCalls.map(
+          (k, v) => MapEntry(k, v.isRunning ? v.copyWith(isRunning: false) : v),
+        );
+        return current.copyWith(
+          agentStatus: AgentStatus.settled,
+          activeToolCalls: updatedTools,
+          streamingTextBlocks: const {},
+          streamingThinkingBlocks: const {},
+          lastAppliedSeq: nextSeq,
+        );
+      }
+
+      return current.copyWith(
+        agentStatus: newStatus,
+        lastAppliedSeq: nextSeq,
+      );
+
     case RunStartedEvent():
       return current.copyWith(
         agentStatus: AgentStatus.working,
@@ -23,7 +68,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
     case RunEndedEvent(:final willRetry):
       return current.copyWith(
-        agentStatus: willRetry ? AgentStatus.retrying : current.agentStatus,
+        agentStatus: willRetry
+            ? AgentStatus.retrying
+            : (current.activeToolCalls.values.any((t) => t.isRunning) ||
+                    current.streamingTextBlocks.isNotEmpty ||
+                    current.streamingThinkingBlocks.isNotEmpty
+                ? current.agentStatus
+                : AgentStatus.settled),
         lastAppliedSeq: nextSeq,
       );
 
@@ -520,9 +571,29 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         );
       }
 
+      // Also update any existing entries that contain this tool call
+      final updatedEntries = current.entries.map((entry) {
+        if (entry.toolCalls.any((t) => t.toolCallId == toolCallId)) {
+          final updatedToolCalls = entry.toolCalls.map((t) {
+            if (t.toolCallId == toolCallId) {
+              return t.copyWith(
+                output: outputStr.isNotEmpty ? outputStr : t.output,
+                isRunning: false,
+                isError: isError || t.isError,
+                durationMs: durationMs ?? t.durationMs,
+              );
+            }
+            return t;
+          }).toList();
+          return entry.copyWith(toolCalls: updatedToolCalls);
+        }
+        return entry;
+      }).toList();
+
       return current.copyWith(
         activeToolCalls: nextActive,
         toolOutputs: nextOutputs,
+        entries: updatedEntries,
         lastAppliedSeq: nextSeq,
       );
 

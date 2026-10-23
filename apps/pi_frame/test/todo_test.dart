@@ -325,6 +325,49 @@ only Phase 0., activeForm: auditing native camera drivers}, {id: 2, subject: Aud
       expect(task36.status, 'completed');
       expect(task36.isCompleted, isTrue);
     });
+
+    test('extracts tasks from unquoted multiline block with commas safely without freeze', () {
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('session-perf-test').overrideWith(
+            (ref) => SessionStateNotifier('session-perf-test', null)
+              ..state = const SessionState(
+                sessionId: 'session-perf-test',
+                cwd: '/test',
+                entries: [
+                  SessionEntry(
+                    id: 'msg-perf',
+                    role: 'assistant',
+                    text: '''
+Here are the tasks:
+{id: 42, subject: "Refactor database queries, indexes, and migrations", status: in_progress, description: "Ensure everything is fast, reliable, and tested", activeForm: "Migrating schema"}
+{id: 43, subject: Update documentation, status: pending, description: "Write docs for api, cli, and ide"}
+''',
+                    timestamp: 1000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final stopwatch = Stopwatch()..start();
+      final notifier = container.read(todosFamily('session-perf-test').notifier);
+      stopwatch.stop();
+
+      // Must complete rapidly (under 50ms)
+      expect(stopwatch.elapsedMilliseconds, lessThan(500));
+      expect(notifier.state.length, 2);
+      expect(notifier.state[0].id, 42);
+      expect(notifier.state[0].subject, 'Refactor database queries, indexes, and migrations');
+      expect(notifier.state[0].status, 'in_progress');
+      expect(notifier.state[0].description, 'Ensure everything is fast, reliable, and tested');
+      expect(notifier.state[0].activeForm, 'Migrating schema');
+      expect(notifier.state[1].id, 43);
+      expect(notifier.state[1].subject, 'Update documentation');
+      expect(notifier.state[1].status, 'pending');
+    });
   });
 }
 

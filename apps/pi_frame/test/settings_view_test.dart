@@ -124,7 +124,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      find.text(const Color(0xFFF4F5F8).toARGB32().toString()),
+      find.text(const Color(0xFFF1F3F7).toARGB32().toString()),
       findsOneWidget,
     );
 

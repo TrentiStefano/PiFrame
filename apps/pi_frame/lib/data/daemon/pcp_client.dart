@@ -122,9 +122,11 @@ class PcpClient {
           attach(entry.key, lastSeq: entry.value);
         }
 
-        // Re-send in-flight commands with identical commandId
+        // Re-send in-flight commands with identical commandId (excluding attaches)
         for (final cmd in _inFlightCommands.values) {
-          _sendRaw(PcpCodec.encodeMessage(cmd));
+          if (cmd.type != 'session.attach') {
+            _sendRaw(PcpCodec.encodeMessage(cmd));
+          }
         }
         return;
       }
@@ -190,12 +192,14 @@ class PcpClient {
         final sessionId = event.sessionId;
         if (sessionId != '@daemon') {
           final lastSeq = _attachedSessions[sessionId];
-          if (event.type != 'journal.gap' &&
-              lastSeq != null &&
-              event.seq <= lastSeq) {
-            return;
+          if (event.seq > 0) {
+            if (event.type != 'journal.gap' &&
+                lastSeq != null &&
+                event.seq <= lastSeq) {
+              return;
+            }
+            _attachedSessions[sessionId] = event.seq;
           }
-          _attachedSessions[sessionId] = event.seq;
         }
         if (event.type == 'journal.gap') {
           // Re-sync by attaching without lastSeq to obtain a fresh full snapshot
@@ -212,11 +216,17 @@ class PcpClient {
   }
 
   void _onError(dynamic err) {
+    if (kDebugMode) {
+      debugPrint('PCP WebSocket error: $err, closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
+    }
     _cleanupChannel();
     _scheduleReconnect();
   }
 
   void _onDone() {
+    if (kDebugMode) {
+      debugPrint('PCP WebSocket closed. closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
+    }
     _cleanupChannel();
     _scheduleReconnect();
   }

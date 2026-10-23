@@ -2149,8 +2149,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     String liveText,
     bool hasActiveTools,
   ) {
-    final hasLiveThinking = liveThinking.isNotEmpty ||
-        sessionState.agentStatus == AgentStatus.working;
+    final hasLiveThinking = liveThinking.isNotEmpty;
     final hasLiveText = liveText.isNotEmpty;
     final hasLoadingIndicator = sessionState.agentStatus == AgentStatus.working &&
         liveThinking.isEmpty &&

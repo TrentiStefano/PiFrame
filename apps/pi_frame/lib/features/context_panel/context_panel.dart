@@ -65,7 +65,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     Map<String, dynamic>? res;
     try {
       final result = await notifier.compact();
-      res = result?['data'] as Map<String, dynamic>?;
+      res = (result?['data'] as Map<String, dynamic>?) ?? result;
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,11 +122,14 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     try {
       final result = await client.cloneSession(widget.sessionId);
       if (!mounted) return;
-      final data = result['data'] as Map<String, dynamic>;
-      if (!await switchSessionSafely(context, ref, data['sessionId'] as String)) {
-        return;
+      final data = (result['data'] as Map<String, dynamic>?) ?? result;
+      final targetSessionId = (data['sessionId'] ?? data['id']) as String?;
+      if (targetSessionId != null) {
+        if (!await switchSessionSafely(context, ref, targetSessionId)) {
+          return;
+        }
+        ref.invalidate(sessionListProvider);
       }
-      ref.invalidate(sessionListProvider);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

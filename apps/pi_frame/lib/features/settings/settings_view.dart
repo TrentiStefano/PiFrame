@@ -65,7 +65,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
 
     try {
-      final res = await client.getDaemonConfig();
+      final res = await client
+          .getDaemonConfig()
+          .timeout(const Duration(seconds: 4));
       final data = res['data'] as Map<String, dynamic>? ?? res;
       final ms = (data['workerIdleTimeoutMs'] as num?)?.toInt() ?? 1800000;
       if (mounted) {
@@ -443,6 +445,16 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<DaemonConnectionState>>(
+      connectionStateProvider,
+      (prev, next) {
+        if (next.value == DaemonConnectionState.connected) {
+          _fetchDaemonConfig();
+          _fetchPiPackages();
+        }
+      },
+    );
+
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     final endpointAsync = ref.watch(daemonEndpointProvider);
@@ -605,16 +617,19 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         ),
                         const SizedBox(height: 12),
                         _isLoadingConfig
-                            ? Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 8,
-                                ),
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: tokens.accent,
+                            ? Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: tokens.accent,
+                                    ),
                                   ),
                                 ),
                               )

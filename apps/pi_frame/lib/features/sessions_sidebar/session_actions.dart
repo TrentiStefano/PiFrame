@@ -142,9 +142,9 @@ Future<void> createSession(
       ),
     );
     if (!context.mounted) return;
-    final data = result['data'] as Map<String, dynamic>?;
-    final session = data?['session'] as Map<String, dynamic>?;
-    final id = session?['id'] as String?;
+    final data = (result['data'] as Map<String, dynamic>?) ?? result;
+    final session = (data['session'] as Map<String, dynamic>?) ?? data;
+    final id = (session['id'] ?? data['id']) as String?;
     if (id != null) {
       if (!await switchSessionSafely(context, ref, id)) return;
       ref.invalidate(sessionListProvider);

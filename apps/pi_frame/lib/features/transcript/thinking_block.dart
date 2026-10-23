@@ -66,7 +66,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
   @override
   Widget build(BuildContext context) {
     final trimmed = widget.thinkingText.trim();
-    if (trimmed.isEmpty && !widget.isStreaming) {
+    if (trimmed.isEmpty) {
       return const SizedBox.shrink();
     }
     final tokens = context.tokens;

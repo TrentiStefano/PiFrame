@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/session_reducer.dart';
 import '../../domain/session/snapshot_reducer.dart';
@@ -36,10 +37,14 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
   );
 });
 
-final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
+final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) async* {
   final client = ref.watch(pcpClientProvider);
-  if (client == null) return Stream.value(DaemonConnectionState.disconnected);
-  return client.connectionStateStream;
+  if (client == null) {
+    yield DaemonConnectionState.disconnected;
+    return;
+  }
+  yield client.state;
+  yield* client.connectionStateStream;
 });
 
 final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
@@ -58,10 +63,17 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
   });
   ref.onDispose(subscription.cancel);
 
-  final res = await client.listSessions();
-  final data = res['data'] as Map<String, dynamic>?;
-  final sessions = data?['sessions'] as List?;
-  return sessions?.cast<Map<String, dynamic>>() ?? [];
+  try {
+    final res = await client
+        .listSessions()
+        .timeout(const Duration(seconds: 8));
+    final data = res['data'] as Map<String, dynamic>? ?? res;
+    final sessions = (data['sessions'] as List? ?? res['sessions'] as List?)
+        ?.cast<Map<String, dynamic>>() ?? [];
+    return sessions;
+  } catch (_) {
+    return [];
+  }
 });
 
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
@@ -108,7 +120,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
     });
     client!.attach(sessionId);
-    unawaited(refreshDefaults());
   }
 
   bool _defaultsLoading = false;
@@ -125,7 +136,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       String? resolvedThinking;
 
       if (needsModel) {
-        final res = await client!.getAvailableModels(sessionId);
+        final res = await client!
+            .getAvailableModels(sessionId)
+            .timeout(const Duration(seconds: 4));
         final data = res['data'] as Map<String, dynamic>? ?? res;
         final currentModelRaw = data['currentModel'] ?? data['model'];
         if (currentModelRaw is Map) {
@@ -151,7 +164,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
 
       if (needsThinking && (resolvedThinking == null || resolvedThinking.isEmpty)) {
-        final tRes = await client!.getAvailableThinkingLevels(sessionId);
+        final tRes = await client!
+            .getAvailableThinkingLevels(sessionId)
+            .timeout(const Duration(seconds: 4));
         final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
         final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];
         if (levelRaw != null) {
@@ -212,11 +227,35 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
     if (client == null) throw StateError('Daemon non connesso');
-    await client!.sendPrompt(
-      sessionId,
-      text,
-      streamingBehavior: streamingBehavior,
-    );
+    final prevEntries = state.entries;
+    final prevStatus = state.agentStatus;
+    if (streamingBehavior == null) {
+      final userEntry = SessionEntry(
+        id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+        role: 'user',
+        text: text,
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+      );
+      state = state.copyWith(
+        entries: [...state.entries, userEntry],
+        agentStatus: AgentStatus.working,
+      );
+    }
+    try {
+      await client!.sendPrompt(
+        sessionId,
+        text,
+        streamingBehavior: streamingBehavior,
+      );
+    } catch (e) {
+      if (mounted && streamingBehavior == null) {
+        state = state.copyWith(
+          entries: prevEntries,
+          agentStatus: prevStatus,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>?> interrupt() async {
@@ -280,9 +319,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   Future<void> setModel(String provider, String modelId) async {
     if (client == null) return;
     final result = await client!.setModel(sessionId, provider, modelId);
-    final model = result['data'] as Map<String, dynamic>?;
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final model = data['model'] as Map<String, dynamic>? ?? data;
     state = state.copyWith(
-      currentModel: (model?['name'] ?? model?['id'] ?? modelId).toString(),
+      currentModel: (model['name'] ?? model['id'] ?? modelId).toString(),
     );
   }
 

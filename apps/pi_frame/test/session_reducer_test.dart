@@ -622,6 +622,119 @@ void main() {
       expect(next.entries.first.toolCalls.first.isError, isTrue);
       expect(next.entries.first.toolCalls.first.output, 'FAIL test/foo.spec.ts');
     });
+
+    test('ToolCompletedEvent updates output, isRunning, and isError in existing transcript entries', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        agentStatus: AgentStatus.working,
+        entries: [
+          SessionEntry(
+            id: 'asst_1',
+            role: 'assistant',
+            text: 'I will list files.',
+            toolCalls: [
+              const ToolExecutionState(
+                toolCallId: 'call_ls_1',
+                toolName: 'ls',
+                isRunning: true,
+              ),
+            ],
+            timestamp: 1000,
+          ),
+        ],
+        activeToolCalls: {
+          'call_ls_1': const ToolExecutionState(
+            toolCallId: 'call_ls_1',
+            toolName: 'ls',
+            isRunning: true,
+          ),
+        },
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const ToolCompletedEvent(
+          protocol: 1,
+          id: 'evt_tc_1',
+          ts: 1005,
+          sessionId: 's1',
+          seq: 5,
+          payload: {
+            'toolCallId': 'call_ls_1',
+            'toolName': 'ls',
+            'result': 'file1.dart\nfile2.dart',
+            'isError': false,
+            'durationMs': 120,
+          },
+        ),
+      );
+
+      expect(next.entries.first.toolCalls.first.isRunning, isFalse);
+      expect(next.entries.first.toolCalls.first.isError, isFalse);
+      expect(next.entries.first.toolCalls.first.output, 'file1.dart\nfile2.dart');
+      expect(next.entries.first.toolCalls.first.durationMs, 120);
+      expect(next.activeToolCalls['call_ls_1']?.isRunning, isFalse);
+    });
+
+    test('SessionStatusEvent settles agent status and clears streaming blocks', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Incomplete streaming'},
+        streamingThinkingBlocks: {0: 'Incomplete thinking'},
+        activeToolCalls: {
+          't1': const ToolExecutionState(
+            toolCallId: 't1',
+            toolName: 'bash',
+            isRunning: true,
+          ),
+        },
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const SessionStatusEvent(
+          protocol: 1,
+          id: 'evt_status_1',
+          ts: 1010,
+          sessionId: 's1',
+          seq: 0,
+          payload: {
+            'status': 'settled',
+            'reason': 'recovered_from_crash',
+          },
+        ),
+      );
+
+      expect(next.agentStatus, AgentStatus.settled);
+      expect(next.streamingTextBlocks, isEmpty);
+      expect(next.streamingThinkingBlocks, isEmpty);
+      expect(next.activeToolCalls['t1']?.isRunning, isFalse);
+    });
+
+    test('RunEndedEvent settles status when willRetry is false and no tools are running', () {
+      final initial = const SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        agentStatus: AgentStatus.working,
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const RunEndedEvent(
+          protocol: 1,
+          id: 'evt_re_1',
+          ts: 1015,
+          sessionId: 's1',
+          seq: 6,
+          payload: {'willRetry': false},
+        ),
+      );
+
+      expect(next.agentStatus, AgentStatus.settled);
+    });
   });
 
   group('applySessionSnapshot', () {

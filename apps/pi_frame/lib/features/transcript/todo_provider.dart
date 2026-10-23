@@ -91,6 +91,9 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
   final Map<int, String> _userStatusOverrides = {};
   int _nextGeneratedId = 1;
 
+  List<SessionEntry>? _lastParsedEntries;
+  final Map<int, TodoItem> _cachedHistoricalTasks = {};
+
   TodoNotifier(this.ref, this.sessionId) : super([]) {
     _listenToSession();
   }
@@ -111,6 +114,26 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     );
   }
 
+  static bool _areEntriesEqual(List<SessionEntry> a, List<SessionEntry> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id ||
+          a[i].timestamp != b[i].timestamp ||
+          a[i].text != b[i].text ||
+          a[i].toolCalls.length != b[i].toolCalls.length) {
+        return false;
+      }
+      for (int j = 0; j < a[i].toolCalls.length; j++) {
+        if (a[i].toolCalls[j].isRunning != b[i].toolCalls[j].isRunning ||
+            a[i].toolCalls[j].output != b[i].toolCalls[j].output) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   void _syncFromSession(SessionState sessionState) {
     final currentTasks = <int, TodoItem>{};
 
@@ -119,22 +142,29 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       currentTasks[manualTask.id] = manualTask;
     }
 
-    // 2. Process historical entries
-    for (final entry in sessionState.entries) {
-      if (entry.text.isNotEmpty &&
-          (entry.text.contains('Updated #') ||
-              entry.text.contains('Updated task') ||
-              entry.text.contains('->') ||
-              entry.text.contains('activeForm') ||
-              entry.text.contains('status:') ||
-              entry.text.contains('"status"') ||
-              entry.text.contains('nextId:'))) {
-        _extractTasksFromText(entry.text, currentTasks);
+    // 2. Process historical entries (cached when unchanged)
+    if (_lastParsedEntries == null ||
+        !_areEntriesEqual(_lastParsedEntries!, sessionState.entries)) {
+      _cachedHistoricalTasks.clear();
+      for (final entry in sessionState.entries) {
+        if (entry.text.isNotEmpty &&
+            (entry.text.contains('Updated #') ||
+                entry.text.contains('Updated task') ||
+                entry.text.contains('->') ||
+                entry.text.contains('activeForm') ||
+                entry.text.contains('status:') ||
+                entry.text.contains('"status"') ||
+                entry.text.contains('nextId:'))) {
+          _extractTasksFromText(entry.text, _cachedHistoricalTasks);
+        }
+        for (final tool in entry.toolCalls) {
+          _processToolCall(tool, _cachedHistoricalTasks);
+        }
       }
-      for (final tool in entry.toolCalls) {
-        _processToolCall(tool, currentTasks);
-      }
+      _lastParsedEntries = List<SessionEntry>.from(sessionState.entries);
     }
+
+    currentTasks.addAll(_cachedHistoricalTasks);
 
     // 3. Process active tool calls in real time
     for (final tool in sessionState.activeToolCalls.values) {
@@ -246,35 +276,22 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
           block = block.substring(0, closeIdx + 1);
         }
 
-        final idStr = RegExp(r"""['"]?id['"]?\s*:\s*(\d+)""").firstMatch(block)?.group(1);
+        final fields = _parseBlockFields(block);
+        final idStr = fields['id'] ??
+            RegExp(r"""['"]?id['"]?\s*:\s*(\d+)""").firstMatch(block)?.group(1);
         final id = idStr != null ? int.tryParse(idStr) ?? 0 : 0;
         if (id <= 0) continue;
 
-        final statusRaw = RegExp(r"""['"]?status['"]?\s*:\s*['"]?([a-zA-Z0-9_-]+)['"]?""")
-            .firstMatch(block)
-            ?.group(1);
+        final statusRaw = fields['status'] ??
+            RegExp(r"""['"]?status['"]?\s*:\s*['"]?([a-zA-Z0-9_-]+)['"]?""")
+                .firstMatch(block)
+                ?.group(1);
         final status = _normalizeStatus(statusRaw);
 
-        String? extractField(String key) {
-          final pattern = "['\"]?$key"
-              r"""['"]?\s*:\s*['"]?((?:(?!\s*,\s*['"]?(?:id|status|subject|title|description|activeForm|blockedBy|owner|metadata|nextId)['"]?\s*:).)+)""";
-          final m = RegExp(pattern, dotAll: true).firstMatch(block);
-          var val = m?.group(1)?.trim();
-          if (val == null) return null;
-          if (val.endsWith('}')) val = val.substring(0, val.length - 1).trim();
-          if (val.endsWith(',')) val = val.substring(0, val.length - 1).trim();
-          if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) {
-            val = val.substring(1, val.length - 1);
-          } else if (val.startsWith("'") && val.endsWith("'") && val.length >= 2) {
-            val = val.substring(1, val.length - 1);
-          }
-          return val.isNotEmpty ? val : null;
-        }
-
-        final subject = extractField('subject') ?? extractField('title');
-        final description = extractField('description');
-        final activeForm = extractField('activeForm');
-        final owner = extractField('owner');
+        final subject = fields['subject'] ?? fields['title'];
+        final description = fields['description'];
+        final activeForm = fields['activeForm'];
+        final owner = fields['owner'];
 
         final item = TodoItem(
           id: id,
@@ -319,6 +336,42 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
         }
       }
     }
+  }
+
+  static Map<String, String> _parseBlockFields(String block) {
+    final fields = <String, String>{};
+    final keyRegex = RegExp(
+      r"""(?:^|[\s,{])(['"]?(?:id|status|subject|title|description|activeForm|blockedBy|owner|metadata|nextId)['"]?)\s*:""",
+      caseSensitive: false,
+    );
+    final matches = keyRegex.allMatches(block).toList();
+    for (int i = 0; i < matches.length; i++) {
+      final m = matches[i];
+      var rawKey = m.group(1)?.trim() ?? '';
+      rawKey = rawKey.replaceAll(RegExp(r"""^['"]|['"]$"""), '').toLowerCase();
+
+      final valStart = m.end;
+      final valEnd = (i + 1 < matches.length) ? matches[i + 1].start : block.length;
+      var val = block.substring(valStart, valEnd).trim();
+
+      // Strip trailing comma, braces, semicolons
+      while (val.isNotEmpty && (val.endsWith(',') || val.endsWith('}') || val.endsWith(';'))) {
+        val = val.substring(0, val.length - 1).trim();
+      }
+      // Strip wrapping quotes
+      if (val.length >= 2) {
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.substring(1, val.length - 1);
+        }
+      }
+      if (val.isNotEmpty) {
+        if (rawKey == 'activeform') rawKey = 'activeForm';
+        if (rawKey == 'nextid') rawKey = 'nextId';
+        if (rawKey == 'blockedby') rawKey = 'blockedBy';
+        fields[rawKey] = val;
+      }
+    }
+    return fields;
   }
 
   void _mergeOrAddTask(Map<int, TodoItem> tasks, TodoItem incoming) {

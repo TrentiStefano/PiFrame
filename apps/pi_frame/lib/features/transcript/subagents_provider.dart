@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/daemon/pcp_client.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
@@ -78,6 +79,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   final Set<String> _locallyStopped = <String>{};
   final Set<String> _locallySteered = <String>{};
   final Set<String> _openSteeringIds = <String>{};
+  bool _fetchingFromDaemon = false;
 
   SubagentsNotifier(this.ref, this.sessionId) : super([]) {
     _init();
@@ -93,7 +95,13 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       sessionStateFamily(sessionId),
       (prev, next) {
         _syncFromSessionState(next);
-        _fetchFromDaemon();
+        final shouldFetch = prev == null ||
+            prev.agentStatus != next.agentStatus ||
+            prev.activeToolCalls.length != next.activeToolCalls.length ||
+            prev.entries.length != next.entries.length;
+        if (shouldFetch) {
+          _fetchFromDaemon();
+        }
       },
       fireImmediately: true,
     );
@@ -102,7 +110,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   void _checkTimer() {
     final hasActive = state.any((s) => s.status == 'running');
     if (hasActive) {
-      _refreshTimer ??= Timer.periodic(const Duration(seconds: 2), (_) {
+      _refreshTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
         _syncFromSessionState();
         _fetchFromDaemon();
         _readOutputFiles();
@@ -233,10 +241,12 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   }
 
   Future<void> _fetchFromDaemon() async {
+    if (_fetchingFromDaemon) return;
+    final client = ref.read(pcpClientProvider);
+    if (client == null || client.state != DaemonConnectionState.connected) return;
+    _fetchingFromDaemon = true;
     try {
-      final client = ref.read(pcpClientProvider);
-      if (client == null) return;
-      final daemonSubagents = await client.getSubagents(sessionId);
+      final daemonSubagents = await client.getSubagents(sessionId).timeout(const Duration(seconds: 4));
       if (daemonSubagents.isEmpty) return;
 
       final Map<String, SubagentItem> itemsMap = {
@@ -275,7 +285,10 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
       state = itemsMap.values.toList();
       _checkTimer();
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _fetchingFromDaemon = false;
+    }
   }
 
   void _readOutputFiles() {
