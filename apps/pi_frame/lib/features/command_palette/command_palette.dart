@@ -5,8 +5,9 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../ui/frame_snack_bar.dart';
-import '../composer/composer_draft.dart';
 import '../sessions_sidebar/session_actions.dart';
+import '../browser/browser_models.dart';
+import '../browser/browser_controller.dart';
 
 class PaletteAction {
   final String id;
@@ -131,36 +132,34 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         PaletteAction(
           id: 'interrupt',
           title: 'Interrompi agente (Esc)',
-          subtitle: 'Ferma il modello e ripristina la coda nel composer',
+          subtitle: 'Ferma il modello in esecuzione',
           icon: Icons.stop_circle_outlined,
           onExecute: () async {
-            final result = await ref
+            await ref
                 .read(sessionStateFamily(activeSessionId).notifier)
                 .interrupt();
-            if (!mounted) return;
-            final data = result?['data'] as Map<String, dynamic>? ?? result;
-            final queue = data?['queue'];
-            if (queue is Map) {
-              final restored =
-                  [
-                        ...?queue['steering'] as List?,
-                        ...?queue['followUp'] as List?,
-                      ]
-                      .whereType<String>()
-                      .where((text) => text.trim().isNotEmpty)
-                      .join('\n');
-              if (restored.isNotEmpty) {
-                final draft = ref.read(
-                  composerDraftProvider(activeSessionId).notifier,
-                );
-                draft.state = draft.state.trim().isEmpty
-                    ? restored
-                    : '${draft.state}\n$restored';
-              }
-            }
           },
         ),
       ],
+      PaletteAction(
+        id: 'switch_to_browser',
+        title: 'Mostra Web Browser',
+        subtitle: 'Apri il browser web integrato nel pannello laterale',
+        icon: Icons.language_outlined,
+        onExecute: () async {
+          ref.read(rightPaneModeProvider.notifier).state =
+              RightPaneMode.browser;
+        },
+      ),
+      PaletteAction(
+        id: 'switch_to_git',
+        title: 'Mostra Modifiche Git',
+        subtitle: 'Mostra il pannello delle modifiche Git nel pannello laterale',
+        icon: Icons.source_outlined,
+        onExecute: () async {
+          ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
+        },
+      ),
       PaletteAction(
         id: 'settings',
         title: 'Apri Impostazioni',

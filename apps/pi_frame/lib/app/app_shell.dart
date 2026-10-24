@@ -18,6 +18,9 @@ import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
 import '../features/workspace/repository_workspace.dart';
+import '../features/browser/browser_models.dart';
+import '../features/browser/browser_controller.dart';
+import '../features/browser/web_browser_pane.dart';
 import '../features/command_palette/command_palette.dart';
 import '../features/settings/settings_view.dart';
 import '../data/notifications/notification_providers.dart';
@@ -644,15 +647,25 @@ class _AppShellState extends ConsumerState<AppShell>
               onSelectCompanionTab: (pane) =>
                   setState(() => _companionPane = pane),
             )
-          : GitChangesPane(
-              key: ValueKey('git_$sessionId'),
-              sessionId: sessionId,
-              onCollapse: () => _collapsePane(WorkspacePane.git),
-              companionTabs: companionTabs,
-              activeCompanionTab: selectedCompanion,
-              onSelectCompanionTab: (pane) =>
-                  setState(() => _companionPane = pane),
-            ),
+          : (ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+              ? WebBrowserPane(
+                  key: ValueKey('browser_$sessionId'),
+                  sessionId: sessionId,
+                  onCollapse: () => _collapsePane(WorkspacePane.git),
+                  companionTabs: companionTabs,
+                  activeCompanionTab: selectedCompanion,
+                  onSelectCompanionTab: (pane) =>
+                      setState(() => _companionPane = pane),
+                )
+              : GitChangesPane(
+                  key: ValueKey('git_$sessionId'),
+                  sessionId: sessionId,
+                  onCollapse: () => _collapsePane(WorkspacePane.git),
+                  companionTabs: companionTabs,
+                  activeCompanionTab: selectedCompanion,
+                  onSelectCompanionTab: (pane) =>
+                      setState(() => _companionPane = pane),
+                )),
     };
 
     if (width < 900) {
@@ -703,8 +716,11 @@ class _AppShellState extends ConsumerState<AppShell>
   String _paneLabel(WorkspacePane pane) => switch (pane) {
     WorkspacePane.chat => 'Chat',
     WorkspacePane.repository => 'Repository',
-    WorkspacePane.git =>
-      ref.watch(isReviewingChangesProvider) ? 'Review Changes' : 'Git Changes',
+    WorkspacePane.git => ref.watch(isReviewingChangesProvider)
+        ? 'Review Changes'
+        : (ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+            ? 'Web Browser'
+            : 'Git Changes'),
   };
 
   void _togglePane(WorkspacePane pane) {
@@ -805,9 +821,13 @@ class _AppShellState extends ConsumerState<AppShell>
   Widget _collapsedPaneStrip(WorkspacePane pane) {
     final tokens = context.tokens;
     final isLeft = pane == WorkspacePane.repository;
+    final isBrowser = pane == WorkspacePane.git &&
+        !ref.watch(isReviewingChangesProvider) &&
+        ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final iconData = switch (pane) {
       WorkspacePane.repository => Icons.folder_outlined,
-      WorkspacePane.git => Icons.source_outlined,
+      WorkspacePane.git =>
+        isBrowser ? Icons.language_outlined : Icons.source_outlined,
       WorkspacePane.chat => Icons.chat_bubble_outline,
     };
     final expandIcon = isLeft ? Icons.chevron_right : Icons.chevron_left;
@@ -1039,10 +1059,12 @@ class _AppShellState extends ConsumerState<AppShell>
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 600;
+    final isBrowser =
+        ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => 'Chat',
       WorkspacePane.repository => 'File',
-      WorkspacePane.git => 'Git Changes',
+      WorkspacePane.git => isBrowser ? 'Web Browser' : 'Git Changes',
     };
     return Container(
       height: 44,

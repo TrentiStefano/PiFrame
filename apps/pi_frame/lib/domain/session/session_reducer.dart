@@ -186,15 +186,16 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             }
           }
           final isError = msg['isError'] == true;
-          if (toolCallId != null && output != null) {
+          final resolvedOutput = output ?? '';
+          if (toolCallId != null) {
             final nextOutputs = Map<String, String>.from(current.toolOutputs);
-            nextOutputs[toolCallId] = output;
+            nextOutputs[toolCallId] = resolvedOutput;
             final updatedTools =
                 Map<String, ToolExecutionState>.from(current.activeToolCalls);
             if (updatedTools.containsKey(toolCallId)) {
               final existing = updatedTools[toolCallId]!;
               updatedTools[toolCallId] = existing.copyWith(
-                output: output.isNotEmpty ? output : existing.output,
+                output: resolvedOutput.isNotEmpty ? resolvedOutput : existing.output,
                 isRunning: false,
                 isError: isError || existing.isError,
               );
@@ -205,7 +206,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
                 final updatedToolCalls = entry.toolCalls.map((t) {
                   if (t.toolCallId == toolCallId) {
                     return t.copyWith(
-                      output: output!.isNotEmpty ? output : t.output,
+                      output: resolvedOutput.isNotEmpty ? resolvedOutput : t.output,
                       isRunning: false,
                       isError: isError || t.isError,
                     );

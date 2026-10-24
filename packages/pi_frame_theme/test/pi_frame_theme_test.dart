@@ -13,24 +13,24 @@ void main() {
       expect(tokens.surfaceElevated, const Color(0xFF242E40));
       expect(tokens.displaySurface, const Color(0xFF242E40));
       expect(tokens.displayText, const Color(0xFFF1F5F9));
-      expect(tokens.accent, const Color(0xFF5898BD));
-      expect(tokens.agentWorking, const Color(0xFF4ADE80));
-      expect(tokens.diffAddedFg, const Color(0xFF4ADE80));
+      expect(tokens.accent, const Color(0xFF5F9FC5));
+      expect(tokens.agentWorking, const Color(0xFF81B2CF));
+      expect(tokens.diffAddedFg, const Color(0xFFA1D9B0));
       expect(tokens.danger, const Color(0xFFF1887A));
-      expect(tokens.syntaxKeyword, const Color(0xFF5898BD));
+      expect(tokens.syntaxKeyword, const Color(0xFF5F9FC5));
       expect(tokens.radiusLg, 14);
     },
   );
 
   test('PiFrame Light fallback has coordinated light surfaces', () {
     const tokens = FrameTokens.light;
-    expect(tokens.background, const Color(0xFFF4F5F8));
+    expect(tokens.background, const Color(0xFFF1F3F7));
     expect(tokens.surface, const Color(0xFFFFFFFF));
-    expect(tokens.displaySurface, const Color(0xFFDBE0E8));
+    expect(tokens.displaySurface, const Color(0xFFDAE0EA));
     expect(tokens.displayText, const Color(0xFF0F172A));
     expect(tokens.accent, const Color(0xFF24638A));
-    expect(tokens.warning, const Color(0xFFA15C0D));
-    expect(tokens.diffAddedFg, const Color(0xFF15803D));
+    expect(tokens.warning, const Color(0xFF895706));
+    expect(tokens.diffAddedFg, const Color(0xFF336C42));
     expect(tokens.radiusLg, 14);
   });
 

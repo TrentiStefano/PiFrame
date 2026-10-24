@@ -15,6 +15,8 @@ import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
 import '../transcript/rich_content.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../browser/browser_controller.dart';
+import '../browser/browser_models.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -2292,9 +2294,79 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             companionTabs: widget.companionTabs,
             activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.git,
             onSelectCompanionTab: widget.onSelectCompanionTab,
+            titleWidget: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Icon(Icons.source_outlined, size: 16, color: tokens.accent),
+                  const SizedBox(width: 8),
+                  Text(
+                    'GIT CHANGES',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 11.5,
+                      fontFamily: tokens.uiFontFamily,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    key: const ValueKey('right-pane-switch-browser-chip'),
+                    onTap: () {
+                      ref.read(rightPaneModeProvider.notifier).state =
+                          RightPaneMode.browser;
+                    },
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.language,
+                            size: 12,
+                            color: tokens.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Browser',
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  key: const ValueKey('git-switch-to-browser-btn'),
+                  tooltip: 'Passa a Web Browser',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: () {
+                    ref.read(rightPaneModeProvider.notifier).state =
+                        RightPaneMode.browser;
+                  },
+                  icon: const Icon(Icons.language, size: 16),
+                ),
                 IconButton(
                   tooltip: 'Aggiorna stato Git',
                   visualDensity: VisualDensity.compact,
@@ -2583,6 +2655,7 @@ Widget _paneHeader(
   String title,
   IconData icon, {
   Widget? trailing,
+  Widget? titleWidget,
   List<WorkspacePane>? companionTabs,
   WorkspacePane? activeCompanionTab,
   ValueChanged<WorkspacePane>? onSelectCompanionTab,
@@ -2696,7 +2769,9 @@ Widget _paneHeader(
               ),
             ),
           )
-        else ...[
+        else if (titleWidget != null) ...[
+          Expanded(child: titleWidget),
+        ] else ...[
           Icon(icon, size: 16, color: tokens.accent),
           const SizedBox(width: 8),
           Expanded(
