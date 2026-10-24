@@ -298,7 +298,18 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<Map<String, dynamic>?> interrupt() async {
     if (client == null) return null;
-    return client!.interruptAgent(sessionId);
+    final res = await client!.interruptAgent(sessionId);
+    if (mounted) {
+      state = state.copyWith(
+        steeringQueue: const [],
+        followUpQueue: const [],
+        agentStatus: AgentStatus.settled,
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+      );
+    }
+    return res;
   }
 
   Future<void> rename(String newName) async {
@@ -313,6 +324,12 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   Future<void> clearQueue() async {
     if (client == null) return;
     await client!.clearQueue(sessionId);
+    if (mounted) {
+      state = state.copyWith(
+        steeringQueue: const [],
+        followUpQueue: const [],
+      );
+    }
   }
 
   Future<void> updateSteerMessage(int index, String newText) async {

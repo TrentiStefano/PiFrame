@@ -418,3 +418,21 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   try { fs.unlinkSync(devFile); } catch {}
 });
+
+test('Dispatcher: agent.interrupt clears session queue, settles state, and broadcasts events', async () => {
+  const setup = createTestSetup();
+  const session = await setup.registry.createSession({ cwd: os.tmpdir() });
+  session.queue = { steering: ['queued steer 1'], followUp: ['queued follow-up 2'] };
+  session.status = 'working';
+  session.isStreaming = true;
+
+  const res = await sendCommand(setup, 'agent.interrupt', session.id);
+  const resultMsg = res.find((m: any) => m.kind === 'result');
+  assert.ok(resultMsg, 'must receive result');
+  assert.equal(resultMsg.payload.state, 'completed');
+  assert.equal(resultMsg.payload.data.interrupted, true);
+  assert.deepEqual(resultMsg.payload.data.queue, { steering: [], followUp: [] });
+  assert.deepEqual(session.queue, { steering: [], followUp: [] });
+  assert.equal(session.status, 'settled');
+  assert.equal(session.isStreaming, false);
+});

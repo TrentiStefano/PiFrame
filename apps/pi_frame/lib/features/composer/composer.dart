@@ -534,45 +534,23 @@ class _ComposerState extends ConsumerState<Composer> {
     final sessionNotifier = ref.read(
       sessionStateFamily(widget.sessionId).notifier,
     );
-    Map<String, dynamic>? res;
     try {
-      res = await sessionNotifier.interrupt();
+      await sessionNotifier.interrupt();
     } catch (error) {
       if (mounted) {
         FrameSnackBar.show(context, message: 'Interruzione non riuscita: $error');
       }
+      return;
     } finally {
       if (mounted) setState(() => _isInterrupting = false);
     }
     if (!mounted) return;
 
-    final data = res?['data'] as Map<String, dynamic>? ?? res;
-    // Esc semantics: Restore any unexecuted queued text back into the composer
-    if (data != null && data['queue'] is Map) {
-      final q = data['queue'] as Map<String, dynamic>;
-      final steering = (q['steering'] as List<dynamic>?)?.cast<String>() ?? [];
-      final followUp = (q['followUp'] as List<dynamic>?)?.cast<String>() ?? [];
-      final restored = [
-        ...steering,
-        ...followUp,
-      ].where((s) => s.trim().isNotEmpty).join('\n');
-
-      if (restored.isNotEmpty) {
-        if (_controller.text.trim().isEmpty) {
-          _controller.text = restored;
-        } else {
-          _controller.text = '${_controller.text}\n$restored';
-        }
-        if (mounted) {
-          FrameSnackBar.show(
-            context,
-            message:
-                'Interrotto. I messaggi non eseguiti in coda sono stati ripristinati nel composer.',
-            duration: const Duration(seconds: 3),
-          );
-        }
-      }
-    }
+    FrameSnackBar.show(
+      context,
+      message: 'Agente interrotto. La coda di messaggi è stata cancellata.',
+      duration: const Duration(seconds: 3),
+    );
   }
 
   void _onSelectSlashCommand(Map<String, dynamic> cmd) {

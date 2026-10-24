@@ -646,31 +646,42 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'clear_queue' });
+        const session = this.registry.getSession(sessionId);
+        if (session) {
+          session.queue = { steering: [], followUp: [] };
+          session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
+        }
         return res.data;
       }
 
       case 'agent.interrupt': {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
-        let restoredQueue = { steering: [] as string[], followUp: [] as string[] };
-
-        if (session && session.worker) {
+        let worker: any = session?.worker;
+        if (!worker) {
           try {
-            const clearRes = await session.worker.send({ command: 'clear_queue' });
-            if (clearRes.data) {
-              restoredQueue = {
-                steering: clearRes.data.steering || [],
-                followUp: clearRes.data.followUp || []
-              };
-            }
-          } catch {}
-
-          try {
-            await session.worker.send({ command: 'abort' });
+            worker = await this.registry.ensureWorkerForSession(sessionId);
           } catch {}
         }
 
-        return { interrupted: true, queue: restoredQueue };
+        if (worker) {
+          try {
+            await worker.send({ command: 'clear_queue' });
+          } catch {}
+          try {
+            await worker.send({ command: 'abort' });
+          } catch {}
+        }
+
+        if (session) {
+          session.queue = { steering: [], followUp: [] };
+          session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
+          session.isStreaming = false;
+          session.status = 'settled';
+          session.emitCustomEvent('run.settled', {});
+        }
+
+        return { interrupted: true, queue: { steering: [], followUp: [] } };
       }
 
       case 'agent.abort': {

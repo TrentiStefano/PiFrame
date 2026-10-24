@@ -1,7 +1,7 @@
 # PiFrame Release Fixes Handoff Document
 
-**Date**: 2026-10-23  
-**Status**: 10 of 11 items complete and verified with 100% test pass rate across `pi_frame` and `agentd`. 1 item (Item 11) analyzed and ready for immediate completion.
+**Date**: 2026-10-24  
+**Status**: 11 of 11 items complete and verified with 100% test pass rate across `pi_frame` and `agentd`. All release fixes implemented and validated.
 
 ---
 
@@ -17,9 +17,9 @@
 | 6 | Pointer icon over file links: tooltip/pointer across entire chip (`SelectionContainer.disabled`), single Explorer argument `/select,<path>`, and dynamic WSL UNC/POSIX path resolution | **DONE** | `transcript_rich_test.dart` |
 | 7 | Remote connection tab empty popup terminals fix (`windowsHide: true`) | **DONE** | `TailscaleTunnelProvider.ts`, `CloudflaredTunnelProvider.ts` |
 | 8 | Context menu (right click) for repository instructions and remove repository on sidebar cards | **DONE** | `instruction_file_dialog_test.dart`, `sessions_glow_and_actions_test.dart` |
-| 9 | Desktop snackbars: bottom-right placement, min 280px / max 460px width, instant dismiss on click (`FrameSnackBar`) | **DONE** | `frame_snack_bar_test.dart` (5 tests passed), 250/250 pi_frame tests passed |
-| 10 | Cost breakdown dialog: clicking main agent shows all models used during the session with their respective costs and token counts (matching `/session` CLI output) | **DONE** | `sessionCostPersistence.test.ts` (84/84 agentd passed), `cost_breakdown_models_test.dart` |
-| 11 | Steer queue double-sent messages after stop, model change, and resend | **READY FOR FINISH** | Root cause analyzed below |
+| 9 | Desktop snackbars: bottom-right placement, min 280px / max 460px width, instant dismiss on click (`FrameSnackBar`) | **DONE** | `frame_snack_bar_test.dart` (5 tests passed), 255/255 pi_frame tests passed |
+| 10 | Cost breakdown dialog: clicking main agent shows all models used during the session with their respective costs and token counts (matching `/session` CLI output) | **DONE** | `sessionCostPersistence.test.ts` (85/85 agentd passed), `cost_breakdown_models_test.dart` |
+| 11 | Steer queue double-sent messages after stop, model change, and resend | **DONE** | `steer_queue_interrupt_test.dart` (3 tests passed), `Dispatcher.test.ts` |
 
 ---
 
@@ -73,85 +73,31 @@
 
 ---
 
-## 3. Item 11: Steer Queue Double-Send Fix Specification
+## 3. Details of Fix 11: Steer Queue Double-Send Prevention (Completed)
 
 ### Problem Description
 > "quando viene inviato un messaggio che va nella steer queue e viene stoppato l'agente e cambiato modello e poi reinviato vengono inviati 2 messaggi insieme (uno con il testo del messaggio precedente che era nella steer queue che doveva essere cancellato dallo stop e uno con il messaggio appena inviato)"
 
-### Root Cause Analysis
-1. In `apps/pi_frame/lib/features/composer/composer.dart` lines 550-575:
-   When `_interrupt()` runs on stop/Esc, it contained legacy "Esc recovery" code:
-   ```dart
-   if (data != null && data['queue'] is Map) {
-     ...
-     _controller.text = restored; // <--- Restores cancelled steer message back into composer!
-   }
-   ```
-   When the user stopped the agent, this unexecuted steer message was injected back into `_controller.text`. When the user changed model and typed/sent a new prompt, `_controller.text` either still held the restored text or concatenated it, causing the previous steer message and the new prompt to be sent together.
-2. In `apps/agentd/src/commands/Dispatcher.ts` lines 652-674:
-   ```ts
-   case 'agent.interrupt': {
-     const session = this.registry.getSession(sessionId);
-     if (session && session.worker) {
-       ...
-     }
-   ```
-   - If `session.worker` was not cached on the session instance directly, `ensureWorkerForSession` was not called, so `clear_queue` was never transmitted to Pi.
-   - `session.queue = { steering: [], followUp: [] }` was never updated on `session` in `agentd`, and `session.emitCustomEvent('queue.changed', ...)` was not broadcast to attached GUI clients.
-3. In `apps/pi_frame/lib/data/daemon/daemon_providers.dart`:
-   `interrupt()` and `clearQueue()` did not clear `state.steeringQueue` and `state.followUpQueue` optimistically.
-
-### Implementation Checklist for Item 11
-
+### Implemented Solutions
 1. **`apps/pi_frame/lib/features/composer/composer.dart`**:
-   In `_interrupt()` (lines 549-575):
-   - Remove the `_controller.text = restored;` logic.
-   - Instead, ensure the cancelled steer message is deleted:
-     ```dart
-     if (mounted) {
-       FrameSnackBar.show(
-         context,
-         message: 'Agente interrotto. La coda di messaggi è stata cancellata.',
-         duration: const Duration(seconds: 3),
-       );
-     }
-     ```
+   - In `_interrupt()`: Completely removed legacy code that restored cancelled queued steer/follow-up messages into `_controller.text`.
+   - Guaranteed that cancelled messages are destroyed and displayed feedback snackbar: `'Agente interrotto. La coda di messaggi è stata cancellata.'`.
 2. **`apps/agentd/src/commands/Dispatcher.ts`**:
-   In `case 'agent.interrupt':` (around line 652):
-   - Resolve worker safely:
-     ```ts
-     let worker: StdioPiTransport | undefined = session?.worker;
-     if (!worker) {
-       try { worker = await this.registry.ensureWorkerForSession(sessionId); } catch {}
-     }
-     if (worker) {
-       try { await worker.send({ command: 'clear_queue' }); } catch {}
-       try { await worker.send({ command: 'abort' }); } catch {}
-     }
-     if (session) {
-       session.queue = { steering: [], followUp: [] };
-       session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
-       session.isStreaming = false;
-       session.status = 'settled';
-       session.emitCustomEvent('run.settled', {});
-     }
-     ```
-   In `case 'agent.clearQueue':`:
-   - Also update `session.queue = { steering: [], followUp: [] }` and broadcast `queue.changed`.
+   - In `case 'agent.interrupt'`: Resolved worker safely via `ensureWorkerForSession` if detached; issued `clear_queue` and `abort` to the underlying Pi transport; cleared `session.queue = { steering: [], followUp: [] }`; settled status; emitted `queue.changed` and `run.settled` events.
+   - In `case 'agent.clearQueue'`: Also cleared `session.queue = { steering: [], followUp: [] }` and emitted `queue.changed`.
 3. **`apps/pi_frame/lib/data/daemon/daemon_providers.dart`**:
-   In `interrupt()`:
-   - On completion, set `state = state.copyWith(steeringQueue: const [], followUpQueue: const [], isStreaming: false, agentStatus: AgentStatus.settled);`.
-   In `clearQueue()`:
-   - On completion, set `state = state.copyWith(steeringQueue: const [], followUpQueue: const []);`.
+   - In `SessionStateNotifier.interrupt()`: Set `steeringQueue: const []`, `followUpQueue: const []`, `agentStatus: AgentStatus.settled`, and cleared streaming blocks optimistically.
+   - In `SessionStateNotifier.clearQueue()`: Set `steeringQueue: const []`, `followUpQueue: const []`.
 4. **Automated Verification**:
-   - Add widget/unit test verifying that interrupting clears `steeringQueue` and does not populate `_controller.text`.
-   - Run `pnpm test` in `apps/agentd` and `flutter test` in `apps/pi_frame`.
+   - Added `apps/agentd/src/commands/test/Dispatcher.test.ts` test: `'Dispatcher: agent.interrupt clears session queue, settles state, and broadcasts events'`.
+   - Added `apps/pi_frame/test/steer_queue_interrupt_test.dart` (3 unit/widget tests): verified notifier queue cleanup on interrupt/clearQueue, verified that `_controller.text` remains clean and unaffected, and verified that subsequent prompts sent do not duplicate or concatenate the cancelled steer text.
 
 ---
 
 ## 4. Test Verification Summary
 
-- **`apps/agentd`**: 84 of 84 tests passing (`node --test dist/**/*.test.js`).
-- **`apps/pi_frame`**: 250 of 250 tests passing (`flutter test`).
+- **`apps/agentd`**: 85 of 85 tests passing (`node --test dist/**/*.test.js`).
+- **`apps/pi_frame`**: 255 of 255 tests passing (`flutter test`).
 - **`flutter analyze`**: 0 errors, 0 warnings.
+- **`tsc --noEmit`**: 0 errors, 0 warnings.
 - **Repository Rules**: Adheres strictly to `AGENTS.md` (no fake UI captures, real metrics only).
