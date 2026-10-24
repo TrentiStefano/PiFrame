@@ -5,9 +5,11 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   file_selector_windows
+  fullscreen_window
   local_notifier
   screen_retriever_windows
   url_launcher_windows
+  webview_win_floating
   window_manager
 )
 

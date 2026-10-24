@@ -6,10 +6,22 @@ enum RightPaneMode {
 }
 
 enum SearchEngine {
+  google(
+    label: 'Google',
+    icon: Icons.travel_explore,
+    searchUrlTemplate: 'https://www.google.com/search?q={query}',
+    homeUrl: 'https://www.google.com',
+  ),
+  youtube(
+    label: 'YouTube',
+    icon: Icons.play_circle_outline,
+    searchUrlTemplate: 'https://www.youtube.com/results?search_query={query}',
+    homeUrl: 'https://www.youtube.com',
+  ),
   duckDuckGo(
     label: 'DuckDuckGo',
     icon: Icons.search,
-    searchUrlTemplate: 'https://html.duckduckgo.com/html/?q={query}',
+    searchUrlTemplate: 'https://duckduckgo.com/?q={query}',
     homeUrl: 'https://duckduckgo.com',
   ),
   pubDev(
@@ -18,23 +30,17 @@ enum SearchEngine {
     searchUrlTemplate: 'https://pub.dev/packages?q={query}',
     homeUrl: 'https://pub.dev',
   ),
-  wikipedia(
-    label: 'Wikipedia',
-    icon: Icons.menu_book_outlined,
-    searchUrlTemplate: 'https://en.wikipedia.org/w/index.php?search={query}&fulltext=1',
-    homeUrl: 'https://en.wikipedia.org',
-  ),
-  google(
-    label: 'Google',
-    icon: Icons.travel_explore,
-    searchUrlTemplate: 'https://www.google.com/search?q={query}',
-    homeUrl: 'https://www.google.com',
-  ),
   github(
     label: 'GitHub',
     icon: Icons.code,
     searchUrlTemplate: 'https://github.com/search?q={query}',
     homeUrl: 'https://github.com',
+  ),
+  wikipedia(
+    label: 'Wikipedia',
+    icon: Icons.menu_book_outlined,
+    searchUrlTemplate: 'https://en.wikipedia.org/w/index.php?search={query}',
+    homeUrl: 'https://en.wikipedia.org',
   ),
   stackOverflow(
     label: 'Stack Overflow',
@@ -208,7 +214,7 @@ class WebBrowserState {
   const WebBrowserState({
     required this.tabs,
     required this.activeTabId,
-    this.searchEngine = SearchEngine.duckDuckGo,
+    this.searchEngine = SearchEngine.google,
     this.bookmarks = const [],
     this.recentSearches = const [],
   });

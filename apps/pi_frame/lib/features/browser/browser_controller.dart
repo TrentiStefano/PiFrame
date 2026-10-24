@@ -27,14 +27,14 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
 
   static const List<WebBookmark> defaultBookmarks = [
     WebBookmark(
-      title: 'pub.dev',
-      url: 'https://pub.dev',
-      icon: Icons.inventory_2_outlined,
+      title: 'Google',
+      url: 'https://www.google.com',
+      icon: Icons.travel_explore,
     ),
     WebBookmark(
-      title: 'Flutter Docs',
-      url: 'https://docs.flutter.dev',
-      icon: Icons.flutter_dash,
+      title: 'YouTube',
+      url: 'https://www.youtube.com',
+      icon: Icons.play_circle_outline,
     ),
     WebBookmark(
       title: 'GitHub',
@@ -42,14 +42,19 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
       icon: Icons.code,
     ),
     WebBookmark(
+      title: 'pub.dev',
+      url: 'https://pub.dev',
+      icon: Icons.inventory_2_outlined,
+    ),
+    WebBookmark(
       title: 'Stack Overflow',
       url: 'https://stackoverflow.com',
       icon: Icons.help_outline,
     ),
     WebBookmark(
-      title: 'MDN Web Docs',
-      url: 'https://developer.mozilla.org',
-      icon: Icons.menu_book,
+      title: 'Flutter Docs',
+      url: 'https://docs.flutter.dev',
+      icon: Icons.flutter_dash,
     ),
   ];
 
@@ -72,10 +77,10 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
 
   WebBrowserService get _service => _ref.read(browserServiceProvider);
 
-  Future<void> navigate(String input, {String? tabId}) async {
+  Future<String> navigate(String input, {String? tabId}) async {
     final targetTabId = tabId ?? state.activeTabId;
     final tabIndex = state.tabs.indexWhere((t) => t.id == targetTabId);
-    if (tabIndex == -1) return;
+    if (tabIndex == -1) return 'about:home';
 
     final currentTab = state.tabs[tabIndex];
     final normalized = _service.normalizeUrl(
@@ -125,6 +130,27 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
       );
       _updateTab(errorTab);
     }
+
+    return normalized;
+  }
+
+  void updateCurrentTab({
+    required String url,
+    String? title,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    final tabIndex = state.tabs.indexWhere((t) => t.id == state.activeTabId);
+    if (tabIndex == -1) return;
+    final currentTab = state.tabs[tabIndex];
+    final updated = currentTab.copyWith(
+      url: url,
+      title: (title != null && title.isNotEmpty) ? title : currentTab.title,
+      isLoading: isLoading ?? currentTab.isLoading,
+      errorMessage: errorMessage,
+      clearError: errorMessage == null,
+    );
+    _updateTab(updated);
   }
 
   Future<void> goBack({String? tabId}) async {

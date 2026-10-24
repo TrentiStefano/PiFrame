@@ -229,7 +229,7 @@ void main() {
       expect(state.tabs.length, 1);
       expect(state.activeTab.isHome, isTrue);
       expect(state.bookmarks.isNotEmpty, isTrue);
-      expect(state.searchEngine, SearchEngine.duckDuckGo);
+      expect(state.searchEngine, SearchEngine.google);
     });
 
     test('Navigates to URL and tracks history', () async {

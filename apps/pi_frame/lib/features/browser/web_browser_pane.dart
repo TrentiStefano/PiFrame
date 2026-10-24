@@ -1,8 +1,12 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_win_floating/webview.dart';
 
 import '../../ui/frame_snack_bar.dart';
 import '../composer/composer_draft.dart';
@@ -35,6 +39,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   late final TextEditingController _homeSearchController;
   final FocusNode _urlFocusNode = FocusNode();
   String? _lastSyncedUrl;
+  WinWebViewController? _winController;
+
+  bool get _isNativeWebViewSupported =>
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.windows &&
+      !Platform.environment.containsKey('FLUTTER_TEST') &&
+      !WidgetsBinding.instance.runtimeType.toString().contains('Test');
 
   @override
   void initState() {
@@ -45,10 +56,90 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     );
     _homeSearchController = TextEditingController();
     _lastSyncedUrl = activeTab.url;
+
+    if (_isNativeWebViewSupported) {
+      _initWinWebView();
+    }
+  }
+
+  void _initWinWebView() {
+    final controller = WinWebViewController();
+    _winController = controller;
+    controller.setNavigationDelegate(
+      WinNavigationDelegate(
+        onPageStarted: (url) {
+          if (!mounted) return;
+          ref.read(webBrowserProvider.notifier).updateCurrentTab(
+            url: url,
+            isLoading: true,
+          );
+        },
+        onPageFinished: (url) async {
+          if (!mounted) return;
+          final title = await controller.getTitle();
+          ref.read(webBrowserProvider.notifier).updateCurrentTab(
+            url: url,
+            title: title,
+            isLoading: false,
+          );
+        },
+        onUrlChange: (change) {
+          if (!mounted) return;
+          final url = change.url;
+          if (url != null && url.isNotEmpty) {
+            ref.read(webBrowserProvider.notifier).updateCurrentTab(
+              url: url,
+            );
+          }
+        },
+        onPageTitleChanged: (title) {
+          if (!mounted) return;
+          final activeTab = ref.read(webBrowserProvider).activeTab;
+          ref.read(webBrowserProvider.notifier).updateCurrentTab(
+            url: activeTab.url,
+            title: title,
+          );
+        },
+        onWebResourceError: (error) {
+          if (!mounted) return;
+          ref.read(webBrowserProvider.notifier).updateCurrentTab(
+            url: ref.read(webBrowserProvider).activeTab.url,
+            isLoading: false,
+            errorMessage: error.description,
+          );
+        },
+      ),
+    );
+    final activeTab = ref.read(webBrowserProvider).activeTab;
+    if (!activeTab.isHome && activeTab.url.isNotEmpty) {
+      final uri = Uri.tryParse(activeTab.url);
+      if (uri != null) {
+        controller.loadRequest(uri);
+      }
+    } else {
+      controller.setVisibility(false);
+    }
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    final activeTab = ref.read(webBrowserProvider).activeTab;
+    if (!activeTab.isHome && _isNativeWebViewSupported) {
+      _winController?.setVisibility(true);
+    }
+  }
+
+  @override
+  void deactivate() {
+    _winController?.setVisibility(false);
+    super.deactivate();
   }
 
   @override
   void dispose() {
+    _winController?.dispose();
+    _winController = null;
     _urlController.dispose();
     _homeSearchController.dispose();
     _urlFocusNode.dispose();
@@ -69,18 +160,83 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     }
   }
 
+  Future<void> _navigateTo(String input) async {
+    final text = input.trim();
+    if (text.isEmpty) return;
+    _urlFocusNode.unfocus();
+
+    final normalized =
+        await ref.read(webBrowserProvider.notifier).navigate(text);
+    if (_isNativeWebViewSupported && _winController != null) {
+      if (normalized == 'about:home') {
+        await _winController!.setVisibility(false);
+      } else {
+        await _winController!.setVisibility(true);
+        final uri = Uri.tryParse(normalized);
+        if (uri != null) {
+          await _winController!.loadRequest(uri);
+        }
+      }
+    }
+  }
+
   void _submitUrl() {
     final text = _urlController.text.trim();
     if (text.isEmpty) return;
-    _urlFocusNode.unfocus();
-    ref.read(webBrowserProvider.notifier).navigate(text);
+    _navigateTo(text);
   }
 
   void _submitHomeSearch() {
     final text = _homeSearchController.text.trim();
     if (text.isEmpty) return;
     _homeSearchController.clear();
-    ref.read(webBrowserProvider.notifier).navigate(text);
+    _navigateTo(text);
+  }
+
+  Future<void> _switchTab(String tabId) async {
+    ref.read(webBrowserProvider.notifier).switchTab(tabId);
+    final targetTab =
+        ref.read(webBrowserProvider).tabs.firstWhere((t) => t.id == tabId);
+    if (_isNativeWebViewSupported && _winController != null) {
+      if (targetTab.isHome) {
+        await _winController!.setVisibility(false);
+      } else {
+        await _winController!.setVisibility(true);
+        final currentUrl = await _winController!.currentUrl();
+        if (currentUrl != targetTab.url) {
+          final uri = Uri.tryParse(targetTab.url);
+          if (uri != null) {
+            await _winController!.loadRequest(uri);
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _newTab() async {
+    ref.read(webBrowserProvider.notifier).newTab();
+    if (_isNativeWebViewSupported && _winController != null) {
+      await _winController!.setVisibility(false);
+    }
+  }
+
+  Future<void> _closeTab(String tabId) async {
+    ref.read(webBrowserProvider.notifier).closeTab(tabId);
+    final activeTab = ref.read(webBrowserProvider).activeTab;
+    if (_isNativeWebViewSupported && _winController != null) {
+      if (activeTab.isHome) {
+        await _winController!.setVisibility(false);
+      } else {
+        await _winController!.setVisibility(true);
+        final currentUrl = await _winController!.currentUrl();
+        if (currentUrl != activeTab.url) {
+          final uri = Uri.tryParse(activeTab.url);
+          if (uri != null) {
+            await _winController!.loadRequest(uri);
+          }
+        }
+      }
+    }
   }
 
   Future<void> _openExternal(String url) async {
@@ -193,6 +349,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   isSelected: false,
                   tokens: tokens,
                   onTap: () {
+                    _winController?.setVisibility(false);
                     ref.read(rightPaneModeProvider.notifier).state =
                         RightPaneMode.git;
                   },
@@ -210,6 +367,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           ),
           const Spacer(),
           // Action Buttons
+          if (_isNativeWebViewSupported)
+            IconButton(
+              key: const ValueKey('browser-devtools-btn'),
+              tooltip: 'Apri DevTools di Chromium (F12)',
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+              onPressed: () => _winController?.openDevTools(),
+              icon: const Icon(Icons.developer_mode, size: 15),
+            ),
           IconButton(
             key: const ValueKey('browser-send-to-chat-btn'),
             tooltip: 'Invia al Chat Composer',
@@ -252,7 +419,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               padding: const EdgeInsets.all(4),
               constraints: const BoxConstraints(),
               tooltip: 'Collassa pannello Web Browser',
-              onPressed: widget.onCollapse,
+              onPressed: () {
+                _winController?.setVisibility(false);
+                widget.onCollapse?.call();
+              },
               icon: const Icon(Icons.chevron_right, size: 18),
             ),
           ],
@@ -309,7 +479,6 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   }
 
   Widget _buildTabBar(FrameTokens tokens, WebBrowserState browserState) {
-    final notifier = ref.read(webBrowserProvider.notifier);
     return Container(
       height: 32,
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -328,7 +497,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 final isActive = tab.id == browserState.activeTabId;
                 return InkWell(
                   key: ValueKey('browser-tab-${tab.id}'),
-                  onTap: () => notifier.switchTab(tab.id),
+                  onTap: () => _switchTab(tab.id),
                   child: Container(
                     constraints: const BoxConstraints(maxWidth: 160, minWidth: 80),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -379,7 +548,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         const SizedBox(width: 4),
                         InkWell(
                           key: ValueKey('browser-close-tab-${tab.id}'),
-                          onTap: () => notifier.closeTab(tab.id),
+                          onTap: () => _closeTab(tab.id),
                           borderRadius: BorderRadius.circular(10),
                           child: Padding(
                             padding: const EdgeInsets.all(2),
@@ -403,7 +572,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () => notifier.newTab(),
+            onPressed: _newTab,
             icon: const Icon(Icons.add, size: 16),
           ),
         ],
@@ -430,7 +599,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: activeTab.canGoBack ? () => notifier.goBack() : null,
+            onPressed: activeTab.canGoBack
+                ? () async {
+                    if (_isNativeWebViewSupported &&
+                        _winController != null &&
+                        await _winController!.canGoBack()) {
+                      await _winController!.goBack();
+                    }
+                    ref.read(webBrowserProvider.notifier).goBack();
+                  }
+                : null,
             icon: const Icon(Icons.arrow_back, size: 16),
           ),
           IconButton(
@@ -439,8 +617,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed:
-                activeTab.canGoForward ? () => notifier.goForward() : null,
+            onPressed: activeTab.canGoForward
+                ? () async {
+                    if (_isNativeWebViewSupported &&
+                        _winController != null &&
+                        await _winController!.canGoForward()) {
+                      await _winController!.goForward();
+                    }
+                    ref.read(webBrowserProvider.notifier).goForward();
+                  }
+                : null,
             icon: const Icon(Icons.arrow_forward, size: 16),
           ),
           IconButton(
@@ -449,7 +635,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () => notifier.reload(),
+            onPressed: () async {
+              if (_isNativeWebViewSupported &&
+                  _winController != null &&
+                  !activeTab.isHome) {
+                await _winController!.reload();
+              }
+              ref.read(webBrowserProvider.notifier).reload();
+            },
             icon: const Icon(Icons.refresh, size: 16),
           ),
           IconButton(
@@ -458,7 +651,12 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () => notifier.goHome(),
+            onPressed: () async {
+              if (_isNativeWebViewSupported && _winController != null) {
+                await _winController!.setVisibility(false);
+              }
+              ref.read(webBrowserProvider.notifier).goHome();
+            },
             icon: const Icon(Icons.home_outlined, size: 16),
           ),
           const SizedBox(width: 4),
@@ -610,7 +808,6 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   }
 
   Widget _buildBookmarksBar(FrameTokens tokens, WebBrowserState browserState) {
-    final notifier = ref.read(webBrowserProvider.notifier);
     return Container(
       height: 26,
       margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
@@ -638,7 +835,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 color: tokens.textPrimary,
               ),
             ),
-            onPressed: () => notifier.navigate(bm.url),
+            onPressed: () => _navigateTo(bm.url),
           );
         },
       ),
@@ -647,8 +844,38 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Widget _buildBody(FrameTokens tokens, WebBrowserTab activeTab) {
     if (activeTab.isHome) {
+      if (_isNativeWebViewSupported && _winController != null) {
+        _winController!.setVisibility(false);
+      }
       return _buildHomeDashboard(tokens);
     }
+
+    if (_isNativeWebViewSupported && _winController != null) {
+      _winController!.setVisibility(true);
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: WinWebViewWidget(controller: _winController!),
+          ),
+          if (activeTab.isLoading)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: tokens.surfaceElevated,
+                color: tokens.accent,
+              ),
+            ),
+        ],
+      );
+    }
+
+    return _buildFallbackReaderView(tokens, activeTab);
+  }
+
+  Widget _buildFallbackReaderView(FrameTokens tokens, WebBrowserTab activeTab) {
 
     if (activeTab.isLoading && activeTab.content == null) {
       return Center(
@@ -999,8 +1226,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           color: tokens.accent,
                         ),
                       ),
-                      onPressed: () =>
-                          ref.read(webBrowserProvider.notifier).navigate(link.url),
+                      onPressed: () => _navigateTo(link.url),
                     ),
                 ],
               ),
@@ -1062,8 +1288,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           const SizedBox(height: 4),
           InkWell(
             key: ValueKey('browser-search-result-$index'),
-            onTap: () =>
-                ref.read(webBrowserProvider.notifier).navigate(result.url),
+            onTap: () => _navigateTo(result.url),
             child: Text(
               result.title,
               style: TextStyle(
@@ -1087,7 +1312,6 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Widget _buildHomeDashboard(FrameTokens tokens) {
     final browserState = ref.watch(webBrowserProvider);
-    final notifier = ref.read(webBrowserProvider.notifier);
 
     return SingleChildScrollView(
       key: const ValueKey('browser-home-dashboard'),
@@ -1172,7 +1396,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           side: BorderSide(color: tokens.border),
                         ),
                       ),
-                      onPressed: () => notifier.navigate(bm.url),
+                      onPressed: () => _navigateTo(bm.url),
                       icon: Icon(
                         bm.icon ?? Icons.bookmark_border,
                         size: 14,
@@ -1208,7 +1432,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         side: BorderSide(color: tokens.border, width: 0.5),
                         avatar: Icon(Icons.history, size: 12, color: tokens.textMuted),
                         label: Text(query, style: const TextStyle(fontSize: 11)),
-                        onPressed: () => notifier.navigate(query),
+                        onPressed: () => _navigateTo(query),
                       ),
                   ],
                 ),
