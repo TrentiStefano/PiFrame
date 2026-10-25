@@ -314,6 +314,14 @@ pnpm smoke:real-pi
 
 ---
 
+## 🔧 Troubleshooting & Known Issues
+
+Encountering an issue? Check [**docs/troubleshooting.md**](docs/troubleshooting.md) for solutions to common environment problems:
+- **Windows Blank / White Window on Startup**: Resolving ANGLE/DirectX surface presentation issues on multi-GPU or virtual display driver setups (`USB Mobile Monitor`, `IddSampleDriver`, Spacedesk).
+- **Remote Web & Smartphone Access**: Verifying pairing tokens, Tailscale / Cloudflare tunnel routing, and serving mobile-optimized web assets.
+
+---
+
 ## 📂 Repository Layout
 
 ```text

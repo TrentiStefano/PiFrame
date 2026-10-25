@@ -44,6 +44,9 @@ Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.c
 2. L'installer aggiunge collegamenti nel menu Start; icona desktop è facoltativa.
 3. PiFrame include e avvia `pi-agentd` con Node incluso. Installer non firmato può mostrare l'avviso SmartScreen.
 
+> [!TIP]
+> **Finestra bianca o rendering bloccato?** In presenza di driver di schermi virtuali (es. `USB Mobile Monitor`, `IddSampleDriver`) o configurazioni multi-GPU, consulta la guida [**docs/troubleshooting.md**](troubleshooting.md) per le istruzioni di risoluzione rapida.
+
 ### Linux (Debian / Ubuntu)
 Installa il pacchetto `.deb` scaricato:
 

@@ -730,6 +730,18 @@
             </div>
           </details>
 
+          <details class="faq-item">
+            <summary class="faq-question">
+              <span>Why is my Windows desktop window white or blank on launch?</span>
+              <span class="faq-icon">+</span>
+            </summary>
+            <div class="faq-answer">
+              <p>
+                On Windows desktop, Flutter utilizes the ANGLE Direct3D 11 backend. In environments with <strong>virtual display drivers</strong> (such as <code>USB Mobile Monitor</code>, <code>IddSampleDriver</code>, Spacedesk, or secondary smartphone screen mirrors) or hybrid multi-GPU configurations, the Windows Desktop Window Manager (DWM) swapchain can occasionally stall. A clean reboot of Windows resolves the DirectX context state. You can also temporarily disable the virtual display adapter in Device Manager. See <a href="https://github.com/TrentiStefano/piframe/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">docs/troubleshooting.md</a> for complete instructions.
+              </p>
+            </div>
+          </details>
+
         </div>
 
       </div>
