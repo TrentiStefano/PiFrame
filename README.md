@@ -10,7 +10,7 @@
 
 <p align="center">
   <strong>The modern, resilient Bento GUI for <a href="https://github.com/earendil-works/pi">pi-coding-agent</a>.</strong><br>
-  Engineered for developers who demand fluid motion, native desktop speed, and zero lost agent work.
+  Engineered for developers who demand fluid 120fps motion, native desktop speed, and zero lost agent work.
 </p>
 
 <p align="center">
@@ -29,13 +29,13 @@
 Run agents, stream token responses, search and edit repository code with syntax highlighting, steer tasks in-flight, manage Git changes, and run commands inside the integrated terminal without leaving the window:
 
 <p align="center">
-  <a href="docs/design-evidence/hero.mp4">
-    <img src="docs/design-evidence/hero.gif" alt="A real run in PiFrame: agent working, code editor with syntax highlighting and Ctrl+F, steer queue, integrated terminal, and Git changes review" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+  <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">
+    <img src="docs/design-evidence/bento-triptych-fixture-dark-wide.png" alt="A real run in PiFrame: agent working, code editor with syntax highlighting and Ctrl+F, steer queue, integrated terminal, and Git changes review" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
   </a>
 </p>
 
 <p align="center">
-  <sub>A real run: the agent streams reasoning and tokens, tool executes tests, code editor highlights syntax with in-file Ctrl+F match cycling, user modifies the steer queue in-flight, stages Git changes, uses the embedded terminal, and toggles themes. (<a href="docs/design-evidence/hero.mp4">Watch in full quality MP4</a> · <a href="docs/design-evidence/hero.webp">High-definition WebP</a> · <a href="docs/design-evidence/showcase.html">Interactive Web Demo</a>)</sub>
+  <sub>A real run: the agent streams reasoning and tokens, tool executes tests, code editor highlights syntax with in-file Ctrl+F match cycling, user modifies the steer queue in-flight, stages Git changes, uses the embedded terminal, and toggles themes. (<a href="docs/design-evidence/showcase.html">Interactive Web Demo</a> · <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">View Full Resolution Capture</a>)</sub>
 </p>
 
 ---
@@ -46,85 +46,141 @@ Most AI coding assistants lock you into a monolithic web app or terminal session
 
 1. **🛡 Never Lose Agent Work (Disconnect-Safe):** Close the window, restart your desktop shell, or reload anytime. A background local daemon (`pi-agentd`) keeps the agent running, journals every stream event monotonically, and catches up seamlessly upon GUI reconnect with zero gaps or duplicate events.
 2. **📂 100% Native Pi Compatibility:** Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`). Switch freely between the `pi` terminal CLI and the PiFrame GUI at any moment.
-3. **🍱 Bento Triptych Workspace:** Co-visible repository code editor, streaming chat transcript, and interactive Git Changes in a balanced three-compartment view inspired by modern editor ergonomics.
+3. **🍱 Bento Triptych Workspace:** Co-visible repository code editor, streaming chat transcript, and interactive Git Changes / Web Browser in a balanced three-compartment view inspired by modern editor ergonomics.
 4. **🔒 Local-First & Zero Telemetry (Decision D16):** Strictly bound to `127.0.0.1` with cryptographically random tokens. No third-party analytics, no tracking pixels, no outbound calls beyond your configured model provider.
 
 ---
 
 ## ✨ Features & Functionality
 
-### 🍱 Bento Triptych Workspace
-- **Three co-visible work areas:** Repository file tree & code viewer (Left), Pi chat session (Center), and Git Changes inspector / Review pane (Right).
+### 🍱 Bento Triptych Workspace & Companion Panes
+- **Three co-visible work areas:** Repository file tree & code viewer (Left), Pi chat session (Center), and Git Changes inspector / Live Web Browser (Right).
 - **Responsive adaptation:** Seamlessly adjusts from ultra-wide 1440px+ displays down to compact laptop screens and single-column mobile views.
 - **Collapsible Panes:** Easily collapse or expand side panels with instant keyboard shortcuts or one-click headers.
-- **Companion Tabs:** Effortlessly switch between File Explorer, Review Changes, and the Integrated Terminal.
+- **Unified Companion Tabs:** Seamlessly toggle between File Explorer, Code Editor, Git Review Changes, Embedded Browser, and the Integrated Terminal with exclusive active-pane controls.
 
-### 💻 Integrated Terminal with Native OS Integration
+### 🌐 Embedded Chromium Web Browser (Live In-App Browsing)
+- **Native WebView2 Engine:** Full Chromium-powered web browser embedded directly inside the right companion pane on desktop.
+- **Multi-Engine Search:** Quick search bar integrated with Google, DuckDuckGo, YouTube, pub.dev, GitHub, Wikipedia, Stack Overflow, and MDN Web Docs.
+- **Tab & History Management:** Multi-tab browsing with back/forward history, reload, home, and custom bookmark shortcuts.
+- **Chat Copilot Integration:** Send web pages, documentation snippets, and reference URLs straight to the agent composer with one click.
+
+### 💻 Integrated Terminal with Native OS Integration & WSL
 - **Direct Hardware Typing:** High-performance integrated terminal emulator embedded directly inside your workspace with hardware-level keyboard typing.
 - **Native OS Shells:** Spawns native PowerShell / cmd on Windows, zsh / bash on macOS and Linux.
 - **First-Class WSL Support:** Open repositories located inside the Windows Subsystem for Linux (WSL) and run commands directly through an integrated WSL bash terminal.
 
-### 📋 Live Agent ToDo Breakdown
-- **Real-Time Task Checklists:** Interactive agent task list panel rendering progress in real time.
-- **Synchronized Checkboxes:** Watch tasks auto-check as the agent reaches milestones, or manually interact with task items.
+### 📋 Live Agent ToDo Breakdown & Interactive Tasks
+- **Real-Time Task Checklists:** Interactive agent task list panel rendering progress in real time as the agent plans and executes multi-step work.
+- **Synchronized Checkboxes:** Watch tasks auto-check as milestones are completed, with direct status toggling and chat transition notifications.
+- **Runaway & Duplicate Prevention:** Robust parser safeguards prevent duplicate task generation or counter runaway during high-speed token streaming.
 
-### 🤖 Popdown Subagents Panel
-- **Dedicated Subagent Drawer:** Easily monitor parallel or nested subagents spawned during complex tasks.
-- **Live Output & Steering:** Expand subagent execution streams, provide directional steer input, or stop unresponsive subagents individually.
+### 🤖 Popdown Subagents Panel & Dedicated Monitoring
+- **Dedicated Subagent Drawer:** Monitor parallel or nested subagents spawned during complex tasks with dedicated booktab indicators.
+- **Live Output & Steering:** Expand individual subagent execution streams, supply directional steer input, and stop unresponsive subagents individually.
+- **Subsession Cost Tracking:** Real-time cost reconciliation and cumulative token accounting across all child workers.
 
-### 🔌 MCP Server Management
-- **Interactive Server Cards:** Click the Model Context Protocol (MCP) badge to view all configured and active MCP tools and servers.
-- **Dynamic Server Toggles:** Enable or disable specific MCP servers with intuitive checkboxes without restarting sessions.
+### 🎯 In-Flight Visual Steer Queue
+- **Non-Interruptive Steering:** Queue, modify, or dismiss pending steer directions while responses stream without interrupting generation.
+- **Re-Order & In-Flight Editing:** Drag or edit steer instructions before the agent begins their execution.
+- **Double-Send Safeguards:** Robust state synchronization prevents duplicate steers on agent interrupt, model switch, or resend actions.
 
-### 🔍 Review Changes Desk & Git Staging
+### 🔍 Git Changes Review Desk & 50/50 Split Diff
 - **50/50 Split Review Pane:** Dedicated side-by-side or unified diff viewing to inspect changes before committing.
 - **Comprehensive File Tracking:** Real-time visibility into modified (`M`), added (`A`), deleted (`D`), and untracked (`?`) files.
 - **Markdown Live Preview:** Toggle live rendered markdown previews for `.md` files right within the workspace editor.
 - **Staging & Revert Controls:** Stage, unstage, or discard changes with one click.
 
-### ⏱ Real-Time Context Usage & Cost Analytics
+### 🔌 MCP Server Management (Model Context Protocol)
+- **Interactive Server Cards:** Click the Model Context Protocol (MCP) badge to view all configured and active MCP tools and servers.
+- **Dynamic Server Toggles:** Enable or disable specific MCP servers with intuitive checkboxes without restarting sessions.
+
+### ⏱ Real-Time Context Usage & Multi-Model Cost Analytics
 - **Live Cost & Token Metering:** Accurate real-time session cost and token accumulation tracking mirroring CLI/TUI metrics.
+- **Multi-Model Cost Breakdown:** Detailed cost inspection dialog breaking down expenditures per model across turns and sub-sessions.
 - **Context Window Selector:** Explicitly pick model context bounds for variable-context models (e.g., Luna, Haiku) to optimize performance and billing.
 
-### ✍️ Expanded Composer & Fluid Animations
+### ✍️ Expanded Composer, File Mentions & Drag-and-Drop
 - **Large Prompt Composer:** Toggle an enlarged input window with rich multiline textarea when composing lengthy prompts.
-- **Animated Minimization:** Smooth spring transition automatically minimizes composer input while the agent is generating.
-- **In-Queue Steer Editing:** Re-order, modify, or dismiss pending steer instructions while an answer streams.
+- **Animated Minimization:** Smooth spring transition automatically minimizes composer input with pointer glow while the agent generates, expanding after 5 seconds or upon click.
+- **`@` File Mentions & `/` Slash Menus:** Quick-search repository files and slash commands directly in the input box.
 - **Drag & Drop Attachments:** Drag and drop images or text files directly into chat; view files with inline transcript chips and full-screen lightbox preview.
-- **Direct Workspace Navigation:** `Ctrl+Click` on file mentions in the transcript to open the file directly in the OS file explorer.
+- **Direct Workspace Navigation:** `Ctrl+Click` on file mentions in the transcript to open the file directly in the OS file explorer or internal editor.
 - **Inline Session Rename:** Double-click or press Enter on the session header to rename sessions on the fly.
 
-### 🌐 Secure Remote Access (Tailscale & Cloudflare)
-- **Zero-Config Remote Web Access:** Securely access and control your desktop agent sessions from mobile browsers (iPhone, iPad, Android) or laptops.
+### 📝 AI Instruction File Generator (`AGENTS.md` / `PI.md`)
+- **Direct Instruction Editor:** View, edit, and maintain repository-specific instruction files (`AGENTS.md`, `PI.md`) from the session header or sidebar.
+- **AI-Assisted Generation:** Generate tailored project instructions using the Pi agent directly from a guided dialog.
+
+### 🚀 Quick Launch Welcome Screen & Startup Assembly Animation
+- **Landing Quick Launch:** Welcome page displaying the latest 5 active sessions with instant resume, project paths, and quick folder selection.
+- **Startup Logo Assembly:** Smooth geometric logo assembly animation on launch with subtle framing audio.
+- **Window Geometry Persistence:** Automatically saves and restores desktop window position, size, and maximized state across app restarts.
+
+### 🎨 Custom Theme Customizer & VSCode JSON Import
+- **Official Normative Palettes:** Preloaded with precision-tuned **PiFrame Dark** (`#161c27`) and **PiFrame Light** (`#f1f3f7`) themes with automatic system theme tracking.
+- **Interactive Theme Editor:** Customize base colors, surface tones, chassis borders, and accent highlights with live component preview cards.
+- **VSCode Theme Import:** Import standard VSCode JSON theme files directly into PiFrame.
+- **Custom JSON Themes:** Add hot-reloadable themes in `~/.piframe/themes/` with full token inheritance.
+- **Multi-Language Support:** Language dropdown in Appearance settings for localized user experience.
+
+### 🌐 Secure Remote Web Access (Tailscale & Cloudflare)
+- **Zero-Config Remote Web Access:** Securely access and control your desktop agent sessions from mobile browsers (iPhone, iPad, Android) or secondary laptops.
 - **Tunnels Supported:** Built-in integration for Tailscale and Cloudflare tunnels.
 - **Secure Pairing:** Connect with a 6-digit PIN or QR code with automatic credential expiration.
 - **View vs. Control Modes:** Fine-grained authorization controls to enforce read-only viewing or explicit authorization for terminal and file modifications.
 - **Mobile-Tailored UI:** Specially tuned responsive layout and touch-friendly controls for mobile browsers.
 
-### 🎨 Theme Engine & Customization
-- **Official Catppuccin Palettes:** Preloaded with **Frappé** (dark) and **Latte** (light) themes with automatic system theme tracking.
-- **VSCode Theme Import:** Import standard VSCode JSON theme files directly into PiFrame.
-- **Custom JSON Themes:** Add hot-reloadable themes in `~/.piframe/themes/` with full token inheritance.
-- **Instruction File Editor:** Edit repository-specific agent instruction files (`AGENTS.md` / `PI.md`) directly from the session sidebar.
-
-### 🔔 Native Notifications & Auto-Updates
-- **Background Completion Alerts:** Receive native OS notifications when the agent finishes long runs or requests human input while the app is unfocused.
-- **One-Click Updates:** Check for updates directly inside the Settings view with version change highlights.
+### 🔔 Native OS Notifications & Auto-Update Engine
+- **Background Completion Alerts:** Receive native OS notifications and desktop snackbars when the agent finishes long runs or requests human input while unfocused.
+- **Startup Update Checker:** Real-time startup notification banner alerting when Pi CLI or PiFrame updates are available.
+- **One-Click Updates:** Launch background updates with release highlights directly from Settings.
 - **First-Run Onboarding:** Prompts to install `pi-coding-agent` on first launch if not detected on your system.
 
 ---
 
-## 📸 Screenshots
+## 📸 Screenshots & Visual Tour
 
-| PiFrame Dark | PiFrame Light |
+### Bento Workspace & Themes
+| PiFrame Dark (Default) | PiFrame Light |
 | :---: | :---: |
 | [![PiFrame Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![PiFrame Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
-| *Bento Triptych workspace in PiFrame Dark (#161c27)* | *Bento Triptych workspace in PiFrame Light (#f1f3f7)* |
+| *Bento Triptych workspace running official PiFrame Dark theme (`#161c27`)* | *Bento Triptych workspace running official PiFrame Light theme (`#f1f3f7`)* |
 
-| Theme Customizer | Compact / Single-Pane Mode |
+### Autonomous Workflow & In-Flight Steering
+| In-Flight Steer Queue | Real-Time Reasoning & Thinking Stream |
 | :---: | :---: |
-| [![Theme Editor](docs/design-evidence/recordly-projects/04_theme_editor.png)](docs/design-evidence/recordly-projects/04_theme_editor.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
-| *Theme token editor, custom color picker, and live component preview* | *Compact responsive layout for smaller screens* |
+| [![In-Flight Steer Queue](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png)](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png) | [![Reasoning Stream](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png)](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png) |
+| *Modify, prioritize, and steer agent reasoning without interrupting token generation* | *High-framerate token stream with granular thinking inspection, live cost, and tool timing* |
+
+### Code Navigation & Git Staging Desk
+| Git Changes Review Desk (50/50 Diff) | Syntax Highlighting & Code Search (Ctrl+F) |
+| :---: | :---: |
+| [![Git Changes Staging](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png)](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png) | [![Code Search & Syntax Highlighting](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png)](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png) |
+| *50/50 split diff inspection, one-click staging, and file discard actions* | *Syntax-highlighted repository code viewer with in-file match cycling and line numbers* |
+
+### Session Navigation & Command Palette
+| Grouped Repository Session Tree | Command Palette (Ctrl+P / Cmd+P) |
+| :---: | :---: |
+| [![Session Tree](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png)](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png) | [![Command Palette](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png)](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png) |
+| *Session tree grouped by repository with search, pinned sessions, and status pills* | *Fast keyboard-driven command palette for workspace navigation and panel actions* |
+
+### Quick Launch & AI Instruction Generator
+| Landing Page Quick Launch | AI Instruction File Generator |
+| :---: | :---: |
+| [![Landing Quick Launch](docs/design-evidence/recordly-projects/01_landing_quick_launch.png)](docs/design-evidence/recordly-projects/01_landing_quick_launch.png) | [![Instruction Dialog](docs/design-evidence/recordly-projects/02_instruction_dialog.png)](docs/design-evidence/recordly-projects/02_instruction_dialog.png) |
+| *Welcome screen with recent 5 active sessions for instant one-click resume* | *Generate and refine repository-specific `AGENTS.md` and `PI.md` instruction files* |
+
+### Customization & Responsive Layouts
+| Theme Editor & Live Preview | Appearance Settings & Language |
+| :---: | :---: |
+| [![Theme Editor](docs/design-evidence/recordly-projects/04_theme_editor.png)](docs/design-evidence/recordly-projects/04_theme_editor.png) | [![Appearance Settings](docs/design-evidence/recordly-projects/05_appearance_settings.png)](docs/design-evidence/recordly-projects/05_appearance_settings.png) |
+| *Dedicated Theme Customizer with live component preview cards and token inheritance* | *Appearance settings with custom theme selection and application language dropdown* |
+
+| Context & Cost Analytics | Compact Responsive Layout |
+| :---: | :---: |
+| [![Context Analytics](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png)](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
+| *Real-time context window usage, cumulative cost, and token accumulation tracking* | *Seamless responsive adaptation for smaller laptops and single-pane viewports* |
 
 ---
 
@@ -264,7 +320,7 @@ pnpm smoke:real-pi
 piframe/
 ├── apps/
 │   ├── pi_frame/                 # Flutter application (Windows, macOS, Linux, Web)
-│   │   ├── lib/                  # App shell, Bento workspace, syntax highlighter, composer
+│   │   ├── lib/                  # App shell, Bento workspace, syntax highlighter, composer, browser
 │   │   ├── assets/themes/        # Bundled themes (piframe-dark, piframe-light)
 │   │   └── test/                 # 87+ widget, stress, layout, and lint tests
 │   └── agentd/                   # Persistent Node.js/TypeScript daemon
