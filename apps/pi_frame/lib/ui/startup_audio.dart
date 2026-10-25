@@ -1,21 +1,13 @@
-import 'dart:ffi';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:ffi/ffi.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-typedef _PlaySoundNative = Int32 Function(Pointer<Void> pszSound, IntPtr hmod, Uint32 fdwSound);
-typedef _PlaySoundDart = int Function(Pointer<Void> pszSound, int hmod, int fdwSound);
-
-const int _sndAsync = 0x0001;
-const int _sndMemory = 0x0004;
+import 'startup_audio_stub.dart' if (dart.library.io) 'startup_audio_io.dart';
 
 class StartupAudio {
   StartupAudio._();
-
-  static Pointer<Uint8>? _activeSoundBuffer;
 
   /// Builds a standard 44-byte RIFF/WAVE header for 16-bit mono PCM.
   static Uint8List createWav(Int16List samples, int sampleRate) {
@@ -89,7 +81,8 @@ class StartupAudio {
       // High-impact initial transient impulse with rapid exponential decay
       final envelope = exp(-t * 90.0);
       final noise = (random.nextDouble() * 2.0 - 1.0) * 0.45;
-      final woodResonance = sin(2 * pi * 880 * t) * 0.35 + sin(2 * pi * 1420 * t) * 0.2;
+      final woodResonance =
+          sin(2 * pi * 880 * t) * 0.35 + sin(2 * pi * 1420 * t) * 0.2;
       final value = (noise + woodResonance) * envelope;
       samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
     }
@@ -130,40 +123,16 @@ class StartupAudio {
   }
 
   static void _play(Uint8List wavBytes) {
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (kIsWeb) {
+      SystemSound.play(SystemSoundType.click);
       return;
     }
-
-    if (Platform.isWindows) {
-      try {
-        final winmm = DynamicLibrary.open('winmm.dll');
-        final playSound = winmm.lookupFunction<_PlaySoundNative, _PlaySoundDart>('PlaySoundW');
-
-        if (_activeSoundBuffer != null) {
-          calloc.free(_activeSoundBuffer!);
-          _activeSoundBuffer = null;
-        }
-
-        final ptr = calloc<Uint8>(wavBytes.length);
-        final list = ptr.asTypedList(wavBytes.length);
-        list.setAll(0, wavBytes);
-        _activeSoundBuffer = ptr;
-
-        playSound(ptr.cast<Void>(), 0, _sndMemory | _sndAsync);
-      } catch (_) {
-        SystemSound.play(SystemSoundType.click);
-      }
-    } else {
-      SystemSound.play(SystemSoundType.click);
-    }
+    playWavNative(wavBytes);
   }
 
   static void dispose() {
-    if (_activeSoundBuffer != null) {
-      try {
-        calloc.free(_activeSoundBuffer!);
-      } catch (_) {}
-      _activeSoundBuffer = null;
+    if (!kIsWeb) {
+      disposeNativeAudio();
     }
   }
 }
