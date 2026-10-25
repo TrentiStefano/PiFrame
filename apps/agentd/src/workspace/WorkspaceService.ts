@@ -77,7 +77,7 @@ export class WorkspaceService {
     if (!repo.isRepo || !repo.rootPath) return '';
     const root = await fs.promises.realpath(repo.rootPath);
     const safePath = filePath === undefined ? undefined : await this.resolvePath(root, filePath, true);
-    return getGitDiff(root, safePath ? path.relative(root, safePath) : undefined);
+    return getGitDiff(root, safePath ? path.relative(root, safePath).split(path.sep).join('/') : undefined);
   }
 
   async listFiles(cwd: string): Promise<{ rootPath: string; files: FileInfo[]; truncated: boolean }> {
@@ -157,7 +157,7 @@ export class WorkspaceService {
       await this.assertRevision(target, expectedRevision);
       const parent = path.dirname(target);
       const mode = (await fs.promises.stat(target)).mode;
-      const tempPath = path.join(parent, `.pi-crust-${randomUUID()}.tmp`);
+      const tempPath = path.join(parent, `.piframe-${randomUUID()}.tmp`);
       let handle: fs.promises.FileHandle | undefined;
       try {
         handle = await fs.promises.open(tempPath, 'wx', mode & 0o777);

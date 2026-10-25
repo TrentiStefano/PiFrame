@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/pcp/schema/welcome.schema.json",
+  "$id": "https://pi-frame.dev/pcp/schema/welcome.schema.json",
   "title": "PcpWelcome",
   "type": "object",
   "required": ["protocol", "kind", "id", "ts", "type", "payload"],

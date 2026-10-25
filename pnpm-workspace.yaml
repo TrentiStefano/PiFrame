@@ -4,3 +4,6 @@ packages:
   - 'packages/pcp-ts'
   - 'tools/*'
   - 'test/e2e'
+
+allowBuilds:
+  esbuild: true

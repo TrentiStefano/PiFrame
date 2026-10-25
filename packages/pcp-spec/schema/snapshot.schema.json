@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/pcp/schema/snapshot.schema.json",
+  "$id": "https://pi-frame.dev/pcp/schema/snapshot.schema.json",
   "title": "PcpSnapshot",
   "type": "object",
   "required": ["protocol", "kind", "id", "ts", "sessionId", "seq", "type", "payload"],

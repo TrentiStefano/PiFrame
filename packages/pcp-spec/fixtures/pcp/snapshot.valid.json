@@ -10,8 +10,8 @@
     "session": {
       "id": "s_01HZSESSION00000000000001",
       "name": "Refactor auth",
-      "cwd": "C:/Personale/Repos/pi-crust",
-      "gitRoot": "C:/Personale/Repos/pi-crust",
+      "cwd": "C:/Personale/Repos/pi-frame",
+      "gitRoot": "C:/Personale/Repos/pi-frame",
       "sessionFile": "session.jsonl",
       "createdAt": 1726639000000,
       "lastActivityAt": 1726640000000

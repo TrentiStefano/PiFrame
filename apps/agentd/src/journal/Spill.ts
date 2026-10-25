@@ -1,8 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { PcpEvent } from '@pi-crust/pcp-ts';
-import { getPiCrustBaseDir } from '../config/config.js';
+import type { PcpEvent } from '@piframe/pcp-ts';
+import { getPiFrameBaseDir } from '../config/config.js';
 
 export class Spill {
   private sessionId: string;
@@ -12,7 +12,7 @@ export class Spill {
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
-    this.journalDir = path.join(getPiCrustBaseDir(), 'journal', sessionId);
+    this.journalDir = path.join(getPiFrameBaseDir(), 'journal', sessionId);
     this.eventsFile = path.join(this.journalDir, 'events.jsonl');
     this.init();
   }

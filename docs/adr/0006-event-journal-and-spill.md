@@ -10,7 +10,7 @@ Replay must survive GUI disconnects and transient daemon restarts without turnin
 
 ## Decision
 
-Implement an in-memory ring buffer with append-only disk spill under ~/.pi-crust/journal/<sessionId>/ and periodic snapshots.
+Implement an in-memory ring buffer with append-only disk spill under ~/.piframe/journal/<sessionId>/ and periodic snapshots.
 
 ## Consequences
 

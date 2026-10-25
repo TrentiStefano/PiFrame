@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/theme.schema.json",
-  "title": "Pi-Crust Theme Schema",
-  "description": "Schema definition for Pi-Crust themes version 1",
+  "$id": "https://pi-frame.dev/theme.schema.json",
+  "title": "PiFrame Theme Schema",
+  "description": "Schema definition for PiFrame themes version 1",
   "type": "object",
   "required": ["schemaVersion", "id", "name", "variant"],
   "properties": {

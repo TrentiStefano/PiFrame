@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-05-context-analytics",
+  "videoPath": "../clip-05-context-analytics.mp4",
+  "metadata": {
+    "title": "Clip 5: Context Window & Cost Analytics",
+    "description": "Real-time context window token gauge (32k / 200k, 16%), token breakdown, cost tracking ($0.1800), and model configuration drawer.",
+    "recordedAt": "2026-10-19T14:09:16.540Z",
+    "durationSeconds": 4.4,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-context-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.08,
+        "focusX": 0.77,
+        "focusY": 0.2
+      },
+      {
+        "id": "zoom-context-panel",
+        "startMs": 800,
+        "endMs": 3000,
+        "scale": 1.12,
+        "focusX": 0.75,
+        "focusY": 0.5
+      },
+      {
+        "id": "zoom-context-out",
+        "startMs": 3000,
+        "endMs": 3500,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

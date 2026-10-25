@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/pcp/schema/command.schema.json",
+  "$id": "https://pi-frame.dev/pcp/schema/command.schema.json",
   "title": "PcpCommand",
   "type": "object",
   "required": ["protocol", "kind", "id", "ts", "commandId", "type", "payload"],
@@ -58,7 +58,18 @@
         "workspace.listFiles",
         "workspace.readFile",
         "workspace.saveFile",
-        "workspace.gitAction"
+        "workspace.gitAction",
+        "remote.getStatus",
+        "remote.start",
+        "remote.stop",
+        "remote.generatePairing",
+        "remote.setDeviceMode",
+        "remote.installCloudflared",
+        "remote.installTailscale",
+        "remote.setTailscaleHostname",
+        "remote.revokeDevice",
+        "remote.revokeAll",
+        "remote.setOptions"
       ]
     },
     "payload": { "type": "object" }

@@ -1,4 +1,4 @@
-import type { PcpResultPayload, PcpResultState } from '@pi-crust/pcp-ts';
+import type { PcpResultPayload, PcpResultState } from '@piframe/pcp-ts';
 
 export interface CommandRecord {
   commandId: string;

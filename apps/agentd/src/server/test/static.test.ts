@@ -9,10 +9,10 @@ import { createHttpServer } from '../httpServer.js';
 
 test('staticServer: serves static assets with security headers and cookie bootstrap', async (t) => {
   // Create a temporary static directory with sample Flutter web files
-  const tempWebDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-crust-web-'));
+  const tempWebDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-frame-web-'));
   fs.writeFileSync(
     path.join(tempWebDir, 'index.html'),
-    '<!DOCTYPE html><html><head><title>Pi-Crust App</title></head><body><script src="main.dart.js"></script></body></html>',
+    '<!DOCTYPE html><html><head><title>PiFrame App</title></head><body><script src="main.dart.js"></script></body></html>',
     'utf8'
   );
   fs.writeFileSync(path.join(tempWebDir, 'main.dart.js'), 'console.log("flutter app loaded");', 'utf8');
@@ -69,7 +69,7 @@ test('staticServer: serves static assets with security headers and cookie bootst
     for await (const chunk of res) {
       body += chunk;
     }
-    assert.ok(body.includes('<title>Pi-Crust App</title>'));
+    assert.ok(body.includes('<title>PiFrame App</title>'));
   });
 
   // 2. JavaScript asset request
@@ -122,7 +122,7 @@ test('staticServer: serves static assets with security headers and cookie bootst
     for await (const chunk of res) {
       body += chunk;
     }
-    assert.ok(body.includes('<title>Pi-Crust App</title>'));
+    assert.ok(body.includes('<title>PiFrame App</title>'));
   });
 
   // 4. Directory traversal attempt is rejected

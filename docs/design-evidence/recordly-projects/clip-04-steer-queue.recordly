@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-04-steer-queue",
+  "videoPath": "../clip-04-steer-queue.mp4",
+  "metadata": {
+    "title": "Clip 4: In-Flight Steer Queue Editing",
+    "description": "Composer expansion and modal dialog to modify queued steering directives on the fly without interrupting the active agent stream.",
+    "recordedAt": "2026-10-19T14:09:12.603Z",
+    "durationSeconds": 5.1,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-steer-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.1,
+        "focusX": 0.5,
+        "focusY": 0.56
+      },
+      {
+        "id": "zoom-steer-hold",
+        "startMs": 800,
+        "endMs": 4200,
+        "scale": 1.1,
+        "focusX": 0.5,
+        "focusY": 0.56
+      },
+      {
+        "id": "zoom-steer-out",
+        "startMs": 4200,
+        "endMs": 4800,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

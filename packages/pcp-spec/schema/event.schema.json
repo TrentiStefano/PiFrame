@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pi-crust.dev/pcp/schema/event.schema.json",
+  "$id": "https://pi-frame.dev/pcp/schema/event.schema.json",
   "title": "PcpEvent",
   "type": "object",
   "required": ["protocol", "kind", "id", "ts", "sessionId", "seq", "type", "payload"],
@@ -56,7 +56,8 @@
         "worker.crashed",
         "journal.gap",
         "session.indexChanged",
-        "daemon.configChanged"
+        "daemon.configChanged",
+        "remote.statusChanged"
       ]
     },
     "payload": { "type": "object" }

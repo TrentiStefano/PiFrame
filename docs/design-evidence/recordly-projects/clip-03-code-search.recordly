@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-03-code-search",
+  "videoPath": "../clip-03-code-search.mp4",
+  "metadata": {
+    "title": "Clip 3: In-File Code Search & Syntax Highlighting",
+    "description": "Real syntax highlighting in code viewer, live Ctrl+F search overlay, typing queries, and occurrence match cycling (1 di 2).",
+    "recordedAt": "2026-10-19T14:09:08.541Z",
+    "durationSeconds": 2.5,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-search-in",
+        "startMs": 0,
+        "endMs": 1000,
+        "scale": 1.22,
+        "focusX": 0.33,
+        "focusY": 0.43
+      },
+      {
+        "id": "zoom-search-hold",
+        "startMs": 1000,
+        "endMs": 4500,
+        "scale": 1.22,
+        "focusX": 0.33,
+        "focusY": 0.43
+      },
+      {
+        "id": "zoom-search-out",
+        "startMs": 4500,
+        "endMs": 5300,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

@@ -6,13 +6,15 @@ import { discoverPi } from './pi/discovery.js';
 import { probeCapabilities } from './pi/capabilities.js';
 import { createHttpServer } from './server/httpServer.js';
 import { createWsServer } from './server/wsServer.js';
+import { findStaticDir } from './server/static.js';
 import { SessionRegistry } from './sessions/SessionRegistry.js';
 import { Dispatcher } from './commands/Dispatcher.js';
+import { RemoteManager } from './remote/RemoteManager.js';
 
-const VERSION = '1.3.0'; // x-release-please-version
+const VERSION = '1.0.0'; // x-release-please-version
 
 async function main() {
-  console.log(`[agentd] Starting Pi-Crust Daemon v${VERSION}...`);
+  console.log(`[agentd] Starting PiFrame Daemon v${VERSION}...`);
 
   // 1. Single-instance mutex lock
   const lockHandle = acquireSingleInstanceLock();
@@ -51,31 +53,61 @@ async function main() {
     port = parseInt(process.argv[portArgIdx + 1], 10) || 0;
   }
 
-  // Prepare HTTP server instance
-  let httpServer: http.Server;
-  let registry: SessionRegistry;
-  let dispatcher: Dispatcher;
+  const remoteManager = new RemoteManager(config);
 
-  httpServer = createHttpServer({
+  const staticDir = findStaticDir();
+
+  // 4a. Local HTTP server (desktop client + loopback web UI)
+  const httpServer = createHttpServer({
     config,
     token: () => token,
     version: VERSION,
-    startedAt
+    startedAt,
+    remoteManager,
+    staticDir,
+    listener: 'local'
   });
 
-  // Bind exclusively to 127.0.0.1 (loopback)
   await new Promise<void>((resolve, reject) => {
-    httpServer.listen(port, '127.0.0.1', () => {
-      resolve();
-    });
+    httpServer.listen(port, '127.0.0.1', () => resolve());
     httpServer.on('error', reject);
   });
 
   const boundAddr = httpServer.address() as any;
   const actualPort = boundAddr.port;
-  console.log(`[agentd] HTTP/WS server bound strictly to 127.0.0.1:${actualPort}`);
+  console.log(`[agentd] Local HTTP/WS server bound strictly to 127.0.0.1:${actualPort}`);
 
-  // 5. Initialize runtime directory (~/.pi-crust/runtime/daemon.json, daemon.token, etc.)
+  // 4b. Dedicated Remote HTTP server (tunnels target this port ONLY - H2/H4)
+  const remoteHttpServer = createHttpServer({
+    config,
+    token: () => token,
+    version: VERSION,
+    startedAt,
+    remoteManager,
+    staticDir,
+    listener: 'remote'
+  });
+
+  const desiredRemotePort = config.remote.listenerPort || 0;
+  await new Promise<void>((resolve, reject) => {
+    remoteHttpServer.listen(desiredRemotePort, '127.0.0.1', () => resolve());
+    remoteHttpServer.on('error', reject);
+  });
+
+  const remoteBoundAddr = remoteHttpServer.address() as any;
+  const actualRemotePort = remoteBoundAddr.port;
+  console.log(`[agentd] Dedicated remote listener bound to 127.0.0.1:${actualRemotePort}`);
+  remoteManager.setListenerPort(actualRemotePort);
+
+  if (config.remote.enabled) {
+    console.log('[agentd] Remote connection enabled in config. Starting tunnel...');
+    // Boot auto-start: do NOT generate ephemeral pairing secret automatically (M6)
+    remoteManager.start(undefined, { generatePairing: false }).catch((err) => {
+      console.error('[agentd] Failed to start remote tunnel:', err.message);
+    });
+  }
+
+  // 5. Initialize runtime directory (~/.piframe/runtime/daemon.json, daemon.token, etc.)
   token = generateAndSaveToken();
   writeRuntimeInfo({
     port: actualPort,
@@ -87,13 +119,17 @@ async function main() {
 
   // 6. Setup WebSocket Server, SessionRegistry and Dispatcher
   let isShuttingDown = false;
+  let registry: SessionRegistry;
+  let dispatcher: Dispatcher;
 
-  const { wss, manager } = createWsServer({
+  const { wss: _wss, manager } = createWsServer({
     httpServer,
+    remoteHttpServer,
     config,
     token,
     version: VERSION,
     startedAt,
+    remoteManager,
     piInfo: {
       path: piInstall.path || '',
       version: piInstall.version || '',
@@ -118,7 +154,7 @@ async function main() {
     connectionManager: manager
   });
 
-  dispatcher = new Dispatcher(registry, manager);
+  dispatcher = new Dispatcher(registry, manager, undefined, remoteManager);
 
   console.log(`[agentd] Ready. Listening on ws://127.0.0.1:${actualPort}`);
 
@@ -134,10 +170,15 @@ async function main() {
     // 2. Stop workers gracefully
     await registry.closeAll(3000);
 
-    // 3. Close HTTP/WS server
-    await new Promise<void>((resolve) => {
-      httpServer.close(() => resolve());
-    });
+    // 2b. Flush and stop remote tunnel without resetting enabled state in config
+    remoteManager.flush();
+    await remoteManager.stop({ persistEnabled: false }).catch(() => {});
+
+    // 3. Close HTTP/WS servers
+    await Promise.all([
+      new Promise<void>((resolve) => httpServer.close(() => resolve())),
+      new Promise<void>((resolve) => remoteHttpServer.close(() => resolve()))
+    ]);
 
     // 4. Cleanup runtime files & single instance lock
     cleanupRuntimeFiles();

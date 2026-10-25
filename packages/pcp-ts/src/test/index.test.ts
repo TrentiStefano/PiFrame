@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const pcpFixturesDir = path.resolve(__dirname, '../../../../packages/pcp-spec/fixtures/pcp');
 
-describe('@pi-crust/pcp-ts', () => {
+describe('@piframe/pcp-ts', () => {
   it('validates envelope structure correctly', () => {
     assert.strictEqual(isEnvelope(null), false);
     assert.strictEqual(isEnvelope({}), false);

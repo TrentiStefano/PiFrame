@@ -27,7 +27,7 @@ jobs:
         run: node tools/recon/verify.ts
 
       - name: Run Schema validation
-        run: pnpm --filter @pi-crust/pcp-spec run test
+        run: pnpm --filter @piframe/pcp-spec run test
 
       - name: Build TypeScript packages
         run: pnpm -r run build

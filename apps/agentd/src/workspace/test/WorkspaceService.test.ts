@@ -11,7 +11,7 @@ function createRepo(): { root: string; cleanup: () => void } {
   const git = (args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
   git(['init', '-q']);
   git(['config', 'user.email', 'test@example.com']);
-  git(['config', 'user.name', 'Pi Crust Test']);
+  git(['config', 'user.name', 'PiFrame Test']);
   git(['config', 'core.autocrlf', 'false']);
   fs.writeFileSync(path.join(root, 'file.txt'), 'initial\n');
   git(['add', 'file.txt']);

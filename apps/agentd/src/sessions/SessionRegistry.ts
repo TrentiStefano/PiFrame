@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ulid } from 'ulid';
 import { Session } from './Session.js';
@@ -6,7 +7,7 @@ import { WorkerSupervisor } from './WorkerSupervisor.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
-import type { PcpSnapshot, PcpSnapshotPayload } from '@pi-crust/pcp-ts';
+import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 
 export interface SessionRegistryOptions {
@@ -59,7 +60,7 @@ export class SessionRegistry {
     return this.piExecutablePath;
   }
 
-  public async listSessions(query?: string, limit = 50): Promise<SessionSummary[]> {
+  public async listSessions(query?: string, limit = 50, includeSubsessions = false): Promise<SessionSummary[]> {
     const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
     const merged = new Map((await this.index.scan(activeIds)).map((s) => [s.id, s]));
     for (const session of this.sessions.values()) {
@@ -74,9 +75,23 @@ export class SessionRegistry {
     }
     const q = query?.trim().toLowerCase();
     return Array.from(merged.values())
+      .filter((s) => includeSubsessions || !s.isSubsession)
       .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
       .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
+  }
+
+  public async getSubagents(sessionId: string): Promise<Array<{
+    id: string;
+    name: string;
+    model?: string;
+    cost?: number;
+    output: string;
+    status: string;
+    description?: string;
+  }>> {
+    const session = this.getSession(sessionId);
+    return this.index.getSubagents(sessionId, session?.sessionFile);
   }
 
   public async createSession(opts: { cwd?: string; name?: string; announce?: boolean }): Promise<Session> {
@@ -160,6 +175,12 @@ export class SessionRegistry {
     // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
     const terminalOwner = await this.refreshTerminalOwnership(session);
     session.entries = this.index.readTranscript(found.sessionFile);
+    if (found.sessionFile) {
+      const meta = this.index.extractSessionMetadata(found.sessionFile);
+      if (meta.usage) session.usage = meta.usage;
+      if (meta.model) session.model = meta.model;
+      if (meta.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;
+    }
     this.sessions.set(id, session);
     return session;
   }
@@ -244,7 +265,15 @@ export class SessionRegistry {
 
     if (session.sessionFile) {
       await this.refreshTerminalOwnership(session);
-      if (session.readOnly || !session.worker) session.entries = this.index.readTranscript(session.sessionFile);
+      if (session.readOnly || !session.worker) {
+        session.entries = this.index.readTranscript(session.sessionFile);
+        if (!session.usage || Object.keys(session.usage).length === 0) {
+          const meta = this.index.extractSessionMetadata(session.sessionFile);
+          if (meta.usage) session.usage = meta.usage;
+          if (meta.model && !session.model) session.model = meta.model;
+          if (meta.thinkingLevel && !session.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;
+        }
+      }
       // Without a Pi worker, the session file is the latest source of history.
       if (session.readOnly || !session.worker) lastSeq = null;
     }
@@ -373,6 +402,41 @@ export class SessionRegistry {
 
   public async closeWorker(sessionId: string): Promise<void> {
     await this.supervisor.stopWorker(sessionId);
+  }
+
+  public async deleteSession(sessionId: string): Promise<boolean> {
+    const session = this.sessions.get(sessionId);
+    let sessionFile = session?.sessionFile;
+    if (session) {
+      await this.closeWorker(sessionId);
+      await session.close();
+      this.sessions.delete(sessionId);
+    }
+
+    const removedFile = this.index.removeSession(sessionId);
+    if (!sessionFile && removedFile) {
+      sessionFile = removedFile;
+    }
+    if (sessionFile && fs.existsSync(sessionFile)) {
+      try {
+        fs.unlinkSync(sessionFile);
+      } catch (_) {}
+    }
+
+    this.connectionManager.broadcastAll({
+      protocol: 1,
+      kind: 'event',
+      id: `evt_${ulid()}`,
+      ts: Date.now(),
+      sessionId: '@daemon',
+      seq: 0,
+      type: 'session.indexChanged',
+      payload: {
+        removed: [sessionId]
+      }
+    } as any);
+
+    return true;
   }
 
   public async closeAll(graceMs = 5000): Promise<void> {

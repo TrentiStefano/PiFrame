@@ -59,7 +59,7 @@ export class StdioPiTransport implements PiTransport {
 
   public async start(opts: { cwd: string; args?: string[]; env?: Record<string, string> }): Promise<void> {
     const launch = resolvePiLaunch(this.executablePath, opts.args ?? []);
-    const env = { ...process.env, ...opts.env, PI_CRUST: '1' };
+    const env = { ...process.env, ...opts.env, PI_FRAME: '1' };
     this.startedAt = Date.now();
     this.lastSeenMs = this.startedAt;
 

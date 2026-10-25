@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const agentdRequire = createRequire(path.join(root, 'apps/agentd/package.json'));
 const WebSocket = agentdRequire('ws');
-const home = mkdtempSync(path.join(os.tmpdir(), 'pi-crust-bundle-smoke-'));
+const home = mkdtempSync(path.join(os.tmpdir(), 'piframe-bundle-smoke-'));
 const bundlePath = path.join(root, 'apps/agentd/dist/pi-agentd.cjs');
 const child = spawn(process.execPath, [bundlePath, '--port', '0'], {
   cwd: root,
-  env: { ...process.env, PI_CRUST_HOME: home },
+  env: { ...process.env, PI_FRAME_HOME: home },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let logs = '';

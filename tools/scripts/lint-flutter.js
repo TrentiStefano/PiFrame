@@ -2,9 +2,9 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const dirs = [
-  'packages/pi_crust_protocol',
-  'packages/pi_crust_theme',
-  'apps/pi_crust'
+  'packages/pi_frame_protocol',
+  'packages/pi_frame_theme',
+  'apps/pi_frame'
 ];
 
 for (const dir of dirs) {

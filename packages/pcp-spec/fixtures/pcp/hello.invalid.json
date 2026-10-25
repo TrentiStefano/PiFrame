@@ -6,7 +6,7 @@
   "type": "connection.hello",
   "payload": {
     "client": {
-      "name": "pi-crust",
+      "name": "pi-frame",
       "version": "0.1.0",
       "platform": "windows"
     },

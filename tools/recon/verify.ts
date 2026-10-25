@@ -15,12 +15,12 @@ async function main() {
   console.log(`Platform: ${process.platform} (${process.arch})`);
 
   // 2. Verify Pi CLI version
-  const piBundle = process.env.PI_CRUST_PI_BUNDLE
+  const piBundle = process.env.PI_FRAME_PI_BUNDLE
     ?? (process.platform === 'win32'
       ? 'C:/nvm4w/nodejs/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'
       : '');
   if (!piBundle || !fs.existsSync(piBundle)) {
-    console.log('Skipping live Pi RPC check; set PI_CRUST_PI_BUNDLE to the CLI bundle path to enable it.');
+    console.log('Skipping live Pi RPC check; set PI_FRAME_PI_BUNDLE to the CLI bundle path to enable it.');
     return;
   }
   const piVersion = await new Promise<string>((resolve, reject) => {

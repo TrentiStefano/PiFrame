@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-02-command-palette",
+  "videoPath": "../clip-02-command-palette.mp4",
+  "metadata": {
+    "title": "Clip 2: Command Palette (Ctrl+K Quick Actions)",
+    "description": "Keyboard-first command palette modal for instant navigation, file searching, session operations, and workspace commands.",
+    "recordedAt": "2026-10-19T14:09:05.421Z",
+    "durationSeconds": 4.5,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-palette-in",
+        "startMs": 0,
+        "endMs": 800,
+        "scale": 1.06,
+        "focusX": 0.7,
+        "focusY": 0.1
+      },
+      {
+        "id": "zoom-palette-modal",
+        "startMs": 800,
+        "endMs": 2600,
+        "scale": 1.04,
+        "focusX": 0.5,
+        "focusY": 0.5
+      },
+      {
+        "id": "zoom-palette-out",
+        "startMs": 2600,
+        "endMs": 3000,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

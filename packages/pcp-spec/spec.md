@@ -1,7 +1,7 @@
-# PCP/1: Pi-Crust Protocol Specification (Version 1)
+# PCP/1: PiFrame Protocol Specification (Version 1)
 
-This document is the normative specification of the Pi-Crust Protocol (PCP/1).
-PCP/1 defines the bidirectional, asynchronous, message-based protocol used between **pi-agentd** (the background daemon) and **Pi-Crust** clients (Flutter desktop and web).
+This document is the normative specification of the PiFrame Protocol (PCP/1).
+PCP/1 defines the bidirectional, asynchronous, message-based protocol used between **pi-agentd** (the background daemon) and **PiFrame** clients (Flutter desktop and web).
 
 ---
 
@@ -75,7 +75,7 @@ Every message sent across the WebSocket conforms to the common envelope:
      "type": "connection.hello",
      "payload": {
        "token": "<256-bit base64url bearer token>",
-       "client": { "name": "pi-crust", "version": "0.1.0", "platform": "windows" },
+       "client": { "name": "pi-frame", "version": "0.1.0", "platform": "windows" },
        "encoding": "json",
        "capabilities": ["replay.v1", "ui.claim.v1", "workspace.v1"]
      }

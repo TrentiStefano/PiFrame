@@ -7,7 +7,7 @@
   "payload": {
     "token": "dGhpcy1pcy1hLXRlc3QtdG9rZW4tMjU2LWJpdHM",
     "client": {
-      "name": "pi-crust",
+      "name": "pi-frame",
       "version": "0.1.0",
       "platform": "windows"
     },

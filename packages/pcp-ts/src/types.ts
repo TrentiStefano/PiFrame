@@ -1,5 +1,5 @@
 /**
- * PCP/1 (Pi-Crust Protocol) TypeScript Type Definitions
+ * PCP/1 (PiFrame Protocol) TypeScript Type Definitions
  * Normative contract for client-daemon communication.
  */
 
@@ -99,6 +99,7 @@ export type PcpCommandType =
   | 'session.attach'
   | 'session.detach'
   | 'session.closeWorker'
+  | 'session.delete'
   | 'session.rename'
   | 'session.fork'
   | 'session.clone'
@@ -106,6 +107,7 @@ export type PcpCommandType =
   | 'session.getEntries'
   | 'session.getStats'
   | 'session.getForkPoints'
+  | 'session.subagents'
   | 'agent.prompt'
   | 'agent.steer'
   | 'agent.followUp'
@@ -113,6 +115,7 @@ export type PcpCommandType =
   | 'agent.clearQueue'
   | 'agent.interrupt'
   | 'agent.compact'
+  | 'agent.setContextWindowOverride'
   | 'agent.setAutoCompaction'
   | 'agent.setAutoRetry'
   | 'agent.abortRetry'
@@ -130,7 +133,18 @@ export type PcpCommandType =
   | 'workspace.listFiles'
   | 'workspace.readFile'
   | 'workspace.saveFile'
-  | 'workspace.gitAction';
+  | 'workspace.gitAction'
+  | 'remote.getStatus'
+  | 'remote.start'
+  | 'remote.stop'
+  | 'remote.generatePairing'
+  | 'remote.setDeviceMode'
+  | 'remote.installCloudflared'
+  | 'remote.installTailscale'
+  | 'remote.setTailscaleHostname'
+  | 'remote.revokeDevice'
+  | 'remote.revokeAll'
+  | 'remote.setOptions';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
@@ -257,7 +271,8 @@ export type PcpEventType =
   | 'worker.crashed'
   | 'journal.gap'
   | 'session.indexChanged'
-  | 'daemon.configChanged';
+  | 'daemon.configChanged'
+  | 'remote.statusChanged';
 
 export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'event';
@@ -293,11 +308,51 @@ export interface RuntimeMeta {
     steering: string[];
     followUp: string[];
   };
+  contextWindowOverride?: number | null;
 }
 
 export interface TranscriptMeta {
   entries: Array<Record<string, unknown>>;
   leafId?: string | null;
+}
+
+export type RemoteDeviceMode = 'view' | 'control';
+
+export interface RemoteDeviceRecord {
+  deviceId: string;
+  name: string;
+  userAgent?: string;
+  mode: RemoteDeviceMode;
+  createdAt: number;
+  lastUsedAt: number;
+  expiresAt: number;
+  remoteIp?: string;
+}
+
+export interface RemoteStatusPayload {
+  enabled: boolean;
+  state: 'stopped' | 'starting' | 'running' | 'error';
+  url?: string;
+  tunnelProvider: string;
+  cloudflaredInstalled: boolean;
+  cloudflaredPath?: string;
+  tailscale?: {
+    installed: boolean;
+    running: boolean;
+    hostname?: string;
+    domain?: string;
+    magicDnsSuffix?: string;
+  };
+  error?: string;
+  localPort?: number;
+  devices: RemoteDeviceRecord[];
+  pairingPending?: {
+    expiresAt: number;
+    url?: string;
+  };
+  options: {
+    defaultMode: RemoteDeviceMode;
+  };
 }
 
 export interface PcpSnapshotPayload {

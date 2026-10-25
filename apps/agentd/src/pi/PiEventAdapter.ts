@@ -1,10 +1,27 @@
 import { ulid } from 'ulid';
 import type { PiEvent } from './piCommands.js';
-import type { PcpEvent, PcpEventType } from '@pi-crust/pcp-ts';
+import type { PcpEvent, PcpEventType } from '@piframe/pcp-ts';
 
 export interface SessionContext {
   sessionId: string;
   lastUsage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+}
+
+function checkUsage(rawEvent: PiEvent, ctx: SessionContext, results: Array<{ type: PcpEventType; payload: any }>) {
+  const usage = rawEvent.usage || rawEvent.message?.usage;
+  if (usage) {
+    const inTokens = usage.input ?? usage.inputTokens;
+    const outTokens = usage.output ?? usage.outputTokens;
+    if (!ctx.lastUsage ||
+        ctx.lastUsage.inputTokens !== inTokens ||
+        ctx.lastUsage.outputTokens !== outTokens) {
+      ctx.lastUsage = { inputTokens: inTokens, outputTokens: outTokens };
+      results.push({
+        type: 'usage.updated',
+        payload: { usage }
+      });
+    }
+  }
 }
 
 export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ type: PcpEventType; payload: any }> {
@@ -17,10 +34,12 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       results.push({ type: 'run.started', payload: {} });
       break;
 
-    case 'agent_end':
+    case 'agent_end': {
       const willRetry = !!rawEvent.willRetry;
       results.push({ type: 'run.ended', payload: { willRetry } });
+      checkUsage(rawEvent, ctx, results);
       break;
+    }
 
     case 'agent_settled':
       results.push({ type: 'run.settled', payload: {} });
@@ -32,6 +51,7 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
 
     case 'turn_end':
       results.push({ type: 'turn.ended', payload: {} });
+      checkUsage(rawEvent, ctx, results);
       break;
 
     case 'message_start':
@@ -76,20 +96,12 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       }
 
       // Check usage update
-      const usage = rawEvent.usage || rawEvent.message?.usage;
-      if (usage && (!ctx.lastUsage ||
-          ctx.lastUsage.inputTokens !== (usage.input ?? usage.inputTokens) ||
-          ctx.lastUsage.outputTokens !== (usage.output ?? usage.outputTokens))) {
-        ctx.lastUsage = { inputTokens: usage.input ?? usage.inputTokens, outputTokens: usage.output ?? usage.outputTokens };
-        results.push({
-          type: 'usage.updated',
-          payload: { usage }
-        });
-      }
+      checkUsage(rawEvent, ctx, results);
       break;
     }
 
     case 'message_end':
+      checkUsage(rawEvent, ctx, results);
       results.push({
         type: 'message.completed',
         payload: { message: rawEvent.message ? {

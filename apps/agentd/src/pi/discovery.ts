@@ -40,9 +40,9 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
     candidates.push(customPath.trim());
   }
 
-  // 2. PI_CRUST_PI_PATH environment variable
-  if (process.env.PI_CRUST_PI_PATH) {
-    candidates.push(process.env.PI_CRUST_PI_PATH);
+  // 2. PI_FRAME_PI_PATH environment variable
+  if (process.env.PI_FRAME_PI_PATH) {
+    candidates.push(process.env.PI_FRAME_PI_PATH);
   }
 
   // 3. Known well-known locations

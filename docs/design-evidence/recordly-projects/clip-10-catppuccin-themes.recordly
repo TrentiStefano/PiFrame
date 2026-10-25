@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-10-catppuccin-themes",
+  "videoPath": "../clip-10-catppuccin-themes.mp4",
+  "metadata": {
+    "title": "Clip 10: PiFrame Theme Engine",
+    "description": "Hot-reloadable seamless switch between PiFrame Dark (#161c27) and PiFrame Light (#f1f3f7) across all window widgets.",
+    "recordedAt": "2026-10-19T14:09:36.201Z",
+    "durationSeconds": 3.4,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-theme",
+        "startMs": 0,
+        "endMs": 4200,
+        "scale": 1.04,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

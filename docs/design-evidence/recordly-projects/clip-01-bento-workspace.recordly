@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "projectId": "pi-frame-clip-01-bento-workspace",
+  "videoPath": "../clip-01-bento-workspace.mp4",
+  "metadata": {
+    "title": "Clip 1: Bento Triptych Workspace",
+    "description": "Three co-visible work areas (Sessions Rail, Repository Workspace, Chat & Transcript, Git Changes) with responsive ergonomic layout.",
+    "recordedAt": "2026-10-19T14:09:01.556Z",
+    "durationSeconds": 4,
+    "source": "PiFrame Flutter Native Application (apps/pi_frame)"
+  },
+  "editor": {
+    "wallpaper": "piframe-dark",
+    "shadowIntensity": 0.65,
+    "backgroundBlur": 12,
+    "showCursor": true,
+    "cursorStyle": "default",
+    "cursorClickEffect": "ring",
+    "cursorClickEffectColor": "#5f9fc5",
+    "cursorSize": 1,
+    "cursorSmoothing": 0.75,
+    "borderRadius": 16,
+    "padding": {
+      "horizontal": 48,
+      "vertical": 36
+    },
+    "aspectRatio": "16:9",
+    "zoomRegions": [
+      {
+        "id": "zoom-bento",
+        "startMs": 0,
+        "endMs": 3000,
+        "scale": 1,
+        "focusX": 0.5,
+        "focusY": 0.5
+      }
+    ],
+    "speedRegions": [],
+    "trimRegions": []
+  }
+}

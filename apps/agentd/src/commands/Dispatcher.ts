@@ -1,20 +1,22 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { ulid } from 'ulid';
 import type { Connection } from '../server/connection.js';
 import type { SessionRegistry } from '../sessions/SessionRegistry.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import { CommandDeduplicator } from './CommandRecord.js';
-import { loadConfig, patchConfig, type DaemonConfig } from '../config/config.js';
+import { loadConfig, patchConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
+import type { RemoteManager } from '../remote/RemoteManager.js';
 import type {
   PcpCommand,
   PcpAck,
   PcpResult,
-  PcpError,
-  PcpResultPayload
-} from '@pi-crust/pcp-ts';
+  PcpError
+} from '@piframe/pcp-ts';
 
 export class Dispatcher {
   private registry: SessionRegistry;
@@ -23,28 +25,45 @@ export class Dispatcher {
   private workspaceService = new WorkspaceService();
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
+  private remoteManager?: RemoteManager;
 
   constructor(
     registry: SessionRegistry,
     connectionManager: ConnectionManager,
-    piPackages?: PiPackageOperations
+    piPackages?: PiPackageOperations,
+    remoteManager?: RemoteManager
   ) {
     this.registry = registry;
     this.connectionManager = connectionManager;
     this.sessionIndex = registry.getIndex();
     this.piPackages = piPackages ?? new PiPackageService(registry.getPiExecutablePath());
+    this.remoteManager = remoteManager;
+
+    if (this.remoteManager) {
+      this.remoteManager.on('statusChanged', (status) => {
+        // Broadcast ONLY to local connections (H2/H4: never leak pairing secrets or client IPs to remote devices)
+        this.connectionManager.broadcastLocal('@daemon', {
+          protocol: 1,
+          kind: 'event',
+          id: `ev_${ulid()}`,
+          ts: Date.now(),
+          sessionId: '@daemon',
+          seq: 0,
+          type: 'remote.statusChanged',
+          payload: status
+        } as any);
+      });
+    }
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
     const commandId = cmd.commandId;
     const type = cmd.type;
-    const now = Date.now();
 
     // 1. Check idempotency / deduplication
     const existing = this.deduplicator.get(commandId);
     if (existing) {
       if (existing.state === 'executing') {
-        // Still in-flight: send ACK and wait for the original completion
         this.sendAck(conn, commandId);
         existing.waiters.push((payload) => {
           this.sendResult(conn, commandId, payload.state === 'completed' ? 'deduplicated' : payload.state, payload.data, payload.error);
@@ -52,7 +71,6 @@ export class Dispatcher {
         return;
       }
 
-      // Already finished: immediately replay stored result
       this.sendAck(conn, commandId);
       this.sendResult(
         conn,
@@ -76,7 +94,12 @@ export class Dispatcher {
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: any) {
-      const isRejected = err.code === 'COMMAND_REJECTED' || err.code === 'CONFIG_INVALID' || err.code === 'SESSION_NOT_FOUND' || String(err.code || '').startsWith('WORKSPACE_');
+      const isRejected =
+        err.code === 'COMMAND_REJECTED' ||
+        err.code === 'CONFIG_INVALID' ||
+        err.code === 'SESSION_NOT_FOUND' ||
+        String(err.code || '').startsWith('WORKSPACE_') ||
+        String(err.code || '').startsWith('REMOTE_');
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, err.message);
       this.sendResult(conn, commandId, state, undefined, payload.error);
@@ -145,35 +168,288 @@ export class Dispatcher {
     }
   }
 
+  private async validateSessionCwd(candidateCwd?: unknown): Promise<string> {
+    const raw = typeof candidateCwd === 'string' ? candidateCwd.trim() : '';
+    if (!raw) {
+      return process.env.INIT_CWD || process.cwd();
+    }
+    const resolved = path.resolve(raw);
+    if (!fs.existsSync(resolved)) {
+      throw Object.assign(new Error(`Directory '${raw}' does not exist`), {
+        code: 'WORKSPACE_NOT_FOUND'
+      });
+    }
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) {
+      throw Object.assign(new Error(`Path '${raw}' is not a directory`), {
+        code: 'WORKSPACE_INVALID'
+      });
+    }
+    return resolved;
+  }
+
   private async execute(conn: Connection, cmd: PcpCommand): Promise<any> {
     const payload = (cmd.payload || {}) as Record<string, any>;
     const sessionId = cmd.sessionId;
 
+    // -------------------------------------------------------------------------
+    // STRICT DEFAULT-DENY ALLOWLIST FOR REMOTE CONNECTIONS (C1, C2)
+    // -------------------------------------------------------------------------
+    if (conn.isRemote) {
+      // 1. Verify that the device credential is still active in the database
+      let dev = this.remoteManager?.getAuthManager().getDevice(conn.deviceId);
+      if (!dev) {
+        conn.close(4003, 'Device Revoked');
+        throw Object.assign(new Error('Remote device is not registered or has expired'), {
+          code: 'REMOTE_FORBIDDEN'
+        });
+      }
+
+      const mode = dev.mode; // 'view' | 'control'
+
+      // Commands permitted in 'view' mode (observability and non-mutating inspection, plus abort/interrupt)
+      const VIEW_ALLOWED = new Set([
+        'session.list',
+        'session.attach',
+        'session.detach',
+        'session.getStats',
+        'session.getEntries',
+        'session.getTree',
+        'session.subagents',
+        'agent.getModels',
+        'agent.getThinkingLevels',
+        'agent.getCommands',
+        'agent.abort',
+        'agent.interrupt',
+        'workspace.refresh',
+        'workspace.getDiff',
+        'workspace.listFiles',
+        'workspace.readFile'
+      ]);
+
+      // Additional commands permitted ONLY in 'control' mode
+      const CONTROL_EXTRA = new Set([
+        'agent.prompt',
+        'agent.steer',
+        'agent.followUp',
+        'agent.clearQueue',
+        'agent.compact',
+        'agent.setContextWindowOverride',
+        'agent.setAutoCompaction',
+        'agent.setAutoRetry',
+        'agent.setSteeringMode',
+        'agent.setFollowUpMode',
+        'agent.setModel',
+        'agent.setThinkingLevel',
+        'ui.claim',
+        'ui.respond',
+        'session.create',
+        'session.rename',
+        'session.fork',
+        'session.clone',
+        'session.closeWorker',
+        'workspace.saveFile',
+        'workspace.gitAction'
+      ]);
+
+      if (cmd.type === 'session.open') {
+        // session.open without continue is allowed in 'view'; with continue requires 'control'
+        if (mode === 'view' && payload.continue === true) {
+          throw Object.assign(new Error('Action blocked: continuing a session requires control mode permission.'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
+        }
+      } else if (VIEW_ALLOWED.has(cmd.type)) {
+        // Allowed in both view and control modes
+      } else if (mode === 'control' && CONTROL_EXTRA.has(cmd.type)) {
+        // Allowed in control mode
+      } else {
+        throw Object.assign(
+          new Error(`Action blocked: command '${cmd.type}' is not permitted for remote connections in '${mode}' mode.`),
+          { code: 'REMOTE_FORBIDDEN' }
+        );
+      }
+    }
+
     switch (cmd.type) {
+      // -----------------------------------------------------------------------
+      // Remote Access Management (LOCAL ONLY)
+      // -----------------------------------------------------------------------
+      case 'remote.getStatus': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.getStatus is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          return { enabled: false, state: 'stopped', devices: [], options: { defaultMode: 'view' } };
+        }
+        return this.remoteManager.getStatus();
+      }
+
+      case 'remote.start': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.start is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.remoteManager.start(payload as any);
+      }
+
+      case 'remote.installCloudflared': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.installCloudflared is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.remoteManager.installCloudflared();
+      }
+
+      case 'remote.installTailscale': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.installTailscale is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.remoteManager.installTailscale();
+      }
+
+      case 'remote.setTailscaleHostname': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.setTailscaleHostname is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        const hostname = String(payload.hostname || '');
+        return this.remoteManager.setTailscaleHostname(hostname);
+      }
+
+      case 'remote.stop': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.stop is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.remoteManager.stop();
+      }
+
+      case 'remote.generatePairing': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.generatePairing is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return this.remoteManager.generatePairing(payload.ttlMs);
+      }
+
+      case 'remote.setDeviceMode': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.setDeviceMode is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        const deviceId = String(payload.deviceId || '');
+        const mode = payload.mode;
+        if (!deviceId) throw Object.assign(new Error('Missing deviceId'), { code: 'COMMAND_REJECTED' });
+        if (mode !== 'view' && mode !== 'control') {
+          throw Object.assign(new Error('Invalid mode: must be view or control'), { code: 'COMMAND_REJECTED' });
+        }
+        const ok = this.remoteManager.setDeviceMode(deviceId, mode);
+        return { ok, deviceId, mode };
+      }
+
+      case 'remote.revokeDevice': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.revokeDevice is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        const deviceId = String(payload.deviceId || '');
+        if (!deviceId) throw Object.assign(new Error('Missing deviceId'), { code: 'COMMAND_REJECTED' });
+        const ok = this.remoteManager.revokeDevice(deviceId);
+        return { ok, deviceId };
+      }
+
+      case 'remote.revokeAll': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.revokeAll is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        this.remoteManager.revokeAll();
+        return { ok: true };
+      }
+
+      case 'remote.setOptions': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('remote.setOptions is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (!this.remoteManager) {
+          throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
+        }
+        return this.remoteManager.setOptions(payload as any);
+      }
+
+      // -----------------------------------------------------------------------
+      // Pi Packages Management (LOCAL ONLY)
+      // -----------------------------------------------------------------------
       case 'pi.packages.list':
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         return { packages: await this.piPackages.list() };
 
       case 'pi.packages.update':
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         return await this.piPackages.update(String(payload.source ?? ''));
 
       case 'pi.packages.remove':
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         return await this.piPackages.remove(String(payload.source ?? ''));
 
       case 'pi.packages.pin':
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         return await this.piPackages.pin(
           String(payload.source ?? ''),
           String(payload.version ?? '')
         );
 
       // -----------------------------------------------------------------------
-      // Daemon configuration
+      // Daemon configuration (LOCAL ONLY)
       // -----------------------------------------------------------------------
       case 'daemon.getConfig': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('daemon.getConfig is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         return loadConfig();
       }
 
       case 'daemon.setConfig': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('daemon.setConfig is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
         const patch = payload;
+        // Strictly prohibit modifying remote or web sections through generic daemon.setConfig
+        if ('remote' in patch || 'web' in patch) {
+          throw Object.assign(
+            new Error('daemon.setConfig cannot modify "remote" or "web" sections. Use remote.* commands.'),
+            { code: 'CONFIG_INVALID' }
+          );
+        }
+
         if (patch.workerIdleTimeoutMs !== undefined) {
           const ms = Number(patch.workerIdleTimeoutMs);
           if (isNaN(ms) || ms < 0 || ms > 86400000) {
@@ -185,8 +461,8 @@ export class Dispatcher {
         const updated = patchConfig(patch);
         this.registry.getSupervisor().updateIdleTimeout(updated.workerIdleTimeoutMs);
 
-        // Broadcast to ALL connected clients
-        this.connectionManager.broadcastAll({
+        // Broadcast to LOCAL connections ONLY
+        this.connectionManager.broadcastLocal('@daemon', {
           protocol: 1,
           kind: 'event',
           id: `evt_${ulid()}`,
@@ -204,13 +480,24 @@ export class Dispatcher {
       // Session Management
       // -----------------------------------------------------------------------
       case 'session.list': {
-        const sessions = await this.registry.listSessions(payload?.query, payload?.limit);
+        const sessions = await this.registry.listSessions(
+          payload?.query,
+          payload?.limit,
+          payload?.includeSubsessions === true
+        );
         return { sessions };
       }
 
+      case 'session.subagents': {
+        if (!sessionId) throw new Error('sessionId is required for session.subagents');
+        const subagents = await this.registry.getSubagents(sessionId);
+        return { subagents };
+      }
+
       case 'session.create': {
+        const cwd = await this.validateSessionCwd(payload.cwd);
         const session = await this.registry.createSession({
-          cwd: payload.cwd,
+          cwd,
           name: payload.name
         });
         return { session: session.getSessionMeta() };
@@ -218,9 +505,10 @@ export class Dispatcher {
 
       case 'session.open': {
         if (!sessionId) throw new Error('sessionId is required for session.open');
+        const cwd = payload.cwd ? await this.validateSessionCwd(payload.cwd) : undefined;
         const session = payload.continue === true
           ? await this.registry.continueSession(sessionId, payload.confirmed === true)
-          : await this.registry.openSession(sessionId, payload.cwd);
+          : await this.registry.openSession(sessionId, cwd);
         if (!session.readOnly && (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)) {
           await this.registry.getSupervisor().reconcileAndRespawn(session);
         }
@@ -239,7 +527,17 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for session.getStats');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_session_stats' });
-        return res.data;
+        const data = (res && res.data) ? { ...res.data } : {};
+        const session = this.registry.getSession(sessionId);
+        const sessionFile = data.sessionFile || session?.sessionFile;
+        if (sessionFile) {
+          const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
+          if (meta.usage && (meta.usage as any).byModel) {
+            data.byModel = (meta.usage as any).byModel;
+            data.models = (meta.usage as any).models;
+          }
+        }
+        return data;
       }
 
       case 'session.getEntries': {
@@ -256,6 +554,12 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId is required for session.closeWorker');
         await this.registry.closeWorker(sessionId);
         return { closed: true };
+      }
+
+      case 'session.delete': {
+        if (!sessionId) throw new Error('sessionId is required for session.delete');
+        await this.registry.deleteSession(sessionId);
+        return { deleted: true, sessionId };
       }
 
       // -----------------------------------------------------------------------
@@ -279,6 +583,23 @@ export class Dispatcher {
         }
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
+
+        if (session && session.contextWindowOverride && session.contextWindowOverride > 0 && !session.isCompacting) {
+          try {
+            const statsRes = await worker.send({ command: 'get_session_stats' });
+            const stats = statsRes.data || {};
+            const cu = stats.contextUsage || {};
+            const tokens = typeof cu.tokens === 'number'
+              ? cu.tokens
+              : (typeof stats.tokens?.total === 'number' ? stats.tokens.total : 0);
+            const threshold = Math.round(session.contextWindowOverride * 0.80);
+            if (tokens >= threshold) {
+              await worker.send({ command: 'compact' });
+            }
+          } catch (_) {
+            // Best effort pre-compaction before prompt
+          }
+        }
 
         if (payload.streamingBehavior === 'steer') {
           const res = await worker.send({
@@ -325,35 +646,42 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'clear_queue' });
+        const session = this.registry.getSession(sessionId);
+        if (session) {
+          session.queue = { steering: [], followUp: [] };
+          session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
+        }
         return res.data;
       }
 
       case 'agent.interrupt': {
-        // Esc semantics:
-        // 1. clear_queue -> captures { steering, followUp }
-        // 2. abort -> halts active stream
-        // 3. returns saved text for client composer restoration!
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
-        let restoredQueue = { steering: [] as string[], followUp: [] as string[] };
-
-        if (session && session.worker) {
+        let worker: any = session?.worker;
+        if (!worker) {
           try {
-            const clearRes = await session.worker.send({ command: 'clear_queue' });
-            if (clearRes.data) {
-              restoredQueue = {
-                steering: clearRes.data.steering || [],
-                followUp: clearRes.data.followUp || []
-              };
-            }
-          } catch {}
-
-          try {
-            await session.worker.send({ command: 'abort' });
+            worker = await this.registry.ensureWorkerForSession(sessionId);
           } catch {}
         }
 
-        return { interrupted: true, queue: restoredQueue };
+        if (worker) {
+          try {
+            await worker.send({ command: 'clear_queue' });
+          } catch {}
+          try {
+            await worker.send({ command: 'abort' });
+          } catch {}
+        }
+
+        if (session) {
+          session.queue = { steering: [], followUp: [] };
+          session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
+          session.isStreaming = false;
+          session.status = 'settled';
+          session.emitCustomEvent('run.settled', {});
+        }
+
+        return { interrupted: true, queue: { steering: [], followUp: [] } };
       }
 
       case 'agent.abort': {
@@ -368,6 +696,16 @@ export class Dispatcher {
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'compact' });
         return res.data;
+      }
+
+      case 'agent.setContextWindowOverride': {
+        if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        const limit = typeof payload.limit === 'number' && payload.limit > 0 ? payload.limit : null;
+        if (session) {
+          session.contextWindowOverride = limit;
+        }
+        return { success: true, contextWindowOverride: limit };
       }
 
       case 'agent.setAutoCompaction': {
@@ -433,7 +771,13 @@ export class Dispatcher {
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_available_models' });
         const models = Array.isArray(res.data?.models) ? res.data.models : [];
-        return { ...res.data, models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns()) };
+        const session = this.registry.getSession(sessionId);
+        return {
+          ...res.data,
+          currentModel: session?.model,
+          currentThinkingLevel: session?.thinkingLevel,
+          models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns())
+        };
       }
 
       case 'agent.setThinkingLevel': {
@@ -553,7 +897,6 @@ export class Dispatcher {
           assertCanWrite
         );
       }
-
 
       case 'session.rename': {
         if (!sessionId) throw new Error('sessionId required');

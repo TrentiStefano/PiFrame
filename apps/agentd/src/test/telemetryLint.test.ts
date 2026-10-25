@@ -34,7 +34,7 @@ test('Strict D16 Telemetry Ban: No remote analytics or external network calls in
     'posthog',
     'google-analytics',
     'segment',
-    'telemetry.pi-crust'
+    'telemetry.piframe'
   ];
 
   // Regex matching external URLs other than 127.0.0.1, localhost, or standard schemas

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { getPiCrustBaseDir } from './config.js';
+import { getPiFrameBaseDir } from './config.js';
 
 export interface RuntimeInfo {
   port: number;
@@ -12,7 +12,7 @@ export interface RuntimeInfo {
 }
 
 export function getRuntimeDir(): string {
-  const dir = path.join(getPiCrustBaseDir(), 'runtime');
+  const dir = path.join(getPiFrameBaseDir(), 'runtime');
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

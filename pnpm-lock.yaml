@@ -17,7 +17,7 @@ importers:
 
   apps/agentd:
     dependencies:
-      '@pi-crust/pcp-ts':
+      '@piframe/pcp-ts':
         specifier: workspace:*
         version: link:../../packages/pcp-ts
       chokidar:
@@ -73,20 +73,20 @@ importers:
 
   test/e2e:
     dependencies:
-      '@pi-crust/pcp-ts':
+      '@piframe/pcp-ts':
         specifier: workspace:*
         version: link:../../packages/pcp-ts
       ws:
         specifier: ^8.18.0
         version: 8.21.3
     devDependencies:
-      '@pi-crust/agentd':
+      '@piframe/agentd':
         specifier: workspace:*
         version: link:../../apps/agentd
-      '@pi-crust/fake-pi':
+      '@piframe/fake-pi':
         specifier: workspace:*
         version: link:../../tools/fake-pi
-      '@pi-crust/fault-proxy':
+      '@piframe/fault-proxy':
         specifier: workspace:*
         version: link:../../tools/fault-proxy
       '@types/node':

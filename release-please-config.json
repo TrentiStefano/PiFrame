@@ -7,7 +7,7 @@
       "extra-files": [
         {
           "type": "yaml",
-          "path": "apps/pi_crust/pubspec.yaml",
+          "path": "apps/pi_frame/pubspec.yaml",
           "jsonpath": "$.version"
         },
         {
@@ -21,7 +21,7 @@
         },
         {
           "type": "generic",
-          "path": "apps/pi_crust/lib/app/app_version.dart"
+          "path": "apps/pi_frame/lib/app/app_version.dart"
         }
       ]
     }

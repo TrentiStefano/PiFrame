@@ -1,44 +1,267 @@
-# Pi-Crust 🥧
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/design-evidence/icons/piframe-dark-1024.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/design-evidence/icons/piframe-light-1024.png">
+    <img src="docs/design-evidence/icons/piframe-dark-1024.png" width="132" height="132" alt="PiFrame Logo" style="border-radius: 28px; box-shadow: 0 12px 32px rgba(0,0,0,0.25);">
+  </picture>
+</p>
 
-> **Modern, resilient, decoupled GUI (Windows, macOS, Linux, and Web) for [`pi-coding-agent`](https://github.com/earendil-works/pi), inspired by OpenAI Codex and GitHub Copilot app interfaces.**
+<h1 align="center">PiFrame</h1>
 
----
+<p align="center">
+  <strong>The modern, resilient Bento GUI for <a href="https://github.com/earendil-works/pi">pi-coding-agent</a>.</strong><br>
+  Engineered for developers who demand fluid 120fps motion, native desktop speed, and zero lost agent work.
+</p>
 
-## 🌟 Overview
-
-**Pi-Crust** is a high-performance desktop and web graphical user interface for `pi-coding-agent`. Unlike terminal-locked or web-only wrappers, Pi-Crust is built on a **resilient three-tier decoupled architecture**:
-- The GUI can be closed, reloaded, or crash without terminating the running Pi agent.
-- A persistent local daemon keeps tasks running, journals every event with monotonic sequence numbers, and allows seamless reattachment and replay upon GUI reconnect.
-- Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`), guaranteeing 100% compatibility with the official Pi CLI.
-- Built with **strictly zero remote telemetry** (Decision D16) and a loopback-only security boundary.
-
----
-
-## 📦 Releases
-
-Main-branch commits follow [Conventional Commits](https://www.conventionalcommits.org/): `fix:` bumps patch, `feat:` bumps minor, and `!` or `BREAKING CHANGE:` bumps major. Release Please opens a release PR with synchronized SemVer versions and changelog. Merge that PR to publish installers for Windows, macOS, and Linux plus a fresh UI screenshot. Docs, tests, and chore-only commits do not release. Enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**.
-
-Download the latest [Windows installer](https://github.com/TrentiStefano/pi-crust/releases/latest), [macOS DMG](https://github.com/TrentiStefano/pi-crust/releases/latest), or [Linux Debian package](https://github.com/TrentiStefano/pi-crust/releases/latest) from **Releases**.
-
-| Windows | macOS (Apple silicon + Intel) | Linux |
-| --- | --- | --- |
-| `Pi-Crust-Setup-…-windows-x64.exe` | `Pi-Crust-…-macos-arm64.dmg` / `Pi-Crust-…-macos-x64.dmg` | `Pi-Crust-…-linux-amd64.deb` |
-
-Installers include the Pi-Crust app, `pi-agentd`, and bundled Node.js runtime. Install Pi CLI separately (`npm install -g @earendil-works/pi-coding-agent`). Windows installers are unsigned (SmartScreen may warn); macOS builds are not signed/notarized (Gatekeeper may require **Control-click → Open**).
-
-![Pi-Crust desktop UI](https://github.com/TrentiStefano/pi-crust/releases/latest/download/pi-crust-screenshot.png)
+<p align="center">
+  <a href="https://github.com/TrentiStefano/piframe/releases/latest"><img src="https://img.shields.io/github/v/release/TrentiStefano/piframe?style=flat-square&color=ca9ee6" alt="Latest Release"></a>
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-blue?style=flat-square" alt="Supported Platforms">
+  <img src="https://img.shields.io/badge/flutter-3.47%2B-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/typescript-Node.js%2022%2B-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+  <a href="docs/security.md"><img src="https://img.shields.io/badge/telemetry-strictly%20zero%20(D16)-success?style=flat-square" alt="Zero Telemetry"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
+</p>
 
 ---
 
-## 🏗 Architecture
+## 🎬 A Real Run
+
+Run agents, stream token responses, search and edit repository code with syntax highlighting, steer tasks in-flight, manage Git changes, and run commands inside the integrated terminal without leaving the window:
+
+<p align="center">
+  <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">
+    <img src="docs/design-evidence/bento-triptych-fixture-dark-wide.png" alt="A real run in PiFrame: agent working, code editor with syntax highlighting and Ctrl+F, steer queue, integrated terminal, and Git changes review" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+  </a>
+</p>
+
+<p align="center">
+  <sub>A real run: the agent streams reasoning and tokens, tool executes tests, code editor highlights syntax with in-file Ctrl+F match cycling, user modifies the steer queue in-flight, stages Git changes, uses the embedded terminal, and toggles themes. (<a href="docs/design-evidence/showcase.html">Interactive Web Demo</a> · <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">View Full Resolution Capture</a>)</sub>
+</p>
+
+---
+
+## 🌟 Why PiFrame?
+
+Most AI coding assistants lock you into a monolithic web app or terminal session where closing the tab kills the task. **PiFrame** is built on a **three-tier decoupled architecture**:
+
+1. **🛡 Never Lose Agent Work (Disconnect-Safe):** Close the window, restart your desktop shell, or reload anytime. A background local daemon (`pi-agentd`) keeps the agent running, journals every stream event monotonically, and catches up seamlessly upon GUI reconnect with zero gaps or duplicate events.
+2. **📂 100% Native Pi Compatibility:** Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`). Switch freely between the `pi` terminal CLI and the PiFrame GUI at any moment.
+3. **🍱 Bento Triptych Workspace:** Co-visible repository code editor, streaming chat transcript, and interactive Git Changes / Web Browser in a balanced three-compartment view inspired by modern editor ergonomics.
+4. **🔒 Local-First & Zero Telemetry (Decision D16):** Strictly bound to `127.0.0.1` with cryptographically random tokens. No third-party analytics, no tracking pixels, no outbound calls beyond your configured model provider.
+
+---
+
+## ✨ Features & Functionality
+
+### 🍱 Bento Triptych Workspace & Companion Panes
+- **Three co-visible work areas:** Repository file tree & code viewer (Left), Pi chat session (Center), and Git Changes inspector / Live Web Browser (Right).
+- **Responsive adaptation:** Seamlessly adjusts from ultra-wide 1440px+ displays down to compact laptop screens and single-column mobile views.
+- **Collapsible Panes:** Easily collapse or expand side panels with instant keyboard shortcuts or one-click headers.
+- **Unified Companion Tabs:** Seamlessly toggle between File Explorer, Code Editor, Git Review Changes, Embedded Browser, and the Integrated Terminal with exclusive active-pane controls.
+
+### 🌐 Embedded Chromium Web Browser (Live In-App Browsing)
+- **Native WebView2 Engine:** Full Chromium-powered web browser embedded directly inside the right companion pane on desktop.
+- **Multi-Engine Search:** Quick search bar integrated with Google, DuckDuckGo, YouTube, pub.dev, GitHub, Wikipedia, Stack Overflow, and MDN Web Docs.
+- **Tab & History Management:** Multi-tab browsing with back/forward history, reload, home, and custom bookmark shortcuts.
+- **Chat Copilot Integration:** Send web pages, documentation snippets, and reference URLs straight to the agent composer with one click.
+
+### 💻 Integrated Terminal with Native OS Integration & WSL
+- **Direct Hardware Typing:** High-performance integrated terminal emulator embedded directly inside your workspace with hardware-level keyboard typing.
+- **Native OS Shells:** Spawns native PowerShell / cmd on Windows, zsh / bash on macOS and Linux.
+- **First-Class WSL Support:** Open repositories located inside the Windows Subsystem for Linux (WSL) and run commands directly through an integrated WSL bash terminal.
+
+### 📋 Live Agent ToDo Breakdown & Interactive Tasks
+- **Real-Time Task Checklists:** Interactive agent task list panel rendering progress in real time as the agent plans and executes multi-step work.
+- **Synchronized Checkboxes:** Watch tasks auto-check as milestones are completed, with direct status toggling and chat transition notifications.
+- **Runaway & Duplicate Prevention:** Robust parser safeguards prevent duplicate task generation or counter runaway during high-speed token streaming.
+
+### 🤖 Popdown Subagents Panel & Dedicated Monitoring
+- **Dedicated Subagent Drawer:** Monitor parallel or nested subagents spawned during complex tasks with dedicated booktab indicators.
+- **Live Output & Steering:** Expand individual subagent execution streams, supply directional steer input, and stop unresponsive subagents individually.
+- **Subsession Cost Tracking:** Real-time cost reconciliation and cumulative token accounting across all child workers.
+
+### 🎯 In-Flight Visual Steer Queue
+- **Non-Interruptive Steering:** Queue, modify, or dismiss pending steer directions while responses stream without interrupting generation.
+- **Re-Order & In-Flight Editing:** Drag or edit steer instructions before the agent begins their execution.
+- **Double-Send Safeguards:** Robust state synchronization prevents duplicate steers on agent interrupt, model switch, or resend actions.
+
+### 🔍 Git Changes Review Desk & 50/50 Split Diff
+- **50/50 Split Review Pane:** Dedicated side-by-side or unified diff viewing to inspect changes before committing.
+- **Comprehensive File Tracking:** Real-time visibility into modified (`M`), added (`A`), deleted (`D`), and untracked (`?`) files.
+- **Markdown Live Preview:** Toggle live rendered markdown previews for `.md` files right within the workspace editor.
+- **Staging & Revert Controls:** Stage, unstage, or discard changes with one click.
+
+### 🔌 MCP Server Management (Model Context Protocol)
+- **Interactive Server Cards:** Click the Model Context Protocol (MCP) badge to view all configured and active MCP tools and servers.
+- **Dynamic Server Toggles:** Enable or disable specific MCP servers with intuitive checkboxes without restarting sessions.
+
+### ⏱ Real-Time Context Usage & Multi-Model Cost Analytics
+- **Live Cost & Token Metering:** Accurate real-time session cost and token accumulation tracking mirroring CLI/TUI metrics.
+- **Multi-Model Cost Breakdown:** Detailed cost inspection dialog breaking down expenditures per model across turns and sub-sessions.
+- **Context Window Selector:** Explicitly pick model context bounds for variable-context models (e.g., Luna, Haiku) to optimize performance and billing.
+
+### ✍️ Expanded Composer, File Mentions & Drag-and-Drop
+- **Large Prompt Composer:** Toggle an enlarged input window with rich multiline textarea when composing lengthy prompts.
+- **Animated Minimization:** Smooth spring transition automatically minimizes composer input with pointer glow while the agent generates, expanding after 5 seconds or upon click.
+- **`@` File Mentions & `/` Slash Menus:** Quick-search repository files and slash commands directly in the input box.
+- **Drag & Drop Attachments:** Drag and drop images or text files directly into chat; view files with inline transcript chips and full-screen lightbox preview.
+- **Direct Workspace Navigation:** `Ctrl+Click` on file mentions in the transcript to open the file directly in the OS file explorer or internal editor.
+- **Inline Session Rename:** Double-click or press Enter on the session header to rename sessions on the fly.
+
+### 📝 AI Instruction File Generator (`AGENTS.md` / `PI.md`)
+- **Direct Instruction Editor:** View, edit, and maintain repository-specific instruction files (`AGENTS.md`, `PI.md`) from the session header or sidebar.
+- **AI-Assisted Generation:** Generate tailored project instructions using the Pi agent directly from a guided dialog.
+
+### 🚀 Quick Launch Welcome Screen & Startup Assembly Animation
+- **Landing Quick Launch:** Welcome page displaying the latest 5 active sessions with instant resume, project paths, and quick folder selection.
+- **Startup Logo Assembly:** Smooth geometric logo assembly animation on launch with subtle framing audio.
+- **Window Geometry Persistence:** Automatically saves and restores desktop window position, size, and maximized state across app restarts.
+
+### 🎨 Custom Theme Customizer & VSCode JSON Import
+- **Official Normative Palettes:** Preloaded with precision-tuned **PiFrame Dark** (`#161c27`) and **PiFrame Light** (`#f1f3f7`) themes with automatic system theme tracking.
+- **Interactive Theme Editor:** Customize base colors, surface tones, chassis borders, and accent highlights with live component preview cards.
+- **VSCode Theme Import:** Import standard VSCode JSON theme files directly into PiFrame.
+- **Custom JSON Themes:** Add hot-reloadable themes in `~/.piframe/themes/` with full token inheritance.
+- **Multi-Language Support:** Language dropdown in Appearance settings for localized user experience.
+
+### 🌐 Secure Remote Web Access (Tailscale & Cloudflare)
+- **Zero-Config Remote Web Access:** Securely access and control your desktop agent sessions from mobile browsers (iPhone, iPad, Android) or secondary laptops.
+- **Tunnels Supported:** Built-in integration for Tailscale and Cloudflare tunnels.
+- **Secure Pairing:** Connect with a 6-digit PIN or QR code with automatic credential expiration.
+- **View vs. Control Modes:** Fine-grained authorization controls to enforce read-only viewing or explicit authorization for terminal and file modifications.
+- **Mobile-Tailored UI:** Specially tuned responsive layout and touch-friendly controls for mobile browsers.
+
+### 🔔 Native OS Notifications & Auto-Update Engine
+- **Background Completion Alerts:** Receive native OS notifications and desktop snackbars when the agent finishes long runs or requests human input while unfocused.
+- **Startup Update Checker:** Real-time startup notification banner alerting when Pi CLI or PiFrame updates are available.
+- **One-Click Updates:** Launch background updates with release highlights directly from Settings.
+- **First-Run Onboarding:** Prompts to install `pi-coding-agent` on first launch if not detected on your system.
+
+---
+
+## 📸 Screenshots & Visual Tour
+
+### Bento Workspace & Themes
+| PiFrame Dark (Default) | PiFrame Light |
+| :---: | :---: |
+| [![PiFrame Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![PiFrame Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
+| *Bento Triptych workspace running official PiFrame Dark theme (`#161c27`)* | *Bento Triptych workspace running official PiFrame Light theme (`#f1f3f7`)* |
+
+### Autonomous Workflow & In-Flight Steering
+| In-Flight Steer Queue | Real-Time Reasoning & Thinking Stream |
+| :---: | :---: |
+| [![In-Flight Steer Queue](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png)](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png) | [![Reasoning Stream](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png)](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png) |
+| *Modify, prioritize, and steer agent reasoning without interrupting token generation* | *High-framerate token stream with granular thinking inspection, live cost, and tool timing* |
+
+### Code Navigation & Git Staging Desk
+| Git Changes Review Desk (50/50 Diff) | Syntax Highlighting & Code Search (Ctrl+F) |
+| :---: | :---: |
+| [![Git Changes Staging](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png)](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png) | [![Code Search & Syntax Highlighting](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png)](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png) |
+| *50/50 split diff inspection, one-click staging, and file discard actions* | *Syntax-highlighted repository code viewer with in-file match cycling and line numbers* |
+
+### Session Navigation & Command Palette
+| Grouped Repository Session Tree | Command Palette (Ctrl+P / Cmd+P) |
+| :---: | :---: |
+| [![Session Tree](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png)](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png) | [![Command Palette](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png)](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png) |
+| *Session tree grouped by repository with search, pinned sessions, and status pills* | *Fast keyboard-driven command palette for workspace navigation and panel actions* |
+
+### Quick Launch & AI Instruction Generator
+| Landing Page Quick Launch | AI Instruction File Generator |
+| :---: | :---: |
+| [![Landing Quick Launch](docs/design-evidence/recordly-projects/01_landing_quick_launch.png)](docs/design-evidence/recordly-projects/01_landing_quick_launch.png) | [![Instruction Dialog](docs/design-evidence/recordly-projects/02_instruction_dialog.png)](docs/design-evidence/recordly-projects/02_instruction_dialog.png) |
+| *Welcome screen with recent 5 active sessions for instant one-click resume* | *Generate and refine repository-specific `AGENTS.md` and `PI.md` instruction files* |
+
+### Customization & Responsive Layouts
+| Theme Editor & Live Preview | Appearance Settings & Language |
+| :---: | :---: |
+| [![Theme Editor](docs/design-evidence/recordly-projects/04_theme_editor.png)](docs/design-evidence/recordly-projects/04_theme_editor.png) | [![Appearance Settings](docs/design-evidence/recordly-projects/05_appearance_settings.png)](docs/design-evidence/recordly-projects/05_appearance_settings.png) |
+| *Dedicated Theme Customizer with live component preview cards and token inheritance* | *Appearance settings with custom theme selection and application language dropdown* |
+
+| Context & Cost Analytics | Compact Responsive Layout |
+| :---: | :---: |
+| [![Context Analytics](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png)](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
+| *Real-time context window usage, cumulative cost, and token accumulation tracking* | *Seamless responsive adaptation for smaller laptops and single-pane viewports* |
+
+---
+
+## 📥 Download & Installation
+
+Download pre-built binaries from the [**GitHub Releases**](https://github.com/TrentiStefano/piframe/releases/latest) page:
+
+| Operating System | Architecture | Installer / Package | Notes |
+| :--- | :--- | :--- | :--- |
+| **Windows** | `x64` | [`PiFrame-Setup-…-windows-x64.exe`](https://github.com/TrentiStefano/piframe/releases/latest) | Bundles Node.js & `pi-agentd` |
+| **macOS** | `arm64` (Apple Silicon) | [`PiFrame-…-macos-arm64.dmg`](https://github.com/TrentiStefano/piframe/releases/latest) | Drag to `/Applications` |
+| **macOS** | `x64` (Intel) | [`PiFrame-…-macos-x64.dmg`](https://github.com/TrentiStefano/piframe/releases/latest) | Drag to `/Applications` |
+| **Linux** | `x64` (Debian / Ubuntu) | [`PiFrame-…-linux-amd64.deb`](https://github.com/TrentiStefano/piframe/releases/latest) | `sudo apt install ./PiFrame-…deb` |
+
+> [!NOTE]
+> Installers bundle the GUI app and the runtime daemon (`pi-agentd`) with an embedded Node.js environment.  
+> You only need to ensure the official `pi` CLI is installed on your system.
+
+### Prerequisites
+
+1. **Install Pi CLI** (if not already installed):
+   ```bash
+   npm install -g @earendil-works/pi-coding-agent
+   ```
+2. Verify `pi` is accessible from your terminal:
+   ```bash
+   pi --version
+   ```
+
+---
+
+## 🛠 Building from Source
+
+### 1. Clone & Install Dependencies
+```bash
+# Clone the repository
+git clone https://github.com/TrentiStefano/piframe.git
+cd piframe
+
+# Install monorepo dependencies
+pnpm install
+
+# Build protocol packages and daemon bundle
+pnpm build:all
+```
+
+### 2. Start the Daemon (`pi-agentd`)
+```bash
+# Production mode (connects to your real 'pi' CLI)
+pnpm run:daemon
+
+# Or local development mode (no LLM API key needed, uses fake-pi)
+# On Windows PowerShell:
+$env:PI_FRAME_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
+
+# On macOS / Linux:
+PI_FRAME_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
+```
+
+### 3. Run the Flutter App
+```bash
+cd apps/pi_frame
+
+# Run natively on your desktop platform:
+flutter run -d windows   # or 'macos' / 'linux'
+
+# Or build for web (served via daemon origin):
+flutter build web --no-web-resources-cdn
+```
+
+---
+
+## 🏗 Architecture & Decoupling
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
-│  Pi-Crust (Flutter Desktop & Web)                             │
+│  PiFrame (Flutter Desktop & Web)                              │
 │  Windows · macOS · Linux · Web (Chrome / Edge)                │
 │  ── Presentation + Session Projection + Command Dispatcher    │
 └──────────────────────────┬────────────────────────────────────┘
-                           │  PCP/1 (Pi-Crust Protocol, JSON over WebSocket)
+                           │  PCP/1 (PiFrame Protocol, JSON over WebSocket)
                            │  127.0.0.1 · Bearer token · Strict Origin check
                            ▼
 ┌───────────────────────────────────────────────────────────────┐
@@ -62,194 +285,71 @@ Installers include the Pi-Crust app, `pi-agentd`, and bundled Node.js runtime. I
         (Source of truth of history — owned exclusively by Pi)
 ```
 
-### Decoupling Rules
-1. **Pi-Crust (Flutter):** Manages user experience, state reduction, layout, themes, and commands. Knows nothing about child processes, stdio streams, or JSONL files.
-2. **pi-agentd (Daemon):** Manages process lifecycles, Pi RPC communication, session registries, event replay, git status, and authentication. Knows nothing about widgets or UI layout.
-3. **Pi (`pi-coding-agent`):** Manages agent intelligence, tools, models, extensions, and session persistence. Completely unaware that Pi-Crust exists.
-
----
-
-## ✨ Features
-
-- **🛡 Disconnect-Safe & Background Execution:** Close the window anytime while Pi is working on large refactors. The daemon buffers the stream into a monotonic event journal. Reopen the GUI, and the session catches up instantly without gaps or duplicate events.
-- **💬 Rich Streaming Transcript:**
-  - Token-level text streaming with sub-100ms latency.
-  - Collapsible **Thinking / Reasoning** blocks with live step streaming.
-  - Syntax-highlighted code blocks with language badge and one-click copy.
-  - Inline unified **Diff Viewer** for file modifications.
-  - Interactive **Tool Cards** showing tool execution status, parameters, output, and execution duration.
-- **🌲 Multi-Session Management & Visual Branching:**
-  - Fast search and filtering across sessions (Active, Repository, All).
-  - Visual **Session Tree** dialog inspecting turns, forks, and branches.
-  - **Fork ("Riparti da qui")** from any turn or user prompt, and session cloning.
-- **🔍 Workspace & Git Insights:**
-  - Real-time Git status indicator (branch, clean/dirty state, line additions and deletions).
-  - Modified files list with status badges (`M`, `A`, `D`, `?`).
-  - Click-to-inspect full file diff modal dialog.
-- **🎨 Extensible JSON Theme Engine (`pi_crust_theme`):**
-  - Ships with bundled high-contrast Dark and Light themes (`crust-dark`, `crust-light`).
-  - Supports custom user themes placed in `~/.pi-crust/themes/` with inheritance (`extends`), cyclic dependency validation, and live hot-reload.
-  - Strict WCAG AA contrast compliance and zero hard-coded widget colors.
-- **🧩 Interactive Extension Dialogs:**
-  - Supports Pi extension UI dialogs (`select`, `confirm`, `input`, `editor`).
-  - Server-side **Claim/Lease Broker** prevents multiple open GUI windows from submitting conflicting responses to the same prompt.
-- **🔒 Privacy & Security First:**
-  - Strictly bound to loopback `127.0.0.1`.
-  - 256-bit cryptographically random authentication tokens with constant-time verification.
-  - Strict HTTP Origin allowlist and Content Security Policy (CSP).
-  - **Zero Remote Telemetry:** No analytics SDKs, no external tracking, no outbound network requests outside loopback. Diagnostic bundles redact all secrets before export.
-
----
-
-## 📋 Prerequisites
-
-Before building or running Pi-Crust, ensure the following are installed on your machine:
-
-1. **Pi CLI:** Install `@earendil-works/pi-coding-agent` globally and keep `pi` on `PATH`. Pi-Crust installers bundle Node.js for the daemon; installing Pi via npm still requires Node.js/npm.
-2. **From source only:** Flutter `3.47.2` or later, Dart `>= 3.13.2`, Node.js `>= 22.19.0`, pnpm `>= 9.0.0`, and platform desktop build tools.
-3. **Windows source builds:** Visual Studio with the **Desktop development with C++** workload. Downloaded Windows installers need no build tools.
-
----
-
-## 🚀 Quick Start (Development Mode)
-
-### 1. Install Dependencies & Build Packages
-Clone the repository and install all monorepo dependencies:
-```bash
-# Clone repository
-git clone https://github.com/TrentiStefano/pi-crust.git
-cd pi-crust
-
-# Install Node dependencies
-pnpm install
-
-# Build TypeScript protocol packages
-pnpm build:all
-```
-
-### 2. Start the Daemon (`pi-agentd`)
-In a terminal, start the daemon:
-```bash
-# Option A: Standard mode (uses installed 'pi' CLI)
-pnpm run:daemon
-
-# Option B: Development mode using fake-pi (no LLM key needed)
-# On Windows PowerShell:
-$env:PI_CRUST_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
-
-# On Linux/macOS:
-PI_CRUST_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
-```
-The daemon will initialize `~/.pi-crust/runtime/`, write `daemon.json` and `daemon.token`, and start listening on `127.0.0.1`.
-
-### 3. Launch the Flutter GUI
-In a separate terminal, run Pi-Crust:
-```bash
-cd apps/pi_crust
-
-# Run as Windows Desktop app:
-flutter run -d windows
-
-# Build the Web application with local renderer assets:
-flutter build web --no-web-resources-cdn
-```
-
-For Web, serve the build from the daemon's own origin. From the repository root, start the daemon with:
-```powershell
-$env:PI_CRUST_WEB_DIR = "$PWD/apps/pi_crust/build/web"
-pnpm run:daemon
-```
-On Linux/macOS, use `PI_CRUST_WEB_DIR="$PWD/apps/pi_crust/build/web" pnpm run:daemon`.
-Open `http://127.0.0.1:<port>/`, using the port printed by the daemon. A separate `flutter run -d chrome` server cannot discover native runtime files.
-
-### Existing terminal sessions
-The sidebar indexes Pi session files and hides sessions whose project path is inside the OS temporary directory.
-Closed sessions open directly in Pi-Crust and continue in the original Pi session file.
-Pi does not expose the exact session selected by an already-running terminal process. Pi-Crust detects explicit session arguments and treats other Pi processes in the same project as ambiguous.
-Ambiguous sessions stay read-only until you confirm that the terminal is not using that session. Use **Duplica e continua** to avoid shared writes.
-The **Gestite** filter shows daemon-managed sessions. It does not list live terminal processes.
-The model picker applies Pi's global `enabledModels` setting and Pi's authenticated-model list.
-Set `PI_CODING_AGENT_SESSION_DIR` on the daemon to index a custom session directory.
-
----
-
-## 🛠 Building from Source
-
-Build the daemon and Flutter desktop app for your current OS:
-
-```bash
-pnpm install
-pnpm --filter @pi-crust/agentd run build:bundle
-cd apps/pi_crust
-flutter build windows --release # or macos / linux
-```
-
-Release Please derives SemVer and updates `package.json`, the Flutter `pubspec.yaml`, daemon version, app version, and `CHANGELOG.md`. Merge its release PR to run `.github/workflows/release.yml` and publish installers. The daemon bundle and Node.js runtime are placed beside the app so it can start the daemon without a separate Node installation. The daemon starts on demand; it is not installed as a persistent OS service. Pi CLI is still required.
+| Layer | Responsibility | Isolation Guarantee |
+| :--- | :--- | :--- |
+| **PiFrame (Flutter)** | UI presentation, Bento triptych layout, state reduction, animations, and theme engine. | Knows **nothing** about child processes, stdio streams, or raw session files. |
+| **pi-agentd (Daemon)** | Process supervisor, monotonic event journal, session reconnect replay, Git diff client, and RPC bridge. | Knows **nothing** about Flutter widgets or layout logic. |
+| **Pi (`pi-coding-agent`)** | LLM orchestrator, model execution, tool invocation, and file system modifications. | Unaware that PiFrame exists; operates as a standard headless RPC worker. |
 
 ---
 
 ## 🧪 Testing & Verification
 
-Pi-Crust maintains a rigorous automated testing matrix across all packages:
+PiFrame enforces 100% test passing across Dart, TypeScript, and protocol specifications:
 
 ```bash
-# Run all unit, contract, security, and Flutter tests:
+# Run all unit, contract, security, and Flutter tests
 pnpm test
 
-# Run End-to-End and Fault Injection test suites:
+# Run Flutter tests directly
+cd apps/pi_frame
+flutter test
+
+# Run End-to-End fault injection test suites
 pnpm test:e2e
 
-# Exercise the installed real Pi CLI with an isolated, loopback mock model:
-# No real LLM calls or changes to existing Pi sessions.
+# Smoke test with real Pi CLI over loopback mock model
 pnpm smoke:real-pi
-
-# Run Flutter static analysis:
-cd apps/pi_crust
-flutter analyze
 ```
-
-### Test Suites Breakdown:
-- **`apps/agentd`:** Unit & integration tests (JSONL framer, EventJournal, Replay matrix, UiRequestBroker, Git client, Security review, D16 telemetry ban).
-- **`apps/pi_crust`:** Widget & domain tests (Adaptive composer, Rich transcript, Thinking block, Tool card, Context panel, Sessions sidebar, Diagnostics).
-- **`packages/pi_crust_protocol`:** 4 contract serialization & forward compatibility tests.
-- **`packages/pi_crust_theme`:** 7 theme parsing, inheritance, and cycle detection tests.
-- **`test/e2e`:** 4 end-to-end integration tests, including:
-  - **M1 Proof of Architecture:** Disconnecting GUI mid-stream does not interrupt Pi; reconnected client catches up cleanly.
-  - **Fault Injection:** Duplicate frame delivery, corrupted frames, and abrupt WebSocket drops.
 
 ---
 
-## 📂 Repository Structure
+## 🔧 Troubleshooting & Known Issues
+
+Encountering an issue? Check [**docs/troubleshooting.md**](docs/troubleshooting.md) for solutions to common environment problems:
+- **Windows Blank / White Window on Startup**: Resolving ANGLE/DirectX surface presentation issues on multi-GPU or virtual display driver setups (`USB Mobile Monitor`, `IddSampleDriver`, Spacedesk).
+- **Remote Web & Smartphone Access**: Verifying pairing tokens, Tailscale / Cloudflare tunnel routing, and serving mobile-optimized web assets.
+
+---
+
+## 📂 Repository Layout
 
 ```text
-pi-crust/
+piframe/
 ├── apps/
-│   ├── pi_crust/                 # Flutter application (Windows, macOS, Linux, Web)
-│   │   ├── lib/                  # App shell, state reducers, UI features
-│   │   ├── assets/themes/        # Bundled official themes (crust-dark, crust-light)
-│   │   └── test/                 # Widget, smoke, and lint tests
-│   └── agentd/                   # Node.js / TypeScript persistent daemon
-│       ├── src/server/           # HTTP/WS server, token auth, static SPA server
+│   ├── pi_frame/                 # Flutter application (Windows, macOS, Linux, Web)
+│   │   ├── lib/                  # App shell, Bento workspace, syntax highlighter, composer, browser
+│   │   ├── assets/themes/        # Bundled themes (piframe-dark, piframe-light)
+│   │   └── test/                 # 87+ widget, stress, layout, and lint tests
+│   └── agentd/                   # Persistent Node.js/TypeScript daemon
+│       ├── src/server/           # HTTP/WebSocket server, token auth, static SPA host
 │       ├── src/sessions/         # Session registry, supervisor, indexer
-│       ├── src/journal/          # Monotonic event journal, buffer, snapshot
+│       ├── src/journal/          # Monotonic event journal, buffer, snapshot generator
 │       ├── src/workspace/        # WorkspaceService, read-only Git client
-│       └── src/ui/               # UiRequestBroker (claim/lease management)
+│       └── src/ui/               # UiRequestBroker (claim/lease broker)
 ├── packages/
-│   ├── pcp-spec/                 # Source of truth: PCP/1 protocol specification & JSON Schemas
+│   ├── pcp-spec/                 # PCP/1 protocol specification & JSON Schemas
 │   ├── pcp-ts/                   # Generated TypeScript types & validators
-│   ├── pi_crust_protocol/        # Generated Dart types & codec for Flutter
-│   └── pi_crust_theme/           # Dart theme engine with JSON inheritance & hot-reload
-├── tools/
-│   ├── fake-pi/                  # Scriptable mock Pi RPC server for testing
-│   ├── fault-proxy/              # WebSocket proxy for network fault injection
-│   └── codegen/                  # JSON Schema -> TypeScript & Dart code generator
-├── test/e2e/                     # Cross-component end-to-end test scenarios
+│   ├── pi_frame_protocol/        # Generated Dart types & codec for Flutter
+│   └── pi_frame_theme/           # Dart theme engine with JSON inheritance & hot-reload
 ├── docs/                         # Architecture, Security baseline, ADRs, Installation guides
-└── themes/                       # Source theme definitions and JSON schemas
+│   └── design-evidence/         # High-res UI fixtures, showcase videos, and icon assets
+├── tools/                        # fake-pi mock server, fault-proxy, codegen scripts
+└── test/e2e/                     # Cross-component end-to-end integration tests
 ```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is open-source and available under the [MIT License](LICENSE).

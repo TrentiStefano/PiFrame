@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import type { PcpEvent, PcpEventType, PcpSnapshotPayload } from '@pi-crust/pcp-ts';
+import type { PcpEvent, PcpEventType, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { RingBuffer } from './RingBuffer.js';
 import { Spill } from './Spill.js';
 import { SnapshotBuilder, type SnapshotContext } from './SnapshotBuilder.js';

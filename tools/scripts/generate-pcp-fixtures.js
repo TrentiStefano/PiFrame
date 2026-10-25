@@ -18,7 +18,7 @@ writeFixture('hello.valid.json', {
   type: 'connection.hello',
   payload: {
     token: 'dGhpcy1pcy1hLXRlc3QtdG9rZW4tMjU2LWJpdHM',
-    client: { name: 'pi-crust', version: '0.1.0', platform: 'windows' },
+    client: { name: 'pi-frame', version: '0.1.0', platform: 'windows' },
     encoding: 'json',
     capabilities: ['replay.v1', 'ui.claim.v1', 'workspace.v1']
   }
@@ -32,7 +32,7 @@ writeFixture('hello.invalid.json', {
   type: 'connection.hello',
   payload: {
     // missing token
-    client: { name: 'pi-crust', version: '0.1.0', platform: 'windows' },
+    client: { name: 'pi-frame', version: '0.1.0', platform: 'windows' },
     encoding: 'json',
     capabilities: ['replay.v1']
   }
@@ -184,8 +184,8 @@ writeFixture('snapshot.valid.json', {
     session: {
       id: 's_01HZSESSION00000000000001',
       name: 'Refactor auth',
-      cwd: 'C:/Personale/Repos/pi-crust',
-      gitRoot: 'C:/Personale/Repos/pi-crust',
+      cwd: 'C:/Personale/Repos/pi-frame',
+      gitRoot: 'C:/Personale/Repos/pi-frame',
       sessionFile: 'session.jsonl',
       createdAt: 1726639000000,
       lastActivityAt: 1726640000000

@@ -9,7 +9,7 @@ console.log('=== PCP Codegen: Verifying Schema -> TS & Dart parity ===');
 
 const schemaDir = path.resolve(__dirname, '../../packages/pcp-spec/schema');
 const tsTypesFile = path.resolve(__dirname, '../../packages/pcp-ts/src/types.ts');
-const dartEventsFile = path.resolve(__dirname, '../../packages/pi_crust_protocol/lib/src/events.dart');
+const dartEventsFile = path.resolve(__dirname, '../../packages/pi_frame_protocol/lib/src/events.dart');
 
 if (!fs.existsSync(schemaDir) || !fs.existsSync(tsTypesFile) || !fs.existsSync(dartEventsFile)) {
   console.error('Missing schema or target files for codegen verification');
