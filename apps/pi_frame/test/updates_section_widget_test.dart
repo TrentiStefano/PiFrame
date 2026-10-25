@@ -114,10 +114,10 @@ void main() {
   ) async {
     final client = _FakeUpdateClient();
     client.nextRelease = AppRelease(
-      tagName: 'v1.3.0',
-      name: 'v1.3.0',
+      tagName: 'v1.0.0',
+      name: 'v1.0.0',
       body: 'Current version',
-      htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.3.0',
+      htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.0.0',
       assets: const [],
     );
     final storage = MemoryUpdateStorage();

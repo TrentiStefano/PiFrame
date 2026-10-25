@@ -99,10 +99,10 @@ void main() {
 
     test('sets upToDate when GitHub has same or older version', () async {
       client.nextRelease = AppRelease(
-        tagName: 'v1.3.0',
-        name: 'PiFrame v1.3.0',
+        tagName: 'v1.0.0',
+        name: 'PiFrame v1.0.0',
         body: 'Current release',
-        htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.3.0',
+        htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.0.0',
         assets: const [],
       );
 
