@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -17,6 +18,10 @@ import 'remote_section.dart';
 import 'updates_section.dart';
 import 'theme_editor_dialog.dart';
 import '../../ui/frame_snack_bar.dart';
+
+/// `dart:io` Platform throws `UnsupportedError` on the web build, so every OS
+/// branch in settings goes through this web-safe helper.
+bool get _isWindowsOs => !kIsWeb && Platform.isWindows;
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
@@ -1502,13 +1507,13 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   value: NativeTerminalApp.systemDefault,
                   activeColor: tokens.accent,
                   title: Text(
-                    Platform.isWindows
+                    _isWindowsOs
                         ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
                         : 'Terminale predefinito di sistema',
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
                 ),
-                if (Platform.isWindows) ...[
+                if (_isWindowsOs) ...[
                   Divider(color: tokens.border, height: 1),
                   RadioListTile<NativeTerminalApp>(
                     value: NativeTerminalApp.powershell,
@@ -1563,7 +1568,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                   fontFamily: tokens.monoFontFamily,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: Platform.isWindows
+                                  hintText: _isWindowsOs
                                       ? 'C:\\Percorso\\A\\terminal.exe'
                                       : '/usr/bin/alacritty',
                                   isDense: true,

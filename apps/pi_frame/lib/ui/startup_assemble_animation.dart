@@ -151,6 +151,11 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                // The overlay lives above the Navigator, so
+                                // there is no Material DefaultTextStyle here:
+                                // without an explicit `decoration` Flutter falls
+                                // back to its yellow double-underline debug
+                                // style.
                                 Text(
                                   'PIFRAME',
                                   style: TextStyle(
@@ -159,6 +164,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 4.0,
                                     fontFamily: tokens.headingFontFamily,
+                                    decoration: TextDecoration.none,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -170,6 +176,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 2.2,
                                     fontFamily: tokens.monoFontFamily,
+                                    decoration: TextDecoration.none,
                                   ),
                                 ),
                               ],

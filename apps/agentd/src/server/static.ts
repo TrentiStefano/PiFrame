@@ -21,20 +21,53 @@ export function findStaticDir(customDir?: string): string | undefined {
 
   const baseDir = getPiFrameBaseDir();
   const userWebDir = path.join(baseDir, 'web');
-  if (fs.existsSync(userWebDir)) return userWebDir;
+  if (fs.existsSync(userWebDir) && fs.existsSync(path.join(userWebDir, 'index.html'))) {
+    return userWebDir;
+  }
 
   const scriptDir = typeof __dirname !== 'undefined' ? __dirname : '';
-  const candidates = [
+  const candidates: string[] = [
     path.join(process.cwd(), 'apps', 'pi_frame', 'build', 'web'),
     path.join(process.cwd(), 'build', 'web'),
-    path.resolve(scriptDir, '..', '..', 'pi_frame', 'build', 'web'),
-    path.resolve(scriptDir, '..', '..', '..', 'apps', 'pi_frame', 'build', 'web'),
-    path.resolve(scriptDir, 'web')
+    path.resolve(scriptDir, 'web'),
+    path.resolve(scriptDir, 'data', 'web'),
+    path.resolve(scriptDir, 'data', 'flutter_assets', 'web'),
   ];
 
-  for (const c of candidates) {
-    if (c && fs.existsSync(c)) return c;
+  // Walk up from scriptDir (up to 8 levels) checking web directories
+  let sDir = scriptDir;
+  for (let i = 0; i < 8 && sDir && sDir !== path.dirname(sDir); i++) {
+    candidates.push(path.join(sDir, 'web'));
+    candidates.push(path.join(sDir, 'build', 'web'));
+    candidates.push(path.join(sDir, 'apps', 'pi_frame', 'build', 'web'));
+    sDir = path.dirname(sDir);
   }
+
+  // Walk up from process.cwd() (up to 5 levels)
+  let cDir = process.cwd();
+  for (let i = 0; i < 5 && cDir && cDir !== path.dirname(cDir); i++) {
+    candidates.push(path.join(cDir, 'web'));
+    candidates.push(path.join(cDir, 'build', 'web'));
+    candidates.push(path.join(cDir, 'apps', 'pi_frame', 'build', 'web'));
+    cDir = path.dirname(cDir);
+  }
+
+  if (userWebDir && fs.existsSync(userWebDir)) {
+    candidates.push(userWebDir);
+  }
+
+  for (const c of candidates) {
+    if (c && fs.existsSync(c) && fs.existsSync(path.join(c, 'index.html'))) {
+      return c;
+    }
+  }
+
+  for (const c of candidates) {
+    if (c && fs.existsSync(c)) {
+      return c;
+    }
+  }
+
   return undefined;
 }
 
@@ -130,24 +163,175 @@ export function serveStaticFile(
     if (url.pathname === '/' || url.pathname === '/index.html') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
   <meta charset="utf-8">
-  <title>PiFrame</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PiFrame Daemon</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #11141b; color: #f0f3f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-    .card { background: #1a1e28; padding: 32px; border-radius: 12px; border: 1px solid #2d3446; text-align: center; max-width: 420px; }
-    h1 { margin-top: 0; color: #7c9cfc; font-size: 20px; }
-    p { color: #8c97ad; font-size: 13px; line-height: 1.5; }
-    .status { display: inline-block; padding: 4px 10px; background: rgba(124, 156, 252, 0.15); color: #7c9cfc; border-radius: 6px; font-weight: 600; font-size: 11px; margin-top: 12px; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #161c27;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #1e2638;
+      padding: 32px 28px;
+      border-radius: 16px;
+      border: 1px solid #2e3a52;
+      text-align: center;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: rgba(95, 159, 197, 0.12);
+      border: 1px solid rgba(95, 159, 197, 0.25);
+      margin-bottom: 16px;
+    }
+    .logo svg { width: 28px; height: 28px; fill: #5f9fc5; }
+    h1 { margin: 0 0 8px 0; color: #f1f5f9; font-size: 21px; font-weight: 700; letter-spacing: -0.3px; }
+    p { color: #94a3b8; font-size: 13.5px; line-height: 1.5; margin: 0 0 18px 0; }
+    .status-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(95, 159, 197, 0.12);
+      color: #5f9fc5;
+      border: 1px solid rgba(95, 159, 197, 0.3);
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 11.5px;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block; }
+    .pair-box {
+      margin-top: 16px;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 12px;
+      border: 1px solid #2e3a52;
+      text-align: left;
+    }
+    .pair-title { font-size: 12.5px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px; }
+    .pair-status { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+    .pair-status.success { color: #4ade80; font-weight: 600; }
+    .pair-status.error { color: #f87171; }
+    .pair-form { display: flex; gap: 8px; margin-top: 10px; }
+    .pair-input {
+      flex: 1;
+      padding: 8px 12px;
+      background: #161c27;
+      border: 1px solid #2e3a52;
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-size: 13px;
+      outline: none;
+    }
+    .pair-input:focus { border-color: #5f9fc5; }
+    .pair-btn {
+      padding: 8px 14px;
+      background: #5f9fc5;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pair-btn:hover { background: #7ab3d6; }
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
     <h1>PiFrame Daemon</h1>
-    <p>Il daemon locale è attivo e operativo su loopback.</p>
-    <div class="status">v${opts.version} • ONLINE</div>
+    <p>${isRemote ? 'Connessione remota attiva e sicura.' : 'Il daemon locale è attivo e operativo su loopback.'}</p>
+    <div class="status-row">
+      <div class="badge"><span class="badge-dot"></span>v${opts.version} • ONLINE</div>
+    </div>
+    <div class="pair-box" id="pairBox">
+      <div class="pair-title">Associazione Dispositivo</div>
+      <div class="pair-status" id="pairStatus">Verifica codice di associazione in corso...</div>
+      <div class="pair-form" id="pairForm" style="display: none;">
+        <input type="text" class="pair-input" id="pinInput" placeholder="Inserisci codice PIN o secret" />
+        <button class="pair-btn" id="pairBtn" onclick="submitPairing()">Associa</button>
+      </div>
+    </div>
   </div>
+  <script>
+    function doPair(secret) {
+      var statusEl = document.getElementById('pairStatus');
+      var formEl = document.getElementById('pairForm');
+      statusEl.textContent = 'Associazione in corso...';
+      statusEl.className = 'pair-status';
+
+      fetch('/api/remote/pair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairingSecret: secret })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.ok && res.deviceToken) {
+          try {
+            sessionStorage.setItem('pcp_device_token', res.deviceToken);
+            localStorage.setItem('pcp_device_token', res.deviceToken);
+          } catch(e) {}
+          statusEl.textContent = '✓ Dispositivo associato con successo! (Permessi: ' + (res.device ? res.device.mode : 'view') + ')';
+          statusEl.className = 'pair-status success';
+          if (formEl) formEl.style.display = 'none';
+          setTimeout(function() { window.location.reload(); }, 1500);
+        } else {
+          statusEl.textContent = 'Errore: ' + (res.error || 'Codice non valido');
+          statusEl.className = 'pair-status error';
+          if (formEl) formEl.style.display = 'flex';
+        }
+      })
+      .catch(function(err) {
+        statusEl.textContent = 'Errore di connessione durante l\\'associazione.';
+        statusEl.className = 'pair-status error';
+        if (formEl) formEl.style.display = 'flex';
+      });
+    }
+
+    function submitPairing() {
+      var val = (document.getElementById('pinInput').value || '').trim();
+      if (val) doPair(val);
+    }
+
+    (function() {
+      var hash = window.location.hash || '';
+      if (hash.startsWith('#')) hash = hash.slice(1);
+      var params = new URLSearchParams(hash);
+      var pairSecret = params.get('pair');
+      if (pairSecret) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        doPair(pairSecret);
+      } else {
+        var statusEl = document.getElementById('pairStatus');
+        var formEl = document.getElementById('pairForm');
+        statusEl.textContent = 'Inquadra il codice QR da PiFrame sul desktop per associare questo dispositivo, oppure inserisci il codice:';
+        formEl.style.display = 'flex';
+      }
+    })();
+  </script>
 </body>
 </html>`);
       return true;

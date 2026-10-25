@@ -186,6 +186,12 @@ jobs:
         working-directory: apps/pi_frame
         run: flutter build ${{ matrix.platform }} --release --build-name ${{ needs.release-meta.outputs.version }} --build-number ${{ github.run_number }} --dart-define=PI_FRAME_VERSION=${{ needs.release-meta.outputs.version }}
 
+      # The daemon serves this build for remote phone/browser access, so it must
+      # ship inside the installer next to the daemon.
+      - name: Build Flutter web app (remote access)
+        working-directory: apps/pi_frame
+        run: flutter build web --release --no-web-resources-cdn --dart-define=PI_FRAME_VERSION=${{ needs.release-meta.outputs.version }}
+
       - name: Build Windows installer
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -196,9 +202,10 @@ jobs:
           }
           $nodePath = (Get-Command node).Source
           Copy-Item $nodePath (Join-Path $bundle 'node.exe') -Force
+          Copy-Item 'apps/pi_frame/build/web' (Join-Path $bundle 'web') -Recurse -Force
           Copy-Item (Join-Path (Split-Path $nodePath -Parent) 'LICENSE') (Join-Path $bundle 'NODE-LICENSE.txt') -Force
-          if (!(Test-Path (Join-Path $bundle 'pi_frame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt'))) {
-            throw 'Windows app bundle is missing app, daemon, or Node runtime.'
+          if (!(Test-Path (Join-Path $bundle 'pi_frame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt')) -or !(Test-Path (Join-Path $bundle 'web/index.html'))) {
+            throw 'Windows app bundle is missing app, daemon, Node runtime, or remote web assets.'
           }
           New-Item -ItemType Directory -Force dist | Out-Null
           choco install innosetup --yes --no-progress
@@ -217,12 +224,16 @@ jobs:
           cp "$node_bin" "$app/Contents/MacOS/node"
           cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
           chmod +x "$app/Contents/MacOS/node"
+          rm -rf "$app/Contents/MacOS/web"
+          cp -R apps/pi_frame/build/web "$app/Contents/MacOS/web"
+          test -s "$app/Contents/MacOS/web/index.html"
           cp -R "$app" dist/dmg/PiFrame.app
           codesign --force --deep --sign - dist/dmg/PiFrame.app
           ln -s /Applications dist/dmg/Applications
           test -x "$app/Contents/MacOS/pi_frame"
           test -x "$app/Contents/MacOS/node"
           test -s "$app/Contents/MacOS/pi-agentd.cjs"
+          test -s "$app/Contents/MacOS/web/index.html"
           test -s "$app/Contents/Resources/NODE-LICENSE.txt"
           hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
           rm -rf dist/dmg

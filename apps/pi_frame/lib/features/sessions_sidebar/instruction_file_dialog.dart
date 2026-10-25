@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -20,7 +21,10 @@ class InstructionFileDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     required String folder,
     String? sessionId,
-  }) {
+  }) async {
+    // Instruction files live on the host file system; a remote browser cannot
+    // read or write them directly.
+    if (kIsWeb) return;
     return showDialog<void>(
       context: context,
       barrierDismissible: true,

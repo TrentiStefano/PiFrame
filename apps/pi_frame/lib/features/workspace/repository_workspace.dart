@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1478,37 +1479,46 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  tooltip:
-                      ref.watch(terminalSettingsProvider).mode ==
-                          TerminalMode.native
-                      ? 'Apri terminale nativo (OS)'
-                      : (_terminalOpen && !_terminalCollapsed
-                            ? 'Nascondi terminale'
-                            : 'Terminale integrato'),
-                  onPressed: () {
-                    final termSettings = ref.read(terminalSettingsProvider);
-                    if (termSettings.mode == TerminalMode.native) {
-                      launchNativeTerminal(
-                        cwd:
-                            repo.rootPath ??
-                            ref.read(sessionStateFamily(widget.sessionId)).cwd,
-                        nativeApp: termSettings.nativeApp,
-                        customPath: termSettings.customPath,
+                // The integrated terminal spawns host processes and can only
+                // run inside the desktop app.
+                if (!kIsWeb)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip:
+                        ref.watch(terminalSettingsProvider).mode ==
+                            TerminalMode.native
+                        ? 'Apri terminale nativo (OS)'
+                        : (_terminalOpen && !_terminalCollapsed
+                              ? 'Nascondi terminale'
+                              : 'Terminale integrato'),
+                    onPressed: () {
+                      final termSettings = ref.read(
+                        terminalSettingsProvider,
                       );
-                    } else {
-                      _toggleTerminal();
-                    }
-                  },
-                  icon: Icon(
-                    _terminalOpen ? Icons.terminal : Icons.terminal_outlined,
-                    size: 16,
-                    color: _terminalOpen ? tokens.accent : null,
+                      if (termSettings.mode == TerminalMode.native) {
+                        launchNativeTerminal(
+                          cwd:
+                              repo.rootPath ??
+                              ref
+                                  .read(
+                                    sessionStateFamily(widget.sessionId),
+                                  )
+                                  .cwd,
+                          nativeApp: termSettings.nativeApp,
+                          customPath: termSettings.customPath,
+                        );
+                      } else {
+                        _toggleTerminal();
+                      }
+                    },
+                    icon: Icon(
+                      _terminalOpen ? Icons.terminal : Icons.terminal_outlined,
+                      size: 16,
+                      color: _terminalOpen ? tokens.accent : null,
+                    ),
                   ),
-                ),
                 const SizedBox(width: 4),
                 IconButton(
                   visualDensity: VisualDensity.compact,
@@ -2310,63 +2320,69 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    key: const ValueKey('right-pane-switch-browser-chip'),
-                    onTap: () {
-                      ref.read(rightPaneModeProvider.notifier).state =
-                          RightPaneMode.browser;
-                    },
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: tokens.surface,
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.language,
-                            size: 12,
-                            color: tokens.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Browser',
-                            style: TextStyle(
+                  if (ref.watch(browserPaneSupportedProvider)) ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      key: const ValueKey('right-pane-switch-browser-chip'),
+                      onTap: () {
+                        ref.read(rightPaneModeProvider.notifier).state =
+                            RightPaneMode.browser;
+                      },
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surface,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.language,
+                              size: 12,
                               color: tokens.textMuted,
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w500,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              'Browser',
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  key: const ValueKey('git-switch-to-browser-btn'),
-                  tooltip: 'Passa a Web Browser',
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: () {
-                    ref.read(rightPaneModeProvider.notifier).state =
-                        RightPaneMode.browser;
-                  },
-                  icon: const Icon(Icons.language, size: 16),
-                ),
+                if (ref.watch(browserPaneSupportedProvider))
+                  IconButton(
+                    key: const ValueKey('git-switch-to-browser-btn'),
+                    tooltip: 'Passa a Web Browser',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 26,
+                      minHeight: 26,
+                    ),
+                    onPressed: () {
+                      ref.read(rightPaneModeProvider.notifier).state =
+                          RightPaneMode.browser;
+                    },
+                    icon: const Icon(Icons.language, size: 16),
+                  ),
                 IconButton(
                   tooltip: 'Aggiorna stato Git',
                   visualDensity: VisualDensity.compact,

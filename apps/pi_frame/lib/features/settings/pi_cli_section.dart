@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -136,6 +137,15 @@ class _PiCliSectionState extends State<PiCliSection> {
 
   Future<void> _executeCommand(String displayCmd, List<String> args) async {
     if (_isExecuting) return;
+    // Shell commands run on the host only; the browser cannot spawn processes.
+    if (kIsWeb) {
+      setState(() {
+        _consoleOutput =
+            'I comandi Pi sono disponibili solo nell\'app desktop.';
+        _exitCode = -1;
+      });
+      return;
+    }
 
     setState(() {
       _isExecuting = true;

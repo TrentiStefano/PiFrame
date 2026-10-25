@@ -8,6 +8,7 @@ version="${1:?Usage: package-linux-deb.sh <version>}"
 }
 
 bundle="apps/pi_frame/build/linux/x64/release/bundle"
+web="apps/pi_frame/build/web"
 daemon="apps/agentd/dist/pi-agentd.cjs"
 node_bin="$(command -v node)"
 stage="$(mktemp -d)"
@@ -19,6 +20,8 @@ cp -a "$bundle/." "$app_dir/"
 install -m 0755 "$node_bin" "$app_dir/node"
 install -m 0644 "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app_dir/NODE-LICENSE.txt"
 install -m 0644 "$daemon" "$app_dir/pi-agentd.cjs"
+# The daemon serves the web build for remote phone/browser access.
+cp -R "$web" "$app_dir/web"
 
 cat > "$stage/usr/share/applications/pi-frame.desktop" <<'EOF'
 [Desktop Entry]
@@ -48,6 +51,7 @@ EOF
 [[ -x "$app_dir/node" ]]
 [[ -s "$app_dir/NODE-LICENSE.txt" ]]
 [[ -s "$app_dir/pi-agentd.cjs" ]]
+[[ -s "$app_dir/web/index.html" ]]
 node --check "$app_dir/pi-agentd.cjs"
 mkdir -p dist
 package="dist/PiFrame-${version}-linux-amd64.deb"

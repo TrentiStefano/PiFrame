@@ -180,6 +180,32 @@ class DaemonLocator {
 
   static Future<bool> _spawnSidecarDaemon() async {
     try {
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
+
+      String? webDir = Platform.environment['PI_FRAME_WEB_DIR'];
+      if (webDir == null || !Directory(webDir).existsSync()) {
+        final webCandidates = [
+          '$exeDir/web',
+          '$exeDir/../../../../build/web',
+          '$exeDir/../../../../../apps/pi_frame/build/web',
+          '$exeDir/data/flutter_assets/web',
+          '${Platform.environment['USERPROFILE'] ?? ''}/.piframe/web',
+          '${Platform.environment['HOME'] ?? ''}/.piframe/web',
+        ];
+        for (final candidate in webCandidates) {
+          if (candidate.isEmpty) continue;
+          final d = Directory(candidate);
+          if (d.existsSync() && File('${d.path}/index.html').existsSync()) {
+            webDir = d.absolute.path;
+            break;
+          }
+        }
+      }
+      final env = Map<String, String>.from(Platform.environment);
+      if (webDir != null) {
+        env['PI_FRAME_WEB_DIR'] = webDir;
+      }
+
       final envBin = Platform.environment['PI_FRAME_DAEMON_BIN'];
       if (envBin != null && await File(envBin).exists()) {
         final isScript = RegExp(r'\.(c?js|mjs)$', caseSensitive: false).hasMatch(envBin);
@@ -187,12 +213,12 @@ class DaemonLocator {
           isScript ? 'node' : envBin,
           isScript ? [File(envBin).absolute.path] : [],
           mode: ProcessStartMode.detached,
+          environment: env,
         );
         return true;
       }
 
       // Check next to executable (bundle sidecar)
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
       final bundledExeName = Platform.isWindows ? 'pi-agentd.exe' : 'pi-agentd';
       final bundledSidecar = File('$exeDir/$bundledExeName');
       if (await bundledSidecar.exists()) {
@@ -200,6 +226,7 @@ class DaemonLocator {
           bundledSidecar.path,
           [],
           mode: ProcessStartMode.detached,
+          environment: env,
         );
         return true;
       }
@@ -214,6 +241,7 @@ class DaemonLocator {
           bundledNode.path,
           [bundledDaemon.path],
           mode: ProcessStartMode.detached,
+          environment: env,
         );
         return true;
       }
@@ -237,6 +265,7 @@ class DaemonLocator {
             'node',
             [file.absolute.path],
             mode: ProcessStartMode.detached,
+            environment: env,
           );
           return true;
         }

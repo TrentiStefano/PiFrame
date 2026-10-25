@@ -37,6 +37,8 @@ class DefaultPiInstallService implements PiInstallService {
 
   @override
   Future<bool> isFirstRun() async {
+    // The browser never installs the Pi CLI: dart:io Platform throws there.
+    if (kIsWeb) return false;
     // Avoid showing first-run dialog automatically in automated test environments unless overridden
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
       return false;
@@ -73,6 +75,9 @@ class DefaultPiInstallService implements PiInstallService {
 
   @override
   Future<bool> isPiInstalled() async {
+    // A remote browser cannot probe the host shell; the daemon already reports
+    // Pi capabilities through PCP.
+    if (kIsWeb) return true;
     try {
       final ProcessResult result;
       if (Platform.isWindows) {
@@ -96,6 +101,10 @@ class DefaultPiInstallService implements PiInstallService {
 
   @override
   Stream<String> installPiAgent() async* {
+    if (kIsWeb) {
+      yield 'L\'installazione della CLI Pi è disponibile solo su desktop.\n';
+      return;
+    }
     yield 'Inizializzazione installazione di @earendil-works/pi-coding-agent...\n';
     final controller = StreamController<String>();
 

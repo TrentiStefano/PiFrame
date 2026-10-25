@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -107,6 +108,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
   }
 
   String _getGlobalMcpConfigPath() {
+    if (kIsWeb) return '';
     final home = Platform.isWindows
         ? (Platform.environment['USERPROFILE'] ??
             Platform.environment['HOME'] ??
@@ -116,6 +118,17 @@ class _McpServersDialogState extends State<McpServersDialog> {
   }
 
   Future<void> _loadServers() async {
+    // MCP configuration lives on the host machine: browsers can only report
+    // the servers the daemon already exposes.
+    if (kIsWeb) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'La configurazione MCP è disponibile solo su desktop.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -206,10 +219,18 @@ class _McpServersDialogState extends State<McpServersDialog> {
       // 3. Try to query live status from `pi mcp list --json`
       try {
         final result = Platform.isWindows
-            ? await Process.run('cmd.exe', ['/c', 'pi', 'mcp', 'list', '--json'])
-                .timeout(const Duration(seconds: 4))
-            : await Process.run('pi', ['mcp', 'list', '--json'])
-                .timeout(const Duration(seconds: 4));
+            ? await Process.run('cmd.exe', [
+                '/c',
+                'pi',
+                'mcp',
+                'list',
+                '--json',
+              ]).timeout(const Duration(seconds: 4))
+            : await Process.run('pi', [
+                'mcp',
+                'list',
+                '--json',
+              ]).timeout(const Duration(seconds: 4));
 
         if (result.stdout != null) {
           final rawOutput = result.stdout.toString().trim();

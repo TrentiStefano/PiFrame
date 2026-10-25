@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
@@ -292,6 +293,9 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   }
 
   void _readOutputFiles() {
+    // Subagent output files are read from the host disk; the browser gets the
+    // streamed output from the daemon instead.
+    if (kIsWeb) return;
     bool changed = false;
     final updated = state.map((item) {
       if (item.outputFile != null && item.outputFile!.isNotEmpty) {

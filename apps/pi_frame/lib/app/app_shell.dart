@@ -647,7 +647,8 @@ class _AppShellState extends ConsumerState<AppShell>
               onSelectCompanionTab: (pane) =>
                   setState(() => _companionPane = pane),
             )
-          : (ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+          : (ref.watch(browserPaneSupportedProvider) &&
+                  ref.watch(rightPaneModeProvider) == RightPaneMode.browser
               ? WebBrowserPane(
                   key: ValueKey('browser_$sessionId'),
                   sessionId: sessionId,
@@ -718,7 +719,8 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.repository => 'Repository',
     WorkspacePane.git => ref.watch(isReviewingChangesProvider)
         ? 'Review Changes'
-        : (ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+        : (ref.watch(browserPaneSupportedProvider) &&
+                  ref.watch(rightPaneModeProvider) == RightPaneMode.browser
             ? 'Web Browser'
             : 'Git Changes'),
   };
@@ -823,6 +825,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final isLeft = pane == WorkspacePane.repository;
     final isBrowser = pane == WorkspacePane.git &&
         !ref.watch(isReviewingChangesProvider) &&
+        ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final iconData = switch (pane) {
       WorkspacePane.repository => Icons.folder_outlined,
@@ -1059,7 +1062,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 600;
-    final isBrowser =
+    final isBrowser = ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => 'Chat',

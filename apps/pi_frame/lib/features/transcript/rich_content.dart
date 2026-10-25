@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,7 @@ Future<void> _openUrl(String url) async {
       await launchUrl(uri);
     }
   } catch (_) {
+    if (kIsWeb) return;
     try {
       if (Platform.isWindows) {
         await Process.run('rundll32', ['url.dll,FileProtocolHandler', url]);
@@ -29,6 +31,9 @@ Future<void> _openUrl(String url) async {
 }
 
 String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
+  // The browser has no OS file system: keep the raw reference untouched and
+  // never touch dart:io (Platform throws UnsupportedError on the web).
+  if (kIsWeb) return rawPath.trim();
   String resolved = rawPath.trim();
   if (resolved.startsWith('file://')) {
     final uri = Uri.tryParse(resolved);
@@ -101,6 +106,8 @@ String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
 }
 
 Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
+  // Remote browsers cannot reveal files in the host OS explorer.
+  if (kIsWeb) return;
   try {
     final targetPath = resolvePathForOsExplorer(rawPath, cwd: cwd);
 

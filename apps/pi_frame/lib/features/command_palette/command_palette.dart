@@ -141,25 +141,27 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           },
         ),
       ],
-      PaletteAction(
-        id: 'switch_to_browser',
-        title: 'Mostra Web Browser',
-        subtitle: 'Apri il browser web integrato nel pannello laterale',
-        icon: Icons.language_outlined,
-        onExecute: () async {
-          ref.read(rightPaneModeProvider.notifier).state =
-              RightPaneMode.browser;
-        },
-      ),
-      PaletteAction(
-        id: 'switch_to_git',
-        title: 'Mostra Modifiche Git',
-        subtitle: 'Mostra il pannello delle modifiche Git nel pannello laterale',
-        icon: Icons.source_outlined,
-        onExecute: () async {
-          ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
-        },
-      ),
+      if (ref.watch(browserPaneSupportedProvider)) ...[
+        PaletteAction(
+          id: 'switch_to_browser',
+          title: 'Mostra Web Browser',
+          subtitle: 'Apri il browser web integrato nel pannello laterale',
+          icon: Icons.language_outlined,
+          onExecute: () async {
+            ref.read(rightPaneModeProvider.notifier).state =
+                RightPaneMode.browser;
+          },
+        ),
+        PaletteAction(
+          id: 'switch_to_git',
+          title: 'Mostra Modifiche Git',
+          subtitle: 'Mostra il pannello delle modifiche Git nel pannello laterale',
+          icon: Icons.source_outlined,
+          onExecute: () async {
+            ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
+          },
+        ),
+      ],
       PaletteAction(
         id: 'settings',
         title: 'Apri Impostazioni',

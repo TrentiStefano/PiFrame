@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +6,11 @@ import 'browser_models.dart';
 import 'browser_service.dart';
 
 final rightPaneModeProvider = StateProvider<RightPaneMode>((ref) => RightPaneMode.git);
+
+/// The embedded native browser only exists on desktop. On the web build a
+/// browser inside a browser is meaningless (and the WebView2 plugin is not
+/// available), so every browser entry point is hidden there.
+final browserPaneSupportedProvider = Provider<bool>((ref) => !kIsWeb);
 
 final browserClientProvider = Provider<http.Client>((ref) {
   final client = http.Client();
