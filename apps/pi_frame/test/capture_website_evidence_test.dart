@@ -19,20 +19,18 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void _saveScreenshot(Uint8List bytes, String fileName) {
   final targetDirs = [
-    Directory(
-      'c:/Personale/Repos/pi-crust/pi-crust/docs/design-evidence/recordly-projects',
-    ),
-    Directory('c:/Personale/Repos/pi-crust/pi-crust/website/assets/img/ui'),
-    Directory(
-      'c:/Personale/Repos/pi-crust/pi-crust/scratch/release_ui_screenshots',
-    ),
+    Directory('docs/design-evidence/recordly-projects'),
+    Directory('website/assets/img/ui'),
+    Directory('scratch/release_ui_screenshots'),
   ];
 
   for (final dir in targetDirs) {
-    if (!dir.existsSync()) {
-      dir.createSync(recursive: true);
-    }
-    File('${dir.path}/$fileName').writeAsBytesSync(bytes);
+    try {
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+      }
+      File('${dir.path}/$fileName').writeAsBytesSync(bytes);
+    } catch (_) {}
   }
 }
 

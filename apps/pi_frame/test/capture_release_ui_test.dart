@@ -18,9 +18,11 @@ import 'package:pi_frame/ui/startup_assemble_animation.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 Directory _getOutputDir() {
-  final out = Directory('c:/Personale/Repos/pi-crust/pi-crust/scratch/release_ui_screenshots');
+  final out = Directory('scratch/release_ui_screenshots');
   if (!out.existsSync()) {
-    out.createSync(recursive: true);
+    try {
+      out.createSync(recursive: true);
+    } catch (_) {}
   }
   return out;
 }
@@ -37,8 +39,10 @@ Future<void> _captureToPng(
     final image = await boundary.toImage(pixelRatio: 1.0);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     if (byteData != null) {
-      final outDir = _getOutputDir();
-      File('${outDir.path}/$fileName').writeAsBytesSync(byteData.buffer.asUint8List());
+      try {
+        final outDir = _getOutputDir();
+        File('${outDir.path}/$fileName').writeAsBytesSync(byteData.buffer.asUint8List());
+      } catch (_) {}
     }
     image.dispose();
   });

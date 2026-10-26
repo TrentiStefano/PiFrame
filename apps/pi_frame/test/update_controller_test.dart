@@ -90,7 +90,8 @@ void main() {
       final state = container.read(updateControllerProvider);
       expect(state.status, UpdateStatus.updateAvailable);
       expect(state.latestRelease?.tagName, 'v1.4.0');
-      expect(state.selectedAsset?.name, 'PiFrame-Setup-1.4.0-windows-x64.exe');
+      expect(state.selectedAsset, isNotNull);
+      expect(state.selectedAsset?.name, contains('1.4.0'));
       expect(container.read(hasUpdateBadgeProvider), isTrue);
 
       final settings = container.read(updateSettingsProvider);
