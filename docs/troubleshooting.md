@@ -75,11 +75,60 @@ Il daemon `pi-agentd` non trovava la directory compilata della web app Flutter (
    ```
    e copia i file generati in `~/.piframe/web/`.
 
----
-
 ## 3. Web App: Browser Integrato nel Browser
 
 ### Caso d'uso
 Nella versione web di PiFrame visualizzata da smartphone o browser remoto, il pulsante e il pannello del *Web Browser integrato* sono stati intenzionalmente rimossi:
 - Su dispositivi remoti (es. iPhone, Android, browser esterno), aprire un browser all'interno di una webview incorporata è ridondante e WebView2 è una tecnologia nativa desktop Windows.
 - La modalità remota web espone unicamente le aree di lavoro pertinenti: **Chat**, **File Explorer** e **Git Changes**.
+
+---
+
+## 4. Daemon Non Raggiungibile o Errore di Connessione con Build da Sorgente
+
+### Sintomi
+Avviando l'eseguibile `PiFrame.exe` compilato manualmente da sorgenti (ad esempio da `apps/pi_frame/build/windows/x64/runner/Release/PiFrame.exe`):
+- L'applicazione si avvia ma mostra l'errore che non riesce a raggiungere o avviare il daemon di runtime (`pi-agentd`).
+- Se avviato manualmente da terminale (`pnpm run:daemon`), l'applicazione si connette regolarmente.
+
+### Causa
+A differenza dell'installer ufficiale che pacchettizza automaticamente il sidecar, una build manuale di Flutter (`flutter build windows`) genera unicamente i binari dell'interfaccia grafica. L'app cerca il daemon sidecar (`pi-agentd.cjs` e `node.exe`) nella directory adiacente a `PiFrame.exe`.
+
+### Risoluzione
+1. Compila il bundle del daemon dalla radice del monorepo:
+   ```powershell
+   pnpm build:all
+   # oppure: pnpm build:agentd
+   ```
+2. Copia il bundle del daemon e l'interprete Node nella cartella di release di Flutter:
+   ```powershell
+   $releaseDir = "apps/pi_frame/build/windows/x64/runner/Release"
+   Copy-Item "apps/agentd/dist/pi-agentd.cjs" $releaseDir -Force
+   Copy-Item (Get-Command node).Source (Join-Path $releaseDir "node.exe") -Force
+   ```
+   In questo modo `PiFrame.exe` sarà in grado di avviare il daemon in background in autonomia ogni volta che viene aperto.
+
+---
+
+## 5. Installazione Dipendenze: Errore `EBUSY: resource busy or locked, symlink` (Windows)
+
+### Sintomi
+Eseguendo `pnpm install` o `pnpm build:all` su Windows, l'installazione fallisce con:
+```text
+EBUSY: resource busy or locked, symlink ...
+"tsc" non è riconosciuto come comando interno o esterno
+```
+
+### Causa
+Un processo attivo (un'istanza di `PiFrame.exe` in esecuzione, il daemon `pi-agentd` o il terminale) mantiene bloccate le cartelle dei pacchetti del monorepo mentre `pnpm` tenta di creare i collegamenti simbolici. Di conseguenza l'installazione delle dipendenze viene interrotta prima di collegare il compilatore TypeScript (`tsc`).
+
+### Risoluzione
+1. Termina eventuali istanze dell'app o del daemon:
+   ```powershell
+   Stop-Process -Name "pi-agentd","pi-frame","PiFrame" -ErrorAction SilentlyContinue
+   ```
+2. Riesegui l'installazione delle dipendenze e la build:
+   ```powershell
+   pnpm install
+   pnpm build:all
+   ```

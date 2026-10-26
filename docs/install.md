@@ -60,6 +60,12 @@ Il pacchetto aggiunge PiFrame al menu applicazioni e include daemon e runtime No
 1. Il daemon `pi-agentd` include un server statico HTTP integrato per gli asset web di Flutter.
 2. Aprendo `http://127.0.0.1:<porta>/` da browser locale, il server imposta automaticamente un cookie `HttpOnly; SameSite=Strict` contenente il token di autenticazione PCP (`pcp_token`), consentendo l'accesso immediato senza configurazione manuale.
 
+### Build Manuale da Sorgente (Eseguibile Standalone)
+Se compili manualmente l'eseguibile desktop da sorgenti anziché utilizzare l'installer (ad es. `flutter build windows --release`):
+1. Assicurati di compilare il daemon: `pnpm build:all` (o `pnpm build:agentd`).
+2. Per consentire all'applicazione di avviare il sidecar automaticamente all'avvio, copia `apps/agentd/dist/pi-agentd.cjs` e l'eseguibile `node.exe` nella cartella di output del runner (es. `apps/pi_frame/build/windows/x64/runner/Release/`).
+3. Per i dettagli operativi o in caso di anomalie di blocco file (`EBUSY`), fai riferimento a [**docs/troubleshooting.md**](troubleshooting.md#4-daemon-non-raggiungibile-o-errore-di-connessione-con-build-da-sorgente).
+
 ---
 
 ## 4. Ciclo di Vita del Daemon (D8, D9)
