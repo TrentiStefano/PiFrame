@@ -5,6 +5,8 @@ import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { Session } from './Session.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
 import { SessionIndex } from './SessionIndex.js';
+import { ensureContextLimitExtension, applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
+import { DEFAULT_COMPACTION_RESERVE_PERCENT, writeContextPolicy } from '../pi/contextPolicy.js';
 
 export interface WorkerSupervisorOptions {
   piExecutablePath: string;
@@ -84,7 +86,7 @@ export class WorkerSupervisor {
       capabilities: this.capabilities
     });
 
-    const args = ['--mode', 'rpc'];
+    const args = ['--mode', 'rpc', '--extension', ensureContextLimitExtension()];
     if (session.forkSourceFile) {
       args.push('--fork', session.forkSourceFile, '--session-id', session.id);
     } else if (session.sessionFile) {
@@ -108,6 +110,14 @@ export class WorkerSupervisor {
     void this.pumpEvents(session, worker);
     try {
       await this.refreshSession(session, worker);
+      if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+        const maximum = session.model?.contextWindow;
+        if (typeof maximum === 'number' && session.contextWindowOverride !== null && session.contextWindowOverride > maximum) {
+          session.contextWindowOverride = maximum;
+          writeContextPolicy(session.id, session);
+        }
+        session.model = await applyContextPolicy(worker, session);
+      }
       session.forkSourceFile = undefined;
       return worker;
     } catch (error) {
@@ -119,7 +129,8 @@ export class WorkerSupervisor {
   public async refreshSession(session: Session, worker: StdioPiTransport): Promise<void> {
     const state = (await worker.send({ command: 'get_state' })).data;
     if (state?.sessionFile) session.sessionFile = state.sessionFile;
-    session.model = state?.model || null;
+    session.model = physicalModel(state?.model) || null;
+    if (typeof state?.autoCompactionEnabled === 'boolean') session.autoCompaction = state.autoCompactionEnabled;
     session.thinkingLevel = state?.thinkingLevel || null;
     session.isStreaming = !!state?.isStreaming;
     session.isCompacting = !!state?.isCompacting;

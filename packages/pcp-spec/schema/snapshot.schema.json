@@ -49,6 +49,8 @@
             "isStreaming": { "type": "boolean" },
             "isCompacting": { "type": "boolean" },
             "autoCompaction": { "type": "boolean" },
+            "contextWindowOverride": { "type": ["integer", "null"], "minimum": 1 },
+            "compactionReservePercent": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 100 },
             "queue": {
               "type": "object",
               "required": ["steering", "followUp"],

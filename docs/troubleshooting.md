@@ -4,6 +4,24 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Modelli Copilot non autorizzati o tier di contesto ignorato
+
+**Cause corrette:** il picker filtrava solo `enabledModels` locale, senza verificare le policy GitHub. Il limite di contesto era conservato in PiFrame ma non applicato a Pi; i controlli duplicati nella GUI e nel daemon usavano una soglia fissa all'80% e potevano ignorare gli errori.
+
+**Comportamento attuale:** il daemon verifica le abilitazioni Copilot e rifiuta la selezione di un modello non autorizzato. Area di lavoro espone massimo personalizzato e margine percentuale; il worker applica la soglia alla compattazione nativa di Pi. Gli errori di applicazione non vengono più accettati come successo.
+
+- Se il chip contesto nella chat mostra un tier ma non apre nulla, usa la build aggiornata: prima il composer poteva conservare un catalogo vuoto caricato prima della connessione al daemon. Ora ricarica i modelli al click e segnala esplicitamente i dati mancanti. Chat e Area di lavoro usano lo stesso selettore.
+- Lo slider del massimo è nascosto finché non scegli **Custom** in Dimensione Contesto. I tier esatti (per esempio 272k) restano selezionabili; Custom usa passi di 50k. Il margine usa passi di 0,5%, da 0,5% a 25%.
+- Se manca un modello Copilot, verifica account e abilitazione nella tua organizzazione. In caso di avviso di verifica, controlla rete e autenticazione con Pi; PiFrame non ripiega sul catalogo statico completo. La cache delle verifiche riuscite dura al massimo un minuto.
+- Se compare **Pi non ha applicato il limite di contesto**, aggiorna Pi e riavvia il worker. Il controllo richiede `getSettings` nell'API estensioni; il test con runtime reale usa Pi 1.4.0.
+- 5% significa compattare al **95%** del massimo scelto. Il valore predefinito 2,5% porta 200k a una soglia di 195k.
+- Se non parte la compattazione, verifica che la compattazione automatica di Pi sia attiva. Modifica limite e margine a turno fermo.
+- Se la compattazione fallisce o non riduce abbastanza il contesto, aumenta il limite o riduci il contesto conservato nelle impostazioni Pi. Un limite preventivo non può garantire un tetto di fatturazione: output singoli e richieste di riepilogo consumano token.
+
+Verifica ripetibile da sorgente, senza chiamate a provider a pagamento: compila il daemon e avvia `node tools/scripts/smoke-context-policy.mjs`. Il test usa Pi reale con modello HTTP locale e directory temporanee isolate.
+
+---
+
 ## 1. Windows: Finestra Bianca o Vuota all'Avvio (Blank / White Screen on Windows)
 
 ### Sintomi

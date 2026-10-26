@@ -25,7 +25,11 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   durationMs: (tool['durationMs'] as num?)?.toInt(),
 );
 
-SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic> payload) {
+SessionState applySessionSnapshot(
+  String sessionId,
+  int seq,
+  Map<String, dynamic> payload,
+) {
   final meta = payload['session'] as Map? ?? {};
   final runtime = payload['runtime'] as Map? ?? {};
   final transcript = payload['transcript'] as Map? ?? {};
@@ -40,8 +44,13 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? '';
     if (role == 'toolResult' || role == 'tool') {
-      final callId = (message['toolCallId'] ?? message['tool_call_id'] ?? raw['toolCallId'])?.toString();
-      final out = message['result']?.toString() ??
+      final callId =
+          (message['toolCallId'] ??
+                  message['tool_call_id'] ??
+                  raw['toolCallId'])
+              ?.toString();
+      final out =
+          message['result']?.toString() ??
           message['output']?.toString() ??
           (message['content'] is String ? message['content'] as String : null);
       if (callId != null && out != null) {
@@ -61,58 +70,78 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     final timestampRaw = message['timestamp'] ?? raw['timestamp'];
     final timestamp = timestampRaw is num
         ? timestampRaw.toInt()
-        : DateTime.tryParse(timestampRaw?.toString() ?? '')?.millisecondsSinceEpoch ?? 0;
-    final entryId = (raw['id'] ?? message['id'])?.toString() ?? 'snapshot_${entries.length}';
+        : DateTime.tryParse(timestampRaw?.toString() ?? '')
+                  ?.millisecondsSinceEpoch ??
+              0;
+    final entryId =
+        (raw['id'] ?? message['id'])?.toString() ??
+        'snapshot_${entries.length}';
 
     if (role == 'bashExecution') {
-      final command = (message['command'] ?? message['cmd'])?.toString() ?? '!bash';
-      final output = (message['output'] ?? message['result'] ?? '')?.toString() ?? '';
-      final exitCode = message['exitCode'] is num ? (message['exitCode'] as num).toInt() : null;
+      final command =
+          (message['command'] ?? message['cmd'])?.toString() ?? '!bash';
+      final output =
+          (message['output'] ?? message['result'] ?? '')?.toString() ?? '';
+      final exitCode = message['exitCode'] is num
+          ? (message['exitCode'] as num).toInt()
+          : null;
       final cancelled = message['cancelled'] == true;
       final truncated = message['truncated'] == true;
-      entries.add(SessionEntry(
-        id: entryId,
-        role: 'bashExecution',
-        text: output,
-        timestamp: timestamp,
-        metadata: {
-          'command': command,
-          'exitCode': exitCode,
-          'cancelled': cancelled,
-          'truncated': truncated,
-        },
-      ));
+      entries.add(
+        SessionEntry(
+          id: entryId,
+          role: 'bashExecution',
+          text: output,
+          timestamp: timestamp,
+          metadata: {
+            'command': command,
+            'exitCode': exitCode,
+            'cancelled': cancelled,
+            'truncated': truncated,
+          },
+        ),
+      );
       continue;
     }
 
     if (role == 'branchSummary') {
       final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
-      final fromId = (message['fromId'] ?? message['from_id'])?.toString() ?? '';
-      entries.add(SessionEntry(
-        id: entryId,
-        role: 'branchSummary',
-        text: summary,
-        timestamp: timestamp,
-        metadata: {'fromId': fromId},
-      ));
+      final fromId =
+          (message['fromId'] ?? message['from_id'])?.toString() ?? '';
+      entries.add(
+        SessionEntry(
+          id: entryId,
+          role: 'branchSummary',
+          text: summary,
+          timestamp: timestamp,
+          metadata: {'fromId': fromId},
+        ),
+      );
       continue;
     }
 
     if (role == 'compactionSummary') {
       final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
-      final tokensBefore = (message['tokensBefore'] ?? message['tokens_before'] as num?)?.toInt();
-      entries.add(SessionEntry(
-        id: entryId,
-        role: 'compactionSummary',
-        text: summary,
-        timestamp: timestamp,
-        metadata: {'tokensBefore': tokensBefore},
-      ));
+      final tokensBefore =
+          (message['tokensBefore'] ?? message['tokens_before'] as num?)
+              ?.toInt();
+      entries.add(
+        SessionEntry(
+          id: entryId,
+          role: 'compactionSummary',
+          text: summary,
+          timestamp: timestamp,
+          metadata: {'tokensBefore': tokensBefore},
+        ),
+      );
       continue;
     }
 
     if (role == 'custom') {
-      final customType = (message['customType'] ?? message['custom_type'] ?? 'custom')?.toString() ?? 'custom';
+      final customType =
+          (message['customType'] ?? message['custom_type'] ?? 'custom')
+              ?.toString() ??
+          'custom';
       final display = message['display'] != false;
       String customText = '';
       if (message['content'] is String) {
@@ -124,17 +153,19 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
             .map((b) => b['text']?.toString() ?? '')
             .join();
       }
-      entries.add(SessionEntry(
-        id: entryId,
-        role: 'custom',
-        text: customText,
-        timestamp: timestamp,
-        metadata: {
-          'customType': customType,
-          'display': display,
-          'details': message['details'],
-        },
-      ));
+      entries.add(
+        SessionEntry(
+          id: entryId,
+          role: 'custom',
+          text: customText,
+          timestamp: timestamp,
+          metadata: {
+            'customType': customType,
+            'display': display,
+            'details': message['details'],
+          },
+        ),
+      );
       continue;
     }
 
@@ -149,12 +180,15 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
           final data = block['data']?.toString() ?? '';
           final mimeType = block['mimeType']?.toString() ?? 'image/png';
           if (data.isNotEmpty) {
-            attachments.add(ChatAttachment(
-              id: 'att_${attachments.length}',
-              name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
-              type: AttachmentType.image,
-              pathOrUrl: 'data:$mimeType;base64,$data',
-            ));
+            attachments.add(
+              ChatAttachment(
+                id: 'att_${attachments.length}',
+                name:
+                    'image_${attachments.length + 1}.${mimeType.split('/').last}',
+                type: AttachmentType.image,
+                pathOrUrl: 'data:$mimeType;base64,$data',
+              ),
+            );
           }
         }
       }
@@ -175,23 +209,32 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
         if (b['type'] == 'tool_call' || b['type'] == 'tool_use') {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? '';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
-          final args = Map<String, dynamic>.from((b['args'] ?? b['input']) as Map? ?? {});
+          final args = Map<String, dynamic>.from(
+            (b['args'] ?? b['input']) as Map? ?? {},
+          );
           final out = toolResults[callId] ?? b['output']?.toString() ?? '';
-          final hasError = (toolErrors[callId] == true) || (b['isError'] == true);
-          entryToolCalls.add(ToolExecutionState(
-            toolCallId: callId,
-            toolName: name,
-            args: args,
-            output: out,
-            isRunning: false,
-            isError: hasError,
-          ));
+          final hasError =
+              (toolErrors[callId] == true) || (b['isError'] == true);
+          entryToolCalls.add(
+            ToolExecutionState(
+              toolCallId: callId,
+              toolName: name,
+              args: args,
+              output: out,
+              isRunning: false,
+              isError: hasError,
+            ),
+          );
         }
       }
     }
 
     if (isInternalOrJunkMessageText(text)) continue;
-    if (text.trim().isEmpty && thinking.trim().isEmpty && entryToolCalls.isEmpty) continue;
+    if (text.trim().isEmpty &&
+        thinking.trim().isEmpty &&
+        entryToolCalls.isEmpty) {
+      continue;
+    }
 
     final entryModel = message['model'] ?? message['modelId'];
     final entryUsage = message['usage'];
@@ -202,10 +245,7 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
       thinking: thinking.isNotEmpty ? thinking : null,
       toolCalls: entryToolCalls,
       timestamp: timestamp,
-      metadata: {
-        'model': ?entryModel,
-        'usage': ?entryUsage,
-      },
+      metadata: {'model': ?entryModel, 'usage': ?entryUsage},
     );
 
     // If previous entry was an assistant entry with empty text and this is an assistant entry with text,
@@ -224,23 +264,26 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
       }
       final prevThinking = prev.thinking?.trim();
       final entryThinking = entry.thinking?.trim();
-      final combinedThinking = prevThinking != null &&
+      final combinedThinking =
+          prevThinking != null &&
               entryThinking != null &&
               prevThinking != entryThinking
           ? '$prevThinking\n\n$entryThinking'
           : (prevThinking ?? entryThinking);
-      entries.add(SessionEntry(
-        id: prev.id,
-        role: 'assistant',
-        text: text,
-        thinking: combinedThinking,
-        toolCalls: mergedTools,
-        timestamp: prev.timestamp,
-        metadata: {
-          if (prev.metadata != null) ...prev.metadata!,
-          if (entry.metadata != null) ...entry.metadata!,
-        },
-      ));
+      entries.add(
+        SessionEntry(
+          id: prev.id,
+          role: 'assistant',
+          text: text,
+          thinking: combinedThinking,
+          toolCalls: mergedTools,
+          timestamp: prev.timestamp,
+          metadata: {
+            if (prev.metadata != null) ...prev.metadata!,
+            if (entry.metadata != null) ...entry.metadata!,
+          },
+        ),
+      );
     } else {
       entries.add(entry);
     }
@@ -291,8 +334,12 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
           aggregatedTotalTokens = (tokens['total'] as num).toInt();
           foundEntryTokens = true;
         }
-        if (tokens['input'] is num) aggregatedInputTokens = (tokens['input'] as num).toInt();
-        if (tokens['output'] is num) aggregatedOutputTokens = (tokens['output'] as num).toInt();
+        if (tokens['input'] is num) {
+          aggregatedInputTokens = (tokens['input'] as num).toInt();
+        }
+        if (tokens['output'] is num) {
+          aggregatedOutputTokens = (tokens['output'] as num).toInt();
+        }
       } else if (u['totalTokens'] is num) {
         aggregatedTotalTokens = (u['totalTokens'] as num).toInt();
         foundEntryTokens = true;
@@ -336,16 +383,26 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     streamingTextBlocks: text.isEmpty ? {} : {0: text},
     streamingThinkingBlocks: thinking.isEmpty ? {} : {0: thinking},
     activeToolCalls: tools,
-    steeringQueue: (queue['steering'] as List? ?? []).map((e) => e.toString()).toList(),
-    followUpQueue: (queue['followUp'] as List? ?? []).map((e) => e.toString()).toList(),
-    pendingUiRequests: (payload['pendingUiRequests'] as List? ?? []).whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e)).toList(),
+    steeringQueue: (queue['steering'] as List? ?? [])
+        .map((e) => e.toString())
+        .toList(),
+    followUpQueue: (queue['followUp'] as List? ?? [])
+        .map((e) => e.toString())
+        .toList(),
+    pendingUiRequests: (payload['pendingUiRequests'] as List? ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList(),
     currentModel: model is Map
         ? (model['name'] ?? model['id'])?.toString()
         : (model is String && model.isNotEmpty ? model : null),
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
-    contextWindowOverride: (runtime['contextWindowOverride'] as num?)?.toInt() ??
-        (meta['contextWindowOverride'] as num?)?.toInt(),
+    contextWindowOverride: runtime.containsKey('contextWindowOverride')
+        ? (runtime['contextWindowOverride'] as num?)?.toInt()
+        : (meta['contextWindowOverride'] as num?)?.toInt(),
+    compactionReservePercent:
+        (runtime['compactionReservePercent'] as num?)?.toDouble() ?? 2.5,
+    autoCompaction: runtime['autoCompaction'] != false,
     usage: rawUsage,
     sessionStats: initialStats,
     lastAppliedSeq: seq,

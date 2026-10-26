@@ -20,6 +20,7 @@ export interface SnapshotContext {
     followUp: string[];
   };
   contextWindowOverride?: number | null;
+  compactionReservePercent?: number;
   entries: Array<Record<string, unknown>>;
   pendingUiRequests: Array<Record<string, unknown>>;
   liveMessage?: Record<string, unknown> | null;
@@ -40,7 +41,8 @@ export class SnapshotBuilder {
       isCompacting: ctx.isCompacting,
       autoCompaction: ctx.autoCompaction,
       queue: ctx.queue,
-      contextWindowOverride: ctx.contextWindowOverride ?? null
+      contextWindowOverride: ctx.contextWindowOverride ?? null,
+      compactionReservePercent: ctx.compactionReservePercent ?? 2.5
     };
 
     const transcript: TranscriptMeta = {

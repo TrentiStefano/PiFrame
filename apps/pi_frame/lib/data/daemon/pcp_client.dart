@@ -109,7 +109,9 @@ class PcpClient {
 
   void _onMessage(dynamic raw) {
     try {
-      final String text = raw is String ? raw : (raw is List<int> ? utf8.decode(raw) : raw.toString());
+      final String text = raw is String
+          ? raw
+          : (raw is List<int> ? utf8.decode(raw) : raw.toString());
       final map = jsonDecode(text) as Map<String, dynamic>;
       final kind = map['kind'] as String?;
 
@@ -217,7 +219,9 @@ class PcpClient {
 
   void _onError(dynamic err) {
     if (kDebugMode) {
-      debugPrint('PCP WebSocket error: $err, closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
+      debugPrint(
+        'PCP WebSocket error: $err, closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}',
+      );
     }
     _cleanupChannel();
     _scheduleReconnect();
@@ -225,7 +229,9 @@ class PcpClient {
 
   void _onDone() {
     if (kDebugMode) {
-      debugPrint('PCP WebSocket closed. closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
+      debugPrint(
+        'PCP WebSocket closed. closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}',
+      );
     }
     _cleanupChannel();
     _scheduleReconnect();
@@ -392,6 +398,22 @@ class PcpClient {
       commandId: newCommandId('scw'),
       type: 'agent.setContextWindowOverride',
       payload: {'limit': limit},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> setCompactionReservePercent(
+    String sessionId,
+    double percent,
+  ) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('scr'),
+      type: 'agent.setCompactionReservePercent',
+      payload: {'percent': percent},
     );
     return sendCommand(cmd);
   }
@@ -813,9 +835,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setRemoteOptions({
-    String? defaultMode,
-  }) {
+  Future<Map<String, dynamic>> setRemoteOptions({String? defaultMode}) {
     final payload = <String, dynamic>{};
     if (defaultMode != null) payload['defaultMode'] = defaultMode;
 

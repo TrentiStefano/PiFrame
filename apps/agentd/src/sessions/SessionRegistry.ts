@@ -9,6 +9,7 @@ import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
 import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
+import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js';
 
 export interface SessionRegistryOptions {
   piExecutablePath: string;
@@ -218,6 +219,9 @@ export class SessionRegistry {
     }
     let clone = await this.createSession({ cwd: source.cwd, name: `${source.name} (copy)`, announce: false });
     clone.forkSourceFile = source.sessionFile;
+    clone.contextWindowOverride = source.contextWindowOverride;
+    clone.compactionReservePercent = source.compactionReservePercent;
+    writeContextPolicy(clone.id, clone);
     try {
       const worker = await this.ensureWorkerForSession(clone.id);
       if (entryId) {
@@ -236,6 +240,10 @@ export class SessionRegistry {
           final.leafId = clone.leafId;
           final.model = clone.model;
           final.thinkingLevel = clone.thinkingLevel;
+          final.contextWindowOverride = clone.contextWindowOverride;
+          final.compactionReservePercent = clone.compactionReservePercent;
+          writeContextPolicy(finalId, final);
+          deleteContextPolicy(clone.id);
           this.supervisor.rekeySession(clone, final);
           await clone.close();
           clone = final;
@@ -247,6 +255,7 @@ export class SessionRegistry {
     } catch (error) {
       await this.closeWorker(clone.id);
       this.sessions.delete(clone.id);
+      deleteContextPolicy(clone.id);
       await clone.close();
       throw error;
     }
@@ -413,6 +422,7 @@ export class SessionRegistry {
       this.sessions.delete(sessionId);
     }
 
+    deleteContextPolicy(sessionId);
     const removedFile = this.index.removeSession(sessionId);
     if (!sessionFile && removedFile) {
       sessionFile = removedFile;

@@ -98,8 +98,11 @@ bool isInternalOrJunkMessageText(String text) {
       .where((l) => l.isNotEmpty)
       .toList();
   if (lines.isNotEmpty &&
-      lines.every((l) =>
-          l.startsWith('warning:') && l.contains('LF will be replaced by CRLF'))) {
+      lines.every(
+        (l) =>
+            l.startsWith('warning:') &&
+            l.contains('LF will be replaced by CRLF'),
+      )) {
     return true;
   }
   return false;
@@ -126,6 +129,8 @@ class SessionState {
   final Map<String, dynamic>? sessionStats;
   final Map<String, String> extensionStatuses;
   final int? contextWindowOverride;
+  final double compactionReservePercent;
+  final bool autoCompaction;
   final int lastAppliedSeq;
 
   const SessionState({
@@ -149,6 +154,8 @@ class SessionState {
     this.sessionStats,
     this.extensionStatuses = const {},
     this.contextWindowOverride,
+    this.compactionReservePercent = 2.5,
+    this.autoCompaction = true,
     this.lastAppliedSeq = 0,
   });
 
@@ -182,6 +189,9 @@ class SessionState {
     Map<String, dynamic>? sessionStats,
     Map<String, String>? extensionStatuses,
     int? contextWindowOverride,
+    bool clearContextWindowOverride = false,
+    double? compactionReservePercent,
+    bool? autoCompaction,
     int? lastAppliedSeq,
   }) {
     return SessionState(
@@ -205,8 +215,12 @@ class SessionState {
       usage: usage ?? this.usage,
       sessionStats: sessionStats ?? this.sessionStats,
       extensionStatuses: extensionStatuses ?? this.extensionStatuses,
-      contextWindowOverride:
-          contextWindowOverride ?? this.contextWindowOverride,
+      contextWindowOverride: clearContextWindowOverride
+          ? null
+          : contextWindowOverride ?? this.contextWindowOverride,
+      compactionReservePercent:
+          compactionReservePercent ?? this.compactionReservePercent,
+      autoCompaction: autoCompaction ?? this.autoCompaction,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
     );
   }
