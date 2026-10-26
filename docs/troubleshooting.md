@@ -137,6 +137,14 @@ Un processo attivo (un'istanza di `PiFrame.exe` in esecuzione, il daemon `pi-age
 
 ## 6. CI/Release: Test Flutter, GitHub Pages o bundle Windows
 
+### Messaggio utente duplicato nella chat
+
+L'interfaccia mostra subito il messaggio inviato. Quando il daemon riceve la conferma da Pi, riconcilia l'evento con la voce ottimistica invece di aggiungere una seconda riga. Se l'invio fallisce, la bolla conserva testo e allegati: usa **Riprova** oppure fai doppio clic sulla bolla per modificarla nel composer. Per verificare questa logica, esegui:
+
+```bash
+cd apps/pi_frame && flutter test test/session_reducer_test.dart test/failed_message_flow_test.dart
+```
+
 ### Test Flutter falliti in CI
 
 Il test `resolvePathForOsExplorer correctly resolves WSL and Windows paths` copre l'output di Windows/WSL, prodotto solo quando `Platform.isWindows` è vero. Linux usa la risoluzione POSIX: il test Windows viene saltato lì e un test POSIX separato verifica quel comportamento. Se il test fallisce, esegui prima il test mirato e poi la stessa suite Flutter e analisi usate dalla CI:
