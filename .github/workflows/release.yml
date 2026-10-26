@@ -38,7 +38,7 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -58,7 +58,9 @@ jobs:
           pnpm run smoke:agentd-bundle
 
       - name: Run Node tests
-        run: pnpm -r run test
+        run: |
+          pnpm -r run test
+          node --test tools/scripts/test-windows-release-name.test.mjs
 
       - name: Run Flutter tests and analyzers
         run: |
@@ -171,7 +173,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev xvfb imagemagick
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev xvfb imagemagick
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -204,7 +206,7 @@ jobs:
           Copy-Item $nodePath (Join-Path $bundle 'node.exe') -Force
           Copy-Item 'apps/pi_frame/build/web' (Join-Path $bundle 'web') -Recurse -Force
           Copy-Item (Join-Path (Split-Path $nodePath -Parent) 'LICENSE') (Join-Path $bundle 'NODE-LICENSE.txt') -Force
-          if (!(Test-Path (Join-Path $bundle 'pi_frame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt')) -or !(Test-Path (Join-Path $bundle 'web/index.html'))) {
+          if (!(Test-Path (Join-Path $bundle 'PiFrame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt')) -or !(Test-Path (Join-Path $bundle 'web/index.html'))) {
             throw 'Windows app bundle is missing app, daemon, Node runtime, or remote web assets.'
           }
           New-Item -ItemType Directory -Force dist | Out-Null

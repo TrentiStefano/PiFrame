@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -148,7 +150,29 @@ void main() {}
     const winCwd = r'C:\Personale\Repos\my_repo';
     final res6 = resolvePathForOsExplorer('lib/main.dart', cwd: winCwd);
     expect(res6, r'C:\Personale\Repos\my_repo\lib\main.dart');
-  });
+  }, skip: !Platform.isWindows);
+
+  test('resolvePathForOsExplorer correctly resolves POSIX paths', () {
+    const cwd = '/home/user/project';
+    expect(
+      resolvePathForOsExplorer('lib/main.dart', cwd: cwd),
+      '/home/user/project/lib/main.dart',
+    );
+    expect(
+      resolvePathForOsExplorer('lib/main.dart', cwd: '$cwd/'),
+      '/home/user/project/lib/main.dart',
+    );
+    expect(resolvePathForOsExplorer('/etc/hosts', cwd: cwd), '/etc/hosts');
+    expect(
+      resolvePathForOsExplorer('file:///tmp/file.dart', cwd: cwd),
+      '/tmp/file.dart',
+    );
+    expect(
+      resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: cwd),
+      '/home/user/project/lib/main.dart',
+    );
+    expect(resolvePathForOsExplorer('lib/main.dart'), 'lib/main.dart');
+  }, skip: Platform.isWindows);
 
   testWidgets('RichContent renders raw file paths and markdown links with file chips', (tester) async {
     const textWithVariousLinks =

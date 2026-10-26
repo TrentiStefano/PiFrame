@@ -42,7 +42,7 @@ Section: devel
 Priority: optional
 Architecture: amd64
 Maintainer: PiFrame contributors <piframe@users.noreply.github.com>
-Depends: libgtk-3-0 | libgtk-3-0t64, libblkid1 | libblkid1t64, liblzma5, libstdc++6
+Depends: libgtk-3-0 | libgtk-3-0t64, libblkid1 | libblkid1t64, liblzma5, libstdc++6, libnotify4
 Description: Desktop interface for Pi Coding Agent
  PiFrame includes its local daemon and Node.js runtime.
 EOF

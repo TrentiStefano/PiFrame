@@ -132,3 +132,44 @@ Un processo attivo (un'istanza di `PiFrame.exe` in esecuzione, il daemon `pi-age
    pnpm install
    pnpm build:all
    ```
+
+---
+
+## 6. CI/Release: Test Flutter, GitHub Pages o bundle Windows
+
+### Test Flutter falliti in CI
+
+Il test `resolvePathForOsExplorer correctly resolves WSL and Windows paths` copre l'output di Windows/WSL, prodotto solo quando `Platform.isWindows` è vero. Linux usa la risoluzione POSIX: il test Windows viene saltato lì e un test POSIX separato verifica quel comportamento. Se il test fallisce, esegui prima il test mirato e poi la stessa suite Flutter e analisi usate dalla CI:
+
+```bash
+cd apps/pi_frame && flutter test test/transcript_rich_test.dart
+```
+
+Dalla radice del repository, esegui i wrapper per tutti i test Flutter e l'analisi Flutter:
+
+```bash
+node tools/scripts/test-flutter.js
+node tools/scripts/lint-flutter.js
+```
+
+### GitHub Pages restituisce 404
+
+In **Repository Settings → Pages**, imposta **Build and deployment → Source** su **GitHub Actions**. Se la configurazione Pages fallisce, il job ora segnala il fallimento invece di nasconderlo; controlla il relativo step e i permessi del repository.
+
+### Release Windows segnala l'eseguibile mancante
+
+CMake produce `PiFrame.exe` e l'installer usa lo stesso nome. Il controllo del bundle nella workflow Release deve cercare `PiFrame.exe` (non `pi_frame.exe`). Verifica la coerenza localmente con:
+
+```bash
+node --test tools/scripts/test-windows-release-name.test.mjs
+```
+
+### Build Linux fallisce perché manca libnotify
+
+Il plugin notifier di Flutter per Linux richiede che `pkg-config` trovi `libnotify`. Installa il pacchetto di sviluppo prima della build:
+
+```bash
+sudo apt-get install libnotify-dev
+```
+
+I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4`. La CI di release installa `libnotify-dev` per la validazione e la build Linux; il pacchetto `.deb` dichiara `libnotify4`.
