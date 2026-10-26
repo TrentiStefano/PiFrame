@@ -12,10 +12,6 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 class RejectingSession extends SessionStateNotifier {
   RejectingSession() : super('rejecting', null);
-  @override
-  Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
-    throw StateError('Prompt rejected');
-  }
 }
 
 class DeferredSession extends SessionStateNotifier {
@@ -62,6 +58,8 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Pending draft');
       await tester.tap(find.byIcon(Icons.arrow_upward));
       await tester.pump();
+      expect(find.text('Pending draft'), findsNothing);
+      expect(container.read(composerDraftProvider('pending')), isEmpty);
       container.read(activeSessionIdProvider.notifier).state = 'B';
       await tester.pump();
       container.read(activeSessionIdProvider.notifier).state = 'pending';
@@ -97,12 +95,14 @@ void main() {
     },
   );
 
-  testWidgets('failed prompt keeps draft and shows error', (tester) async {
+  testWidgets('failed prompt clears composer and keeps error on message entry', (
+    tester,
+  ) async {
+    final session = RejectingSession();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionStateFamily('rejecting')
-              .overrideWith((ref) => RejectingSession()),
+          sessionStateFamily('rejecting').overrideWith((ref) => session),
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
@@ -115,19 +115,20 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Keep this draft');
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
-    expect(find.text('Keep this draft'), findsOneWidget);
-    expect(find.textContaining('Prompt rejected'), findsOneWidget);
+    expect(find.text('Keep this draft'), findsNothing);
+    expect(session.state.entries.single.text, 'Keep this draft');
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('rejected draft survives switching A to B to A', (tester) async {
+  testWidgets('failed message survives switching A to B to A', (tester) async {
+    final session = RejectingSession();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           daemonEndpointProvider.overrideWith((ref) async => null),
           activeSessionIdProvider.overrideWith((ref) => 'rejecting'),
-          sessionStateFamily('rejecting')
-              .overrideWith((ref) => RejectingSession()),
+          sessionStateFamily('rejecting').overrideWith((ref) => session),
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
@@ -147,6 +148,8 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Session A draft');
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
+    expect(session.state.entries.single.text, 'Session A draft');
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
     final container = ProviderScope.containerOf(
       tester.element(find.byType(Composer)),
     );
@@ -156,8 +159,9 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Session B draft');
     container.read(activeSessionIdProvider.notifier).state = 'rejecting';
     await tester.pump();
-    expect(find.text('Session A draft'), findsOneWidget);
+    expect(find.text('Session A draft'), findsNothing);
     expect(find.text('Session B draft'), findsNothing);
+    expect(session.state.entries.single.text, 'Session A draft');
   });
 
   testWidgets('Composer displays Invia button when agent is settled', (

@@ -466,6 +466,25 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
 
       final nextEntries = List<SessionEntry>.from(current.entries);
+      if (role == 'user') {
+        final optimisticIndex = nextEntries.lastIndexWhere(
+          (existing) =>
+              existing.role == 'user' &&
+              existing.id.startsWith('usr_') &&
+              existing.text == text,
+        );
+        if (optimisticIndex >= 0) {
+          nextEntries[optimisticIndex] = entry;
+          return current.copyWith(
+            entries: nextEntries,
+            streamingTextBlocks: const {},
+            streamingThinkingBlocks: const {},
+            activeToolCalls: const {},
+            lastAppliedSeq: nextSeq,
+          );
+        }
+      }
+
       if (role == 'assistant' &&
           nextEntries.isNotEmpty &&
           nextEntries.last.role == 'assistant' &&
@@ -690,6 +709,27 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         agentStatus: AgentStatus.retrying,
         lastAppliedSeq: nextSeq,
       );
+
+    case RetryEndedEvent(:final success):
+      final errorMessage = event.payload['finalError']?.toString();
+      final userIndex = current.entries.lastIndexWhere(
+        (entry) => entry.role == 'user',
+      );
+      if (success || errorMessage == null || errorMessage.isEmpty || userIndex < 0) {
+        return current.copyWith(lastAppliedSeq: nextSeq);
+      }
+      final entries = List<SessionEntry>.from(current.entries);
+      final userEntry = entries[userIndex];
+      entries[userIndex] = SessionEntry(
+        id: userEntry.id,
+        role: userEntry.role,
+        text: userEntry.text,
+        thinking: userEntry.thinking,
+        toolCalls: userEntry.toolCalls,
+        timestamp: userEntry.timestamp,
+        metadata: {...?userEntry.metadata, 'sendError': errorMessage},
+      );
+      return current.copyWith(entries: entries, lastAppliedSeq: nextSeq);
 
     case UiRequestEvent(
       :final requestId,
