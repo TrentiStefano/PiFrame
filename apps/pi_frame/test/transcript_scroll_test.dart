@@ -65,7 +65,17 @@ void main() {
           .descendant(of: scrollView, matching: find.byType(Scrollable))
           .first,
     );
-    await tester.pumpAndSettle();
     expect(loadMoreFinder, findsOneWidget);
+    // Before click, entry 45 was the first visible message below the button
+    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+
+    // Tap the load more button
+    await tester.tap(loadMoreFinder);
+    await tester.pumpAndSettle();
+
+    // After loading older messages, entry 45 remains visible right on screen!
+    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+    // And the oldest loaded entry (entry 0) is scrolled off above, not jumping in front of user
+    expect(find.textContaining('Transcript entry 0'), findsNothing);
   });
 }

@@ -105,6 +105,7 @@ export type PcpCommandType =
   | 'session.clone'
   | 'session.getTree'
   | 'session.getEntries'
+  | 'session.getHistory'
   | 'session.getStats'
   | 'session.getForkPoints'
   | 'session.subagents'
@@ -316,6 +317,8 @@ export interface RuntimeMeta {
 export interface TranscriptMeta {
   entries: Array<Record<string, unknown>>;
   leafId?: string | null;
+  totalEntries?: number;
+  hasMore?: boolean;
 }
 
 export type RemoteDeviceMode = 'view' | 'control';

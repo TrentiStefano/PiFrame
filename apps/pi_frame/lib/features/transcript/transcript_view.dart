@@ -64,7 +64,9 @@ class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
     final oldMax = hasContentDimensions ? this.maxScrollExtent : null;
-    final isAtBottom = (shouldAnchorToBottom?.call() ?? true) &&
+    final isDragging = activity is DragScrollActivity;
+    final isAtBottom = !isDragging &&
+        (shouldAnchorToBottom?.call() ?? true) &&
         oldMax != null &&
         (oldMax - pixels).abs() <= 50;
 
@@ -85,6 +87,98 @@ class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
   }
 }
 
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject({required this.onSizeChange});
+  void Function(Size size) onSizeChange;
+  Size? _oldSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = size;
+    if (_oldSize != newSize) {
+      _oldSize = newSize;
+      onSizeChange(newSize);
+    }
+  }
+}
+
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({
+    required this.onSizeChange,
+    required super.child,
+  });
+
+  final void Function(Size size) onSizeChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _MeasureSizeRenderObject(onSizeChange: onSizeChange);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onSizeChange = onSizeChange;
+  }
+}
+
+class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
+  final List<String> itemKeys;
+  final Map<String, double> heightCache;
+  double _runningSum = 0;
+  int _runningCount = 0;
+
+  SmartTranscriptChildDelegate({
+    required Widget Function(BuildContext, int) builder,
+    required this.itemKeys,
+    required this.heightCache,
+  }) : super(builder, childCount: itemKeys.length) {
+    for (final h in heightCache.values) {
+      _runningSum += h;
+      _runningCount++;
+    }
+  }
+
+  void recordHeight(String key, double height) {
+    final old = heightCache[key];
+    if (old == null) {
+      heightCache[key] = height;
+      _runningSum += height;
+      _runningCount++;
+    } else if ((old - height).abs() > 1.0) {
+      _runningSum += (height - old);
+      heightCache[key] = height;
+    }
+  }
+
+  @override
+  double? estimateMaxScrollOffset(
+    int firstIndex,
+    int lastIndex,
+    double leadingScrollOffset,
+    double trailingScrollOffset,
+  ) {
+    final total = itemKeys.length;
+    if (total == 0) return null;
+    final avg = _runningCount > 0 ? (_runningSum / _runningCount) : 120.0;
+
+    final remainingAfter = total - 1 - lastIndex;
+    if (remainingAfter <= 0) {
+      return trailingScrollOffset;
+    }
+
+    double estimatedAfter = 0;
+    for (int i = lastIndex + 1; i < total; i++) {
+      estimatedAfter += heightCache[itemKeys[i]] ?? avg;
+    }
+
+    return trailingScrollOffset + estimatedAfter;
+  }
+}
+
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -97,14 +191,31 @@ class TranscriptView extends ConsumerStatefulWidget {
 class _TranscriptViewState extends ConsumerState<TranscriptView> {
   late final BottomAnchoredScrollController _scrollController =
       BottomAnchoredScrollController(
-    shouldAnchorToBottom: () => !_userScrolledUp,
+    shouldAnchorToBottom: () => !_userScrolledUpNotifier.value,
   );
-  bool _userScrolledUp = false;
+  final ValueNotifier<bool> _userScrolledUpNotifier = ValueNotifier<bool>(false);
+  bool get _userScrolledUp => _userScrolledUpNotifier.value;
+  set _userScrolledUp(bool value) => _userScrolledUpNotifier.value = value;
+
   bool _isProgrammaticScroll = false;
   String? _lastHandledUiRequestId;
 
-  static const int _pageSize = 35;
-  int _visibleCount = _pageSize;
+  static const int _initialVisibleCount = 35;
+  static const int _pageSize = 250;
+  int _visibleCount = _initialVisibleCount;
+
+  final Map<String, double> _entryHeights = {};
+  String? _targetAnchorId;
+  final GlobalKey _anchorKey = GlobalKey();
+
+  double _calculateAverageHeight() {
+    if (_entryHeights.isEmpty) return 120.0;
+    double sum = 0;
+    for (final h in _entryHeights.values) {
+      sum += h;
+    }
+    return sum / _entryHeights.length;
+  }
 
   bool _initialScrollDone = false;
 
@@ -292,7 +403,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
+          _userScrolledUp = true;
         }
       } else if (notification.direction == ScrollDirection.reverse) {
         // User scrolled downward towards bottom
@@ -300,7 +411,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist < 40 && _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
+          _userScrolledUp = false;
         }
       }
     } else if (notification is ScrollUpdateNotification) {
@@ -308,18 +419,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           _scrollController.position.maxScrollExtent - _scrollController.offset;
       if (notification.dragDetails != null) {
         if (dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
+          _userScrolledUp = true;
         } else if (dist < 30 && _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
+          _userScrolledUp = false;
         }
       } else if (notification.scrollDelta != null) {
         // Negative scrollDelta means scrolling UP towards older content
         if (notification.scrollDelta! < -2.0 && dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
+          _userScrolledUp = true;
         } else if (notification.scrollDelta! > 2.0 &&
             dist < 40 &&
             _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
+          _userScrolledUp = false;
         }
       }
     }
@@ -399,6 +510,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _renameController.dispose();
     _renameFocusNode.dispose();
     _scrollController.dispose();
+    _userScrolledUpNotifier.dispose();
     super.dispose();
   }
 
@@ -1489,7 +1601,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
     final visibleEntries = cleanEntries.sublist(hiddenCount);
-    final hasLoadBanner = hiddenCount > 0;
+    final hasLoadBanner = hiddenCount > 0 || sessionState.hasMoreHistory;
+
+    final itemKeys = <String>[];
+    if (hasLoadBanner) itemKeys.add('banner');
+    for (final e in visibleEntries) {
+      itemKeys.add(e.id);
+    }
+    if (showLiveStream) itemKeys.add('livestream');
 
     // Initial scroll to bottom when opening session or receiving first entries
     if (!_initialScrollDone && sessionState.entries.isNotEmpty) {
@@ -1562,164 +1681,250 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   thumbVisibility: true,
                   trackVisibility: false,
                   interactive: true,
-                  child: ListView.builder(
+                  child: ListView.custom(
                     key: const ValueKey('transcript-scroll'),
                     controller: _scrollController,
+                    scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
                     padding: EdgeInsets.only(
                       top: 10,
                       bottom: isCompact ? 16 : 28,
                     ),
-                    itemCount:
-                        (hasLoadBanner ? 1 : 0) +
-                        visibleEntries.length +
-                        (showLiveStream ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (hasLoadBanner && index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Center(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                    childrenDelegate: SmartTranscriptChildDelegate(
+                      itemKeys: itemKeys,
+                      heightCache: _entryHeights,
+                      builder: (context, index) {
+                        if (hasLoadBanner && index == 0) {
+                          final isLocalHidden = hiddenCount > 0;
+                          final int? remainingRemote =
+                              sessionState.totalTranscriptEntries != null
+                                  ? (sessionState.totalTranscriptEntries! -
+                                          totalEntries)
+                                      .clamp(
+                                        0,
+                                        sessionState.totalTranscriptEntries!,
+                                      )
+                                  : null;
+                          final label = isLocalHidden
+                              ? 'Carica messaggi precedenti ($hiddenCount non mostrati)'
+                              : (remainingRemote != null && remainingRemote > 0
+                                  ? 'Carica altri messaggi dalla cronologia ($remainingRemote rimanenti)'
+                                  : 'Carica altri messaggi dalla cronologia');
+
+                          return _MeasureSize(
+                            onSizeChange: (s) => _entryHeights['banner'] = s.height,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Center(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    side: BorderSide(color: tokens.border),
+                                    foregroundColor: tokens.textSecondary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.history, size: 14),
+                                  label: Text(
+                                    label,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    if (visibleEntries.isEmpty) return;
+                                    final anchorEntry = visibleEntries.first;
+                                    _targetAnchorId = anchorEntry.id;
+                                    final oldOffset = _scrollController.offset;
+
+                                    double? initialAnchorY;
+                                    final initialBox = _anchorKey.currentContext
+                                        ?.findRenderObject() as RenderBox?;
+                                    if (initialBox != null && initialBox.attached) {
+                                      initialAnchorY = initialBox
+                                          .localToGlobal(Offset.zero)
+                                          .dy;
+                                    }
+
+                                    final avg = _calculateAverageHeight();
+                                    double addedHeight = 0;
+
+                                    if (isLocalHidden) {
+                                      final oldVisibleCount = _visibleCount;
+                                      final newVisibleCount = (_visibleCount + _pageSize)
+                                          .clamp(0, totalEntries);
+                                      final oldHiddenCount = totalEntries - oldVisibleCount;
+                                      final newHiddenCount = totalEntries - newVisibleCount;
+                                      for (int i = newHiddenCount; i < oldHiddenCount; i++) {
+                                        addedHeight += _entryHeights[cleanEntries[i].id] ?? avg;
+                                      }
+                                      setState(() {
+                                        _visibleCount = newVisibleCount;
+                                      });
+                                    } else {
+                                      final added = await ref
+                                          .read(
+                                            sessionStateFamily(
+                                              widget.sessionId,
+                                            ).notifier,
+                                          )
+                                          .loadOlderHistory(limit: _pageSize);
+                                      addedHeight = added * avg;
+                                    }
+
+                                    if (addedHeight > 0 && _scrollController.hasClients) {
+                                      _isProgrammaticScroll = true;
+                                      _scrollController.jumpTo(oldOffset + addedHeight);
+                                    }
+
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _isProgrammaticScroll = false;
+                                      if (!mounted ||
+                                          !_scrollController.hasClients ||
+                                          initialAnchorY == null) {
+                                        _targetAnchorId = null;
+                                        return;
+                                      }
+                                      final currentBox = _anchorKey.currentContext
+                                          ?.findRenderObject() as RenderBox?;
+                                      if (currentBox != null && currentBox.attached) {
+                                        final currentY = currentBox
+                                            .localToGlobal(Offset.zero)
+                                            .dy;
+                                        final diff = currentY - initialAnchorY;
+                                        if (diff.abs() > 0.5) {
+                                          _isProgrammaticScroll = true;
+                                          _scrollController
+                                              .jumpTo(_scrollController.offset + diff);
+                                          scheduleMicrotask(
+                                            () => _isProgrammaticScroll = false,
+                                          );
+                                        }
+                                      }
+                                      _targetAnchorId = null;
+                                    });
+                                  },
                                 ),
-                                side: BorderSide(color: tokens.border),
-                                foregroundColor: tokens.textSecondary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    tokens.radiusSm,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final entryIndex = index - (hasLoadBanner ? 1 : 0);
+                        if (entryIndex < visibleEntries.length) {
+                          final entry = visibleEntries[entryIndex];
+                          int? elapsedSeconds;
+                          int? timeoutSeconds;
+                          if (entry.role != 'user') {
+                            final cleanIdx = hiddenCount + entryIndex;
+                            if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
+                              final prev = cleanEntries[cleanIdx - 1];
+                              final diffMs = entry.timestamp - prev.timestamp;
+                              if (diffMs >= 5000) {
+                                elapsedSeconds = (diffMs / 1000).round();
+                              }
+                            }
+                            if (elapsedSeconds == null &&
+                                entry.toolCalls.isNotEmpty) {
+                              int totalToolMs = 0;
+                              for (final t in entry.toolCalls) {
+                                if (t.durationMs != null) {
+                                  totalToolMs += t.durationMs!;
+                                }
+                              }
+                              if (totalToolMs >= 5000) {
+                                elapsedSeconds = (totalToolMs / 1000).round();
+                              }
+                            }
+                            for (final t in entry.toolCalls) {
+                              final to = _parseTimeoutSeconds(t.args);
+                              if (to != null) {
+                                timeoutSeconds = to;
+                                break;
+                              }
+                            }
+                          }
+                          final firstVisibleId = _targetAnchorId ??
+                              (visibleEntries.isNotEmpty ? visibleEntries.first.id : null);
+                          final isAnchor = entry.id == firstVisibleId;
+                          return _MeasureSize(
+                            onSizeChange: (s) => _entryHeights[entry.id] = s.height,
+                            child: Padding(
+                              key: isAnchor ? _anchorKey : ValueKey('entry_row_${entry.id}'),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 12 : 24,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 820),
+                                  child: RepaintBoundary(
+                                    key: ValueKey(entry.id),
+                                    child: _buildEntryItem(
+                                      entry,
+                                      tokens,
+                                      elapsedSeconds: elapsedSeconds,
+                                      timeoutSeconds: timeoutSeconds,
+                                    ),
                                   ),
                                 ),
                               ),
-                              icon: const Icon(Icons.history, size: 14),
-                              label: Text(
-                                'Carica messaggi precedenti ($hiddenCount non mostrati)',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              onPressed: () {
-                                final oldMax =
-                                    _scrollController.position.maxScrollExtent;
-                                final oldOffset = _scrollController.offset;
-                                setState(() {
-                                  _visibleCount = (_visibleCount + _pageSize)
-                                      .clamp(0, totalEntries);
-                                });
-                                WidgetsBinding.instance.addPostFrameCallback((
-                                  _,
-                                ) {
-                                  if (!_scrollController.hasClients) return;
-                                  final newMax = _scrollController
-                                      .position
-                                      .maxScrollExtent;
-                                  final diff = newMax - oldMax;
-                                  if (diff > 0) {
-                                    _scrollController.jumpTo(oldOffset + diff);
-                                  }
-                                });
-                              },
                             ),
-                          ),
-                        );
-                      }
-
-                      final entryIndex = index - (hasLoadBanner ? 1 : 0);
-                      if (entryIndex < visibleEntries.length) {
-                        final entry = visibleEntries[entryIndex];
-                        int? elapsedSeconds;
-                        int? timeoutSeconds;
-                        if (entry.role != 'user') {
-                          final cleanIdx = hiddenCount + entryIndex;
-                          if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                            final prev = cleanEntries[cleanIdx - 1];
-                            final diffMs = entry.timestamp - prev.timestamp;
-                            if (diffMs >= 5000) {
-                              elapsedSeconds = (diffMs / 1000).round();
-                            }
-                          }
-                          if (elapsedSeconds == null &&
-                              entry.toolCalls.isNotEmpty) {
-                            int totalToolMs = 0;
-                            for (final t in entry.toolCalls) {
-                              if (t.durationMs != null) {
-                                totalToolMs += t.durationMs!;
-                              }
-                            }
-                            if (totalToolMs >= 5000) {
-                              elapsedSeconds = (totalToolMs / 1000).round();
-                            }
-                          }
-                          for (final t in entry.toolCalls) {
-                            final to = _parseTimeoutSeconds(t.args);
-                            if (to != null) {
-                              timeoutSeconds = to;
-                              break;
-                            }
-                          }
+                          );
                         }
-                        return Padding(
-                          key: ValueKey('entry_row_${entry.id}'),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isCompact ? 12 : 24,
-                          ),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 820),
-                              child: RepaintBoundary(
-                                key: ValueKey(entry.id),
-                                child: _buildEntryItem(
-                                  entry,
-                                  tokens,
-                                  elapsedSeconds: elapsedSeconds,
-                                  timeoutSeconds: timeoutSeconds,
+
+                        return _MeasureSize(
+                          onSizeChange: (s) => _entryHeights['livestream'] = s.height,
+                          child: Padding(
+                            key: const ValueKey('entry_row_livestream'),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 12 : 24,
+                            ),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 820),
+                                child: RepaintBoundary(
+                                  child: _buildLiveStream(
+                                    sessionState,
+                                    tokens,
+                                    liveThinking,
+                                    liveText,
+                                    hasActiveTools,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         );
-                      }
-
-                      return Padding(
-                        key: const ValueKey('entry_row_livestream'),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 12 : 24,
-                        ),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 820),
-                            child: RepaintBoundary(
-                              child: _buildLiveStream(
-                                sessionState,
-                                tokens,
-                                liveThinking,
-                                liveText,
-                                hasActiveTools,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                      },
+                    ),
                   ),
                 ),
               ),
 
               // Floating Scroll-to-bottom Button
-              if (_userScrolledUp)
-                Positioned(
-                  right: 24,
-                  bottom: 24,
-                  child: FloatingActionButton.small(
-                    backgroundColor: tokens.surfaceElevated,
-                    foregroundColor: tokens.accent,
-                    onPressed: () {
-                      setState(() => _userScrolledUp = false);
-                      _scrollToBottom(animate: true);
-                    },
-                    child: const Icon(Icons.arrow_downward, size: 18),
-                  ),
-                ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _userScrolledUpNotifier,
+                builder: (context, userScrolledUp, _) {
+                  if (!userScrolledUp) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 24,
+                    bottom: 24,
+                    child: FloatingActionButton.small(
+                      backgroundColor: tokens.surfaceElevated,
+                      foregroundColor: tokens.accent,
+                      onPressed: () {
+                        _userScrolledUp = false;
+                        _scrollToBottom(animate: true);
+                      },
+                      child: const Icon(Icons.arrow_downward, size: 18),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),

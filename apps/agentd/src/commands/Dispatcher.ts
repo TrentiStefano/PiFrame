@@ -14,6 +14,7 @@ import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/m
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
+import { SnapshotBuilder } from '../journal/SnapshotBuilder.js';
 import type {
   PcpCommand,
   PcpAck,
@@ -217,6 +218,7 @@ export class Dispatcher {
         'session.detach',
         'session.getStats',
         'session.getEntries',
+        'session.getHistory',
         'session.getTree',
         'session.subagents',
         'agent.getModels',
@@ -1014,6 +1016,34 @@ export class Dispatcher {
           return res.data;
         }
         return { tree: [] };
+      }
+
+      case 'session.getHistory': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        const beforeId = payload.beforeId as string | undefined;
+        const limit = Math.min(Math.max(Number(payload.limit) || 250, 1), 1000);
+
+        const allEntries = session.entries;
+        let endIndex = allEntries.length;
+        if (beforeId) {
+          const idx = allEntries.findIndex((e: any) => e.id === beforeId);
+          if (idx !== -1) {
+            endIndex = idx;
+          }
+        }
+
+        const startIndex = Math.max(0, endIndex - limit);
+        const chunk = allEntries.slice(startIndex, endIndex);
+        const hasMore = startIndex > 0;
+
+        return {
+          sessionId: session.id,
+          entries: chunk.map(SnapshotBuilder.sanitizeEntry),
+          hasMore,
+          totalEntries: allEntries.length,
+          startIndex,
+          endIndex
+        };
       }
 
       default: {

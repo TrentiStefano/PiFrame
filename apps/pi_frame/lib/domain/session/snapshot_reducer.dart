@@ -25,22 +25,13 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   durationMs: (tool['durationMs'] as num?)?.toInt(),
 );
 
-SessionState applySessionSnapshot(
-  String sessionId,
-  int seq,
-  Map<String, dynamic> payload,
-) {
-  final meta = payload['session'] as Map? ?? {};
-  final runtime = payload['runtime'] as Map? ?? {};
-  final transcript = payload['transcript'] as Map? ?? {};
-  final live = payload['liveMessage'] as Map? ?? {};
-  final queue = runtime['queue'] as Map? ?? {};
+List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
   final entries = <SessionEntry>[];
 
   // Pre-collect outputs from toolResult messages keyed by toolCallId
   final toolResults = <String, String>{};
   final toolErrors = <String, bool>{};
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
+  for (final raw in rawList) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? '';
     if (role == 'toolResult' || role == 'tool') {
@@ -62,7 +53,7 @@ SessionState applySessionSnapshot(
     }
   }
 
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
+  for (final raw in rawList) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? 'assistant';
     if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
@@ -288,6 +279,22 @@ SessionState applySessionSnapshot(
       entries.add(entry);
     }
   }
+  return entries;
+}
+
+SessionState applySessionSnapshot(
+  String sessionId,
+  int seq,
+  Map<String, dynamic> payload,
+) {
+  final meta = payload['session'] as Map? ?? {};
+  final runtime = payload['runtime'] as Map? ?? {};
+  final transcript = payload['transcript'] as Map? ?? {};
+  final live = payload['liveMessage'] as Map? ?? {};
+  final queue = runtime['queue'] as Map? ?? {};
+  final entries = parseSessionEntries(
+    (transcript['entries'] as List? ?? []).whereType<Map>(),
+  );
   final tools = <String, ToolExecutionState>{};
   for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map>()) {
     final tool = _tool(Map<String, dynamic>.from(raw));
@@ -406,5 +413,7 @@ SessionState applySessionSnapshot(
     usage: rawUsage,
     sessionStats: initialStats,
     lastAppliedSeq: seq,
+    hasMoreHistory: transcript['hasMore'] as bool? ?? false,
+    totalTranscriptEntries: (transcript['totalEntries'] as num?)?.toInt(),
   );
 }

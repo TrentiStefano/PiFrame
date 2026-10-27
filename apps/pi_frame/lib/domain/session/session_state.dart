@@ -132,6 +132,8 @@ class SessionState {
   final double compactionReservePercent;
   final bool autoCompaction;
   final int lastAppliedSeq;
+  final bool hasMoreHistory;
+  final int? totalTranscriptEntries;
 
   const SessionState({
     required this.sessionId,
@@ -157,6 +159,8 @@ class SessionState {
     this.compactionReservePercent = 2.5,
     this.autoCompaction = true,
     this.lastAppliedSeq = 0,
+    this.hasMoreHistory = false,
+    this.totalTranscriptEntries,
   });
 
   String get currentStreamingText => streamingTextBlocks.values.join();
@@ -193,6 +197,8 @@ class SessionState {
     double? compactionReservePercent,
     bool? autoCompaction,
     int? lastAppliedSeq,
+    bool? hasMoreHistory,
+    int? totalTranscriptEntries,
   }) {
     return SessionState(
       sessionId: sessionId,
@@ -222,6 +228,9 @@ class SessionState {
           compactionReservePercent ?? this.compactionReservePercent,
       autoCompaction: autoCompaction ?? this.autoCompaction,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
+      hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
+      totalTranscriptEntries:
+          totalTranscriptEntries ?? this.totalTranscriptEntries,
     );
   }
 }

@@ -129,6 +129,45 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     client!.attach(sessionId);
   }
 
+  bool _historyLoading = false;
+  bool get isHistoryLoading => _historyLoading;
+
+  Future<int> loadOlderHistory({int limit = 250}) async {
+    if (client == null || _historyLoading || !state.hasMoreHistory) return 0;
+    _historyLoading = true;
+    try {
+      final beforeId = state.entries.isNotEmpty ? state.entries.first.id : null;
+      final res = await client!
+          .getHistory(sessionId, beforeId: beforeId, limit: limit)
+          .timeout(const Duration(seconds: 10));
+      final data = res['data'] as Map<String, dynamic>? ?? res;
+      final rawEntries = (data['entries'] as List?)?.whereType<Map>() ?? [];
+      final olderEntries = parseSessionEntries(rawEntries);
+      final hasMore = data['hasMore'] == true;
+      final totalEntries = (data['totalEntries'] as num?)?.toInt();
+
+      if (olderEntries.isNotEmpty) {
+        final existingIds = state.entries.map((e) => e.id).toSet();
+        final dedupedOlder = olderEntries
+            .where((e) => !existingIds.contains(e.id))
+            .toList();
+        state = state.copyWith(
+          entries: [...dedupedOlder, ...state.entries],
+          hasMoreHistory: hasMore,
+          totalTranscriptEntries: totalEntries ?? state.totalTranscriptEntries,
+        );
+        return dedupedOlder.length;
+      } else {
+        state = state.copyWith(hasMoreHistory: false);
+      }
+    } catch (_) {
+      // Ignore network timeout / failures gracefully
+    } finally {
+      _historyLoading = false;
+    }
+    return 0;
+  }
+
   bool _defaultsLoading = false;
 
   Future<void> refreshDefaults() async {

@@ -220,6 +220,54 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
+## 4. Disconnessione Continua WebSocket (Code 4009) e Accumulo Snapshot nel Giornale
+
+### Sintomi
+- PiFrame continua a disconnettersi e riconnettersi all'infinito ("Client too slow / backpressure buffer exceeded 128MB", close code `4009`) all'apertura o all'avvio dell'applicazione con sessioni pinnate molto grandi (es. > 100 MB).
+- Lo spazio su disco nella cartella del giornale (`~/.piframe/journal/<sessionId>/`) cresce progressivamente fino a decine di gigabyte (es. 30 GB con centinaia di file `snapshot.<seq>.json`).
+
+### Cause Radice
+1. **Trascritto non vincolato nello snapshot**: all'attach della sessione, `SnapshotBuilder.build()` serializzava l'intero storico dei messaggi nel payload snapshot WebSocket. Per sessioni con migliaia di messaggi e output di tool voluminosi (es. 130-145 MB), il frame superava la soglia di backpressure di sicurezza di 128 MB implementata in `connection.ts`, provocando la chiusura della connessione con codice 4009. Poiché le sessioni pinnate vengono riattaccate in automatico all'avvio, l'applicazione entrava in un loop continuo di riconnessione.
+2. **Assenza di retention policy negli snapshot del demone**: `EventJournal` genera un checkpoint di snapshot ogni 500 eventi per consentire il resume rapido senza rileggere l'intero log eventi. `Spill.ts` serializzava gli snapshot con indentazione estesa (`null, 2`) e non implementava alcuna rotazione o pulizia dei file storici, nonostante il caricamento (`loadLatestSnapshot()`) legga esclusivamente il file snapshot più recente.
+
+### Risoluzione Implementata
+1. **Finestra vincolata per lo snapshot (`SnapshotBuilder.ts`)**:
+   - `SnapshotBuilder` delimita il numero di messaggi inclusi nel frame snapshot iniziale ai 100 più recenti (`MAX_SNAPSHOT_ENTRIES = 100`).
+   - I singoli campi testuali anomali (es. dump di file massicci nei tool) sono protetti con un limite di sicurezza (`MAX_ENTRY_TEXT_BYTES = 256 KB`), riducendo la dimensione del payload da oltre 130 MB a circa 1.6 MB ed eliminando qualsiasi rischio di congestione WebSocket o freeze dell'interfaccia.
+2. **Pulizia automatica e retention (`Spill.ts`)**:
+   - Gli snapshot vengono scritti come JSON compatto senza indentazione inutile.
+   - La funzione `pruneOldSnapshots(retainCount = 2)` mantiene solo i due snapshot più recenti e viene eseguita sia a ogni nuovo checkpoint sia all'inizializzazione del giornale (`init`), eliminando automaticamente tutti i checkpoint orfani accumulati e liberando lo spazio disco occupato.
+
+---
+
+## 5. Scrollbar a Scatti / Saltellante al Caricamento dei Messaggi Storici
+
+### Sintomi
+- Dopo aver cliccato "Carica altri messaggi dalla cronologia", il thumb della scrollbar si muove in modo scattoso ed errato, saltando su e giù anche se l'utente continua a scorrere fluidamente nella stessa direzione.
+- Il pulsante caricava una quantità limitata di messaggi (35 alla volta), costringendo a ripetuti click per navigare trascrizioni lunghe.
+
+### Cause Radice
+1. **Stima dinamica instabile delle estensioni (`estimateMaxScrollOffset`)**: Flutter calcola `maxScrollExtent` per `ListView.builder` stimando l'altezza totale sulla media dei soli elementi attualmente visibili a schermo. In un'interfaccia di chat/log in cui un messaggio breve occupa 40px e un blocco di codice o tool diff occupa 800px, l'altezza stimata del totale variava bruscamente (es. da 10.000px a oltre 100.000px) tra un frame di scroll e l'altro, facendo rimbalzare la posizione relativa del cursore.
+2. **Salto post-caricamento arbitrario (`jumpTo(oldOffset + diff)`)**: al caricamento dei messaggi storici in testa alla lista, l'applicazione tentava un salto proporzionale a una differenza di `maxScrollExtent` priva di layout reale, proiettando il cursore a offset non validi o fuori scala.
+3. **Rebuild completi dell'albero dei widget durante lo scroll**: il listener di notifica scroll invocava `setState` su `_userScrolledUp` su ogni aggiornamento di scroll, invalidando l'intera vista trascritta durante il trascinamento.
+4. **Doppio incremento di `_visibleCount`**: sia il callback del bottone che il ciclo di `build()` incrementavano il contatore di visibilità in risposta all'inserimento dei nuovi messaggi.
+
+### Risoluzione Implementata
+1. **Aumento quantitativo di caricamento a 250 messaggi (~7x)**:
+   - In `Dispatcher.ts`, la soglia massima per `session.getHistory` è stata alzata fino a 1000 elementi con default a 250.
+   - Nel frontend (`daemon_providers.dart` e `transcript_view.dart`), il pulsante carica 250 messaggi per click, mentre l'apertura iniziale mantiene 35 messaggi rapidi e performanti.
+2. **`SmartTranscriptChildDelegate` e cache altezze per ID**:
+   - Implementato un delegate personalizzato con cache persistente delle dimensioni effettive dei widget (`_MeasureSize`), indicizzata per ID messaggio stabile.
+   - La stima di scorrimento (`estimateMaxScrollOffset`) utilizza la somma degli elementi già misurati più la media storica stabile per quelli ancora fuori viewport, rendendo la progressione della scrollbar strettamente monotona e priva di oscillazioni.
+3. **Ancoraggio e preservazione della posizione di lettura**:
+   - Al click su 'Carica altri messaggi', l'applicazione traccia la coordinata a schermo del primo messaggio visibile tramite `_anchorKey` e calcola l'altezza dei messaggi inseriti sopra.
+   - Viene applicata una compensazione dell'offset pari all'altezza aggiunta con rifinitura sub-pixel al post-frame callback: il messaggio che l'utente stava leggendo rimane perfettamente immobile nella stessa identica posizione sullo schermo, evitando di saltare all'inizio dello storico. I messaggi precedenti rimangono consultabili scorrendo verso l'alto.
+   - Estesa la cache dei widget a 2000px (`ScrollCacheExtent.pixels(2000.0)`) per evitare continue distruzioni e ricreazioni di elementi di grandi dimensioni.
+4. **`ValueNotifier<bool>` per il floating button**:
+   - La comparsa e scomparsa del pulsante per tornare in fondo alla chat è reattiva tramite `ValueListenableBuilder`, evitando qualsiasi `setState` globale dell'intera vista durante lo scroll.
+
+---
+
 ## 6. Menu Modello Multipli, Messaggio "Non Consegnato" Errato, Domanda dell'Agente Bloccata
 
 ### Sintomi
@@ -236,3 +284,4 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
    - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
    - la risposta ha un timeout di 15s con errore visibile e pulsanti riabilitati;
    - selezione singola con indicatori radio invece di checkbox.
+

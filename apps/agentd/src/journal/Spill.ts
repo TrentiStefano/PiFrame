@@ -27,6 +27,7 @@ export class Spill {
         console.error(`Spill write failed for session ${this.sessionId}:`, error);
         this.writeStream = undefined;
       });
+      this.pruneOldSnapshots(2);
     } catch (err) {
       console.error(`Failed to initialize spill for session ${this.sessionId}:`, err);
     }
@@ -70,10 +71,36 @@ export class Spill {
     try {
       const snapFile = path.join(this.journalDir, `snapshot.${seq}.json`);
       const tempFile = `${snapFile}.tmp.${Date.now()}`;
-      fs.writeFileSync(tempFile, JSON.stringify(snapshot, null, 2), 'utf8');
+      fs.writeFileSync(tempFile, JSON.stringify(snapshot), 'utf8');
       fs.renameSync(tempFile, snapFile);
+      this.pruneOldSnapshots(2);
     } catch (err) {
       console.error(`Failed to save snapshot for session ${this.sessionId} at seq=${seq}:`, err);
+    }
+  }
+
+  public pruneOldSnapshots(retainCount: number = 2): void {
+    try {
+      if (!fs.existsSync(this.journalDir)) return;
+      const files = fs.readdirSync(this.journalDir);
+      const snapFiles = files
+        .filter((f) => f.startsWith('snapshot.') && f.endsWith('.json'))
+        .map((f) => {
+          const m = f.match(/snapshot\.(\d+)\.json/);
+          return { file: f, seq: m ? parseInt(m[1], 10) : -1 };
+        })
+        .filter((s) => s.seq >= 0)
+        .sort((a, b) => b.seq - a.seq);
+
+      if (snapFiles.length > retainCount) {
+        for (let i = retainCount; i < snapFiles.length; i++) {
+          try {
+            fs.unlinkSync(path.join(this.journalDir, snapFiles[i].file));
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to prune old snapshots for session ${this.sessionId}:`, err);
     }
   }
 

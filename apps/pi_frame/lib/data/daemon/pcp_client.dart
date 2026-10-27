@@ -325,6 +325,27 @@ class PcpClient {
     );
   }
 
+  Future<Map<String, dynamic>> getHistory(
+    String sessionId, {
+    String? beforeId,
+    int limit = 50,
+  }) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('gh'),
+      type: 'session.getHistory',
+      payload: {
+        'sessionId': sessionId,
+        'beforeId': ?beforeId,
+        'limit': limit,
+      },
+    );
+    return sendCommand(cmd);
+  }
+
   Future<Map<String, dynamic>> sendPrompt(
     String sessionId,
     String text, {

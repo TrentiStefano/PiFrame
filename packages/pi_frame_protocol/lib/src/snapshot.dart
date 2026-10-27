@@ -123,16 +123,22 @@ class RuntimeMeta {
 class TranscriptMeta {
   final List<dynamic> entries;
   final String? leafId;
+  final int? totalEntries;
+  final bool? hasMore;
 
   const TranscriptMeta({
     required this.entries,
     this.leafId,
+    this.totalEntries,
+    this.hasMore,
   });
 
   factory TranscriptMeta.fromJson(Map<String, dynamic> json) {
     return TranscriptMeta(
       entries: (json['entries'] as List<dynamic>?) ?? const [],
       leafId: json['leafId'] as String?,
+      totalEntries: (json['totalEntries'] as num?)?.toInt(),
+      hasMore: json['hasMore'] as bool?,
     );
   }
 }

@@ -133,3 +133,13 @@ La rimozione di PiFrame è pulita, confinata e reversibile:
 > [!IMPORTANT]
 > PiFrame opera rigorosamente con approccio non invasivo. La directory di Pi (`~/.pi/`), contenente la cronologia delle sessioni, le credenziali e le estensioni, **non viene toccata né rimossa**.
 > Tutte le sessioni originali rimangono pienamente utilizzabili dal CLI ufficiale di Pi anche dopo la disinstallazione di PiFrame.
+
+---
+
+## 7. Paginazione e Caricamento On-Demand della Cronologia
+
+Nelle sessioni con cronologia molto estesa (migliaia di messaggi o log di tool voluminosi):
+1. **Snapshot iniziale leggero**: all'apertura, il demone trasferisce una finestra recente delimitata ai 100 messaggi più recenti, garantendo un caricamento istantaneo e azzerando la pressione sulla memoria RAM e sui buffer WebSocket.
+2. **Caricamento a ritroso on-demand**: in cima alla chat, il pulsante dinamico *"Carica altri messaggi dalla cronologia"* consente di recuperare blocchi incrementali di messaggi precedenti tramite il comando `session.getHistory`, preservando la posizione di scorrimento senza salti visivi.
+3. **Integrità assoluta**: l'intero archivio storico resta conservato su disco in `~/.pi/agent/sessions/` e può essere sfogliato progressivamente a ritroso fino al primissimo messaggio della sessione.
+

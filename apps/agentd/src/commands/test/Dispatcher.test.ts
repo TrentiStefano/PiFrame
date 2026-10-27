@@ -436,3 +436,28 @@ test('Dispatcher: agent.interrupt clears session queue, settles state, and broad
   assert.equal(session.status, 'settled');
   assert.equal(session.isStreaming, false);
 });
+
+test('Dispatcher: session.getHistory paginates historical entries backwards', async () => {
+  const setup = createTestSetup();
+  const session = await setup.registry.createSession({ cwd: os.tmpdir() });
+  for (let i = 1; i <= 120; i++) {
+    session.entries.push({ id: `entry_${i}`, role: i % 2 === 0 ? 'assistant' : 'user', text: `Message ${i}` });
+  }
+
+  const res1 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_100', limit: 30 });
+  const result1 = res1.find((m: any) => m.kind === 'result');
+  assert.ok(result1, 'must receive result');
+  assert.equal(result1.payload.state, 'completed');
+  assert.equal(result1.payload.data.entries.length, 30);
+  assert.equal(result1.payload.data.entries[0].id, 'entry_70');
+  assert.equal(result1.payload.data.entries[29].id, 'entry_99');
+  assert.equal(result1.payload.data.hasMore, true);
+  assert.equal(result1.payload.data.totalEntries, 120);
+
+  const res2 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_70', limit: 100 });
+  const result2 = res2.find((m: any) => m.kind === 'result');
+  assert.equal(result2.payload.data.entries.length, 69);
+  assert.equal(result2.payload.data.entries[0].id, 'entry_1');
+  assert.equal(result2.payload.data.hasMore, false);
+});
+
