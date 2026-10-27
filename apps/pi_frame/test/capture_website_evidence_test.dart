@@ -17,11 +17,25 @@ import 'package:pi_frame/features/command_palette/command_palette.dart';
 import 'package:pi_frame/features/settings/theme_editor_dialog.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+Directory _resolveRepoRoot() {
+  var dir = Directory.current;
+  for (var i = 0; i < 5; i++) {
+    if (File('${dir.path}/pnpm-workspace.yaml').existsSync() ||
+        Directory('${dir.path}/docs/design-evidence').existsSync()) {
+      return dir;
+    }
+    if (dir.parent.path == dir.path) break;
+    dir = dir.parent;
+  }
+  return Directory.current;
+}
+
 void _saveScreenshot(Uint8List bytes, String fileName) {
+  final root = _resolveRepoRoot();
   final targetDirs = [
-    Directory('docs/design-evidence/recordly-projects'),
-    Directory('website/assets/img/ui'),
-    Directory('scratch/release_ui_screenshots'),
+    Directory('${root.path}/docs/design-evidence/recordly-projects'),
+    Directory('${root.path}/website/assets/img/ui'),
+    Directory('${root.path}/scratch/release_ui_screenshots'),
   ];
 
   for (final dir in targetDirs) {

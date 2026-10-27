@@ -17,8 +17,22 @@ import 'package:pi_frame/features/settings/settings_view.dart';
 import 'package:pi_frame/ui/startup_assemble_animation.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+Directory _resolveRepoRoot() {
+  var dir = Directory.current;
+  for (var i = 0; i < 5; i++) {
+    if (File('${dir.path}/pnpm-workspace.yaml').existsSync() ||
+        Directory('${dir.path}/scratch').existsSync()) {
+      return dir;
+    }
+    if (dir.parent.path == dir.path) break;
+    dir = dir.parent;
+  }
+  return Directory.current;
+}
+
 Directory _getOutputDir() {
-  final out = Directory('scratch/release_ui_screenshots');
+  final root = _resolveRepoRoot();
+  final out = Directory('${root.path}/scratch/release_ui_screenshots');
   if (!out.existsSync()) {
     try {
       out.createSync(recursive: true);
