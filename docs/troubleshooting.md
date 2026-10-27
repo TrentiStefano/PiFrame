@@ -190,6 +190,24 @@ CMake produce `PiFrame.exe` e l'installer usa lo stesso nome. Il controllo del b
 node --test tools/scripts/test-windows-release-name.test.mjs
 ```
 
+### Build Linux fallisce perché manca WebKitGTK
+
+Se CMake segnala `None of the required 'webkit2gtk-4.1;webkit2gtk-4.2;webkit2gtk-4.3' found`, manca la libreria di sviluppo richiesta dal plugin `webview_win_floating`. Su Ubuntu 24.04 installa:
+
+```bash
+sudo apt-get install libwebkit2gtk-4.1-dev
+```
+
+La workflow Release installa questo pacchetto sia nella validazione sia nella build Linux. Il `.deb` dichiara anche `libwebkit2gtk-4.1-0` come dipendenza runtime: installalo con `sudo apt install ./PiFrame-<version>-linux-amd64.deb` per risolvere le dipendenze.
+
+Verifica le dichiarazioni dalla radice del repository:
+
+```bash
+node --test tools/scripts/test-windows-release-name.test.mjs
+```
+
+Per distribuire anche la dipendenza runtime corretta, crea una nuova release che includa questo fix. **Actions → Release → Run workflow** dal ramo `main` con un tag precedente (per esempio `v1.1.0`) usa le dipendenze di build della workflow aggiornata, ma lo script di packaging rimane quello del vecchio tag: il `.deb` così ricostruito non include la nuova dichiarazione runtime. Rieseguire soltanto il vecchio run usa ancora la workflow priva del fix.
+
 ### Build Linux fallisce perché manca libnotify
 
 Il plugin notifier di Flutter per Linux richiede che `pkg-config` trovi `libnotify`. Installa il pacchetto di sviluppo prima della build:

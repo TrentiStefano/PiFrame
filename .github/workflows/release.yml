@@ -38,7 +38,7 @@ jobs:
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev libwebkit2gtk-4.1-dev
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -173,7 +173,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev xvfb imagemagick
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libnotify-dev libwebkit2gtk-4.1-dev xvfb imagemagick
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
