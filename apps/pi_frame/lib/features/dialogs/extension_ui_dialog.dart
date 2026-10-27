@@ -38,7 +38,9 @@ class ExtensionUiDialog extends ConsumerStatefulWidget {
 }
 
 class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
-  bool _isClaimedByMe = false;
+  // Another client holds the lease. Any other claim failure (offline, timeout, stale) must not lock the user out:
+  // the daemon still arbitrates the final answer.
+  bool _lockedByOther = false;
   bool _isClaimChecked = false;
   late TextEditingController _textController;
   String? _selectedOption;
@@ -108,17 +110,19 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     if (client == null) return;
     final requestId = widget.request['requestId']?.toString() ?? '';
     try {
-      final res = await client.claimUiRequest(widget.sessionId, requestId);
+      final res = await client
+          .claimUiRequest(widget.sessionId, requestId)
+          .timeout(const Duration(seconds: 5));
       if (mounted) {
         setState(() {
-          _isClaimedByMe = (res['data'] as Map?)?['claimed'] == true;
+          _lockedByOther = (res['data'] as Map?)?['claimed'] == false;
           _isClaimChecked = true;
         });
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         setState(() {
-          _isClaimedByMe = false;
+          _lockedByOther = error.toString().contains('claimed by another');
           _isClaimChecked = true;
         });
       }
@@ -139,31 +143,45 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     bool? cancelled,
   }) async {
     if (_isResponding) return;
-    if (!_isClaimedByMe) {
+    if (_lockedByOther) {
       _dismiss();
       return;
     }
     final client = ref.read(pcpClientProvider);
-    if (client == null) return;
-    setState(() => _isResponding = true);
+    if (client == null) {
+      setState(() => _responseError = 'Daemon non connesso');
+      return;
+    }
+    setState(() {
+      _isResponding = true;
+      _responseError = null;
+    });
     try {
-      await client.respondUiRequest(
-        widget.sessionId,
-        widget.request['requestId']?.toString() ?? '',
-        value: value,
-        confirmed: confirmed,
-        cancelled: cancelled,
-      );
+      await client
+          .respondUiRequest(
+            widget.sessionId,
+            widget.request['requestId']?.toString() ?? '',
+            value: value,
+            confirmed: confirmed,
+            cancelled: cancelled,
+          )
+          .timeout(const Duration(seconds: 15));
       if (mounted) {
         _dismiss();
       }
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _isResponding = false;
-          _responseError = error.toString();
-        });
+      if (!mounted) return;
+      // The request is already gone daemon-side (answered elsewhere, aborted or restarted): nothing left to answer.
+      if (error.toString().contains('Request not found')) {
+        _dismiss();
+        return;
       }
+      setState(() {
+        _isResponding = false;
+        _responseError = error is TimeoutException
+            ? 'Nessuna risposta dal daemon. Riprova.'
+            : error.toString();
+      });
     }
   }
 
@@ -202,10 +220,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ),
             if (_secondsRemaining > 0)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: tokens.warning.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(tokens.radiusPill),
@@ -224,156 +239,176 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         ),
         const SizedBox(height: 10),
 
-        // Lock banner if claimed by another client
-        if (_isClaimChecked && !_isClaimedByMe) ...[
-          Container(
-            padding: const EdgeInsets.all(8),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: tokens.warning.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border.all(color: tokens.borderStrong),
+        // Scrollable body: long messages or many options must never push the answer buttons off screen.
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: (MediaQuery.sizeOf(context).height * 0.4).clamp(
+              120.0,
+              360.0,
             ),
-            child: Row(
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.lock_outline,
-                  size: 15,
-                  color: tokens.textPrimary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Un altro client sta rispondendo a questa richiesta.',
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 12,
+                // Lock banner if claimed by another client
+                if (_isClaimChecked && _lockedByOther) ...[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: tokens.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.borderStrong),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 15,
+                          color: tokens.textPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Un altro client sta rispondendo a questa richiesta.',
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ],
+                ],
 
-        // Message content
-        if (message.isNotEmpty) ...[
-          Text(
-            message,
-            style: TextStyle(
-              color: tokens.textSecondary,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // Body based on method
-        if (method == 'select') ...[
-          ...options.map((opt) {
-            final isSelected = _isMultiSelect
-                ? _selectedOptions.contains(opt)
-                : _selectedOption == opt;
-
-            return InkWell(
-              onTap: _isClaimedByMe
-                  ? () => setState(() {
-                        if (_isMultiSelect) {
-                          if (_selectedOptions.contains(opt)) {
-                            _selectedOptions.remove(opt);
-                          } else {
-                            _selectedOptions.add(opt);
-                          }
-                        } else {
-                          _selectedOption = opt;
-                        }
-                      })
-                  : null,
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 6,
-                  horizontal: 4,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isSelected
-                          ? (_isMultiSelect
-                              ? Icons.check_box
-                              : Icons.check_box)
-                          : (_isMultiSelect
-                              ? Icons.check_box_outline_blank
-                              : Icons.check_box_outline_blank),
-                      size: 18,
-                      color: isSelected
-                          ? tokens.accent
-                          : tokens.textSecondary,
+                // Message content
+                if (message.isNotEmpty) ...[
+                  Text(
+                    message,
+                    style: TextStyle(
+                      color: tokens.textSecondary,
+                      fontSize: 13,
+                      height: 1.4,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        opt,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Body based on method
+                if (method == 'select') ...[
+                  ...options.map((opt) {
+                    final isSelected = _isMultiSelect
+                        ? _selectedOptions.contains(opt)
+                        : _selectedOption == opt;
+
+                    return InkWell(
+                      onTap: !_lockedByOther
+                          ? () => setState(() {
+                              if (_isMultiSelect) {
+                                if (_selectedOptions.contains(opt)) {
+                                  _selectedOptions.remove(opt);
+                                } else {
+                                  _selectedOptions.add(opt);
+                                }
+                              } else {
+                                _selectedOption = opt;
+                              }
+                            })
+                          : null,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 6,
+                          horizontal: 4,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isMultiSelect
+                                  ? (isSelected
+                                        ? Icons.check_box
+                                        : Icons.check_box_outline_blank)
+                                  : (isSelected
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked),
+                              size: 18,
+                              color: isSelected
+                                  ? tokens.accent
+                                  : tokens.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                opt,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ] else if (method == 'input') ...[
+                  TextField(
+                    controller: _textController,
+                    enabled: !_lockedByOther,
+                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: placeholder,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                    ),
+                  ),
+                ] else if (method == 'editor') ...[
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 160),
+                    child: TextField(
+                      controller: _textController,
+                      enabled: !_lockedByOther,
+                      maxLines: null,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 12.5,
+                        fontFamily: tokens.monoFontFamily,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: placeholder.isNotEmpty
+                            ? placeholder
+                            : 'Inserisci testo...',
+                        contentPadding: const EdgeInsets.all(10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ] else if (method == 'input') ...[
-          TextField(
-            controller: _textController,
-            enabled: _isClaimedByMe,
-            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: placeholder,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
+                  ),
+                ],
+              ],
             ),
           ),
-        ] else if (method == 'editor') ...[
-          Container(
-            constraints: const BoxConstraints(maxHeight: 160),
-            child: TextField(
-              controller: _textController,
-              enabled: _isClaimedByMe,
-              maxLines: null,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 12.5,
-                fontFamily: tokens.monoFontFamily,
-              ),
-              decoration: InputDecoration(
-                hintText: placeholder.isNotEmpty
-                    ? placeholder
-                    : 'Inserisci testo...',
-                contentPadding: const EdgeInsets.all(10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
 
         const SizedBox(height: 14),
 
         if (_responseError != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(_responseError!, style: TextStyle(color: tokens.danger, fontSize: 12)),
+            child: Text(
+              _responseError!,
+              style: TextStyle(color: tokens.danger, fontSize: 12),
+            ),
           ),
 
         // Actions row
@@ -392,7 +427,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              onPressed: _isClaimedByMe && !_isResponding
+              onPressed: !_lockedByOther && !_isResponding
                   ? () {
                       if (method == 'confirm') {
                         _sendResponse(confirmed: true);
@@ -411,11 +446,17 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 backgroundColor: tokens.accent,
                 foregroundColor: tokens.accentContrast,
                 visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
               ),
               child: Text(
                 method == 'confirm' ? 'Conferma' : 'Invia',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

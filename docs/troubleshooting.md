@@ -217,3 +217,22 @@ sudo apt-get install libnotify-dev
 ```
 
 I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4`. La CI di release installa `libnotify-dev` per la validazione e la build Linux; il pacchetto `.deb` dichiara `libnotify4`.
+
+---
+
+## 6. Menu Modello Multipli, Messaggio "Non Consegnato" Errato, Domanda dell'Agente Bloccata
+
+### Sintomi
+- Cliccando più volte sul selettore del modello mentre il menu non è ancora comparso, si aprivano più popup.
+- Il primo messaggio dopo la riapertura di una sessione risultava "Invio non riuscito" anche se Pi lo aveva ricevuto e l'agente rispondeva (solo più tardi).
+- Una domanda a scelta dell'agente (card sopra il composer) non permetteva di premere "Invia" né di interagire, bloccando la chat.
+
+### Cause Radice e Risoluzione
+1. **Selettore modello/thinking**: il catalogo veniva caricato in modo asincrono prima di `showMenu`, quindi ogni tap lanciava un nuovo menu. `composer.dart` ora ignora i tap mentre un selettore è in apertura/aperto (`_guardPicker`) e il caricamento ha un timeout di 10s, così il selettore non resta mai bloccato.
+2. **Consegna falsa negativa**: Pi conferma `prompt` solo dopo il preflight (es. compattazione pre-prompt di una sessione grande, hook di estensioni), che può superare i 30s del daemon. `StdioPiTransport` ora considera un `prompt` con ack lento come accettato (`disposition: pending`); un eventuale rifiuto tardivo di Pi arriva come `worker.diagnostic`. Gli altri comandi mantengono il timeout con errore.
+3. **Card domanda bloccata** (`extension_ui_dialog.dart` + `composer.dart`):
+   - corpo (messaggio e opzioni) scrollabile con altezza massima: pulsanti Annulla/Invia sempre visibili anche con molte opzioni o testo lungo;
+   - i pulsanti non dipendono più dall'esito del claim: solo "già in uso da un altro client" blocca la card; claim lento, fallito o offline non la disabilita (il daemon arbitra comunque la risposta);
+   - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
+   - la risposta ha un timeout di 15s con errore visibile e pulsanti riabilitati;
+   - selezione singola con indicatori radio invece di checkbox.

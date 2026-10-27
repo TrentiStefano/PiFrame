@@ -61,7 +61,21 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
   bool _isContextPickerLoading = false;
+  // Model/thinking menus load their options asynchronously before opening: ignore re-taps meanwhile.
+  bool _isPickerBusy = false;
+  // Cards the user closed locally (timeout, stale or answered); the daemon event may arrive later or never.
+  final Set<String> _dismissedUiRequestIds = {};
   int _modelLoadGeneration = 0;
+
+  Future<void> _guardPicker(Future<void> Function() open) async {
+    if (_isPickerBusy) return;
+    _isPickerBusy = true;
+    try {
+      await open();
+    } finally {
+      _isPickerBusy = false;
+    }
+  }
 
   Future<void> _loadModels() async {
     final generation = ++_modelLoadGeneration;
@@ -583,7 +597,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _showModelPicker(BuildContext chipContext) async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final models = await notifier.getAvailableModels();
+    final models = await notifier.getAvailableModels().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => const <Map<String, dynamic>>[],
+    );
     if (!mounted || !chipContext.mounted) return;
     final tokens = context.tokens;
     final current = ref.read(sessionStateFamily(widget.sessionId)).currentModel;
@@ -671,7 +688,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _showThinkingPicker(BuildContext chipContext) async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final levels = await notifier.getAvailableThinkingLevels();
+    final levels = await notifier.getAvailableThinkingLevels().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => const <String>[],
+    );
     final effectiveLevels = levels.isNotEmpty
         ? levels
         : const ['off', 'low', 'medium', 'high'];
@@ -1048,6 +1068,9 @@ class _ComposerState extends ConsumerState<Composer> {
 
     final pendingInteractionRequests = pendingUiRequests.where((r) {
       final method = r['method']?.toString();
+      if (_dismissedUiRequestIds.contains(r['requestId']?.toString())) {
+        return false;
+      }
       return r['dialog'] == true ||
           method == 'confirm' ||
           method == 'select' ||
@@ -1229,6 +1252,15 @@ class _ComposerState extends ConsumerState<Composer> {
                                 sessionId: widget.sessionId,
                                 request: pendingInteractionRequests.last,
                                 isCard: true,
+                                onDismissed: () {
+                                  if (!mounted) return;
+                                  setState(
+                                    () => _dismissedUiRequestIds.add(
+                                      pendingInteractionRequests.last['requestId']
+                                          .toString(),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
 
@@ -1750,10 +1782,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         BorderRadius.circular(
                                                           tokens.radiusSm,
                                                         ),
-                                                    onTap: () =>
-                                                        _showModelPicker(
-                                                          chipCtx,
-                                                        ),
+                                                    onTap: () => _guardPicker(
+                                                      () => _showModelPicker(
+                                                        chipCtx,
+                                                      ),
+                                                    ),
                                                     child: Container(
                                                       height: 26,
                                                       padding:
@@ -1841,10 +1874,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         BorderRadius.circular(
                                                           tokens.radiusSm,
                                                         ),
-                                                    onTap: () =>
-                                                        _showThinkingPicker(
-                                                          chipCtx,
-                                                        ),
+                                                    onTap: () => _guardPicker(
+                                                      () => _showThinkingPicker(
+                                                        chipCtx,
+                                                      ),
+                                                    ),
                                                     child: Container(
                                                       height: 26,
                                                       padding:

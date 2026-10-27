@@ -136,3 +136,52 @@ test('resolvePiLaunch handles JS module paths and Windows npm .cmd shims without
   assert.equal(result.file, process.execPath);
   assert.deepEqual(result.args, [cli, '--mode', 'rpc']);
 });
+
+function slowFixture(): string {
+  return fixture(`
+    let buffer = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => {
+      buffer += chunk;
+      while (buffer.includes('\\n')) {
+        const index = buffer.indexOf('\\n');
+        const line = buffer.slice(0, index); buffer = buffer.slice(index + 1);
+        const request = JSON.parse(line);
+        setTimeout(() => process.stdout.write(JSON.stringify({
+          id: request.id, type: 'response', command: request.type,
+          success: request.message !== 'bad', error: 'late rejection', data: {}
+        }) + '\\n'), 300);
+      }
+    });
+  `);
+}
+
+test('StdioPiTransport treats a slow prompt acknowledgement as accepted, not as a delivery failure', async () => {
+  const transport = new StdioPiTransport({ executablePath: slowFixture(), commandTimeoutMs: 80 });
+  await transport.start({ cwd: process.cwd() });
+  const response = await transport.send({ command: 'prompt', arguments: { message: 'hello' } });
+  assert.equal(response.success, true);
+  assert.equal(response.data.disposition, 'pending');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.equal((transport as any).pendingCommands.size, 0);
+  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  await transport.stop({ graceMs: 1000 });
+});
+
+test('StdioPiTransport reports a late prompt rejection as a diagnostic', async () => {
+  const transport = new StdioPiTransport({ executablePath: slowFixture(), commandTimeoutMs: 80 });
+  await transport.start({ cwd: process.cwd() });
+  const response = await transport.send({ command: 'prompt', arguments: { message: 'bad' } });
+  assert.equal(response.success, true);
+  const event = await nextEvent(transport, 'worker.diagnostic');
+  assert.match(event.message, /late rejection/);
+  await transport.stop({ graceMs: 1000 });
+});
+
+test('StdioPiTransport still rejects non-prompt commands that time out', async () => {
+  const transport = new StdioPiTransport({ executablePath: slowFixture(), commandTimeoutMs: 80 });
+  await transport.start({ cwd: process.cwd() });
+  await assert.rejects(transport.send({ command: 'get_state' }), /timed out/);
+  assert.equal((transport as any).pendingCommands.size, 0);
+  await transport.stop({ graceMs: 1000 });
+});
