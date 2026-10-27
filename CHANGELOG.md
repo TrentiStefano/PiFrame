@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/TrentiStefano/PiFrame/compare/v1.1.0...v1.1.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* **context:** enforce model tiers and compaction limits ([cc7c965](https://github.com/TrentiStefano/PiFrame/commit/cc7c965c537b25b4f780d28e75d53d084161dbcf))
+* **linux:** declare required WebKitGTK dependencies ([f7f27f1](https://github.com/TrentiStefano/PiFrame/commit/f7f27f1a9927d393f8ea58333c1941e1aeed29b6))
+
 ## [1.1.0](https://github.com/TrentiStefano/PiFrame/compare/v1.0.0...v1.1.0) (2026-10-26)
 
 
