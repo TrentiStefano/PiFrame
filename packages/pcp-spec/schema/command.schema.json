@@ -41,6 +41,8 @@
         "agent.clearQueue",
         "agent.interrupt",
         "agent.compact",
+        "agent.setContextWindowOverride",
+        "agent.setCompactionReservePercent",
         "agent.setAutoCompaction",
         "agent.setAutoRetry",
         "agent.abortRetry",

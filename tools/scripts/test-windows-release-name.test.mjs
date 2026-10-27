@@ -16,6 +16,15 @@ test('Linux release declares libnotify build and runtime dependencies', () => {
   assert.match(debPackager, /^Depends: .*\blibnotify4\b/m);
 });
 
+test('Linux release declares WebKitGTK build and runtime dependencies', () => {
+  const aptInstallLines = workflow.match(/^\s*sudo apt-get install -y .*$/gm) ?? [];
+  assert.equal(aptInstallLines.length, 2, 'release workflow must have two Linux dependency lists');
+  for (const line of aptInstallLines) {
+    assert.match(line, /\blibwebkit2gtk-4\.1-dev\b/);
+  }
+  assert.match(debPackager, /^Depends: .*\blibwebkit2gtk-4\.1-0\b/m);
+});
+
 test('Windows executable name matches CMake, installer, and release bundle guard', () => {
   const binaryName = cmake.match(/^set\(BINARY_NAME\s+"([^"]+)"\)/m)?.[1];
   assert.ok(binaryName, 'CMake must define BINARY_NAME');

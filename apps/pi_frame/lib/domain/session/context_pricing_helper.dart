@@ -19,8 +19,18 @@ bool hasVariableContextPricing(Map<String, dynamic> model) {
       name.contains('haiku');
 }
 
+int? modelContextWindow(Map<String, dynamic> model) =>
+    (model['contextWindow'] as num?)?.toInt();
+
+bool isValidContextWindowLimit(int limit, int? modelMaximum) =>
+    limit > 0 && modelMaximum != null && limit <= modelMaximum;
+
+double usableContextWindow(int limit, double reservePercent) =>
+    limit * (1 - reservePercent / 100);
+
 List<int> getVariableContextSizes(Map<String, dynamic> model) {
-  final fullWindow = (model['contextWindow'] as num?)?.toInt() ?? 1000000;
+  final fullWindow = modelContextWindow(model);
+  if (fullWindow == null || fullWindow <= 0) return [];
   final sizes = <int>{};
 
   final cost = model['cost'];
@@ -41,11 +51,14 @@ List<int> getVariableContextSizes(Map<String, dynamic> model) {
   if (sizes.isEmpty) {
     if (id.contains('haiku') || name.contains('haiku')) {
       sizes.addAll([100000, 200000]);
+    } else if (id.contains('gpt-6-luna') || name.contains('gpt-6 luna')) {
+      sizes.add(272000);
     } else if (id.contains('luna') || name.contains('luna')) {
       sizes.add(200000);
     }
   }
 
+  sizes.removeWhere((size) => size <= 0 || size > fullWindow);
   sizes.add(fullWindow);
 
   final list = sizes.toList()..sort();
@@ -62,7 +75,9 @@ String formatTokens(dynamic count) {
   }
   if (numVal >= 1000000) {
     final m = numVal / 1000000.0;
-    return m % 1 == 0 ? '${m.toInt()}M' : '${m.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '')}M';
+    return m % 1 == 0
+        ? '${m.toInt()}M'
+        : '${m.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '')}M';
   }
   if (numVal % 1000 == 0) {
     return '${numVal ~/ 1000}k';

@@ -48,65 +48,109 @@ void main() {
     final result = client.listSessions();
     final assertion = expectLater(result, throwsA(isA<StateError>()));
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {'state': 'failed', 'error': 'Worker unavailable'},
-    }));
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {'state': 'failed', 'error': 'Worker unavailable'},
+      }),
+    );
     await assertion;
   });
 
-  test('rapid same-type commands have distinct IDs and both complete', () async {
-    final first = client.listSessions();
-    final second = client.listSessions();
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.length, 2);
-    expect(commands[0]['commandId'], isNot(commands[1]['commandId']));
-    for (final command in commands) {
-      socket.add(jsonEncode({
-        'kind': 'result',
-        'commandId': command['commandId'],
-        'payload': {'state': 'completed', 'data': {'sessions': []}},
-      }));
-    }
-    await Future.wait([first, second]);
-  });
+  test(
+    'rapid same-type commands have distinct IDs and both complete',
+    () async {
+      final first = client.listSessions();
+      final second = client.listSessions();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.length, 2);
+      expect(commands[0]['commandId'], isNot(commands[1]['commandId']));
+      for (final command in commands) {
+        socket.add(
+          jsonEncode({
+            'kind': 'result',
+            'commandId': command['commandId'],
+            'payload': {
+              'state': 'completed',
+              'data': {'sessions': []},
+            },
+          }),
+        );
+      }
+      await Future.wait([first, second]);
+    },
+  );
 
-  test('workspace commands use the active session and preserve validated payloads', () async {
-    final requests = <Future<Map<String, dynamic>>>[
-      client.listWorkspaceFiles('session-a'),
-      client.readWorkspaceFile('session-a', 'lib/main.dart'),
-      client.saveWorkspaceFile('session-a', {
-        'path': 'lib/main.dart',
-        'content': 'updated',
-        'revision': List.filled(64, 'a').join(),
-      }),
-      client.workspaceGitAction('session-a', {
-        'action': 'commit',
-        'paths': ['lib/main.dart'],
-        'expectedStagedPaths': ['lib/main.dart'],
-        'message': 'Update main',
-      }),
-    ];
+  test(
+    'workspace commands use the active session and preserve validated payloads',
+    () async {
+      final requests = <Future<Map<String, dynamic>>>[
+        client.listWorkspaceFiles('session-a'),
+        client.readWorkspaceFile('session-a', 'lib/main.dart'),
+        client.saveWorkspaceFile('session-a', {
+          'path': 'lib/main.dart',
+          'content': 'updated',
+          'revision': List.filled(64, 'a').join(),
+        }),
+        client.workspaceGitAction('session-a', {
+          'action': 'commit',
+          'paths': ['lib/main.dart'],
+          'expectedStagedPaths': ['lib/main.dart'],
+          'message': 'Update main',
+        }),
+      ];
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.map((command) => command['type']).toList(), [
+        'workspace.listFiles',
+        'workspace.readFile',
+        'workspace.saveFile',
+        'workspace.gitAction',
+      ]);
+      for (var index = 0; index < commands.length; index++) {
+        expect(commands[index]['sessionId'], 'session-a');
+        socket.add(
+          jsonEncode({
+            'kind': 'result',
+            'commandId': commands[index]['commandId'],
+            'payload': {'state': 'completed', 'data': {}},
+          }),
+        );
+      }
+      await Future.wait(requests);
+      expect(commands[1]['payload']['path'], 'lib/main.dart');
+      expect(commands[2]['payload']['revision'], List.filled(64, 'a').join());
+      expect(commands[3]['payload']['expectedStagedPaths'], ['lib/main.dart']);
+    },
+  );
+
+  test('context settings serialize backend command payloads', () async {
+    final limitFuture = client.setContextWindowOverride('session-a', 195000);
+    final reserveFuture = client.setCompactionReservePercent('session-a', 5.0);
     await Future<void>.delayed(const Duration(milliseconds: 20));
+
     expect(commands.map((command) => command['type']).toList(), [
-      'workspace.listFiles',
-      'workspace.readFile',
-      'workspace.saveFile',
-      'workspace.gitAction',
+      'agent.setContextWindowOverride',
+      'agent.setCompactionReservePercent',
     ]);
-    for (var index = 0; index < commands.length; index++) {
-      expect(commands[index]['sessionId'], 'session-a');
-      socket.add(jsonEncode({
-        'kind': 'result',
-        'commandId': commands[index]['commandId'],
-        'payload': {'state': 'completed', 'data': {}},
-      }));
+    expect(commands[0]['payload'], {'limit': 195000});
+    expect(commands[1]['payload'], {'percent': 5.0});
+    for (final command in commands) {
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': command['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {
+              'contextWindowOverride': 195000,
+              'compactionReservePercent': 5.0,
+            },
+          },
+        }),
+      );
     }
-    await Future.wait(requests);
-    expect(commands[1]['payload']['path'], 'lib/main.dart');
-    expect(commands[2]['payload']['revision'], List.filled(64, 'a').join());
-    expect(commands[3]['payload']['expectedStagedPaths'], ['lib/main.dart']);
+    await Future.wait([limitFuture, reserveFuture]);
   });
 
   test('dispose rejects pending commands', () async {
@@ -116,88 +160,126 @@ void main() {
     await assertion;
   });
 
-  test('remote connection commands format correct payloads and complete', () async {
-    final statusFuture = client.getRemoteStatus();
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.getStatus');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'enabled': false, 'state': 'stopped'}},
-    }));
-    final status = await statusFuture;
-    final statusData = status['data'] as Map<String, dynamic>;
-    expect(statusData['enabled'], false);
+  test(
+    'remote connection commands format correct payloads and complete',
+    () async {
+      final statusFuture = client.getRemoteStatus();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.getStatus');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'enabled': false, 'state': 'stopped'},
+          },
+        }),
+      );
+      final status = await statusFuture;
+      final statusData = status['data'] as Map<String, dynamic>;
+      expect(statusData['enabled'], false);
 
-    final startFuture = client.startRemoteTunnel(
-      tunnelProvider: 'cloudflared',
-      customUrl: null,
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.start');
-    expect(commands.last['payload']['tunnelProvider'], 'cloudflared');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'enabled': true, 'state': 'running'}},
-    }));
-    await startFuture;
+      final startFuture = client.startRemoteTunnel(
+        tunnelProvider: 'cloudflared',
+        customUrl: null,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.start');
+      expect(commands.last['payload']['tunnelProvider'], 'cloudflared');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'enabled': true, 'state': 'running'},
+          },
+        }),
+      );
+      await startFuture;
 
-    final pairFuture = client.generateRemotePairing(ttlMs: 300000);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.generatePairing');
-    expect(commands.last['payload']['ttlMs'], 300000);
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'secret': 'pair_tok_test'}},
-    }));
-    final pair = await pairFuture;
-    final pairData = pair['data'] as Map<String, dynamic>;
-    expect(pairData['secret'], 'pair_tok_test');
+      final pairFuture = client.generateRemotePairing(ttlMs: 300000);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.generatePairing');
+      expect(commands.last['payload']['ttlMs'], 300000);
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'secret': 'pair_tok_test'},
+          },
+        }),
+      );
+      final pair = await pairFuture;
+      final pairData = pair['data'] as Map<String, dynamic>;
+      expect(pairData['secret'], 'pair_tok_test');
 
-    final optFuture = client.setRemoteOptions(defaultMode: 'control');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.setOptions');
-    expect(commands.last['payload']['defaultMode'], 'control');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {}},
-    }));
-    await optFuture;
+      final optFuture = client.setRemoteOptions(defaultMode: 'control');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.setOptions');
+      expect(commands.last['payload']['defaultMode'], 'control');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {'state': 'completed', 'data': {}},
+        }),
+      );
+      await optFuture;
 
-    final modeFuture = client.setRemoteDeviceMode(deviceId: 'dev_test_123', mode: 'control');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.setDeviceMode');
-    expect(commands.last['payload']['deviceId'], 'dev_test_123');
-    expect(commands.last['payload']['mode'], 'control');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'ok': true}},
-    }));
-    await modeFuture;
+      final modeFuture = client.setRemoteDeviceMode(
+        deviceId: 'dev_test_123',
+        mode: 'control',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.setDeviceMode');
+      expect(commands.last['payload']['deviceId'], 'dev_test_123');
+      expect(commands.last['payload']['mode'], 'control');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'ok': true},
+          },
+        }),
+      );
+      await modeFuture;
 
-    final revFuture = client.revokeRemoteDevice('dev_test_123');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.revokeDevice');
-    expect(commands.last['payload']['deviceId'], 'dev_test_123');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'ok': true}},
-    }));
-    await revFuture;
+      final revFuture = client.revokeRemoteDevice('dev_test_123');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.revokeDevice');
+      expect(commands.last['payload']['deviceId'], 'dev_test_123');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'ok': true},
+          },
+        }),
+      );
+      await revFuture;
 
-    final stopFuture = client.stopRemoteTunnel();
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(commands.last['type'], 'remote.stop');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.last['commandId'],
-      'payload': {'state': 'completed', 'data': {'enabled': false, 'state': 'stopped'}},
-    }));
-    await stopFuture;
-  });
+      final stopFuture = client.stopRemoteTunnel();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(commands.last['type'], 'remote.stop');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.last['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'enabled': false, 'state': 'stopped'},
+          },
+        }),
+      );
+      await stopFuture;
+    },
+  );
 }

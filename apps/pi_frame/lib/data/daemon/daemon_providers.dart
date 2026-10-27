@@ -37,7 +37,9 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
   );
 });
 
-final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) async* {
+final connectionStateProvider = StreamProvider<DaemonConnectionState>((
+  ref,
+) async* {
   final client = ref.watch(pcpClientProvider);
   if (client == null) {
     yield DaemonConnectionState.disconnected;
@@ -64,12 +66,12 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref.onDispose(subscription.cancel);
 
   try {
-    final res = await client
-        .listSessions()
-        .timeout(const Duration(seconds: 8));
+    final res = await client.listSessions().timeout(const Duration(seconds: 8));
     final data = res['data'] as Map<String, dynamic>? ?? res;
-    final sessions = (data['sessions'] as List? ?? res['sessions'] as List?)
-        ?.cast<Map<String, dynamic>>() ?? [];
+    final sessions =
+        (data['sessions'] as List? ?? res['sessions'] as List?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
     return sessions;
   } catch (_) {
     return [];
@@ -104,11 +106,11 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null) return;
 
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
-      final prevOverride = state.contextWindowOverride;
-      var nextState = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
-      if (nextState.contextWindowOverride == null && prevOverride != null) {
-        nextState = nextState.copyWith(contextWindowOverride: prevOverride);
-      }
+      final nextState = applySessionSnapshot(
+        sessionId,
+        snapshot.seq,
+        snapshot.payload,
+      );
       state = nextState;
       unawaited(refreshSessionStats());
       unawaited(refreshDefaults());
@@ -131,8 +133,11 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> refreshDefaults() async {
     if (client == null || state.readOnly || _defaultsLoading) return;
-    final needsModel = state.currentModel == null || state.currentModel!.isEmpty;
-    final needsThinking = state.currentThinkingLevel == null || state.currentThinkingLevel!.isEmpty;
+    final needsModel =
+        state.currentModel == null || state.currentModel!.isEmpty;
+    final needsThinking =
+        state.currentThinkingLevel == null ||
+        state.currentThinkingLevel!.isEmpty;
     if (!needsModel && !needsThinking) return;
 
     _defaultsLoading = true;
@@ -147,19 +152,24 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         final data = res['data'] as Map<String, dynamic>? ?? res;
         final currentModelRaw = data['currentModel'] ?? data['model'];
         if (currentModelRaw is Map) {
-          resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])?.toString();
+          resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])
+              ?.toString();
         } else if (currentModelRaw is String && currentModelRaw.isNotEmpty) {
           resolvedModel = currentModelRaw;
         }
 
         if (resolvedModel == null || resolvedModel.isEmpty) {
-          final models = (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+          final models =
+              (data['models'] as List<dynamic>?)
+                  ?.cast<Map<String, dynamic>>() ??
+              [];
           final defaultModel = models.firstWhere(
             (m) => m['isDefault'] == true || m['default'] == true,
             orElse: () => models.isNotEmpty ? models.first : const {},
           );
           if (defaultModel.isNotEmpty) {
-            resolvedModel = (defaultModel['name'] ?? defaultModel['id'])?.toString();
+            resolvedModel = (defaultModel['name'] ?? defaultModel['id'])
+                ?.toString();
           }
         }
 
@@ -168,16 +178,24 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         }
       }
 
-      if (needsThinking && (resolvedThinking == null || resolvedThinking.isEmpty)) {
+      if (needsThinking &&
+          (resolvedThinking == null || resolvedThinking.isEmpty)) {
         final tRes = await client!
             .getAvailableThinkingLevels(sessionId)
             .timeout(const Duration(seconds: 4));
         final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
-        final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];
+        final levelRaw =
+            tData['currentLevel'] ??
+            tData['thinkingLevel'] ??
+            tData['defaultLevel'];
         if (levelRaw != null) {
           resolvedThinking = levelRaw.toString();
         } else {
-          final levels = (tData['levels'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+          final levels =
+              (tData['levels'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [];
           if (levels.contains('medium')) {
             resolvedThinking = 'medium';
           } else if (levels.isNotEmpty) {
@@ -218,18 +236,17 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
         final updatedData = Map<String, dynamic>.from(data);
-        if (state.contextWindowOverride != null && state.contextWindowOverride! > 0) {
+        if (state.contextWindowOverride != null &&
+            state.contextWindowOverride! > 0) {
           final cu = updatedData['contextUsage'] as Map?;
-          final tokens = (cu?['tokens'] as num?)?.toDouble() ??
-              (state.usage?['totalTokens'] as num?)?.toDouble() ??
-              0.0;
+          final tokens = (cu?['tokens'] as num?)?.toDouble();
           final win = state.contextWindowOverride!;
-          final pct = (tokens / win) * 100.0;
+          final pct = tokens == null ? null : (tokens / win) * 100.0;
           updatedData['contextUsage'] = {
             if (cu != null) ...Map<String, dynamic>.from(cu),
             'contextWindow': win,
             'percent': pct,
-            'tokens': tokens.toInt(),
+            'tokens': tokens?.toInt(),
           };
         }
         state = state.copyWith(sessionStats: updatedData);
@@ -329,23 +346,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       throw StateError('Daemon non connesso');
     }
 
-    if (streamingBehavior == null &&
-        state.contextWindowOverride != null &&
-        state.contextWindowOverride! > 0) {
-      final cu = state.sessionStats?['contextUsage'] as Map?;
-      final tokens = (cu?['tokens'] as num?)?.toInt() ??
-          (state.usage?['totalTokens'] as num?)?.toInt() ??
-          0;
-      final threshold = (state.contextWindowOverride! * 0.80).round();
-      if (tokens >= threshold &&
-          state.agentStatus != AgentStatus.compacting &&
-          state.agentStatus != AgentStatus.working) {
-        try {
-          await compact();
-        } catch (_) {}
-      }
-    }
-
     final prevStatus = state.agentStatus;
     final optimisticId = streamingBehavior == null ? _newPromptEntryId() : null;
     if (optimisticId != null) {
@@ -409,10 +409,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null) return;
     await client!.clearQueue(sessionId);
     if (mounted) {
-      state = state.copyWith(
-        steeringQueue: const [],
-        followUpQueue: const [],
-      );
+      state = state.copyWith(steeringQueue: const [], followUpQueue: const []);
     }
   }
 
@@ -463,6 +460,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(
       currentModel: (model['name'] ?? model['id'] ?? modelId).toString(),
     );
+    client!.attach(sessionId, lastSeq: null);
   }
 
   Future<void> setThinkingLevel(String level) async {
@@ -489,15 +487,27 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<List<Map<String, dynamic>>> getAvailableModels() async {
-    if (client == null) return [];
     try {
-      final res = await client!.getAvailableModels(sessionId);
-      final data = res['data'] as Map<String, dynamic>?;
-      final models = (data?['models'] ?? res['models']) as List<dynamic>?;
-      return models?.cast<Map<String, dynamic>>() ?? [];
+      return (await getAvailableModelsWithWarning()).models;
     } catch (_) {
       return [];
     }
+  }
+
+  Future<({List<Map<String, dynamic>> models, String? warning})>
+  getAvailableModelsWithWarning() async {
+    if (client == null) {
+      return (models: <Map<String, dynamic>>[], warning: null);
+    }
+    final res = await client!.getAvailableModels(sessionId);
+    final data = res['data'] as Map<String, dynamic>? ?? res;
+    final models =
+        (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    final warning = data['warning']?.toString();
+    return (
+      models: models,
+      warning: warning?.isNotEmpty == true ? warning : null,
+    );
   }
 
   Future<List<String>> getAvailableThinkingLevels() async {
@@ -513,47 +523,49 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> setContextWindow(int? size) async {
-    if (client != null) {
-      try {
-        await client!.setContextWindowOverride(sessionId, size);
-      } catch (_) {}
+    if (client == null) throw StateError('Daemon non connesso');
+    if (size != null && size <= 0) {
+      throw ArgumentError.value(size, 'size', 'Must be positive or null');
     }
-    Map<String, dynamic>? updatedStats;
-    if (state.sessionStats != null) {
-      updatedStats = Map<String, dynamic>.from(state.sessionStats!);
-      final cu = updatedStats['contextUsage'] as Map?;
-      final tokens = (cu?['tokens'] as num?)?.toDouble() ??
-          (state.usage?['totalTokens'] as num?)?.toDouble() ??
-          0.0;
-      final win = size ?? (cu?['contextWindow'] as num?)?.toInt();
-      if (win != null && win > 0) {
-        final pct = (tokens / win) * 100.0;
-        updatedStats['contextUsage'] = {
-          if (cu != null) ...Map<String, dynamic>.from(cu),
-          'contextWindow': win,
-          'percent': pct,
-          'tokens': tokens.toInt(),
-        };
-      }
-    }
+    final result = await client!.setContextWindowOverride(sessionId, size);
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final hasOverride = data.containsKey('contextWindowOverride');
+    final acceptedLimit = hasOverride
+        ? (data['contextWindowOverride'] as num?)?.toInt()
+        : size;
+    final reserve = (data['compactionReservePercent'] as num?)?.toDouble();
     state = state.copyWith(
-      contextWindowOverride: size,
-      sessionStats: updatedStats ?? state.sessionStats,
+      contextWindowOverride: acceptedLimit,
+      clearContextWindowOverride: acceptedLimit == null,
+      compactionReservePercent: reserve,
     );
+  }
 
-    if (size != null &&
-        size > 0 &&
-        (state.agentStatus == AgentStatus.idle || state.agentStatus == AgentStatus.settled)) {
-      final cu = (updatedStats ?? state.sessionStats)?['contextUsage'] as Map?;
-      final tokens = (cu?['tokens'] as num?)?.toInt() ??
-          (state.usage?['totalTokens'] as num?)?.toInt() ??
-          0;
-      if (tokens >= (size * 0.80).round()) {
-        try {
-          await compact();
-        } catch (_) {}
-      }
+  Future<void> setCompactionReservePercent(double percent) async {
+    if (!percent.isFinite || percent <= 0 || percent >= 100) {
+      throw ArgumentError.value(
+        percent,
+        'percent',
+        'Must be greater than 0 and less than 100',
+      );
     }
+    if (client == null) throw StateError('Daemon non connesso');
+    final result = await client!.setCompactionReservePercent(
+      sessionId,
+      percent,
+    );
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final reserve =
+        (data['compactionReservePercent'] as num?)?.toDouble() ?? percent;
+    final hasOverride = data.containsKey('contextWindowOverride');
+    final acceptedLimit = hasOverride
+        ? (data['contextWindowOverride'] as num?)?.toInt()
+        : state.contextWindowOverride;
+    state = state.copyWith(
+      contextWindowOverride: acceptedLimit,
+      clearContextWindowOverride: hasOverride && acceptedLimit == null,
+      compactionReservePercent: reserve,
+    );
   }
 
   @override

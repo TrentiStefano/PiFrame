@@ -24,6 +24,7 @@ import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../context_panel/context_window_selector.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
@@ -59,13 +60,17 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _hasText = false;
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
+  bool _isContextPickerLoading = false;
+  int _modelLoadGeneration = 0;
 
   Future<void> _loadModels() async {
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    final generation = ++_modelLoadGeneration;
+    final sessionId = widget.sessionId;
+    final notifier = ref.read(sessionStateFamily(sessionId).notifier);
     final models = await notifier.getAvailableModels();
-    if (mounted) {
+    if (mounted && widget.sessionId == sessionId && generation == _modelLoadGeneration) {
       setState(() {
-        _models = models;
+        _models = models.map((model) => Map<String, dynamic>.from(model)).toList();
       });
     }
   }
@@ -546,7 +551,10 @@ class _ComposerState extends ConsumerState<Composer> {
       await sessionNotifier.interrupt();
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: 'Interruzione non riuscita: $error');
+        FrameSnackBar.show(
+          context,
+          message: 'Interruzione non riuscita: $error',
+        );
       }
       return;
     } finally {
@@ -728,73 +736,51 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
-  Future<void> _showContextSizePicker(
-    BuildContext chipContext,
-    Map<String, dynamic> activeModel,
-  ) async {
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final contextSizes = getVariableContextSizes(activeModel);
-    final fullWindow =
-        (activeModel['contextWindow'] as num?)?.toInt() ?? 1000000;
-    if (contextSizes.isEmpty || !mounted || !chipContext.mounted) return;
-
-    final tokens = context.tokens;
-    final currentOverride = ref
-        .read(sessionStateFamily(widget.sessionId))
-        .contextWindowOverride;
-    final effectiveSize = currentOverride ?? fullWindow;
-
-    final renderBox = chipContext.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
-
-    final selected = await showMenu<int>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        (offset.dy - (contextSizes.length * 36).toDouble() - 10).clamp(
-          40.0,
-          double.infinity,
-        ),
-        offset.dx + 240,
-        offset.dy,
-      ),
-      color: tokens.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        side: BorderSide(color: tokens.borderStrong),
-      ),
-      items: contextSizes.map((size) {
-        final isCurrent = size == effectiveSize;
-        return PopupMenuItem<int>(
-          value: size,
-          height: 34,
-          child: Row(
-            children: [
-              Icon(
-                Icons.data_usage_outlined,
-                size: 14,
-                color: isCurrent ? tokens.accent : tokens.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  formatContextSize(size, fullWindow),
-                  style: TextStyle(
-                    color: isCurrent ? tokens.accent : tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-              if (isCurrent) Icon(Icons.check, size: 14, color: tokens.accent),
-            ],
+  Future<void> _showContextSizePicker() async {
+    if (_isContextPickerLoading) return;
+    final sessionId = widget.sessionId;
+    setState(() => _isContextPickerLoading = true);
+    try {
+      // The first load can precede the daemon connection. Retry instead of silently using an empty catalogue.
+      await _loadModels();
+      if (!mounted || widget.sessionId != sessionId) return;
+      final currentModel = ref.read(sessionStateFamily(sessionId)).currentModel;
+      final model = _models.firstWhere(
+        (model) => model['name'] == currentModel || model['id'] == currentModel,
+        orElse: () => const <String, dynamic>{},
+      );
+      final maximum = modelContextWindow(model);
+      if (maximum == null || maximum <= 0) {
+        FrameSnackBar.show(context, message: 'Contesto del modello non disponibile. Riprova quando il daemon è connesso.');
+        return;
+      }
+      final tokens = context.tokens;
+      setState(() => _isContextPickerLoading = false);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          key: const ValueKey('composer-context-size-dialog'),
+          backgroundColor: tokens.surfaceElevated,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            side: BorderSide(color: tokens.borderStrong),
           ),
-        );
-      }).toList(),
-    );
-
-    if (selected != null && mounted) {
-      await notifier.setContextWindow(selected);
+          title: const Text('Dimensione Contesto'),
+          content: SizedBox(
+            width: 340,
+            child: SingleChildScrollView(
+              child: ContextWindowSelector(sessionId: sessionId, model: model),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Chiudi')),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) FrameSnackBar.show(context, message: 'Selezione contesto non riuscita: $error');
+    } finally {
+      if (mounted) setState(() => _isContextPickerLoading = false);
     }
   }
 
@@ -802,11 +788,7 @@ class _ComposerState extends ConsumerState<Composer> {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
       tooltip: 'Allega file, link o immagine',
-      icon: Icon(
-        Icons.attach_file,
-        size: 17,
-        color: tokens.textSecondary,
-      ),
+      icon: Icon(Icons.attach_file, size: 17, color: tokens.textSecondary),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       color: tokens.surfaceElevated,
@@ -1017,8 +999,10 @@ class _ComposerState extends ConsumerState<Composer> {
                         widget.sessionId,
                       );
                       if (!mounted || !context.mounted) return;
-                      final data = (result['data'] as Map<String, dynamic>?) ?? result;
-                      final targetSessionId = (data['sessionId'] ?? data['id']) as String?;
+                      final data =
+                          (result['data'] as Map<String, dynamic>?) ?? result;
+                      final targetSessionId =
+                          (data['sessionId'] ?? data['id']) as String?;
                       if (targetSessionId != null) {
                         if (!await switchSessionSafely(
                           context,
@@ -1050,15 +1034,15 @@ class _ComposerState extends ConsumerState<Composer> {
 
     final activeModelMap = _models.firstWhere(
       (m) => m['name'] == currentModel || m['id'] == currentModel,
-      orElse: () => _models.isNotEmpty ? _models.first : const {},
+      orElse: () => const {},
     );
-    final isVariablePricing = hasVariableContextPricing(activeModelMap) ||
+    final isVariablePricing =
+        hasVariableContextPricing(activeModelMap) ||
         (currentModel != null &&
             (currentModel.toLowerCase().contains('luna') ||
                 currentModel.toLowerCase().contains('haiku')));
-    final effectiveContextWindow = contextOverride ??
-        (activeModelMap['contextWindow'] as num?)?.toInt() ??
-        1000000;
+    final effectiveContextWindow =
+        contextOverride ?? modelContextWindow(activeModelMap);
     final isLongPrompt =
         _controller.text.length > 80 || _controller.text.contains('\n');
 
@@ -1631,7 +1615,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                   Stack(
                                     children: [
                                       TextField(
-                                        key: const ValueKey('composer-text-field'),
+                                        key: const ValueKey(
+                                          'composer-text-field',
+                                        ),
                                         cursorColor: tokens.accent,
                                         controller: _controller,
                                         focusNode: _focusNode,
@@ -1712,12 +1698,14 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   children: [
                                                     Icon(
                                                       _isInputEnlarged
-                                                          ? Icons.close_fullscreen
+                                                          ? Icons
+                                                                .close_fullscreen
                                                           : Icons.open_in_full,
                                                       size: 11,
                                                       color: _isInputEnlarged
                                                           ? tokens.accent
-                                                          : tokens.textSecondary,
+                                                          : tokens
+                                                                .textSecondary,
                                                     ),
                                                     const SizedBox(width: 3),
                                                     Text(
@@ -1727,7 +1715,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       style: TextStyle(
                                                         color: _isInputEnlarged
                                                             ? tokens.accent
-                                                            : tokens.textSecondary,
+                                                            : tokens
+                                                                  .textSecondary,
                                                         fontSize: 10,
                                                         fontWeight:
                                                             FontWeight.w600,
@@ -1750,197 +1739,20 @@ class _ComposerState extends ConsumerState<Composer> {
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                            Builder(
-                                              builder: (chipCtx) => Tooltip(
-                                                message: 'Cambia modello',
-                                                child: InkWell(
-                                                  key: const ValueKey(
-                                                    'composer-model-picker-btn',
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                  onTap: () =>
-                                                      _showModelPicker(
-                                                        chipCtx,
-                                                      ),
-                                                  child: Container(
-                                                    height: 26,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 7,
-                                                          vertical: 3,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          tokens
-                                                              .surfaceElevated,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            tokens.radiusSm,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: tokens.border,
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Icon(
-                                                          Icons
-                                                              .smart_toy_outlined,
-                                                          size: 13,
-                                                          color:
-                                                              tokens.accent,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 4,
-                                                        ),
-                                                        ConstrainedBox(
-                                                          constraints:
-                                                              BoxConstraints(
-                                                                maxWidth:
-                                                                    MediaQuery.sizeOf(
-                                                                          context,
-                                                                        ).width <
-                                                                        500
-                                                                    ? 80
-                                                                    : 130,
-                                                              ),
-                                                          child: Text(
-                                                            currentModel ??
-                                                                'Modello',
-                                                            maxLines: 1,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                            style: TextStyle(
-                                                              color:
-                                                                  tokens
-                                                                      .textSecondary,
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 2,
-                                                        ),
-                                                        Icon(
-                                                          Icons
-                                                              .keyboard_arrow_down,
-                                                          size: 13,
-                                                          color:
-                                                              tokens
-                                                                  .textMuted,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Builder(
-                                              builder: (chipCtx) => Tooltip(
-                                                message: 'Livello thinking',
-                                                child: InkWell(
-                                                  key: const ValueKey(
-                                                    'composer-thinking-picker-btn',
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                  onTap: () =>
-                                                      _showThinkingPicker(
-                                                        chipCtx,
-                                                      ),
-                                                  child: Container(
-                                                    height: 26,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 3,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          tokens
-                                                              .surfaceElevated,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            tokens.radiusSm,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: tokens.border,
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        Icon(
-                                                          Icons.bolt_outlined,
-                                                          size: 13,
-                                                          color:
-                                                              tokens.thinking,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 3,
-                                                        ),
-                                                        Text(
-                                                          (currentThinkingLevel ??
-                                                                  'med')
-                                                              .toUpperCase(),
-                                                          style: TextStyle(
-                                                            color:
-                                                                tokens
-                                                                    .textSecondary,
-                                                            fontSize: 10.5,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w500,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 2,
-                                                        ),
-                                                        Icon(
-                                                          Icons
-                                                              .keyboard_arrow_down,
-                                                            size: 13,
-                                                            color:
-                                                                tokens
-                                                                    .textMuted,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            if (isVariablePricing) ...[
-                                              const SizedBox(width: 4),
                                               Builder(
                                                 builder: (chipCtx) => Tooltip(
-                                                  message:
-                                                      'Dimensione contesto (pricing variabile)',
+                                                  message: 'Cambia modello',
                                                   child: InkWell(
                                                     key: const ValueKey(
-                                                      'composer-context-size-picker-btn',
+                                                      'composer-model-picker-btn',
                                                     ),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                           tokens.radiusSm,
                                                         ),
                                                     onTap: () =>
-                                                        _showContextSizePicker(
+                                                        _showModelPicker(
                                                           chipCtx,
-                                                          activeModelMap,
                                                         ),
                                                     child: Container(
                                                       height: 26,
@@ -1950,18 +1762,14 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             vertical: 3,
                                                           ),
                                                       decoration: BoxDecoration(
-                                                        color:
-                                                            tokens
-                                                                .surfaceElevated,
+                                                        color: tokens
+                                                            .surfaceElevated,
                                                         borderRadius:
                                                             BorderRadius.circular(
                                                               tokens.radiusSm,
                                                             ),
                                                         border: Border.all(
-                                                          color: tokens.accent
-                                                              .withValues(
-                                                                alpha: 0.35,
-                                                              ),
+                                                          color: tokens.border,
                                                         ),
                                                       ),
                                                       child: Row(
@@ -1969,25 +1777,40 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             MainAxisSize.min,
                                                         children: [
                                                           Icon(
-                                                            Icons.tune,
-                                                            size: 12,
+                                                            Icons
+                                                                .smart_toy_outlined,
+                                                            size: 13,
                                                             color:
                                                                 tokens.accent,
                                                           ),
                                                           const SizedBox(
-                                                            width: 3,
+                                                            width: 4,
                                                           ),
-                                                          Text(
-                                                            formatTokens(
-                                                              effectiveContextWindow,
+                                                          ConstrainedBox(
+                                                            constraints: BoxConstraints(
+                                                              maxWidth:
+                                                                  MediaQuery.sizeOf(
+                                                                        context,
+                                                                      ).width <
+                                                                      500
+                                                                  ? 80
+                                                                  : 130,
                                                             ),
-                                                            style: TextStyle(
-                                                              color:
-                                                                  tokens.accent,
-                                                              fontSize: 10.5,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
+                                                            child: Text(
+                                                              currentModel ??
+                                                                  'Modello',
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: TextStyle(
+                                                                color: tokens
+                                                                    .textSecondary,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
                                                             ),
                                                           ),
                                                           const SizedBox(
@@ -1996,10 +1819,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                                           Icon(
                                                             Icons
                                                                 .keyboard_arrow_down,
-                                                            size: 12,
-                                                            color:
-                                                                tokens
-                                                                    .textMuted,
+                                                            size: 13,
+                                                            color: tokens
+                                                                .textMuted,
                                                           ),
                                                         ],
                                                       ),
@@ -2007,11 +1829,166 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   ),
                                                 ),
                                               ),
+                                              const SizedBox(width: 4),
+                                              Builder(
+                                                builder: (chipCtx) => Tooltip(
+                                                  message: 'Livello thinking',
+                                                  child: InkWell(
+                                                    key: const ValueKey(
+                                                      'composer-thinking-picker-btn',
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                    onTap: () =>
+                                                        _showThinkingPicker(
+                                                          chipCtx,
+                                                        ),
+                                                    child: Container(
+                                                      height: 26,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 3,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: tokens
+                                                            .surfaceElevated,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              tokens.radiusSm,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: tokens.border,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons.bolt_outlined,
+                                                            size: 13,
+                                                            color:
+                                                                tokens.thinking,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 3,
+                                                          ),
+                                                          Text(
+                                                            (currentThinkingLevel ??
+                                                                    'med')
+                                                                .toUpperCase(),
+                                                            style: TextStyle(
+                                                              color: tokens
+                                                                  .textSecondary,
+                                                              fontSize: 10.5,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 2,
+                                                          ),
+                                                          Icon(
+                                                            Icons
+                                                                .keyboard_arrow_down,
+                                                            size: 13,
+                                                            color: tokens
+                                                                .textMuted,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isVariablePricing) ...[
+                                                const SizedBox(width: 4),
+                                                Builder(
+                                                  builder: (chipCtx) => Tooltip(
+                                                    message: 'Dimensione contesto (pricing variabile)',
+                                                    child: InkWell(
+                                                      key: const ValueKey(
+                                                        'composer-context-size-picker-btn',
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            tokens.radiusSm,
+                                                          ),
+                                                      onTap: _showContextSizePicker,
+                                                      child: Container(
+                                                        height: 26,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 7,
+                                                              vertical: 3,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: tokens
+                                                              .surfaceElevated,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                tokens.radiusSm,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: tokens.accent
+                                                                .withValues(
+                                                                  alpha: 0.35,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            if (_isContextPickerLoading)
+                                                              SizedBox(
+                                                                width: 12,
+                                                                height: 12,
+                                                                child: CircularProgressIndicator(strokeWidth: 1.5, color: tokens.accent),
+                                                              )
+                                                            else
+                                                              Icon(Icons.tune, size: 12, color: tokens.accent),
+                                                            const SizedBox(
+                                                              width: 3,
+                                                            ),
+                                                            Text(
+                                                              formatTokens(
+                                                                effectiveContextWindow,
+                                                              ),
+                                                              style: TextStyle(
+                                                                color: tokens
+                                                                    .accent,
+                                                                fontSize: 10.5,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 2,
+                                                            ),
+                                                            Icon(
+                                                              Icons
+                                                                  .keyboard_arrow_down,
+                                                              size: 12,
+                                                              color: tokens
+                                                                  .textMuted,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ],
-                                          ],
+                                          ),
                                         ),
                                       ),
-                                    ),
                                       Tooltip(
                                         message: _isInputEnlarged
                                             ? 'Riduci area di testo'
@@ -2025,7 +2002,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 ? Icons.close_fullscreen
                                                 : Icons.open_in_full,
                                             size: 15,
-                                            color: (_isInputEnlarged || isLongPrompt)
+                                            color:
+                                                (_isInputEnlarged ||
+                                                    isLongPrompt)
                                                 ? tokens.accent
                                                 : tokens.textMuted,
                                           ),
@@ -2107,7 +2086,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       'Steer',
                                                       style: TextStyle(
                                                         fontSize: 0,
-                                                        color: tokens.background.withValues(alpha: 0),
+                                                        color: tokens.background
+                                                            .withValues(
+                                                              alpha: 0,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -2158,7 +2140,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       'Follow-up',
                                                       style: TextStyle(
                                                         fontSize: 0,
-                                                        color: tokens.background.withValues(alpha: 0),
+                                                        color: tokens.background
+                                                            .withValues(
+                                                              alpha: 0,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -2245,7 +2230,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         'Review changes',
                                                         style: TextStyle(
                                                           fontSize: 0,
-                                                          color: tokens.background.withValues(alpha: 0),
+                                                          color: tokens
+                                                              .background
+                                                              .withValues(
+                                                                alpha: 0,
+                                                              ),
                                                         ),
                                                       ),
                                                     ),
@@ -2299,9 +2288,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       child:
                                                           CircularProgressIndicator(
                                                             strokeWidth: 2,
-                                                            color:
-                                                                tokens
-                                                                    .accentContrast,
+                                                            color: tokens
+                                                                .accentContrast,
                                                           ),
                                                     )
                                                   else
@@ -2309,8 +2297,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       Icons.arrow_upward,
                                                       size: 16,
                                                       color:
-                                                          tokens
-                                                              .accentContrast,
+                                                          tokens.accentContrast,
                                                     ),
                                                   SizedBox(
                                                     width: 0,
@@ -2319,7 +2306,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                       'Invia',
                                                       style: TextStyle(
                                                         fontSize: 0,
-                                                        color: tokens.background.withValues(alpha: 0),
+                                                        color: tokens.background
+                                                            .withValues(
+                                                              alpha: 0,
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -2355,8 +2345,9 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   Widget _buildMinimizedBar(FrameTokens tokens, bool isStreaming) {
-    final isTest =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
+      'Test',
+    );
     return InkWell(
       key: const ValueKey('composer-minimized-bar'),
       borderRadius: BorderRadius.circular(tokens.radiusLg),

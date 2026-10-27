@@ -8,7 +8,10 @@ import { CommandDeduplicator } from './CommandRecord.js';
 import { loadConfig, patchConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
+import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
+import { DEFAULT_COMPACTION_RESERVE_PERCENT, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
+import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type {
@@ -235,6 +238,7 @@ export class Dispatcher {
         'agent.clearQueue',
         'agent.compact',
         'agent.setContextWindowOverride',
+        'agent.setCompactionReservePercent',
         'agent.setAutoCompaction',
         'agent.setAutoRetry',
         'agent.setSteeringMode',
@@ -529,6 +533,16 @@ export class Dispatcher {
         const res = await worker.send({ command: 'get_session_stats' });
         const data = (res && res.data) ? { ...res.data } : {};
         const session = this.registry.getSession(sessionId);
+        const state = (await worker.send({ command: 'get_state' })).data;
+        const usage = state?.model?.piframeContextUsage;
+        const window = session?.contextWindowOverride ?? physicalModel(state?.model)?.contextWindow;
+        if (usage && typeof window === 'number' && window > 0) {
+          data.contextUsage = {
+            tokens: usage.tokens,
+            contextWindow: window,
+            percent: typeof usage.tokens === 'number' ? usage.tokens / window * 100 : null,
+          };
+        }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
           const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
@@ -583,23 +597,6 @@ export class Dispatcher {
         }
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
-
-        if (session && session.contextWindowOverride && session.contextWindowOverride > 0 && !session.isCompacting) {
-          try {
-            const statsRes = await worker.send({ command: 'get_session_stats' });
-            const stats = statsRes.data || {};
-            const cu = stats.contextUsage || {};
-            const tokens = typeof cu.tokens === 'number'
-              ? cu.tokens
-              : (typeof stats.tokens?.total === 'number' ? stats.tokens.total : 0);
-            const threshold = Math.round(session.contextWindowOverride * 0.80);
-            if (tokens >= threshold) {
-              await worker.send({ command: 'compact' });
-            }
-          } catch (_) {
-            // Best effort pre-compaction before prompt
-          }
-        }
 
         if (payload.streamingBehavior === 'steer') {
           const res = await worker.send({
@@ -698,14 +695,36 @@ export class Dispatcher {
         return res.data;
       }
 
-      case 'agent.setContextWindowOverride': {
+      case 'agent.setContextWindowOverride':
+      case 'agent.setCompactionReservePercent': {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
-        const limit = typeof payload.limit === 'number' && payload.limit > 0 ? payload.limit : null;
-        if (session) {
-          session.contextWindowOverride = limit;
+        if (!session) throw new Error('Session not found');
+        if (session.readOnly) throw Object.assign(new Error('Sessione in sola lettura.'), { code: 'COMMAND_REJECTED' });
+        if (session.isStreaming || session.isCompacting) throw Object.assign(new Error('Attendi la fine del turno o della compattazione.'), { code: 'COMMAND_REJECTED' });
+        const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const previous = {
+          contextWindowOverride: session.contextWindowOverride,
+          compactionReservePercent: session.compactionReservePercent,
+        };
+        const next = {
+          contextWindowOverride: cmd.type === 'agent.setContextWindowOverride'
+            ? validateContextLimit(payload.limit, session.model?.contextWindow)
+            : previous.contextWindowOverride,
+          compactionReservePercent: cmd.type === 'agent.setCompactionReservePercent'
+            ? validateReservePercent(payload.percent)
+            : previous.compactionReservePercent,
+        };
+        try {
+          const model = await applyContextPolicy(worker, next);
+          writeContextPolicy(sessionId, next);
+          Object.assign(session, next, { model });
+        } catch (error) {
+          // Never acknowledge an unapplied policy; restore the previous runtime limit.
+          try { await applyContextPolicy(worker, previous); } catch { await this.registry.closeWorker(sessionId); }
+          throw error;
         }
-        return { success: true, contextWindowOverride: limit };
+        return { success: true, ...next };
       }
 
       case 'agent.setAutoCompaction': {
@@ -756,14 +775,62 @@ export class Dispatcher {
 
       case 'agent.setModel': {
         if (!sessionId) throw new Error('sessionId required');
+        const session = this.registry.getSession(sessionId);
+        if (!session) throw new Error('Session not found');
+        if (session.isStreaming || session.isCompacting) throw new Error('Attendi la fine del turno o della compattazione.');
+        if (payload.provider === 'github-copilot') {
+          const entitlements = await getCopilotEntitlements();
+          if (!entitlements.diagnostic.available || typeof payload.modelId !== 'string' || !entitlements.allowedModelIds.has(payload.modelId)) {
+            throw new Error('GitHub Copilot model is not verified as available.');
+          }
+        }
         const worker = await this.registry.ensureWorkerForSession(sessionId);
+        const previousModel = session.model;
+        const previousPolicy = {
+          contextWindowOverride: session.contextWindowOverride,
+          compactionReservePercent: session.compactionReservePercent
+        };
         const res = await worker.send({
           command: 'set_model',
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
-        const session = this.registry.getSession(sessionId);
-        if (session) session.model = res.data;
-        return res.data;
+        const selectedModel = physicalModel(res.data);
+        const nextPolicy = { ...previousPolicy };
+        try {
+          if (nextPolicy.contextWindowOverride !== null) {
+            const maximum = selectedModel?.contextWindow;
+            if (!Number.isSafeInteger(maximum) || maximum <= 0) throw new Error('Selected model context window is unavailable.');
+            nextPolicy.contextWindowOverride = Math.min(nextPolicy.contextWindowOverride, maximum);
+          }
+          Object.assign(session, nextPolicy);
+          let model = selectedModel;
+          if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+            model = await applyContextPolicy(worker, session);
+          }
+          if (nextPolicy.contextWindowOverride !== previousPolicy.contextWindowOverride) {
+            writeContextPolicy(sessionId, nextPolicy);
+          }
+          session.model = physicalModel(model);
+          return session.model;
+        } catch (error) {
+          Object.assign(session, previousPolicy, { model: previousModel });
+          try {
+            if (previousModel?.provider && previousModel?.id) {
+              await worker.send({
+                command: 'set_model',
+                arguments: { provider: previousModel.provider, modelId: previousModel.id }
+              });
+              if (previousPolicy.contextWindowOverride !== null || previousPolicy.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+                await applyContextPolicy(worker, session);
+              }
+            } else {
+              await this.registry.closeWorker(sessionId);
+            }
+          } catch {
+            await this.registry.closeWorker(sessionId);
+          }
+          throw error;
+        }
       }
 
       case 'agent.getModels': {
@@ -771,12 +838,19 @@ export class Dispatcher {
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_available_models' });
         const models = Array.isArray(res.data?.models) ? res.data.models : [];
+        const entitlements = await getCopilotEntitlements();
         const session = this.registry.getSession(sessionId);
         return {
           ...res.data,
           currentModel: session?.model,
           currentThinkingLevel: session?.thinkingLevel,
-          models: filterModelsByEnabledPatterns(models, readEnabledModelPatterns())
+          copilotEntitlement: entitlements.diagnostic,
+          warning: !entitlements.diagnostic.available && models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
+            ? `Modelli GitHub Copilot nascosti: ${entitlements.diagnostic.message}`
+            : undefined,
+          models: filterModelsByEnabledPatterns(models.filter((model: Record<string, unknown>) =>
+            model.provider !== 'github-copilot' ||
+            (entitlements.diagnostic.available && typeof model.id === 'string' && entitlements.allowedModelIds.has(model.id))), readEnabledModelPatterns())
         };
       }
 

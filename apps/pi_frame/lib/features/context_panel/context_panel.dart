@@ -4,8 +4,10 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/context_pricing_helper.dart';
+import '../../domain/session/agent_status.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
+import 'context_window_selector.dart';
 import '../../ui/frame_snack_bar.dart';
 
 class ContextPanel extends ConsumerStatefulWidget {
@@ -22,6 +24,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   List<String> _thinkingLevels = [];
   bool _isLoadingParams = true;
   bool _isCompacting = false;
+  double? _reserveDraft;
+  bool _savingReserve = false;
 
   @override
   void initState() {
@@ -29,29 +33,79 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     _loadParams();
   }
 
-  Future<void> _loadParams() async {
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    await notifier.refreshDefaults();
-    final models = await notifier.getAvailableModels();
-    final levels = await notifier.getAvailableThinkingLevels();
-
-    if (mounted) {
-      setState(() {
-        _models = models;
-        _thinkingLevels = levels.isNotEmpty
-            ? levels
-            : ['off', 'low', 'medium', 'high'];
-        _isLoadingParams = false;
-      });
+  @override
+  void didUpdateWidget(covariant ContextPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId) {
+      _models = [];
+      _isLoadingParams = true;
+      _reserveDraft = null;
+      _savingReserve = false;
+      _loadParams();
     }
   }
 
-  Future<void> _runAction(Future<void> Function() action) async {
+  Future<void> _loadParams() async {
+    final sessionId = widget.sessionId;
+    final notifier = ref.read(sessionStateFamily(sessionId).notifier);
+    await notifier.refreshDefaults();
+    try {
+      final result = await notifier.getAvailableModelsWithWarning();
+      final levels = await notifier.getAvailableThinkingLevels();
+
+      if (mounted && widget.sessionId == sessionId) {
+        setState(() {
+          _models = result.models.map((model) => Map<String, dynamic>.from(model)).toList();
+          _thinkingLevels = levels.isNotEmpty
+              ? levels
+              : ['off', 'low', 'medium', 'high'];
+          _isLoadingParams = false;
+        });
+        if (result.warning != null) {
+          FrameSnackBar.show(context, message: result.warning!);
+        }
+      }
+    } catch (error) {
+      if (mounted && widget.sessionId == sessionId) {
+        setState(() => _isLoadingParams = false);
+        FrameSnackBar.show(context, message: 'Modelli non disponibili: $error');
+      }
+    }
+  }
+
+  Future<bool> _runAction(Future<void> Function() action) async {
     try {
       await action();
+      return true;
     } catch (error) {
       if (mounted) {
         FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _saveReserve(double percent) async {
+    if (_savingReserve || ref.read(contextPolicySavingProvider(widget.sessionId))) return;
+    final sessionId = widget.sessionId;
+    final saving = ref.read(contextPolicySavingProvider(sessionId).notifier);
+    saving.state = true;
+    setState(() => _savingReserve = true);
+    try {
+      await ref
+          .read(sessionStateFamily(sessionId).notifier)
+          .setCompactionReservePercent(percent);
+    } catch (error) {
+      if (mounted) {
+        if (widget.sessionId == sessionId) FrameSnackBar.show(context, message: 'Margine non applicato: $error');
+      }
+    } finally {
+      if (saving.mounted) saving.state = false;
+      if (mounted && widget.sessionId == sessionId) {
+        setState(() {
+          _savingReserve = false;
+          _reserveDraft = null;
+        });
       }
     }
   }
@@ -147,7 +201,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
     );
     final currentThinkingLevel = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.currentThinkingLevel),
+      sessionStateFamily(widget.sessionId)
+          .select((s) => s.currentThinkingLevel),
     );
     final usage = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.usage),
@@ -158,6 +213,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final readOnly = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.readOnly),
     );
+    final sessionBusy = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.isStreaming ||
+          const {AgentStatus.retrying, AgentStatus.compacting, AgentStatus.awaitingUser}.contains(s.agentStatus)),
+    );
+    final policySaving = ref.watch(contextPolicySavingProvider(widget.sessionId));
     final sessionNotifier = ref.read(
       sessionStateFamily(widget.sessionId).notifier,
     );
@@ -169,38 +229,44 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             : 'Default');
     final currentThinking = currentThinkingLevel ?? 'medium';
 
-    final tokensMap = (sessionStats?['tokens'] as Map<String, dynamic>?) ??
-        (usage?['tokens'] as Map<String, dynamic>?);
-    final totalTokens = (tokensMap?['total'] as num?)?.toInt() ??
-        (usage?['totalTokens'] as num?)?.toInt() ?? 0;
-    final contextUsage = (sessionStats?['contextUsage'] as Map<String, dynamic>?) ??
+    final contextUsage =
+        (sessionStats?['contextUsage'] as Map<String, dynamic>?) ??
         (usage?['contextUsage'] as Map<String, dynamic>?);
+    final totalTokens = (contextUsage?['tokens'] as num?)?.toInt();
     final percent = (contextUsage?['percent'] as num?)?.toDouble();
+    final autoCompaction = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.autoCompaction),
+    );
 
     final activeModelMap = _models.firstWhere(
-      (m) =>
-          m['name'] == currentModelName ||
-          m['id'] == currentModelName,
-      orElse: () => _models.isNotEmpty ? _models.first : const {},
+      (m) => m['name'] == currentModel || m['id'] == currentModel,
+      orElse: () => const {},
     );
-    final isVariablePricing = hasVariableContextPricing(activeModelMap);
-    final contextSizes = getVariableContextSizes(activeModelMap);
-    final fullWindow = (activeModelMap['contextWindow'] as num?)?.toInt() ?? 1000000;
+    final fullWindow = modelContextWindow(activeModelMap);
     final contextOverride = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.contextWindowOverride),
+      sessionStateFamily(widget.sessionId)
+          .select((s) => s.contextWindowOverride),
     );
-    final effectiveWindow = contextOverride ??
+    final reservePercent = ref.watch(
+      sessionStateFamily(widget.sessionId)
+          .select((s) => s.compactionReservePercent),
+    );
+    final reserveValue = (_reserveDraft ?? reservePercent).clamp(0.5, 25).toDouble();
+    final effectiveWindow =
+        contextOverride ??
         (contextUsage?['contextWindow'] as num?)?.toInt() ??
-        fullWindow;
-    final effectivePercent = effectiveWindow > 0
+        fullWindow ??
+        0;
+    final compactionThreshold = effectiveWindow > 0
+        ? usableContextWindow(effectiveWindow, reservePercent)
+        : 0.0;
+    final effectivePercent = effectiveWindow > 0 && totalTokens != null
         ? (totalTokens / effectiveWindow * 100.0)
         : percent;
 
     return Container(
       width: 320,
-      decoration: BoxDecoration(
-        color: tokens.surface,
-      ),
+      decoration: BoxDecoration(color: tokens.surface),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -304,7 +370,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                                 ),
                               );
                             }).toList(),
-                            onChanged: readOnly
+                            onChanged: readOnly || sessionBusy || policySaving
                                 ? null
                                 : (newModel) {
                                     if (newModel != null) {
@@ -375,7 +441,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           child: Text(lvl.toUpperCase()),
                         );
                       }).toList(),
-                      onChanged: readOnly
+                      onChanged: readOnly || sessionBusy || policySaving
                           ? null
                           : (newLevel) {
                               if (newLevel != null) {
@@ -391,89 +457,69 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 ),
                 const SizedBox(height: 16),
 
-                // 3. Dimensione Contesto (Pricing Variabile: Luna, Haiku...)
-                if (isVariablePricing && contextSizes.isNotEmpty) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Dimensione Contesto',
-                        style: TextStyle(
-                          color: tokens.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tokens.accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        ),
-                        child: Text(
-                          'Pricing Variabile',
-                          style: TextStyle(
-                            color: tokens.accent,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Dimensione Contesto',
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: tokens.accent.withValues(alpha: 0.4),
-                        width: 1,
-                      ),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        key: const ValueKey(
-                          'context-panel-context-size-dropdown',
-                        ),
-                        isExpanded: true,
-                        borderRadius: BorderRadius.circular(tokens.radiusMd),
-                        dropdownColor: tokens.surfaceElevated,
-                        value: contextSizes.contains(effectiveWindow)
-                            ? effectiveWindow
-                            : (contextSizes.isNotEmpty
-                                  ? contextSizes.first
-                                  : null),
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
-                          fontFamily: tokens.uiFontFamily,
-                        ),
-                        items: contextSizes.map((size) {
-                          return DropdownMenuItem<int>(
-                            value: size,
-                            child: Text(
-                              formatContextSize(size, fullWindow),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: readOnly
-                            ? null
-                            : (newSize) {
-                                if (newSize != null) {
-                                  sessionNotifier.setContextWindow(newSize);
-                                }
-                              },
-                      ),
-                    ),
+                ),
+                const SizedBox(height: 6),
+                ContextWindowSelector(
+                  sessionId: widget.sessionId,
+                  model: activeModelMap,
+                  readOnly: readOnly,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Margine per compattazione (%)',
+                  style: TextStyle(
+                    color: tokens.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 16),
-                ],
+                ),
+                const SizedBox(height: 2),
+                Slider(
+                  key: const ValueKey('context-panel-compaction-reserve-slider'),
+                  activeColor: tokens.accent,
+                  thumbColor: tokens.accent,
+                  inactiveColor: tokens.border,
+                  min: 0.5,
+                  max: 25,
+                  divisions: 49,
+                  value: reserveValue,
+                  label: '${reserveValue.toStringAsFixed(1)}%',
+                  semanticFormatterCallback: (value) => '${value.toStringAsFixed(1)}%',
+                  onChanged: readOnly || sessionBusy || _savingReserve || policySaving
+                      ? null
+                      : (value) => setState(() => _reserveDraft = value),
+                  onChangeEnd: readOnly || sessionBusy || _savingReserve || policySaving
+                      ? null
+                      : _saveReserve,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('0,5–25% · Passo 0,5%', style: TextStyle(color: tokens.textMuted, fontSize: 10)),
+                    Text('${reserveValue.toStringAsFixed(1)}%',
+                      style: TextStyle(color: tokens.textMuted, fontSize: 11)),
+                  ],
+                ),
+                if (reservePercent < 0.5 || reservePercent > 25)
+                  Text('Margine salvato fuori intervallo: ${reservePercent.toStringAsFixed(1)}%. Trascina per aggiornarlo.',
+                    style: TextStyle(color: tokens.warning, fontSize: 10)),
+                const SizedBox(height: 4),
+                Text(
+                  !autoCompaction
+                      ? 'Compattazione automatica disabilitata in Pi.'
+                      : effectiveWindow > 0
+                          ? 'Soglia: ${formatTokens(compactionThreshold.floor())} token; margine ${reservePercent.toStringAsFixed(1)}%. Pi può compattare prima se la sua riserva nativa è maggiore. Output singoli possono oltrepassare la soglia.'
+                          : 'Il margine resta inutilizzato prima della compattazione automatica.',
+                  style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                ),
+                const SizedBox(height: 16),
 
                 // 4. Finestra di Contesto
                 Text(
@@ -506,7 +552,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      usage == null && sessionStats == null
+                      totalTokens == null
                           ? 'Dati non disponibili'
                           : '$totalTokens / ${formatTokens(effectiveWindow)} token',
                       style: TextStyle(color: tokens.textMuted, fontSize: 11),

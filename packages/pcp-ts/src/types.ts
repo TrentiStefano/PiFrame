@@ -116,6 +116,7 @@ export type PcpCommandType =
   | 'agent.interrupt'
   | 'agent.compact'
   | 'agent.setContextWindowOverride'
+  | 'agent.setCompactionReservePercent'
   | 'agent.setAutoCompaction'
   | 'agent.setAutoRetry'
   | 'agent.abortRetry'
@@ -309,6 +310,7 @@ export interface RuntimeMeta {
     followUp: string[];
   };
   contextWindowOverride?: number | null;
+  compactionReservePercent?: number;
 }
 
 export interface TranscriptMeta {

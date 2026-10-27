@@ -6,6 +6,7 @@ import type { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@piframe/pcp-ts';
 import type { PiEvent } from '../pi/piCommands.js';
 import { UiRequestBroker } from '../ui/UiRequestBroker.js';
+import { readContextPolicy, DEFAULT_COMPACTION_RESERVE_PERCENT } from '../pi/contextPolicy.js';
 
 export interface SessionOptions {
   id: string;
@@ -38,6 +39,7 @@ export class Session {
   public isCompacting: boolean = false;
   public autoCompaction: boolean = true;
   public contextWindowOverride: number | null = null;
+  public compactionReservePercent = DEFAULT_COMPACTION_RESERVE_PERCENT;
   public model: any = null;
   public thinkingLevel: string | null = 'medium';
   public steeringMode: string | null = 'one-at-a-time';
@@ -66,6 +68,7 @@ export class Session {
 
   constructor(opts: SessionOptions) {
     this.id = opts.id;
+    Object.assign(this, readContextPolicy(this.id));
     this.name = opts.name || opts.id;
     this.cwd = opts.cwd;
     this.gitRoot = opts.gitRoot;
@@ -117,6 +120,7 @@ export class Session {
       isCompacting: this.isCompacting,
       autoCompaction: this.autoCompaction,
       contextWindowOverride: this.contextWindowOverride,
+      compactionReservePercent: this.compactionReservePercent,
       queue: this.queue,
       entries: this.entries,
       pendingUiRequests: this.uiBroker.getPending(),
