@@ -340,20 +340,28 @@ class _ComposerState extends ConsumerState<Composer> {
           ? '${encodeAttachmentsTag(attachments)}${text.isNotEmpty ? '\n$text' : ''}'
           : text;
 
+      final isPrompt = streamingBehavior == null;
+      if (isPrompt) {
+        if (mounted && _controller.text == draft) _controller.clear();
+        if (savedDraft.mounted && savedDraft.state == draft) {
+          savedDraft.state = '';
+        }
+        if (attachmentsNotifier.mounted) attachmentsNotifier.clear();
+      }
+
       await ref
           .read(sessionStateFamily(widget.sessionId).notifier)
           .sendPrompt(fullPrompt, streamingBehavior: streamingBehavior);
 
-      if (attachmentsNotifier.mounted) {
-        attachmentsNotifier.clear();
+      if (!isPrompt) {
+        if (attachmentsNotifier.mounted) attachmentsNotifier.clear();
+        if (savedDraft.mounted && savedDraft.state == draft) {
+          savedDraft.state = '';
+        }
+        if (mounted && _controller.text == draft) _controller.clear();
       }
-
-      if (savedDraft.mounted && savedDraft.state == draft) {
-        savedDraft.state = '';
-      }
-      if (mounted && _controller.text == draft) _controller.clear();
     } catch (error) {
-      if (mounted) {
+      if (mounted && streamingBehavior != null) {
         FrameSnackBar.show(context, message: 'Invio non riuscito: $error');
       }
     } finally {

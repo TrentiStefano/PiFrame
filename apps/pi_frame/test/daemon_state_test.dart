@@ -4,7 +4,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
+import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/snapshot_reducer.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
+
+class PromptClient extends PcpClient {
+  final bool reject;
+  final prompts = <String>[];
+
+  PromptClient({this.reject = false}) : super(port: 0, token: 'test');
+
+  @override
+  Stream<PcpEvent> events(String sessionId) => const Stream.empty();
+
+  @override
+  Stream<PcpSnapshot> snapshots(String sessionId) => const Stream.empty();
+
+  @override
+  void attach(String sessionId, {int? lastSeq}) {}
+
+  @override
+  Future<Map<String, dynamic>> sendPrompt(
+    String sessionId,
+    String text, {
+    String? streamingBehavior,
+    List<dynamic>? images,
+  }) async {
+    prompts.add(text);
+    if (reject) throw StateError('Model unavailable');
+    return {'state': 'completed'};
+  }
+}
 
 class ListClient extends PcpClient {
   int calls = 0;
@@ -36,6 +66,51 @@ void main() {
     container.dispose();
     client.dispose();
     await changes.close();
+  });
+
+  test('failed prompt remains on transcript and retry reuses its bubble', () async {
+    final client = PromptClient();
+    final notifier = SessionStateNotifier('prompt', client)
+      ..state = const SessionState(
+        sessionId: 'prompt',
+        cwd: '/test',
+        entries: [
+          SessionEntry(
+            id: 'user_failed',
+            role: 'user',
+            text: 'hello',
+            timestamp: 1000,
+            metadata: {'sendError': 'previous error'},
+          ),
+        ],
+      );
+
+    await notifier.retryFailedPrompt('user_failed');
+
+    expect(client.prompts, ['hello']);
+    expect(notifier.state.entries, hasLength(1));
+    expect(notifier.state.entries.single.id, startsWith('usr_'));
+    expect(notifier.state.entries.single.metadata?['sendError'], isNull);
+
+    notifier.dispose();
+    client.dispose();
+  });
+
+  test('failed send retains optimistic bubble with its error', () async {
+    final client = PromptClient(reject: true);
+    final notifier = SessionStateNotifier('prompt', client);
+
+    await expectLater(
+      notifier.sendPrompt('hello'),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(notifier.state.entries, hasLength(1));
+    expect(notifier.state.entries.single.text, 'hello');
+    expect(notifier.state.entries.single.metadata?['sendError'], 'Model unavailable');
+
+    notifier.dispose();
+    client.dispose();
   });
 
   test('full snapshot restores runtime and nested Pi messages atomically', () {

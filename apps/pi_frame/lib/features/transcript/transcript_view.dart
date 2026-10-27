@@ -12,6 +12,8 @@ import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
 import '../../domain/session/session_state.dart';
 import '../composer/attachment_chips.dart';
+import '../composer/composer_attachments_provider.dart';
+import '../composer/composer_draft.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
@@ -2380,6 +2382,23 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     }
   }
 
+  void _restoreFailedPrompt(String entryId) {
+    final entry = ref
+        .read(sessionStateFamily(widget.sessionId).notifier)
+        .removeFailedPrompt(entryId);
+    if (entry == null) return;
+    final (text, attachments) = parseAttachmentsFromText(entry.text);
+    final draft = ref.read(composerDraftProvider(widget.sessionId).notifier);
+    final existingDraft = draft.state;
+    draft.state = [
+      if (text.isNotEmpty) text,
+      if (existingDraft.isNotEmpty) existingDraft,
+    ].join('\n');
+    ref
+        .read(composerAttachmentsProvider(widget.sessionId).notifier)
+        .addAll(attachments);
+  }
+
   Widget _buildEntryItem(
     SessionEntry entry,
     FrameTokens tokens, {
@@ -2394,94 +2413,144 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     if (isUser) {
       final (cleanText, attachments) = parseAttachmentsFromText(entry.text);
+      final sendError = entry.metadata?['sendError'] as String?;
       final screenWidth = MediaQuery.sizeOf(context).width;
-      return Container(
-        margin: EdgeInsets.only(left: screenWidth < 500 ? 12 : 48, bottom: 12),
-        alignment: Alignment.centerRight,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 720),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: tokens.userBubble,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
+      final bubble = Container(
+        key: sendError == null
+            ? null
+            : ValueKey('failed-message-bubble-${entry.id}'),
+        constraints: const BoxConstraints(maxWidth: 720),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: tokens.userBubble,
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
+          border: Border.all(
+            color: sendError == null ? tokens.border : tokens.danger,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person_outline,
-                        size: 13,
-                        color: tokens.accent,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.person_outline, size: 13, color: tokens.accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tu',
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Tu',
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                  ],
+                ),
+                Flexible(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => _handleFork(entry.id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
                       ),
-                    ],
-                  ),
-                  Flexible(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(4),
-                      onTap: () => _handleFork(entry.id),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 2,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.call_split,
-                              size: 12,
-                              color: tokens.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Riparti da qui',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: tokens.textSecondary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.call_split,
+                            size: 12,
+                            color: tokens.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Riparti da qui',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              if (attachments.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                AttachmentListBar(
-                  key: ValueKey('user-attachments-${entry.id}'),
-                  attachments: attachments,
-                  isEditable: false,
                 ),
               ],
-              if (cleanText.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                RichContent(text: cleanText, cwd: cwd),
-              ],
+            ),
+            if (attachments.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              AttachmentListBar(
+                key: ValueKey('user-attachments-${entry.id}'),
+                attachments: attachments,
+                isEditable: false,
+              ),
             ],
+            if (cleanText.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              RichContent(text: cleanText, cwd: cwd),
+            ],
+            if (sendError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Invio non riuscito: $sendError',
+                key: ValueKey('failed-message-error-${entry.id}'),
+                style: TextStyle(color: tokens.danger, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      );
+
+      if (sendError == null) {
+        return Container(
+          margin: EdgeInsets.only(
+            left: screenWidth < 500 ? 12 : 48,
+            bottom: 12,
           ),
+          alignment: Alignment.centerRight,
+          child: bubble,
+        );
+      }
+
+      return Container(
+        margin: EdgeInsets.only(
+          left: screenWidth < 500 ? 12 : 48,
+          right: screenWidth < 500 ? 12 : 48,
+          bottom: 12,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  key: ValueKey('failed-user-message-${entry.id}'),
+                  onDoubleTap: () => _restoreFailedPrompt(entry.id),
+                  child: bubble,
+                ),
+              ),
+            ),
+            IconButton(
+              key: ValueKey('retry-user-message-${entry.id}'),
+              tooltip: 'Riprova invio',
+              onPressed: () => unawaited(
+                ref
+                    .read(sessionStateFamily(widget.sessionId).notifier)
+                    .retryFailedPrompt(entry.id),
+              ),
+              icon: const Icon(Icons.refresh),
+              color: tokens.danger,
+            ),
+          ],
         ),
       );
     }

@@ -116,6 +116,69 @@ void main() {
       expect(state.currentStreamingText, '');
     });
 
+    test('message.completed reconciles echoed user input with optimistic entry', () {
+      var state = const SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        entries: [
+          SessionEntry(id: 'm0', role: 'user', text: 'hello', timestamp: 1000),
+          SessionEntry(id: 'usr_1001', role: 'user', text: 'hello', timestamp: 1001),
+        ],
+      );
+
+      state = reduceSessionState(
+        state,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e1',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 1,
+          payload: {
+            'message': {
+              'id': 'm1',
+              'role': 'user',
+              'content': 'hello',
+              'timestamp': 1002,
+            },
+          },
+        ),
+      );
+
+      expect(state.entries, hasLength(2));
+      expect(state.entries.map((entry) => entry.id), ['m0', 'm1']);
+      expect(state.entries.map((entry) => entry.text), ['hello', 'hello']);
+    });
+
+    test('retry.ended records the final model error on the latest user message', () {
+      var state = const SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        entries: [
+          SessionEntry(id: 'user_1', role: 'user', text: 'hello', timestamp: 1000),
+        ],
+      );
+
+      state = reduceSessionState(
+        state,
+        const RetryEndedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1003,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'success': false,
+            'attempt': 3,
+            'finalError': 'Model unavailable',
+          },
+        ),
+      );
+
+      expect(state.entries.single.metadata?['sendError'], 'Model unavailable');
+      expect(state.lastAppliedSeq, 2);
+    });
+
     test('tracks extension-provided status and clears it when removed', () {
       var state = const SessionState(sessionId: 's1', cwd: '/test');
       state = reduceSessionState(
