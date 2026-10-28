@@ -21,6 +21,21 @@ flutter test test/session_changes_review_test.dart
 
 ---
 
+## Pannelli nascosti tornati visibili al riavvio
+
+**Causa corretta:** la visibilità dei pannelli e il pannello sessioni erano solo in memoria, quindi ogni avvio ripartiva dal layout predefinito.
+
+**Comportamento attuale:** PiFrame salva in `~/.piframe/layout.json` quali pannelli sono nascosti e se la barra sessioni è compressa. Durante Review Changes si salva il layout dell'utente, non quello temporaneo. Un file danneggiato viene ignorato e ripristina il layout predefinito.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/layout_persistence_test.dart
+```
+
+---
+
 ## Finestra all'avvio in alto a sinistra e stato massimizzato perso
 
 **Cause corrette:** all'avvio Dart ripristinava la posizione salvata, quindi una finestra poteva aprirsi in un angolo. Su Windows il primo `Show()` usava `SW_SHOWNORMAL`, che annulla la massimizzazione appena applicata.
