@@ -43,11 +43,9 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
       final out =
           message['result']?.toString() ??
           message['output']?.toString() ??
-          (message['content'] is String ? message['content'] as String : null);
-      if (callId != null && out != null) {
-        toolResults[callId] = out;
-      }
+          _contentText(message['content'], 'text');
       if (callId != null) {
+        toolResults[callId] = out;
         toolErrors[callId] = message['isError'] == true;
       }
     }
@@ -197,11 +195,13 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     }
     if (message['content'] is List) {
       for (final b in (message['content'] as List).whereType<Map>()) {
-        if (b['type'] == 'tool_call' || b['type'] == 'tool_use') {
+        if (b['type'] == 'toolCall' ||
+            b['type'] == 'tool_call' ||
+            b['type'] == 'tool_use') {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? '';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
           final args = Map<String, dynamic>.from(
-            (b['args'] ?? b['input']) as Map? ?? {},
+            (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
           );
           final out = toolResults[callId] ?? b['output']?.toString() ?? '';
           final hasError =

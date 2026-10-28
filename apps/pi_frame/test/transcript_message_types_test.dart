@@ -3,10 +3,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/domain/session/snapshot_reducer.dart';
+import 'package:pi_frame/features/tool_timeline/tool_card.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
+  testWidgets('reopened Pi actions stay visible with command and stored output', (tester) async {
+    final notifier = SessionStateNotifier('history', null)
+      ..state = applySessionSnapshot('history', 10, {
+        'session': {'cwd': '/repo'},
+        'transcript': {'entries': [
+          {'id': 'assistant-1', 'role': 'assistant', 'content': [
+            for (final name in ['edit', 'write', 'bash', 'todo'])
+              {'type': 'toolCall', 'id': name, 'name': name,
+                'arguments': {'command': 'git status', 'path': 'lib/main.dart'}},
+          ]},
+          {'role': 'toolResult', 'toolCallId': 'bash', 'content': [
+            {'type': 'text', 'text': 'On branch main'},
+          ]},
+        ]},
+      });
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        daemonEndpointProvider.overrideWith((ref) async => null),
+        sessionStateFamily('history').overrideWith((ref) => notifier),
+      ],
+      child: MaterialApp(
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+        home: const Scaffold(body: TranscriptView(sessionId: 'history')),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byType(ToolCard), findsNWidgets(4));
+    for (final name in ['edit', 'write', 'bash', 'todo']) {
+      expect(find.text(name), findsOneWidget);
+    }
+    await tester.tap(find.text('bash'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('On branch main'), findsOneWidget);
+    expect(find.textContaining('git status'), findsWidgets);
+  });
+
   testWidgets('renders bashExecution, branchSummary, compactionSummary, and custom messages', (
     tester,
   ) async {

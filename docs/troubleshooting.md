@@ -4,6 +4,21 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Azioni dell'agente mancanti dopo Stop o alla riapertura della chat
+
+**Causa corretta:** i parser della chat riconoscevano solo `tool_call` e `tool_use`, non il formato Pi `toolCall` con argomenti in `arguments`. Alla ricostruzione della cronologia rimaneva il ragionamento, ma sparivano le card edit/write/bash/todo. Inoltre, gli output salvati come blocchi di testo nei messaggi `toolResult` non venivano ripristinati.
+
+**Comportamento attuale:** messaggi live, snapshot e caricamento della cronologia riconoscono anche il formato Pi, conservando argomenti, output ed errori. Stop non rimuove le azioni già registrate. Le sessioni esistenti non richiedono migrazione: le card vengono ricostruite dai messaggi originali, se ancora presenti nel file della sessione.
+
+Verifica da sorgente, senza ricompilare la release Windows:
+
+```bash
+cd apps/pi_frame
+flutter test test/session_tool_history_test.dart test/session_reducer_test.dart test/transcript_message_types_test.dart
+```
+
+---
+
 ## Modelli Copilot non autorizzati o tier di contesto ignorato
 
 **Cause corrette:** il picker filtrava solo `enabledModels` locale, senza verificare le policy GitHub. Il limite di contesto era conservato in PiFrame ma non applicato a Pi; i controlli duplicati nella GUI e nel daemon usavano una soglia fissa all'80% e potevano ignorare gli errori.

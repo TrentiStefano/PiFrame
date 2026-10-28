@@ -379,12 +379,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           Map<String, ToolExecutionState>.from(current.activeToolCalls);
       if (msg['content'] is List) {
         for (final b in (msg['content'] as List).whereType<Map>()) {
-          if (b['type'] == 'tool_call' || b['type'] == 'tool_use') {
+          if (b['type'] == 'toolCall' ||
+              b['type'] == 'tool_call' ||
+              b['type'] == 'tool_use') {
             final callId = (b['id'] ?? b['toolCallId'])?.toString() ??
                 'tc_${turnTools.length}';
             final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
             final args = Map<String, dynamic>.from(
-              (b['args'] ?? b['input']) as Map? ?? {},
+              (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
             );
             if (!turnTools.containsKey(callId)) {
               turnTools[callId] = ToolExecutionState(
@@ -404,7 +406,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               'tc_${turnTools.length}';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
           final args = Map<String, dynamic>.from(
-            (b['args'] ?? b['input']) as Map? ?? {},
+            (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
           );
           if (!turnTools.containsKey(callId)) {
             turnTools[callId] = ToolExecutionState(
