@@ -282,6 +282,25 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
    - corpo (messaggio e opzioni) scrollabile con altezza massima: pulsanti Annulla/Invia sempre visibili anche con molte opzioni o testo lungo;
    - i pulsanti non dipendono più dall'esito del claim: solo "già in uso da un altro client" blocca la card; claim lento, fallito o offline non la disabilita (il daemon arbitra comunque la risposta);
    - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
-   - la risposta ha un timeout di 15s con errore visibile e pulsanti riabilitati;
-   - selezione singola con indicatori radio invece di checkbox.
 
+---
+
+## 7. Vibrazione della Chat all'Espansione delle Card Attività/Subagenti e Riapertura Automatica al Cambio Sessione
+
+### Sintomi
+- Espandendo o minimizzando le card di attività e sottoagenti la lista della chat "vibrava" vistosamente e si spostava su e giù.
+- All'apertura o al cambio di sessione, la card delle attività o dei subagenti si riapriva automaticamente espansa occupando metà dell'altezza del pannello chat.
+
+### Cause Radice
+1. **Loop di correzione del controller bottom-anchored (`_BottomAnchoredScrollPosition`)**: Durante l'animazione di ridimensionamento del viewport (`AnimatedSize`), il controller rilevava una variazione di `maxScrollExtent` e invocava `correctBy` ad ogni frame. Questo invalidava il layout e scatenava `ScrollUpdateNotification`, che veniva erroneamente interpretata come uno scroll manuale dell'utente, alternando ciclicamente lo stato di `_userScrolledUp` e facendo oscillare il punto di ancoraggio.
+2. **Doppio `AnimatedSize` annidato**: Sia `TranscriptView` che i widget interni `TodoPopDown` e `SubagentsPopDown` applicavano contestualmente un proprio `AnimatedSize`, generando animazioni fuori fase e conflitti di misurazione.
+3. **Inizializzazione a zero dei contatori al cambio/apertura sessione**: `_lastActiveTodoCount` e `_lastRunningSubagentCount` partivano da zero all'apertura di ogni sessione; di conseguenza, la presenza di task o subagenti preesistenti veniva interpretata come un nuovo incremento, innescando l'auto-espansione automatica (`_activeBookTab = _ActiveBookTab.todos` o `subagents`). Inoltre `_activeBookTab` non veniva resettato a `none` durante il passaggio tra sessioni (`didUpdateWidget`).
+
+### Risoluzione Implementata
+1. **Stabilizzazione del layout e rimozione del loop di scroll notification**:
+   - Rimosso il doppio `AnimatedSize` annidato: quando `hideBookTab: true` (gestito direttamente dalla vista trascrizione), `TodoPopDown` e `SubagentsPopDown` non annidano più un secondo `AnimatedSize`, eliminando il conflitto di misurazione e i calcoli fuori fase.
+   - Rimossa la gestione spuria di `scrollDelta` priva di `dragDetails` in `_handleScrollNotification`, affidando l'aggiornamento di `_userScrolledUp` esclusivamente a gesti reali dell'utente (`UserScrollNotification` o trascinamento attivo con drag details).
+   - Introdotto `_toggleBookTab` con isolamento programmatico (`_isProgrammaticScroll = true`) durante la transizione animata delle card (250ms), impedendo notifiche di scroll spuria.
+2. **Minimizzazione predefinita all'apertura e al cambio di sessione**:
+   - Tracciato l'ID di sessione attivo (`_trackedSessionId`); all'apertura iniziale o al cambio sessione (`didUpdateWidget`), `_activeBookTab` viene impostato di default a `_ActiveBookTab.none`.
+   - I contatori di task e subagenti attivi vengono sincronizzati con i valori correnti della sessione al caricamento senza innescare auto-espansione, garantendo che le card rimangano normalmente minimizzate lasciando visibile l'intera chat con le pill compatte nella barra superiore.

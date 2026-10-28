@@ -281,7 +281,15 @@ void main() {
       expect(find.byKey(const ValueKey('subagents-header-chip')), findsNothing);
       expect(find.text('Subagenti (1)'), findsWidgets);
 
-      // SubagentsPopDown should be displayed by default when running
+      // Subagents card should be normally minimized when opening/reopening a session
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      // Tap book tab to expand it with smooth sliding animation
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.pumpAndSettle();
+
+      // Popdown is visible
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
       expect(find.text('Active Subagent'), findsOneWidget);
 
@@ -358,11 +366,11 @@ void main() {
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
 
-      // Subagent is running, so subagents panel is initially auto-opened
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+      // Cards are normally minimized when opening/reopening a session
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
 
-      // Tap on Activities (todos) book tab -> subagents closes, todos opens
+      // Tap on Activities (todos) book tab -> todos opens
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
       await tester.pumpAndSettle();
 
@@ -712,6 +720,190 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
 
       // Check header cost badge and item row
       expect(find.text('\$0.0250'), findsNWidgets(2));
+    });
+
+    testWidgets('Changing session keeps cards minimized and does not re-open expanded cards', (tester) async {
+      final subagentsA = [
+        const SubagentItem(
+          id: 'sub_a',
+          name: 'Worker A',
+          status: 'running',
+        ),
+      ];
+      final todosA = [
+        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
+      ];
+      final subagentsB = [
+        const SubagentItem(
+          id: 'sub_b',
+          name: 'Worker B',
+          status: 'running',
+        ),
+      ];
+      final todosB = [
+        const TodoItem(id: 2, subject: 'Task B', status: 'pending'),
+      ];
+
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('sess_a').overrideWith(
+            (ref) => SessionStateNotifier('sess_a', null)
+              ..state = const SessionState(
+                sessionId: 'sess_a',
+                sessionName: 'Session A',
+                cwd: 'C:/projects/app',
+                agentStatus: AgentStatus.settled,
+              ),
+          ),
+          sessionStateFamily('sess_b').overrideWith(
+            (ref) => SessionStateNotifier('sess_b', null)
+              ..state = const SessionState(
+                sessionId: 'sess_b',
+                sessionName: 'Session B',
+                cwd: 'C:/projects/app',
+                agentStatus: AgentStatus.settled,
+              ),
+          ),
+          subagentsFamily('sess_a').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA),
+          ),
+          todosFamily('sess_a').overrideWith(
+            (ref) => _MockTodoNotifier(ref, 'sess_a', todosA),
+          ),
+          subagentsFamily('sess_b').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB),
+          ),
+          todosFamily('sess_b').overrideWith(
+            (ref) => _MockTodoNotifier(ref, 'sess_b', todosB),
+          ),
+        ],
+      );
+
+      final currentSessionNotifier = ValueNotifier<String>('sess_a');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: Scaffold(
+              body: ValueListenableBuilder<String>(
+                valueListenable: currentSessionNotifier,
+                builder: (context, sid, _) => TranscriptView(sessionId: sid),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Session A starts with both cards minimized
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      // Expand activities tab in Session A
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+
+      // Switch to Session B
+      currentSessionNotifier.value = 'sess_b';
+      await tester.pumpAndSettle();
+
+      // Session B must NOT reopen with expanded card; it must normally be minimized
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      // Switch back to Session A
+      currentSessionNotifier.value = 'sess_a';
+      await tester.pumpAndSettle();
+
+      // Reopening Session A also opens with minimized cards
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+    });
+
+    testWidgets('Expanding and collapsing activity or subagent cards maintains scroll stability without vibration', (tester) async {
+      final entries = List.generate(
+        30,
+        (i) => SessionEntry(
+          id: 'msg_$i',
+          role: i.isEven ? 'user' : 'assistant',
+          text: 'Message number $i in the chat transcript history.',
+          timestamp: 1000 + i,
+        ),
+      );
+      final todos = [
+        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_scroll').overrideWith(
+              (ref) => SessionStateNotifier('sess_scroll', null)
+                ..state = SessionState(
+                  sessionId: 'sess_scroll',
+                  sessionName: 'Scroll Test',
+                  cwd: 'C:/projects/app',
+                  agentStatus: AgentStatus.settled,
+                  entries: entries,
+                ),
+            ),
+            todosFamily('sess_scroll').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'sess_scroll', todos),
+            ),
+            subagentsFamily('sess_scroll').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', []),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                height: 700,
+                width: 800,
+                child: TranscriptView(sessionId: 'sess_scroll'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Check initially cards are minimized
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+
+      // Expand activities card
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      // Pump several animation frames to ensure no frame assertion/layout loop errors
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+
+      // Collapse activities card
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      // Floating scroll button should not appear because user never scrolled
+      expect(find.byType(FloatingActionButton), findsNothing);
     });
   });
 }

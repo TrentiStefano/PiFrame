@@ -250,6 +250,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int _lastRunningSubagentCount = 0;
   int _lastActiveTodoCount = 0;
   bool _userManuallyToggledTabs = false;
+  String? _trackedSessionId;
 
   void _toggleBookTab(_ActiveBookTab tab) {
     _isProgrammaticScroll = true;
@@ -343,7 +344,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _initialScrollDone = false;
       _userScrolledUp = false;
       _userManuallyToggledTabs = false;
+      _activeBookTab = _ActiveBookTab.none;
       _lastActiveTodoCount = 0;
+      _lastRunningSubagentCount = 0;
+      _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -1529,17 +1533,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final activeTodoCount = todos.where((t) => !t.isCompleted).length;
     final runningSubagentCount = subagents.where((s) => s.isRunning).length;
 
-    if (runningSubagentCount > _lastRunningSubagentCount) {
-      if (!_userManuallyToggledTabs) {
-        _activeBookTab = _ActiveBookTab.subagents;
+    final isNewSession = _trackedSessionId != widget.sessionId;
+    if (isNewSession) {
+      _trackedSessionId = widget.sessionId;
+      _activeBookTab = _ActiveBookTab.none;
+      _userManuallyToggledTabs = false;
+      _lastActiveTodoCount = activeTodoCount;
+      _lastRunningSubagentCount = runningSubagentCount;
+    } else {
+      if (runningSubagentCount > _lastRunningSubagentCount) {
+        if (!_userManuallyToggledTabs) {
+          _activeBookTab = _ActiveBookTab.subagents;
+        }
+      } else if (activeTodoCount > _lastActiveTodoCount) {
+        if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
+          _activeBookTab = _ActiveBookTab.todos;
+        }
       }
-    } else if (activeTodoCount > _lastActiveTodoCount) {
-      if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
-        _activeBookTab = _ActiveBookTab.todos;
-      }
+      _lastActiveTodoCount = activeTodoCount;
+      _lastRunningSubagentCount = runningSubagentCount;
     }
-    _lastActiveTodoCount = activeTodoCount;
-    _lastRunningSubagentCount = runningSubagentCount;
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
