@@ -19,6 +19,25 @@ flutter test test/session_tool_history_test.dart test/session_reducer_test.dart 
 
 ---
 
+## Costo dei sottoagenti sempre a zero o fermo nel popup
+
+**Cause corrette:** il daemon leggeva `usage.cost` solo sul contenitore JSONL, ignorando `message.usage.cost` dei messaggi Pi. Il refresh poteva fermarsi perché i worker esterni al daemon risultavano già completati; il popup dei costi conservava inoltre i valori presenti al momento dell'apertura.
+
+**Comportamento attuale:** il daemon somma i costi salvati nelle due forme, anche quando il file della sessione cresce, senza contare due volte la stessa voce. Card e popup aperto ricevono gli aggiornamenti; il refresh ogni 5 secondi resta attivo mentre la sessione principale lavora o risultano sottoagenti in corso. Sono mostrati i costi registrati da Pi, non stime: un provider che non registra costi può continuare a riportare zero.
+
+Verifica da sorgente:
+
+```bash
+pnpm --filter @piframe/agentd exec tsc --outDir .temp/bugfix-tests
+node --test apps/agentd/.temp/bugfix-tests/test/sessionCostPersistence.test.js
+cd apps/pi_frame
+flutter test test/subagent_cost_updates_test.dart test/subagents_feature_test.dart test/cost_breakdown_models_test.dart
+```
+
+La compilazione TypeScript usa una cartella temporanea: non modifica il bundle del daemon né la release Windows in uso.
+
+---
+
 ## Modelli Copilot non autorizzati o tier di contesto ignorato
 
 **Cause corrette:** il picker filtrava solo `enabledModels` locale, senza verificare le policy GitHub. Il limite di contesto era conservato in PiFrame ma non applicato a Pi; i controlli duplicati nella GUI e nel daemon usavano una soglia fissa all'80% e potevano ignorare gli errori.

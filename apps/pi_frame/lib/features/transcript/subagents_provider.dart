@@ -109,7 +109,9 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   }
 
   void _checkTimer() {
-    final hasActive = state.any((s) => s.status == 'running');
+    // Child sessions run outside agentd, so its status can lag live activity.
+    final hasActive = state.any((s) => s.isRunning) ||
+        (state.isNotEmpty && ref.read(sessionStateFamily(sessionId)).isStreaming);
     if (hasActive) {
       _refreshTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
         _syncFromSessionState();

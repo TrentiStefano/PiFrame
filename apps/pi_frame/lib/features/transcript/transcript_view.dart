@@ -882,12 +882,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   Future<void> _showCostBreakdownDialog(
     BuildContext chipContext,
     double mainAgentCost,
-    double subagentsCost,
     SessionState sessionState,
-    List<SubagentItem> subagents,
   ) async {
     final tokens = context.tokens;
-    final totalCost = mainAgentCost + subagentsCost;
 
     final Map<String, double> agentModelCosts = {};
     final Map<String, int> agentModelTokens = {};
@@ -981,7 +978,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         int level = 0; // 0: Overview, 1: Main Agent Models, 2: Subagents Breakdown
 
         return StatefulBuilder(
-          builder: (ctx, setDialogState) {
+          builder: (ctx, setDialogState) => Consumer(builder: (ctx, dialogRef, _) {
+            final subagents = dialogRef.watch(subagentsFamily(sessionState.sessionId));
+            final subagentsCost = subagents.fold<double>(0, (sum, sub) => sum + (sub.cost ?? 0));
+            final totalCost = mainAgentCost + subagentsCost;
             Widget content;
             String title;
             IconData titleIcon;
@@ -1482,7 +1482,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
               ),
             );
-          },
+          }),
         );
       },
     );
@@ -2226,9 +2226,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   onTap: (ctx) => _showCostBreakdownDialog(
                     ctx,
                     mainAgentCost,
-                    subagentsCost,
                     sessionState,
-                    subagents,
                   ),
                 ),
                 for (final status in extensionStatuses) ...[

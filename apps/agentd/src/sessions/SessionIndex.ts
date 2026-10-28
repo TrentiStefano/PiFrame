@@ -328,12 +328,13 @@ export class SessionIndex {
               if (entry.type === 'model_change' && entry.modelId) {
                 model = entry.modelId;
               }
-              if (entry.usage?.cost !== undefined) {
-                const rawCost = typeof entry.usage.cost === 'object' && entry.usage.cost !== null
-                  ? (entry.usage.cost.total ?? entry.usage.cost.amount)
-                  : entry.usage.cost;
+              const usage = entry.usage ?? entry.message?.usage;
+              if (usage?.cost !== undefined) {
+                const rawCost = typeof usage.cost === 'object' && usage.cost !== null
+                  ? (usage.cost.total ?? usage.cost.amount)
+                  : usage.cost;
                 const numCost = Number(rawCost);
-                if (!Number.isNaN(numCost)) {
+                if (Number.isFinite(numCost)) {
                   cost = (cost ?? 0) + numCost;
                 }
               }
