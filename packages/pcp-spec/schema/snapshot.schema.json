@@ -47,6 +47,7 @@
             "steeringMode": { "type": ["string", "null"] },
             "followUpMode": { "type": ["string", "null"] },
             "isStreaming": { "type": "boolean" },
+            "runStartedAt": { "type": ["integer", "null"] },
             "isCompacting": { "type": "boolean" },
             "autoCompaction": { "type": "boolean" },
             "contextWindowOverride": { "type": ["integer", "null"], "minimum": 1 },

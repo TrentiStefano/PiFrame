@@ -44,10 +44,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
       if (newStatus == AgentStatus.settled) {
         final updatedTools = current.activeToolCalls.map(
-          (k, v) => MapEntry(k, v.isRunning ? v.copyWith(isRunning: false) : v),
+          (k, v) => MapEntry(k, v.isRunning
+              ? v.copyWith(isRunning: false, durationMs: v.elapsedMsAt(event.ts))
+              : v),
         );
         return current.copyWith(
           agentStatus: AgentStatus.settled,
+          clearRunStartedAt: true,
           activeToolCalls: updatedTools,
           streamingTextBlocks: const {},
           streamingThinkingBlocks: const {},
@@ -63,6 +66,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     case RunStartedEvent():
       return current.copyWith(
         agentStatus: AgentStatus.working,
+        runStartedAt: (event.payload['startedAt'] as num?)?.toInt() ?? event.ts,
         lastAppliedSeq: nextSeq,
       );
 
@@ -97,9 +101,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           final last = updatedEntries.last;
           final mergedTools = List<ToolExecutionState>.from(last.toolCalls);
           for (final t in current.activeToolCalls.values) {
-            final completedT = t.isRunning ? t.copyWith(isRunning: false) : t;
-            if (!mergedTools.any((e) => e.toolCallId == completedT.toolCallId)) {
+            final completedT = t.isRunning
+                ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
+                : t;
+            final index = mergedTools.indexWhere((e) => e.toolCallId == t.toolCallId);
+            if (index < 0) {
               mergedTools.add(completedT);
+            } else {
+              mergedTools[index] = completedT;
             }
           }
           final newThinking = liveThinking.isNotEmpty ? liveThinking : null;
@@ -130,7 +139,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               text: current.currentStreamingText,
               thinking: liveThinking.isNotEmpty ? liveThinking : null,
               toolCalls: current.activeToolCalls.values
-                  .map((t) => t.isRunning ? t.copyWith(isRunning: false) : t)
+                  .map((t) => t.isRunning
+                      ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
+                      : t)
                   .toList(),
               timestamp: DateTime.now().millisecondsSinceEpoch,
               metadata: {
@@ -141,6 +152,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
       return current.copyWith(
         agentStatus: AgentStatus.settled,
+        clearRunStartedAt: true,
         entries: updatedEntries,
         streamingTextBlocks: const {},
         streamingThinkingBlocks: const {},
@@ -198,6 +210,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
                 output: resolvedOutput.isNotEmpty ? resolvedOutput : existing.output,
                 isRunning: false,
                 isError: isError || existing.isError,
+                durationMs: existing.elapsedMsAt(event.ts),
               );
             }
             // Also update any existing entries that contain this tool call
@@ -209,6 +222,8 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
                       output: resolvedOutput.isNotEmpty ? resolvedOutput : t.output,
                       isRunning: false,
                       isError: isError || t.isError,
+                      durationMs: updatedTools[toolCallId]?.durationMs ?? t.elapsedMsAt(event.ts),
+                      startedAt: updatedTools[toolCallId]?.startedAt,
                     );
                   }
                   return t;
@@ -539,6 +554,8 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         toolName: toolName,
         args: args,
         isRunning: true,
+        startedAt: current.activeToolCalls[toolCallId]?.startedAt ??
+            (event.payload['startedAt'] as num?)?.toInt() ?? event.ts,
       );
       return current.copyWith(
         activeToolCalls: nextActive,
@@ -591,12 +608,13 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         current.activeToolCalls,
       );
       final existing = nextActive[toolCallId];
+      final resolvedDuration = durationMs ?? existing?.elapsedMsAt(event.ts);
       if (existing != null) {
         nextActive[toolCallId] = existing.copyWith(
           output: outputStr.isNotEmpty ? outputStr : existing.output,
           isRunning: false,
           isError: isError,
-          durationMs: durationMs,
+          durationMs: resolvedDuration,
         );
       } else {
         nextActive[toolCallId] = ToolExecutionState(
@@ -618,7 +636,8 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
                 output: outputStr.isNotEmpty ? outputStr : t.output,
                 isRunning: false,
                 isError: isError || t.isError,
-                durationMs: durationMs ?? t.durationMs,
+                durationMs: resolvedDuration ?? t.durationMs,
+                startedAt: existing?.startedAt,
               );
             }
             return t;
@@ -772,6 +791,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     case WorkerCrashedEvent():
       return current.copyWith(
         agentStatus: AgentStatus.workerError,
+        clearRunStartedAt: true,
+        activeToolCalls: current.activeToolCalls.map((id, tool) => MapEntry(id,
+            tool.copyWith(isRunning: false, durationMs: tool.elapsedMsAt(event.ts)))),
         lastAppliedSeq: nextSeq,
       );
 

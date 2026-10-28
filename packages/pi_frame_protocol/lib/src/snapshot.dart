@@ -82,6 +82,7 @@ class RuntimeMeta {
   final String? steeringMode;
   final String? followUpMode;
   final bool isStreaming;
+  final int? runStartedAt;
   final bool isCompacting;
   final bool autoCompaction;
   final List<String> steeringQueue;
@@ -95,6 +96,7 @@ class RuntimeMeta {
     this.steeringMode,
     this.followUpMode,
     required this.isStreaming,
+    this.runStartedAt,
     required this.isCompacting,
     required this.autoCompaction,
     required this.steeringQueue,
@@ -111,6 +113,7 @@ class RuntimeMeta {
       steeringMode: json['steeringMode'] as String?,
       followUpMode: json['followUpMode'] as String?,
       isStreaming: json['isStreaming'] as bool? ?? false,
+      runStartedAt: (json['runStartedAt'] as num?)?.toInt(),
       isCompacting: json['isCompacting'] as bool? ?? false,
       autoCompaction: json['autoCompaction'] as bool? ?? true,
       steeringQueue: (queue['steering'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],

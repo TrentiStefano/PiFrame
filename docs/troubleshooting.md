@@ -4,6 +4,25 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Timer dei comandi azzerato al cambio sessione e timeout fuorvianti
+
+**Cause corrette:** il timer partiva dal montaggio del widget. Cambiare sessione ricreava il widget e riportava il conteggio a zero. La UI interpretava inoltre qualsiasi timeout maggiore di 1000 come millisecondi, confondeva `WaitMsBeforeAsync` con una scadenza e applicava il timeout del primo comando all'intero turno.
+
+**Comportamento attuale:** il daemon conserva gli istanti di avvio di turno e comando e li include negli eventi e negli snapshot. Cambiare sessione o ricreare una card non cambia l'origine del timer. La durata si ferma al completamento o a Stop; viene usata la durata dell'esecutore quando disponibile, altrimenti il tempo osservato dal daemon. Per snapshot precedenti senza istanti di avvio non viene inventato un nuovo inizio.
+
+Il timeout compare solo sulla singola azione e indica il valore richiesto negli argomenti. `timeout`/`timeoutSeconds`/`timeout_seconds` sono espressi in secondi, `timeoutMs`/`timeout_ms` in millisecondi; i suffissi espliciti `s` e `ms` sono rispettati, anche per valori frazionari. `WaitMsBeforeAsync`, valori non validi e campi assenti non generano un limite. Il timeout non viene applicato all'intero messaggio o turno.
+
+Nel tool **bash integrato di Pi**, il timeout è opzionale, in secondi e senza valore predefinito. Il timeout RPC del daemon riguarda invece l'acknowledgement, non la durata del comando. Altri tool o estensioni possono avere limiti propri: PiFrame non impone un nuovo timeout né deduce default non comunicati.
+
+Verifica da sorgente, senza ricompilare la release Windows:
+
+```bash
+cd apps/pi_frame
+flutter test test/tool_timer_state_test.dart test/message_seconds_counter_test.dart test/tool_card_expanded_command_test.dart
+```
+
+---
+
 ## Azioni dell'agente mancanti dopo Stop o alla riapertura della chat
 
 **Causa corretta:** i parser della chat riconoscevano solo `tool_call` e `tool_use`, non il formato Pi `toolCall` con argomenti in `arguments`. Alla ricostruzione della cronologia rimaneva il ragionamento, ma sparivano le card edit/write/bash/todo. Inoltre, gli output salvati come blocchi di testo nei messaggi `toolResult` non venivano ripristinati.

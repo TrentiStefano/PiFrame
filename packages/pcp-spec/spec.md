@@ -190,6 +190,10 @@ See Section 4.7 of the implementation plan for complete event catalogue:
 
 ## 6. Attachment, Replay & Snapshots
 
+Execution timing uses Unix epoch milliseconds from the daemon, not client widget mount times. `run.started.payload.startedAt` and `tool.started.payload.startedAt` identify the observed execution start; replay must retain these values. Snapshots expose the same optional values in `runtime.runStartedAt` and each `activeTools[].startedAt`. `tool.completed.payload.durationMs` uses the executor's duration when available, otherwise elapsed daemon time since tool start. `runtime.runStartedAt` is null after `run.settled`. Older snapshots may omit timing; clients must not invent an execution start on mount.
+
+Command timeouts are tool arguments, not a PCP turn deadline or the transport acknowledgement timeout. Clients must not infer units from magnitude or treat asynchronous wait parameters as execution limits.
+
 When attaching to a session (`session.attach{ lastSeq }`):
 1. `lastSeq == null`: Daemon sends full authoritative `snapshot` (seq = currentSeq), then live events.
 2. `lastSeq >= journal.minSeq - 1 && lastSeq <= currentSeq`: Daemon sends `ack{ state: "resume" }` followed by replay events `lastSeq+1 ... currentSeq`, then live stream.

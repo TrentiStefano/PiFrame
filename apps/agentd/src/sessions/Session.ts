@@ -36,6 +36,7 @@ export class Session {
 
   public status: string = 'settled';
   public isStreaming: boolean = false;
+  public runStartedAt: number | null = null;
   public isCompacting: boolean = false;
   public autoCompaction: boolean = true;
   public contextWindowOverride: number | null = null;
@@ -117,6 +118,7 @@ export class Session {
       steeringMode: this.steeringMode,
       followUpMode: this.followUpMode,
       isStreaming: this.isStreaming,
+      runStartedAt: this.runStartedAt,
       isCompacting: this.isCompacting,
       autoCompaction: this.autoCompaction,
       contextWindowOverride: this.contextWindowOverride,
@@ -179,6 +181,30 @@ export class Session {
     return event;
   }
 
+  private recordToolTiming(tool: any): void {
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const message: any = this.entries[i].message || this.entries[i];
+      for (const calls of [message.toolCalls, message.content]) {
+        if (!Array.isArray(calls)) continue;
+        const call = calls.find((c: any) => c && (c.id ?? c.toolCallId) === tool.toolCallId);
+        if (!call) continue;
+        if (tool.startedAt != null) call.startedAt = tool.startedAt;
+        if (tool.durationMs != null) call.durationMs = tool.durationMs;
+        return;
+      }
+    }
+  }
+
+  private finishActiveTools(): void {
+    for (const tool of this.activeTools.values()) {
+      if (tool.isRunning) {
+        tool.isRunning = false;
+        if (tool.startedAt != null) tool.durationMs ??= Math.max(0, this.lastActivityAt - tool.startedAt);
+      }
+      this.recordToolTiming(tool);
+    }
+  }
+
   private updateInternalState(type: PcpEventType, payload: any): void {
     switch (type) {
       case 'message.started':
@@ -197,7 +223,9 @@ export class Session {
       }
 
       case 'tool.started':
+        payload.startedAt ??= this.activeTools.get(payload.toolCallId)?.startedAt ?? this.lastActivityAt;
         this.activeTools.set(payload.toolCallId, { ...payload, isRunning: true });
+        this.recordToolTiming(payload);
         break;
       case 'tool.progress': {
         const tool = this.activeTools.get(payload.toolCallId) || {};
@@ -206,13 +234,20 @@ export class Session {
       }
       case 'tool.completed': {
         const tool = this.activeTools.get(payload.toolCallId) || {};
-        this.activeTools.set(payload.toolCallId, { ...tool, ...payload, output: payload.result, isRunning: false });
+        if (payload.durationMs == null && tool.startedAt != null) {
+          payload.durationMs = Math.max(0, this.lastActivityAt - tool.startedAt);
+        }
+        const completed = { ...tool, ...payload, output: payload.result, isRunning: false };
+        this.activeTools.set(payload.toolCallId, completed);
+        this.recordToolTiming(completed);
         break;
       }
       case 'usage.updated':
         this.usage = payload.usage || {};
         break;
       case 'run.started':
+        payload.startedAt ??= this.lastActivityAt;
+        this.runStartedAt = payload.startedAt;
         this.status = 'working';
         this.isStreaming = true;
         break;
@@ -224,8 +259,13 @@ export class Session {
         }
         break;
 
+      case 'session.status':
+        if (payload.status !== 'settled' && payload.status !== 'idle') break;
+        // Recovery must settle the same execution state as a normal stop.
       case 'run.settled':
+        this.finishActiveTools();
         this.status = 'settled';
+        this.runStartedAt = null;
         this.isStreaming = false;
         this.liveMessage = null;
         this.activeTools.clear();
@@ -277,6 +317,8 @@ export class Session {
         break;
 
       case 'worker.crashed':
+        this.finishActiveTools();
+        this.runStartedAt = null;
         this.uiBroker.cancelAll('worker_crashed');
         this.status = 'worker_error';
         this.isStreaming = false;

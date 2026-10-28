@@ -23,6 +23,7 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   isRunning: tool['isRunning'] == true,
   isError: tool['isError'] == true,
   durationMs: (tool['durationMs'] as num?)?.toInt(),
+  startedAt: (tool['startedAt'] as num?)?.toInt(),
 );
 
 List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
@@ -214,6 +215,8 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
               output: out,
               isRunning: false,
               isError: hasError,
+              startedAt: (b['startedAt'] as num?)?.toInt(),
+              durationMs: (b['durationMs'] as num?)?.toInt(),
             ),
           );
         }
@@ -386,6 +389,7 @@ SessionState applySessionSnapshot(
     readOnly: meta['readOnly'] == true,
     readOnlyReason: meta['readOnlyReason']?.toString(),
     agentStatus: status,
+    runStartedAt: (runtime['runStartedAt'] as num?)?.toInt(),
     entries: entries,
     streamingTextBlocks: text.isEmpty ? {} : {0: text},
     streamingThinkingBlocks: thinking.isEmpty ? {} : {0: thinking},

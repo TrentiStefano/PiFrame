@@ -13,6 +13,7 @@ export interface SnapshotContext {
   steeringMode?: string | null;
   followUpMode?: string | null;
   isStreaming: boolean;
+  runStartedAt?: number | null;
   isCompacting: boolean;
   autoCompaction: boolean;
   queue: {
@@ -56,6 +57,7 @@ export class SnapshotBuilder {
       steeringMode: ctx.steeringMode ?? null,
       followUpMode: ctx.followUpMode ?? null,
       isStreaming: ctx.isStreaming,
+      runStartedAt: ctx.runStartedAt ?? null,
       isCompacting: ctx.isCompacting,
       autoCompaction: ctx.autoCompaction,
       queue: ctx.queue,

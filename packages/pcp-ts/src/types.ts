@@ -304,6 +304,7 @@ export interface RuntimeMeta {
   steeringMode?: string | null;
   followUpMode?: string | null;
   isStreaming: boolean;
+  runStartedAt?: number | null;
   isCompacting: boolean;
   autoCompaction: boolean;
   queue: {

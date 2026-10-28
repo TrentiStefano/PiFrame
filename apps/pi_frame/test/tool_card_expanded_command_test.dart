@@ -34,7 +34,7 @@ void main() {
       expect(find.text('bash'), findsOneWidget);
       // Timeout badge in header
       expect(find.byKey(const ValueKey('tool-card-timeout-badge')), findsOneWidget);
-      expect(find.text('limite 30s'), findsOneWidget);
+      expect(find.text('timeout 30s'), findsOneWidget);
 
       // Expand the card
       await tester.tap(find.byType(TextButton));
@@ -48,7 +48,7 @@ void main() {
       expect(find.text('Copia comando'), findsOneWidget);
       // Timeout badge in expanded header
       expect(find.byKey(const ValueKey('tool-card-expanded-timeout')), findsOneWidget);
-      expect(find.text('Timeout: 30s'), findsOneWidget);
+      expect(find.text('Timeout richiesto: 30s'), findsOneWidget);
       // Output is also visible
       expect(find.text('Build completed in 1.4s'), findsOneWidget);
     });

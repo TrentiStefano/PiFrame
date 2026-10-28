@@ -29,7 +29,7 @@ void main() {
   }
 
   group('Transcript message seconds counter and timeout display', () {
-    testWidgets('displays seconds counter and timeout in assistant message taking >= 5s', (
+    testWidgets('shows elapsed message time without applying a command timeout to the message', (
       tester,
     ) async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -66,11 +66,12 @@ void main() {
       await tester.pumpWidget(wrapTranscript(state: state));
       await tester.pumpAndSettle();
 
-      // Assistant header timer should show 9s and timeout 60s
+      // The command timeout belongs to its ToolCard, not to the whole message.
       final headerTimerFinder = find.byKey(const ValueKey('entry_timer_asst_1'));
       expect(headerTimerFinder, findsOneWidget);
       expect(find.descendant(of: headerTimerFinder, matching: find.text('9s')), findsOneWidget);
-      expect(find.descendant(of: headerTimerFinder, matching: find.text(' (timeout: 60s)')), findsOneWidget);
+      expect(find.descendant(of: headerTimerFinder, matching: find.textContaining('timeout')), findsNothing);
+      expect(find.text(' / 60s'), findsOneWidget);
     });
 
     testWidgets('does not show seconds counter if message took less than 5 seconds', (
