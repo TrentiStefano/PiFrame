@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../data/window/window_state_service.dart';
+
 // Set only after successful native initialization. Web and widget tests do not
 // call platform channels or pretend to own an operating-system window.
 final desktopChromeProvider = Provider<bool>((ref) => false);
@@ -41,6 +43,8 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
     _closing = true;
     final allow = await widget.onCloseRequested!.call();
     if (allow) {
+      // Persist the final geometry (including maximized/fullscreen) before the process exits.
+      await WindowStateService.instance.recordCurrentWindowState();
       await windowManager.setPreventClose(false);
       await windowManager.close();
     }

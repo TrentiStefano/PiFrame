@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -50,10 +51,31 @@ class WindowStateService {
 
   Timer? _saveDebounceTimer;
   File? _customStorageFile;
+  WindowManager? _windowManagerForTesting;
+
+  WindowManager get _windowManager => _windowManagerForTesting ?? windowManager;
+  bool get _canUseWindowManager =>
+      !kIsWeb &&
+      (!Platform.environment.containsKey('FLUTTER_TEST') ||
+          _windowManagerForTesting != null);
 
   @visibleForTesting
   void setStorageFileForTesting(File? file) {
     _customStorageFile = file;
+  }
+
+  @visibleForTesting
+  void setWindowManagerForTesting(WindowManager? manager) {
+    _windowManagerForTesting = manager;
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _saveDebounceTimer?.cancel();
+    _saveDebounceTimer = null;
+    _customStorageFile = null;
+    _windowManagerForTesting = null;
+    _currentState = const WindowState();
   }
 
   File? _getStorageFile() {
@@ -105,40 +127,46 @@ class WindowStateService {
   }
 
   Future<void> recordCurrentWindowState() async {
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return;
+    if (!_canUseWindowManager) return;
     try {
-      final isFull = await windowManager.isFullScreen();
-      final isMax = await windowManager.isMaximized();
-      final size = await windowManager.getSize();
-      final pos = await windowManager.getPosition();
+      final manager = _windowManager;
+      if (await manager.isMinimized()) {
+        await saveState(_currentState);
+        return;
+      }
+      final isFull = await manager.isFullScreen();
+      final isMax = await manager.isMaximized();
+      final geometry = isFull || isMax ? _currentState : null;
+      final size = geometry == null ? await manager.getSize() : null;
+      final pos = geometry == null ? await manager.getPosition() : null;
 
-      final state = WindowState(
-        width: size.width,
-        height: size.height,
-        x: pos.dx,
-        y: pos.dy,
-        isFullScreen: isFull,
-        isMaximized: isMax,
+      await saveState(
+        WindowState(
+          width: geometry?.width ?? size!.width,
+          height: geometry?.height ?? size!.height,
+          x: geometry == null ? pos!.dx : geometry.x,
+          y: geometry == null ? pos!.dy : geometry.y,
+          isFullScreen: isFull,
+          isMaximized: isMax,
+        ),
       );
-      await saveState(state);
     } catch (_) {}
   }
 
   Future<void> restoreWindow() async {
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return;
+    if (!_canUseWindowManager) return;
     try {
+      final manager = _windowManager;
       final state = await loadState();
+      final width = state.width.clamp(680.0, 4000.0);
+      final height = state.height.clamp(480.0, 3000.0);
+      await manager.setSize(Size(width, height));
       if (state.isFullScreen) {
-        await windowManager.setFullScreen(true);
+        await manager.setFullScreen(true);
       } else if (state.isMaximized) {
-        await windowManager.maximize();
+        await manager.maximize();
       } else {
-        final width = state.width.clamp(680.0, 4000.0);
-        final height = state.height.clamp(480.0, 3000.0);
-        await windowManager.setSize(Size(width, height));
-        if (state.x != null && state.y != null) {
-          await windowManager.setPosition(Offset(state.x!, state.y!));
-        }
+        await manager.center();
       }
     } catch (_) {}
   }
