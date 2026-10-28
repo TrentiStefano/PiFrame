@@ -22,6 +22,7 @@ import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
 import '../workspace/repository_workspace.dart';
+import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../context_panel/context_window_selector.dart';
@@ -29,6 +30,25 @@ import '../context_panel/context_window_selector.dart';
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
 );
+
+class _ComposerSizeAnimator extends ConsumerWidget {
+  final Widget child;
+
+  const _ComposerSizeAnimator({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // While a pane divider is dragged the composer follows it directly; AnimatedSize would
+    // tween its size and trail the divider. Minimize/expand keeps the 280 ms height tween.
+    if (ref.watch(paneDraggingProvider)) return child;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOutCubic,
+      alignment: Alignment.bottomCenter,
+      child: child,
+    );
+  }
+}
 
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
@@ -1162,10 +1182,7 @@ class _ComposerState extends ConsumerState<Composer> {
         child: ShimmerBorder(
           isActive: isShimmerActive,
           borderRadius: BorderRadius.circular(tokens.radiusLg),
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeInOutCubic,
-            alignment: Alignment.bottomCenter,
+          child: _ComposerSizeAnimator(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
               switchInCurve: Curves.easeInOutCubic,

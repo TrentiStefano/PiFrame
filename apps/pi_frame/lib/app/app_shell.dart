@@ -17,6 +17,7 @@ import '../features/transcript/transcript_view.dart';
 import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
+import '../features/workspace/pane_drag_state.dart';
 import '../features/workspace/repository_workspace.dart';
 import '../features/browser/browser_models.dart';
 import '../features/browser/browser_controller.dart';
@@ -1025,6 +1026,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   cursor: SystemMouseCursors.resizeLeftRight,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    onHorizontalDragStart: (_) =>
+                        ref.read(paneDraggingProvider.notifier).state = true,
+                    onHorizontalDragEnd: (_) =>
+                        ref.read(paneDraggingProvider.notifier).state = false,
+                    onHorizontalDragCancel: () =>
+                        ref.read(paneDraggingProvider.notifier).state = false,
                     onHorizontalDragUpdate: (details) => _resizeAdjacent(
                       panes[index],
                       panes[index + 1],

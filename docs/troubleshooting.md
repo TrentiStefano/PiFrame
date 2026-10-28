@@ -36,6 +36,14 @@ flutter test test/layout_persistence_test.dart
 
 ---
 
+## Chat input in ritardo quando si allargano i pannelli
+
+**Causa:** durante il trascinamento del divisore il composer era dentro un `AnimatedSize` pensato per minimizzare ed espandere. Ogni cambio di dimensione durante il drag poteva essere animato, quindi il composer seguiva il divisore con ritardo.
+
+**Comportamento attuale:** durante il trascinamento di un divisore il composer segue subito la misura del pannello. Minimizza/espandi mantiene l'animazione di 280 ms.
+
+---
+
 ## Finestra all'avvio in alto a sinistra e stato massimizzato perso
 
 **Cause corrette:** all'avvio Dart ripristinava la posizione salvata, quindi una finestra poteva aprirsi in un angolo. Su Windows il primo `Show()` usava `SW_SHOWNORMAL`, che annulla la massimizzazione appena applicata.
