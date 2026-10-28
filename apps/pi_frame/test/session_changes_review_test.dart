@@ -15,6 +15,19 @@ import 'package:pi_frame/features/session_changes/session_changes_provider.dart'
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+class _ReviewWorkspaceClient extends PcpClient {
+  final Future<Map<String, dynamic>> Function() refreshResult;
+
+  _ReviewWorkspaceClient(this.refreshResult) : super(port: 0, token: 'test');
+
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) =>
+      refreshResult();
+}
+
 class _TestSessionChangesNotifier extends StateNotifier<SessionChangesState>
     implements SessionChangesNotifier {
   _TestSessionChangesNotifier(super.state);
@@ -62,6 +75,98 @@ index ccb1dd3..d31323b 100644
       final addedRow = splitRows.firstWhere((r) => r.right?.text.contains('session.delete') == true);
       expect(addedRow.left, isNull);
       expect(addedRow.right?.newLineNumber, 102);
+    });
+  });
+
+  group('Review Changes provider tests', () {
+    SessionState touchedSession() => const SessionState(
+          sessionId: 'session_review',
+          cwd: '/repo',
+          entries: [
+            SessionEntry(
+              id: 'tool-entry',
+              role: 'assistant',
+              text: '',
+              timestamp: 1,
+              toolCalls: [
+                ToolExecutionState(
+                  toolCallId: 'write-call',
+                  toolName: 'write',
+                  args: {'path': 'src/clean.dart'},
+                ),
+              ],
+            ),
+          ],
+        );
+
+    test('daemon changed-file list excludes clean paths touched by Pi', () async {
+      final client = _ReviewWorkspaceClient(
+        () async => {
+          'data': {
+            'files': [
+              {
+                'path': 'src/real.dart',
+                'additions': 3,
+                'deletions': 1,
+                'status': 'modified',
+              },
+            ],
+          },
+        },
+      );
+      final container = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session_review').overrideWith(
+            (ref) => SessionStateNotifier('session_review', null)
+              ..state = touchedSession(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(sessionChangesProvider('session_review').notifier).refresh();
+      final state = container.read(sessionChangesProvider('session_review'));
+      expect(state.files.map((file) => file.path), ['src/real.dart']);
+      expect(state.totalAdditions, 3);
+      expect(state.totalDeletions, 1);
+      expect(state.error, isNull);
+    });
+
+    test('offline and refresh errors do not fabricate touched files', () async {
+      final offline = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(null),
+          sessionStateFamily('session_review').overrideWith(
+            (ref) => SessionStateNotifier('session_review', null)
+              ..state = touchedSession(),
+          ),
+        ],
+      );
+      addTearDown(offline.dispose);
+      final offlineState = offline.read(sessionChangesProvider('session_review'));
+      expect(offlineState.files, isEmpty);
+      expect(offlineState.totalAdditions, 0);
+      expect(offlineState.error, 'Daemon non connesso');
+
+      final failingClient = _ReviewWorkspaceClient(
+        () async => throw StateError('workspace refresh failed'),
+      );
+      final failing = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(failingClient),
+          sessionStateFamily('session_review').overrideWith(
+            (ref) => SessionStateNotifier('session_review', null)
+              ..state = touchedSession(),
+          ),
+        ],
+      );
+      addTearDown(failing.dispose);
+      await failing.read(sessionChangesProvider('session_review').notifier).refresh();
+      final errorState = failing.read(sessionChangesProvider('session_review'));
+      expect(errorState.files, isEmpty);
+      expect(errorState.totalAdditions, 0);
+      expect(errorState.error, contains('workspace refresh failed'));
     });
   });
 

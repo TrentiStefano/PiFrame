@@ -4,6 +4,40 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Review Changes: conteggi e diff errati
+
+**Cause corrette:** il pannello aggiungeva `+1/-0` a ogni file toccato da Pi, anche se Git non lo segnalava come modificato; per un file tracciato pulito il fallback `--no-index` mostrava tutto il file come aggiunto. I file non tracciati non avevano conteggi, e i rename con percorso con spazi o caratteri speciali non venivano abbinati.
+
+**Comportamento attuale:** Review usa solo l'elenco Git del daemon. I conteggi sono le righe nette `HEAD` -> working tree (inclusi staged e unstaged), anche per file non tracciati e per il repository senza `HEAD`. Un file pulito o mancante non genera un diff fittizio; un errore di caricamento viene mostrato come errore, non come assenza di differenze. I file binari hanno conteggio zero e mantengono il diff binario di Git.
+
+Verifica da sorgente:
+
+```bash
+pnpm --filter @piframe/agentd exec tsc --outDir .temp/bugfix-tests
+node --test apps/agentd/.temp/bugfix-tests/workspace/test/gitClient.test.js
+cd apps/pi_frame
+flutter test test/session_changes_review_test.dart
+```
+
+---
+
+## Finestra all'avvio in alto a sinistra e stato massimizzato perso
+
+**Cause corrette:** all'avvio Dart ripristinava la posizione salvata, quindi una finestra poteva aprirsi in un angolo. Su Windows il primo `Show()` usava `SW_SHOWNORMAL`, che annulla la massimizzazione appena applicata.
+
+**Comportamento attuale:** la finestra si apre centrata con la dimensione normale salvata. Se era massimizzata o a schermo intero, lo stato viene ripristinato; le dimensioni normali non vengono sostituite da quelle massimizzate. Lo stato finale viene salvato prima della chiusura. La prima apertura senza file salvato usa la dimensione predefinita, centrata.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/window_restore_test.dart test/startup_animation_and_window_test.dart
+```
+
+La release Windows va verificata dopo la build esplicitamente richiesta: questa verifica non avvia la finestra nativa.
+
+---
+
 ## Timer dei comandi azzerato al cambio sessione e timeout fuorvianti
 
 **Cause corrette:** il timer partiva dal montaggio del widget. Cambiare sessione ricreava il widget e riportava il conteggio a zero. La UI interpretava inoltre qualsiasi timeout maggiore di 1000 come millisecondi, confondeva `WaitMsBeforeAsync` con una scadenza e applicava il timeout del primo comando all'intero turno.
