@@ -251,6 +251,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int _lastActiveTodoCount = 0;
   bool _userManuallyToggledTabs = false;
 
+  void _toggleBookTab(_ActiveBookTab tab) {
+    _isProgrammaticScroll = true;
+    setState(() {
+      _activeBookTab = (_activeBookTab == tab) ? _ActiveBookTab.none : tab;
+      _userManuallyToggledTabs = true;
+    });
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _isProgrammaticScroll = false;
+      }
+    });
+  }
+
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
     List<MapEntry<String, dynamic>>? b,
@@ -421,15 +434,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         if (dist > 60 && !_userScrolledUp) {
           _userScrolledUp = true;
         } else if (dist < 30 && _userScrolledUp) {
-          _userScrolledUp = false;
-        }
-      } else if (notification.scrollDelta != null) {
-        // Negative scrollDelta means scrolling UP towards older content
-        if (notification.scrollDelta! < -2.0 && dist > 60 && !_userScrolledUp) {
-          _userScrolledUp = true;
-        } else if (notification.scrollDelta! > 2.0 &&
-            dist < 40 &&
-            _userScrolledUp) {
           _userScrolledUp = false;
         }
       }
@@ -1654,20 +1658,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   sessionId: widget.sessionId,
                   isExpanded: true,
                   hideBookTab: true,
-                  onClose: () => setState(() {
-                    _activeBookTab = _ActiveBookTab.none;
-                    _userManuallyToggledTabs = true;
-                  }),
+                  onClose: () => _toggleBookTab(_ActiveBookTab.todos),
                 )
               : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
                   ? SubagentsPopDown(
                       sessionId: widget.sessionId,
                       isExpanded: true,
                       hideBookTab: true,
-                      onClose: () => setState(() {
-                        _activeBookTab = _ActiveBookTab.none;
-                        _userManuallyToggledTabs = true;
-                      }),
+                      onClose: () => _toggleBookTab(_ActiveBookTab.subagents),
                     )
                   : const SizedBox.shrink(),
         ),
@@ -2279,12 +2277,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               if (todos.isNotEmpty)
                 InkWell(
                   key: const ValueKey('todo-peek-tab'),
-                  onTap: () => setState(() {
-                    _activeBookTab = (_activeBookTab == _ActiveBookTab.todos)
-                        ? _ActiveBookTab.none
-                        : _ActiveBookTab.todos;
-                    _userManuallyToggledTabs = true;
-                  }),
+                  onTap: () => _toggleBookTab(_ActiveBookTab.todos),
                   borderRadius: _activeBookTab == _ActiveBookTab.todos
                       ? const BorderRadius.vertical(top: Radius.circular(6))
                       : BorderRadius.circular(6),
@@ -2354,12 +2347,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               if (subagents.isNotEmpty)
                 InkWell(
                   key: const ValueKey('subagents-book-tab'),
-                  onTap: () => setState(() {
-                    _activeBookTab = (_activeBookTab == _ActiveBookTab.subagents)
-                        ? _ActiveBookTab.none
-                        : _ActiveBookTab.subagents;
-                    _userManuallyToggledTabs = true;
-                  }),
+                  onTap: () => _toggleBookTab(_ActiveBookTab.subagents),
                   borderRadius: _activeBookTab == _ActiveBookTab.subagents
                       ? const BorderRadius.vertical(top: Radius.circular(6))
                       : BorderRadius.circular(6),

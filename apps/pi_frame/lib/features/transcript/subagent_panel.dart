@@ -66,13 +66,9 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
 
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      alignment: Alignment.topCenter,
-      child: _isExpanded
-          ? Container(
-              key: const ValueKey('subagents-popdown-panel'),
+    final panelContent = _isExpanded
+        ? Container(
+            key: const ValueKey('subagents-popdown-panel'),
               margin: EdgeInsets.fromLTRB(
                 isMobile ? 12 : 8,
                 0,
@@ -404,7 +400,17 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                   ),
                 ],
               ),
-            )),
+            ));
+
+    if (widget.hideBookTab) {
+      return panelContent;
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: panelContent,
     );
   }
 }
