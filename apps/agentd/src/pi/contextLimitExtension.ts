@@ -40,6 +40,14 @@ export function contextLimitExtension(pi: any): void {
       if (!ok) throw new Error('Impossibile applicare il limite al modello attivo.');
     } finally { applying = false; }
   };
+  pi.registerCommand('piframe-reload', {
+    description: 'PiFrame internal reload',
+    handler: async (_args: string, ctx: any) => {
+      // ctx.reload() is Pi's own resource reload (extensions, skills, prompts, context files).
+      if (typeof ctx?.reload !== 'function') throw new Error('Aggiorna Pi: ricaricamento non disponibile in questa versione.');
+      await ctx.reload();
+    },
+  });
   pi.registerCommand('piframe-context-policy', {
     description: 'PiFrame internal context policy',
     handler: async (args: string, ctx: any) => {

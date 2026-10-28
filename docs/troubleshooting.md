@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## /reload inviato al modello come testo
+
+**Causa corretta:** il catalogo `get_commands` di Pi elenca estensioni, template e skill, ma non i comandi integrati della TUI. `/reload` quindi non compariva nel menu e, inviato dal composer, arrivava al modello come normale testo.
+
+**Comportamento attuale:** il menu comandi mostra `/reload`. Il comando viene eseguito dal daemon tramite un comando interno di PiFrame che chiama `ctx.reload()` di Pi, senza richiesta al modello. Dopo il ricaricamento viene riapplicata la policy di contesto della sessione. Durante una risposta in corso `/reload` viene rifiutato. Gli altri comandi integrati della TUI (per esempio `/settings`, `/model`, `/tree`) non sono ancora mappati: restano da usare nella TUI di Pi.
+
+Verifica da sorgente:
+
+```bash
+pnpm --filter @piframe/agentd exec tsc --outDir .temp/bugfix-tests
+node --test apps/agentd/.temp/bugfix-tests/commands/test/SlashReload.test.js
+```
+
+Il test usa un worker simulato: non verifica il ricaricamento contro una sessione Pi reale. Il comportamento va controllato con una sessione attiva dopo aver aggiornato la build.
+
+---
+
 ## Review Changes: conteggi e diff errati
 
 **Cause corrette:** il pannello aggiungeva `+1/-0` a ogni file toccato da Pi, anche se Git non lo segnalava come modificato; per un file tracciato pulito il fallback `--no-index` mostrava tutto il file come aggiunto. I file non tracciati non avevano conteggi, e i rename con percorso con spazi o caratteri speciali non venivano abbinati.

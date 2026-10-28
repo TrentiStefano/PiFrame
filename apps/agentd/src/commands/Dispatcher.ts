@@ -9,7 +9,7 @@ import { loadConfig, patchConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
-import { DEFAULT_COMPACTION_RESERVE_PERCENT, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
+import { DEFAULT_COMPACTION_RESERVE_PERCENT, readContextPolicy, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
@@ -58,6 +58,21 @@ export class Dispatcher {
         } as any);
       });
     }
+  }
+
+  private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
+    const session = this.registry.getSession(sessionId);
+    if (session?.isStreaming || session?.isCompacting) {
+      const err: any = new Error('Attendi la fine della risposta prima di ricaricare.');
+      err.code = 'COMMAND_REJECTED';
+      throw err;
+    }
+    const worker = await this.registry.ensureWorkerForSession(sessionId);
+    // The internal extension command calls Pi's ctx.reload(), which re-runs session_start and resets the context policy.
+    await worker.send({ command: 'prompt', arguments: { message: '/piframe-reload' } });
+    const policy = readContextPolicy(sessionId);
+    await applyContextPolicy(worker, policy);
+    return { reloaded: true };
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -590,6 +605,11 @@ export class Dispatcher {
           throw err;
         }
 
+        // /reload is a Pi TUI command: it must reload resources, never become model text.
+        if (String(payload.text ?? '').trim() === '/reload' && !payload.images?.length) {
+          return this.reloadWorkerSession(sessionId);
+        }
+
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
         if (session.isStreaming && !payload.streamingBehavior) {
           const err: any = new Error('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").');
@@ -879,7 +899,12 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_commands' });
-        return res.data;
+        // Pi's RPC catalog omits its built-in commands; /reload is handled by PiFrame (see reloadWorkerSession).
+        const commands = Array.isArray(res.data?.commands) ? [...res.data.commands] : [];
+        if (!commands.some((command: { name?: string }) => command.name === 'reload')) {
+          commands.push({ name: 'reload', description: 'Ricarica estensioni, skill, prompt e file di contesto', source: 'builtin' });
+        }
+        return { ...res.data, commands };
       }
 
       case 'ui.claim': {
