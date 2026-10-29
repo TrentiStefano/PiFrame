@@ -99,6 +99,21 @@ flutter test test/tool_timer_state_test.dart test/message_seconds_counter_test.d
 
 ---
 
+## Blocchi dei tool duplicati durante una risposta
+
+**Causa:** Pi invia una chiamata tool nel messaggio dell'assistente e poi negli eventi di esecuzione. La chat mostrava entrambe le rappresentazioni; in alcuni casi la chiamata veniva anche copiata nel messaggio successivo.
+
+**Correzione:** la chat riconcilia le chiamate per `toolCallId`, mantenendo stato, output e durata aggiornati. Le chiamate distinte restano visibili e quelle già registrate non vengono aggiunte di nuovo al termine del turno. Il comportamento vale anche per gli snapshot caricati durante l'esecuzione.
+
+Verifica da sorgente, senza ricompilare la release Windows:
+
+```bash
+cd apps/pi_frame
+flutter test test/transcript_message_types_test.dart test/session_tool_history_test.dart
+```
+
+---
+
 ## Azioni dell'agente mancanti dopo Stop o alla riapertura della chat
 
 **Causa corretta:** i parser della chat riconoscevano solo `tool_call` e `tool_use`, non il formato Pi `toolCall` con argomenti in `arguments`. Alla ricostruzione della cronologia rimaneva il ragionamento, ma sparivano le card edit/write/bash/todo. Inoltre, gli output salvati come blocchi di testo nei messaggi `toolResult` non venivano ripristinati.

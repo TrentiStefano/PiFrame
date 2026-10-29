@@ -4,6 +4,33 @@ import 'agent_status.dart';
 import 'attachment_model.dart';
 import 'session_state.dart';
 
+List<SessionEntry> _mergeRecordedTools(
+  List<SessionEntry> entries,
+  Map<String, ToolExecutionState> activeTools, {
+  int? settledAt,
+}) {
+  return entries.map((entry) {
+    if (!entry.toolCalls.any((tool) =>
+        tool.toolCallId.isNotEmpty && activeTools.containsKey(tool.toolCallId))) {
+      return entry;
+    }
+    return entry.copyWith(toolCalls: entry.toolCalls.map((tool) {
+      final active = tool.toolCallId.isEmpty ? null : activeTools[tool.toolCallId];
+      if (active == null) return tool;
+      return tool.copyWith(
+        output: active.output.isEmpty ? tool.output : active.output,
+        isRunning: settledAt == null && active.isRunning,
+        isError: active.isError || tool.isError,
+        durationMs: (settledAt != null && active.isRunning
+                ? active.elapsedMsAt(settledAt)
+                : active.durationMs) ??
+            tool.durationMs,
+        startedAt: active.startedAt,
+      );
+    }).toList());
+  }).toList();
+}
+
 SessionState reduceSessionState(SessionState current, PcpEvent event) {
   // Deduplicate on sequence number if assigned
   if (event.seq > 0 && event.seq <= current.lastAppliedSeq) {
@@ -89,10 +116,19 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case RunSettledEvent():
-      var updatedEntries = current.entries;
+      var updatedEntries = _mergeRecordedTools(
+        current.entries, current.activeToolCalls, settledAt: event.ts,
+      );
+      final recordedIds = {
+        for (final entry in updatedEntries)
+          for (final tool in entry.toolCalls)
+            if (tool.toolCallId.isNotEmpty) tool.toolCallId,
+      };
+      final unrecordedTools = current.activeToolCalls.values
+          .where((tool) => !recordedIds.contains(tool.toolCallId));
       final liveThinking = current.currentStreamingThinking.trim();
       final liveText = current.currentStreamingText.trim();
-      if (current.activeToolCalls.isNotEmpty ||
+      if (unrecordedTools.isNotEmpty ||
           liveThinking.isNotEmpty ||
           (liveText.isNotEmpty &&
               !isInternalOrJunkMessageText(current.currentStreamingText))) {
@@ -100,7 +136,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             updatedEntries.last.role == 'assistant') {
           final last = updatedEntries.last;
           final mergedTools = List<ToolExecutionState>.from(last.toolCalls);
-          for (final t in current.activeToolCalls.values) {
+          for (final t in unrecordedTools) {
             final completedT = t.isRunning
                 ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
                 : t;
@@ -138,7 +174,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               role: 'assistant',
               text: current.currentStreamingText,
               thinking: liveThinking.isNotEmpty ? liveThinking : null,
-              toolCalls: current.activeToolCalls.values
+              toolCalls: unrecordedTools
                   .map((t) => t.isRunning
                       ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
                       : t)
@@ -389,9 +425,16 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         if (tb.isNotEmpty) thinking = tb;
       }
 
-      // Extract tool calls from activeToolCalls and message content blocks
-      final Map<String, ToolExecutionState> turnTools =
-          Map<String, ToolExecutionState>.from(current.activeToolCalls);
+      // Already recorded calls stay on their original assistant entry.
+      final recordedIds = {
+        for (final entry in current.entries)
+          for (final tool in entry.toolCalls)
+            if (tool.toolCallId.isNotEmpty) tool.toolCallId,
+      };
+      final Map<String, ToolExecutionState> turnTools = {
+        for (final tool in current.activeToolCalls.values)
+          if (!recordedIds.contains(tool.toolCallId)) tool.toolCallId: tool,
+      };
       if (msg['content'] is List) {
         for (final b in (msg['content'] as List).whereType<Map>()) {
           if (b['type'] == 'toolCall' ||
@@ -482,7 +525,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         );
       }
 
-      final nextEntries = List<SessionEntry>.from(current.entries);
+      final nextEntries = _mergeRecordedTools(
+        current.entries, current.activeToolCalls,
+      );
       if (role == 'user') {
         final optimisticIndex = nextEntries.lastIndexWhere(
           (existing) =>

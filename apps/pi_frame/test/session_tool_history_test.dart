@@ -214,6 +214,48 @@ void main() {
     },
   );
 
+  test('settling updates recorded tools without copying them to a later entry', () {
+    final state = reduceSessionState(
+      const SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        entries: [
+          SessionEntry(
+            id: 'first', role: 'assistant', text: 'Reading', timestamp: 1,
+            toolCalls: [
+              ToolExecutionState(
+                toolCallId: 'read-1', toolName: 'read', args: {'path': 'a.txt'},
+              ),
+            ],
+          ),
+          SessionEntry(id: 'second', role: 'assistant', text: 'Working', timestamp: 2),
+        ],
+        activeToolCalls: {
+          'read-1': ToolExecutionState(
+            toolCallId: 'read-1', toolName: 'read', output: 'partial',
+            isRunning: true, startedAt: 10,
+          ),
+          'write-1': ToolExecutionState(
+            toolCallId: 'write-1', toolName: 'write', output: 'saved',
+          ),
+        },
+      ),
+      const RunSettledEvent(
+        protocol: 1, id: 'settled', ts: 30, sessionId: 's1', seq: 1,
+        payload: {},
+      ),
+    );
+    final recorded = state.entries.first.toolCalls.single;
+    expect(recorded.toolCallId, 'read-1');
+    expect(recorded.args, {'path': 'a.txt'});
+    expect(recorded.output, 'partial');
+    expect(recorded.isRunning, isFalse);
+    expect(recorded.durationMs, 20);
+    expect(state.entries.last.toolCalls.single.toolCallId, 'write-1');
+    expect(state.entries.expand((e) => e.toolCalls), hasLength(2));
+    expect(state.activeToolCalls, isEmpty);
+  });
+
   for (final type in ['tool_call', 'tool_use']) {
     test(
       'legacy $type calls remain supported in live and historical messages',

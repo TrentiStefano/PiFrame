@@ -1518,19 +1518,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final hasActiveTools = sessionState.activeToolCalls.isNotEmpty;
     final liveThinking = sessionState.currentStreamingThinking;
     final liveText = sessionState.currentStreamingText;
-    final showLiveStream =
-        sessionState.isStreaming ||
-        liveText.isNotEmpty ||
-        liveThinking.isNotEmpty ||
-        hasActiveTools;
-
-    // Auto-scroll fluidly with stream if user is near bottom
-    if (!_userScrolledUp && showLiveStream) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _followStream();
-      });
-    }
-
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
     // Windowing / Pagination for long transcripts (excluding internal/junk messages)
@@ -1569,6 +1556,23 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
     final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0 || sessionState.hasMoreHistory;
+    final visibleToolIds = {
+      for (final entry in visibleEntries)
+        for (final tool in entry.toolCalls)
+          if (tool.toolCallId.isNotEmpty) tool.toolCallId,
+    };
+    final liveTools = sessionState.activeToolCalls.values
+        .where((tool) => !visibleToolIds.contains(tool.toolCallId))
+        .toList();
+    final showLiveStream = sessionState.isStreaming ||
+        liveText.isNotEmpty || liveThinking.isNotEmpty || liveTools.isNotEmpty;
+
+    // Auto-scroll fluidly with stream if user is near bottom
+    if (!_userScrolledUp && showLiveStream) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _followStream();
+      });
+    }
 
     final itemKeys = <String>[];
     if (hasLoadBanner) itemKeys.add('banner');
@@ -1817,7 +1821,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   child: RepaintBoundary(
                                     key: ValueKey(entry.id),
                                     child: _buildEntryItem(
-                                      entry,
+                                      entry.copyWith(
+                                        toolCalls: entry.toolCalls.map((tool) {
+                                          final live = tool.toolCallId.isEmpty
+                                              ? null
+                                              : sessionState.activeToolCalls[tool.toolCallId];
+                                          if (live == null) return tool;
+                                          return ToolExecutionState(
+                                            toolCallId: tool.toolCallId,
+                                            toolName: live.toolName.isEmpty
+                                                ? tool.toolName : live.toolName,
+                                            args: live.args.isEmpty ? tool.args : live.args,
+                                            output: live.output.isEmpty
+                                                ? tool.output : live.output,
+                                            isRunning: live.isRunning,
+                                            isError: live.isError || tool.isError,
+                                            durationMs: live.durationMs ?? tool.durationMs,
+                                            startedAt: live.startedAt ?? tool.startedAt,
+                                          );
+                                        }).toList(),
+                                      ),
                                       tokens,
                                       elapsedSeconds: elapsedSeconds,
                                     ),
@@ -1845,6 +1868,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                     liveThinking,
                                     liveText,
                                     hasActiveTools,
+                                    liveTools,
                                   ),
                                 ),
                               ),
@@ -2398,6 +2422,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     String liveThinking,
     String liveText,
     bool hasActiveTools,
+    List<ToolExecutionState> liveTools,
   ) {
     final hasLiveThinking = liveThinking.trim().isNotEmpty;
     final hasLiveText = liveText.trim().isNotEmpty;
@@ -2428,13 +2453,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 });
               },
             ),
-            if (hasActiveTools || hasLiveText || hasLoadingIndicator)
+            if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator)
               const SizedBox(height: 6),
           ],
-          if (hasActiveTools) ...[
-            ToolTimeline(
-              toolCalls: sessionState.activeToolCalls.values.toList(),
-            ),
+          if (liveTools.isNotEmpty) ...[
+            ToolTimeline(toolCalls: liveTools),
             if (hasLiveText || hasLoadingIndicator)
               const SizedBox(height: 6),
           ],
