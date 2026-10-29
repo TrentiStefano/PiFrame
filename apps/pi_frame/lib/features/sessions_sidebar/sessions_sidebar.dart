@@ -583,7 +583,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             ),
                             if (hasWorking) ...[
                               const SizedBox(width: 4),
-                              _WorkingDot(color: tokens.agentWorking, size: 6),
+                              Container(
+                                key: ValueKey('folder-working-dot:$folder'),
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: tokens.agentWorking,
+                                ),
+                              ),
                             ] else if (hasActive) ...[
                               const SizedBox(width: 4),
                               Container(
@@ -592,13 +600,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: tokens.accent,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: tokens.accent.withValues(alpha: 0.6),
-                                      blurRadius: 4,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
                                 ),
                               ),
                             ],
@@ -784,22 +785,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         },
                         child: folderTile,
                       );
-
-                      if (hasWorking) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: ShimmerBorder(
-                            isActive: true,
-                            strokeWidth: 1.0,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            child: Material(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
-                              child: folderTile,
-                            ),
-                          ),
-                        );
-                      }
 
                       return Material(
                         color: tokens.surface,
