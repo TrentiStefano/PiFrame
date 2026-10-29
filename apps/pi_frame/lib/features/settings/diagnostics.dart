@@ -66,7 +66,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                 'id': s['id'],
                 'name': s['name'],
                 'isActive': s['isActive'] ?? false,
-                'messageCount': s['messageCount'] ?? 0,
+                'messageCount': s['messageCount'],
               },
             )
             .toList(),

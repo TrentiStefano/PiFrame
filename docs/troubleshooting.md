@@ -99,6 +99,23 @@ flutter test test/tool_timer_state_test.dart test/message_seconds_counter_test.d
 
 ---
 
+## Sessioni non caricate all'avvio
+
+**Cause osservate:** il provider poteva perdere la notifica di connessione perché si iscriveva agli eventi dopo aver letto lo stato iniziale. Inoltre il daemon scandiva sincronicamente i file delle sessioni e, con una cache fredda, ne leggeva il contenuto per intero prima di rispondere. Se la scansione superava 8 secondi, il client mostrava un timeout.
+
+**Correzione:** il provider osserva la connessione prima di leggere lo stato e mostra gli errori invece di presentarli come elenco vuoto. Per il primo elenco il daemon riutilizza i metadati in cache e legge parti limitate dei file; completa l'indice in background e notifica la UI durante e dopo l'aggiornamento. Gli indici precedenti senza data di modifica dei metadati vengono verificati di nuovo in background. L'indicizzazione non modifica i file delle sessioni. Se un titolo non è presente o aggiornato in cache, può comparire temporaneamente l'ID o il titolo precedente, perché Pi può registrare la rinomina in qualsiasi punto del file. Se un file cambia mentre viene letto, viene verificato nuovamente dopo un intervallo crescente. Il tempo dipende dal numero di file e dalla velocità del filesystem.
+
+Verifica da sorgente, senza avviare l'app:
+
+```bash
+pnpm --filter @piframe/agentd exec tsc --outDir .temp/startup-tests
+node --test apps/agentd/.temp/startup-tests/sessions/test/FastSessionStartup.test.js
+cd apps/pi_frame
+flutter test test/daemon_state_test.dart
+```
+
+---
+
 ## Blocchi dei tool duplicati durante una risposta
 
 **Causa:** Pi invia una chiamata tool nel messaggio dell'assistente e poi negli eventi di esecuzione. La chat mostrava entrambe le rappresentazioni; in alcuni casi la chiamata veniva anche copiata nel messaggio successivo.

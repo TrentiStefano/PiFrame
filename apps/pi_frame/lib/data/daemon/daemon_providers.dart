@@ -37,16 +37,19 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
   );
 });
 
-final connectionStateProvider = StreamProvider<DaemonConnectionState>((
-  ref,
-) async* {
+final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
   final client = ref.watch(pcpClientProvider);
-  if (client == null) {
-    yield DaemonConnectionState.disconnected;
-    return;
-  }
-  yield client.state;
-  yield* client.connectionStateStream;
+  if (client == null) return Stream.value(DaemonConnectionState.disconnected);
+
+  return Stream.multi((controller) {
+    final subscription = client.connectionStateStream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.add(client.state);
+    controller.onCancel = subscription.cancel;
+  });
 });
 
 final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
@@ -65,17 +68,11 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
   });
   ref.onDispose(subscription.cancel);
 
-  try {
-    final res = await client.listSessions().timeout(const Duration(seconds: 8));
-    final data = res['data'] as Map<String, dynamic>? ?? res;
-    final sessions =
-        (data['sessions'] as List? ?? res['sessions'] as List?)
-            ?.cast<Map<String, dynamic>>() ??
-        [];
-    return sessions;
-  } catch (_) {
-    return [];
-  }
+  final res = await client.listSessions().timeout(const Duration(seconds: 8));
+  final data = res['data'] as Map<String, dynamic>? ?? res;
+  return (data['sessions'] as List? ?? res['sessions'] as List?)
+          ?.cast<Map<String, dynamic>>() ??
+      [];
 });
 
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
