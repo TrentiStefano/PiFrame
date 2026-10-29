@@ -11,6 +11,7 @@ import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
 import { DEFAULT_COMPACTION_RESERVE_PERCENT, readContextPolicy, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
+import { parsePiBuiltinCommand, PI_BUILTIN_SLASH_COMMANDS } from '../pi/builtinSlashCommands.js';
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
@@ -605,9 +606,16 @@ export class Dispatcher {
           throw err;
         }
 
-        // /reload is a Pi TUI command: it must reload resources, never become model text.
-        if (String(payload.text ?? '').trim() === '/reload' && !payload.images?.length) {
-          return this.reloadWorkerSession(sessionId);
+        const builtin = parsePiBuiltinCommand(String(payload.text ?? ''));
+        if (builtin) {
+          // /reload has a PiFrame runtime equivalent. Other native TUI commands are dispatched by the chat UI.
+          if (builtin.name === 'reload' && !builtin.args && !payload.images?.length) {
+            return this.reloadWorkerSession(sessionId);
+          }
+          const err: any = new Error(`/${builtin.name} is a Pi built-in command and cannot be sent as model text.`);
+          err.code = 'COMMAND_REJECTED';
+          err.hint = 'Use the PiFrame slash-command action.';
+          throw err;
         }
 
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
@@ -899,11 +907,12 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_commands' });
-        // Pi's RPC catalog omits its built-in commands; /reload is handled by PiFrame (see reloadWorkerSession).
-        const commands = Array.isArray(res.data?.commands) ? [...res.data.commands] : [];
-        if (!commands.some((command: { name?: string }) => command.name === 'reload')) {
-          commands.push({ name: 'reload', description: 'Ricarica estensioni, skill, prompt e file di contesto', source: 'builtin' });
-        }
+        const extensionCommands = Array.isArray(res.data?.commands) ? res.data.commands : [];
+        const builtinNames = new Set(PI_BUILTIN_SLASH_COMMANDS.map(({ name }) => name));
+        const commands = [
+          ...PI_BUILTIN_SLASH_COMMANDS,
+          ...extensionCommands.filter((command: { name?: string }) => !builtinNames.has(command.name ?? '')),
+        ];
         return { ...res.data, commands };
       }
 

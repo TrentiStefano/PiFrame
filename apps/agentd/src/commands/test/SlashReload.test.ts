@@ -76,11 +76,25 @@ test('ordinary prompts still go to the model unchanged', async () => {
   assert.deepEqual(workerCalls.filter((call) => call.command === 'prompt').map((call) => call.arguments.message), ['please reload the config file']);
 });
 
-test('agent.getCommands lists the reload built-in alongside Pi extension commands', async () => {
+test('agent.getCommands returns every Pi built-in before extension commands', async () => {
   const { run } = fixture();
   const result = await run('agent.getCommands', {});
   assert.equal(result.payload.state, 'completed');
-  const names = result.payload.data.commands.map((command: { name: string }) => command.name);
-  assert.deepEqual(names, ['caveman', 'reload']);
-  assert.equal(result.payload.data.commands[1].source, 'builtin');
+  const commands = result.payload.data.commands;
+  const builtinNames = commands.filter((command: { source: string }) => command.source === 'builtin').map((command: { name: string }) => command.name);
+  assert.deepEqual(builtinNames, [
+    'settings', 'model', 'tree', 'thinking', 'scoped-models', 'export', 'import', 'share', 'bug', 'copy',
+    'name', 'session', 'changelog', 'hotkeys', 'fork', 'clone', 'trust', 'login', 'logout', 'new', 'compact',
+    'resume', 'reload', 'quit',
+  ]);
+  assert.equal(commands.at(-1).name, 'caveman');
+  assert.equal(commands.find((command: { name: string }) => command.name === 'model').argumentHint, '<provider/model>');
+});
+
+test('native built-in commands are never forwarded as model prompts', async () => {
+  const { workerCalls, run } = fixture();
+  const result = await run('agent.prompt', { text: '/settings' });
+  assert.equal(result.payload.state, 'rejected');
+  assert.match(result.payload.error, /Pi built-in command/);
+  assert.equal(workerCalls.some((call) => call.command === 'prompt'), false);
 });

@@ -4,20 +4,22 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
-## /reload inviato al modello come testo
+## Comandi integrati di Pi assenti dal menu o inviati al modello
 
-**Causa corretta:** il catalogo `get_commands` di Pi elenca estensioni, template e skill, ma non i comandi integrati della TUI. `/reload` quindi non compariva nel menu e, inviato dal composer, arrivava al modello come normale testo.
+**Causa:** il comando RPC `get_commands` restituisce comandi di estensioni, prompt e skill, ma non il catalogo integrato della TUI Pi. Inoltre il composer inviava ogni testo come prompt, quindi un comando TUI non gestito poteva essere trattato come testo per il modello.
 
-**Comportamento attuale:** il menu comandi mostra `/reload`. Il comando viene eseguito dal daemon tramite un comando interno di PiFrame che chiama `ctx.reload()` di Pi, senza richiesta al modello. Dopo il ricaricamento viene riapplicata la policy di contesto della sessione. Durante una risposta in corso `/reload` viene rifiutato. Gli altri comandi integrati della TUI (per esempio `/settings`, `/model`, `/tree`) non sono ancora mappati: restano da usare nella TUI di Pi.
+**Comportamento attuale:** il menu `/` include il catalogo integrato di Pi (`settings`, `model`, `tree`, `thinking`, `scoped-models`, `export`, `import`, `share`, `bug`, `copy`, `name`, `session`, `changelog`, `hotkeys`, `fork`, `clone`, `trust`, `login`, `logout`, `new`, `compact`, `resume`, `reload`, `quit`) insieme ai comandi RPC di estensioni, prompt e skill. In PiFrame, `/settings`, `/model`, `/tree`, `/thinking`, `/new`, `/compact`, `/reload`, `/copy`, `/name`, `/session`, `/fork`, `/clone`, `/resume` e `/quit` hanno azioni locali. Gli altri built-in sono identificati e mostrano un messaggio: non vengono inoltrati al modello perché richiedono UI o API della TUI non esposte dal worker RPC.
 
-Verifica da sorgente:
+`/reload` chiama `ctx.reload()` tramite un comando interno di PiFrame e poi riapplica la policy di contesto. Durante una risposta o compattazione in corso viene rifiutato. Il catalogo è un mirror della lista di built-in Pi; aggiornarlo quando Pi aggiunge o rimuove comandi.
+
+Verifica daemon:
 
 ```bash
-pnpm --filter @piframe/agentd exec tsc --outDir .temp/bugfix-tests
-node --test apps/agentd/.temp/bugfix-tests/commands/test/SlashReload.test.js
+pnpm --filter @piframe/agentd exec tsc --outDir .temp/builtin-command-tests
+node --test apps/agentd/.temp/builtin-command-tests/commands/test/SlashReload.test.js
 ```
 
-Il test usa un worker simulato: non verifica il ricaricamento contro una sessione Pi reale. Il comportamento va controllato con una sessione attiva dopo aver aggiornato la build.
+Il test usa un worker simulato; non prova le azioni UI o il reload contro una sessione Pi reale. Dopo aver aggiornato daemon e app, controlla il menu `/` e prova i comandi in una sessione di test.
 
 ---
 

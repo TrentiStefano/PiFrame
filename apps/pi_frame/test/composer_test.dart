@@ -25,7 +25,58 @@ class DeferredSession extends SessionStateNotifier {
   }
 }
 
+class BuiltinCommandSession extends SessionStateNotifier {
+  BuiltinCommandSession() : super('builtin', null);
+
+  @override
+  Future<List<Map<String, dynamic>>> getCommands() async => [
+    {
+      'name': 'settings',
+      'description': 'Open settings menu',
+      'source': 'builtin',
+    },
+    {'name': 'share', 'description': 'Share session', 'source': 'builtin'},
+    {'name': 'caveman', 'description': 'Caveman mode', 'source': 'extension'},
+  ];
+}
+
 void main() {
+  testWidgets('Pi built-ins appear in slash menu and run as local actions', (
+    tester,
+  ) async {
+    final session = BuiltinCommandSession();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionStateFamily('builtin').overrideWith((ref) => session),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: Composer(sessionId: 'builtin')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Composer)),
+    );
+
+    await tester.enterText(find.byType(TextField), '/');
+    await tester.pumpAndSettle();
+    expect(find.text('/settings'), findsOneWidget);
+    expect(find.text('/share'), findsOneWidget);
+    expect(find.text('/caveman'), findsOneWidget);
+
+    await tester.tap(find.text('/settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pumpAndSettle();
+    expect(container.read(showSettingsProvider), isTrue);
+    expect(session.state.entries, isEmpty);
+  });
+
   testWidgets(
     'pending send survives session switch and updates restored draft safely',
     (tester) async {
@@ -95,31 +146,35 @@ void main() {
     },
   );
 
-  testWidgets('failed prompt clears composer and keeps error on message entry', (
-    tester,
-  ) async {
-    final session = RejectingSession();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          sessionStateFamily('rejecting').overrideWith((ref) => session),
-        ],
-        child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
+  testWidgets(
+    'failed prompt clears composer and keeps error on message entry',
+    (tester) async {
+      final session = RejectingSession();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('rejecting').overrideWith((ref) => session),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(body: Composer(sessionId: 'rejecting')),
           ),
-          home: const Scaffold(body: Composer(sessionId: 'rejecting')),
         ),
-      ),
-    );
-    await tester.enterText(find.byType(TextField), 'Keep this draft');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
-    await tester.pump();
-    expect(find.text('Keep this draft'), findsNothing);
-    expect(session.state.entries.single.text, 'Keep this draft');
-    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.enterText(find.byType(TextField), 'Keep this draft');
+      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.pump();
+      expect(find.text('Keep this draft'), findsNothing);
+      expect(session.state.entries.single.text, 'Keep this draft');
+      expect(
+        session.state.entries.single.metadata?['sendError'],
+        contains('Daemon non connesso'),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('failed message survives switching A to B to A', (tester) async {
     final session = RejectingSession();
@@ -149,7 +204,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pump();
     expect(session.state.entries.single.text, 'Session A draft');
-    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
+    expect(
+      session.state.entries.single.metadata?['sendError'],
+      contains('Daemon non connesso'),
+    );
     final container = ProviderScope.containerOf(
       tester.element(find.byType(Composer)),
     );
@@ -221,7 +279,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       // Initially minimized while streaming
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('composer-minimized-bar')),
+        findsOneWidget,
+      );
 
       // Tap minimized bar to expand
       await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
@@ -263,7 +324,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Initially minimized while answering/working
-    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('composer-minimized-bar')),
+      findsOneWidget,
+    );
 
     // Tap minimized bar to expand
     await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
