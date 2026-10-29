@@ -160,7 +160,10 @@ void main() {
       expect(find.text('\$0.0175'), findsNWidgets(2));
       expect(find.textContaining('In corso'), findsWidgets);
 
-      // Output should be displayed
+      // Individual subagent cards start collapsed; expand to inspect output.
+      expect(find.textContaining('Found 4 files matching auth query:'), findsNothing);
+      await tester.tap(find.text('Explore Agent'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Found 4 files matching auth query:'), findsOneWidget);
     });
 
@@ -200,6 +203,10 @@ void main() {
 
       // Steering box should not be visible initially
       expect(find.byKey(const ValueKey('subagent-steer-box-sub_agent_steerable')), findsNothing);
+
+      // Expand the card before opening its inline steering box.
+      await tester.tap(find.text('Test Delegate'));
+      await tester.pumpAndSettle();
 
       // Click Steer button
       final steerBtn = find.byKey(const ValueKey('subagent-steer-btn-sub_agent_steerable'));
@@ -610,6 +617,98 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       );
     });
 
+    test('SubagentsNotifier reads Pi subagent estimated cost from task notifications', () {
+      const taskNotification = '''
+<task-notification>
+<task-id>agent_12345678</task-id>
+<status>Done</status>
+<summary>Agent "reviewer" completed</summary>
+<result>Review passed.</result>
+<usage><total_tokens>1200</total_tokens><tool_uses>3</tool_uses><estimated_cost_usd>0.0150</estimated_cost_usd><duration_ms>12000</duration_ms></usage>
+</task-notification>
+''';
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('estimated_cost_test').overrideWith(
+            (ref) => SessionStateNotifier('estimated_cost_test', null)
+              ..state = const SessionState(
+                sessionId: 'estimated_cost_test',
+                cwd: '/repo',
+                entries: [
+                  SessionEntry(
+                    id: 'notification',
+                    role: 'assistant',
+                    text: taskNotification,
+                    timestamp: 1000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final subagents = container.read(subagentsFamily('estimated_cost_test'));
+      expect(subagents, hasLength(1));
+      expect(subagents.single.cost, 0.015);
+    });
+
+    test('SubagentsNotifier merges task notification with its worker tool call', () {
+      const taskNotification = '''
+<task-notification>
+<task-id>agent_task_1</task-id>
+<tool-use-id>call_worker_1</tool-use-id>
+<status>Done</status>
+<summary>Agent "Remove folder-row glow" completed</summary>
+<result>Session-browser indicator fix implemented.</result>
+<usage><total_tokens>43294</total_tokens><tool_uses>17</tool_uses><context_percent>4</context_percent><duration_ms>70724</duration_ms></usage>
+</task-notification>
+''';
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('worker_notification_merge').overrideWith(
+            (ref) => SessionStateNotifier('worker_notification_merge', null)
+              ..state = const SessionState(
+                sessionId: 'worker_notification_merge',
+                cwd: '/repo',
+                entries: [
+                  SessionEntry(
+                    id: 'worker-tool-call',
+                    role: 'assistant',
+                    text: '',
+                    timestamp: 1000,
+                    toolCalls: [
+                      ToolExecutionState(
+                        toolCallId: 'call_worker_1',
+                        toolName: 'worker',
+                        args: {'subagent_type': 'worker'},
+                        output: 'Worker completed: 43.3k tokens',
+                      ),
+                    ],
+                  ),
+                  SessionEntry(
+                    id: 'worker-notification',
+                    role: 'assistant',
+                    text: taskNotification,
+                    timestamp: 2000,
+                  ),
+                ],
+              ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final subagents = container.read(
+        subagentsFamily('worker_notification_merge'),
+      );
+      expect(subagents, hasLength(1));
+      expect(subagents.single.id, 'agent_task_1');
+      expect(subagents.single.name, 'Remove folder-row glow');
+      expect(subagents.single.toolCallId, 'call_worker_1');
+      expect(subagents.single.cost, isNull);
+    });
+
     test('SubagentsNotifier updates in real time when activeToolCalls are added to SessionState', () {
       final sessionNotifier = SessionStateNotifier('realtime_subagent_test', null)
         ..state = const SessionState(
@@ -685,6 +784,38 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(completedSub.isCompleted, isTrue);
       expect(completedSub.output, 'All tests passed');
       expect(completedSub.cost, 0.0150);
+    });
+
+    testWidgets('Missing subagent cost is shown as unavailable, not zero', (tester) async {
+      final subagents = [
+        const SubagentItem(
+          id: 'unpriced-worker',
+          name: 'Unpriced Worker',
+          status: 'completed',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subagentsFamily('unknown_cost_sub').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'unknown_cost_sub', subagents),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: SubagentsPopDown(sessionId: 'unknown_cost_sub'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('N/D'), findsOneWidget);
+      expect(find.text('\$0.0000'), findsNothing);
     });
 
     testWidgets('SubagentPopDown and subagents-book-tab render cost badge correctly', (tester) async {
@@ -828,6 +959,99 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       // Reopening Session A also opens with minimized cards
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+    });
+
+    testWidgets('Changing session keeps cards minimized and does not re-open expanded cards', (tester) async {
+      final subagentsA = [
+        const SubagentItem(id: 'sub_a', name: 'Worker A', status: 'running'),
+      ];
+      final todosA = [
+        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
+      ];
+      final subagentsB = [
+        const SubagentItem(id: 'sub_b', name: 'Worker B', status: 'running'),
+      ];
+      final todosB = [
+        const TodoItem(id: 2, subject: 'Task B', status: 'pending'),
+      ];
+
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('sess_a').overrideWith(
+            (ref) => SessionStateNotifier('sess_a', null)
+              ..state = const SessionState(
+                sessionId: 'sess_a',
+                sessionName: 'Session A',
+                cwd: 'C:/projects/app',
+                agentStatus: AgentStatus.settled,
+              ),
+          ),
+          sessionStateFamily('sess_b').overrideWith(
+            (ref) => SessionStateNotifier('sess_b', null)
+              ..state = const SessionState(
+                sessionId: 'sess_b',
+                sessionName: 'Session B',
+                cwd: 'C:/projects/app',
+                agentStatus: AgentStatus.settled,
+              ),
+          ),
+          subagentsFamily('sess_a').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA),
+          ),
+          todosFamily('sess_a').overrideWith(
+            (ref) => _MockTodoNotifier(ref, 'sess_a', todosA),
+          ),
+          subagentsFamily('sess_b').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB),
+          ),
+          todosFamily('sess_b').overrideWith(
+            (ref) => _MockTodoNotifier(ref, 'sess_b', todosB),
+          ),
+        ],
+      );
+      final currentSessionNotifier = ValueNotifier<String>('sess_a');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: Scaffold(
+              body: ValueListenableBuilder<String>(
+                valueListenable: currentSessionNotifier,
+                builder: (context, sid, _) => TranscriptView(sessionId: sid),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+
+      currentSessionNotifier.value = 'sess_b';
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+
+      currentSessionNotifier.value = 'sess_a';
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+
+      currentSessionNotifier.dispose();
+      container.dispose();
     });
 
     testWidgets('Expanding and collapsing activity or subagent cards maintains scroll stability without vibration', (tester) async {

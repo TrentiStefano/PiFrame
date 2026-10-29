@@ -27,8 +27,6 @@ class SubagentsPopDown extends ConsumerStatefulWidget {
 class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
     with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
-  final Set<String> _userCollapsedIds = <String>{};
-  final Set<String> _seenSubagentIds = <String>{};
   bool _internalExpanded = true;
 
   bool get _isExpanded => widget.isExpanded ?? _internalExpanded;
@@ -53,16 +51,6 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
     }
 
     final runningCount = subagents.where((s) => s.isRunning).length;
-
-    // Automatically expand newly discovered subagents unless manually collapsed by user
-    for (final s in subagents) {
-      if (!_seenSubagentIds.contains(s.id)) {
-        _seenSubagentIds.add(s.id);
-        if (!_userCollapsedIds.contains(s.id)) {
-          _expandedIds.add(s.id);
-        }
-      }
-    }
 
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
@@ -259,10 +247,8 @@ class _SubagentsPopDownState extends ConsumerState<SubagentsPopDown>
                             setState(() {
                               if (isExpanded) {
                                 _expandedIds.remove(subagent.id);
-                                _userCollapsedIds.add(subagent.id);
                               } else {
                                 _expandedIds.add(subagent.id);
-                                _userCollapsedIds.remove(subagent.id);
                               }
                             });
                           },
@@ -576,7 +562,9 @@ class _SubagentExpandableCardState extends State<_SubagentExpandableCard> {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          '\$${(sub.cost ?? 0.0).toStringAsFixed(4)}',
+                          sub.cost == null
+                              ? 'N/D'
+                              : '\$${sub.cost!.toStringAsFixed(4)}',
                           style: TextStyle(
                             color: tokens.syntaxString,
                             fontSize: 10.5,

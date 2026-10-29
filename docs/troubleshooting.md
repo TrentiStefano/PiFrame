@@ -116,9 +116,9 @@ flutter test test/session_tool_history_test.dart test/session_reducer_test.dart 
 
 ## Costo dei sottoagenti sempre a zero o fermo nel popup
 
-**Cause corrette:** il daemon leggeva `usage.cost` solo sul contenitore JSONL, ignorando `message.usage.cost` dei messaggi Pi. Il refresh poteva fermarsi perché i worker esterni al daemon risultavano già completati; il popup dei costi conservava inoltre i valori presenti al momento dell'apertura.
+**Cause corrette:** il daemon leggeva `usage.cost` solo sul contenitore JSONL, ignorando `message.usage.cost` dei messaggi Pi. Inoltre scartava tutte le sessioni con directory di lavoro temporanea, incluse quelle persistenti dei sottoagenti che usano un worktree. Il parser della notifica non riconosceva il tag Pi-subagents `<estimated_cost_usd>`. Il refresh poteva fermarsi perché i worker esterni al daemon risultavano già completati; il popup dei costi conservava inoltre i valori presenti al momento dell'apertura.
 
-**Comportamento attuale:** il daemon somma i costi salvati nelle due forme, anche quando il file della sessione cresce, senza contare due volte la stessa voce. Card e popup aperto ricevono gli aggiornamenti; il refresh ogni 5 secondi resta attivo mentre la sessione principale lavora o risultano sottoagenti in corso. Sono mostrati i costi registrati da Pi, non stime: un provider che non registra costi può continuare a riportare zero.
+**Comportamento attuale:** il daemon somma i costi salvati nelle due forme, anche quando il file della sessione cresce, senza contare due volte la stessa voce. Legge anche le sessioni figlie persistenti nei worktree temporanei, senza inserirle nell'elenco normale delle sessioni; il parser riconosce il costo stimato emesso da Pi-subagents. Card e popup aperto ricevono gli aggiornamenti; il refresh ogni 5 secondi resta attivo mentre la sessione principale lavora o risultano sottoagenti in corso. Sono mostrati i costi registrati da Pi, non stime locali: un provider o modello senza prezzo può continuare a riportare zero.
 
 Verifica da sorgente:
 

@@ -91,7 +91,8 @@ class TaskNotificationData {
 
     // Extract cost if present in usage or notification text
     double? cost;
-    final costMatch = RegExp(r'<cost>([\s\S]*?)</cost>', caseSensitive: false).firstMatch(usageXml) ??
+    final costMatch = RegExp(r'<estimated_cost_usd>([\s\S]*?)</estimated_cost_usd>', caseSensitive: false).firstMatch(usageXml) ??
+        RegExp(r'<cost>([\s\S]*?)</cost>', caseSensitive: false).firstMatch(usageXml) ??
         RegExp(r'<cost_usd>([\s\S]*?)</cost_usd>', caseSensitive: false).firstMatch(usageXml) ??
         RegExp(r'(?:cost|cost_usd)\s*[:=]\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(raw) ??
         RegExp(r'Cost:\s*\$?([0-9.]+)', caseSensitive: false).firstMatch(raw);

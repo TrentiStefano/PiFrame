@@ -122,6 +122,34 @@ test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions g
   assert.strictEqual((await index.getSubagents('unrelated')).length, 0);
 });
 
+test('SessionIndex: getSubagents includes persisted subagents in temporary worktrees', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-worktree-subagent-'));
+  const sessionsDir = path.join(tmpDir, 'sessions');
+  const worktreeCwd = path.join(tmpDir, 'worktree');
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  fs.mkdirSync(worktreeCwd, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const parentFile = path.join(sessionsDir, 'parent.jsonl');
+  const childFile = path.join(sessionsDir, 'child.jsonl');
+  fs.writeFileSync(childFile, [
+    { type: 'session', id: 'worker#abc12345', parentSession: parentFile, cwd: worktreeCwd },
+    { type: 'session_info', name: 'reviewer#abc12345' },
+    { type: 'model_change', modelId: 'test-model' },
+    { type: 'message', message: { role: 'assistant', content: 'Done', usage: { cost: { total: 0.042 } } } },
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+
+  const index = new SessionIndex({
+    sessionsDir,
+    cachePath: path.join(tmpDir, 'cache.json'),
+  });
+  const subagents = await index.getSubagents('parent', parentFile);
+
+  assert.strictEqual(subagents.length, 1);
+  assert.strictEqual(subagents[0].cost, 0.042);
+  assert.ok(!(await index.listSessions()).some((session) => session.id === 'worker#abc12345'));
+});
+
 test('SessionIndex: getSubagents parses object and number costs without NaN', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-subagent-test-'));
   const sessionsDir = path.join(tmpDir, 'sessions');

@@ -217,7 +217,7 @@ export class SessionIndex {
     let parentSession: string | undefined;
 
     try {
-      // Skip test/temporary projects before reading entire transcripts.
+      // Skip standalone temp sessions; persisted subagent worktrees are linked by parentSession.
       const fd = fs.openSync(filePath, 'r');
       const headerBuffer = Buffer.alloc(16 * 1024);
       let headerBytes: number;
@@ -227,8 +227,8 @@ export class SessionIndex {
       try {
         const header = JSON.parse(firstLine);
         if (header.type === 'session') {
-          if (header.cwd && isTemporarySessionCwd(header.cwd)) return null;
           if (header.parentSession) parentSession = header.parentSession;
+          if (header.cwd && isTemporarySessionCwd(header.cwd) && !parentSession) return null;
         }
       } catch { /* Legacy or incomplete headers use the normal parser below. */ }
 
@@ -264,13 +264,13 @@ export class SessionIndex {
       }
     } catch {}
 
-    if (isTemporarySessionCwd(cwd)) return null;
+    if (isTemporarySessionCwd(cwd) && !parentSession) return null;
 
     const isSubagentNameOrId =
       Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
       Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
 
-    const isSubsession = Boolean(isSubagentNameOrId);
+    const isSubsession = Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd)));
 
     return {
       id: sessionId,
