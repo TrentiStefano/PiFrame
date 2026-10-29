@@ -4,6 +4,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/tool_timeline/tool_card.dart';
 import 'package:pi_frame/features/tool_timeline/tool_timeline.dart';
+import 'package:pi_frame/features/transcript/thinking_block.dart';
 
 void main() {
   Widget wrapWithTheme(Widget child) {
@@ -14,6 +15,104 @@ void main() {
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
+
+  testWidgets('tool actions align with reasoning at narrow and wide widths', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    for (final width in [320.0, 700.0]) {
+      tester.view.physicalSize = Size(width + 40, 1000);
+      await tester.pumpWidget(wrapWithTheme(
+        Center(
+          child: SizedBox(
+            width: width,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const ThinkingBlock(thinkingText: 'Checking the files'),
+                const ToolTimeline(toolCalls: [
+                  ToolExecutionState(
+                    toolCallId: 'short',
+                    toolName: 'read',
+                    args: {'path': 'a'},
+                    output: 'content',
+                    durationMs: 42,
+                  ),
+                  ToolExecutionState(
+                    toolCallId: 'long',
+                    toolName: 'write',
+                    args: {
+                      'path': 'a/very/long/path/that/should/be/truncated/in/the/compact/layout/example.dart',
+                    },
+                    output: 'saved',
+                    durationMs: 6000,
+                  ),
+                  ToolExecutionState(
+                    toolCallId: 'no-output',
+                    toolName: 'edit',
+                    args: {'path': 'file.dart'},
+                    isError: true,
+                  ),
+                  ToolExecutionState(
+                    toolCallId: 'running',
+                    toolName: 'bash',
+                    args: {'command': 'git status'},
+                    isRunning: true,
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      final reasoningIcon = find.descendant(
+        of: find.byType(ThinkingBlock),
+        matching: find.byIcon(Icons.expand_more),
+      );
+      final reasoningX = tester.getCenter(reasoningIcon).dx;
+      for (final id in ['short', 'long', 'running']) {
+        final card = find.byKey(ValueKey(id));
+        final icon = find.descendant(
+          of: card,
+          matching: find.byIcon(Icons.expand_more),
+        );
+        expect(tester.getCenter(icon).dx, closeTo(reasoningX, 0.01));
+      }
+      final completed = find.descendant(
+        of: find.byKey(const ValueKey('short')),
+        matching: find.byIcon(Icons.check_circle_outline),
+      );
+      final failed = find.descendant(
+        of: find.byKey(const ValueKey('no-output')),
+        matching: find.byIcon(Icons.error_outline),
+      );
+      expect(
+        tester.getCenter(failed).dx,
+        closeTo(tester.getCenter(completed).dx, 0.01),
+      );
+      final running = find.descendant(
+        of: find.byKey(const ValueKey('running')),
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(
+        tester.getCenter(running).dx,
+        closeTo(tester.getCenter(completed).dx, 0.01),
+      );
+      await tester.tap(find.text('read'));
+      await tester.pump();
+      final expandedIcon = find.descendant(
+        of: find.byKey(const ValueKey('short')),
+        matching: find.byIcon(Icons.expand_less),
+      );
+      expect(tester.getCenter(expandedIcon).dx, closeTo(reasoningX, 0.01));
+      await tester.tap(find.text('read'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   testWidgets('ToolCard displays tool name, highlighted path arg and duration', (tester) async {
     const tool = ToolExecutionState(

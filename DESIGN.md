@@ -987,6 +987,8 @@ Record high-impact issues:
 
 **Status:** round 6 changes implemented. Fresh live 1280×720 Windows render `docs/design-evidence/pi-frame-live-windows.png` shows the unified composer, the companion tab bar and the borderless reasoning row. No approval recorded.
 
+**Later user feedback:** Align the right-hand controls of intermediate tool rows with each other and align their expand/collapse icons with the reasoning row. Short labels must not pull those controls toward the text. User review of this change remains pending; no new live capture was requested.
+
 ## Bounded verification rule
 
 Use bounded review passes:

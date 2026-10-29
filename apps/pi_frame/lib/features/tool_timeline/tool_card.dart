@@ -330,7 +330,7 @@ class _ToolCardState extends State<ToolCard> {
                   ? () => setState(() => _isExpanded = !_isExpanded)
                   : null,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                padding: const EdgeInsets.symmetric(vertical: 1),
                 alignment: Alignment.centerLeft,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -353,38 +353,43 @@ class _ToolCardState extends State<ToolCard> {
                           : toolColor,
                     ),
                     const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        tool.toolName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: tokens.textSecondary,
-                          fontSize: 11.5,
-                          fontFamily: tokens.uiFontFamily,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              tool.toolName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: 11.5,
+                                fontFamily: tokens.uiFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (argPreview.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                argPreview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isTerminal
+                                      ? tokens.syntaxNumber
+                                      : tokens.syntaxString,
+                                  fontSize: 11,
+                                  fontFamily: tokens.monoFontFamily,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (argPreview.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          argPreview,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isTerminal
-                                ? tokens.syntaxNumber
-                                : tokens.syntaxString,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
                     // Seconds counter or ms duration badge
                     if (isOver5Seconds) ...[
                       const SizedBox(width: 6),
@@ -481,11 +486,17 @@ class _ToolCardState extends State<ToolCard> {
                     const SizedBox(width: 8),
                     if (tool.isRunning)
                       SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: tokens.agentWorking,
+                        width: 14,
+                        height: 14,
+                        child: Center(
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: tokens.agentWorking,
+                            ),
+                          ),
                         ),
                       )
                     else if (tool.isError)
@@ -500,14 +511,15 @@ class _ToolCardState extends State<ToolCard> {
                         size: 14,
                         color: tokens.agentSettled,
                       ),
-                    if (canExpand) ...[
-                      const SizedBox(width: 4),
+                    const SizedBox(width: 4),
+                    if (canExpand)
                       Icon(
                         _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 14,
+                        size: 15,
                         color: tokens.textMuted,
-                      ),
-                    ],
+                      )
+                    else
+                      const SizedBox(width: 15),
                   ],
                 ),
               ),
