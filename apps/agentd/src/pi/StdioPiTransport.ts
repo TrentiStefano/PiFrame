@@ -199,7 +199,7 @@ export class StdioPiTransport implements PiTransport {
     }
 
     return new Promise<PiResponse>((resolve, reject) => {
-      const timeoutMs = command === 'abort' ? undefined : this.commandTimeoutMs;
+      const timeoutMs = command === 'abort' ? undefined : cmd.timeoutMs ?? this.commandTimeoutMs;
       let timer: NodeJS.Timeout | undefined;
       const removePending = () => {
         if (timer) clearTimeout(timer);

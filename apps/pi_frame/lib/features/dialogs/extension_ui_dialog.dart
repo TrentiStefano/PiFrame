@@ -55,6 +55,13 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       widget.request['multiSelect'] == true ||
       widget.request['isMultiSelect'] == true;
 
+  static const _secretPlaceholderPrefix = 'piframe-secret:';
+  bool get _isSecretInput =>
+      widget.request['method'] == 'input' &&
+      (widget.request['placeholder']?.toString() ?? '').startsWith(
+        _secretPlaceholderPrefix,
+      );
+
   @override
   void initState() {
     super.initState();
@@ -79,7 +86,11 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
           setState(() => _secondsRemaining--);
         } else {
           timer.cancel();
-          _dismiss();
+          if (ref.read(pcpClientProvider) == null) {
+            _dismiss();
+          } else {
+            _sendResponse(cancelled: true);
+          }
         }
       });
     }
@@ -131,6 +142,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
 
   @override
   void dispose() {
+    if (_isSecretInput) _textController.clear();
     _countdownTimer?.cancel();
     _resolutionSubscription?.cancel();
     _textController.dispose();
@@ -192,7 +204,10 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     final title =
         widget.request['title']?.toString() ?? 'Richiesta di Interazione';
     final message = widget.request['message']?.toString() ?? '';
-    final placeholder = widget.request['placeholder']?.toString() ?? '';
+    final rawPlaceholder = widget.request['placeholder']?.toString() ?? '';
+    final placeholder = _isSecretInput
+        ? rawPlaceholder.substring(_secretPlaceholderPrefix.length)
+        : rawPlaceholder;
     final options =
         (widget.request['options'] as List<dynamic>?)
             ?.map((e) => e.toString())
@@ -358,6 +373,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                   TextField(
                     controller: _textController,
                     enabled: !_lockedByOther,
+                    obscureText: _isSecretInput,
+                    autocorrect: !_isSecretInput,
+                    enableSuggestions: !_isSecretInput,
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                     decoration: InputDecoration(
                       isDense: true,

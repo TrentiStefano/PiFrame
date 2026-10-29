@@ -153,6 +153,35 @@ void main() {
     await Future.wait([limitFuture, reserveFuture]);
   });
 
+  test('Pi authentication commands carry no credential data', () async {
+    final login = client.piAuthLogin('session-a');
+    final logout = client.piAuthLogout('session-a');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.map((command) => command['type']).toList(), [
+      'agent.authLogin',
+      'agent.authLogout',
+    ]);
+    expect(commands.every((command) => command['payload'].isEmpty), isTrue);
+    expect(
+      commands.every((command) => command['sessionId'] == 'session-a'),
+      isTrue,
+    );
+    for (final command in commands) {
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': command['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'started': true},
+          },
+        }),
+      );
+    }
+    await Future.wait([login, logout]);
+  });
+
   test('dispose rejects pending commands', () async {
     final result = client.listSessions();
     final assertion = expectLater(result, throwsA(isA<StateError>()));

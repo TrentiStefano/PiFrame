@@ -1,11 +1,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Connection } from '../server/connection.js';
 import type { SessionRegistry } from '../sessions/SessionRegistry.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import { CommandDeduplicator } from './CommandRecord.js';
-import { loadConfig, patchConfig } from '../config/config.js';
+import { getPiFrameBaseDir, loadConfig, patchConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
@@ -22,6 +23,29 @@ import type {
   PcpResult,
   PcpError
 } from '@piframe/pcp-ts';
+
+function getOrCreateAuthDeviceId(): string {
+  const directory = getPiFrameBaseDir();
+  const file = path.join(directory, 'auth-device-id');
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    throw new Error('Invalid PiFrame auth device ID file.');
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const id = randomUUID();
+  try {
+    fs.writeFileSync(file, id, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    return id;
+  } catch (error: any) {
+    if (error?.code !== 'EEXIST') throw error;
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    throw new Error('Invalid PiFrame auth device ID file.');
+  }
+}
 
 export class Dispatcher {
   private registry: SessionRegistry;
@@ -74,6 +98,19 @@ export class Dispatcher {
     const policy = readContextPolicy(sessionId);
     await applyContextPolicy(worker, policy);
     return { reloaded: true };
+  }
+
+  private async runPiAuthAction(sessionId: string, action: 'login' | 'logout'): Promise<void> {
+    const session = this.registry.getSession(sessionId);
+    if (!session) throw Object.assign(new Error(`Session ${sessionId} not found`), { code: 'SESSION_NOT_FOUND' });
+    if (session.isStreaming || session.isCompacting) {
+      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), { code: 'COMMAND_REJECTED' });
+    }
+    const worker = await this.registry.ensureWorkerForSession(sessionId);
+    const message = action === 'login'
+      ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
+      : '/piframe-auth-logout';
+    await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -863,6 +900,18 @@ export class Dispatcher {
         }
       }
 
+      case 'agent.authLogin': {
+        if (!sessionId) throw new Error('sessionId required');
+        await this.runPiAuthAction(sessionId, 'login');
+        return { started: true };
+      }
+
+      case 'agent.authLogout': {
+        if (!sessionId) throw new Error('sessionId required');
+        await this.runPiAuthAction(sessionId, 'logout');
+        return { started: true };
+      }
+
       case 'agent.getModels': {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -911,7 +960,8 @@ export class Dispatcher {
         const builtinNames = new Set(PI_BUILTIN_SLASH_COMMANDS.map(({ name }) => name));
         const commands = [
           ...PI_BUILTIN_SLASH_COMMANDS,
-          ...extensionCommands.filter((command: { name?: string }) => !builtinNames.has(command.name ?? '')),
+          ...extensionCommands.filter((command: { name?: string }) =>
+            !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')),
         ];
         return { ...res.data, commands };
       }
@@ -923,6 +973,9 @@ export class Dispatcher {
           const err: any = new Error(`Session ${sessionId} not found`);
           err.code = 'SESSION_NOT_FOUND';
           throw err;
+        }
+        if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
         }
         const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
         if (!claimRes.success) {
@@ -942,6 +995,9 @@ export class Dispatcher {
           throw err;
         }
 
+        if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+        }
         const resolveRes = session.uiBroker.resolveRequest(
           payload.requestId,
           conn.id,

@@ -122,6 +122,8 @@ export type PcpCommandType =
   | 'agent.setAutoRetry'
   | 'agent.abortRetry'
   | 'agent.setModel'
+  | 'agent.authLogin'
+  | 'agent.authLogout'
   | 'agent.getModels'
   | 'agent.setThinkingLevel'
   | 'agent.getThinkingLevels'

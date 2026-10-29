@@ -19,6 +19,22 @@ test.after(() => {
   for (const directory of temporaryDirectories) fs.rmSync(directory, { recursive: true, force: true });
 });
 
+function slowResponderFixture(): string {
+  return fixture(`
+    let buffer = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => {
+      buffer += chunk;
+      if (!buffer.includes('\\n')) return;
+      const request = JSON.parse(buffer.slice(0, buffer.indexOf('\\n')));
+      setTimeout(() => process.stdout.write(JSON.stringify({
+        id: request.id, type: 'response', command: request.type,
+        success: true, data: { request }
+      }) + '\\n'), 40);
+    });
+  `);
+}
+
 function responderFixture(): string {
   return fixture(`
     let buffer = '';
@@ -61,6 +77,15 @@ test('StdioPiTransport sends canonical flat RPC and clears both correlation queu
   assert.ok(response.data.request.id);
   assert.equal((transport as any).pendingCommands.size, 0);
   assert.equal((transport as any).fifoPendingCommands.length, 0);
+  await transport.stop({ graceMs: 1000 });
+});
+
+test('StdioPiTransport supports per-command timeouts without sending them to Pi', async () => {
+  const transport = new StdioPiTransport({ executablePath: slowResponderFixture(), commandTimeoutMs: 5 });
+  await transport.start({ cwd: process.cwd() });
+  const response = await transport.send({ command: 'slow', timeoutMs: 200 });
+  assert.equal(response.success, true);
+  assert.equal(response.data.request.timeoutMs, undefined);
   await transport.stop({ graceMs: 1000 });
 });
 

@@ -711,6 +711,20 @@ class _ComposerState extends ConsumerState<Composer> {
       case 'reload':
         await notifier.sendPrompt('/reload');
         return;
+      case 'login':
+        if (args.isNotEmpty) {
+          throw StateError('/login non accetta argomenti.');
+        }
+        await notifier.piAuthLogin();
+        await _loadModels();
+        return;
+      case 'logout':
+        if (args.isNotEmpty) {
+          throw StateError('/logout non accetta argomenti.');
+        }
+        await notifier.piAuthLogout();
+        await _loadModels();
+        return;
       case 'copy':
         final latest = ref
             .read(sessionStateFamily(widget.sessionId))
@@ -751,7 +765,9 @@ class _ComposerState extends ConsumerState<Composer> {
         await _resumeFromSlash();
         return;
       case 'quit':
-        if (!await resolveDirtyRepository(context, ref, widget.sessionId)) return;
+        if (!await resolveDirtyRepository(context, ref, widget.sessionId)) {
+          return;
+        }
         await windowManager.close();
         return;
       default:

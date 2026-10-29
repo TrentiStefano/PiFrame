@@ -371,7 +371,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     } catch (error) {
       _markPromptFailed(
         entry.text,
-        error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
+        error.toString().replaceFirst(
+          RegExp(r'^(Bad state|Exception):\s*'),
+          '',
+        ),
         entryId: retryId,
       );
       if (mounted) state = state.copyWith(agentStatus: previousStatus);
@@ -410,7 +413,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       if (mounted && optimisticId != null) {
         _markPromptFailed(
           text,
-          error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
+          error.toString().replaceFirst(
+            RegExp(r'^(Bad state|Exception):\s*'),
+            '',
+          ),
           entryId: optimisticId,
         );
         state = state.copyWith(agentStatus: prevStatus);
@@ -511,6 +517,16 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   Future<void> recoverSession() async {
     if (client == null) return;
     await client!.recoverSession(sessionId);
+  }
+
+  Future<void> piAuthLogin() async {
+    if (client == null) throw StateError('Daemon non connesso');
+    await client!.piAuthLogin(sessionId);
+  }
+
+  Future<void> piAuthLogout() async {
+    if (client == null) throw StateError('Daemon non connesso');
+    await client!.piAuthLogout(sessionId);
   }
 
   Future<List<Map<String, dynamic>>> getCommands() async {

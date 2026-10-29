@@ -26,7 +26,19 @@ class DeferredSession extends SessionStateNotifier {
 }
 
 class BuiltinCommandSession extends SessionStateNotifier {
+  int loginCalls = 0;
+  int logoutCalls = 0;
   BuiltinCommandSession() : super('builtin', null);
+
+  @override
+  Future<void> piAuthLogin() async {
+    loginCalls++;
+  }
+
+  @override
+  Future<void> piAuthLogout() async {
+    logoutCalls++;
+  }
 
   @override
   Future<List<Map<String, dynamic>>> getCommands() async => [
@@ -36,6 +48,16 @@ class BuiltinCommandSession extends SessionStateNotifier {
       'source': 'builtin',
     },
     {'name': 'share', 'description': 'Share session', 'source': 'builtin'},
+    {
+      'name': 'login',
+      'description': 'Authenticate with a provider',
+      'source': 'builtin',
+    },
+    {
+      'name': 'logout',
+      'description': 'Remove provider credentials',
+      'source': 'builtin',
+    },
     {'name': 'caveman', 'description': 'Caveman mode', 'source': 'extension'},
   ];
 }
@@ -67,6 +89,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('/settings'), findsOneWidget);
     expect(find.text('/share'), findsOneWidget);
+    expect(find.text('/login'), findsOneWidget);
+    expect(find.text('/logout'), findsOneWidget);
     expect(find.text('/caveman'), findsOneWidget);
 
     await tester.tap(find.text('/settings'));
@@ -74,6 +98,18 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
     expect(container.read(showSettingsProvider), isTrue);
+    expect(session.state.entries, isEmpty);
+
+    await tester.enterText(find.byType(TextField), '/login');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pumpAndSettle();
+    expect(session.loginCalls, 1);
+    expect(session.state.entries, isEmpty);
+
+    await tester.enterText(find.byType(TextField), '/logout');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pumpAndSettle();
+    expect(session.logoutCalls, 1);
     expect(session.state.entries, isEmpty);
   });
 

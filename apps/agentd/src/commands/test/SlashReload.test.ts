@@ -21,7 +21,10 @@ function fixture(options: { streaming?: boolean } = {}) {
     send: async (request: { command: string; arguments?: any }) => {
       workerCalls.push(request);
       if (request.command === 'get_commands') {
-        return { success: true, data: { commands: [{ name: 'caveman', description: 'Caveman', source: 'extension' }] } };
+        return { success: true, data: { commands: [
+          { name: 'caveman', description: 'Caveman', source: 'extension' },
+          { name: 'piframe-auth-login', description: 'Internal login', source: 'extension' },
+        ] } };
       }
       if (request.command === 'get_state') {
         return { success: true, data: { model: { piframeContextPolicy: { limit: null, percent: 2.5 } } } };
@@ -37,11 +40,15 @@ function fixture(options: { streaming?: boolean } = {}) {
   };
   const dispatcher = new Dispatcher(registry, { broadcast() {}, broadcastLocal() {} } as any, {
     list: async () => [], update: async () => ({}), remove: async () => ({}), pin: async () => ({}),
+  } as any, {
+    on() {},
+    getAuthManager: () => ({ getDevice: () => ({ mode: 'control' }) }),
   } as any);
   const sent: any[] = [];
-  const conn = { id: 'c1', send: (message: any) => sent.push(typeof message === 'string' ? JSON.parse(message) : message) } as any;
+  const conn = { id: 'c1', deviceId: 'd1', send: (message: any) => sent.push(typeof message === 'string' ? JSON.parse(message) : message) } as any;
   let counter = 0;
-  const run = async (type: string, payload: Record<string, unknown>) => {
+  const run = async (type: string, payload: Record<string, unknown>, isRemote = false) => {
+    conn.isRemote = isRemote;
     counter += 1;
     const start = sent.length;
     await dispatcher.handle(conn, {
@@ -88,7 +95,43 @@ test('agent.getCommands returns every Pi built-in before extension commands', as
     'resume', 'reload', 'quit',
   ]);
   assert.equal(commands.at(-1).name, 'caveman');
+  assert.equal(commands.some((command: { name: string }) => command.name.startsWith('piframe-')), false);
   assert.equal(commands.find((command: { name: string }) => command.name === 'model').argumentHint, '<provider/model>');
+});
+
+test('/login and /logout run the local Pi auth actions without sending those built-ins to the model', async () => {
+  const { workerCalls, run } = fixture();
+  const login = await run('agent.authLogin', {});
+  assert.equal(login.payload.state, 'completed');
+  assert.deepEqual(workerCalls.filter((call) => call.command === 'prompt').map((call) => call.arguments.message), [
+    `/piframe-auth-login ${JSON.stringify({ deviceId: fs.readFileSync(path.join(home, 'auth-device-id'), 'utf8') })}`,
+  ]);
+  assert.match(fs.readFileSync(path.join(home, 'auth-device-id'), 'utf8'), /^[0-9a-f-]{36}$/i);
+
+  const logout = await run('agent.authLogout', {});
+  assert.equal(logout.payload.state, 'completed');
+  assert.equal(workerCalls.filter((call) => call.command === 'prompt').at(-1)?.arguments?.message, '/piframe-auth-logout');
+  assert.equal(workerCalls.some((call) => call.arguments?.message === '/login' || call.arguments?.message === '/logout'), false);
+});
+
+test('auth built-ins are refused while the agent is streaming', async () => {
+  const { workerCalls, run } = fixture({ streaming: true });
+  const result = await run('agent.authLogin', {});
+  assert.notEqual(result.payload.state, 'completed');
+  assert.equal(workerCalls.length, 0);
+});
+
+test('remote controls cannot claim PiFrame auth secret prompts', async () => {
+  const { session, run } = fixture();
+  const localOnly = new Set<string>();
+  session.uiBroker = {
+    addRequest: (request: any) => { if (request.localOnly) localOnly.add(request.requestId); },
+    isLocalOnly: (requestId: string) => localOnly.has(requestId),
+  };
+  session.uiBroker.addRequest({ requestId: 'auth-secret', method: 'input', placeholder: 'piframe-secret:API key', localOnly: true });
+  const result = await run('ui.claim', { requestId: 'auth-secret' }, true);
+  assert.notEqual(result.payload.state, 'completed');
+  assert.equal(session.uiBroker.isLocalOnly('auth-secret'), true);
 });
 
 test('native built-in commands are never forwarded as model prompts', async () => {
