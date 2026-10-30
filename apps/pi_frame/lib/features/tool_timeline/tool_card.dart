@@ -26,8 +26,9 @@ class _ParsedToolOutput {
 
 class ToolCard extends StatefulWidget {
   final ToolExecutionState tool;
+  final VoidCallback? onExpansionChanged;
 
-  const ToolCard({super.key, required this.tool});
+  const ToolCard({super.key, required this.tool, this.onExpansionChanged});
 
   @override
   State<ToolCard> createState() => _ToolCardState();
@@ -327,7 +328,10 @@ class _ToolCardState extends State<ToolCard> {
             // Header row
             TextButton(
               onPressed: canExpand
-                  ? () => setState(() => _isExpanded = !_isExpanded)
+                  ? () {
+                      widget.onExpansionChanged?.call();
+                      setState(() => _isExpanded = !_isExpanded);
+                    }
                   : null,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 1),

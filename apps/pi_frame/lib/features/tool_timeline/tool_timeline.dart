@@ -4,8 +4,13 @@ import 'tool_card.dart';
 
 class ToolTimeline extends StatelessWidget {
   final List<ToolExecutionState> toolCalls;
+  final VoidCallback? onCardExpansionChanged;
 
-  const ToolTimeline({super.key, required this.toolCalls});
+  const ToolTimeline({
+    super.key,
+    required this.toolCalls,
+    this.onCardExpansionChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +24,11 @@ class ToolTimeline extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (int i = 0; i < toolCalls.length; i++) ...[
-            ToolCard(key: ValueKey(toolCalls[i].toolCallId), tool: toolCalls[i]),
+            ToolCard(
+              key: ValueKey(toolCalls[i].toolCallId),
+              tool: toolCalls[i],
+              onExpansionChanged: onCardExpansionChanged,
+            ),
             if (i < toolCalls.length - 1)
               const SizedBox(height: 4),
           ],

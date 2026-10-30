@@ -316,6 +316,75 @@ void main() {
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
     });
 
+    testWidgets('expanding a subagent card preserves transcript position', (tester) async {
+      tester.view.physicalSize = const Size(1200, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final entries = List.generate(
+        20,
+        (index) => SessionEntry(
+          id: 'entry_$index',
+          role: 'user',
+          text: 'Stable transcript message $index',
+          timestamp: index,
+        ),
+      );
+      const subagents = [
+        SubagentItem(
+          id: 'sub_agent_position',
+          name: 'Position Agent',
+          model: 'haiku',
+          output: 'Subagent output that expands the card.',
+          status: 'running',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_position').overrideWith(
+              (ref) => SessionStateNotifier('sess_position', null)
+                ..state = SessionState(
+                  sessionId: 'sess_position',
+                  cwd: '/repo',
+                  entries: entries,
+                  streamingTextBlocks: const {0: 'Agent is responding'},
+                ),
+            ),
+            subagentsFamily('sess_position').overrideWith(
+              (ref) => _MockSubagentsNotifier(
+                ref,
+                'sess_position',
+                subagents,
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: TranscriptView(sessionId: 'sess_position'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.pumpAndSettle();
+
+      final anchor = find.text('Stable transcript message 19');
+      final before = tester.getTopLeft(anchor).dy;
+      await tester.tap(find.text('Position Agent'));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+
+      await tester.tap(find.text('Position Agent'));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+    });
+
     testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
       final subagents = [
         const SubagentItem(

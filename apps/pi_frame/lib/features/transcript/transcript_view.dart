@@ -400,6 +400,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     return false;
   }
 
+  void _pauseStreamFollowing() {
+    _userScrolledUp = true;
+  }
+
   void _followStream() {
     if (!_scrollController.hasClients || _userScrolledUp) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
@@ -1616,26 +1620,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             runningSubagentCount,
             isCompact,
           ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
-              ? TodoPopDown(
-                  sessionId: widget.sessionId,
-                  isExpanded: true,
-                  hideBookTab: true,
-                  onClose: () => _toggleBookTab(_ActiveBookTab.todos),
-                )
-              : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
-                  ? SubagentsPopDown(
-                      sessionId: widget.sessionId,
-                      isExpanded: true,
-                      hideBookTab: true,
-                      onClose: () => _toggleBookTab(_ActiveBookTab.subagents),
-                    )
-                  : const SizedBox.shrink(),
-        ),
         Expanded(
           child: Stack(
             children: [
@@ -1878,6 +1862,32 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       },
                     ),
                   ),
+                ),
+              ),
+              // Overlay activity panels so expanding them cannot move the chat.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
+                      ? TodoPopDown(
+                          sessionId: widget.sessionId,
+                          isExpanded: true,
+                          hideBookTab: true,
+                          onClose: () => _toggleBookTab(_ActiveBookTab.todos),
+                        )
+                      : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
+                          ? SubagentsPopDown(
+                              sessionId: widget.sessionId,
+                              isExpanded: true,
+                              hideBookTab: true,
+                              onClose: () => _toggleBookTab(_ActiveBookTab.subagents),
+                            )
+                          : const SizedBox.shrink(),
                 ),
               ),
 
@@ -2457,7 +2467,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               const SizedBox(height: 6),
           ],
           if (liveTools.isNotEmpty) ...[
-            ToolTimeline(toolCalls: liveTools),
+            ToolTimeline(
+              toolCalls: liveTools,
+              onCardExpansionChanged: _pauseStreamFollowing,
+            ),
             if (hasLiveText || hasLoadingIndicator)
               const SizedBox(height: 6),
           ],
@@ -2768,7 +2781,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
           // Tool calls timeline if present
           if (entry.toolCalls.isNotEmpty) ...[
-            ToolTimeline(toolCalls: entry.toolCalls),
+            ToolTimeline(
+              toolCalls: entry.toolCalls,
+              onCardExpansionChanged: _pauseStreamFollowing,
+            ),
             if (entry.text.isNotEmpty)
               const SizedBox(height: 6),
           ],
