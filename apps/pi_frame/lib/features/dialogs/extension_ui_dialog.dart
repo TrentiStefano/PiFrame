@@ -43,6 +43,8 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   bool _lockedByOther = false;
   bool _isClaimChecked = false;
   late TextEditingController _textController;
+  final FocusNode _customAnswerFocusNode = FocusNode();
+  bool _isCustomAnswerSelected = false;
   String? _selectedOption;
   final Set<String> _selectedOptions = {};
   Timer? _countdownTimer;
@@ -62,6 +64,10 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         _secretPlaceholderPrefix,
       );
 
+  bool _isFreeTextOption(String option) =>
+      option.trim().toLowerCase().replaceAll(RegExp(r'[.!?]+$'), '') ==
+      'type something';
+
   @override
   void initState() {
     super.initState();
@@ -73,9 +79,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ?.map((e) => e.toString())
             .toList() ??
         const [];
-    if (options.isNotEmpty) {
-      _selectedOption = options.first;
-      _selectedOptions.add(options.first);
+    final selectableOptions = options
+        .where((option) => !_isFreeTextOption(option))
+        .toList();
+    if (selectableOptions.isNotEmpty) {
+      _selectedOption = selectableOptions.first;
+      _selectedOptions.add(selectableOptions.first);
     }
 
     final timeoutMs = widget.request['timeoutMs'] as int?;
@@ -146,6 +155,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     _countdownTimer?.cancel();
     _resolutionSubscription?.cancel();
     _textController.dispose();
+    _customAnswerFocusNode.dispose();
     super.dispose();
   }
 
@@ -213,6 +223,13 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ?.map((e) => e.toString())
             .toList() ??
         const [];
+    final canSubmit =
+        method != 'select' ||
+        (_isCustomAnswerSelected
+            ? _textController.text.trim().isNotEmpty
+            : _isMultiSelect
+            ? _selectedOptions.isNotEmpty
+            : _selectedOption != null);
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -315,23 +332,48 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 // Body based on method
                 if (method == 'select') ...[
                   ...options.map((opt) {
-                    final isSelected = _isMultiSelect
+                    final isFreeTextOption = _isFreeTextOption(opt);
+                    final isSelected = isFreeTextOption
+                        ? _isCustomAnswerSelected
+                        : _isMultiSelect
                         ? _selectedOptions.contains(opt)
                         : _selectedOption == opt;
 
                     return InkWell(
                       onTap: !_lockedByOther
-                          ? () => setState(() {
-                              if (_isMultiSelect) {
-                                if (_selectedOptions.contains(opt)) {
-                                  _selectedOptions.remove(opt);
-                                } else {
-                                  _selectedOptions.add(opt);
+                          ? () {
+                              if (isFreeTextOption) {
+                                if (!_isCustomAnswerSelected) {
+                                  _textController.clear();
+                                  setState(() {
+                                    _isCustomAnswerSelected = true;
+                                    _selectedOption = null;
+                                    _selectedOptions.clear();
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (mounted && !_lockedByOther) {
+                                      _customAnswerFocusNode.requestFocus();
+                                    }
+                                  });
                                 }
-                              } else {
-                                _selectedOption = opt;
+                                return;
                               }
-                            })
+                              _customAnswerFocusNode.unfocus();
+                              setState(() {
+                                _isCustomAnswerSelected = false;
+                                if (_isMultiSelect) {
+                                  if (_selectedOptions.contains(opt)) {
+                                    _selectedOptions.remove(opt);
+                                  } else {
+                                    _selectedOptions.add(opt);
+                                  }
+                                } else {
+                                  _selectedOption = opt;
+                                }
+                              });
+                            }
                           : null,
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       child: Padding(
@@ -369,6 +411,28 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                       ),
                     );
                   }),
+                  if (_isCustomAnswerSelected) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      key: const ValueKey('extension-ui-custom-answer'),
+                      controller: _textController,
+                      focusNode: _customAnswerFocusNode,
+                      enabled: !_lockedByOther,
+                      onChanged: (_) => setState(() {}),
+                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Type something...',
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        ),
+                      ),
+                    ),
+                  ],
                 ] else if (method == 'input') ...[
                   TextField(
                     controller: _textController,
@@ -445,12 +509,14 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ),
             const SizedBox(width: 8),
             ElevatedButton(
-              onPressed: !_lockedByOther && !_isResponding
+              onPressed: !_lockedByOther && !_isResponding && canSubmit
                   ? () {
                       if (method == 'confirm') {
                         _sendResponse(confirmed: true);
                       } else if (method == 'select') {
-                        if (_isMultiSelect) {
+                        if (_isCustomAnswerSelected) {
+                          _sendResponse(value: _textController.text);
+                        } else if (_isMultiSelect) {
                           _sendResponse(value: _selectedOptions.toList());
                         } else {
                           _sendResponse(value: _selectedOption);

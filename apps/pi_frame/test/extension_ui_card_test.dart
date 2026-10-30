@@ -82,6 +82,63 @@ void main() {
     'dialog': true,
   };
 
+  testWidgets('Type something opens free text and submits the entered answer', (
+    tester,
+  ) async {
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'custom-answer',
+      'method': 'select',
+      'title': 'Choose an option',
+      'options': ['Type something'],
+      'dialog': true,
+    });
+
+    await tester.tap(find.text('Type something'));
+    await tester.pump();
+
+    final answerField = find.byKey(const ValueKey('extension-ui-custom-answer'));
+    expect(answerField, findsOneWidget);
+    expect(tester.widget<TextField>(answerField).focusNode!.hasFocus, isTrue);
+    final send = find.widgetWithText(ElevatedButton, 'Invia');
+    expect(tester.widget<ElevatedButton>(send).onPressed, isNull);
+    expect(client.responses, isEmpty);
+
+    await tester.enterText(answerField, 'Use the other approach');
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(answerField).controller!.text,
+      'Use the other approach',
+    );
+    expect(tester.widget<ElevatedButton>(send).onPressed, isNotNull);
+    await tester.ensureVisible(send);
+    await tester.tap(send);
+    await tester.pumpAndSettle();
+
+    expect(client.responses, ['Use the other approach']);
+  });
+
+  testWidgets('Type something is not submitted as the default option', (
+    tester,
+  ) async {
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'custom-answer-default',
+      'method': 'select',
+      'title': 'Choose an option',
+      'options': ['Type something', 'Yes'],
+      'multiSelect': true,
+      'dialog': true,
+    });
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pumpAndSettle();
+
+    expect(client.responses, [
+      ['Yes'],
+    ]);
+  });
+
   testWidgets('long question: answer buttons stay on screen and work', (
     tester,
   ) async {
