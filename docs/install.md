@@ -67,6 +67,19 @@ Se compili manualmente l'eseguibile desktop da sorgenti anziché utilizzare l'in
 3. Se il daemon gira già, lascia terminare i worker attivi e usa **Impostazioni → Riavvia Daemon** per caricare il bundle aggiornato. Ricompilare l'app non arresta un daemon già in esecuzione.
 4. Per i dettagli o in caso di anomalie di blocco file (`EBUSY`), consulta [**docs/troubleshooting.md**](troubleshooting.md#4-daemon-non-raggiungibile-o-errore-di-connessione-con-build-da-sorgente).
 
+### Generazione Locale dell'Installer Windows (Setup Inno Setup)
+Per compilare e generare l'installer completo per Windows (`dist/PiFrame-Setup-<versione>-windows-x64.exe`) esattamente come avviene nella pipeline CI/CD di GitHub Actions:
+1. Assicurati che **Inno Setup 6** sia installato (es. via `winget install JRSoftware.InnoSetup`).
+2. Dalla radice del monorepo, esegui il comando:
+   ```powershell
+   pnpm run package:windows
+   ```
+   oppure direttamente con PowerShell:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1
+   ```
+   Lo script esegue l'intera sequenza: compila i pacchetti TypeScript, crea il bundle del daemon (`pi-agentd.cjs`), compila l'app Flutter Windows e l'app Web per l'accesso remoto, predispone il runtime Node con le licenze e compila il setup `.exe` in `dist/`. Per ri-impacchettare senza ricompilare Flutter, puoi passare il flag `-SkipBuild`.
+
 ---
 
 ## Comandi slash di Pi nella chat
