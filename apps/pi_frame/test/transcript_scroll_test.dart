@@ -8,6 +8,22 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
+  test('scroll estimates use measured heights after a card changes size', () {
+    final heights = {'seen': 100.0, 'measured': 100.0};
+    final delegate = SmartTranscriptChildDelegate(
+      builder: (_, _) => const SizedBox.shrink(),
+      itemKeys: const ['seen', 'measured', 'unmeasured-a', 'unmeasured-b'],
+      heightCache: heights,
+    );
+
+    final before = delegate.estimateMaxScrollOffset(0, 0, 0, 100);
+    heights['seen'] = 200;
+    final after = delegate.estimateMaxScrollOffset(0, 0, 0, 100);
+
+    expect(before, 400);
+    expect(after, 500);
+  });
+
   testWidgets('long transcript lazily builds turns and remains scrollable', (
     tester,
   ) async {
@@ -84,7 +100,7 @@ void main() {
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 760);
-    tester.view.devicePixelRatio = 1;
+    tester.view.devicePixelRatio = 1.25;
     addTearDown(tester.view.resetPhysicalSize);
 
     final entries = List.generate(
@@ -96,30 +112,29 @@ void main() {
         timestamp: index,
       ),
     );
+    final notifier = SessionStateNotifier('streaming-scroll', null)
+      ..state = SessionState(
+        sessionId: 'streaming-scroll',
+        cwd: '/repo',
+        entries: entries,
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: const {0: 'Original streaming answer'},
+        activeToolCalls: {
+          'tool-1': ToolExecutionState(
+            toolCallId: 'tool-1',
+            toolName: 'bash',
+            args: const {'command': 'run tests'},
+            output: List.filled(30, 'tool output').join('\n'),
+            isRunning: true,
+            startedAt: 0,
+          ),
+        },
+      );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           daemonEndpointProvider.overrideWith((ref) async => null),
-          sessionStateFamily('streaming-scroll').overrideWith(
-            (ref) =>
-                SessionStateNotifier('streaming-scroll', null)
-                  ..state = SessionState(
-                    sessionId: 'streaming-scroll',
-                    cwd: '/repo',
-                    entries: entries,
-                    agentStatus: AgentStatus.working,
-                    activeToolCalls: {
-                      'tool-1': ToolExecutionState(
-                        toolCallId: 'tool-1',
-                        toolName: 'bash',
-                        args: const {'command': 'run tests'},
-                        output: List.filled(30, 'tool output').join('\n'),
-                        isRunning: true,
-                        startedAt: 0,
-                      ),
-                    },
-                  ),
-          ),
+          sessionStateFamily('streaming-scroll').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(
@@ -133,6 +148,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
 
+    final scrollView = find.byKey(const ValueKey('transcript-scroll'));
+    final scrollController = tester.widget<ListView>(scrollView).controller!;
+    final beforeOffset = scrollController.offset;
     final anchor = find.text('Stable transcript message 19');
     final before = tester.getTopLeft(anchor).dy;
     await tester.tap(
@@ -144,8 +162,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
 
-    expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
     expect(find.byType(FloatingActionButton), findsOneWidget);
+
+    notifier.state = notifier.state.copyWith(
+      streamingTextBlocks: {
+        0: List.filled(20, 'Additional streaming response line').join('\n'),
+      },
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
 
     await tester.tap(
       find.descendant(
@@ -155,6 +184,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
-    expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
   });
 }

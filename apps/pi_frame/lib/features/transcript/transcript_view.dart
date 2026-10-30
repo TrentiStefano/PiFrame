@@ -128,31 +128,12 @@ class _MeasureSize extends SingleChildRenderObjectWidget {
 class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
   final List<String> itemKeys;
   final Map<String, double> heightCache;
-  double _runningSum = 0;
-  int _runningCount = 0;
 
   SmartTranscriptChildDelegate({
     required Widget Function(BuildContext, int) builder,
     required this.itemKeys,
     required this.heightCache,
-  }) : super(builder, childCount: itemKeys.length) {
-    for (final h in heightCache.values) {
-      _runningSum += h;
-      _runningCount++;
-    }
-  }
-
-  void recordHeight(String key, double height) {
-    final old = heightCache[key];
-    if (old == null) {
-      heightCache[key] = height;
-      _runningSum += height;
-      _runningCount++;
-    } else if ((old - height).abs() > 1.0) {
-      _runningSum += (height - old);
-      heightCache[key] = height;
-    }
-  }
+  }) : super(builder, childCount: itemKeys.length);
 
   @override
   double? estimateMaxScrollOffset(
@@ -163,8 +144,10 @@ class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
   ) {
     final total = itemKeys.length;
     if (total == 0) return null;
-    final avg = _runningCount > 0 ? (_runningSum / _runningCount) : 120.0;
-
+    final avg = heightCache.isEmpty
+        ? 120.0
+        : heightCache.values.reduce((sum, height) => sum + height) /
+              heightCache.length;
     final remainingAfter = total - 1 - lastIndex;
     if (remainingAfter <= 0) {
       return trailingScrollOffset;
@@ -211,8 +194,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   double _calculateAverageHeight() {
     if (_entryHeights.isEmpty) return 120.0;
     double sum = 0;
-    for (final h in _entryHeights.values) {
-      sum += h;
+    for (final height in _entryHeights.values) {
+      sum += height;
     }
     return sum / _entryHeights.length;
   }

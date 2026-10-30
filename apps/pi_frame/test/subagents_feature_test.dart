@@ -318,7 +318,7 @@ void main() {
 
     testWidgets('expanding a subagent card preserves transcript position', (tester) async {
       tester.view.physicalSize = const Size(1200, 760);
-      tester.view.devicePixelRatio = 1;
+      tester.view.devicePixelRatio = 1.25;
       addTearDown(tester.view.resetPhysicalSize);
 
       final entries = List.generate(
@@ -378,11 +378,11 @@ void main() {
       final before = tester.getTopLeft(anchor).dy;
       await tester.tap(find.text('Position Agent'));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+      expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
 
       await tester.tap(find.text('Position Agent'));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(anchor).dy, closeTo(before, 1));
+      expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
     });
 
     testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
