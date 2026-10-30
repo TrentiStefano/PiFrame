@@ -75,13 +75,14 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
-# Refuse to package a missing or pre-fast-index daemon bundle.
+# Refuse to package a missing or pre-responsive-list daemon bundle.
 set(AGENTD_BUNDLE "${CMAKE_CURRENT_SOURCE_DIR}/../../agentd/dist/pi-agentd.cjs")
 if(NOT EXISTS "${AGENTD_BUNDLE}")
   message(FATAL_ERROR "Missing ${AGENTD_BUNDLE}. Run `pnpm run build:agentd` before building the Windows app.")
 endif()
 file(STRINGS "${AGENTD_BUNDLE}" AGENTD_FAST_SCAN_MARKER REGEX "scanFastSnapshot" LIMIT_COUNT 1)
-if(NOT AGENTD_FAST_SCAN_MARKER)
+file(STRINGS "${AGENTD_BUNDLE}" AGENTD_CACHED_LIST_MARKER REGEX "getCachedSnapshot" LIMIT_COUNT 1)
+if(NOT AGENTD_FAST_SCAN_MARKER OR NOT AGENTD_CACHED_LIST_MARKER)
   message(FATAL_ERROR "Stale ${AGENTD_BUNDLE}. Run `pnpm run build:agentd` before building the Windows app.")
 endif()
 install(FILES "${AGENTD_BUNDLE}"

@@ -11,6 +11,17 @@ import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js';
 
+const SESSION_SUMMARY_FIELDS: (keyof SessionSummary)[] = [
+  'id', 'name', 'cwd', 'gitRoot', 'sessionFile', 'createdAt', 'lastActivityAt',
+  'sizeBytes', 'messageCount', 'lastMessagePreview', 'isActive', 'parentSession',
+  'isSubsession', 'isProvisional'
+];
+
+function sameSessionSummaries(a: SessionSummary[], b: SessionSummary[]): boolean {
+  return a.length === b.length && a.every((summary, index) =>
+    SESSION_SUMMARY_FIELDS.every((field) => summary[field] === b[index]?.[field]));
+}
+
 export interface SessionRegistryOptions {
   piExecutablePath: string;
   capabilities: PiCapabilities;
@@ -68,8 +79,52 @@ export class SessionRegistry {
 
   public async listSessions(query?: string, limit = 50, includeSubsessions = false): Promise<SessionSummary[]> {
     const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
-    const { sessions, needsRefresh } = await this.index.scanFast(activeIds);
+    let sessions: SessionSummary[];
+    let fastScan: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> | undefined;
+    let refreshFast = false;
+    let needsRefresh = false;
+    if (typeof this.index.getCachedSnapshot === 'function') {
+      sessions = this.index.getCachedSnapshot(activeIds);
+      if (sessions.length) {
+        refreshFast = true;
+      } else {
+        fastScan = this.index.scanFast(activeIds);
+        let timer: NodeJS.Timeout | undefined;
+        const fastResult = await Promise.race([
+          fastScan,
+          new Promise<undefined>((resolve) => {
+            timer = setTimeout(() => resolve(undefined), 250);
+            timer.unref();
+          })
+        ]);
+        if (timer) clearTimeout(timer);
+        if (fastResult) {
+          sessions = fastResult.sessions;
+          needsRefresh = fastResult.needsRefresh;
+          fastScan = undefined;
+        } else {
+          refreshFast = true;
+        }
+      }
+    } else {
+      const fastResult = await this.index.scanFast(activeIds);
+      sessions = fastResult.sessions;
+      needsRefresh = fastResult.needsRefresh;
+      fastScan = undefined;
+    }
+
+    const visible = this.selectSessionList(sessions, query, limit, includeSubsessions);
+    if (refreshFast) this.refreshFastIndex(activeIds, visible, query, limit, includeSubsessions, fastScan);
     if (needsRefresh) this.refreshIndex();
+    return visible;
+  }
+
+  private selectSessionList(
+    sessions: SessionSummary[],
+    query?: string,
+    limit = 50,
+    includeSubsessions = false
+  ): SessionSummary[] {
     const merged = new Map(sessions.map((s) => [s.id, s]));
     for (const session of this.sessions.values()) {
       merged.set(session.id, {
@@ -87,6 +142,38 @@ export class SessionRegistry {
       .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
       .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
+  }
+
+  private refreshFastIndex(
+    activeSessionIds: Set<string>,
+    previous: SessionSummary[],
+    query: string | undefined,
+    limit: number,
+    includeSubsessions: boolean,
+    scan?: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }>
+  ): void {
+    if (this.indexRefresh || this.indexRetry || this.closing) return;
+    let needsRefresh = false;
+    this.indexRefresh = (scan ?? this.index.scanFast(activeSessionIds)).then((result) => {
+      needsRefresh = result.needsRefresh;
+      const updated = this.selectSessionList(result.sessions, query, limit, includeSubsessions);
+      if (this.closing || sameSessionSummaries(previous, updated)) return;
+      this.connectionManager.broadcast('@daemon', {
+        protocol: 1,
+        kind: 'event',
+        id: `evt_${ulid()}`,
+        ts: Date.now(),
+        sessionId: '@daemon',
+        seq: 0,
+        type: 'session.indexChanged',
+        payload: { updated: result.sessions }
+      } as any);
+    }).catch((error) => {
+      console.error('Error refreshing fast Pi sessions index:', error);
+    }).finally(() => {
+      this.indexRefresh = undefined;
+      if (needsRefresh && !this.closing) this.refreshIndex();
+    });
   }
 
   private refreshIndex(): void {

@@ -43,6 +43,8 @@ export class SessionIndex {
   private cache = new Map<string, { mtime: number; ctime?: number; summary: SessionSummary }>();
   private unstableFiles = false;
   private fastSnapshot = new Map<string, SessionSummary>();
+  private fastSnapshotReady = false;
+  private fastSnapshotRevision = -1;
   private fastScanVersion = 0;
   private cacheRevisionValue = 0;
   private scanProgressCallbacks = new Set<(cacheRevision: number) => void>();
@@ -58,6 +60,16 @@ export class SessionIndex {
 
   public get hasUnstableFiles(): boolean {
     return this.unstableFiles;
+  }
+
+  public getCachedSnapshot(activeSessionIds = new Set<string>()): SessionSummary[] {
+    const summaries = this.fastSnapshotReady && this.fastSnapshotRevision === this.cacheRevisionValue
+      ? [...this.fastSnapshot.values()]
+      : [...this.cache.values()].map(({ summary }) => summary);
+    return summaries
+      .filter((summary) => !isTemporarySessionCwd(summary.cwd) || !!summary.parentSession)
+      .map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }))
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   }
 
   private bumpCacheRevision(): void {
@@ -203,6 +215,8 @@ export class SessionIndex {
           await this.saveCacheAsync();
         }
         this.fastSnapshot.clear();
+        this.fastSnapshotReady = true;
+        this.fastSnapshotRevision = this.cacheRevisionValue;
         this.fastScanVersion++;
         return [];
       }
@@ -302,17 +316,24 @@ export class SessionIndex {
   private async scanFastSnapshot(): Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> {
     const scanVersion = ++this.fastScanVersion;
     const scanRemovalRevision = this.fileRevisionCounter;
+    const scanCacheRevision = this.cacheRevisionValue;
     let files: Array<{ filePath: string; dirName: string }>;
     try { files = await this.enumerateSessionFiles(); }
     catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        if (scanVersion === this.fastScanVersion) this.fastSnapshot.clear();
+        if (scanVersion === this.fastScanVersion) {
+          this.fastSnapshot.clear();
+          this.fastSnapshotReady = true;
+        }
         if (scanVersion === this.fastScanVersion && this.cache.size) {
           this.cache.clear();
           this.bumpCacheRevision();
           await this.saveCacheAsync();
         }
-        if (scanVersion === this.fastScanVersion) this.fastScanVersion++;
+        if (scanVersion === this.fastScanVersion) {
+          this.fastSnapshotRevision = this.cacheRevisionValue;
+          this.fastScanVersion++;
+        }
         return { sessions: [], needsRefresh: false };
       }
       throw err;
@@ -327,14 +348,23 @@ export class SessionIndex {
       }
     }
     let removedCache = false;
-    for (const cachedPath of this.cache.keys()) {
-      if (!present.has(cachedPath)) {
-        this.cache.delete(cachedPath);
-        this.bumpCacheRevision();
-        removedCache = true;
+    let cacheChangedDuringEnumeration = this.cacheRevisionValue !== scanCacheRevision;
+    if (!cacheChangedDuringEnumeration) {
+      for (const cachedPath of this.cache.keys()) {
+        if (!present.has(cachedPath)) {
+          this.cache.delete(cachedPath);
+          this.bumpCacheRevision();
+          removedCache = true;
+        }
       }
+    } else {
+      needsRefresh = true;
     }
+    const cacheRevisionAfterPrune = this.cacheRevisionValue;
     if (removedCache) await this.saveCacheAsync();
+    const cacheChangedDuringSave = this.cacheRevisionValue !== cacheRevisionAfterPrune;
+    if (cacheChangedDuringSave) needsRefresh = true;
+    const snapshotCacheRevision = this.cacheRevisionValue;
 
     const results = await this.mapBounded(files, 32, async ({ filePath, dirName }) => {
       try {
@@ -375,8 +405,12 @@ export class SessionIndex {
     const sessions = checked.filter((summary): summary is SessionSummary => summary !== null &&
       (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRemovalRevision)
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
-    if (scanVersion === this.fastScanVersion) {
+    if (scanVersion === this.fastScanVersion && !cacheChangedDuringEnumeration && !cacheChangedDuringSave && this.cacheRevisionValue === snapshotCacheRevision) {
       this.fastSnapshot = new Map(sessions.map((summary) => [summary.sessionFile, summary]));
+      this.fastSnapshotReady = true;
+      this.fastSnapshotRevision = snapshotCacheRevision;
+    } else {
+      needsRefresh = true;
     }
     return { sessions, needsRefresh };
   }

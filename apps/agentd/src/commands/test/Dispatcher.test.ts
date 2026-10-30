@@ -15,6 +15,7 @@ test.after(() => {
   fs.rmSync(temporaryHome, { recursive: true, force: true });
 });
 import { Dispatcher } from '../Dispatcher.js';
+import { SessionIndex } from '../../sessions/SessionIndex.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';
 import { Connection } from '../../server/connection.js';
@@ -39,13 +40,14 @@ class MockWebSocket extends EventEmitter {
   }
 }
 
-function createTestSetup(piPackages?: PiPackageOperations) {
+function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: SessionIndex) {
   const manager = new ConnectionManager();
   const registry = new SessionRegistry({
     piExecutablePath: 'node',
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager
+    connectionManager: manager,
+    sessionIndex
   });
   const dispatcher = new Dispatcher(registry, manager, piPackages);
 
@@ -85,6 +87,47 @@ async function sendCommand(setup: ReturnType<typeof createTestSetup>, type: stri
   } as any);
   return setup.ws.sentMessages.slice(start).map((item) => JSON.parse(item));
 }
+
+test('Dispatcher: session.list returns a cached result before slow filesystem revalidation', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
+  const sessionsDir = path.join(root, 'sessions');
+  const cachePath = path.join(root, 'index.json');
+  fs.mkdirSync(sessionsDir);
+  fs.writeFileSync(path.join(sessionsDir, 'cached.jsonl'), [
+    { type: 'session', id: 'cached', cwd: process.cwd() },
+    { type: 'session_info', name: 'Cached session' },
+  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
+  const index = new SessionIndex({ sessionsDir, cachePath });
+  await index.scan();
+  const currentIndex = new SessionIndex({ sessionsDir, cachePath });
+  const enumerate = (currentIndex as any).enumerateSessionFiles.bind(currentIndex);
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => { release = resolve; });
+  (currentIndex as any).enumerateSessionFiles = async () => {
+    await blocked;
+    return enumerate();
+  };
+  const setup = createTestSetup(undefined, currentIndex);
+  try {
+    let timer: NodeJS.Timeout | undefined;
+    const result = await Promise.race([
+      sendCommand(setup, 'session.list', '@daemon'),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
+      })
+    ]);
+    if (timer) clearTimeout(timer);
+    assert.equal(result[0].kind, 'ack');
+    assert.equal(result[1].payload.state, 'completed');
+    assert.equal(result[1].payload.data.sessions[0].id, 'cached');
+    release();
+    await currentIndex.scanFast();
+  } finally {
+    release();
+    await setup.registry.closeAll();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('Dispatcher: workspace commands require session scope and ignore client cwd', async () => {
   const repoA = createGitRepo();

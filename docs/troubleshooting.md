@@ -267,22 +267,22 @@ Nella versione web di PiFrame visualizzata da smartphone o browser remoto, il pu
 
 ### Sintomi
 Avviando l'eseguibile `PiFrame.exe` compilato manualmente da sorgenti (ad esempio da `apps/pi_frame/build/windows/x64/runner/Release/PiFrame.exe`):
-- L'applicazione si avvia ma mostra l'errore che non riesce a raggiungere o avviare il daemon di runtime (`pi-agentd`).
-- Se avviato manualmente da terminale (`pnpm run:daemon`), l'applicazione si connette regolarmente.
+- L'applicazione si avvia ma la lista sessioni mostra `TimeoutException after 0:00:08.000000`.
+- Il bundle Release contiene `scanFastSnapshot` ma non `getCachedSnapshot`.
 
 ### Causa
-Una build manuale di Flutter (`flutter build windows`) non ricompila il daemon. Senza un bundle aggiornato può copiare un `pi-agentd.cjs` precedente; inoltre un daemon già attivo con la stessa versione SemVer può continuare a servire l'app appena ricompilata. Il risultato può essere il vecchio `session.list` sincrono e il timeout di 8 secondi.
+Una build manuale di Flutter (`flutter build windows`) non ricompila il daemon. Il vecchio `session.list` attendeva la scansione filesystem prima di rispondere; il primo bundle aggiornato aggiungeva l'indice rapido, ma attendeva ancora tutta la sua scansione. Quel bundle contiene `scanFastSnapshot`, ma non `getCachedSnapshot`, quindi può ancora superare il limite UI di 8 secondi.
 
 ### Risoluzione
 1. Dalla radice del monorepo, ricompila il daemon prima dell'app:
    ```powershell
    pnpm build:agentd
    ```
-   La build Windows ora rifiuta il sidecar se manca o non contiene l'indice rapido.
+   La build Windows ora rifiuta il sidecar se manca o non contiene sia `scanFastSnapshot` sia `getCachedSnapshot`.
 2. Ricompila Flutter. CMake copia il bundle aggiornato accanto a `PiFrame.exe`. Copia `node.exe` nella stessa directory se non è già presente.
 3. Se il daemon è già in esecuzione, attendi la fine del lavoro attivo e usa **Impostazioni → Riavvia Daemon**. Ricompilare l'app non ricompila né arresta un daemon già avviato.
 
-Il controllo non legge né riscrive le sessioni Pi. Se l'errore resta dopo questi passaggi, verifica che il bundle accanto a `PiFrame.exe` contenga `scanFastSnapshot`; un solo rebuild Flutter non aggiorna `apps/agentd/dist/pi-agentd.cjs`.
+Il nuovo daemon risponde usando lo snapshot in memoria/cache e aggiorna l'indice in background; se la cache è fredda, attende il fast scan al massimo 250 ms, poi continua in background. Il controllo non legge né riscrive le sessioni Pi. Se l'errore resta dopo questi passaggi, verifica che `pi-agentd.cjs` accanto a `PiFrame.exe` contenga `getCachedSnapshot`; un solo rebuild Flutter non aggiorna `apps/agentd/dist/pi-agentd.cjs`.
 
 ---
 

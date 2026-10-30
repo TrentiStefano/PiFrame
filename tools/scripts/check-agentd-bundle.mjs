@@ -11,6 +11,7 @@ const requiredCommands = [
   'workspace.saveFile',
   'workspace.gitAction',
   'scanFastSnapshot',
+  'getCachedSnapshot',
 ];
 const missing = requiredCommands.filter((command) => !bundle.includes(command));
 if (missing.length) {

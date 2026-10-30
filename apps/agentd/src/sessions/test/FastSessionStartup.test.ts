@@ -74,6 +74,116 @@ test('cold listing returns provisional title and later publishes the exact histo
   }
 });
 
+test('session.list returns cached rows while filesystem revalidation continues', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-cached-list-'));
+  const dir = path.join(root, 'sessions');
+  const cache = path.join(root, 'index.json');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'cached.jsonl'), [
+    { type: 'session', id: 'cached', cwd: process.cwd() },
+    { type: 'session_info', name: 'Cached session' },
+  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
+  try {
+    await new SessionIndex({ sessionsDir: dir, cachePath: cache }).scan();
+    const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
+    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    (index as any).enumerateSessionFiles = async () => {
+      await blocked;
+      return enumerate();
+    };
+    const registry = makeRegistry(index, () => {});
+    try {
+      const listed = await Promise.race([
+        registry.listSessions(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('list waited for filesystem')), 100)),
+      ]);
+      assert.equal(listed[0].id, 'cached');
+      release();
+      await index.scanFast();
+    } finally {
+      release();
+      await registry.closeAll();
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('fast refresh publishes changed visible rows', { timeout: 10_000 }, async () => {
+  const row: SessionSummary = {
+    id: 'listed', name: 'Old name', cwd: process.cwd(), sessionFile: 'listed.jsonl',
+    createdAt: 1, lastActivityAt: 1, sizeBytes: 1, isActive: false,
+  };
+  const event = waitForEvent();
+  const index = {
+    getCachedSnapshot: () => [row],
+    scanFast: async () => ({ sessions: [{ ...row, name: 'New name' }], needsRefresh: false }),
+  } as unknown as SessionIndex;
+  const registry = makeRegistry(index, (_sessionId, message) => event.resolve(message));
+  try {
+    assert.equal((await registry.listSessions())[0].name, 'Old name');
+    assert.equal((await event.promise).payload.updated[0].name, 'New name');
+  } finally {
+    await registry.closeAll();
+  }
+});
+
+test('fast refresh does not invalidate for hidden subsessions', { timeout: 10_000 }, async () => {
+  const row: SessionSummary = {
+    id: 'listed', name: 'Visible', cwd: process.cwd(), sessionFile: 'listed.jsonl',
+    createdAt: 1, lastActivityAt: 1, sizeBytes: 1, isActive: false,
+  };
+  const subsession: SessionSummary = {
+    ...row, id: 'child', sessionFile: 'child.jsonl', isSubsession: true,
+  };
+  const events: unknown[] = [];
+  const index = {
+    getCachedSnapshot: () => [row],
+    scanFast: async () => ({ sessions: [row, subsession], needsRefresh: false }),
+  } as unknown as SessionIndex;
+  const registry = makeRegistry(index, (_sessionId, message) => events.push(message));
+  try {
+    assert.equal((await registry.listSessions()).length, 1);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(events.length, 0);
+  } finally {
+    await registry.closeAll();
+  }
+});
+
+test('cold session.list bounds its filesystem wait and continues discovery', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-cold-list-'));
+  const dir = path.join(root, 'sessions');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'new.jsonl'), JSON.stringify({
+    type: 'session', id: 'new', cwd: process.cwd(),
+  }) + '\n');
+  const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
+  const enumerate = (index as any).enumerateSessionFiles.bind(index);
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => { release = resolve; });
+  (index as any).enumerateSessionFiles = async () => {
+    await blocked;
+    return enumerate();
+  };
+  const registry = makeRegistry(index, () => {});
+  try {
+    const listed = await Promise.race([
+      registry.listSessions(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('cold session.list waited for filesystem')), 1500)),
+    ]);
+    assert.deepEqual(listed, []);
+    release();
+    assert.equal((await index.scanFast()).sessions[0].id, 'new');
+  } finally {
+    release();
+    await registry.closeAll();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('refresh detects renamed files, removed files and cached temporary children', { timeout: 10_000 }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-fast-refresh-'));
   const dir = path.join(root, 'sessions');
@@ -373,6 +483,47 @@ test('concurrent fast discovery shares filesystem work but keeps active flags pe
     assert.equal(calls, 1);
     assert.equal(active.sessions[0].isActive, true);
     assert.equal(inactive.sessions[0].isActive, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('fast discovery cannot erase a row added by an overlapping authoritative scan', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-overlapping-index-'));
+  const dir = path.join(root, 'sessions');
+  const cache = path.join(root, 'index.json');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'first.jsonl'), JSON.stringify({
+    type: 'session', id: 'first', cwd: process.cwd(),
+  }) + '\n');
+  try {
+    const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
+    await index.scan();
+    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    const fastFiles = await enumerate();
+    fs.writeFileSync(path.join(dir, 'second.jsonl'), JSON.stringify({
+      type: 'session', id: 'second', cwd: process.cwd(),
+    }) + '\n');
+    let release!: () => void;
+    let started!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const fastStarted = new Promise<void>((resolve) => { started = resolve; });
+    let calls = 0;
+    (index as any).enumerateSessionFiles = async () => {
+      if (++calls === 1) {
+        started();
+        await blocked;
+        return fastFiles;
+      }
+      return enumerate();
+    };
+    const fast = index.scanFast();
+    await fastStarted;
+    await index.scan();
+    release();
+    const result = await fast;
+    assert.equal(result.needsRefresh, true);
+    assert.deepEqual(index.getCachedSnapshot().map((row) => row.id).sort(), ['first', 'second']);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
