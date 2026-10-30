@@ -62,9 +62,10 @@ Il pacchetto aggiunge PiFrame al menu applicazioni e include daemon e runtime No
 
 ### Build Manuale da Sorgente (Eseguibile Standalone)
 Se compili manualmente l'eseguibile desktop da sorgenti anziché utilizzare l'installer (ad es. `flutter build windows --release`):
-1. Assicurati di compilare il daemon: `pnpm build:all` (o `pnpm build:agentd`).
-2. Per consentire all'applicazione di avviare il sidecar automaticamente all'avvio, copia `apps/agentd/dist/pi-agentd.cjs` e l'eseguibile `node.exe` nella cartella di output del runner (es. `apps/pi_frame/build/windows/x64/runner/Release/`).
-3. Per i dettagli operativi o in caso di anomalie di blocco file (`EBUSY`), fai riferimento a [**docs/troubleshooting.md**](troubleshooting.md#4-daemon-non-raggiungibile-o-errore-di-connessione-con-build-da-sorgente).
+1. Dalla radice del monorepo, aggiorna prima il daemon: `pnpm build:agentd` (o `pnpm build:all`). La build Windows rifiuta un bundle assente o privo dell'indice rapido.
+2. Compila l'app Flutter. CMake copia `apps/agentd/dist/pi-agentd.cjs` accanto all'eseguibile. Copia anche `node.exe` nella stessa cartella se il runtime Node non è già presente.
+3. Se il daemon gira già, lascia terminare i worker attivi e usa **Impostazioni → Riavvia Daemon** per caricare il bundle aggiornato. Ricompilare l'app non arresta un daemon già in esecuzione.
+4. Per i dettagli o in caso di anomalie di blocco file (`EBUSY`), consulta [**docs/troubleshooting.md**](troubleshooting.md#4-daemon-non-raggiungibile-o-errore-di-connessione-con-build-da-sorgente).
 
 ---
 

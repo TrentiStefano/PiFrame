@@ -271,21 +271,18 @@ Avviando l'eseguibile `PiFrame.exe` compilato manualmente da sorgenti (ad esempi
 - Se avviato manualmente da terminale (`pnpm run:daemon`), l'applicazione si connette regolarmente.
 
 ### Causa
-A differenza dell'installer ufficiale che pacchettizza automaticamente il sidecar, una build manuale di Flutter (`flutter build windows`) genera unicamente i binari dell'interfaccia grafica. L'app cerca il daemon sidecar (`pi-agentd.cjs` e `node.exe`) nella directory adiacente a `PiFrame.exe`.
+Una build manuale di Flutter (`flutter build windows`) non ricompila il daemon. Senza un bundle aggiornato può copiare un `pi-agentd.cjs` precedente; inoltre un daemon già attivo con la stessa versione SemVer può continuare a servire l'app appena ricompilata. Il risultato può essere il vecchio `session.list` sincrono e il timeout di 8 secondi.
 
 ### Risoluzione
-1. Compila il bundle del daemon dalla radice del monorepo:
+1. Dalla radice del monorepo, ricompila il daemon prima dell'app:
    ```powershell
-   pnpm build:all
-   # oppure: pnpm build:agentd
+   pnpm build:agentd
    ```
-2. Copia il bundle del daemon e l'interprete Node nella cartella di release di Flutter:
-   ```powershell
-   $releaseDir = "apps/pi_frame/build/windows/x64/runner/Release"
-   Copy-Item "apps/agentd/dist/pi-agentd.cjs" $releaseDir -Force
-   Copy-Item (Get-Command node).Source (Join-Path $releaseDir "node.exe") -Force
-   ```
-   In questo modo `PiFrame.exe` sarà in grado di avviare il daemon in background in autonomia ogni volta che viene aperto.
+   La build Windows ora rifiuta il sidecar se manca o non contiene l'indice rapido.
+2. Ricompila Flutter. CMake copia il bundle aggiornato accanto a `PiFrame.exe`. Copia `node.exe` nella stessa directory se non è già presente.
+3. Se il daemon è già in esecuzione, attendi la fine del lavoro attivo e usa **Impostazioni → Riavvia Daemon**. Ricompilare l'app non ricompila né arresta un daemon già avviato.
+
+Il controllo non legge né riscrive le sessioni Pi. Se l'errore resta dopo questi passaggi, verifica che il bundle accanto a `PiFrame.exe` contenga `scanFastSnapshot`; un solo rebuild Flutter non aggiorna `apps/agentd/dist/pi-agentd.cjs`.
 
 ---
 
