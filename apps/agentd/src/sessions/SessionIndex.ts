@@ -317,39 +317,44 @@ export class SessionIndex {
     const scanVersion = ++this.fastScanVersion;
     const scanRemovalRevision = this.fileRevisionCounter;
     const scanCacheRevision = this.cacheRevisionValue;
+    const snapshotAtStart = new Map(this.fastSnapshot);
     let files: Array<{ filePath: string; dirName: string }>;
     try { files = await this.enumerateSessionFiles(); }
     catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        if (scanVersion === this.fastScanVersion) {
-          this.fastSnapshot.clear();
-          this.fastSnapshotReady = true;
+        const snapshotChanged = this.fastSnapshot.size !== snapshotAtStart.size ||
+          [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
+        if (scanVersion !== this.fastScanVersion || this.cacheRevisionValue !== scanCacheRevision || snapshotChanged) {
+          return { sessions: this.getCachedSnapshot(), needsRefresh: true };
         }
-        if (scanVersion === this.fastScanVersion && this.cache.size) {
+        if (this.cache.size) {
           this.cache.clear();
           this.bumpCacheRevision();
+          const clearRevision = this.cacheRevisionValue;
           await this.saveCacheAsync();
+          if (scanVersion !== this.fastScanVersion || this.cacheRevisionValue !== clearRevision) {
+            return { sessions: this.getCachedSnapshot(), needsRefresh: true };
+          }
         }
-        if (scanVersion === this.fastScanVersion) {
-          this.fastSnapshotRevision = this.cacheRevisionValue;
-          this.fastScanVersion++;
-        }
+        this.fastSnapshot.clear();
+        this.fastSnapshotReady = true;
+        this.fastSnapshotRevision = this.cacheRevisionValue;
+        this.fastScanVersion++;
         return { sessions: [], needsRefresh: false };
       }
       throw err;
     }
 
     let needsRefresh = false;
-    let removedDuringScan = false;
+    const removedDuringScan = new Set<string>();
+    let cacheChangedDuringScan = false;
     const present = new Set(files.map(({ filePath }) => filePath));
-    if (scanVersion === this.fastScanVersion) {
-      for (const snapshotPath of this.fastSnapshot.keys()) {
-        if (!present.has(snapshotPath)) this.fastSnapshot.delete(snapshotPath);
-      }
-    }
+    const cacheChangedDuringEnumeration = this.cacheRevisionValue !== scanCacheRevision;
+    const snapshotChangedDuringEnumeration = this.fastSnapshot.size !== snapshotAtStart.size ||
+      [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
+    if (cacheChangedDuringEnumeration || snapshotChangedDuringEnumeration) needsRefresh = true;
     let removedCache = false;
-    let cacheChangedDuringEnumeration = this.cacheRevisionValue !== scanCacheRevision;
-    if (!cacheChangedDuringEnumeration) {
+    if (!cacheChangedDuringEnumeration && !snapshotChangedDuringEnumeration) {
       for (const cachedPath of this.cache.keys()) {
         if (!present.has(cachedPath)) {
           this.cache.delete(cachedPath);
@@ -381,9 +386,8 @@ export class SessionIndex {
         return { summary: provisional, stat };
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); removedDuringScan = true; }
-          this.fastSnapshot.delete(filePath);
-          this.fastScanVersion++;
+          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
+          removedDuringScan.add(filePath);
         }
         return null;
       }
@@ -395,18 +399,23 @@ export class SessionIndex {
         if (current.mtimeMs !== stat.mtimeMs || current.ctimeMs !== stat.ctimeMs || current.size !== stat.size) needsRefresh = true;
         return summary;
       } catch {
-        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); removedDuringScan = true; }
-        this.fastSnapshot.delete(summary.sessionFile);
-        this.fastScanVersion++;
+        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
+        removedDuringScan.add(summary.sessionFile);
         return null;
       }
     });
-    if (removedDuringScan) await this.saveCacheAsync();
+    if (cacheChangedDuringScan) await this.saveCacheAsync();
     const sessions = checked.filter((summary): summary is SessionSummary => summary !== null &&
       (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRemovalRevision)
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
-    if (scanVersion === this.fastScanVersion && !cacheChangedDuringEnumeration && !cacheChangedDuringSave && this.cacheRevisionValue === snapshotCacheRevision) {
-      this.fastSnapshot = new Map(sessions.map((summary) => [summary.sessionFile, summary]));
+    if (this.cacheRevisionValue !== snapshotCacheRevision) needsRefresh = true;
+    if (scanVersion === this.fastScanVersion && !cacheChangedDuringEnumeration && !cacheChangedDuringSave && !cacheChangedDuringScan && this.cacheRevisionValue === snapshotCacheRevision) {
+      const nextSnapshot = new Map(sessions.map((summary) => [summary.sessionFile, summary]));
+      for (const [filePath, summary] of this.fastSnapshot) {
+        if (snapshotAtStart.get(filePath) !== summary) nextSnapshot.set(filePath, summary);
+      }
+      for (const filePath of removedDuringScan) nextSnapshot.delete(filePath);
+      this.fastSnapshot = nextSnapshot;
       this.fastSnapshotReady = true;
       this.fastSnapshotRevision = snapshotCacheRevision;
     } else {

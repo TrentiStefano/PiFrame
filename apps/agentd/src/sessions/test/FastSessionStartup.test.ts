@@ -529,6 +529,81 @@ test('fast discovery cannot erase a row added by an overlapping authoritative sc
   }
 });
 
+test('fast enumeration preserves a snapshot row resolved concurrently', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-fast-snapshot-race-'));
+  const dir = path.join(root, 'sessions');
+  const cache = path.join(root, 'index.json');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'first.jsonl'), JSON.stringify({
+    type: 'session', id: 'first', cwd: process.cwd(),
+  }) + '\n');
+  let release!: () => void;
+  try {
+    const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
+    await index.scan();
+    await index.scanFast();
+    let started!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const fastStarted = new Promise<void>((resolve) => { started = resolve; });
+    (index as any).enumerateSessionFiles = async () => {
+      started();
+      await blocked;
+      return [];
+    };
+    const fast = index.scanFast();
+    await fastStarted;
+    assert.equal((await index.resolveFast('first'))?.id, 'first');
+    release();
+    assert.equal((await fast).needsRefresh, true);
+    assert.equal(index.getCachedSnapshot()[0].id, 'first');
+  } finally {
+    release();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('fast ENOENT does not clear cache rows added by an overlapping full scan', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-fast-enoent-race-'));
+  const dir = path.join(root, 'sessions');
+  const cache = path.join(root, 'index.json');
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, 'first.jsonl'), JSON.stringify({
+    type: 'session', id: 'first', cwd: process.cwd(),
+  }) + '\n');
+  let release!: () => void;
+  try {
+    const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
+    await index.scan();
+    await index.scanFast();
+    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    fs.writeFileSync(path.join(dir, 'second.jsonl'), JSON.stringify({
+      type: 'session', id: 'second', cwd: process.cwd(),
+    }) + '\n');
+    let started!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const fastStarted = new Promise<void>((resolve) => { started = resolve; });
+    let calls = 0;
+    (index as any).enumerateSessionFiles = async () => {
+      if (++calls === 1) {
+        started();
+        await blocked;
+        throw Object.assign(new Error('session directory vanished'), { code: 'ENOENT' });
+      }
+      return enumerate();
+    };
+    const fast = index.scanFast();
+    await fastStarted;
+    await index.scan();
+    release();
+    const result = await fast;
+    assert.equal(result.needsRefresh, true);
+    assert.deepEqual(index.getCachedSnapshot().map((row) => row.id).sort(), ['first', 'second']);
+  } finally {
+    release?.();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('opening a pinned session before listing uses fast discovery', { timeout: 10_000 }, async () => {
   const row: SessionSummary = {
     id: 'listed', name: 'Authoritative name', cwd: process.cwd(), sessionFile: 'listed.jsonl',
@@ -726,7 +801,52 @@ test('background indexing publishes progress before the full scan finishes', { t
   }
 });
 
-test('concurrent list calls share one deferred refresh and notify only after progress', { timeout: 10_000 }, async () => {
+test('a session-list refresh queued during indexing runs after the in-flight snapshot', { timeout: 10_000 }, async () => {
+  const row: SessionSummary = {
+    id: 'first', name: 'First', cwd: process.cwd(), sessionFile: 'first.jsonl',
+    createdAt: 1, lastActivityAt: 2, sizeBytes: 1, isActive: false,
+  };
+  const added: SessionSummary = {
+    ...row, id: 'second', name: 'Second', sessionFile: 'second.jsonl', lastActivityAt: 1,
+  };
+  let revision = 0;
+  let scans = 0;
+  let finishFirst!: (rows: SessionSummary[]) => void;
+  let signalFirst!: () => void;
+  const firstStarted = new Promise<void>((resolve) => { signalFirst = resolve; });
+  const updated = waitForEvent();
+  const index = {
+    get cacheRevision() { return revision; },
+    hasUnstableFiles: false,
+    getCachedSnapshot: () => [row],
+    scanFast: async () => ({ sessions: [row], needsRefresh: true }),
+    scan: () => {
+      scans++;
+      if (scans === 1) {
+        signalFirst();
+        return new Promise<SessionSummary[]>((resolve) => { finishFirst = resolve; });
+      }
+      revision++;
+      return Promise.resolve([row, added]);
+    },
+  } as unknown as SessionIndex;
+  const registry = makeRegistry(index, (_sessionId, message) => {
+    if (message.payload.updated?.some((item: SessionSummary) => item.id === added.id)) updated.resolve(message);
+  });
+  try {
+    await registry.listSessions();
+    await firstStarted;
+    assert.deepEqual((await registry.listSessions()).map((item) => item.id), [row.id]);
+    finishFirst([row]);
+    const event = await updated.promise;
+    assert.deepEqual(event.payload.updated.map((item: SessionSummary) => item.id), [row.id, added.id]);
+    assert.equal(scans, 2);
+  } finally {
+    await registry.closeAll();
+  }
+});
+
+test('concurrent list calls share one refresh and replay a queued follow-up', { timeout: 10_000 }, async () => {
   const row: SessionSummary = {
     id: 'one', name: 'provisional', cwd: process.cwd(), sessionFile: 'one.jsonl',
     createdAt: 1, lastActivityAt: 1, sizeBytes: 1, isActive: false,
@@ -740,7 +860,12 @@ test('concurrent list calls share one deferred refresh and notify only after pro
   const index = {
     get cacheRevision() { return revision; },
     scanFast: async () => ({ sessions: [pending ? row : final], needsRefresh: pending }),
-    scan: () => { scans++; return new Promise<SessionSummary[]>((resolve) => { finish = resolve; }); },
+    scan: () => {
+      scans++;
+      return scans === 1
+        ? new Promise<SessionSummary[]>((resolve) => { finish = resolve; })
+        : Promise.resolve([final]);
+    },
   } as unknown as SessionIndex;
   const events: any[] = [];
   const registry = makeRegistry(index, (_sessionId, message) => {
@@ -757,7 +882,7 @@ test('concurrent list calls share one deferred refresh and notify only after pro
     finish([final]);
     await event.promise;
     assert.equal((await registry.listSessions())[0].name, 'exact');
-    assert.equal(scans, 1);
+    assert.equal(scans, 2);
     assert.equal(events.length, 1);
     assert.equal(events[0].payload.updated[0].name, 'exact');
   } finally {

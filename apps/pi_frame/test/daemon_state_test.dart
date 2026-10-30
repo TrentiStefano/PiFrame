@@ -48,6 +48,19 @@ class ListClient extends PcpClient {
   }
 }
 
+class IndexEventClient extends StartupRaceClient {
+  final indexEvents = StreamController<PcpEvent>.broadcast(sync: true);
+
+  @override
+  Stream<PcpEvent> events(String sessionId) => indexEvents.stream;
+
+  @override
+  void dispose() {
+    indexEvents.close();
+    super.dispose();
+  }
+}
+
 class FailingListClient extends PcpClient {
   FailingListClient() : super(port: 0, token: 'test');
 
@@ -185,6 +198,43 @@ void main() {
     client.connect();
     await requested.future.timeout(const Duration(seconds: 3));
     expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+  });
+
+  test('session list ignores progress events but reloads completed index updates', () async {
+    final client = IndexEventClient()..current = DaemonConnectionState.connected;
+    final container = ProviderContainer(overrides: [
+      pcpClientProvider.overrideWithValue(client),
+    ]);
+    final listener = container.listen(sessionListProvider, (_, _) {});
+    await Future<void>.delayed(Duration.zero);
+    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(client.calls, 1);
+
+    client.indexEvents.add(const SessionIndexChangedEvent(
+      protocol: 1,
+      id: 'progress',
+      ts: 1,
+      sessionId: '@daemon',
+      seq: 0,
+      payload: {'refreshing': true},
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(client.calls, 1);
+
+    client.indexEvents.add(const SessionIndexChangedEvent(
+      protocol: 1,
+      id: 'updated',
+      ts: 2,
+      sessionId: '@daemon',
+      seq: 0,
+      payload: {'updated': [{'id': 'visible'}]},
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(client.calls, 2);
+    listener.close();
+    container.dispose();
+    client.dispose();
   });
 
   test('session list errors are not mistaken for an empty list', () async {

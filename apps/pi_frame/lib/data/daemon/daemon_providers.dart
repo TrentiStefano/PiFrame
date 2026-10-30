@@ -62,7 +62,7 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
   }
 
   final subscription = client.events('@daemon').listen((event) {
-    if (event.type == 'session.indexChanged') {
+    if (event.type == 'session.indexChanged' && event.payload['refreshing'] != true) {
       ref.invalidateSelf();
     }
   });

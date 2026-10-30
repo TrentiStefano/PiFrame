@@ -35,6 +35,7 @@ export class SessionRegistry {
   private sessions = new Map<string, Session>();
   private index: SessionIndex;
   private indexRefresh?: Promise<void>;
+  private indexRefreshRequested = false;
   private indexRetry?: NodeJS.Timeout;
   private indexRetryDelayMs = 2000;
   private pendingSessionNames = new Map<string, { file: string; name: string }>();
@@ -152,7 +153,11 @@ export class SessionRegistry {
     includeSubsessions: boolean,
     scan?: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }>
   ): void {
-    if (this.indexRefresh || this.indexRetry || this.closing) return;
+    if (this.indexRetry || this.closing) return;
+    if (this.indexRefresh) {
+      this.indexRefreshRequested = true;
+      return;
+    }
     let needsRefresh = false;
     this.indexRefresh = (scan ?? this.index.scanFast(activeSessionIds)).then((result) => {
       needsRefresh = result.needsRefresh;
@@ -171,13 +176,19 @@ export class SessionRegistry {
     }).catch((error) => {
       console.error('Error refreshing fast Pi sessions index:', error);
     }).finally(() => {
+      const refreshAgain = this.indexRefreshRequested;
+      this.indexRefreshRequested = false;
       this.indexRefresh = undefined;
-      if (needsRefresh && !this.closing) this.refreshIndex();
+      if ((needsRefresh || refreshAgain) && !this.closing) this.refreshIndex();
     });
   }
 
   private refreshIndex(): void {
-    if (this.indexRefresh || this.indexRetry || this.closing) return;
+    if (this.indexRetry || this.closing) return;
+    if (this.indexRefresh) {
+      this.indexRefreshRequested = true;
+      return;
+    }
     const revision = this.index.cacheRevision;
     let unstable = false;
     let progressTimer: NodeJS.Timeout | undefined;
@@ -241,6 +252,8 @@ export class SessionRegistry {
       console.error('Error refreshing Pi sessions index:', error);
     }).finally(() => {
       if (progressTimer) clearTimeout(progressTimer);
+      const refreshAgain = this.indexRefreshRequested;
+      this.indexRefreshRequested = false;
       this.indexRefresh = undefined;
       if (unstable && !this.closing) {
         this.indexRetry = setTimeout(() => {
@@ -251,6 +264,7 @@ export class SessionRegistry {
         this.indexRetryDelayMs = Math.min(this.indexRetryDelayMs * 2, 30_000);
       } else {
         this.indexRetryDelayMs = 2000;
+        if (refreshAgain) this.refreshIndex();
       }
     });
   }
