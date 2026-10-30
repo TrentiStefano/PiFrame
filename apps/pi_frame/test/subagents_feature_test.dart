@@ -1124,6 +1124,10 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
     });
 
     testWidgets('Expanding and collapsing activity or subagent cards maintains scroll stability without vibration', (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.25;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final entries = List.generate(
         30,
         (i) => SessionEntry(
@@ -1154,7 +1158,14 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
               (ref) => _MockTodoNotifier(ref, 'sess_scroll', todos),
             ),
             subagentsFamily('sess_scroll').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', []),
+              (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', [
+                const SubagentItem(
+                  id: 'scroll_worker',
+                  name: 'Scroll worker',
+                  model: 'test',
+                  status: 'completed',
+                ),
+              ]),
             ),
           ],
           child: MaterialApp(
@@ -1174,29 +1185,75 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
 
       await tester.pumpAndSettle();
 
-      // Check initially cards are minimized
+      // Match the screenshot: the user has scrolled away from the bottom.
+      final scrollView = find.byKey(const ValueKey('transcript-scroll'));
+      await tester.drag(scrollView, const Offset(0, 200));
+      await tester.pumpAndSettle();
+      final controller = tester.widget<ListView>(scrollView).controller!;
+      expect(controller.position.maxScrollExtent - controller.offset, greaterThan(60));
+      final scrollOffset = controller.offset;
+      final scrollTop = tester.getTopLeft(scrollView).dy;
+      final anchor = find.text('Message number 24 in the chat transcript history.');
+      final anchorTop = tester.getTopLeft(anchor).dy;
+      void expectStablePosition() {
+        expect(tester.getTopLeft(scrollView).dy, closeTo(scrollTop, 0.01));
+        expect(tester.getTopLeft(anchor).dy, closeTo(anchorTop, 0.01));
+        expect(controller.offset, closeTo(scrollOffset, 0.01));
+      }
+
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
 
       // Expand activities card
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      // Pump several animation frames to ensure no frame assertion/layout loop errors
+      // Check every animation frame, not only the settled position.
       for (int i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 16));
+        expectStablePosition();
       }
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+      expectStablePosition();
 
       // Collapse activities card
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
       for (int i = 0; i < 15; i++) {
         await tester.pump(const Duration(milliseconds: 16));
+        expectStablePosition();
       }
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-      // Floating scroll button should not appear because user never scrolled
-      expect(find.byType(FloatingActionButton), findsNothing);
+      expectStablePosition();
+
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectStablePosition();
+      }
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+      expectStablePosition();
+
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      for (int i = 0; i < 15; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        expectStablePosition();
+      }
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expectStablePosition();
+
+      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+      expectStablePosition();
+
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.pumpAndSettle();
+      expectStablePosition();
     });
   });
 }

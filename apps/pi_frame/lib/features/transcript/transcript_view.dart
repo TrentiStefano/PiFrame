@@ -2238,7 +2238,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 color: tokens.borderStrong.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(1.5),
               ),
-            ),
+            )
+          else
+            // Reserve the collapsed divider's space to keep the transcript still.
+            const SizedBox(height: 4.5),
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
