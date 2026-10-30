@@ -50,6 +50,74 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
     });
 
+    testWidgets('keeps chat input maximized until a pending question is answered', (tester) async {
+      final notifier = SessionStateNotifier('s_min_test', null)
+        ..state = const SessionState(
+          sessionId: 's_min_test',
+          cwd: '/test',
+          agentStatus: AgentStatus.working,
+          streamingTextBlocks: {0: 'Waiting for an answer...'},
+          pendingUiRequests: [
+            {
+              'requestId': 'question-1',
+              'method': 'select',
+              'dialog': true,
+              'title': 'Choose an option',
+              'options': ['Yes', 'No'],
+            },
+          ],
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('s_min_test').overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  Expanded(child: SizedBox()),
+                  Composer(sessionId: 's_min_test'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('composer-extension-ui-card')),
+        findsOneWidget,
+      );
+
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.awaitingUser,
+        streamingTextBlocks: const {},
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('composer-extension-ui-card')),
+        findsOneWidget,
+      );
+
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.working,
+        pendingUiRequests: const [],
+        streamingTextBlocks: const {0: 'Continuing after the answer...'},
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
+    });
+
     testWidgets('shows glowing pointer effect and keeps chat input window minimized during hover < 5s, then expands at >= 5s', (tester) async {
       final state = const SessionState(
         sessionId: 's_min_test',

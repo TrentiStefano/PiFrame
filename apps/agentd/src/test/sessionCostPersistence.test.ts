@@ -90,6 +90,66 @@ test('SessionIndex: extractSessionMetadata extracts per-model costs across multi
   assert.strictEqual(Math.abs(byModel['Tools/summaries'].cost - 1.183) < 0.001, true);
 });
 
+test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions grow', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-nested-subagent-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const subFile = path.join(tmpDir, 'worker.jsonl');
+  fs.writeFileSync(subFile, [
+    { type: 'session', id: 'worker#nested', parentSession: 'parent.jsonl', cwd: '/test' },
+    { type: 'model_change', modelId: 'test-model' },
+    { type: 'message', message: { role: 'assistant', content: 'First turn', usage: { cost: { total: 0.0175 } } } },
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'index.json') });
+  const initial = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
+  assert.strictEqual(initial.length, 1);
+  assert.strictEqual(initial[0].cost, 0.0175);
+
+  fs.appendFileSync(subFile, [
+    { type: 'message', message: { role: 'assistant', content: 'Second turn', usage: { cost: 0.025 } } },
+    { type: 'message', message: { role: 'assistant', content: 'Third turn', usage: { cost: { amount: 0.0075 } } } },
+    // Legacy wrapper usage must win over the same message usage, not count twice.
+    { type: 'message', usage: { cost: 0.01 }, message: { role: 'assistant', usage: { cost: 0.01 } } },
+    { type: 'message', message: { role: 'assistant', usage: { cost: { total: 'Infinity' } } } },
+    { type: 'message', message: { role: 'assistant', usage: { cost: 'invalid' } } },
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  const before = fs.readFileSync(subFile, 'utf8');
+  const updated = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
+  assert.strictEqual(updated.length, 1);
+  assert.ok(Math.abs(updated[0].cost! - 0.06) < 0.000001);
+  assert.strictEqual(updated[0].model, 'test-model');
+  assert.match(updated[0].output, /First turn\nSecond turn\nThird turn/);
+  assert.strictEqual(fs.readFileSync(subFile, 'utf8'), before);
+  assert.strictEqual((await index.getSubagents('unrelated')).length, 0);
+});
+
+test('SessionIndex: getSubagents includes persisted subagents in temporary worktrees', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-worktree-subagent-'));
+  const sessionsDir = path.join(tmpDir, 'sessions');
+  const worktreeCwd = path.join(tmpDir, 'worktree');
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  fs.mkdirSync(worktreeCwd, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+
+  const parentFile = path.join(sessionsDir, 'parent.jsonl');
+  const childFile = path.join(sessionsDir, 'child.jsonl');
+  fs.writeFileSync(childFile, [
+    { type: 'session', id: 'worker#abc12345', parentSession: parentFile, cwd: worktreeCwd },
+    { type: 'session_info', name: 'reviewer#abc12345' },
+    { type: 'model_change', modelId: 'test-model' },
+    { type: 'message', message: { role: 'assistant', content: 'Done', usage: { cost: { total: 0.042 } } } },
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+
+  const index = new SessionIndex({
+    sessionsDir,
+    cachePath: path.join(tmpDir, 'cache.json'),
+  });
+  const subagents = await index.getSubagents('parent', parentFile);
+
+  assert.strictEqual(subagents.length, 1);
+  assert.strictEqual(subagents[0].cost, 0.042);
+  assert.ok(!(await index.listSessions()).some((session) => session.id === 'worker#abc12345'));
+});
+
 test('SessionIndex: getSubagents parses object and number costs without NaN', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-subagent-test-'));
   const sessionsDir = path.join(tmpDir, 'sessions');

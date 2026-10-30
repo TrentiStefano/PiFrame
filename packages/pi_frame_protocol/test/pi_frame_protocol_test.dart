@@ -90,6 +90,7 @@ void main() {
           "runtime": {
             "status": "working",
             "isStreaming": true,
+            "runStartedAt": 1726639990000,
             "isCompacting": false,
             "autoCompaction": true,
             "queue": {
@@ -116,7 +117,9 @@ void main() {
       expect(sna.seq, 50);
       expect(sna.session.name, 'Auth session');
       expect(sna.runtime.status, 'working');
+      expect(sna.runtime.runStartedAt, 1726639990000);
       expect(sna.runtime.steeringQueue, ['Steer text']);
+      expect(RuntimeMeta.fromJson({}).runStartedAt, isNull);
     });
   });
 }

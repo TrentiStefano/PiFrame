@@ -8,6 +8,8 @@ import { resolvePiLaunch } from './executable.js';
 export interface StdioPiTransportOptions {
   executablePath: string;
   capabilities?: PiCapabilities;
+  /** Per-command response timeout. Defaults to 30s; overridable for tests. */
+  commandTimeoutMs?: number;
 }
 
 export class StdioPiTransport implements PiTransport {
@@ -46,9 +48,11 @@ export class StdioPiTransport implements PiTransport {
   private isStopped = false;
 
   private caps: PiCapabilities;
+  private commandTimeoutMs: number;
 
   constructor(opts: StdioPiTransportOptions) {
     this.executablePath = opts.executablePath;
+    this.commandTimeoutMs = opts.commandTimeoutMs ?? 30_000;
     this.caps = opts.capabilities ?? {
       version: '0.85.1',
       supported: true,
@@ -195,7 +199,7 @@ export class StdioPiTransport implements PiTransport {
     }
 
     return new Promise<PiResponse>((resolve, reject) => {
-      const timeoutMs = command === 'abort' ? undefined : 30_000;
+      const timeoutMs = command === 'abort' ? undefined : cmd.timeoutMs ?? this.commandTimeoutMs;
       let timer: NodeJS.Timeout | undefined;
       const removePending = () => {
         if (timer) clearTimeout(timer);
@@ -204,6 +208,24 @@ export class StdioPiTransport implements PiTransport {
       };
       if (timeoutMs) {
         timer = setTimeout(() => {
+          if (command === 'prompt') {
+            // Pi acks a prompt only after preflight (e.g. pre-prompt compaction of a large session, slow extension
+            // hooks), which can outlast the timeout. The process is alive and the prompt was written, so report it as
+            // accepted instead of a false "not delivered"; a late Pi rejection is surfaced as a diagnostic.
+            const entry = this.pendingCommands.get(commandId);
+            if (entry) {
+              entry.timer = undefined;
+              entry.resolve = () => {};
+              entry.reject = (err) => this.enqueueEvent({
+                type: 'worker.diagnostic',
+                level: 'error',
+                message: `Pi rejected the prompt after a slow acknowledgement: ${err.message}`,
+                source: 'pi'
+              });
+            }
+            resolve({ type: 'response', id: commandId, command, success: true, data: { disposition: 'pending' } });
+            return;
+          }
           removePending();
           reject(new Error(`Command ${command} (id=${commandId}) timed out after ${timeoutMs}ms`));
         }, timeoutMs);

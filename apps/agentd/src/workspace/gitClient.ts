@@ -53,13 +53,25 @@ export function toWslUncPath(linuxPath: string, uncPrefix: string): string {
   return path.normalize(rel ? `${uncPrefix}\\${rel}` : uncPrefix);
 }
 
-async function executeGit(args: string[], cwd: string): Promise<string> {
+async function executeGit(
+  args: string[],
+  cwd: string,
+  acceptedExitCodes: number[] = []
+): Promise<string> {
   const wslInfo = parseWslPath(cwd);
   const gitArgs = ['-c', 'safe.directory=*', ...args];
+  const run = async (command: string, commandArgs: string[], options: any) => {
+    try {
+      return (await execFileAsync(command, commandArgs, options)).stdout;
+    } catch (error: any) {
+      if (acceptedExitCodes.includes(error?.code)) return error.stdout ?? '';
+      throw error;
+    }
+  };
 
   if (wslInfo) {
     try {
-      const { stdout } = await execFileAsync(
+      return await run(
         'wsl.exe',
         ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs],
         {
@@ -69,30 +81,27 @@ async function executeGit(args: string[], cwd: string): Promise<string> {
           encoding: 'utf8',
         }
       );
-      return stdout;
     } catch (wslError: any) {
       if (wslError?.code === 'ENOENT') {
-        const { stdout } = await execFileAsync('git', gitArgs, {
+        return await run('git', gitArgs, {
           cwd,
           timeout: EXEC_TIMEOUT_MS,
           windowsHide: true,
           maxBuffer: 10 * 1024 * 1024,
           encoding: 'utf8',
         });
-        return stdout;
       }
       throw wslError;
     }
   }
 
-  const { stdout } = await execFileAsync('git', gitArgs, {
+  return await run('git', gitArgs, {
     cwd,
     timeout: EXEC_TIMEOUT_MS,
     windowsHide: true,
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
   });
-  return stdout;
 }
 
 async function runGit(args: string[], cwd: string, trim = true): Promise<string | null> {
@@ -139,6 +148,99 @@ function statusCode(code: string): GitFileStatusCode {
   return 'modified';
 }
 
+interface Numstat {
+  path: string;
+  additions: number;
+  deletions: number;
+}
+
+function parseNumstatCount(value: string): number {
+  return value === '-' ? 0 : Number.parseInt(value, 10) || 0;
+}
+
+function parseNumstatZ(output: string): Numstat[] {
+  const entries = output.split('\0');
+  const result: Numstat[] = [];
+  for (let index = 0; index < entries.length; index++) {
+    if (!entries[index]) continue;
+    const firstTab = entries[index].indexOf('\t');
+    const secondTab = entries[index].indexOf('\t', firstTab + 1);
+    if (firstTab < 0 || secondTab < 0) continue;
+    const additions = parseNumstatCount(entries[index].slice(0, firstTab));
+    const deletions = parseNumstatCount(entries[index].slice(firstTab + 1, secondTab));
+    let filePath = entries[index].slice(secondTab + 1);
+    if (!filePath) {
+      const oldPath = entries[++index];
+      const newPath = entries[++index];
+      filePath = newPath || oldPath || '';
+    }
+    if (filePath) result.push({ path: filePath, additions, deletions });
+  }
+  return result;
+}
+
+function parseNumstat(output: string): { additions: number; deletions: number } {
+  const firstTab = output.indexOf('\t');
+  const secondTab = output.indexOf('\t', firstTab + 1);
+  if (firstTab < 0 || secondTab < 0) return { additions: 0, deletions: 0 };
+  return {
+    additions: parseNumstatCount(output.slice(0, firstTab)),
+    deletions: parseNumstatCount(output.slice(firstTab + 1, secondTab)),
+  };
+}
+
+async function hasHead(cwd: string): Promise<boolean> {
+  return (await runGit(['rev-parse', '--verify', 'HEAD'], cwd)) !== null;
+}
+
+async function getNoIndexNumstat(cwd: string, filePath: string): Promise<Numstat> {
+  // Unreadable entries (e.g. a directory or a file removed mid-scan) must not fail the whole status.
+  try {
+    const output = await executeGit(
+      ['diff', '--no-index', '--numstat', '--', '/dev/null', filePath],
+      cwd,
+      [1]
+    );
+    return { path: filePath, ...parseNumstat(output) };
+  } catch {
+    return { path: filePath, additions: 0, deletions: 0 };
+  }
+}
+
+function parseStatus(cwd: string, statusOutput: string): {
+  changes: Map<string, GitFileChange>;
+  renameSources: Map<string, string>;
+} {
+  const changes = new Map<string, GitFileChange>();
+  const renameSources = new Map<string, string>();
+  const entries = statusOutput.split('\0');
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+    if (!entry || entry.length < 4) continue;
+    const indexCode = entry[0];
+    const worktreeCode = entry[1];
+    const filePath = entry.slice(3);
+    const staged = indexCode !== ' ' && indexCode !== '?';
+    const unstaged = worktreeCode !== ' ' || indexCode === '?';
+    const code = worktreeCode !== ' ' && worktreeCode !== '?' ? worktreeCode : indexCode;
+    changes.set(filePath, {
+      path: filePath,
+      status: statusCode(code),
+      staged,
+      unstaged,
+      stagedStatus: staged ? indexCode : null,
+      unstagedStatus: unstaged ? worktreeCode : null,
+      additions: 0,
+      deletions: 0,
+    });
+    if (indexCode === 'R' || indexCode === 'C' || worktreeCode === 'R' || worktreeCode === 'C') {
+      const sourcePath = entries[++index];
+      if (sourcePath) renameSources.set(filePath, sourcePath);
+    }
+  }
+  return { changes, renameSources };
+}
+
 export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   const { isRepo, rootPath } = await checkIsGitRepo(cwd);
   if (!isRepo || !rootPath) {
@@ -146,49 +248,34 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   }
 
   const branch = await getCurrentBranch(cwd);
-  const statusOutput = await runGit(['status', '--porcelain=v1', '-z'], cwd, false);
-  const changes = new Map<string, GitFileChange>();
-  if (statusOutput) {
-    const entries = statusOutput.split('\0');
-    for (let index = 0; index < entries.length; index++) {
-      const entry = entries[index];
-      if (!entry || entry.length < 4) continue;
-      const indexCode = entry[0];
-      const worktreeCode = entry[1];
-      const filePath = entry.slice(3);
-      const staged = indexCode !== ' ' && indexCode !== '?';
-      const unstaged = worktreeCode !== ' ' || indexCode === '?';
-      const code = worktreeCode !== ' ' && worktreeCode !== '?' ? worktreeCode : indexCode;
-      changes.set(filePath, {
-        path: filePath,
-        status: statusCode(code),
-        staged,
-        unstaged,
-        stagedStatus: staged ? indexCode : null,
-        unstagedStatus: unstaged ? worktreeCode : null,
-        additions: 0,
-        deletions: 0,
-      });
-      if (code === 'R' || code === 'C') index++;
+  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false) ?? '';
+  const { changes } = parseStatus(cwd, statusOutput);
+  const headExists = await hasHead(cwd);
+  let numstats: Numstat[] = [];
+  if (headExists) {
+    const output = await runGitStrict(['diff', '--numstat', '-z', 'HEAD'], cwd);
+    numstats = parseNumstatZ(output);
+    for (const change of changes.values()) {
+      if (change.status !== 'untracked') continue;
+      const fullPath = path.resolve(cwd, ...change.path.split('/'));
+      if (fs.existsSync(fullPath)) numstats.push(await getNoIndexNumstat(cwd, change.path));
+    }
+  } else {
+    for (const change of changes.values()) {
+      const fullPath = path.resolve(cwd, ...change.path.split('/'));
+      if (fs.existsSync(fullPath)) numstats.push(await getNoIndexNumstat(cwd, change.path));
     }
   }
 
-  const numstatOutput = await runGit(['diff', '--numstat', 'HEAD'], cwd);
   let totalAdditions = 0;
   let totalDeletions = 0;
-  if (numstatOutput) {
-    for (const line of numstatOutput.split('\n')) {
-      const parts = line.split('\t');
-      if (parts.length < 3) continue;
-      const additions = Number.parseInt(parts[0], 10) || 0;
-      const deletions = Number.parseInt(parts[1], 10) || 0;
-      totalAdditions += additions;
-      totalDeletions += deletions;
-      const existing = changes.get(parts.slice(2).join('\t'));
-      if (existing) {
-        existing.additions = additions;
-        existing.deletions = deletions;
-      }
+  for (const stat of numstats) {
+    totalAdditions += stat.additions;
+    totalDeletions += stat.deletions;
+    const existing = changes.get(stat.path);
+    if (existing) {
+      existing.additions += stat.additions;
+      existing.deletions += stat.deletions;
     }
   }
 
@@ -208,32 +295,36 @@ export async function getStagedPaths(cwd: string): Promise<string[]> {
 }
 
 export async function getGitDiff(cwd: string, filePath?: string): Promise<string> {
-  const normalizedPath = filePath ? filePath.replace(/\\/g, '/') : undefined;
-  const args = ['diff', 'HEAD'];
-  if (normalizedPath) args.push('--', normalizedPath);
-  const diff = await runGit(args, cwd);
-  if (diff && diff.length > 0) return diff;
-  const unstagedArgs = ['diff'];
-  if (normalizedPath) unstagedArgs.push('--', normalizedPath);
-  const unstagedDiff = await runGit(unstagedArgs, cwd);
-  if (unstagedDiff && unstagedDiff.length > 0) return unstagedDiff;
-
-  if (normalizedPath) {
-    try {
-      const fullPath = path.resolve(cwd, ...normalizedPath.split('/'));
-      if (fs.existsSync(fullPath)) {
-        try {
-          const out = await executeGit(['diff', '--no-index', '--', '/dev/null', normalizedPath], cwd);
-          if (out && out.length > 0) return out.trim();
-        } catch (err: any) {
-          const stdout = err?.stdout;
-          if (typeof stdout === 'string' && stdout.trim().length > 0) {
-            return stdout.trim();
-          }
-        }
-      }
-    } catch {}
+  if (!filePath) {
+    if (!(await hasHead(cwd))) return '';
+    return (await runGitStrict(['diff', 'HEAD'], cwd)).trim();
   }
 
-  return '';
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const status = await getGitStatus(cwd);
+  const change = status.files.find((item) => item.path === normalizedPath);
+  const headExists = await hasHead(cwd);
+  const args = ['diff', ...(headExists ? ['HEAD'] : [])];
+  if (headExists) {
+    const paths = [normalizedPath];
+    if (change?.status === 'renamed') {
+      const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false) ?? '';
+      const source = parseStatus(cwd, statusOutput).renameSources.get(normalizedPath);
+      if (source) paths.unshift(source);
+    }
+    args.push('--', ...paths.map((value) => `:(literal)${value}`));
+    const diff = await runGitStrict(args, cwd);
+    if (diff) return diff.trim();
+  }
+
+  const canUseNoIndex = headExists
+    ? change?.status === 'untracked'
+    : change !== undefined;
+  const fullPath = path.resolve(cwd, ...normalizedPath.split('/'));
+  if (!canUseNoIndex || !fs.existsSync(fullPath)) return '';
+  return (await executeGit(
+    ['diff', '--no-index', '--', '/dev/null', normalizedPath],
+    cwd,
+    [1]
+  )).trim();
 }

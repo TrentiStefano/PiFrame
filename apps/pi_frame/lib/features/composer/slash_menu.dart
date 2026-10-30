@@ -55,6 +55,7 @@ class SlashMenu extends StatelessWidget {
             final cmd = filtered[index];
             final name = cmd['name'] as String? ?? '';
             final desc = cmd['description'] as String? ?? '';
+            final argumentHint = cmd['argumentHint'] as String? ?? '';
             final source = cmd['source'] as String? ?? 'prompt';
 
             return InkWell(
@@ -78,7 +79,7 @@ class SlashMenu extends StatelessWidget {
                         border: Border.all(color: tokens.border),
                       ),
                       child: Text(
-                        '/$name',
+                        '/$name${argumentHint.isEmpty ? '' : ' $argumentHint'}',
                         style: TextStyle(
                           color: tokens.textPrimary,
                           fontWeight: FontWeight.bold,

@@ -1,12 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import * as readline from 'node:readline';
 import { getPiFrameBaseDir } from '../config/config.js';
 
 export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boolean {
   const pathApi = path.win32.isAbsolute(cwd) || path.win32.isAbsolute(tempDir) ? path.win32 : path;
   const relative = pathApi.relative(pathApi.resolve(tempDir), pathApi.resolve(cwd));
   return relative === '' || (!relative.startsWith(`..${pathApi.sep}`) && relative !== '..' && !pathApi.isAbsolute(relative));
+}
+
+function messageText(message: any): string {
+  let text = typeof message.content === 'string' ? message.content :
+    (Array.isArray(message.content) ? message.content
+      .filter((block: any) => block.type === 'text')
+      .map((block: any) => block.text || '').join('') : '');
+  if (!text && message.role === 'bashExecution') text = message.command ? `!${message.command}` : (message.output || '');
+  if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) text = message.summary || '';
+  return text;
 }
 
 export interface SessionSummary {
@@ -18,17 +29,55 @@ export interface SessionSummary {
   createdAt: number;
   lastActivityAt: number;
   sizeBytes: number;
-  messageCount: number;
+  messageCount?: number;
   lastMessagePreview?: string;
   isActive: boolean;
   parentSession?: string;
   isSubsession?: boolean;
+  isProvisional?: boolean;
 }
 
 export class SessionIndex {
   private cachePath: string;
   private sessionsDir: string;
-  private cache = new Map<string, { mtime: number; summary: SessionSummary }>();
+  private cache = new Map<string, { mtime: number; ctime?: number; summary: SessionSummary }>();
+  private unstableFiles = false;
+  private fastSnapshot = new Map<string, SessionSummary>();
+  private fastSnapshotReady = false;
+  private fastSnapshotRevision = -1;
+  private fastScanVersion = 0;
+  private cacheRevisionValue = 0;
+  private scanProgressCallbacks = new Set<(cacheRevision: number) => void>();
+  private cacheSavePromise: Promise<void> = Promise.resolve();
+  private fileRevisionCounter = 0;
+  private fileRemovalRevisions = new Map<string, number>();
+  private fullScanPromise?: Promise<SessionSummary[]>;
+  private fastScanPromise?: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }>;
+
+  public get cacheRevision(): number {
+    return this.cacheRevisionValue;
+  }
+
+  public get hasUnstableFiles(): boolean {
+    return this.unstableFiles;
+  }
+
+  public getCachedSnapshot(activeSessionIds = new Set<string>()): SessionSummary[] {
+    const summaries = this.fastSnapshotReady && this.fastSnapshotRevision === this.cacheRevisionValue
+      ? [...this.fastSnapshot.values()]
+      : [...this.cache.values()].map(({ summary }) => summary);
+    return summaries
+      .filter((summary) => !isTemporarySessionCwd(summary.cwd) || !!summary.parentSession)
+      .map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }))
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  }
+
+  private bumpCacheRevision(): void {
+    const revision = ++this.cacheRevisionValue;
+    for (const callback of [...this.scanProgressCallbacks]) {
+      try { callback(revision); } catch { /* Progress observers cannot interrupt indexing. */ }
+    }
+  }
 
   constructor(opts: { sessionsDir?: string; cachePath?: string } = {}) {
     this.sessionsDir = opts.sessionsDir || process.env.PI_CODING_AGENT_SESSION_DIR ||
@@ -51,82 +100,383 @@ export class SessionIndex {
     }
   }
 
-  private saveCache(): void {
-    try {
-      const list = Array.from(this.cache, ([id, value]) => ({ id, ...value }));
-      fs.mkdirSync(path.dirname(this.cachePath), { recursive: true });
-      const temp = `${this.cachePath}.tmp.${Date.now()}`;
-      fs.writeFileSync(temp, JSON.stringify(list, null, 2), 'utf8');
-      fs.renameSync(temp, this.cachePath);
-    } catch {}
-  }
-
-  /**
-   * Scans ~/.pi/agent/sessions/ strictly in read-only mode to index existing Pi sessions.
-   */
-  public async scan(activeSessionIds = new Set<string>()): Promise<SessionSummary[]> {
-    const piSessionsDir = this.sessionsDir;
-    if (!fs.existsSync(piSessionsDir)) {
-      return [];
-    }
-
-    const summaries: SessionSummary[] = [];
-
-    try {
-      // Structure of ~/.pi/agent/sessions: <cwdHash_or_name>/<sessionFile.jsonl>
-      const cwdDirs = fs.readdirSync(piSessionsDir);
-
-      for (const cwdDir of cwdDirs) {
-        const fullCwdDirPath = path.join(piSessionsDir, cwdDir);
-        let stat: fs.Stats;
+  private saveCacheAsync(): Promise<void> {
+    const write = this.cacheSavePromise.catch(() => {}).then(async () => {
+      while (true) {
+        const revision = this.cacheRevisionValue;
+        const list = Array.from(this.cache, ([id, value]) => ({ id, ...value }));
+        const temp = `${this.cachePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
         try {
-          stat = fs.statSync(fullCwdDirPath);
+          await fs.promises.mkdir(path.dirname(this.cachePath), { recursive: true });
+          await fs.promises.writeFile(temp, JSON.stringify(list, null, 2), 'utf8');
+          if (revision !== this.cacheRevisionValue) {
+            await fs.promises.unlink(temp).catch(() => {});
+            continue;
+          }
+          await fs.promises.rename(temp, this.cachePath);
+          if (revision === this.cacheRevisionValue) return;
         } catch {
-          continue;
-        }
-        const sessionFiles = stat.isDirectory()
-          ? fs.readdirSync(fullCwdDirPath).map((file) => path.join(fullCwdDirPath, file))
-          : [fullCwdDirPath];
-        for (const fullFilePath of sessionFiles) {
-          const sFile = path.basename(fullFilePath);
-          if (!sFile.endsWith('.json') && !sFile.endsWith('.jsonl')) continue;
-          let fileStat: fs.Stats;
-          try {
-            fileStat = fs.statSync(fullFilePath);
-          } catch {
-            continue;
-          }
-
-          const sessionId = path.basename(sFile, path.extname(sFile));
-          const cached = this.cache.get(fullFilePath);
-
-          if (cached && cached.mtime === fileStat.mtimeMs) {
-            if (isTemporarySessionCwd(cached.summary.cwd)) continue;
-            summaries.push({
-              ...cached.summary,
-              isActive: activeSessionIds.has(cached.summary.id)
-            });
-            continue;
-          }
-
-          // Inspect session file preview
-          const summary = this.parseSessionFile(sessionId, fullFilePath, fileStat, cwdDir);
-          if (!summary) continue;
-          this.cache.set(fullFilePath, { mtime: fileStat.mtimeMs, summary });
-          summaries.push({
-            ...summary,
-            isActive: activeSessionIds.has(summary.id)
-          });
+          await fs.promises.unlink(temp).catch(() => {});
+          return;
         }
       }
+    });
+    this.cacheSavePromise = write;
+    return write;
+  }
 
-      this.saveCache();
-    } catch (err) {
-      console.error('Error scanning Pi sessions directory:', err);
+  private async enumerateSessionFiles(): Promise<Array<{ filePath: string; dirName: string }>> {
+    const rootEntries = await fs.promises.readdir(this.sessionsDir, { withFileTypes: true });
+    const groups = await this.mapBounded(rootEntries, 32, async (entry) => {
+      const fullPath = path.join(this.sessionsDir, entry.name);
+      let isDirectory = entry.isDirectory();
+      let isFile = entry.isFile();
+      if (entry.isSymbolicLink()) {
+        try {
+          const stat = await fs.promises.stat(fullPath);
+          isDirectory = stat.isDirectory();
+          isFile = stat.isFile();
+        } catch { return []; }
+      }
+      if (isDirectory) {
+        let children: fs.Dirent[];
+        try { children = await fs.promises.readdir(fullPath, { withFileTypes: true }); }
+        catch (cause) {
+          if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return [];
+          const error = new Error(`Failed to enumerate session directory: ${fullPath}`, { cause }) as NodeJS.ErrnoException;
+          error.code = 'SESSION_DIRECTORY_READ_FAILED';
+          throw error;
+        }
+        return children.filter((child) => child.isFile() || child.isSymbolicLink())
+          .map((child) => ({ filePath: path.join(fullPath, child.name), dirName: entry.name }));
+      }
+      return isFile ? [{ filePath: fullPath, dirName: entry.name }] : [];
+    });
+    return groups.flat().filter(({ filePath }) => {
+      const file = path.basename(filePath);
+      return file.endsWith('.json') || file.endsWith('.jsonl');
+    });
+  }
+
+  private async mapBounded<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const result = new Array<R>(items.length);
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (true) {
+        const index = next++;
+        if (index >= items.length) return;
+        result[index] = await fn(items[index]);
+      }
+    }));
+    return result;
+  }
+
+  private cacheMatches(value: { mtime: number; ctime?: number; summary: SessionSummary }, stat: fs.Stats): boolean {
+    return value.mtime === stat.mtimeMs && value.summary.sizeBytes === stat.size &&
+      (value.ctime === undefined || value.ctime === stat.ctimeMs);
+  }
+
+  private touchCache(filePath: string, value: { mtime: number; ctime: number; summary: SessionSummary }): void {
+    const previous = this.cache.get(filePath);
+    if (!previous || previous.mtime !== value.mtime || previous.ctime !== value.ctime || JSON.stringify(previous.summary) !== JSON.stringify(value.summary)) {
+      this.cache.set(filePath, value);
+      this.bumpCacheRevision();
+    }
+  }
+
+  /** Scans Pi sessions asynchronously without changing their files. */
+  public async scan(
+    activeSessionIds = new Set<string>(),
+    onProgress?: (cacheRevision: number) => void
+  ): Promise<SessionSummary[]> {
+    const listener = onProgress ? (revision: number) => onProgress(revision) : undefined;
+    if (listener) this.scanProgressCallbacks.add(listener);
+    try {
+      if (!this.fullScanPromise) {
+        this.fullScanPromise = this.scanAuthoritative().finally(() => { this.fullScanPromise = undefined; });
+      }
+      const summaries = await this.fullScanPromise;
+      return summaries.map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }));
+    } finally {
+      if (listener) this.scanProgressCallbacks.delete(listener);
+    }
+  }
+
+  private async scanAuthoritative(): Promise<SessionSummary[]> {
+    this.unstableFiles = false;
+    const scanRevision = this.fileRevisionCounter;
+    let files: Array<{ filePath: string; dirName: string }>;
+    try { files = await this.enumerateSessionFiles(); }
+    catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (this.cache.size) {
+          this.cache.clear();
+          this.bumpCacheRevision();
+          await this.saveCacheAsync();
+        }
+        this.fastSnapshot.clear();
+        this.fastSnapshotReady = true;
+        this.fastSnapshotRevision = this.cacheRevisionValue;
+        this.fastScanVersion++;
+        return [];
+      }
+      throw err;
     }
 
-    // Sort descending by lastActivityAt
-    return summaries.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+    const present = new Set(files.map(({ filePath }) => filePath));
+    let changed = false;
+    for (const cachedPath of this.cache.keys()) {
+      if (!present.has(cachedPath)) {
+        this.cache.delete(cachedPath);
+        this.bumpCacheRevision();
+        this.fastScanVersion++;
+        changed = true;
+      }
+    }
+    for (const snapshotPath of this.fastSnapshot.keys()) {
+      if (!present.has(snapshotPath)) {
+        this.fastSnapshot.delete(snapshotPath);
+        this.fastScanVersion++;
+      }
+    }
+
+    type Candidate = { filePath: string; dirName: string; stat: fs.Stats };
+    const candidates = await this.mapBounded(files, 8, async ({ filePath, dirName }): Promise<Candidate | null> => {
+      try { return { filePath, dirName, stat: await fs.promises.stat(filePath) }; }
+      catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); changed = true; }
+          this.fastSnapshot.delete(filePath);
+          this.fastScanVersion++;
+        }
+        return null;
+      }
+    });
+    const ordered = candidates.filter((candidate): candidate is Candidate => candidate !== null)
+      .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
+    const summaries = await this.mapBounded(ordered, 8, async ({ filePath, dirName, stat: before }) => {
+      try {
+        const cached = this.cache.get(filePath);
+        let summary: SessionSummary | null;
+        if (cached && cached.ctime !== undefined && this.cacheMatches(cached, before)) {
+          summary = cached.summary;
+        } else {
+          summary = await this.parseSessionFileAsync(
+            path.basename(filePath, path.extname(filePath)), filePath, before, dirName
+          );
+          const after = await fs.promises.stat(filePath);
+          if ((this.fileRemovalRevisions.get(filePath) ?? 0) > scanRevision) return null;
+          if (before.mtimeMs !== after.mtimeMs || before.size !== after.size || before.ctimeMs !== after.ctimeMs) {
+            this.unstableFiles = true;
+            return null;
+          }
+          if (!summary) return null;
+          this.touchCache(filePath, { mtime: after.mtimeMs, ctime: after.ctimeMs, summary });
+          changed = true;
+        }
+        if ((this.fileRemovalRevisions.get(filePath) ?? 0) > scanRevision) return null;
+        if (!summary || (isTemporarySessionCwd(summary.cwd) && !summary.parentSession)) return null;
+        return summary;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); changed = true; }
+          this.fastSnapshot.delete(filePath);
+          this.fastScanVersion++;
+        }
+        return null;
+      }
+    });
+
+    const existing = await this.mapBounded(summaries.filter((summary): summary is SessionSummary => summary !== null), 8, async (summary) => {
+      try { await fs.promises.stat(summary.sessionFile); return summary; }
+      catch {
+        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); changed = true; }
+        this.fastSnapshot.delete(summary.sessionFile);
+        this.fastScanVersion++;
+        return null;
+      }
+    });
+    if (changed) await this.saveCacheAsync();
+    return existing.filter((summary): summary is SessionSummary => summary !== null &&
+      (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRevision)
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  }
+
+  public async scanFast(activeSessionIds = new Set<string>()): Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> {
+    if (!this.fastScanPromise) {
+      this.fastScanPromise = this.scanFastSnapshot().finally(() => { this.fastScanPromise = undefined; });
+    }
+    const result = await this.fastScanPromise;
+    return {
+      ...result,
+      sessions: result.sessions.map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }))
+    };
+  }
+
+  private async scanFastSnapshot(): Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> {
+    const scanVersion = ++this.fastScanVersion;
+    const scanRemovalRevision = this.fileRevisionCounter;
+    const scanCacheRevision = this.cacheRevisionValue;
+    const snapshotAtStart = new Map(this.fastSnapshot);
+    let files: Array<{ filePath: string; dirName: string }>;
+    try { files = await this.enumerateSessionFiles(); }
+    catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        const snapshotChanged = this.fastSnapshot.size !== snapshotAtStart.size ||
+          [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
+        if (scanVersion !== this.fastScanVersion || this.cacheRevisionValue !== scanCacheRevision || snapshotChanged) {
+          return { sessions: this.getCachedSnapshot(), needsRefresh: true };
+        }
+        if (this.cache.size) {
+          this.cache.clear();
+          this.bumpCacheRevision();
+          const clearRevision = this.cacheRevisionValue;
+          await this.saveCacheAsync();
+          if (scanVersion !== this.fastScanVersion || this.cacheRevisionValue !== clearRevision) {
+            return { sessions: this.getCachedSnapshot(), needsRefresh: true };
+          }
+        }
+        this.fastSnapshot.clear();
+        this.fastSnapshotReady = true;
+        this.fastSnapshotRevision = this.cacheRevisionValue;
+        this.fastScanVersion++;
+        return { sessions: [], needsRefresh: false };
+      }
+      throw err;
+    }
+
+    let needsRefresh = false;
+    const removedDuringScan = new Set<string>();
+    let cacheChangedDuringScan = false;
+    const present = new Set(files.map(({ filePath }) => filePath));
+    const cacheChangedDuringEnumeration = this.cacheRevisionValue !== scanCacheRevision;
+    const snapshotChangedDuringEnumeration = this.fastSnapshot.size !== snapshotAtStart.size ||
+      [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
+    if (cacheChangedDuringEnumeration || snapshotChangedDuringEnumeration) needsRefresh = true;
+    let removedCache = false;
+    if (!cacheChangedDuringEnumeration && !snapshotChangedDuringEnumeration) {
+      for (const cachedPath of this.cache.keys()) {
+        if (!present.has(cachedPath)) {
+          this.cache.delete(cachedPath);
+          this.bumpCacheRevision();
+          removedCache = true;
+        }
+      }
+    } else {
+      needsRefresh = true;
+    }
+    const cacheRevisionAfterPrune = this.cacheRevisionValue;
+    if (removedCache) await this.saveCacheAsync();
+    const cacheChangedDuringSave = this.cacheRevisionValue !== cacheRevisionAfterPrune;
+    if (cacheChangedDuringSave) needsRefresh = true;
+    const snapshotCacheRevision = this.cacheRevisionValue;
+
+    const results = await this.mapBounded(files, 32, async ({ filePath, dirName }) => {
+      try {
+        const stat = await fs.promises.stat(filePath);
+        const cached = this.cache.get(filePath);
+        if (cached && this.cacheMatches(cached, stat)) {
+          if (isTemporarySessionCwd(cached.summary.cwd) && !cached.summary.parentSession) return null;
+          if (cached.ctime === undefined) needsRefresh = true;
+          return { summary: { ...cached.summary, sizeBytes: stat.size, lastActivityAt: stat.mtimeMs }, stat };
+        }
+        const provisional = await this.parseSessionFileFast(filePath, stat, dirName);
+        if (!provisional) return null;
+        needsRefresh = true;
+        return { summary: provisional, stat };
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
+          removedDuringScan.add(filePath);
+        }
+        return null;
+      }
+    });
+
+    const checked = await this.mapBounded(results.filter((item): item is { summary: SessionSummary; stat: fs.Stats } => item !== null), 32, async ({ summary, stat }) => {
+      try {
+        const current = await fs.promises.stat(summary.sessionFile);
+        if (current.mtimeMs !== stat.mtimeMs || current.ctimeMs !== stat.ctimeMs || current.size !== stat.size) needsRefresh = true;
+        return summary;
+      } catch {
+        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
+        removedDuringScan.add(summary.sessionFile);
+        return null;
+      }
+    });
+    if (cacheChangedDuringScan) await this.saveCacheAsync();
+    const sessions = checked.filter((summary): summary is SessionSummary => summary !== null &&
+      (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRemovalRevision)
+      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+    if (this.cacheRevisionValue !== snapshotCacheRevision) needsRefresh = true;
+    if (scanVersion === this.fastScanVersion && !cacheChangedDuringEnumeration && !cacheChangedDuringSave && !cacheChangedDuringScan && this.cacheRevisionValue === snapshotCacheRevision) {
+      const nextSnapshot = new Map(sessions.map((summary) => [summary.sessionFile, summary]));
+      for (const [filePath, summary] of this.fastSnapshot) {
+        if (snapshotAtStart.get(filePath) !== summary) nextSnapshot.set(filePath, summary);
+      }
+      for (const filePath of removedDuringScan) nextSnapshot.delete(filePath);
+      this.fastSnapshot = nextSnapshot;
+      this.fastSnapshotReady = true;
+      this.fastSnapshotRevision = snapshotCacheRevision;
+    } else {
+      needsRefresh = true;
+    }
+    return { sessions, needsRefresh };
+  }
+
+  public findFast(sessionId: string): SessionSummary | undefined {
+    return this.findInFastSnapshot(sessionId);
+  }
+
+  private findInFastSnapshot(sessionId: string): SessionSummary | undefined {
+    const items = [...this.fastSnapshot.values()];
+    return items.find((summary) => summary.id === sessionId) || items.find((summary) => {
+      const basename = path.basename(summary.sessionFile, path.extname(summary.sessionFile));
+      return basename === sessionId || basename.startsWith(sessionId);
+    });
+  }
+
+  public async resolveFast(sessionId: string): Promise<SessionSummary | undefined> {
+    const provisional = this.findInFastSnapshot(sessionId);
+    if (!provisional) return undefined;
+    const snapshotVersion = this.fastScanVersion;
+    const filePath = provisional.sessionFile;
+    const removalRevision = this.fileRemovalRevisions.get(filePath) ?? 0;
+    try {
+      const before = await fs.promises.stat(filePath);
+      const cached = this.cache.get(filePath);
+      if (cached && cached.ctime !== undefined && this.cacheMatches(cached, before)) {
+        if ((this.fileRemovalRevisions.get(filePath) ?? 0) !== removalRevision) return undefined;
+        const resolved = { ...cached.summary, isActive: provisional.isActive };
+        if (snapshotVersion === this.fastScanVersion) this.fastSnapshot.set(filePath, resolved);
+        return resolved;
+      }
+      const summary = await this.parseSessionFileAsync(
+        path.basename(filePath, path.extname(filePath)), filePath, before, path.basename(path.dirname(filePath))
+      );
+      const after = await fs.promises.stat(filePath);
+      if (!summary || (isTemporarySessionCwd(summary.cwd) && !summary.parentSession)) return undefined;
+      if (before.mtimeMs !== after.mtimeMs || before.size !== after.size || before.ctimeMs !== after.ctimeMs) {
+        return { ...provisional, isProvisional: true };
+      }
+      if ((this.fileRemovalRevisions.get(filePath) ?? 0) !== removalRevision) return undefined;
+      this.touchCache(filePath, { mtime: after.mtimeMs, ctime: after.ctimeMs, summary });
+      await this.saveCacheAsync();
+      if ((this.fileRemovalRevisions.get(filePath) ?? 0) !== removalRevision) return undefined;
+      const resolved = { ...summary, isActive: provisional.isActive };
+      if (snapshotVersion === this.fastScanVersion) this.fastSnapshot.set(filePath, resolved);
+      return resolved;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        this.fastSnapshot.delete(filePath);
+        this.fastScanVersion++;
+        if (this.cache.delete(filePath)) {
+          this.bumpCacheRevision();
+          await this.saveCacheAsync();
+        }
+      }
+      return undefined;
+    }
   }
 
   public async listSessions(
@@ -158,23 +508,33 @@ export class SessionIndex {
   public removeSession(sessionId: string): string | null {
     let deletedPath: string | null = null;
     for (const [filePath, cached] of this.cache.entries()) {
-      if (
-        cached.summary.id === sessionId ||
-        path.basename(filePath, path.extname(filePath)) === sessionId
-      ) {
+      if (cached.summary.id === sessionId || path.basename(filePath, path.extname(filePath)) === sessionId) {
         deletedPath = filePath;
-        this.cache.delete(filePath);
         break;
       }
     }
-    if (deletedPath && fs.existsSync(deletedPath)) {
-      try {
-        fs.unlinkSync(deletedPath);
-      } catch (err) {
-        console.error('Failed to unlink session file:', deletedPath, err);
+    if (!deletedPath) {
+      for (const [filePath, summary] of this.fastSnapshot.entries()) {
+        if (summary.id === sessionId || path.basename(filePath, path.extname(filePath)) === sessionId) {
+          deletedPath = filePath;
+          break;
+        }
       }
     }
-    this.saveCache();
+    if (deletedPath) {
+      if (this.cache.delete(deletedPath)) this.bumpCacheRevision();
+      this.fastSnapshot.delete(deletedPath);
+      this.fastScanVersion++;
+      this.fileRemovalRevisions.set(deletedPath, ++this.fileRevisionCounter);
+      if (fs.existsSync(deletedPath)) {
+        try {
+          fs.unlinkSync(deletedPath);
+        } catch (err) {
+          console.error('Failed to unlink session file:', deletedPath, err);
+        }
+      }
+    }
+    void this.saveCacheAsync();
     return deletedPath;
   }
 
@@ -204,37 +564,60 @@ export class SessionIndex {
       .map((entry) => ({ ...(entry.message || entry), id: entry.id }));
   }
 
-  private parseSessionFile(
+  private makeSummary(
     sessionId: string,
     filePath: string,
     stat: fs.Stats,
-    dirName: string
+    cwd: string,
+    name: string | undefined,
+    parentSession: string | undefined,
+    messageCount?: number,
+    lastMessagePreview?: string
   ): SessionSummary | null {
+    if (isTemporarySessionCwd(cwd) && !parentSession) return null;
+    const isSubagentNameOrId =
+      Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
+      Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
+    const summary: SessionSummary = {
+      id: sessionId, name, cwd, gitRoot: null, sessionFile: filePath,
+      createdAt: stat.birthtimeMs || stat.mtimeMs, lastActivityAt: stat.mtimeMs,
+      sizeBytes: stat.size, lastMessagePreview, isActive: false, parentSession,
+      isSubsession: Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd))),
+    };
+    if (messageCount !== undefined) summary.messageCount = messageCount;
+    return summary;
+  }
+
+  private async parseSessionFileAsync(
+    initialId: string, filePath: string, stat: fs.Stats, _dirName: string
+  ): Promise<SessionSummary | null> {
+    let sessionId = initialId;
     let cwd = process.cwd();
     let name: string | undefined = sessionId;
     let messageCount = 0;
     let lastMessagePreview: string | undefined;
     let parentSession: string | undefined;
-
+    let firstLine = true;
+    let readFailed = false;
     try {
-      // Skip test/temporary projects before reading entire transcripts.
-      const fd = fs.openSync(filePath, 'r');
-      const headerBuffer = Buffer.alloc(16 * 1024);
-      let headerBytes: number;
-      try { headerBytes = fs.readSync(fd, headerBuffer, 0, headerBuffer.length, 0); }
-      finally { fs.closeSync(fd); }
-      const firstLine = headerBuffer.subarray(0, headerBytes).toString('utf8').split('\n', 1)[0];
-      try {
-        const header = JSON.parse(firstLine);
-        if (header.type === 'session') {
-          if (header.cwd && isTemporarySessionCwd(header.cwd)) return null;
-          if (header.parentSession) parentSession = header.parentSession;
+      const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
+      const lines = readline.createInterface({ input: stream, crlfDelay: Infinity });
+      for await (const line of lines) {
+        if (firstLine) {
+          firstLine = false;
+          try {
+            const header = JSON.parse(line);
+            if (header.type === 'session') {
+              if (header.parentSession) parentSession = header.parentSession;
+              if (header.cwd && isTemporarySessionCwd(header.cwd) && !parentSession) {
+                lines.close();
+                stream.destroy();
+                return null;
+              }
+            }
+          } catch { /* Legacy or incomplete headers use the normal parser below. */ }
         }
-      } catch { /* Legacy or incomplete headers use the normal parser below. */ }
-
-      const content = fs.readFileSync(filePath, 'utf8');
-      const lines = content.split('\n').filter((l) => l.trim().length > 0);
-      for (const line of lines) {
+        if (!line.trim()) continue;
         try {
           const entry = JSON.parse(line);
           if (entry.type === 'session') {
@@ -248,45 +631,80 @@ export class SessionIndex {
             const message = entry.message || entry;
             if (message.role === 'system') continue;
             messageCount++;
-            let text = typeof message.content === 'string' ? message.content :
-              (Array.isArray(message.content) ? message.content
-                .filter((block: any) => block.type === 'text')
-                .map((block: any) => block.text || '').join('') : '');
-            if (!text && message.role === 'bashExecution') {
-              text = message.command ? `!${message.command}` : (message.output || '');
-            }
-            if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) {
-              text = message.summary || '';
-            }
+            const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
           }
         } catch {}
       }
-    } catch {}
+    } catch { readFailed = true; }
+    if (readFailed) return null;
+    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview);
+  }
 
-    if (isTemporarySessionCwd(cwd)) return null;
+  private async parseSessionFileFast(filePath: string, stat: fs.Stats, _dirName: string): Promise<SessionSummary | null> {
+    let sessionId = path.basename(filePath, path.extname(filePath));
+    let cwd = process.cwd();
+    let name: string | undefined = sessionId;
+    let hasTailTitle = false;
+    let parentSession: string | undefined;
+    let lastMessagePreview: string | undefined;
+    const fd = await fs.promises.open(filePath, 'r');
+    try {
+      const head = Buffer.alloc(16 * 1024);
+      const headRead = await fd.read(head, 0, head.length, 0);
+      const headText = head.subarray(0, headRead.bytesRead).toString('utf8');
+      const headerEnd = headText.indexOf('\n');
+      const headerComplete = headerEnd >= 0 || stat.size <= headRead.bytesRead;
+      if (headerComplete) {
+        try {
+          const header = JSON.parse(headerEnd >= 0 ? headText.slice(0, headerEnd) : headText);
+          if (header.type === 'session') {
+            if (header.id) sessionId = header.id;
+            if (header.cwd) cwd = header.cwd;
+            if (header.parentSession) parentSession = header.parentSession;
+            if (header.cwd && isTemporarySessionCwd(header.cwd) && !parentSession) return null;
+          }
+        } catch { /* An incomplete or legacy header uses filename defaults. */ }
+      }
 
-    const isSubagentNameOrId =
-      Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
-      Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
-
-    const isSubsession = Boolean(isSubagentNameOrId);
-
-    return {
-      id: sessionId,
-      name,
-      cwd,
-      gitRoot: null,
-      sessionFile: filePath,
-      createdAt: stat.birthtimeMs || stat.mtimeMs,
-      lastActivityAt: stat.mtimeMs,
-      sizeBytes: stat.size,
-      messageCount,
-      lastMessagePreview,
-      isActive: false,
-      parentSession,
-      isSubsession,
-    };
+      const tailLength = Math.min(64 * 1024, stat.size);
+      const tail = Buffer.alloc(tailLength);
+      const tailRead = await fd.read(tail, 0, tailLength, Math.max(0, stat.size - tailLength));
+      let tailText = tail.subarray(0, tailRead.bytesRead).toString('utf8');
+      const startsAtFileBeginning = stat.size <= tailLength;
+      if (!startsAtFileBeginning) {
+        const firstNewline = tailText.indexOf('\n');
+        if (firstNewline < 0) tailText = '';
+        else tailText = tailText.slice(firstNewline + 1);
+      }
+      const lines = tailText.split('\n');
+      if (!tailText.endsWith('\n')) lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.type === 'session') {
+            if (entry.id) sessionId = entry.id;
+            if (entry.cwd) cwd = entry.cwd;
+            if (entry.parentSession) parentSession = entry.parentSession;
+          }
+          if (entry.type === 'session_info') { name = entry.name; hasTailTitle = true; }
+          if (entry.sessionName) { name = entry.sessionName; hasTailTitle = true; }
+          if (entry.type === 'message' || entry.role) {
+            const message = entry.message || entry;
+            if (message.role === 'system') continue;
+            const text = messageText(message);
+            if (text) lastMessagePreview = text.slice(0, 100);
+          }
+        } catch {}
+      }
+      if (!hasTailTitle) {
+        const cached = this.cache.get(filePath);
+        if (cached) name = cached.summary.name;
+      }
+    } finally { await fd.close(); }
+    const freshStat = await fs.promises.stat(filePath);
+    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview);
   }
 
   public async getSubagents(parentSessionId: string, parentSessionFile?: string | null): Promise<Array<{
@@ -298,7 +716,7 @@ export class SessionIndex {
     status: string;
     description?: string;
   }>> {
-    const all = await this.scan();
+    const { sessions: all } = await this.scanFast();
     const parentBasename = parentSessionFile ? path.basename(parentSessionFile) : undefined;
     const children = all.filter((s) => {
       if (!s.parentSession) return false;
@@ -317,28 +735,37 @@ export class SessionIndex {
 
     for (const child of children) {
       let output = '';
+      let lastMessagePreview = child.lastMessagePreview;
       let model: string | undefined;
       let cost: number | undefined;
       try {
         if (child.sessionFile && fs.existsSync(child.sessionFile)) {
-          const lines = fs.readFileSync(child.sessionFile, 'utf8').split('\n').filter(Boolean);
-          for (const line of lines) {
+          const lines = readline.createInterface({
+            input: fs.createReadStream(child.sessionFile, { encoding: 'utf8' }),
+            crlfDelay: Infinity,
+          });
+          for await (const line of lines) {
             try {
               const entry = JSON.parse(line);
               if (entry.type === 'model_change' && entry.modelId) {
                 model = entry.modelId;
               }
-              if (entry.usage?.cost !== undefined) {
-                const rawCost = typeof entry.usage.cost === 'object' && entry.usage.cost !== null
-                  ? (entry.usage.cost.total ?? entry.usage.cost.amount)
-                  : entry.usage.cost;
+              const usage = entry.usage ?? entry.message?.usage;
+              if (usage?.cost !== undefined) {
+                const rawCost = typeof usage.cost === 'object' && usage.cost !== null
+                  ? (usage.cost.total ?? usage.cost.amount)
+                  : usage.cost;
                 const numCost = Number(rawCost);
-                if (!Number.isNaN(numCost)) {
+                if (Number.isFinite(numCost)) {
                   cost = (cost ?? 0) + numCost;
                 }
               }
               if (entry.type === 'message' || entry.role) {
                 const msg = entry.message || entry;
+                if (msg.role !== 'system') {
+                  const text = messageText(msg);
+                  if (text) lastMessagePreview = text.slice(0, 100);
+                }
                 if (msg.role === 'assistant') {
                   const content = msg.content;
                   if (typeof content === 'string') {
@@ -360,9 +787,9 @@ export class SessionIndex {
         name: child.name || child.id,
         model,
         cost,
-        output: output.trim() || child.lastMessagePreview || '',
+        output: output.trim() || lastMessagePreview || '',
         status: child.isActive ? 'running' : 'completed',
-        description: child.lastMessagePreview
+        description: lastMessagePreview
       });
     }
 

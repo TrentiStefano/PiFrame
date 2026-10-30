@@ -150,6 +150,89 @@ void main() {
   );
 
   testWidgets(
+    'working folder indicator stays static while session indicator remains animated',
+    (tester) async {
+      final mockSessions = [
+        {
+          'id': 'sess_working',
+          'name': 'Working Session',
+          'cwd': 'C:/projects/myrepo',
+          'isActive': true,
+          'status': 'working',
+        },
+      ];
+      final sessionNotifier = SessionStateNotifier('sess_working', null)
+        ..state = SessionState(
+          sessionId: 'sess_working',
+          sessionName: 'Working Session',
+          cwd: 'C:/projects/myrepo',
+          agentStatus: AgentStatus.working,
+          entries: [],
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionListProvider.overrideWith(
+              (ref) => Future.value(mockSessions),
+            ),
+            pinnedSessionsProvider.overrideWith(
+              (ref) => _TestPinnedNotifier({}),
+            ),
+            removedReposProvider.overrideWith(
+              (ref) => _TestRemovedNotifier({}),
+            ),
+            activeSessionIdProvider.overrideWith((ref) => null),
+            sessionStateFamily('sess_working').overrideWith(
+              (ref) => sessionNotifier,
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(body: SessionsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final folder = find.byKey(
+        const ValueKey('session-folder:C:/projects/myrepo'),
+      );
+      final folderDot = find.byKey(
+        const ValueKey('folder-working-dot:C:/projects/myrepo'),
+      );
+      expect(folder, findsOneWidget);
+      expect(folderDot, findsOneWidget);
+      expect(
+        find.descendant(of: folder, matching: find.byType(AnimatedBuilder)),
+        findsNothing,
+      );
+      expect(
+        (tester.widget<Container>(folderDot).decoration! as BoxDecoration)
+            .boxShadow,
+        isNull,
+      );
+
+      await tester.tap(find.text('myrepo'));
+      await tester.pumpAndSettle();
+      final sessionTile = find.ancestor(
+        of: find.text('Working Session'),
+        matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(
+          of: sessionTile,
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'repo remove button opens dialog with hide and delete all options',
     (tester) async {
       final mockSessions = [

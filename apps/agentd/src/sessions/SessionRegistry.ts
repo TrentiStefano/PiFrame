@@ -11,6 +11,17 @@ import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js';
 
+const SESSION_SUMMARY_FIELDS: (keyof SessionSummary)[] = [
+  'id', 'name', 'cwd', 'gitRoot', 'sessionFile', 'createdAt', 'lastActivityAt',
+  'sizeBytes', 'messageCount', 'lastMessagePreview', 'isActive', 'parentSession',
+  'isSubsession', 'isProvisional'
+];
+
+function sameSessionSummaries(a: SessionSummary[], b: SessionSummary[]): boolean {
+  return a.length === b.length && a.every((summary, index) =>
+    SESSION_SUMMARY_FIELDS.every((field) => summary[field] === b[index]?.[field]));
+}
+
 export interface SessionRegistryOptions {
   piExecutablePath: string;
   capabilities: PiCapabilities;
@@ -23,6 +34,12 @@ export interface SessionRegistryOptions {
 export class SessionRegistry {
   private sessions = new Map<string, Session>();
   private index: SessionIndex;
+  private indexRefresh?: Promise<void>;
+  private indexRefreshRequested = false;
+  private indexRetry?: NodeJS.Timeout;
+  private indexRetryDelayMs = 2000;
+  private pendingSessionNames = new Map<string, { file: string; name: string }>();
+  private closing = false;
   private supervisor: WorkerSupervisor;
   private connectionManager: ConnectionManager;
   private piExecutablePath: string;
@@ -63,7 +80,53 @@ export class SessionRegistry {
 
   public async listSessions(query?: string, limit = 50, includeSubsessions = false): Promise<SessionSummary[]> {
     const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
-    const merged = new Map((await this.index.scan(activeIds)).map((s) => [s.id, s]));
+    let sessions: SessionSummary[];
+    let fastScan: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> | undefined;
+    let refreshFast = false;
+    let needsRefresh = false;
+    if (typeof this.index.getCachedSnapshot === 'function') {
+      sessions = this.index.getCachedSnapshot(activeIds);
+      if (sessions.length) {
+        refreshFast = true;
+      } else {
+        fastScan = this.index.scanFast(activeIds);
+        let timer: NodeJS.Timeout | undefined;
+        const fastResult = await Promise.race([
+          fastScan,
+          new Promise<undefined>((resolve) => {
+            timer = setTimeout(() => resolve(undefined), 250);
+            timer.unref();
+          })
+        ]);
+        if (timer) clearTimeout(timer);
+        if (fastResult) {
+          sessions = fastResult.sessions;
+          needsRefresh = fastResult.needsRefresh;
+          fastScan = undefined;
+        } else {
+          refreshFast = true;
+        }
+      }
+    } else {
+      const fastResult = await this.index.scanFast(activeIds);
+      sessions = fastResult.sessions;
+      needsRefresh = fastResult.needsRefresh;
+      fastScan = undefined;
+    }
+
+    const visible = this.selectSessionList(sessions, query, limit, includeSubsessions);
+    if (refreshFast) this.refreshFastIndex(activeIds, visible, query, limit, includeSubsessions, fastScan);
+    if (needsRefresh) this.refreshIndex();
+    return visible;
+  }
+
+  private selectSessionList(
+    sessions: SessionSummary[],
+    query?: string,
+    limit = 50,
+    includeSubsessions = false
+  ): SessionSummary[] {
+    const merged = new Map(sessions.map((s) => [s.id, s]));
     for (const session of this.sessions.values()) {
       merged.set(session.id, {
         ...merged.get(session.id),
@@ -80,6 +143,130 @@ export class SessionRegistry {
       .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
       .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
+  }
+
+  private refreshFastIndex(
+    activeSessionIds: Set<string>,
+    previous: SessionSummary[],
+    query: string | undefined,
+    limit: number,
+    includeSubsessions: boolean,
+    scan?: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }>
+  ): void {
+    if (this.indexRetry || this.closing) return;
+    if (this.indexRefresh) {
+      this.indexRefreshRequested = true;
+      return;
+    }
+    let needsRefresh = false;
+    this.indexRefresh = (scan ?? this.index.scanFast(activeSessionIds)).then((result) => {
+      needsRefresh = result.needsRefresh;
+      const updated = this.selectSessionList(result.sessions, query, limit, includeSubsessions);
+      if (this.closing || sameSessionSummaries(previous, updated)) return;
+      this.connectionManager.broadcast('@daemon', {
+        protocol: 1,
+        kind: 'event',
+        id: `evt_${ulid()}`,
+        ts: Date.now(),
+        sessionId: '@daemon',
+        seq: 0,
+        type: 'session.indexChanged',
+        payload: { updated: result.sessions }
+      } as any);
+    }).catch((error) => {
+      console.error('Error refreshing fast Pi sessions index:', error);
+    }).finally(() => {
+      const refreshAgain = this.indexRefreshRequested;
+      this.indexRefreshRequested = false;
+      this.indexRefresh = undefined;
+      if ((needsRefresh || refreshAgain) && !this.closing) this.refreshIndex();
+    });
+  }
+
+  private refreshIndex(): void {
+    if (this.indexRetry || this.closing) return;
+    if (this.indexRefresh) {
+      this.indexRefreshRequested = true;
+      return;
+    }
+    const revision = this.index.cacheRevision;
+    let unstable = false;
+    let progressTimer: NodeJS.Timeout | undefined;
+    const onProgress = () => {
+      if (progressTimer) return;
+      progressTimer = setTimeout(() => {
+        progressTimer = undefined;
+        if (this.closing) return;
+        this.connectionManager.broadcast('@daemon', {
+          protocol: 1,
+          kind: 'event',
+          id: `evt_${ulid()}`,
+          ts: Date.now(),
+          sessionId: '@daemon',
+          seq: 0,
+          type: 'session.indexChanged',
+          payload: { refreshing: true }
+        } as any);
+      }, 1500);
+      progressTimer.unref();
+    };
+    this.indexRefresh = this.index.scan(new Set(), onProgress).then((sessions) => {
+      unstable = this.index.hasUnstableFiles;
+      if (this.closing) return;
+      let renamed = false;
+      for (const [id, pending] of this.pendingSessionNames) {
+        const live = this.sessions.get(id);
+        if (!live || live.name !== pending.name) {
+          this.pendingSessionNames.delete(id);
+          continue;
+        }
+        const summary = sessions.find((item) => item.sessionFile === pending.file);
+        if (summary) {
+          live.name = summary.name || id;
+          this.pendingSessionNames.delete(id);
+          renamed = true;
+        }
+      }
+      if (!renamed && this.index.cacheRevision === revision) return;
+      const updated = sessions.map((summary) => {
+        const live = this.sessions.get(summary.id);
+        return live ? {
+          ...summary,
+          ...live.getSessionMeta(),
+          sessionFile: live.sessionFile || '',
+          messageCount: live.entries.length,
+          isActive: !live.readOnly
+        } : summary;
+      });
+      this.connectionManager.broadcast('@daemon', {
+        protocol: 1,
+        kind: 'event',
+        id: `evt_${ulid()}`,
+        ts: Date.now(),
+        sessionId: '@daemon',
+        seq: 0,
+        type: 'session.indexChanged',
+        payload: { updated }
+      } as any);
+    }).catch((error) => {
+      console.error('Error refreshing Pi sessions index:', error);
+    }).finally(() => {
+      if (progressTimer) clearTimeout(progressTimer);
+      const refreshAgain = this.indexRefreshRequested;
+      this.indexRefreshRequested = false;
+      this.indexRefresh = undefined;
+      if (unstable && !this.closing) {
+        this.indexRetry = setTimeout(() => {
+          this.indexRetry = undefined;
+          this.refreshIndex();
+        }, this.indexRetryDelayMs);
+        this.indexRetry.unref();
+        this.indexRetryDelayMs = Math.min(this.indexRetryDelayMs * 2, 30_000);
+      } else {
+        this.indexRetryDelayMs = 2000;
+        if (refreshAgain) this.refreshIndex();
+      }
+    });
   }
 
   public async getSubagents(sessionId: string): Promise<Array<{
@@ -156,8 +343,14 @@ export class SessionRegistry {
     }
 
     // Try finding in session index
-    const summaries = await this.index.scan();
-    const found = summaries.find((s) => s.id === id || (s.sessionFile && (path.basename(s.sessionFile, path.extname(s.sessionFile)) === id || path.basename(s.sessionFile).startsWith(id))));
+    let fast = await this.index.resolveFast(id);
+    if (!fast) {
+      const discovery = await this.index.scanFast();
+      if (discovery.needsRefresh) this.refreshIndex();
+      fast = await this.index.resolveFast(id);
+    }
+    const summaries = fast ? [] : await this.index.scan();
+    const found = fast || summaries.find((s) => s.id === id || (s.sessionFile && (path.basename(s.sessionFile, path.extname(s.sessionFile)) === id || path.basename(s.sessionFile).startsWith(id))));
     if (!found) {
       throw Object.assign(new Error(`Session ${id} not found`), { code: 'SESSION_NOT_FOUND' });
     }
@@ -183,6 +376,16 @@ export class SessionRegistry {
       if (meta.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;
     }
     this.sessions.set(id, session);
+    if (found.isProvisional && found.sessionFile) {
+      this.pendingSessionNames.set(id, { file: found.sessionFile, name: session.name || id });
+      if (this.indexRefresh) {
+        void this.indexRefresh.then(() => {
+          if (this.pendingSessionNames.has(id)) this.refreshIndex();
+        });
+      } else {
+        this.refreshIndex();
+      }
+    }
     return session;
   }
 
@@ -414,6 +617,7 @@ export class SessionRegistry {
   }
 
   public async deleteSession(sessionId: string): Promise<boolean> {
+    this.pendingSessionNames.delete(sessionId);
     const session = this.sessions.get(sessionId);
     let sessionFile = session?.sessionFile;
     if (session) {
@@ -450,6 +654,8 @@ export class SessionRegistry {
   }
 
   public async closeAll(graceMs = 5000): Promise<void> {
+    this.closing = true;
+    if (this.indexRetry) clearTimeout(this.indexRetry);
     await this.supervisor.stopAll(graceMs);
     await Promise.all(Array.from(this.sessions.values(), (session) => session.close()));
   }

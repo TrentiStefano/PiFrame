@@ -64,7 +64,9 @@ class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
     final oldMax = hasContentDimensions ? this.maxScrollExtent : null;
-    final isAtBottom = (shouldAnchorToBottom?.call() ?? true) &&
+    final isDragging = activity is DragScrollActivity;
+    final isAtBottom = !isDragging &&
+        (shouldAnchorToBottom?.call() ?? true) &&
         oldMax != null &&
         (oldMax - pixels).abs() <= 50;
 
@@ -85,6 +87,81 @@ class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
   }
 }
 
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject({required this.onSizeChange});
+  void Function(Size size) onSizeChange;
+  Size? _oldSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = size;
+    if (_oldSize != newSize) {
+      _oldSize = newSize;
+      onSizeChange(newSize);
+    }
+  }
+}
+
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({
+    required this.onSizeChange,
+    required super.child,
+  });
+
+  final void Function(Size size) onSizeChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _MeasureSizeRenderObject(onSizeChange: onSizeChange);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onSizeChange = onSizeChange;
+  }
+}
+
+class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
+  final List<String> itemKeys;
+  final Map<String, double> heightCache;
+
+  SmartTranscriptChildDelegate({
+    required Widget Function(BuildContext, int) builder,
+    required this.itemKeys,
+    required this.heightCache,
+  }) : super(builder, childCount: itemKeys.length);
+
+  @override
+  double? estimateMaxScrollOffset(
+    int firstIndex,
+    int lastIndex,
+    double leadingScrollOffset,
+    double trailingScrollOffset,
+  ) {
+    final total = itemKeys.length;
+    if (total == 0) return null;
+    final avg = heightCache.isEmpty
+        ? 120.0
+        : heightCache.values.reduce((sum, height) => sum + height) /
+              heightCache.length;
+    final remainingAfter = total - 1 - lastIndex;
+    if (remainingAfter <= 0) {
+      return trailingScrollOffset;
+    }
+
+    double estimatedAfter = 0;
+    for (int i = lastIndex + 1; i < total; i++) {
+      estimatedAfter += heightCache[itemKeys[i]] ?? avg;
+    }
+
+    return trailingScrollOffset + estimatedAfter;
+  }
+}
+
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -97,14 +174,31 @@ class TranscriptView extends ConsumerStatefulWidget {
 class _TranscriptViewState extends ConsumerState<TranscriptView> {
   late final BottomAnchoredScrollController _scrollController =
       BottomAnchoredScrollController(
-    shouldAnchorToBottom: () => !_userScrolledUp,
+    shouldAnchorToBottom: () => !_userScrolledUpNotifier.value,
   );
-  bool _userScrolledUp = false;
+  final ValueNotifier<bool> _userScrolledUpNotifier = ValueNotifier<bool>(false);
+  bool get _userScrolledUp => _userScrolledUpNotifier.value;
+  set _userScrolledUp(bool value) => _userScrolledUpNotifier.value = value;
+
   bool _isProgrammaticScroll = false;
   String? _lastHandledUiRequestId;
 
-  static const int _pageSize = 35;
-  int _visibleCount = _pageSize;
+  static const int _initialVisibleCount = 35;
+  static const int _pageSize = 250;
+  int _visibleCount = _initialVisibleCount;
+
+  final Map<String, double> _entryHeights = {};
+  String? _targetAnchorId;
+  final GlobalKey _anchorKey = GlobalKey();
+
+  double _calculateAverageHeight() {
+    if (_entryHeights.isEmpty) return 120.0;
+    double sum = 0;
+    for (final height in _entryHeights.values) {
+      sum += height;
+    }
+    return sum / _entryHeights.length;
+  }
 
   bool _initialScrollDone = false;
 
@@ -113,9 +207,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   final FocusNode _renameFocusNode = FocusNode();
   final Set<String> _expandedThinkingBlocks = <String>{};
   int _lastTotalEntries = 0;
-  DateTime? _liveTurnStartTime;
 
-  static final RegExp _nonDigits = RegExp(r'[^0-9]');
   static final RegExp _ansiEscape1 = RegExp(r'\x1B\[[0-9;]*[a-zA-Z]');
   static final RegExp _ansiEscape2 = RegExp(r'\x1B\([B0-9]');
   static final RegExp _controlChars = RegExp(
@@ -139,6 +231,20 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   int _lastRunningSubagentCount = 0;
   int _lastActiveTodoCount = 0;
   bool _userManuallyToggledTabs = false;
+  String? _trackedSessionId;
+
+  void _toggleBookTab(_ActiveBookTab tab) {
+    _isProgrammaticScroll = true;
+    setState(() {
+      _activeBookTab = (_activeBookTab == tab) ? _ActiveBookTab.none : tab;
+      _userManuallyToggledTabs = true;
+    });
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _isProgrammaticScroll = false;
+      }
+    });
+  }
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -149,48 +255,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       if (a[i].key != b[i].key || a[i].value != b[i].value) return false;
     }
     return true;
-  }
-
-  void _syncLiveTimer(bool isLiveWorking) {
-    if (isLiveWorking) {
-      _liveTurnStartTime ??= DateTime.now();
-    } else {
-      _liveTurnStartTime = null;
-    }
-  }
-
-  int? _parseTimeoutSeconds(Map<String, dynamic> args) {
-    for (final key in [
-      'timeout',
-      'timeoutSeconds',
-      'timeout_seconds',
-      'timeoutMs',
-      'timeout_ms',
-      'WaitMsBeforeAsync',
-    ]) {
-      if (args.containsKey(key)) {
-        final val = args[key];
-        if (val is num) {
-          if (key.toLowerCase().contains('ms')) {
-            return (val / 1000).ceil();
-          }
-          if (val > 1000) {
-            return (val / 1000).ceil();
-          }
-          return val.toInt();
-        }
-        if (val is String) {
-          final trimmed = val.trim().toLowerCase();
-          final numPart = int.tryParse(trimmed.replaceAll(_nonDigits, ''));
-          if (numPart != null) {
-            if (trimmed.endsWith('ms')) return (numPart / 1000).ceil();
-            if (numPart > 1000) return (numPart / 1000).ceil();
-            return numPart;
-          }
-        }
-      }
-    }
-    return null;
   }
 
   @override
@@ -209,7 +273,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   void didUpdateWidget(TranscriptView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
-      _liveTurnStartTime = null;
       _isRenaming = false;
       _cachedBentoHeader = null;
       _cachedHeaderExtStatuses = null;
@@ -219,7 +282,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _initialScrollDone = false;
       _userScrolledUp = false;
       _userManuallyToggledTabs = false;
+      _activeBookTab = _ActiveBookTab.none;
       _lastActiveTodoCount = 0;
+      _lastRunningSubagentCount = 0;
+      _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -292,7 +358,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
+          _userScrolledUp = true;
         }
       } else if (notification.direction == ScrollDirection.reverse) {
         // User scrolled downward towards bottom
@@ -300,7 +366,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             _scrollController.position.maxScrollExtent -
             _scrollController.offset;
         if (dist < 40 && _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
+          _userScrolledUp = false;
         }
       }
     } else if (notification is ScrollUpdateNotification) {
@@ -308,22 +374,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           _scrollController.position.maxScrollExtent - _scrollController.offset;
       if (notification.dragDetails != null) {
         if (dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
+          _userScrolledUp = true;
         } else if (dist < 30 && _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
-        }
-      } else if (notification.scrollDelta != null) {
-        // Negative scrollDelta means scrolling UP towards older content
-        if (notification.scrollDelta! < -2.0 && dist > 60 && !_userScrolledUp) {
-          setState(() => _userScrolledUp = true);
-        } else if (notification.scrollDelta! > 2.0 &&
-            dist < 40 &&
-            _userScrolledUp) {
-          setState(() => _userScrolledUp = false);
+          _userScrolledUp = false;
         }
       }
     }
     return false;
+  }
+
+  void _pauseStreamFollowing() {
+    _userScrolledUp = true;
   }
 
   void _followStream() {
@@ -399,6 +460,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _renameController.dispose();
     _renameFocusNode.dispose();
     _scrollController.dispose();
+    _userScrolledUpNotifier.dispose();
     super.dispose();
   }
 
@@ -762,12 +824,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   Future<void> _showCostBreakdownDialog(
     BuildContext chipContext,
     double mainAgentCost,
-    double subagentsCost,
     SessionState sessionState,
-    List<SubagentItem> subagents,
   ) async {
     final tokens = context.tokens;
-    final totalCost = mainAgentCost + subagentsCost;
 
     final Map<String, double> agentModelCosts = {};
     final Map<String, int> agentModelTokens = {};
@@ -861,7 +920,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         int level = 0; // 0: Overview, 1: Main Agent Models, 2: Subagents Breakdown
 
         return StatefulBuilder(
-          builder: (ctx, setDialogState) {
+          builder: (ctx, setDialogState) => Consumer(builder: (ctx, dialogRef, _) {
+            final subagents = dialogRef.watch(subagentsFamily(sessionState.sessionId));
+            final subagentsCost = subagents.fold<double>(0, (sum, sub) => sum + (sub.cost ?? 0));
+            final totalCost = mainAgentCost + subagentsCost;
             Widget content;
             String title;
             IconData titleIcon;
@@ -1362,7 +1424,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
               ),
             );
-          },
+          }),
         );
       },
     );
@@ -1413,17 +1475,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final activeTodoCount = todos.where((t) => !t.isCompleted).length;
     final runningSubagentCount = subagents.where((s) => s.isRunning).length;
 
-    if (runningSubagentCount > _lastRunningSubagentCount) {
-      if (!_userManuallyToggledTabs) {
-        _activeBookTab = _ActiveBookTab.subagents;
+    final isNewSession = _trackedSessionId != widget.sessionId;
+    if (isNewSession) {
+      _trackedSessionId = widget.sessionId;
+      _activeBookTab = _ActiveBookTab.none;
+      _userManuallyToggledTabs = false;
+      _lastActiveTodoCount = activeTodoCount;
+      _lastRunningSubagentCount = runningSubagentCount;
+    } else {
+      if (runningSubagentCount > _lastRunningSubagentCount) {
+        if (!_userManuallyToggledTabs) {
+          _activeBookTab = _ActiveBookTab.subagents;
+        }
+      } else if (activeTodoCount > _lastActiveTodoCount) {
+        if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
+          _activeBookTab = _ActiveBookTab.todos;
+        }
       }
-    } else if (activeTodoCount > _lastActiveTodoCount) {
-      if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
-        _activeBookTab = _ActiveBookTab.todos;
-      }
+      _lastActiveTodoCount = activeTodoCount;
+      _lastRunningSubagentCount = runningSubagentCount;
     }
-    _lastActiveTodoCount = activeTodoCount;
-    _lastRunningSubagentCount = runningSubagentCount;
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
@@ -1434,19 +1505,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final hasActiveTools = sessionState.activeToolCalls.isNotEmpty;
     final liveThinking = sessionState.currentStreamingThinking;
     final liveText = sessionState.currentStreamingText;
-    final showLiveStream =
-        sessionState.isStreaming ||
-        liveText.isNotEmpty ||
-        liveThinking.isNotEmpty ||
-        hasActiveTools;
-
-    // Auto-scroll fluidly with stream if user is near bottom
-    if (!_userScrolledUp && showLiveStream) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _followStream();
-      });
-    }
-
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
     // Windowing / Pagination for long transcripts (excluding internal/junk messages)
@@ -1454,11 +1512,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         .where((e) => !e.isJunkOrInternal)
         .toList();
     final totalEntries = cleanEntries.length;
-
-    final isLiveWorking =
-        sessionState.isStreaming ||
-        sessionState.agentStatus == AgentStatus.working;
-    _syncLiveTimer(isLiveWorking);
 
     // Keep visible messages in view if new messages arrive during active session
     if (_lastTotalEntries > 0 && totalEntries > _lastTotalEntries) {
@@ -1489,7 +1542,31 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
     final visibleEntries = cleanEntries.sublist(hiddenCount);
-    final hasLoadBanner = hiddenCount > 0;
+    final hasLoadBanner = hiddenCount > 0 || sessionState.hasMoreHistory;
+    final visibleToolIds = {
+      for (final entry in visibleEntries)
+        for (final tool in entry.toolCalls)
+          if (tool.toolCallId.isNotEmpty) tool.toolCallId,
+    };
+    final liveTools = sessionState.activeToolCalls.values
+        .where((tool) => !visibleToolIds.contains(tool.toolCallId))
+        .toList();
+    final showLiveStream = sessionState.isStreaming ||
+        liveText.isNotEmpty || liveThinking.isNotEmpty || liveTools.isNotEmpty;
+
+    // Auto-scroll fluidly with stream if user is near bottom
+    if (!_userScrolledUp && showLiveStream) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _followStream();
+      });
+    }
+
+    final itemKeys = <String>[];
+    if (hasLoadBanner) itemKeys.add('banner');
+    for (final e in visibleEntries) {
+      itemKeys.add(e.id);
+    }
+    if (showLiveStream) itemKeys.add('livestream');
 
     // Initial scroll to bottom when opening session or receiving first entries
     if (!_initialScrollDone && sessionState.entries.isNotEmpty) {
@@ -1526,32 +1603,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             runningSubagentCount,
             isCompact,
           ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
-              ? TodoPopDown(
-                  sessionId: widget.sessionId,
-                  isExpanded: true,
-                  hideBookTab: true,
-                  onClose: () => setState(() {
-                    _activeBookTab = _ActiveBookTab.none;
-                    _userManuallyToggledTabs = true;
-                  }),
-                )
-              : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
-                  ? SubagentsPopDown(
-                      sessionId: widget.sessionId,
-                      isExpanded: true,
-                      hideBookTab: true,
-                      onClose: () => setState(() {
-                        _activeBookTab = _ActiveBookTab.none;
-                        _userManuallyToggledTabs = true;
-                      }),
-                    )
-                  : const SizedBox.shrink(),
-        ),
         Expanded(
           child: Stack(
             children: [
@@ -1562,164 +1613,287 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   thumbVisibility: true,
                   trackVisibility: false,
                   interactive: true,
-                  child: ListView.builder(
+                  child: ListView.custom(
                     key: const ValueKey('transcript-scroll'),
                     controller: _scrollController,
+                    scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
                     padding: EdgeInsets.only(
                       top: 10,
                       bottom: isCompact ? 16 : 28,
                     ),
-                    itemCount:
-                        (hasLoadBanner ? 1 : 0) +
-                        visibleEntries.length +
-                        (showLiveStream ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (hasLoadBanner && index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Center(
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                    childrenDelegate: SmartTranscriptChildDelegate(
+                      itemKeys: itemKeys,
+                      heightCache: _entryHeights,
+                      builder: (context, index) {
+                        if (hasLoadBanner && index == 0) {
+                          final isLocalHidden = hiddenCount > 0;
+                          final int? remainingRemote =
+                              sessionState.totalTranscriptEntries != null
+                                  ? (sessionState.totalTranscriptEntries! -
+                                          totalEntries)
+                                      .clamp(
+                                        0,
+                                        sessionState.totalTranscriptEntries!,
+                                      )
+                                  : null;
+                          final label = isLocalHidden
+                              ? 'Carica messaggi precedenti ($hiddenCount non mostrati)'
+                              : (remainingRemote != null && remainingRemote > 0
+                                  ? 'Carica altri messaggi dalla cronologia ($remainingRemote rimanenti)'
+                                  : 'Carica altri messaggi dalla cronologia');
+
+                          return _MeasureSize(
+                            onSizeChange: (s) => _entryHeights['banner'] = s.height,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Center(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    side: BorderSide(color: tokens.border),
+                                    foregroundColor: tokens.textSecondary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.history, size: 14),
+                                  label: Text(
+                                    label,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () async {
+                                    if (visibleEntries.isEmpty) return;
+                                    final anchorEntry = visibleEntries.first;
+                                    _targetAnchorId = anchorEntry.id;
+                                    final oldOffset = _scrollController.offset;
+
+                                    double? initialAnchorY;
+                                    final initialBox = _anchorKey.currentContext
+                                        ?.findRenderObject() as RenderBox?;
+                                    if (initialBox != null && initialBox.attached) {
+                                      initialAnchorY = initialBox
+                                          .localToGlobal(Offset.zero)
+                                          .dy;
+                                    }
+
+                                    final avg = _calculateAverageHeight();
+                                    double addedHeight = 0;
+
+                                    if (isLocalHidden) {
+                                      final oldVisibleCount = _visibleCount;
+                                      final newVisibleCount = (_visibleCount + _pageSize)
+                                          .clamp(0, totalEntries);
+                                      final oldHiddenCount = totalEntries - oldVisibleCount;
+                                      final newHiddenCount = totalEntries - newVisibleCount;
+                                      for (int i = newHiddenCount; i < oldHiddenCount; i++) {
+                                        addedHeight += _entryHeights[cleanEntries[i].id] ?? avg;
+                                      }
+                                      setState(() {
+                                        _visibleCount = newVisibleCount;
+                                      });
+                                    } else {
+                                      final added = await ref
+                                          .read(
+                                            sessionStateFamily(
+                                              widget.sessionId,
+                                            ).notifier,
+                                          )
+                                          .loadOlderHistory(limit: _pageSize);
+                                      addedHeight = added * avg;
+                                    }
+
+                                    if (addedHeight > 0 && _scrollController.hasClients) {
+                                      _isProgrammaticScroll = true;
+                                      _scrollController.jumpTo(oldOffset + addedHeight);
+                                    }
+
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _isProgrammaticScroll = false;
+                                      if (!mounted ||
+                                          !_scrollController.hasClients ||
+                                          initialAnchorY == null) {
+                                        _targetAnchorId = null;
+                                        return;
+                                      }
+                                      final currentBox = _anchorKey.currentContext
+                                          ?.findRenderObject() as RenderBox?;
+                                      if (currentBox != null && currentBox.attached) {
+                                        final currentY = currentBox
+                                            .localToGlobal(Offset.zero)
+                                            .dy;
+                                        final diff = currentY - initialAnchorY;
+                                        if (diff.abs() > 0.5) {
+                                          _isProgrammaticScroll = true;
+                                          _scrollController
+                                              .jumpTo(_scrollController.offset + diff);
+                                          scheduleMicrotask(
+                                            () => _isProgrammaticScroll = false,
+                                          );
+                                        }
+                                      }
+                                      _targetAnchorId = null;
+                                    });
+                                  },
                                 ),
-                                side: BorderSide(color: tokens.border),
-                                foregroundColor: tokens.textSecondary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    tokens.radiusSm,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final entryIndex = index - (hasLoadBanner ? 1 : 0);
+                        if (entryIndex < visibleEntries.length) {
+                          final entry = visibleEntries[entryIndex];
+                          int? elapsedSeconds;
+                          if (entry.role != 'user') {
+                            final cleanIdx = hiddenCount + entryIndex;
+                            if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
+                              final prev = cleanEntries[cleanIdx - 1];
+                              final diffMs = entry.timestamp - prev.timestamp;
+                              if (diffMs >= 5000) {
+                                elapsedSeconds = (diffMs / 1000).round();
+                              }
+                            }
+                            if (elapsedSeconds == null &&
+                                entry.toolCalls.isNotEmpty) {
+                              int totalToolMs = 0;
+                              for (final t in entry.toolCalls) {
+                                if (t.durationMs != null) {
+                                  totalToolMs += t.durationMs!;
+                                }
+                              }
+                              if (totalToolMs >= 5000) {
+                                elapsedSeconds = (totalToolMs / 1000).round();
+                              }
+                            }
+                          }
+                          final firstVisibleId = _targetAnchorId ??
+                              (visibleEntries.isNotEmpty ? visibleEntries.first.id : null);
+                          final isAnchor = entry.id == firstVisibleId;
+                          return _MeasureSize(
+                            onSizeChange: (s) => _entryHeights[entry.id] = s.height,
+                            child: Padding(
+                              key: isAnchor ? _anchorKey : ValueKey('entry_row_${entry.id}'),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isCompact ? 12 : 24,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 820),
+                                  child: RepaintBoundary(
+                                    key: ValueKey(entry.id),
+                                    child: _buildEntryItem(
+                                      entry.copyWith(
+                                        toolCalls: entry.toolCalls.map((tool) {
+                                          final live = tool.toolCallId.isEmpty
+                                              ? null
+                                              : sessionState.activeToolCalls[tool.toolCallId];
+                                          if (live == null) return tool;
+                                          return ToolExecutionState(
+                                            toolCallId: tool.toolCallId,
+                                            toolName: live.toolName.isEmpty
+                                                ? tool.toolName : live.toolName,
+                                            args: live.args.isEmpty ? tool.args : live.args,
+                                            output: live.output.isEmpty
+                                                ? tool.output : live.output,
+                                            isRunning: live.isRunning,
+                                            isError: live.isError || tool.isError,
+                                            durationMs: live.durationMs ?? tool.durationMs,
+                                            startedAt: live.startedAt ?? tool.startedAt,
+                                          );
+                                        }).toList(),
+                                      ),
+                                      tokens,
+                                      elapsedSeconds: elapsedSeconds,
+                                    ),
                                   ),
                                 ),
                               ),
-                              icon: const Icon(Icons.history, size: 14),
-                              label: Text(
-                                'Carica messaggi precedenti ($hiddenCount non mostrati)',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                              onPressed: () {
-                                final oldMax =
-                                    _scrollController.position.maxScrollExtent;
-                                final oldOffset = _scrollController.offset;
-                                setState(() {
-                                  _visibleCount = (_visibleCount + _pageSize)
-                                      .clamp(0, totalEntries);
-                                });
-                                WidgetsBinding.instance.addPostFrameCallback((
-                                  _,
-                                ) {
-                                  if (!_scrollController.hasClients) return;
-                                  final newMax = _scrollController
-                                      .position
-                                      .maxScrollExtent;
-                                  final diff = newMax - oldMax;
-                                  if (diff > 0) {
-                                    _scrollController.jumpTo(oldOffset + diff);
-                                  }
-                                });
-                              },
                             ),
-                          ),
-                        );
-                      }
-
-                      final entryIndex = index - (hasLoadBanner ? 1 : 0);
-                      if (entryIndex < visibleEntries.length) {
-                        final entry = visibleEntries[entryIndex];
-                        int? elapsedSeconds;
-                        int? timeoutSeconds;
-                        if (entry.role != 'user') {
-                          final cleanIdx = hiddenCount + entryIndex;
-                          if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                            final prev = cleanEntries[cleanIdx - 1];
-                            final diffMs = entry.timestamp - prev.timestamp;
-                            if (diffMs >= 5000) {
-                              elapsedSeconds = (diffMs / 1000).round();
-                            }
-                          }
-                          if (elapsedSeconds == null &&
-                              entry.toolCalls.isNotEmpty) {
-                            int totalToolMs = 0;
-                            for (final t in entry.toolCalls) {
-                              if (t.durationMs != null) {
-                                totalToolMs += t.durationMs!;
-                              }
-                            }
-                            if (totalToolMs >= 5000) {
-                              elapsedSeconds = (totalToolMs / 1000).round();
-                            }
-                          }
-                          for (final t in entry.toolCalls) {
-                            final to = _parseTimeoutSeconds(t.args);
-                            if (to != null) {
-                              timeoutSeconds = to;
-                              break;
-                            }
-                          }
+                          );
                         }
-                        return Padding(
-                          key: ValueKey('entry_row_${entry.id}'),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isCompact ? 12 : 24,
-                          ),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 820),
-                              child: RepaintBoundary(
-                                key: ValueKey(entry.id),
-                                child: _buildEntryItem(
-                                  entry,
-                                  tokens,
-                                  elapsedSeconds: elapsedSeconds,
-                                  timeoutSeconds: timeoutSeconds,
+
+                        return _MeasureSize(
+                          onSizeChange: (s) => _entryHeights['livestream'] = s.height,
+                          child: Padding(
+                            key: const ValueKey('entry_row_livestream'),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 12 : 24,
+                            ),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 820),
+                                child: RepaintBoundary(
+                                  child: _buildLiveStream(
+                                    sessionState,
+                                    tokens,
+                                    liveThinking,
+                                    liveText,
+                                    hasActiveTools,
+                                    liveTools,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         );
-                      }
-
-                      return Padding(
-                        key: const ValueKey('entry_row_livestream'),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 12 : 24,
-                        ),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 820),
-                            child: RepaintBoundary(
-                              child: _buildLiveStream(
-                                sessionState,
-                                tokens,
-                                liveThinking,
-                                liveText,
-                                hasActiveTools,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                      },
+                    ),
                   ),
+                ),
+              ),
+              // Overlay activity panels so expanding them cannot move the chat.
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
+                      ? TodoPopDown(
+                          sessionId: widget.sessionId,
+                          isExpanded: true,
+                          hideBookTab: true,
+                          onClose: () => _toggleBookTab(_ActiveBookTab.todos),
+                        )
+                      : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
+                          ? SubagentsPopDown(
+                              sessionId: widget.sessionId,
+                              isExpanded: true,
+                              hideBookTab: true,
+                              onClose: () => _toggleBookTab(_ActiveBookTab.subagents),
+                            )
+                          : const SizedBox.shrink(),
                 ),
               ),
 
               // Floating Scroll-to-bottom Button
-              if (_userScrolledUp)
-                Positioned(
-                  right: 24,
-                  bottom: 24,
-                  child: FloatingActionButton.small(
-                    backgroundColor: tokens.surfaceElevated,
-                    foregroundColor: tokens.accent,
-                    onPressed: () {
-                      setState(() => _userScrolledUp = false);
-                      _scrollToBottom(animate: true);
-                    },
-                    child: const Icon(Icons.arrow_downward, size: 18),
-                  ),
-                ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _userScrolledUpNotifier,
+                builder: (context, userScrolledUp, _) {
+                  if (!userScrolledUp) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 24,
+                    bottom: 24,
+                    child: FloatingActionButton.small(
+                      backgroundColor: tokens.surfaceElevated,
+                      foregroundColor: tokens.accent,
+                      onPressed: () {
+                        _userScrolledUp = false;
+                        _scrollToBottom(animate: true);
+                      },
+                      child: const Icon(Icons.arrow_downward, size: 18),
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -2010,9 +2184,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   onTap: (ctx) => _showCostBreakdownDialog(
                     ctx,
                     mainAgentCost,
-                    subagentsCost,
                     sessionState,
-                    subagents,
                   ),
                 ),
                 for (final status in extensionStatuses) ...[
@@ -2066,7 +2238,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 color: tokens.borderStrong.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(1.5),
               ),
-            ),
+            )
+          else
+            // Reserve the collapsed divider's space to keep the transcript still.
+            const SizedBox(height: 4.5),
           Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -2074,12 +2249,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               if (todos.isNotEmpty)
                 InkWell(
                   key: const ValueKey('todo-peek-tab'),
-                  onTap: () => setState(() {
-                    _activeBookTab = (_activeBookTab == _ActiveBookTab.todos)
-                        ? _ActiveBookTab.none
-                        : _ActiveBookTab.todos;
-                    _userManuallyToggledTabs = true;
-                  }),
+                  onTap: () => _toggleBookTab(_ActiveBookTab.todos),
                   borderRadius: _activeBookTab == _ActiveBookTab.todos
                       ? const BorderRadius.vertical(top: Radius.circular(6))
                       : BorderRadius.circular(6),
@@ -2149,12 +2319,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               if (subagents.isNotEmpty)
                 InkWell(
                   key: const ValueKey('subagents-book-tab'),
-                  onTap: () => setState(() {
-                    _activeBookTab = (_activeBookTab == _ActiveBookTab.subagents)
-                        ? _ActiveBookTab.none
-                        : _ActiveBookTab.subagents;
-                    _userManuallyToggledTabs = true;
-                  }),
+                  onTap: () => _toggleBookTab(_ActiveBookTab.subagents),
                   borderRadius: _activeBookTab == _ActiveBookTab.subagents
                       ? const BorderRadius.vertical(top: Radius.circular(6))
                       : BorderRadius.circular(6),
@@ -2253,6 +2418,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     String liveThinking,
     String liveText,
     bool hasActiveTools,
+    List<ToolExecutionState> liveTools,
   ) {
     final hasLiveThinking = liveThinking.trim().isNotEmpty;
     final hasLiveText = liveText.trim().isNotEmpty;
@@ -2283,12 +2449,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 });
               },
             ),
-            if (hasActiveTools || hasLiveText || hasLoadingIndicator)
+            if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator)
               const SizedBox(height: 6),
           ],
-          if (hasActiveTools) ...[
+          if (liveTools.isNotEmpty) ...[
             ToolTimeline(
-              toolCalls: sessionState.activeToolCalls.values.toList(),
+              toolCalls: liveTools,
+              onCardExpansionChanged: _pauseStreamFollowing,
             ),
             if (hasLiveText || hasLoadingIndicator)
               const SizedBox(height: 6),
@@ -2330,9 +2497,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           ],
           // Seconds counter for live turn taking >= 5s
           _LiveTurnTimerWidget(
-            startTime: _liveTurnStartTime,
-            activeToolCalls: sessionState.activeToolCalls.values,
-            parseTimeoutSeconds: _parseTimeoutSeconds,
+            startTime: sessionState.runStartedAt == null ? null :
+                DateTime.fromMillisecondsSinceEpoch(sessionState.runStartedAt!),
             tokens: tokens,
           ),
         ],
@@ -2403,7 +2569,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     SessionEntry entry,
     FrameTokens tokens, {
     int? elapsedSeconds,
-    int? timeoutSeconds,
   }) {
     if (entry.isJunkOrInternal) return const SizedBox.shrink();
     final cwd = ref.watch(
@@ -2602,7 +2767,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
           // Tool calls timeline if present
           if (entry.toolCalls.isNotEmpty) ...[
-            ToolTimeline(toolCalls: entry.toolCalls),
+            ToolTimeline(
+              toolCalls: entry.toolCalls,
+              onCardExpansionChanged: _pauseStreamFollowing,
+            ),
             if (entry.text.isNotEmpty)
               const SizedBox(height: 6),
           ],
@@ -2677,40 +2845,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (timeoutSeconds != null) ...[
-                                    Text(
-                                      ' (timeout: ${timeoutSeconds}s)',
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 9.5,
-                                        fontFamily: tokens.monoFontFamily,
-                                      ),
-                                    ),
-                                  ],
                                 ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                          ] else if (timeoutSeconds != null) ...[
-                            Container(
-                              key: ValueKey('entry_timeout_${entry.id}'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusSm,
-                                ),
-                              ),
-                              child: Text(
-                                'limite ${timeoutSeconds}s',
-                                style: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 9.5,
-                                  fontFamily: tokens.monoFontFamily,
-                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -3024,14 +3159,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
 class _LiveTurnTimerWidget extends StatefulWidget {
   final DateTime? startTime;
-  final Iterable<ToolExecutionState> activeToolCalls;
-  final int? Function(Map<String, dynamic>) parseTimeoutSeconds;
   final FrameTokens tokens;
 
   const _LiveTurnTimerWidget({
     required this.startTime,
-    required this.activeToolCalls,
-    required this.parseTimeoutSeconds,
     required this.tokens,
   });
 
@@ -3077,16 +3208,7 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
         ? DateTime.now().difference(widget.startTime!).inSeconds
         : 0;
 
-    int? activeTimeout;
-    for (final t in widget.activeToolCalls) {
-      final to = widget.parseTimeoutSeconds(t.args);
-      if (to != null) {
-        activeTimeout = to;
-        break;
-      }
-    }
-
-    if (liveElapsedSec < 5 && activeTimeout == null) {
+    if (liveElapsedSec < 5) {
       return const SizedBox.shrink();
     }
 
@@ -3124,17 +3246,6 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (activeTimeout != null) ...[
-                  const SizedBox(width: 4),
-                  Text(
-                    '(timeout: ${activeTimeout}s)',
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 10,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),

@@ -47,6 +47,8 @@
         "agent.setAutoRetry",
         "agent.abortRetry",
         "agent.setModel",
+        "agent.authLogin",
+        "agent.authLogout",
         "agent.getModels",
         "agent.setThinkingLevel",
         "agent.getThinkingLevels",
@@ -88,6 +90,10 @@
     {
       "if": { "properties": { "type": { "const": "pi.packages.pin" } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "required": ["source", "version"], "properties": { "source": { "type": "string", "minLength": 1, "maxLength": 512 }, "version": { "type": "string", "minLength": 1, "maxLength": 128 } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["agent.authLogin", "agent.authLogout"] } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
     },
     {
       "if": { "properties": { "type": { "const": "workspace.listFiles" } }, "required": ["type"] },

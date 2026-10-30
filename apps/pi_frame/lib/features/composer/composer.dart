@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:file_selector/file_selector.dart';
 
@@ -21,7 +22,10 @@ import 'slash_menu.dart';
 import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
+import '../session_tree/session_tree_dialog.dart';
+import '../sessions_sidebar/session_actions.dart' show createSession;
 import '../workspace/repository_workspace.dart';
+import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../context_panel/context_window_selector.dart';
@@ -29,6 +33,25 @@ import '../context_panel/context_window_selector.dart';
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
 );
+
+class _ComposerSizeAnimator extends ConsumerWidget {
+  final Widget child;
+
+  const _ComposerSizeAnimator({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // While a pane divider is dragged the composer follows it directly; AnimatedSize would
+    // tween its size and trail the divider. Minimize/expand keeps the 280 ms height tween.
+    if (ref.watch(paneDraggingProvider)) return child;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOutCubic,
+      alignment: Alignment.bottomCenter,
+      child: child,
+    );
+  }
+}
 
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
@@ -61,16 +84,34 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
   bool _isContextPickerLoading = false;
+  // Model/thinking menus load their options asynchronously before opening: ignore re-taps meanwhile.
+  bool _isPickerBusy = false;
+  // Cards the user closed locally (timeout, stale or answered); the daemon event may arrive later or never.
+  final Set<String> _dismissedUiRequestIds = {};
   int _modelLoadGeneration = 0;
+
+  Future<void> _guardPicker(Future<void> Function() open) async {
+    if (_isPickerBusy) return;
+    _isPickerBusy = true;
+    try {
+      await open();
+    } finally {
+      _isPickerBusy = false;
+    }
+  }
 
   Future<void> _loadModels() async {
     final generation = ++_modelLoadGeneration;
     final sessionId = widget.sessionId;
     final notifier = ref.read(sessionStateFamily(sessionId).notifier);
     final models = await notifier.getAvailableModels();
-    if (mounted && widget.sessionId == sessionId && generation == _modelLoadGeneration) {
+    if (mounted &&
+        widget.sessionId == sessionId &&
+        generation == _modelLoadGeneration) {
       setState(() {
-        _models = models.map((model) => Map<String, dynamic>.from(model)).toList();
+        _models = models
+            .map((model) => Map<String, dynamic>.from(model))
+            .toList();
       });
     }
   }
@@ -322,6 +363,36 @@ class _ComposerState extends ConsumerState<Composer> {
 
     if ((text.isEmpty && attachments.isEmpty) ||
         ref.read(composerSendingProvider(widget.sessionId))) {
+      return;
+    }
+    final builtin = _parsePiBuiltin(text);
+    if (builtin != null) {
+      final sending = ref.read(
+        composerSendingProvider(widget.sessionId).notifier,
+      );
+      sending.state = true;
+      try {
+        if (attachments.isNotEmpty) {
+          throw StateError(
+            'Rimuovi gli allegati prima di eseguire un comando Pi.',
+          );
+        }
+        await _runPiBuiltin(builtin.$1, builtin.$2);
+        if (!mounted) return;
+        if (_controller.text == draft) _controller.clear();
+        final savedDraft = ref.read(
+          composerDraftProvider(widget.sessionId).notifier,
+        );
+        if (savedDraft.mounted && savedDraft.state == draft) {
+          savedDraft.state = '';
+        }
+      } catch (error) {
+        if (mounted) {
+          FrameSnackBar.show(context, message: 'Comando non riuscito: $error');
+        }
+      } finally {
+        if (sending.mounted) sending.state = false;
+      }
       return;
     }
     _isManuallyExpanded = false;
@@ -581,9 +652,321 @@ class _ComposerState extends ConsumerState<Composer> {
     _focusNode.requestFocus();
   }
 
+  (String, String)? _parsePiBuiltin(String text) {
+    final match = RegExp(
+      r'^/([a-z][a-z0-9-]*)(?:\s+(.*))?$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (match == null) return null;
+    final name = match.group(1)!.toLowerCase();
+    final isBuiltin = _availableCommands.any(
+      (command) => command['source'] == 'builtin' && command['name'] == name,
+    );
+    return isBuiltin ? (name, match.group(2)?.trim() ?? '') : null;
+  }
+
+  Future<void> _runPiBuiltin(String name, String args) async {
+    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    switch (name) {
+      case 'settings':
+        ref.read(showSettingsProvider.notifier).state = true;
+        return;
+      case 'model':
+        if (args.isEmpty) return _showModelPicker(context);
+        final models = await notifier.getAvailableModels();
+        final target = args.toLowerCase();
+        final selected = models.where((model) {
+          final id = model['id']?.toString() ?? '';
+          final provider = model['provider']?.toString() ?? '';
+          final display = model['name']?.toString() ?? id;
+          return id.toLowerCase() == target ||
+              display.toLowerCase() == target ||
+              '$provider/$id'.toLowerCase() == target;
+        }).firstOrNull;
+        if (selected == null) throw StateError('Modello "$args" non trovato.');
+        await notifier.setModel(
+          selected['provider']?.toString() ?? 'default',
+          selected['id']?.toString() ?? args,
+        );
+        return;
+      case 'thinking':
+        if (args.isEmpty) return _showThinkingPicker(context);
+        final levels = await notifier.getAvailableThinkingLevels();
+        if (!mounted) return;
+        final level = levels
+            .where((item) => item.toLowerCase() == args.toLowerCase())
+            .firstOrNull;
+        if (level == null) {
+          throw StateError('Livello di thinking "$args" non disponibile.');
+        }
+        await notifier.setThinkingLevel(level);
+        return;
+      case 'tree':
+        return SessionTreeDialog.show(context, sessionId: widget.sessionId);
+      case 'new':
+        return createSession(context, ref);
+      case 'compact':
+        await notifier.compact();
+        return;
+      case 'reload':
+        await notifier.sendPrompt('/reload');
+        return;
+      case 'login':
+        if (args.isNotEmpty) {
+          throw StateError('/login non accetta argomenti.');
+        }
+        await notifier.piAuthLogin();
+        await _loadModels();
+        return;
+      case 'logout':
+        if (args.isNotEmpty) {
+          throw StateError('/logout non accetta argomenti.');
+        }
+        await notifier.piAuthLogout();
+        await _loadModels();
+        return;
+      case 'copy':
+        final latest = ref
+            .read(sessionStateFamily(widget.sessionId))
+            .entries
+            .where(
+              (entry) =>
+                  entry.role == 'assistant' && entry.text.trim().isNotEmpty,
+            )
+            .lastOrNull;
+        if (latest == null) {
+          throw StateError('Nessun messaggio dell’agente da copiare.');
+        }
+        await Clipboard.setData(ClipboardData(text: latest.text));
+        if (!mounted) return;
+        FrameSnackBar.show(
+          context,
+          message: 'Ultimo messaggio dell’agente copiato.',
+        );
+        return;
+      case 'name':
+        final current =
+            ref.read(sessionStateFamily(widget.sessionId)).sessionName ?? '';
+        final name = args.isEmpty ? await _askSessionName(current) : args;
+        if (name == null || name.trim().isEmpty) return;
+        await notifier.rename(name.trim());
+        ref.invalidate(sessionListProvider);
+        return;
+      case 'session':
+        await _showPiSessionInfo();
+        return;
+      case 'clone':
+        await _cloneFromSlash();
+        return;
+      case 'fork':
+        await _forkFromSlash(args);
+        return;
+      case 'resume':
+        await _resumeFromSlash();
+        return;
+      case 'quit':
+        if (!await resolveDirtyRepository(context, ref, widget.sessionId)) {
+          return;
+        }
+        await windowManager.close();
+        return;
+      default:
+        FrameSnackBar.show(
+          context,
+          message:
+              '/$name è un comando integrato di Pi basato sulla TUI. PiFrame non lo invia al modello, ma non offre ancora questa azione.',
+          duration: const Duration(seconds: 5),
+        );
+    }
+  }
+
+  Future<String?> _askSessionName(String initial) async {
+    final controller = TextEditingController(text: initial);
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Nome sessione'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            onSubmitted: (value) => Navigator.pop(dialogContext, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text),
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _cloneFromSlash() async {
+    if (!await resolveDirtyRepository(context, ref, widget.sessionId)) return;
+    if (!mounted) return;
+    final client = ref.read(pcpClientProvider);
+    if (client == null) throw StateError('Daemon non connesso.');
+    final result = await client.cloneSession(widget.sessionId);
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final targetId = (data['sessionId'] ?? data['id']) as String?;
+    if (targetId == null) {
+      throw StateError('La sessione duplicata non è stata restituita.');
+    }
+    if (!mounted || !await switchSessionSafely(context, ref, targetId)) return;
+    ref.invalidate(sessionListProvider);
+  }
+
+  Future<void> _forkFromSlash(String args) async {
+    if (!await resolveDirtyRepository(context, ref, widget.sessionId)) return;
+    if (!mounted) return;
+    final state = ref.read(sessionStateFamily(widget.sessionId));
+    var entryId = args.isEmpty ? null : args;
+    if (entryId == null) {
+      final userEntries = state.entries
+          .where((entry) => entry.role == 'user')
+          .toList();
+      if (userEntries.isEmpty) {
+        throw StateError(
+          'La sessione non contiene messaggi utente da cui creare un fork.',
+        );
+      }
+      entryId = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Crea un fork'),
+          content: SizedBox(
+            width: 460,
+            height: 360,
+            child: ListView.builder(
+              itemCount: userEntries.length,
+              itemBuilder: (_, index) {
+                final entry = userEntries[userEntries.length - 1 - index];
+                return ListTile(
+                  title: Text(
+                    entry.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(entry.id),
+                  onTap: () => Navigator.pop(dialogContext, entry.id),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annulla'),
+            ),
+          ],
+        ),
+      );
+      if (entryId == null) return;
+    }
+    final client = ref.read(pcpClientProvider);
+    if (client == null) throw StateError('Daemon non connesso.');
+    final result = await client.forkSession(widget.sessionId, entryId: entryId);
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final targetId = (data['sessionId'] ?? data['id']) as String?;
+    if (targetId == null) throw StateError('Il fork non è stato creato.');
+    if (!mounted || !await switchSessionSafely(context, ref, targetId)) return;
+    ref.invalidate(sessionListProvider);
+  }
+
+  Future<void> _resumeFromSlash() async {
+    ref.invalidate(sessionListProvider);
+    final sessions = await ref.read(sessionListProvider.future);
+    if (!mounted) return;
+    final selectedId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Riprendi una sessione'),
+        content: SizedBox(
+          width: 460,
+          height: 360,
+          child: sessions.isEmpty
+              ? const Center(child: Text('Nessuna sessione disponibile.'))
+              : ListView.builder(
+                  itemCount: sessions.length,
+                  itemBuilder: (_, index) {
+                    final session = sessions[index];
+                    final id = session['id']?.toString() ?? '';
+                    return ListTile(
+                      title: Text(session['name']?.toString() ?? id),
+                      subtitle: Text(
+                        session['cwd']?.toString() ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: id.isEmpty
+                          ? null
+                          : () => Navigator.pop(dialogContext, id),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annulla'),
+          ),
+        ],
+      ),
+    );
+    if (selectedId == null || !mounted) return;
+    await switchSessionSafely(context, ref, selectedId);
+  }
+
+  Future<void> _showPiSessionInfo() async {
+    final state = ref.read(sessionStateFamily(widget.sessionId));
+    final stats = state.sessionStats ?? const <String, dynamic>{};
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sessione Pi'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Nome: ${state.sessionName ?? '—'}'),
+                Text('Sessione: ${state.sessionId}'),
+                Text('Cartella: ${state.cwd}'),
+                Text('Modello: ${state.currentModel ?? '—'}'),
+                Text('Thinking: ${state.currentThinkingLevel ?? '—'}'),
+                const SizedBox(height: 12),
+                for (final entry in stats.entries)
+                  Text('${entry.key}: ${entry.value}'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showModelPicker(BuildContext chipContext) async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final models = await notifier.getAvailableModels();
+    final models = await notifier.getAvailableModels().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => const <Map<String, dynamic>>[],
+    );
     if (!mounted || !chipContext.mounted) return;
     final tokens = context.tokens;
     final current = ref.read(sessionStateFamily(widget.sessionId)).currentModel;
@@ -671,7 +1054,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _showThinkingPicker(BuildContext chipContext) async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final levels = await notifier.getAvailableThinkingLevels();
+    final levels = await notifier.getAvailableThinkingLevels().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => const <String>[],
+    );
     final effectiveLevels = levels.isNotEmpty
         ? levels
         : const ['off', 'low', 'medium', 'high'];
@@ -751,7 +1137,10 @@ class _ComposerState extends ConsumerState<Composer> {
       );
       final maximum = modelContextWindow(model);
       if (maximum == null || maximum <= 0) {
-        FrameSnackBar.show(context, message: 'Contesto del modello non disponibile. Riprova quando il daemon è connesso.');
+        FrameSnackBar.show(
+          context,
+          message: 'Contesto del modello non disponibile. Riprova quando il daemon è connesso.',
+        );
         return;
       }
       final tokens = context.tokens;
@@ -773,12 +1162,20 @@ class _ComposerState extends ConsumerState<Composer> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Chiudi')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Chiudi'),
+            ),
           ],
         ),
       );
     } catch (error) {
-      if (mounted) FrameSnackBar.show(context, message: 'Selezione contesto non riuscita: $error');
+      if (mounted) {
+        FrameSnackBar.show(
+          context,
+          message: 'Selezione contesto non riuscita: $error',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isContextPickerLoading = false);
     }
@@ -1048,6 +1445,9 @@ class _ComposerState extends ConsumerState<Composer> {
 
     final pendingInteractionRequests = pendingUiRequests.where((r) {
       final method = r['method']?.toString();
+      if (_dismissedUiRequestIds.contains(r['requestId']?.toString())) {
+        return false;
+      }
       return r['dialog'] == true ||
           method == 'confirm' ||
           method == 'select' ||
@@ -1139,10 +1539,7 @@ class _ComposerState extends ConsumerState<Composer> {
         child: ShimmerBorder(
           isActive: isShimmerActive,
           borderRadius: BorderRadius.circular(tokens.radiusLg),
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeInOutCubic,
-            alignment: Alignment.bottomCenter,
+          child: _ComposerSizeAnimator(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
               switchInCurve: Curves.easeInOutCubic,
@@ -1229,6 +1626,16 @@ class _ComposerState extends ConsumerState<Composer> {
                                 sessionId: widget.sessionId,
                                 request: pendingInteractionRequests.last,
                                 isCard: true,
+                                onDismissed: () {
+                                  if (!mounted) return;
+                                  setState(
+                                    () => _dismissedUiRequestIds.add(
+                                      pendingInteractionRequests
+                                          .last['requestId']
+                                          .toString(),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
 
@@ -1750,10 +2157,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         BorderRadius.circular(
                                                           tokens.radiusSm,
                                                         ),
-                                                    onTap: () =>
-                                                        _showModelPicker(
-                                                          chipCtx,
-                                                        ),
+                                                    onTap: () => _guardPicker(
+                                                      () => _showModelPicker(
+                                                        chipCtx,
+                                                      ),
+                                                    ),
                                                     child: Container(
                                                       height: 26,
                                                       padding:
@@ -1841,10 +2249,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         BorderRadius.circular(
                                                           tokens.radiusSm,
                                                         ),
-                                                    onTap: () =>
-                                                        _showThinkingPicker(
-                                                          chipCtx,
-                                                        ),
+                                                    onTap: () => _guardPicker(
+                                                      () => _showThinkingPicker(
+                                                        chipCtx,
+                                                      ),
+                                                    ),
                                                     child: Container(
                                                       height: 26,
                                                       padding:
@@ -1918,7 +2327,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                                           BorderRadius.circular(
                                                             tokens.radiusSm,
                                                           ),
-                                                      onTap: _showContextSizePicker,
+                                                      onTap:
+                                                          _showContextSizePicker,
                                                       child: Container(
                                                         height: 26,
                                                         padding:
@@ -1948,10 +2358,20 @@ class _ComposerState extends ConsumerState<Composer> {
                                                               SizedBox(
                                                                 width: 12,
                                                                 height: 12,
-                                                                child: CircularProgressIndicator(strokeWidth: 1.5, color: tokens.accent),
+                                                                child: CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      1.5,
+                                                                  color: tokens
+                                                                      .accent,
+                                                                ),
                                                               )
                                                             else
-                                                              Icon(Icons.tune, size: 12, color: tokens.accent),
+                                                              Icon(
+                                                                Icons.tune,
+                                                                size: 12,
+                                                                color: tokens
+                                                                    .accent,
+                                                              ),
                                                             const SizedBox(
                                                               width: 3,
                                                             ),

@@ -17,6 +17,7 @@ import '../features/transcript/transcript_view.dart';
 import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
+import '../features/workspace/pane_drag_state.dart';
 import '../features/workspace/repository_workspace.dart';
 import '../features/browser/browser_models.dart';
 import '../features/browser/browser_controller.dart';
@@ -34,6 +35,7 @@ import '../features/dialogs/pi_install_dialog.dart';
 import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
 import '../data/window/window_state_service.dart';
+import '../data/layout/layout_store.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -106,12 +108,51 @@ class _AppShellState extends ConsumerState<AppShell>
       _preReviewPaneVisibility = null;
       _preReviewPaneWeights = null;
     });
+    _persistLayout();
+  }
+
+  // Review mode temporarily replaces the layout; persist only the user's own layout.
+  void _persistLayout() {
+    if (_preReviewPaneVisibility != null) return;
+    LayoutStore.instance.save({
+      'visibility': {
+        for (final pane in WorkspacePane.values) pane.name: _paneVisibility[pane] ?? true,
+      },
+      'sidebarCollapsed': _sidebarCollapsed,
+    });
+  }
+
+  // Restores hidden panes after restart; keeps at least one pane visible and the companion valid.
+  void _applyPersistedLayout() {
+    final saved = LayoutStore.instance.load();
+    final visibility = saved['visibility'];
+    if (visibility is Map) {
+      for (final pane in WorkspacePane.values) {
+        final value = visibility[pane.name];
+        if (value is bool) _paneVisibility[pane] = value;
+      }
+    }
+    if (saved['sidebarCollapsed'] is bool) {
+      _sidebarCollapsed = saved['sidebarCollapsed'] as bool;
+    }
+    if (!_paneVisibility.containsValue(true)) {
+      _paneVisibility[WorkspacePane.chat] = true;
+    }
+    final remaining = _visiblePanes();
+    if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
+    if (!remaining.contains(_companionPane)) {
+      _companionPane = remaining.firstWhere(
+        (item) => item != WorkspacePane.chat,
+        orElse: () => remaining.first,
+      );
+    }
   }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _applyPersistedLayout();
     final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
     _handlesNativeClose = desktopLifecycle && !ref.read(desktopChromeProvider);
     _hasWindowListener = desktopLifecycle;
@@ -588,9 +629,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                         SizedBox(
                                           width: 280,
                                           child: SessionsSidebar(
-                                            onCollapse: () => setState(
-                                              () => _sidebarCollapsed = true,
-                                            ),
+                                            onCollapse: () {
+                                              setState(() => _sidebarCollapsed = true);
+                                              _persistLayout();
+                                            },
                                           ),
                                         ),
                                       ),
@@ -743,6 +785,7 @@ class _AppShellState extends ConsumerState<AppShell>
         );
       }
     });
+    _persistLayout();
   }
 
   Widget _bentoPane(Widget child) {
@@ -904,7 +947,10 @@ class _AppShellState extends ConsumerState<AppShell>
                 constraints: const BoxConstraints(),
                 tooltip: 'Espandi barra sessioni',
                 icon: Icon(Icons.chevron_right, size: 18, color: tokens.accent),
-                onPressed: () => setState(() => _sidebarCollapsed = false),
+                onPressed: () {
+                  setState(() => _sidebarCollapsed = false);
+                  _persistLayout();
+                },
               ),
               const SizedBox(height: 8),
               const PiFrameMark(size: 20),
@@ -980,6 +1026,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   cursor: SystemMouseCursors.resizeLeftRight,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    onHorizontalDragStart: (_) =>
+                        ref.read(paneDraggingProvider.notifier).state = true,
+                    onHorizontalDragEnd: (_) =>
+                        ref.read(paneDraggingProvider.notifier).state = false,
+                    onHorizontalDragCancel: () =>
+                        ref.read(paneDraggingProvider.notifier).state = false,
                     onHorizontalDragUpdate: (details) => _resizeAdjacent(
                       panes[index],
                       panes[index + 1],

@@ -2,11 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
+  test('scroll estimates use measured heights after a card changes size', () {
+    final heights = {'seen': 100.0, 'measured': 100.0};
+    final delegate = SmartTranscriptChildDelegate(
+      builder: (_, _) => const SizedBox.shrink(),
+      itemKeys: const ['seen', 'measured', 'unmeasured-a', 'unmeasured-b'],
+      heightCache: heights,
+    );
+
+    final before = delegate.estimateMaxScrollOffset(0, 0, 0, 100);
+    heights['seen'] = 200;
+    final after = delegate.estimateMaxScrollOffset(0, 0, 0, 100);
+
+    expect(before, 400);
+    expect(after, 500);
+  });
+
   testWidgets('long transcript lazily builds turns and remains scrollable', (
     tester,
   ) async {
@@ -65,7 +82,109 @@ void main() {
           .descendant(of: scrollView, matching: find.byType(Scrollable))
           .first,
     );
-    await tester.pumpAndSettle();
     expect(loadMoreFinder, findsOneWidget);
+    // Before click, entry 45 was the first visible message below the button
+    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+
+    // Tap the load more button
+    await tester.tap(loadMoreFinder);
+    await tester.pumpAndSettle();
+
+    // After loading older messages, entry 45 remains visible right on screen!
+    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+    // And the oldest loaded entry (entry 0) is scrolled off above, not jumping in front of user
+    expect(find.textContaining('Transcript entry 0'), findsNothing);
+  });
+
+  testWidgets('expanding a live tool card does not move transcript content', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 760);
+    tester.view.devicePixelRatio = 1.25;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final entries = List.generate(
+      20,
+      (index) => SessionEntry(
+        id: 'entry_$index',
+        role: 'user',
+        text: 'Stable transcript message $index',
+        timestamp: index,
+      ),
+    );
+    final notifier = SessionStateNotifier('streaming-scroll', null)
+      ..state = SessionState(
+        sessionId: 'streaming-scroll',
+        cwd: '/repo',
+        entries: entries,
+        agentStatus: AgentStatus.working,
+        streamingTextBlocks: const {0: 'Original streaming answer'},
+        activeToolCalls: {
+          'tool-1': ToolExecutionState(
+            toolCallId: 'tool-1',
+            toolName: 'bash',
+            args: const {'command': 'run tests'},
+            output: List.filled(30, 'tool output').join('\n'),
+            isRunning: true,
+            startedAt: 0,
+          ),
+        },
+      );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          sessionStateFamily('streaming-scroll').overrideWith((ref) => notifier),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(
+            body: TranscriptView(sessionId: 'streaming-scroll'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final scrollView = find.byKey(const ValueKey('transcript-scroll'));
+    final scrollController = tester.widget<ListView>(scrollView).controller!;
+    final beforeOffset = scrollController.offset;
+    final anchor = find.text('Stable transcript message 19');
+    final before = tester.getTopLeft(anchor).dy;
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('tool-1')),
+        matching: find.byType(TextButton),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
+
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+
+    notifier.state = notifier.state.copyWith(
+      streamingTextBlocks: {
+        0: List.filled(20, 'Additional streaming response line').join('\n'),
+      },
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('tool-1')),
+        matching: find.byType(TextButton),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
+    expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+    expect(scrollController.offset, closeTo(beforeOffset, 0.01));
   });
 }

@@ -208,6 +208,67 @@ test('external resume always snapshots unjournaled terminal file changes', async
   }
 });
 
+test('snapshots retain execution start times and compute missing tool durations', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 10000 });
+  const session = new Session({ id: 'timed-execution', cwd: root });
+  t.after(() => session.close());
+  const [started] = session.dispatchPiEvent({ type: 'agent_start' });
+  assert.equal(started.payload.startedAt, 10000);
+  assert.equal(session.getSnapshot().runtime.runStartedAt, 10000);
+
+  session.dispatchPiEvent({ type: 'message_end', message: { role: 'assistant', content: [
+    { type: 'toolCall', id: 'cmd', name: 'bash', arguments: { command: 'test', timeout: 1800 } }
+  ] } });
+  t.mock.timers.setTime(12000);
+  const [toolStarted] = session.dispatchPiEvent({ type: 'tool_execution_start', toolCallId: 'cmd', toolName: 'bash', args: { command: 'test', timeout: 1800 } });
+  assert.equal(toolStarted.payload.startedAt, 12000);
+  t.mock.timers.setTime(19000);
+  session.dispatchPiEvent({ type: 'tool_execution_update', toolCallId: 'cmd', toolName: 'bash', partialResult: 'working' });
+  const snapshot = session.getSnapshot();
+  assert.equal(snapshot.runtime.runStartedAt, 10000);
+  assert.equal(snapshot.activeTools[0].startedAt, 12000);
+  assert.equal((snapshot.activeTools[0].args as any).timeout, 1800);
+
+  t.mock.timers.setTime(20000);
+  const [completed] = session.dispatchPiEvent({ type: 'tool_execution_end', toolCallId: 'cmd', toolName: 'bash', result: 'done' });
+  assert.equal(completed.payload.durationMs, 8000);
+  assert.equal(session.getSnapshot().activeTools[0].durationMs, 8000);
+  session.dispatchPiEvent({ type: 'message_end', message: { role: 'toolResult', toolCallId: 'cmd', content: [{ type: 'text', text: 'done' }] } });
+  session.dispatchPiEvent({ type: 'agent_settled' });
+  const settledSnapshot = session.getSnapshot();
+  assert.equal(settledSnapshot.runtime.runStartedAt, null);
+  assert.equal(settledSnapshot.activeTools.length, 0);
+  const savedCall = (settledSnapshot.transcript.entries[0].content as any[])[0];
+  assert.equal(savedCall.startedAt, 12000);
+  assert.equal(savedCall.durationMs, 8000);
+  t.mock.timers.setTime(30000);
+  session.dispatchPiEvent({ type: 'agent_start' });
+  assert.equal(session.getSnapshot().runtime.runStartedAt, 30000);
+});
+
+test('crash and recovery snapshots cannot revive running timers', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 10000 });
+  const session = new Session({ id: 'timer-recovery', cwd: root });
+  t.after(() => session.close());
+  session.dispatchPiEvent({ type: 'agent_start' });
+  session.dispatchPiEvent({ type: 'message_end', message: { role: 'assistant', content: [
+    { type: 'toolCall', id: 'cmd', name: 'bash', arguments: { command: 'test' } }
+  ] } });
+  session.dispatchPiEvent({ type: 'tool_execution_start', toolCallId: 'cmd', toolName: 'bash', args: { command: 'test' } });
+  t.mock.timers.setTime(13000);
+  session.emitCustomEvent('worker.crashed', {});
+  assert.equal(session.runStartedAt, null);
+  assert.equal(session.activeTools.get('cmd').isRunning, false);
+  assert.equal(session.activeTools.get('cmd').durationMs, 3000);
+  t.mock.timers.setTime(20000);
+  session.emitCustomEvent('session.status', { status: 'settled', reason: 'recovered_from_crash' });
+  const snapshot = session.getSnapshot();
+  assert.equal(snapshot.runtime.status, 'settled');
+  assert.equal(snapshot.runtime.runStartedAt, null);
+  assert.deepEqual(snapshot.activeTools, []);
+  assert.equal((snapshot.transcript.entries[0].content as any[])[0].durationMs, 3000);
+});
+
 test('full snapshot preserves live text, thinking, tools, queue and UI requests', async () => {
   const s = new Session({ id: 'snapshot', cwd: root });
   s.dispatchPiEvent({ type: 'agent_start' });

@@ -13,6 +13,7 @@ export interface SnapshotContext {
   steeringMode?: string | null;
   followUpMode?: string | null;
   isStreaming: boolean;
+  runStartedAt?: number | null;
   isCompacting: boolean;
   autoCompaction: boolean;
   queue: {
@@ -30,6 +31,24 @@ export interface SnapshotContext {
 }
 
 export class SnapshotBuilder {
+  public static readonly MAX_SNAPSHOT_ENTRIES = 100;
+  public static readonly MAX_ENTRY_TEXT_BYTES = 256 * 1024; // 256 KB max text per field
+
+  public static sanitizeEntry(entry: Record<string, unknown>): Record<string, unknown> {
+    if (!entry || typeof entry !== 'object') return entry;
+    let modified = false;
+    const sanitized = { ...entry };
+    if (typeof sanitized.text === 'string' && sanitized.text.length > SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) {
+      sanitized.text = sanitized.text.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) + '\n\n... [truncated in snapshot for performance]';
+      modified = true;
+    }
+    if (typeof sanitized.thinking === 'string' && sanitized.thinking.length > SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) {
+      sanitized.thinking = sanitized.thinking.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) + '\n\n... [truncated in snapshot for performance]';
+      modified = true;
+    }
+    return modified ? sanitized : entry;
+  }
+
   public static build(ctx: SnapshotContext, seq?: number): PcpSnapshotPayload {
     const runtime: RuntimeMeta = {
       status: ctx.runtimeStatus,
@@ -38,6 +57,7 @@ export class SnapshotBuilder {
       steeringMode: ctx.steeringMode ?? null,
       followUpMode: ctx.followUpMode ?? null,
       isStreaming: ctx.isStreaming,
+      runStartedAt: ctx.runStartedAt ?? null,
       isCompacting: ctx.isCompacting,
       autoCompaction: ctx.autoCompaction,
       queue: ctx.queue,
@@ -45,9 +65,18 @@ export class SnapshotBuilder {
       compactionReservePercent: ctx.compactionReservePercent ?? 2.5
     };
 
+    const allEntries = ctx.entries ?? [];
+    const boundedEntries = (
+      allEntries.length > SnapshotBuilder.MAX_SNAPSHOT_ENTRIES
+        ? allEntries.slice(-SnapshotBuilder.MAX_SNAPSHOT_ENTRIES)
+        : allEntries
+    ).map(SnapshotBuilder.sanitizeEntry);
+
     const transcript: TranscriptMeta = {
-      entries: ctx.entries,
-      leafId: null
+      entries: boundedEntries,
+      leafId: null,
+      totalEntries: allEntries.length,
+      hasMore: allEntries.length > boundedEntries.length
     };
 
     return {

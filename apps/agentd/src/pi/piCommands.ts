@@ -3,6 +3,8 @@ export interface PiCommand {
   type?: string;
   command: string;
   arguments?: Record<string, any>;
+  /** Local transport timeout override; never sent to Pi. */
+  timeoutMs?: number;
   [key: string]: any;
 }
 

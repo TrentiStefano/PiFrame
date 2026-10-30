@@ -26,8 +26,9 @@ class _ParsedToolOutput {
 
 class ToolCard extends StatefulWidget {
   final ToolExecutionState tool;
+  final VoidCallback? onExpansionChanged;
 
-  const ToolCard({super.key, required this.tool});
+  const ToolCard({super.key, required this.tool, this.onExpansionChanged});
 
   @override
   State<ToolCard> createState() => _ToolCardState();
@@ -37,7 +38,6 @@ class _ToolCardState extends State<ToolCard> {
   bool _isExpanded = false;
   bool _initializedExpansion = false;
   Timer? _liveTimer;
-  DateTime? _startedAt;
 
   static final RegExp _patchRegex = RegExp(
     r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)',
@@ -46,7 +46,6 @@ class _ToolCardState extends State<ToolCard> {
   static final RegExp _fileRegex = RegExp(
     r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)',
   );
-  static final RegExp _nonDigits = RegExp(r'[^0-9]');
 
   String? _cachedOutput;
   _ParsedToolOutput? _cachedParsedOutput;
@@ -55,7 +54,6 @@ class _ToolCardState extends State<ToolCard> {
   void initState() {
     super.initState();
     if (widget.tool.isRunning) {
-      _startedAt = DateTime.now();
       _startLiveTimer();
     }
   }
@@ -63,8 +61,8 @@ class _ToolCardState extends State<ToolCard> {
   @override
   void didUpdateWidget(covariant ToolCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.tool.isRunning && !oldWidget.tool.isRunning) {
-      _startedAt = DateTime.now();
+    if (widget.tool.isRunning &&
+        (!oldWidget.tool.isRunning || widget.tool.startedAt != oldWidget.tool.startedAt)) {
       _startLiveTimer();
     } else if (!widget.tool.isRunning && oldWidget.tool.isRunning) {
       _stopLiveTimer();
@@ -130,36 +128,21 @@ class _ToolCardState extends State<ToolCard> {
     return null;
   }
 
-  int? _parseTimeoutSeconds(Map<String, dynamic> args) {
-    for (final key in [
-      'timeout',
-      'timeoutSeconds',
-      'timeout_seconds',
-      'timeoutMs',
-      'timeout_ms',
-      'WaitMsBeforeAsync',
-    ]) {
-      if (args.containsKey(key)) {
-        final val = args[key];
-        if (val is num) {
-          if (key.toLowerCase().contains('ms')) {
-            return (val / 1000).ceil();
-          }
-          if (val > 1000) {
-            return (val / 1000).ceil();
-          }
-          return val.toInt();
-        }
-        if (val is String) {
-          final trimmed = val.trim().toLowerCase();
-          final numPart = int.tryParse(trimmed.replaceAll(_nonDigits, ''));
-          if (numPart != null) {
-            if (trimmed.endsWith('ms')) return (numPart / 1000).ceil();
-            if (numPart > 1000) return (numPart / 1000).ceil();
-            return numPart;
-          }
-        }
+  String? _timeoutLabel(Map<String, dynamic> args) {
+    for (final key in ['timeout', 'timeoutSeconds', 'timeout_seconds', 'timeoutMs', 'timeout_ms']) {
+      var value = args[key]?.toString().trim().toLowerCase() ?? '';
+      var milliseconds = key == 'timeoutMs' || key == 'timeout_ms';
+      if (value.endsWith('ms')) {
+        milliseconds = true;
+        value = value.substring(0, value.length - 2).trim();
+      } else if (value.endsWith('s')) {
+        milliseconds = false;
+        value = value.substring(0, value.length - 1).trim();
       }
+      final amount = double.tryParse(value);
+      if (amount == null || !amount.isFinite || amount <= 0) continue;
+      final seconds = milliseconds ? amount / 1000 : amount;
+      return '${seconds == seconds.truncateToDouble() ? seconds.toInt() : seconds}s';
     }
     return null;
   }
@@ -302,7 +285,7 @@ class _ToolCardState extends State<ToolCard> {
     final tool = widget.tool;
     final isTerminal = _isTerminalTool(tool.toolName);
     final commandText = _getCommandText(tool);
-    final timeoutSeconds = _parseTimeoutSeconds(tool.args);
+    final timeoutLabel = _timeoutLabel(tool.args);
     final parsed = _parseOutput(tool);
 
     if (!_initializedExpansion) {
@@ -330,11 +313,7 @@ class _ToolCardState extends State<ToolCard> {
     final toolColor = _getToolColor(tool.toolName, tokens);
 
     // Timing calculation
-    final durationMs =
-        tool.durationMs ??
-        (tool.isRunning && _startedAt != null
-            ? DateTime.now().difference(_startedAt!).inMilliseconds
-            : null);
+    final durationMs = tool.elapsedMsAt(DateTime.now().millisecondsSinceEpoch);
     final durationSeconds = durationMs != null
         ? (durationMs / 1000).floor()
         : 0;
@@ -349,10 +328,13 @@ class _ToolCardState extends State<ToolCard> {
             // Header row
             TextButton(
               onPressed: canExpand
-                  ? () => setState(() => _isExpanded = !_isExpanded)
+                  ? () {
+                      widget.onExpansionChanged?.call();
+                      setState(() => _isExpanded = !_isExpanded);
+                    }
                   : null,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                padding: const EdgeInsets.symmetric(vertical: 1),
                 alignment: Alignment.centerLeft,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -375,38 +357,43 @@ class _ToolCardState extends State<ToolCard> {
                           : toolColor,
                     ),
                     const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        tool.toolName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: tokens.textSecondary,
-                          fontSize: 11.5,
-                          fontFamily: tokens.uiFontFamily,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              tool.toolName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: 11.5,
+                                fontFamily: tokens.uiFontFamily,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (argPreview.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                argPreview,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isTerminal
+                                      ? tokens.syntaxNumber
+                                      : tokens.syntaxString,
+                                  fontSize: 11,
+                                  fontFamily: tokens.monoFontFamily,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    if (argPreview.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          argPreview,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: isTerminal
-                                ? tokens.syntaxNumber
-                                : tokens.syntaxString,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
                     // Seconds counter or ms duration badge
                     if (isOver5Seconds) ...[
                       const SizedBox(width: 6),
@@ -441,9 +428,9 @@ class _ToolCardState extends State<ToolCard> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (timeoutSeconds != null) ...[
+                            if (timeoutLabel != null) ...[
                               Text(
-                                ' / ${timeoutSeconds}s',
+                                ' / $timeoutLabel',
                                 style: TextStyle(
                                   color: tokens.textMuted,
                                   fontSize: 9.5,
@@ -477,7 +464,7 @@ class _ToolCardState extends State<ToolCard> {
                         ),
                       ),
                     ],
-                    if (timeoutSeconds != null && !isOver5Seconds) ...[
+                    if (timeoutLabel != null && !isOver5Seconds) ...[
                       const SizedBox(width: 6),
                       Container(
                         key: const ValueKey('tool-card-timeout-badge'),
@@ -491,7 +478,7 @@ class _ToolCardState extends State<ToolCard> {
                           border: Border.all(color: tokens.border),
                         ),
                         child: Text(
-                          'limite ${timeoutSeconds}s',
+                          'timeout $timeoutLabel',
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 9.5,
@@ -503,11 +490,17 @@ class _ToolCardState extends State<ToolCard> {
                     const SizedBox(width: 8),
                     if (tool.isRunning)
                       SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: tokens.agentWorking,
+                        width: 14,
+                        height: 14,
+                        child: Center(
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: tokens.agentWorking,
+                            ),
+                          ),
                         ),
                       )
                     else if (tool.isError)
@@ -522,14 +515,15 @@ class _ToolCardState extends State<ToolCard> {
                         size: 14,
                         color: tokens.agentSettled,
                       ),
-                    if (canExpand) ...[
-                      const SizedBox(width: 4),
+                    const SizedBox(width: 4),
+                    if (canExpand)
                       Icon(
                         _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 14,
+                        size: 15,
                         color: tokens.textMuted,
-                      ),
-                    ],
+                      )
+                    else
+                      const SizedBox(width: 15),
                   ],
                 ),
               ),
@@ -577,7 +571,7 @@ class _ToolCardState extends State<ToolCard> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (timeoutSeconds != null) ...[
+                          if (timeoutLabel != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               key: const ValueKey('tool-card-expanded-timeout'),
@@ -602,7 +596,7 @@ class _ToolCardState extends State<ToolCard> {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Timeout: ${timeoutSeconds}s',
+                                    'Timeout richiesto: $timeoutLabel',
                                     style: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 9.5,

@@ -40,6 +40,104 @@ export function contextLimitExtension(pi: any): void {
       if (!ok) throw new Error('Impossibile applicare il limite al modello attivo.');
     } finally { applying = false; }
   };
+  pi.registerCommand('piframe-reload', {
+    description: 'PiFrame internal reload',
+    handler: async (_args: string, ctx: any) => {
+      // ctx.reload() is Pi's own resource reload (extensions, skills, prompts, context files).
+      if (typeof ctx?.reload !== 'function') throw new Error('Aggiorna Pi: ricaricamento non disponibile in questa versione.');
+      await ctx.reload();
+    },
+  });
+  const localAuthTitle = (title: string) => `piframe-local:${title}`;
+  const authTimeoutMs = 10 * 60 * 1000;
+  const getAuthRuntime = (ctx: any) => {
+    // Pi exposes auth operations through ModelRuntime internally, while its public extension facade is read-only.
+    const runtime = ctx?.modelRegistry?.runtime;
+    if (!runtime || typeof runtime.login !== 'function' || typeof runtime.logout !== 'function') {
+      throw new Error('Aggiorna Pi: la gestione dell’autenticazione non è disponibile in questa versione.');
+    }
+    return runtime;
+  };
+  pi.registerCommand('piframe-auth-login', {
+    description: 'PiFrame internal provider login',
+    handler: async (args: string, ctx: any) => {
+      const { deviceId } = JSON.parse(args);
+      if (typeof deviceId !== 'string' || deviceId.length > 128) throw new Error('Invalid PiFrame auth device ID');
+      const runtime = getAuthRuntime(ctx);
+      const choices = runtime.getProviders().flatMap((provider: any) => {
+        const auth = provider.auth ?? {};
+        const name = provider.name ?? provider.id;
+        const result = [];
+        if (typeof auth.oauth?.login === 'function') result.push({ provider, type: 'oauth', label: `${name} (${provider.id}) — OAuth` });
+        if (typeof auth.apiKey?.login === 'function') result.push({ provider, type: 'api_key', label: `${name} (${provider.id}) — API key` });
+        return result;
+      });
+      if (choices.length === 0) {
+        ctx.ui.notify('No interactive Pi provider login is available.', 'warning');
+        return;
+      }
+      const selectedLabel = await ctx.ui.select(localAuthTitle('Sign in to a Pi provider'), choices.map((choice: any) => choice.label), { timeout: authTimeoutMs });
+      const selected = choices.find((choice: any) => choice.label === selectedLabel);
+      if (!selected) return;
+      try {
+        await runtime.login(selected.provider.id, selected.type, {
+          signal: AbortSignal.timeout(authTimeoutMs),
+          prompt: async (prompt: any) => {
+            let answer: string | undefined;
+            if (prompt.type === 'select') {
+              const labels = prompt.options.map((option: any, index: number) => `${option.label}${prompt.options.filter((other: any) => other.label === option.label).length > 1 ? ` (${index + 1})` : ''}`);
+              const choice = await ctx.ui.select(localAuthTitle(prompt.message), labels, { signal: prompt.signal, timeout: authTimeoutMs });
+              const index = labels.indexOf(choice);
+              answer = index < 0 ? undefined : prompt.options[index].id;
+            } else {
+              const placeholder = prompt.type === 'secret'
+                ? `piframe-secret:${prompt.placeholder ?? ''}`
+                : prompt.placeholder;
+              answer = await ctx.ui.input(localAuthTitle(prompt.message), placeholder, { signal: prompt.signal, timeout: authTimeoutMs });
+            }
+            if (answer === undefined) throw new Error('Authentication cancelled');
+            return answer;
+          },
+          notify: (event: any) => {
+            const message = event.type === 'auth_url'
+              ? [event.instructions, event.url].filter(Boolean).join('\n')
+              : event.type === 'device_code'
+                ? [`Code: ${event.userCode}`, `Open: ${event.verificationUri}`].join('\n')
+                : event.type === 'info'
+                  ? [event.message, ...(event.links ?? []).map((link: any) => `${link.label ?? 'Open'}: ${link.url}`)].join('\n')
+                  : event.message;
+            ctx.ui.notify(message, 'info');
+          },
+        }, { getDeviceId: () => deviceId, agentName: 'PiFrame' });
+        ctx.ui.notify(`Signed in to ${selected.provider.name ?? selected.provider.id}.`, 'info');
+      } catch (error: any) {
+        if (!/cancel/i.test(error?.message ?? '')) throw error;
+      }
+    },
+  });
+  pi.registerCommand('piframe-auth-logout', {
+    description: 'PiFrame internal provider logout',
+    handler: async (_args: string, ctx: any) => {
+      const runtime = getAuthRuntime(ctx);
+      const credentials = await runtime.listCredentials();
+      if (credentials.length === 0) {
+        ctx.ui.notify('No stored Pi credentials to log out of.', 'info');
+        return;
+      }
+      const choices = credentials.map((credential: any) => {
+        const provider = runtime.getProvider(credential.providerId);
+        return {
+          credential,
+          label: `${provider?.name ?? credential.providerId} (${credential.providerId}) — ${credential.type}`,
+        };
+      });
+      const selectedLabel = await ctx.ui.select(localAuthTitle('Sign out of a Pi provider'), choices.map((choice: any) => choice.label), { timeout: authTimeoutMs });
+      const selected = choices.find((choice: any) => choice.label === selectedLabel);
+      if (!selected) return;
+      await runtime.logout(selected.credential.providerId);
+      ctx.ui.notify(`Signed out of ${selected.credential.providerId}.`, 'info');
+    },
+  });
   pi.registerCommand('piframe-context-policy', {
     description: 'PiFrame internal context policy',
     handler: async (args: string, ctx: any) => {

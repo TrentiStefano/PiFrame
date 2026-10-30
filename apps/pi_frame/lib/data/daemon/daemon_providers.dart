@@ -37,16 +37,19 @@ final pcpClientProvider = Provider<PcpClient?>((ref) {
   );
 });
 
-final connectionStateProvider = StreamProvider<DaemonConnectionState>((
-  ref,
-) async* {
+final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
   final client = ref.watch(pcpClientProvider);
-  if (client == null) {
-    yield DaemonConnectionState.disconnected;
-    return;
-  }
-  yield client.state;
-  yield* client.connectionStateStream;
+  if (client == null) return Stream.value(DaemonConnectionState.disconnected);
+
+  return Stream.multi((controller) {
+    final subscription = client.connectionStateStream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: controller.close,
+    );
+    controller.add(client.state);
+    controller.onCancel = subscription.cancel;
+  });
 });
 
 final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
@@ -59,23 +62,17 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
   }
 
   final subscription = client.events('@daemon').listen((event) {
-    if (event.type == 'session.indexChanged') {
+    if (event.type == 'session.indexChanged' && event.payload['refreshing'] != true) {
       ref.invalidateSelf();
     }
   });
   ref.onDispose(subscription.cancel);
 
-  try {
-    final res = await client.listSessions().timeout(const Duration(seconds: 8));
-    final data = res['data'] as Map<String, dynamic>? ?? res;
-    final sessions =
-        (data['sessions'] as List? ?? res['sessions'] as List?)
-            ?.cast<Map<String, dynamic>>() ??
-        [];
-    return sessions;
-  } catch (_) {
-    return [];
-  }
+  final res = await client.listSessions().timeout(const Duration(seconds: 8));
+  final data = res['data'] as Map<String, dynamic>? ?? res;
+  return (data['sessions'] as List? ?? res['sessions'] as List?)
+          ?.cast<Map<String, dynamic>>() ??
+      [];
 });
 
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
@@ -127,6 +124,45 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
     });
     client!.attach(sessionId);
+  }
+
+  bool _historyLoading = false;
+  bool get isHistoryLoading => _historyLoading;
+
+  Future<int> loadOlderHistory({int limit = 250}) async {
+    if (client == null || _historyLoading || !state.hasMoreHistory) return 0;
+    _historyLoading = true;
+    try {
+      final beforeId = state.entries.isNotEmpty ? state.entries.first.id : null;
+      final res = await client!
+          .getHistory(sessionId, beforeId: beforeId, limit: limit)
+          .timeout(const Duration(seconds: 10));
+      final data = res['data'] as Map<String, dynamic>? ?? res;
+      final rawEntries = (data['entries'] as List?)?.whereType<Map>() ?? [];
+      final olderEntries = parseSessionEntries(rawEntries);
+      final hasMore = data['hasMore'] == true;
+      final totalEntries = (data['totalEntries'] as num?)?.toInt();
+
+      if (olderEntries.isNotEmpty) {
+        final existingIds = state.entries.map((e) => e.id).toSet();
+        final dedupedOlder = olderEntries
+            .where((e) => !existingIds.contains(e.id))
+            .toList();
+        state = state.copyWith(
+          entries: [...dedupedOlder, ...state.entries],
+          hasMoreHistory: hasMore,
+          totalTranscriptEntries: totalEntries ?? state.totalTranscriptEntries,
+        );
+        return dedupedOlder.length;
+      } else {
+        state = state.copyWith(hasMoreHistory: false);
+      }
+    } catch (_) {
+      // Ignore network timeout / failures gracefully
+    } finally {
+      _historyLoading = false;
+    }
+    return 0;
   }
 
   bool _defaultsLoading = false;
@@ -332,7 +368,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     } catch (error) {
       _markPromptFailed(
         entry.text,
-        error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
+        error.toString().replaceFirst(
+          RegExp(r'^(Bad state|Exception):\s*'),
+          '',
+        ),
         entryId: retryId,
       );
       if (mounted) state = state.copyWith(agentStatus: previousStatus);
@@ -371,7 +410,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       if (mounted && optimisticId != null) {
         _markPromptFailed(
           text,
-          error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
+          error.toString().replaceFirst(
+            RegExp(r'^(Bad state|Exception):\s*'),
+            '',
+          ),
           entryId: optimisticId,
         );
         state = state.copyWith(agentStatus: prevStatus);
@@ -472,6 +514,16 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   Future<void> recoverSession() async {
     if (client == null) return;
     await client!.recoverSession(sessionId);
+  }
+
+  Future<void> piAuthLogin() async {
+    if (client == null) throw StateError('Daemon non connesso');
+    await client!.piAuthLogin(sessionId);
+  }
+
+  Future<void> piAuthLogout() async {
+    if (client == null) throw StateError('Daemon non connesso');
+    await client!.piAuthLogout(sessionId);
   }
 
   Future<List<Map<String, dynamic>>> getCommands() async {

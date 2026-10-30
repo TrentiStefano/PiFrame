@@ -23,24 +23,16 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   isRunning: tool['isRunning'] == true,
   isError: tool['isError'] == true,
   durationMs: (tool['durationMs'] as num?)?.toInt(),
+  startedAt: (tool['startedAt'] as num?)?.toInt(),
 );
 
-SessionState applySessionSnapshot(
-  String sessionId,
-  int seq,
-  Map<String, dynamic> payload,
-) {
-  final meta = payload['session'] as Map? ?? {};
-  final runtime = payload['runtime'] as Map? ?? {};
-  final transcript = payload['transcript'] as Map? ?? {};
-  final live = payload['liveMessage'] as Map? ?? {};
-  final queue = runtime['queue'] as Map? ?? {};
+List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
   final entries = <SessionEntry>[];
 
   // Pre-collect outputs from toolResult messages keyed by toolCallId
   final toolResults = <String, String>{};
   final toolErrors = <String, bool>{};
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
+  for (final raw in rawList) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? '';
     if (role == 'toolResult' || role == 'tool') {
@@ -52,17 +44,15 @@ SessionState applySessionSnapshot(
       final out =
           message['result']?.toString() ??
           message['output']?.toString() ??
-          (message['content'] is String ? message['content'] as String : null);
-      if (callId != null && out != null) {
-        toolResults[callId] = out;
-      }
+          _contentText(message['content'], 'text');
       if (callId != null) {
+        toolResults[callId] = out;
         toolErrors[callId] = message['isError'] == true;
       }
     }
   }
 
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
+  for (final raw in rawList) {
     final message = raw['message'] is Map ? raw['message'] as Map : raw;
     final role = message['role']?.toString() ?? 'assistant';
     if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
@@ -206,11 +196,13 @@ SessionState applySessionSnapshot(
     }
     if (message['content'] is List) {
       for (final b in (message['content'] as List).whereType<Map>()) {
-        if (b['type'] == 'tool_call' || b['type'] == 'tool_use') {
+        if (b['type'] == 'toolCall' ||
+            b['type'] == 'tool_call' ||
+            b['type'] == 'tool_use') {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? '';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
           final args = Map<String, dynamic>.from(
-            (b['args'] ?? b['input']) as Map? ?? {},
+            (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
           );
           final out = toolResults[callId] ?? b['output']?.toString() ?? '';
           final hasError =
@@ -223,6 +215,8 @@ SessionState applySessionSnapshot(
               output: out,
               isRunning: false,
               isError: hasError,
+              startedAt: (b['startedAt'] as num?)?.toInt(),
+              durationMs: (b['durationMs'] as num?)?.toInt(),
             ),
           );
         }
@@ -288,6 +282,22 @@ SessionState applySessionSnapshot(
       entries.add(entry);
     }
   }
+  return entries;
+}
+
+SessionState applySessionSnapshot(
+  String sessionId,
+  int seq,
+  Map<String, dynamic> payload,
+) {
+  final meta = payload['session'] as Map? ?? {};
+  final runtime = payload['runtime'] as Map? ?? {};
+  final transcript = payload['transcript'] as Map? ?? {};
+  final live = payload['liveMessage'] as Map? ?? {};
+  final queue = runtime['queue'] as Map? ?? {};
+  final entries = parseSessionEntries(
+    (transcript['entries'] as List? ?? []).whereType<Map>(),
+  );
   final tools = <String, ToolExecutionState>{};
   for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map>()) {
     final tool = _tool(Map<String, dynamic>.from(raw));
@@ -379,6 +389,7 @@ SessionState applySessionSnapshot(
     readOnly: meta['readOnly'] == true,
     readOnlyReason: meta['readOnlyReason']?.toString(),
     agentStatus: status,
+    runStartedAt: (runtime['runStartedAt'] as num?)?.toInt(),
     entries: entries,
     streamingTextBlocks: text.isEmpty ? {} : {0: text},
     streamingThinkingBlocks: thinking.isEmpty ? {} : {0: thinking},
@@ -406,5 +417,7 @@ SessionState applySessionSnapshot(
     usage: rawUsage,
     sessionStats: initialStats,
     lastAppliedSeq: seq,
+    hasMoreHistory: transcript['hasMore'] as bool? ?? false,
+    totalTranscriptEntries: (transcript['totalEntries'] as num?)?.toInt(),
   );
 }

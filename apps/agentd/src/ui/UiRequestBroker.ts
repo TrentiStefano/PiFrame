@@ -49,6 +49,10 @@ export class UiRequestBroker {
     this.requests.set(requestId, req);
   }
 
+  public isLocalOnly(requestId: string): boolean {
+    return this.requests.get(requestId)?.raw.localOnly === true;
+  }
+
   public claimRequest(requestId: string, clientId: string, leaseDurationMs = 30000): { success: boolean; reason?: string } {
     const req = this.requests.get(requestId);
     if (!req) {

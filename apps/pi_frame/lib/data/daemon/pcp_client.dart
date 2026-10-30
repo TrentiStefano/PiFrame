@@ -325,6 +325,23 @@ class PcpClient {
     );
   }
 
+  Future<Map<String, dynamic>> getHistory(
+    String sessionId, {
+    String? beforeId,
+    int limit = 50,
+  }) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('gh'),
+      type: 'session.getHistory',
+      payload: {'sessionId': sessionId, 'beforeId': ?beforeId, 'limit': limit},
+    );
+    return sendCommand(cmd);
+  }
+
   Future<Map<String, dynamic>> sendPrompt(
     String sessionId,
     String text, {
@@ -447,6 +464,32 @@ class PcpClient {
       commandId: newCommandId('stl'),
       type: 'agent.setThinkingLevel',
       payload: {'level': level},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> piAuthLogin(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('pal'),
+      type: 'agent.authLogin',
+      payload: {},
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> piAuthLogout(String sessionId) {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('pao'),
+      type: 'agent.authLogout',
+      payload: {},
     );
     return sendCommand(cmd);
   }

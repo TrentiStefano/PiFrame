@@ -237,16 +237,20 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
         });
       } else {
         // Dialog requests requiring response
+        const title = String(rawEvent.title ?? '');
+        const localAuthRequest = title.startsWith('piframe-local:');
+        const secretInput = rawEvent.method === 'input' && String(rawEvent.placeholder ?? '').startsWith('piframe-secret:');
         results.push({
           type: 'ui.request',
           payload: {
             requestId: rawEvent.requestId || rawEvent.id || `ui_${ulid()}`,
             method: rawEvent.method,
-            title: rawEvent.title,
+            title: localAuthRequest ? title.slice('piframe-local:'.length) : title,
             message: rawEvent.message,
             options: rawEvent.options,
             placeholder: rawEvent.placeholder,
             prefill: rawEvent.prefill,
+            localOnly: localAuthRequest || secretInput,
             timeoutMs: rawEvent.timeout ?? rawEvent.timeoutMs,
             dialog: true,
             claimedBy: null

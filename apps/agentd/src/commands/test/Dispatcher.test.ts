@@ -15,6 +15,7 @@ test.after(() => {
   fs.rmSync(temporaryHome, { recursive: true, force: true });
 });
 import { Dispatcher } from '../Dispatcher.js';
+import { SessionIndex } from '../../sessions/SessionIndex.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';
 import { Connection } from '../../server/connection.js';
@@ -39,13 +40,14 @@ class MockWebSocket extends EventEmitter {
   }
 }
 
-function createTestSetup(piPackages?: PiPackageOperations) {
+function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: SessionIndex) {
   const manager = new ConnectionManager();
   const registry = new SessionRegistry({
     piExecutablePath: 'node',
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager
+    connectionManager: manager,
+    sessionIndex
   });
   const dispatcher = new Dispatcher(registry, manager, piPackages);
 
@@ -85,6 +87,47 @@ async function sendCommand(setup: ReturnType<typeof createTestSetup>, type: stri
   } as any);
   return setup.ws.sentMessages.slice(start).map((item) => JSON.parse(item));
 }
+
+test('Dispatcher: session.list returns a cached result before slow filesystem revalidation', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
+  const sessionsDir = path.join(root, 'sessions');
+  const cachePath = path.join(root, 'index.json');
+  fs.mkdirSync(sessionsDir);
+  fs.writeFileSync(path.join(sessionsDir, 'cached.jsonl'), [
+    { type: 'session', id: 'cached', cwd: process.cwd() },
+    { type: 'session_info', name: 'Cached session' },
+  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
+  const index = new SessionIndex({ sessionsDir, cachePath });
+  await index.scan();
+  const currentIndex = new SessionIndex({ sessionsDir, cachePath });
+  const enumerate = (currentIndex as any).enumerateSessionFiles.bind(currentIndex);
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => { release = resolve; });
+  (currentIndex as any).enumerateSessionFiles = async () => {
+    await blocked;
+    return enumerate();
+  };
+  const setup = createTestSetup(undefined, currentIndex);
+  try {
+    let timer: NodeJS.Timeout | undefined;
+    const result = await Promise.race([
+      sendCommand(setup, 'session.list', '@daemon'),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
+      })
+    ]);
+    if (timer) clearTimeout(timer);
+    assert.equal(result[0].kind, 'ack');
+    assert.equal(result[1].payload.state, 'completed');
+    assert.equal(result[1].payload.data.sessions[0].id, 'cached');
+    release();
+    await currentIndex.scanFast();
+  } finally {
+    release();
+    await setup.registry.closeAll();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('Dispatcher: workspace commands require session scope and ignore client cwd', async () => {
   const repoA = createGitRepo();
@@ -419,12 +462,19 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   try { fs.unlinkSync(devFile); } catch {}
 });
 
-test('Dispatcher: agent.interrupt clears session queue, settles state, and broadcasts events', async () => {
+test('Dispatcher: agent.interrupt clears queues without marking the worker idle', async () => {
   const setup = createTestSetup();
   const session = await setup.registry.createSession({ cwd: os.tmpdir() });
   session.queue = { steering: ['queued steer 1'], followUp: ['queued follow-up 2'] };
   session.status = 'working';
   session.isStreaming = true;
+  const commands: string[] = [];
+  session.worker = {
+    send: async ({ command }: { command: string }) => {
+      commands.push(command);
+      return { data: {} };
+    },
+  } as any;
 
   const res = await sendCommand(setup, 'agent.interrupt', session.id);
   const resultMsg = res.find((m: any) => m.kind === 'result');
@@ -433,6 +483,68 @@ test('Dispatcher: agent.interrupt clears session queue, settles state, and broad
   assert.equal(resultMsg.payload.data.interrupted, true);
   assert.deepEqual(resultMsg.payload.data.queue, { steering: [], followUp: [] });
   assert.deepEqual(session.queue, { steering: [], followUp: [] });
-  assert.equal(session.status, 'settled');
-  assert.equal(session.isStreaming, false);
+  assert.deepEqual(commands, ['clear_queue', 'abort']);
+  assert.equal(session.status, 'working');
+  assert.equal(session.isStreaming, true);
+  await setup.registry.closeAll();
 });
+
+test('Dispatcher: agent.interrupt responds before Pi finishes becoming idle', { timeout: 10_000 }, async () => {
+  const setup = createTestSetup();
+  const session = await setup.registry.createSession({ cwd: os.tmpdir() });
+  session.status = 'working';
+  session.isStreaming = true;
+  let releaseAbort!: () => void;
+  const abortPending = new Promise<void>((resolve) => { releaseAbort = resolve; });
+  const commands: string[] = [];
+  session.worker = {
+    send: async ({ command }: { command: string }) => {
+      commands.push(command);
+      if (command === 'abort') await abortPending;
+      return { data: {} };
+    },
+  } as any;
+
+  const responsePromise = sendCommand(setup, 'agent.interrupt', session.id);
+  try {
+    const response = await Promise.race([
+      responsePromise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+    ]);
+    assert.ok(response, 'interrupt response must not wait for Pi idle');
+    const result = response.find((message: any) => message.kind === 'result');
+    assert.equal(result.payload.state, 'completed');
+    assert.deepEqual(commands, ['clear_queue', 'abort']);
+    assert.equal(session.status, 'working');
+    assert.equal(session.isStreaming, true);
+  } finally {
+    releaseAbort();
+    await responsePromise;
+    await setup.registry.closeAll();
+  }
+});
+
+test('Dispatcher: session.getHistory paginates historical entries backwards', async () => {
+  const setup = createTestSetup();
+  const session = await setup.registry.createSession({ cwd: os.tmpdir() });
+  for (let i = 1; i <= 120; i++) {
+    session.entries.push({ id: `entry_${i}`, role: i % 2 === 0 ? 'assistant' : 'user', text: `Message ${i}` });
+  }
+
+  const res1 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_100', limit: 30 });
+  const result1 = res1.find((m: any) => m.kind === 'result');
+  assert.ok(result1, 'must receive result');
+  assert.equal(result1.payload.state, 'completed');
+  assert.equal(result1.payload.data.entries.length, 30);
+  assert.equal(result1.payload.data.entries[0].id, 'entry_70');
+  assert.equal(result1.payload.data.entries[29].id, 'entry_99');
+  assert.equal(result1.payload.data.hasMore, true);
+  assert.equal(result1.payload.data.totalEntries, 120);
+
+  const res2 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_70', limit: 100 });
+  const result2 = res2.find((m: any) => m.kind === 'result');
+  assert.equal(result2.payload.data.entries.length, 69);
+  assert.equal(result2.payload.data.entries[0].id, 'entry_1');
+  assert.equal(result2.payload.data.hasMore, false);
+});
+

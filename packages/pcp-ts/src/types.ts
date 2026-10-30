@@ -105,6 +105,7 @@ export type PcpCommandType =
   | 'session.clone'
   | 'session.getTree'
   | 'session.getEntries'
+  | 'session.getHistory'
   | 'session.getStats'
   | 'session.getForkPoints'
   | 'session.subagents'
@@ -121,6 +122,8 @@ export type PcpCommandType =
   | 'agent.setAutoRetry'
   | 'agent.abortRetry'
   | 'agent.setModel'
+  | 'agent.authLogin'
+  | 'agent.authLogout'
   | 'agent.getModels'
   | 'agent.setThinkingLevel'
   | 'agent.getThinkingLevels'
@@ -303,6 +306,7 @@ export interface RuntimeMeta {
   steeringMode?: string | null;
   followUpMode?: string | null;
   isStreaming: boolean;
+  runStartedAt?: number | null;
   isCompacting: boolean;
   autoCompaction: boolean;
   queue: {
@@ -316,6 +320,8 @@ export interface RuntimeMeta {
 export interface TranscriptMeta {
   entries: Array<Record<string, unknown>>;
   leafId?: string | null;
+  totalEntries?: number;
+  hasMore?: boolean;
 }
 
 export type RemoteDeviceMode = 'view' | 'control';

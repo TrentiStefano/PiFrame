@@ -39,16 +39,16 @@ test('context policy: persistence contains only preferences and survives reopeni
 
 function runtime(settings: any = {}) {
   const handlers = new Map<string, any>();
-  let command: any;
+  const commands = new Map<string, any>();
   const ctx = { model: { provider: 'test', id: 'model', contextWindow: 1000000 } as any };
   const pi = {
     getSettings: () => settings,
-    registerCommand: (_: string, definition: any) => { command = definition; },
+    registerCommand: (name: string, definition: any) => { commands.set(name, definition); },
     on: (event: string, handler: any) => { handlers.set(event, handler); },
     setModel: async (model: any) => { ctx.model = model; await handlers.get('model_select')?.({}, ctx); return true; },
   };
   contextLimitExtension(pi);
-  return { ctx, pi, handlers, setPolicy: async (limit: number | null, percent: number) => command.handler(JSON.stringify({ limit, percent }), ctx) };
+  return { ctx, pi, handlers, commands, setPolicy: async (limit: number | null, percent: number) => commands.get('piframe-context-policy').handler(JSON.stringify({ limit, percent }), ctx) };
 }
 
 test('runtime extension: starts with the displayed default reserve even without a custom limit', async () => {

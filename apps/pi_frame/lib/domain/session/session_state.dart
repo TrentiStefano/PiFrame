@@ -8,6 +8,7 @@ class ToolExecutionState {
   final bool isRunning;
   final bool isError;
   final int? durationMs;
+  final int? startedAt;
 
   const ToolExecutionState({
     required this.toolCallId,
@@ -17,13 +18,21 @@ class ToolExecutionState {
     this.isRunning = false,
     this.isError = false,
     this.durationMs,
+    this.startedAt,
   });
+
+  int? elapsedMsAt(int timestamp) {
+    if (!isRunning || startedAt == null) return durationMs;
+    final elapsed = timestamp - startedAt!;
+    return elapsed < 0 ? 0 : elapsed;
+  }
 
   ToolExecutionState copyWith({
     String? output,
     bool? isRunning,
     bool? isError,
     int? durationMs,
+    int? startedAt,
   }) {
     return ToolExecutionState(
       toolCallId: toolCallId,
@@ -33,6 +42,7 @@ class ToolExecutionState {
       isRunning: isRunning ?? this.isRunning,
       isError: isError ?? this.isError,
       durationMs: durationMs ?? this.durationMs,
+      startedAt: startedAt ?? this.startedAt,
     );
   }
 }
@@ -115,6 +125,7 @@ class SessionState {
   final bool readOnly;
   final String? readOnlyReason;
   final AgentStatus agentStatus;
+  final int? runStartedAt;
   final List<SessionEntry> entries;
   final Map<int, String> streamingTextBlocks;
   final Map<int, String> streamingThinkingBlocks;
@@ -132,6 +143,8 @@ class SessionState {
   final double compactionReservePercent;
   final bool autoCompaction;
   final int lastAppliedSeq;
+  final bool hasMoreHistory;
+  final int? totalTranscriptEntries;
 
   const SessionState({
     required this.sessionId,
@@ -140,6 +153,7 @@ class SessionState {
     this.readOnly = false,
     this.readOnlyReason,
     this.agentStatus = AgentStatus.settled,
+    this.runStartedAt,
     this.entries = const [],
     this.streamingTextBlocks = const {},
     this.streamingThinkingBlocks = const {},
@@ -157,6 +171,8 @@ class SessionState {
     this.compactionReservePercent = 2.5,
     this.autoCompaction = true,
     this.lastAppliedSeq = 0,
+    this.hasMoreHistory = false,
+    this.totalTranscriptEntries,
   });
 
   String get currentStreamingText => streamingTextBlocks.values.join();
@@ -175,6 +191,8 @@ class SessionState {
     bool? readOnly,
     String? readOnlyReason,
     AgentStatus? agentStatus,
+    int? runStartedAt,
+    bool clearRunStartedAt = false,
     List<SessionEntry>? entries,
     Map<int, String>? streamingTextBlocks,
     Map<int, String>? streamingThinkingBlocks,
@@ -193,6 +211,8 @@ class SessionState {
     double? compactionReservePercent,
     bool? autoCompaction,
     int? lastAppliedSeq,
+    bool? hasMoreHistory,
+    int? totalTranscriptEntries,
   }) {
     return SessionState(
       sessionId: sessionId,
@@ -201,6 +221,7 @@ class SessionState {
       readOnly: readOnly ?? this.readOnly,
       readOnlyReason: readOnlyReason ?? this.readOnlyReason,
       agentStatus: agentStatus ?? this.agentStatus,
+      runStartedAt: clearRunStartedAt ? null : (runStartedAt ?? this.runStartedAt),
       entries: entries ?? this.entries,
       streamingTextBlocks: streamingTextBlocks ?? this.streamingTextBlocks,
       streamingThinkingBlocks:
@@ -222,6 +243,9 @@ class SessionState {
           compactionReservePercent ?? this.compactionReservePercent,
       autoCompaction: autoCompaction ?? this.autoCompaction,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
+      hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
+      totalTranscriptEntries:
+          totalTranscriptEntries ?? this.totalTranscriptEntries,
     );
   }
 }

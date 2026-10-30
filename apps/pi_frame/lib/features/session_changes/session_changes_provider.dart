@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
-import '../workspace/repository_workspace.dart';
 
 /// Whether the "Review Changes" layout mode is currently active.
 final isReviewingChangesProvider = StateProvider<bool>((ref) => false);
@@ -119,27 +118,14 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
 
   Future<void> refresh() async {
     final client = ref.read(pcpClientProvider);
-    final session = ref.read(sessionStateFamily(sessionId));
-    final touched = piTouchedPaths(session);
-
     if (client == null) {
-      // Mock / offline fallback: populate from piTouchedPaths
-      if (touched.isNotEmpty) {
-        final mockFiles = touched.map((p) {
-          return SessionChangedFile(
-            path: p,
-            filename: _extractFileName(p),
-            directory: _extractDirectory(p),
-            additions: 1,
-            deletions: 0,
-          );
-        }).toList();
-        state = state.copyWith(
-          files: mockFiles,
-          totalAdditions: mockFiles.length,
-          totalDeletions: 0,
-        );
-      }
+      state = state.copyWith(
+        isLoading: false,
+        files: const [],
+        totalAdditions: 0,
+        totalDeletions: 0,
+        error: 'Daemon non connesso',
+      );
       return;
     }
 
@@ -173,21 +159,6 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
         );
       }
 
-      // Also ensure any explicitly touched files by Pi are present
-      for (final p in touched) {
-        if (!fileMap.containsKey(p)) {
-          fileMap[p] = SessionChangedFile(
-            path: p,
-            filename: _extractFileName(p),
-            directory: _extractDirectory(p),
-            additions: 1,
-            deletions: 0,
-            status: 'modified',
-          );
-          totalAdd += 1;
-        }
-      }
-
       final list = fileMap.values.toList()
         ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
 
@@ -198,26 +169,13 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
         totalDeletions: totalDel,
       );
     } catch (e) {
-      // In case workspace.refresh fails (e.g. not a git repo), fallback to touched paths
-      if (touched.isNotEmpty) {
-        final fallbackFiles = touched.map((p) {
-          return SessionChangedFile(
-            path: p,
-            filename: _extractFileName(p),
-            directory: _extractDirectory(p),
-            additions: 1,
-            deletions: 0,
-          );
-        }).toList();
-        state = state.copyWith(
-          isLoading: false,
-          files: fallbackFiles,
-          totalAdditions: fallbackFiles.length,
-          totalDeletions: 0,
-        );
-      } else {
-        state = state.copyWith(isLoading: false, error: e.toString());
-      }
+      state = state.copyWith(
+        isLoading: false,
+        files: const [],
+        totalAdditions: 0,
+        totalDeletions: 0,
+        error: e.toString(),
+      );
     }
   }
 
@@ -279,11 +237,6 @@ final sessionHasModifiedFilesProvider =
 
   if (!isSettled) return false;
 
-  final hasTouched = ref.watch(sessionStateFamily(sessionId).select(
-    (session) => piTouchedPaths(session).isNotEmpty,
-  ));
   final changes = ref.watch(sessionChangesProvider(sessionId));
-  final hasGitFiles = changes.files.isNotEmpty;
-
-  return hasTouched || hasGitFiles;
+  return changes.files.isNotEmpty;
 });

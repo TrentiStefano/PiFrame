@@ -82,40 +82,36 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     final percent = totalCount > 0 ? (completedCount / totalCount) : 0.0;
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
-      alignment: Alignment.topCenter,
-      child: _isExpanded
-          ? Container(
-              key: const ValueKey('todo-popdown-panel'),
-              margin: EdgeInsets.fromLTRB(isMobile ? 12 : 8, 0, isMobile ? 12 : 8, 6),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: widget.hideBookTab
-                    ? BorderRadius.only(
-                        topRight: Radius.circular(tokens.radiusMd),
-                        bottomLeft: Radius.circular(tokens.radiusMd),
-                        bottomRight: Radius.circular(tokens.radiusMd),
-                      )
-                    : BorderRadius.circular(tokens.radiusMd),
-                border: Border.all(
-                  color: tokens.borderStrong,
-                  width: 1.0,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: tokens.overlay.withValues(alpha: 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+    final panelContent = _isExpanded
+        ? Container(
+            key: const ValueKey('todo-popdown-panel'),
+            margin: EdgeInsets.fromLTRB(isMobile ? 12 : 8, 0, isMobile ? 12 : 8, 6),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: widget.hideBookTab
+                  ? BorderRadius.only(
+                      topRight: Radius.circular(tokens.radiusMd),
+                      bottomLeft: Radius.circular(tokens.radiusMd),
+                      bottomRight: Radius.circular(tokens.radiusMd),
+                    )
+                  : BorderRadius.circular(tokens.radiusMd),
+              border: Border.all(
+                color: tokens.borderStrong,
+                width: 1.0,
               ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header Bar
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.overlay.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
@@ -462,8 +458,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               ),
             ],
           ),
-        )),
-);
+        ));
+
+    if (widget.hideBookTab) {
+      return panelContent;
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: panelContent,
+    );
   }
 
   Widget _buildStatusBadge(TodoItem task, FrameTokens tokens) {

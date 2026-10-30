@@ -1,25 +1,51 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Connection } from '../server/connection.js';
 import type { SessionRegistry } from '../sessions/SessionRegistry.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import { CommandDeduplicator } from './CommandRecord.js';
-import { loadConfig, patchConfig } from '../config/config.js';
+import { getPiFrameBaseDir, loadConfig, patchConfig } from '../config/config.js';
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
-import { DEFAULT_COMPACTION_RESERVE_PERCENT, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
+import { DEFAULT_COMPACTION_RESERVE_PERCENT, readContextPolicy, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
+import { parsePiBuiltinCommand, PI_BUILTIN_SLASH_COMMANDS } from '../pi/builtinSlashCommands.js';
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
+import { SnapshotBuilder } from '../journal/SnapshotBuilder.js';
 import type {
   PcpCommand,
   PcpAck,
   PcpResult,
   PcpError
 } from '@piframe/pcp-ts';
+
+function getOrCreateAuthDeviceId(): string {
+  const directory = getPiFrameBaseDir();
+  const file = path.join(directory, 'auth-device-id');
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    throw new Error('Invalid PiFrame auth device ID file.');
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const id = randomUUID();
+  try {
+    fs.writeFileSync(file, id, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    return id;
+  } catch (error: any) {
+    if (error?.code !== 'EEXIST') throw error;
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
+    throw new Error('Invalid PiFrame auth device ID file.');
+  }
+}
 
 export class Dispatcher {
   private registry: SessionRegistry;
@@ -57,6 +83,34 @@ export class Dispatcher {
         } as any);
       });
     }
+  }
+
+  private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
+    const session = this.registry.getSession(sessionId);
+    if (session?.isStreaming || session?.isCompacting) {
+      const err: any = new Error('Attendi la fine della risposta prima di ricaricare.');
+      err.code = 'COMMAND_REJECTED';
+      throw err;
+    }
+    const worker = await this.registry.ensureWorkerForSession(sessionId);
+    // The internal extension command calls Pi's ctx.reload(), which re-runs session_start and resets the context policy.
+    await worker.send({ command: 'prompt', arguments: { message: '/piframe-reload' } });
+    const policy = readContextPolicy(sessionId);
+    await applyContextPolicy(worker, policy);
+    return { reloaded: true };
+  }
+
+  private async runPiAuthAction(sessionId: string, action: 'login' | 'logout'): Promise<void> {
+    const session = this.registry.getSession(sessionId);
+    if (!session) throw Object.assign(new Error(`Session ${sessionId} not found`), { code: 'SESSION_NOT_FOUND' });
+    if (session.isStreaming || session.isCompacting) {
+      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), { code: 'COMMAND_REJECTED' });
+    }
+    const worker = await this.registry.ensureWorkerForSession(sessionId);
+    const message = action === 'login'
+      ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
+      : '/piframe-auth-logout';
+    await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -217,6 +271,7 @@ export class Dispatcher {
         'session.detach',
         'session.getStats',
         'session.getEntries',
+        'session.getHistory',
         'session.getTree',
         'session.subagents',
         'agent.getModels',
@@ -588,6 +643,18 @@ export class Dispatcher {
           throw err;
         }
 
+        const builtin = parsePiBuiltinCommand(String(payload.text ?? ''));
+        if (builtin) {
+          // /reload has a PiFrame runtime equivalent. Other native TUI commands are dispatched by the chat UI.
+          if (builtin.name === 'reload' && !builtin.args && !payload.images?.length) {
+            return this.reloadWorkerSession(sessionId);
+          }
+          const err: any = new Error(`/${builtin.name} is a Pi built-in command and cannot be sent as model text.`);
+          err.code = 'COMMAND_REJECTED';
+          err.hint = 'Use the PiFrame slash-command action.';
+          throw err;
+        }
+
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
         if (session.isStreaming && !payload.streamingBehavior) {
           const err: any = new Error('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").');
@@ -665,17 +732,14 @@ export class Dispatcher {
           try {
             await worker.send({ command: 'clear_queue' });
           } catch {}
-          try {
-            await worker.send({ command: 'abort' });
-          } catch {}
+          // Pi resolves abort only after idle; match TUI Escape by not waiting here.
+          void worker.send({ command: 'abort' }).catch(() => {});
         }
 
         if (session) {
           session.queue = { steering: [], followUp: [] };
           session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
-          session.isStreaming = false;
-          session.status = 'settled';
-          session.emitCustomEvent('run.settled', {});
+          // Keep backend write guards active until Pi confirms the run settled.
         }
 
         return { interrupted: true, queue: { steering: [], followUp: [] } };
@@ -833,6 +897,18 @@ export class Dispatcher {
         }
       }
 
+      case 'agent.authLogin': {
+        if (!sessionId) throw new Error('sessionId required');
+        await this.runPiAuthAction(sessionId, 'login');
+        return { started: true };
+      }
+
+      case 'agent.authLogout': {
+        if (!sessionId) throw new Error('sessionId required');
+        await this.runPiAuthAction(sessionId, 'logout');
+        return { started: true };
+      }
+
       case 'agent.getModels': {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -877,7 +953,14 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_commands' });
-        return res.data;
+        const extensionCommands = Array.isArray(res.data?.commands) ? res.data.commands : [];
+        const builtinNames = new Set(PI_BUILTIN_SLASH_COMMANDS.map(({ name }) => name));
+        const commands = [
+          ...PI_BUILTIN_SLASH_COMMANDS,
+          ...extensionCommands.filter((command: { name?: string }) =>
+            !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')),
+        ];
+        return { ...res.data, commands };
       }
 
       case 'ui.claim': {
@@ -887,6 +970,9 @@ export class Dispatcher {
           const err: any = new Error(`Session ${sessionId} not found`);
           err.code = 'SESSION_NOT_FOUND';
           throw err;
+        }
+        if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
         }
         const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
         if (!claimRes.success) {
@@ -906,6 +992,9 @@ export class Dispatcher {
           throw err;
         }
 
+        if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+        }
         const resolveRes = session.uiBroker.resolveRequest(
           payload.requestId,
           conn.id,
@@ -1014,6 +1103,34 @@ export class Dispatcher {
           return res.data;
         }
         return { tree: [] };
+      }
+
+      case 'session.getHistory': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        const beforeId = payload.beforeId as string | undefined;
+        const limit = Math.min(Math.max(Number(payload.limit) || 250, 1), 1000);
+
+        const allEntries = session.entries;
+        let endIndex = allEntries.length;
+        if (beforeId) {
+          const idx = allEntries.findIndex((e: any) => e.id === beforeId);
+          if (idx !== -1) {
+            endIndex = idx;
+          }
+        }
+
+        const startIndex = Math.max(0, endIndex - limit);
+        const chunk = allEntries.slice(startIndex, endIndex);
+        const hasMore = startIndex > 0;
+
+        return {
+          sessionId: session.id,
+          entries: chunk.map(SnapshotBuilder.sanitizeEntry),
+          hasMore,
+          totalEntries: allEntries.length,
+          startIndex,
+          endIndex
+        };
       }
 
       default: {
