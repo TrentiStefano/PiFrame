@@ -732,17 +732,14 @@ export class Dispatcher {
           try {
             await worker.send({ command: 'clear_queue' });
           } catch {}
-          try {
-            await worker.send({ command: 'abort' });
-          } catch {}
+          // Pi resolves abort only after idle; match TUI Escape by not waiting here.
+          void worker.send({ command: 'abort' }).catch(() => {});
         }
 
         if (session) {
           session.queue = { steering: [], followUp: [] };
           session.emitCustomEvent('queue.changed', { steering: [], followUp: [] });
-          session.isStreaming = false;
-          session.status = 'settled';
-          session.emitCustomEvent('run.settled', {});
+          // Keep backend write guards active until Pi confirms the run settled.
         }
 
         return { interrupted: true, queue: { steering: [], followUp: [] } };

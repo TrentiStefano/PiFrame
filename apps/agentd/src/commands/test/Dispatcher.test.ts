@@ -462,12 +462,19 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   try { fs.unlinkSync(devFile); } catch {}
 });
 
-test('Dispatcher: agent.interrupt clears session queue, settles state, and broadcasts events', async () => {
+test('Dispatcher: agent.interrupt clears queues without marking the worker idle', async () => {
   const setup = createTestSetup();
   const session = await setup.registry.createSession({ cwd: os.tmpdir() });
   session.queue = { steering: ['queued steer 1'], followUp: ['queued follow-up 2'] };
   session.status = 'working';
   session.isStreaming = true;
+  const commands: string[] = [];
+  session.worker = {
+    send: async ({ command }: { command: string }) => {
+      commands.push(command);
+      return { data: {} };
+    },
+  } as any;
 
   const res = await sendCommand(setup, 'agent.interrupt', session.id);
   const resultMsg = res.find((m: any) => m.kind === 'result');
@@ -476,8 +483,45 @@ test('Dispatcher: agent.interrupt clears session queue, settles state, and broad
   assert.equal(resultMsg.payload.data.interrupted, true);
   assert.deepEqual(resultMsg.payload.data.queue, { steering: [], followUp: [] });
   assert.deepEqual(session.queue, { steering: [], followUp: [] });
-  assert.equal(session.status, 'settled');
-  assert.equal(session.isStreaming, false);
+  assert.deepEqual(commands, ['clear_queue', 'abort']);
+  assert.equal(session.status, 'working');
+  assert.equal(session.isStreaming, true);
+  await setup.registry.closeAll();
+});
+
+test('Dispatcher: agent.interrupt responds before Pi finishes becoming idle', { timeout: 10_000 }, async () => {
+  const setup = createTestSetup();
+  const session = await setup.registry.createSession({ cwd: os.tmpdir() });
+  session.status = 'working';
+  session.isStreaming = true;
+  let releaseAbort!: () => void;
+  const abortPending = new Promise<void>((resolve) => { releaseAbort = resolve; });
+  const commands: string[] = [];
+  session.worker = {
+    send: async ({ command }: { command: string }) => {
+      commands.push(command);
+      if (command === 'abort') await abortPending;
+      return { data: {} };
+    },
+  } as any;
+
+  const responsePromise = sendCommand(setup, 'agent.interrupt', session.id);
+  try {
+    const response = await Promise.race([
+      responsePromise,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+    ]);
+    assert.ok(response, 'interrupt response must not wait for Pi idle');
+    const result = response.find((message: any) => message.kind === 'result');
+    assert.equal(result.payload.state, 'completed');
+    assert.deepEqual(commands, ['clear_queue', 'abort']);
+    assert.equal(session.status, 'working');
+    assert.equal(session.isStreaming, true);
+  } finally {
+    releaseAbort();
+    await responsePromise;
+    await setup.registry.closeAll();
+  }
 });
 
 test('Dispatcher: session.getHistory paginates historical entries backwards', async () => {
