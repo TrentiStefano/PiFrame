@@ -4,6 +4,29 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+---
+
+## Errore "$ pi update --all /bin/sh: pi: command not found [codice 127]"
+
+**Sintomo:** eseguendo un comando Pi dalla sezione *Impostazioni → Pi CLI* (ad es. `pi update --all`) o avviando l'installazione automatica su macOS, il processo terminava immediatamente con l'errore:
+```
+$ pi update --all
+/bin/sh: pi: command not found
+
+[Processo completato con codice 127 in 24ms]
+```
+Inoltre, anche se Pi era stato installato separatamente nel Terminale, l'app continuava a segnalare che Pi non era installato.
+
+**Causa radice:**
+Su macOS, le applicazioni grafiche avviate da Launch Services (Finder, Dock, Spotlight) ereditano da `launchd` una variabile d'ambiente `PATH` minimale ridotta a `/usr/bin:/bin:/usr/sbin:/sbin`. Gli eseguibili installati tramite lo script ufficiale curl (`~/.local/bin/pi`), Homebrew (`/opt/homebrew/bin/pi` o `/usr/local/bin/pi`) o manager di versione Node (`~/.nvm/...`) non si trovano in tali percorsi e le shell non interattive avviate da `/bin/sh` non caricano i file `.zprofile` o `.zshrc` dell'utente.
+
+**Soluzione implementata:**
+1. È stato introdotto il modulo centralizzato `PlatformEnvironment` sia nel client Flutter che nel daemon `agentd`, che arricchisce la variabile `PATH` includendo automaticamente `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/share/pi-node/current/bin` e la cartella del bundle applicativo, oltre a interrogare la shell di login dell'utente.
+2. L'esecuzione dei comandi Pi risolve preventivamente il percorso assoluto dell'eseguibile `pi` ed esegue il processo fornendo l'ambiente arricchito senza dipendere dal percorso predefinito di `/bin/sh`.
+3. L'installatore interno di PiFrame ora esegue lo script ufficiale `curl -fsSL https://pi.dev/install.sh | sh` (o `irm https://pi.dev/install.ps1 | iex` su Windows) e configura automaticamente i prerequisiti (Node.js standalone o tramite Homebrew) nel caso in cui non siano presenti nel sistema.
+
+---
+
 ## macOS Gatekeeper: blocco applicazione non firmata o non verificata
 
 **Sintomo:** all'apertura di `PiFrame.app` su macOS viene mostrato il messaggio: *"Impossibile aprire l'applicazione perché Apple non può verificare la presenza di software dannoso"* oppure non si avvia se non si concede il consenso esplicito.

@@ -22,7 +22,10 @@ PiFrame è progettato come un'applicazione desktop a doppio componente:
 - **Node.js**:
   - Gli installer includono runtime Node e bundle `pi-agentd`; non serve installare Node separatamente.
   - Per sviluppo o esecuzione da sorgenti: Node.js ≥ 22.19.0.
-- **Pi Coding Agent** (non incluso nell'installer): versione minima **v0.85.0**, da installare e tenere su `PATH`; l'installazione npm richiede Node.js/npm (`npm install -g @earendil-works/pi-coding-agent`).
+- **Pi Coding Agent** (non incluso nell'installer): versione minima **v0.85.0**, da installare e tenere su `PATH`. Può essere installato direttamente dall'interfaccia di primo avvio di PiFrame oppure tramite i comandi ufficiali:
+    - macOS / Linux: `curl -fsSL https://pi.dev/install.sh | sh`
+    - Windows: `powershell -c "irm https://pi.dev/install.ps1 | iex"`
+    - Via npm: `npm install -g @earendil-works/pi-coding-agent`
 
 ### MCP Dart/Flutter per Pi
 

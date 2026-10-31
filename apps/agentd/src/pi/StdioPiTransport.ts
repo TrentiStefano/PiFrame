@@ -4,6 +4,7 @@ import type { PiTransport } from './PiTransport.js';
 import type { PiCommand, PiResponse, PiEvent, TransportHealth, PiCapabilities, ExitInfo } from './piCommands.js';
 import { JsonlFramer } from './jsonlFramer.js';
 import { resolvePiLaunch } from './executable.js';
+import { getAugmentedEnv } from './env.js';
 
 export interface StdioPiTransportOptions {
   executablePath: string;
@@ -63,7 +64,7 @@ export class StdioPiTransport implements PiTransport {
 
   public async start(opts: { cwd: string; args?: string[]; env?: Record<string, string> }): Promise<void> {
     const launch = resolvePiLaunch(this.executablePath, opts.args ?? []);
-    const env = { ...process.env, ...opts.env, PI_FRAME: '1' };
+    const env = getAugmentedEnv({ ...opts.env, PI_FRAME: '1' });
     this.startedAt = Date.now();
     this.lastSeenMs = this.startedAt;
 

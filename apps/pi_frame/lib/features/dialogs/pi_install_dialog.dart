@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -242,7 +244,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Vuoi procedere con l\'installazione automatica globale adesso tramite npm?',
+          'Vuoi procedere con l\'installazione automatica ufficiale adesso?',
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: 13,
@@ -251,7 +253,9 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Comando eseguito: npm install -g @earendil-works/pi-coding-agent\n(richiede Node.js ed npm configurati nel sistema)',
+          kIsWeb || !Platform.isWindows
+              ? 'Comando: curl -fsSL https://pi.dev/install.sh | sh\n(installazione ufficiale con configurazione automatica dei prerequisiti)'
+              : 'Comando: irm https://pi.dev/install.ps1 | iex\n(installazione ufficiale con configurazione automatica dei prerequisiti)',
           style: TextStyle(
             fontFamily: tokens.monoFontFamily,
             fontSize: 11,
