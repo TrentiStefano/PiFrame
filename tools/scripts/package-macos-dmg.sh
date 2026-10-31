@@ -1,13 +1,100 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:?Usage: package-macos-dmg.sh <version> <arch>}"
-arch="${2:?Usage: package-macos-dmg.sh <version> <arch>}"
+# Ensure script runs from repository root
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_ROOT"
+
+# Check OS: macOS is required for native macos compilation and hdiutil
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "Error: macOS packaging requires macOS (Darwin) with Xcode and hdiutil." >&2
+  echo "Apple SDKs and Cocoa frameworks cannot be built on Windows or Linux." >&2
+  exit 1
+fi
+
+skip_build=0
+force_build=0
+version=""
+arch=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skip-build)
+      skip_build=1
+      shift
+      ;;
+    --build)
+      force_build=1
+      shift
+      ;;
+    *)
+      if [[ -z "$version" ]]; then
+        version="$1"
+      elif [[ -z "$arch" ]]; then
+        arch="$1"
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Resolve version from package.json if not specified
+if [[ -z "$version" ]]; then
+  if [[ -f package.json ]]; then
+    version="$(node -p 'require("./package.json").version' 2>/dev/null || true)"
+  fi
+fi
+
+if [[ -z "$version" ]]; then
+  echo "Error: Version not specified and could not be determined from package.json" >&2
+  exit 1
+fi
+
+# Resolve architecture if not specified
+if [[ -z "$arch" ]]; then
+  m="$(uname -m)"
+  if [[ "$m" == "arm64" || "$m" == "aarch64" ]]; then
+    arch="arm64"
+  else
+    arch="x64"
+  fi
+fi
 
 app="apps/pi_frame/build/macos/Build/Products/Release/pi_frame.app"
+daemon="apps/agentd/dist/pi-agentd.cjs"
+web_index="apps/pi_frame/build/web/index.html"
+
+needs_build=0
+if [[ "$force_build" -eq 1 ]]; then
+  needs_build=1
+elif [[ "$skip_build" -eq 0 ]]; then
+  if [[ ! -d "$app" || ! -f "$daemon" || ! -f "$web_index" ]]; then
+    needs_build=1
+  fi
+fi
+
+if [[ "$needs_build" -eq 1 ]]; then
+  echo "=== Building PiFrame components for macOS v${version} (${arch}) ==="
+  echo "1. Building protocol and agentd bundle..."
+  pnpm --filter @piframe/pcp-ts run build
+  pnpm --filter @piframe/agentd run build:bundle
+
+  echo "2. Building Flutter web app (for remote daemon access)..."
+  (cd apps/pi_frame && flutter build web --release --no-web-resources-cdn --dart-define="PI_FRAME_VERSION=${version}")
+
+  echo "3. Building Flutter macOS application..."
+  (cd apps/pi_frame && flutter build macos --release --dart-define="PI_FRAME_VERSION=${version}")
+fi
+
+if [[ ! -d "$app" ]]; then
+  echo "Error: macOS application bundle not found at $app" >&2
+  exit 1
+fi
+
+echo "=== Packaging PiFrame macOS DMG v${version} (${arch}) ==="
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" dist/dmg
 
-cp apps/agentd/dist/pi-agentd.cjs "$app/Contents/MacOS/pi-agentd.cjs"
+cp "$daemon" "$app/Contents/MacOS/pi-agentd.cjs"
 node_bin="$(command -v node)"
 cp "$node_bin" "$app/Contents/MacOS/node"
 cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
@@ -32,7 +119,12 @@ test -s "$app/Contents/Resources/NODE-LICENSE.txt"
 test -s "dist/dmg/LEGGIMI - Come aprire l'app.txt"
 test -s "dist/dmg/README - How to open.txt"
 
-hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${version}-macos-${arch}.dmg"
-rm -rf dist/dmg
-echo "Successfully created dist/PiFrame-${version}-macos-${arch}.dmg"
+mkdir -p dist
+dmg_path="dist/PiFrame-${version}-macos-${arch}.dmg"
+rm -f "$dmg_path"
 
+echo "Creating compressed DMG image at $dmg_path..."
+hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "$dmg_path"
+rm -rf dist/dmg
+
+echo "Successfully created $dmg_path"

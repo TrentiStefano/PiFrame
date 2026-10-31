@@ -92,6 +92,32 @@ Per compilare e generare l'installer completo per Windows (`dist/PiFrame-Setup-<
    ```
    Lo script esegue l'intera sequenza: compila i pacchetti TypeScript, crea il bundle del daemon (`pi-agentd.cjs`), compila l'app Flutter Windows e l'app Web per l'accesso remoto, predispone il runtime Node con le licenze e compila il setup `.exe` in `dist/`. Per ri-impacchettare senza ricompilare Flutter, puoi passare il flag `-SkipBuild`.
 
+### Generazione Locale dell'Installer macOS (DMG)
+Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<versione>-macos-<arch>.dmg`) in locale o completamente offline:
+> [!NOTE]
+> La compilazione nativa dell'applicazione macOS (`.app`) e la creazione del `.dmg` compresso tramite l'utility di sistema `hdiutil` richiedono l'esecuzione su un sistema macOS (con Xcode Command Line Tools, Flutter SDK e Node.js). Apple non rende disponibili gli SDK proprietari Cocoa/Metal su Windows o Linux.
+
+1. Da un computer macOS, posizionati nella radice del monorepo ed esegui:
+   ```bash
+   pnpm run package:macos
+   ```
+   oppure direttamente tramite lo script bash:
+   ```bash
+   bash tools/scripts/package-macos-dmg.sh
+   ```
+2. Lo script esegue automaticamente tutta la sequenza:
+   - Compila il pacchetto `@piframe/pcp-ts` e il bundle del daemon (`pi-agentd.cjs`).
+   - Compila la Web App Flutter (`flutter build web --release`).
+   - Compila l'applicazione macOS (`flutter build macos --release`).
+   - Confeziona il bundle `PiFrame.app` con il runtime Node integrato, licenze e web assets.
+   - Applica la firma ad-hoc (`codesign`).
+   - Include il symlink per `/Applications` e le guide `LEGGIMI - Come aprire l'app.txt` / `README - How to open.txt`.
+   - Crea il file compresso `dist/PiFrame-<versione>-macos-<arch>.dmg` tramite `hdiutil` (100% offline).
+3. **Opzioni utili dello script:**
+   - `--skip-build`: riutilizza i binari già compilati e rigenera solo il DMG.
+   - `--build`: forza la ricompilazione completa di tutti i componenti anche se i binari esistono già.
+   - Parametri opzionali: `bash tools/scripts/package-macos-dmg.sh [versione] [architettura] [--skip-build]`.
+
 ---
 
 ## Comandi slash di Pi nella chat
