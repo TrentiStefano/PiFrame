@@ -35,9 +35,18 @@ PiFrame usa il server ufficiale integrato Dart/Flutter configurato a livello ute
 Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.com/TrentiStefano/piframe/releases/latest). I commit Conventional (`fix`, `feat`, `BREAKING CHANGE`) aggiornano il PR di release SemVer; quando il PR viene unito, GitHub Actions pubblica installer Windows, macOS Intel/Apple silicon e Linux x64 con screenshot aggiornato.
 
 ### macOS
-1. Apri il DMG e trascina `PiFrame.app` in `/Applications`.
-2. Al primo avvio, PiFrame avvia `pi-agentd` usando il runtime Node incluso.
-3. Build non firmate/notarizzate possono richiedere **Control-click → Open** al primo avvio.
+1. Apri il file `.dmg` e trascina `PiFrame.app` nella cartella `/Applications`.
+2. Al primo avvio, PiFrame avvia automaticamente `pi-agentd` sfruttando il runtime Node integrato nel pacchetto.
+3. **Avviso di sicurezza Gatekeeper (Apple Developer ID e Notarizzazione):**
+   - Poiché Apple richiede un abbonamento annuale a pagamento all'**Apple Developer Program ($99 USD/anno)** per rilasciare certificati *Developer ID Application* e consentire la notarizzazione tramite `notarytool`, le release open-source distribuite gratuitamente non possono essere notarizzate senza costo.
+   - Il binario viene regolarmente firmato in modalità ad-hoc (`codesign --force --deep --sign -`) nella pipeline di build GitHub Actions per garantire la corretta esecuzione architetturale su Apple Silicon (`arm64`) e Intel (`x64`).
+   - Quando scarichi l'applicazione dal browser, macOS vi associa l'attributo di quarantena `com.apple.quarantine`. Per avviarla la prima volta puoi procedere in due modi:
+     - **Da Impostazioni di Sistema (macOS 14 Sonoma / 15 Sequoia):** apri PiFrame (verrà mostrato il messaggio di Gatekeeper), recati in **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino alla sezione **Sicurezza** e fai clic su **Apri comunque**, confermando con password o Touch ID.
+     - **Da Terminale (metodo rapido a riga di comando):**
+       ```bash
+       xattr -cr /Applications/PiFrame.app
+       ```
+       Questo comando rimuove i flag di quarantena dal bundle di PiFrame consentendone l'apertura diretta con doppio clic.
 
 ### Windows
 1. Avvia `PiFrame-Setup-…-windows-x64.exe`.
