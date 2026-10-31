@@ -35,3 +35,4 @@ test -s "dist/dmg/README - How to open.txt"
 hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${version}-macos-${arch}.dmg"
 rm -rf dist/dmg
 echo "Successfully created dist/PiFrame-${version}-macos-${arch}.dmg"
+

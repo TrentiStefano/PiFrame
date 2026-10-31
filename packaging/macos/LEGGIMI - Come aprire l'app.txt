@@ -69,3 +69,4 @@ Se non hai ancora installato la CLI di Pi sul Mac:
 ================================================================================
 Documentazione e supporto: https://github.com/TrentiStefano/piframe
 ================================================================================
+
