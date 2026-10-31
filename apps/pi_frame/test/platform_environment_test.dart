@@ -37,3 +37,4 @@ void main() {
     expect(result, isA<bool>());
   });
 }
+

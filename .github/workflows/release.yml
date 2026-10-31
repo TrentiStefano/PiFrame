@@ -232,11 +232,15 @@ jobs:
           cp -R "$app" dist/dmg/PiFrame.app
           codesign --force --deep --sign - dist/dmg/PiFrame.app
           ln -s /Applications dist/dmg/Applications
+          cp "packaging/macos/LEGGIMI - Come aprire l'app.txt" dist/dmg/
+          cp "packaging/macos/README - How to open.txt" dist/dmg/
           test -x "$app/Contents/MacOS/pi_frame"
           test -x "$app/Contents/MacOS/node"
           test -s "$app/Contents/MacOS/pi-agentd.cjs"
           test -s "$app/Contents/MacOS/web/index.html"
           test -s "$app/Contents/Resources/NODE-LICENSE.txt"
+          test -s "dist/dmg/LEGGIMI - Come aprire l'app.txt"
+          test -s "dist/dmg/README - How to open.txt"
           hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"
           rm -rf dist/dmg
 

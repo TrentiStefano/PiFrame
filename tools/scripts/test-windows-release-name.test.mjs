@@ -36,3 +36,14 @@ test('Windows executable name matches CMake, installer, and release bundle guard
     `release workflow must check for ${executable}`,
   );
 });
+
+test('macOS DMG packaging bundles LEGGIMI and README instructions', () => {
+  assert.ok(
+    workflow.includes("LEGGIMI - Come aprire l\'app.txt"),
+    'release workflow must bundle LEGGIMI in macOS DMG',
+  );
+  assert.ok(
+    workflow.includes('README - How to open.txt'),
+    'release workflow must bundle README in macOS DMG',
+  );
+});
