@@ -15,8 +15,11 @@ import 'ui/startup_assemble_animation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final nativeWindows =
+  final isWindows =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  final isMacOS =
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+  final customDesktopChrome = isWindows || isMacOS;
   final desktopWindowLifecycle = !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.macOS ||
@@ -25,10 +28,15 @@ Future<void> main() async {
     await windowManager.ensureInitialized();
     await windowManager.setTitle('PiFrame');
     await windowManager.setMinimumSize(const Size(680, 480));
-    if (nativeWindows) {
+    if (isWindows) {
       await windowManager.setTitleBarStyle(
         TitleBarStyle.hidden,
         windowButtonVisibility: false,
+      );
+    } else if (isMacOS) {
+      await windowManager.setTitleBarStyle(
+        TitleBarStyle.hidden,
+        windowButtonVisibility: true,
       );
     }
     await DesktopNotificationService.instance.initialize();
@@ -37,7 +45,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
-        desktopChromeProvider.overrideWithValue(nativeWindows),
+        desktopChromeProvider.overrideWithValue(customDesktopChrome),
         desktopWindowLifecycleProvider.overrideWithValue(desktopWindowLifecycle),
       ],
       child: const PiFrameApp(),

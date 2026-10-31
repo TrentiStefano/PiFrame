@@ -22,7 +22,10 @@ PiFrame è progettato come un'applicazione desktop a doppio componente:
 - **Node.js**:
   - Gli installer includono runtime Node e bundle `pi-agentd`; non serve installare Node separatamente.
   - Per sviluppo o esecuzione da sorgenti: Node.js ≥ 22.19.0.
-- **Pi Coding Agent** (non incluso nell'installer): versione minima **v0.85.0**, da installare e tenere su `PATH`; l'installazione npm richiede Node.js/npm (`npm install -g @earendil-works/pi-coding-agent`).
+- **Pi Coding Agent** (non incluso nell'installer): versione minima **v0.85.0**, da installare e tenere su `PATH`. Può essere installato direttamente dall'interfaccia di primo avvio di PiFrame oppure tramite i comandi ufficiali:
+    - macOS / Linux: `curl -fsSL https://pi.dev/install.sh | sh`
+    - Windows: `powershell -c "irm https://pi.dev/install.ps1 | iex"`
+    - Via npm: `npm install -g @earendil-works/pi-coding-agent`
 
 ### MCP Dart/Flutter per Pi
 
@@ -35,9 +38,18 @@ PiFrame usa il server ufficiale integrato Dart/Flutter configurato a livello ute
 Scarica l'installer più recente dalla [pagina GitHub Releases](https://github.com/TrentiStefano/piframe/releases/latest). I commit Conventional (`fix`, `feat`, `BREAKING CHANGE`) aggiornano il PR di release SemVer; quando il PR viene unito, GitHub Actions pubblica installer Windows, macOS Intel/Apple silicon e Linux x64 con screenshot aggiornato.
 
 ### macOS
-1. Apri il DMG e trascina `PiFrame.app` in `/Applications`.
-2. Al primo avvio, PiFrame avvia `pi-agentd` usando il runtime Node incluso.
-3. Build non firmate/notarizzate possono richiedere **Control-click → Open** al primo avvio.
+1. Apri il file `.dmg` e trascina `PiFrame.app` nella cartella `/Applications` (la finestra del DMG include direttamente la guida `LEGGIMI - Come aprire l'app.txt` / `README - How to open.txt` con le istruzioni immediate passo-passo).
+2. Al primo avvio, PiFrame avvia automaticamente `pi-agentd` sfruttando il runtime Node integrato nel pacchetto.
+3. **Avviso di sicurezza Gatekeeper (Apple Developer ID e Notarizzazione):**
+   - Poiché Apple richiede un abbonamento annuale a pagamento all'**Apple Developer Program ($99 USD/anno)** per rilasciare certificati *Developer ID Application* e consentire la notarizzazione tramite `notarytool`, le release open-source distribuite gratuitamente non possono essere notarizzate senza costo.
+   - Il binario viene regolarmente firmato in modalità ad-hoc (`codesign --force --deep --sign -`) nella pipeline di build GitHub Actions per garantire la corretta esecuzione architetturale su Apple Silicon (`arm64`) e Intel (`x64`).
+   - Quando scarichi l'applicazione dal browser, macOS vi associa l'attributo di quarantena `com.apple.quarantine`. Per avviarla la prima volta puoi procedere in due modi:
+     - **Da Impostazioni di Sistema (macOS 14 Sonoma / 15 Sequoia):** apri PiFrame (verrà mostrato il messaggio di Gatekeeper), recati in **Impostazioni di Sistema → Privacy e sicurezza**, scorri fino alla sezione **Sicurezza** e fai clic su **Apri comunque**, confermando con password o Touch ID.
+     - **Da Terminale (metodo rapido a riga di comando):**
+       ```bash
+       xattr -cr /Applications/PiFrame.app
+       ```
+       Questo comando rimuove i flag di quarantena dal bundle di PiFrame consentendone l'apertura diretta con doppio clic.
 
 ### Windows
 1. Avvia `PiFrame-Setup-…-windows-x64.exe`.
@@ -79,6 +91,32 @@ Per compilare e generare l'installer completo per Windows (`dist/PiFrame-Setup-<
    powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1
    ```
    Lo script esegue l'intera sequenza: compila i pacchetti TypeScript, crea il bundle del daemon (`pi-agentd.cjs`), compila l'app Flutter Windows e l'app Web per l'accesso remoto, predispone il runtime Node con le licenze e compila il setup `.exe` in `dist/`. Per ri-impacchettare senza ricompilare Flutter, puoi passare il flag `-SkipBuild`.
+
+### Generazione Locale dell'Installer macOS (DMG)
+Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<versione>-macos-<arch>.dmg`) in locale o completamente offline:
+> [!NOTE]
+> La compilazione nativa dell'applicazione macOS (`.app`) e la creazione del `.dmg` compresso tramite l'utility di sistema `hdiutil` richiedono l'esecuzione su un sistema macOS (con Xcode Command Line Tools, Flutter SDK e Node.js). Apple non rende disponibili gli SDK proprietari Cocoa/Metal su Windows o Linux.
+
+1. Da un computer macOS, posizionati nella radice del monorepo ed esegui:
+   ```bash
+   pnpm run package:macos
+   ```
+   oppure direttamente tramite lo script bash:
+   ```bash
+   bash tools/scripts/package-macos-dmg.sh
+   ```
+2. Lo script esegue automaticamente tutta la sequenza:
+   - Compila il pacchetto `@piframe/pcp-ts` e il bundle del daemon (`pi-agentd.cjs`).
+   - Compila la Web App Flutter (`flutter build web --release`).
+   - Compila l'applicazione macOS (`flutter build macos --release`).
+   - Confeziona il bundle `PiFrame.app` con il runtime Node integrato, licenze e web assets.
+   - Applica la firma ad-hoc (`codesign`).
+   - Include il symlink per `/Applications` e le guide `LEGGIMI - Come aprire l'app.txt` / `README - How to open.txt`.
+   - Crea il file compresso `dist/PiFrame-<versione>-macos-<arch>.dmg` tramite `hdiutil` (100% offline).
+3. **Opzioni utili dello script:**
+   - `--skip-build`: riutilizza i binari già compilati e rigenera solo il DMG.
+   - `--build`: forza la ricompilazione completa di tutti i componenti anche se i binari esistono già.
+   - Parametri opzionali: `bash tools/scripts/package-macos-dmg.sh [versione] [architettura] [--skip-build]`.
 
 ---
 

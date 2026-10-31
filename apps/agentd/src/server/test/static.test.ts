@@ -32,6 +32,7 @@ test('staticServer: serves static assets with security headers and cookie bootst
   const port = address.port;
 
   t.after(async () => {
+    server.closeAllConnections?.();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     fs.rmSync(tempWebDir, { recursive: true, force: true });
   });

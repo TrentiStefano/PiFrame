@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolvePiLaunch } from './executable.js';
+import { getAugmentedEnv } from './env.js';
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_VERSION = /^(?:v)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -100,6 +101,7 @@ export class PiPackageService implements PiPackageOperations {
         timeout: 120_000,
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,
+        env: getAugmentedEnv(),
       });
       return stdout.trim();
     } catch (cause) {

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/platform/platform_environment.dart';
 
 import 'mcp_servers_dialog.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -158,18 +159,30 @@ class _PiCliSectionState extends State<PiCliSection> {
 
     try {
       final Process process;
+      final piExe = PlatformEnvironment.findExecutable('pi');
       if (Platform.isWindows) {
         process = await Process.start(
           'cmd.exe',
-          ['/c', 'pi', ...args],
+          ['/c', piExe ?? 'pi', ...args],
+          environment: PlatformEnvironment.environment,
           runInShell: true,
         );
       } else {
-        process = await Process.start(
-          'pi',
-          args,
-          runInShell: true,
-        );
+        if (piExe != null) {
+          process = await Process.start(
+            piExe,
+            args,
+            environment: PlatformEnvironment.environment,
+            runInShell: false,
+          );
+        } else {
+          process = await Process.start(
+            'pi',
+            args,
+            environment: PlatformEnvironment.environment,
+            runInShell: true,
+          );
+        }
       }
 
       _activeProcess = process;

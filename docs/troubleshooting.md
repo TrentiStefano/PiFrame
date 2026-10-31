@@ -4,6 +4,53 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+---
+
+## Errore "$ pi update --all /bin/sh: pi: command not found [codice 127]"
+
+**Sintomo:** eseguendo un comando Pi dalla sezione *Impostazioni → Pi CLI* (ad es. `pi update --all`) o avviando l'installazione automatica su macOS, il processo terminava immediatamente con l'errore:
+```
+$ pi update --all
+/bin/sh: pi: command not found
+
+[Processo completato con codice 127 in 24ms]
+```
+Inoltre, anche se Pi era stato installato separatamente nel Terminale, l'app continuava a segnalare che Pi non era installato.
+
+**Causa radice:**
+Su macOS, le applicazioni grafiche avviate da Launch Services (Finder, Dock, Spotlight) ereditano da `launchd` una variabile d'ambiente `PATH` minimale ridotta a `/usr/bin:/bin:/usr/sbin:/sbin`. Gli eseguibili installati tramite lo script ufficiale curl (`~/.local/bin/pi`), Homebrew (`/opt/homebrew/bin/pi` o `/usr/local/bin/pi`) o manager di versione Node (`~/.nvm/...`) non si trovano in tali percorsi e le shell non interattive avviate da `/bin/sh` non caricano i file `.zprofile` o `.zshrc` dell'utente.
+
+**Soluzione implementata:**
+1. È stato introdotto il modulo centralizzato `PlatformEnvironment` sia nel client Flutter che nel daemon `agentd`, che arricchisce la variabile `PATH` includendo automaticamente `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/share/pi-node/current/bin` e la cartella del bundle applicativo, oltre a interrogare la shell di login dell'utente.
+2. L'esecuzione dei comandi Pi risolve preventivamente il percorso assoluto dell'eseguibile `pi` ed esegue il processo fornendo l'ambiente arricchito senza dipendere dal percorso predefinito di `/bin/sh`.
+3. L'installatore interno di PiFrame ora esegue lo script ufficiale `curl -fsSL https://pi.dev/install.sh | sh` (o `irm https://pi.dev/install.ps1 | iex` su Windows) e configura automaticamente i prerequisiti (Node.js standalone o tramite Homebrew) nel caso in cui non siano presenti nel sistema.
+
+---
+
+## macOS Gatekeeper: blocco applicazione non firmata o non verificata
+
+**Sintomo:** all'apertura di `PiFrame.app` su macOS viene mostrato il messaggio: *"Impossibile aprire l'applicazione perché Apple non può verificare la presenza di software dannoso"* oppure non si avvia se non si concede il consenso esplicito.
+
+**Causa radice e chiarimento sulla gratuità:**
+macOS applica Gatekeeper a tutti i file ed eseguibili scaricati da Internet (assegnando l'attributo esteso `com.apple.quarantine`). Per consentire l'avvio immediato senza avvisi di sicurezza, Apple impone l'iscrizione a pagamento all'**Apple Developer Program ($99 USD all'anno)** con rilascio di un certificato *Developer ID Application* e notarizzazione automatica tramite i server Apple (`xcrun notarytool`).
+Non esiste alcun meccanismo ufficiale gratuito fornito da Apple per firmare e notarizzare app distribuibili al pubblico (gli account Apple gratuiti generano unicamente profili di sviluppo locale validi per 7 giorni su dispositivi registrati).
+
+PiFrame applica la firma ad-hoc (`codesign --force --deep --sign -`) nel workflow di release GitHub Actions, che soddisfa il requisito di firma obbligatorio per i chip Apple Silicon (`arm64`).
+
+**Risoluzione:**
+1. **Opzione Interfaccia Grafica (macOS 14 Sonoma e macOS 15 Sequoia):**
+   - Fai doppio clic su `PiFrame.app`. Se appare l'avviso di Gatekeeper, premi *Annulla* o chiudi la finestra di dialogo.
+   - Apri **Impostazioni di Sistema → Privacy e sicurezza**.
+   - Scorri verso il basso fino alla sezione **Sicurezza**.
+   - Troverai la dicitura *"L'apertura di PiFrame è stata bloccata..."*: fai clic su **Apri comunque** e inserisci la tua password o usa il Touch ID.
+2. **Opzione Terminale (immediata in un solo comando):**
+   ```bash
+   xattr -cr /Applications/PiFrame.app
+   ```
+   Questo comando cancella ricorsivamente l'attributo `com.apple.quarantine` dal bundle applicativo. Da questo momento in poi, PiFrame si avvierà direttamente con un normale doppio clic.
+
+---
+
 ## Comandi integrati di Pi assenti dal menu o inviati al modello
 
 **Causa:** il comando RPC `get_commands` restituisce comandi di estensioni, prompt e skill, ma non il catalogo integrato della TUI Pi. Inoltre il composer inviava ogni testo come prompt, quindi un comando TUI non gestito poteva essere trattato come testo per il modello.

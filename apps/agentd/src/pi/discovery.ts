@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { PiCapabilities } from './piCommands.js';
 import { resolvePiLaunch } from './executable.js';
+import { getAugmentedPath, getAugmentedEnv } from './env.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -60,7 +61,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
   }
 
   // 4. PATH lookup
-  const pathEnv = process.env.PATH || '';
+  const pathEnv = getAugmentedPath();
   const pathDirs = pathEnv.split(path.delimiter);
   const binaryNames = process.platform === 'win32' ? ['pi.cmd', 'pi.exe', 'pi.bat', 'pi'] : ['pi'];
 
@@ -98,7 +99,8 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
     const launch = resolvePiLaunch(foundPath, ['--version']);
     const { stdout } = await execFileAsync(launch.file, launch.args, {
       timeout: 5000,
-      windowsHide: true
+      windowsHide: true,
+      env: getAugmentedEnv()
     });
 
     const rawVersion = stdout.trim().match(/\d+\.\d+\.\d+/)?.[0];

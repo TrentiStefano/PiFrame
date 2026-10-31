@@ -16,7 +16,8 @@
     "run:daemon": "pnpm --filter @piframe/agentd build && pnpm --filter @piframe/agentd run dev",
     "run:app": "pnpm run build:agentd && cd apps/pi_frame && flutter run",
     "build:all": "pnpm -r run build && pnpm run build:agentd",
-    "package:windows": "powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1"
+    "package:windows": "powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1",
+    "package:macos": "bash tools/scripts/package-macos-dmg.sh"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,0 +1,72 @@
+================================================================================
+                    PiFrame - Guida all'Installazione e Avvio
+================================================================================
+
+Grazie per aver scaricato PiFrame!
+Segui questi semplici passaggi per installare e avviare l'applicazione su macOS.
+
+--------------------------------------------------------------------------------
+1. INSTALLAZIONE
+--------------------------------------------------------------------------------
+Trascina l'icona di "PiFrame.app" all'interno della cartella "Applications" 
+(Applicazioni) presente in questa finestra.
+
+
+--------------------------------------------------------------------------------
+2. PRIMO AVVIO E BLOCCO GATEKEEPER (Apple Developer ID)
+--------------------------------------------------------------------------------
+PiFrame è un software open-source gratuito. Poiché Apple richiede un abbonamento
+a pagamento all'Apple Developer Program (99$ all'anno) per rilasciare certificati
+ufficiali di notarizzazione, macOS potrebbe bloccare il primo avvio mostrando
+il seguente avviso di Gatekeeper:
+
+  "Impossibile aprire l'applicazione perché Apple non può verificare
+   la presenza di software dannoso" oppure "Sviluppatore non verificato".
+
+Per autorizzare l'applicazione (operazione necessaria SOLO al primo avvio),
+puoi scegliere uno di questi due metodi:
+
+
+METODO A: Da Impostazioni di Sistema (Consigliato, nessun terminale)
+-------------------------------------------------------------------
+1. Prova ad aprire PiFrame dalla cartella Applicazioni. Quando appare l'avviso
+   di Gatekeeper, fai clic su "Annulla".
+2. Apri le "Impostazioni di Sistema" (l'icona con gli ingranaggi nel Dock o menu Apple).
+3. Vai nella sezione "Privacy e sicurezza" nel menu a sinistra.
+4. Scorri la schermata verso il basso fino alla sezione "Sicurezza".
+5. Troverai la dicitura:
+   "L'apertura di PiFrame è stata bloccata perché non proviene da uno sviluppatore identificato."
+6. Fai clic sul pulsante "Apri comunque".
+7. Inserisci la password del tuo Mac (o usa Touch ID) e nel popup di conferma
+   fai clic su "Apri".
+
+Fatto! Da questo momento in poi PiFrame si aprirà direttamente con un normale
+doppio clic o da Spotlight/Launchpad.
+
+
+METODO B: Da Terminale (Immediato in un singolo comando)
+-------------------------------------------------------
+Se preferisci usare il Terminale:
+1. Apri l'applicazione "Terminale" (da Spotlight o Applicazioni > Utility).
+2. Copia e incolla il seguente comando e premi Invio:
+
+   xattr -cr /Applications/PiFrame.app
+
+Questo comando rimuove il flag di quarantena assegnato dal browser al download.
+Ora puoi avviare PiFrame con un semplice doppio clic!
+
+
+--------------------------------------------------------------------------------
+3. PI CODING AGENT (CLI)
+--------------------------------------------------------------------------------
+PiFrame è l'interfaccia grafica per Pi Coding Agent (@earendil-works/pi-coding-agent).
+Se non hai ancora installato la CLI di Pi sul Mac:
+- All'avvio, PiFrame ti proporrà di installarla automaticamente.
+- In alternativa, puoi installarla da qualsiasi finestra del Terminale con:
+
+   curl -fsSL https://pi.dev/install.sh | sh
+
+================================================================================
+Documentazione e supporto: https://github.com/TrentiStefano/piframe
+================================================================================
+
