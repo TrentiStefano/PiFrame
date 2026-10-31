@@ -73,7 +73,76 @@ elif [[ "$skip_build" -eq 0 ]]; then
   fi
 fi
 
+ensure_flutter() {
+  if command -v flutter >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # 1. Probe user login shell PATH (e.g. zsh, bash)
+  if [[ -n "${SHELL:-}" ]]; then
+    login_path="$("$SHELL" -l -c 'printf "%s" "$PATH"' 2>/dev/null || true)"
+    if [[ -n "$login_path" ]]; then
+      export PATH="$PATH:$login_path"
+    fi
+  fi
+
+  if command -v flutter >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # 2. Check well-known macOS installation paths for Flutter SDK
+  for candidate in \
+    "$HOME/flutter/bin" \
+    "$HOME/development/flutter/bin" \
+    "$HOME/Development/flutter/bin" \
+    "$HOME/Developer/flutter/bin" \
+    "$HOME/src/flutter/bin" \
+    "$HOME/.flutter/bin" \
+    "$HOME/fvm/default/bin" \
+    "$HOME/.fvm/default/bin" \
+    "/opt/homebrew/bin" \
+    "/usr/local/bin" \
+    /opt/homebrew/Caskroom/flutter/*/flutter/bin \
+    /usr/local/Caskroom/flutter/*/flutter/bin; do
+    if [[ -x "$candidate/flutter" ]]; then
+      export PATH="$candidate:$PATH"
+      break
+    fi
+  done
+
+  if command -v flutter >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "" >&2
+  echo "================================================================================" >&2
+  echo " ERRORE: Flutter SDK non trovato nel PATH" >&2
+  echo "================================================================================" >&2
+  echo "Per compilare l'applicazione desktop macOS e la web app da sorgente è" >&2
+  echo "necessario avere Flutter installato su questo Mac." >&2
+  echo "" >&2
+  echo "• Se hai già installato Flutter sul Mac:" >&2
+  echo "    Assicurati che sia presente nel PATH nel file ~/.zshrc (o ~/.zprofile):" >&2
+  echo "      export PATH=\"\$PATH:\$HOME/development/flutter/bin\"" >&2
+  echo "    poi ricarica la configurazione con: source ~/.zshrc" >&2
+  echo "" >&2
+  echo "• Se NON hai ancora installato Flutter:" >&2
+  echo "    Puoi installarlo rapidamente con Homebrew:" >&2
+  echo "      brew install --cask flutter" >&2
+  echo "    oppure scaricandolo dalla guida ufficiale:" >&2
+  echo "      https://docs.flutter.dev/get-started/install/macos" >&2
+  echo "" >&2
+  echo "• Se desideri solo testare l'installer (.dmg) senza compilare da sorgenti:" >&2
+  echo "    Puoi scaricare direttamente il file .dmg già pronto dalle GitHub Releases" >&2
+  echo "    o dalla scheda Actions del repository." >&2
+  echo "================================================================================" >&2
+  echo "" >&2
+  return 1
+}
+
 if [[ "$needs_build" -eq 1 ]]; then
+  ensure_flutter
+
   echo "=== Building PiFrame components for macOS v${version} (${arch}) ==="
   echo "1. Building protocol and agentd bundle..."
   pnpm --filter @piframe/pcp-ts run build
