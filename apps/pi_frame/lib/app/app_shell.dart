@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -154,7 +155,7 @@ class _AppShellState extends ConsumerState<AppShell>
     WidgetsBinding.instance.addObserver(this);
     _applyPersistedLayout();
     final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
-    _handlesNativeClose = desktopLifecycle && !ref.read(desktopChromeProvider);
+    _handlesNativeClose = desktopLifecycle && defaultTargetPlatform != TargetPlatform.windows;
     _hasWindowListener = desktopLifecycle;
     if (_hasWindowListener) {
       windowManager.addListener(this);
@@ -394,6 +395,10 @@ class _AppShellState extends ConsumerState<AppShell>
                     ),
                     child: Row(
                       children: [
+                        if (!kIsWeb &&
+                            defaultTargetPlatform == TargetPlatform.macOS &&
+                            nativeChrome)
+                          const SizedBox(width: 76),
                         if (!showSessionRail)
                           IconButton(
                             visualDensity: VisualDensity.compact,
@@ -562,7 +567,8 @@ class _AppShellState extends ConsumerState<AppShell>
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openEndDrawer(),
                           ),
-                        if (nativeChrome) ...[
+                        if (nativeChrome &&
+                            defaultTargetPlatform == TargetPlatform.windows) ...[
                           Container(
                             width: 1,
                             height: 18,
