@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.2.0](https://github.com/TrentiStefano/PiFrame/compare/v1.1.1...v1.2.0) (2026-10-30)
+
+
+### Features
+
+* **auth:** support Pi login and logout in chat ([da96003](https://github.com/TrentiStefano/PiFrame/commit/da9600301c6d4e047471d1f5ce46db4eec86fff4))
+* **commands:** expose Pi built-ins in the chat composer ([c067e4c](https://github.com/TrentiStefano/PiFrame/commit/c067e4cc77e15576a5e6668d0f77603e4f53f84e))
+* **packaging:** add windows installer build script and documentation ([7cce387](https://github.com/TrentiStefano/PiFrame/commit/7cce38707ed1d20d3ab9d41e037782b32f3fbcfc))
+
+
+### Bug Fixes
+
+* **build:** reject stale agentd bundles ([4f53162](https://github.com/TrentiStefano/PiFrame/commit/4f5316201cbf48075c9ce5e3f2337d5c4b5fcc54))
+* **commands:** run /reload as a Pi resource reload, not model text ([f4af324](https://github.com/TrentiStefano/PiFrame/commit/f4af324277f7a9c9ef507e3ef61d3ba6da1d785c))
+* **composer:** follow pane divider drags without trailing ([52459fa](https://github.com/TrentiStefano/PiFrame/commit/52459fab874dd963edcc4bf0ad277ebdc4eeae3d))
+* **dialogs:** accept free text from select questions ([1f8de24](https://github.com/TrentiStefano/PiFrame/commit/1f8de24b39640c76865373cdc62838b57210230f))
+* **interrupt:** return before agent becomes idle ([19255a9](https://github.com/TrentiStefano/PiFrame/commit/19255a986905b4af6e84c1f046df21887e21c64e))
+* **layout:** keep hidden panes and sessions bar state across restarts ([aee7c3d](https://github.com/TrentiStefano/PiFrame/commit/aee7c3d2c7363b289eb2ab512f8fe895a28746cc))
+* **review:** show real net line counts and no fabricated diffs ([2a57609](https://github.com/TrentiStefano/PiFrame/commit/2a57609ee69f350e446419a2a27e332f9d427ca0))
+* **session:** resolve disconnect loops on large journals, add on-demand history pagination, and stabilize transcript scrollbar ([496c7ce](https://github.com/TrentiStefano/PiFrame/commit/496c7ce4cf3df43cd907e6af6f9ac73fe172a70f))
+* **sessions:** preserve refreshes during indexing ([e04df0c](https://github.com/TrentiStefano/PiFrame/commit/e04df0c9f3b5fa54d97ba102c30f794959f6c8b6))
+* **sessions:** prevent startup index timeouts ([77a9d12](https://github.com/TrentiStefano/PiFrame/commit/77a9d12a6d731d4d9d0b4b8199e9afe26e01fdab))
+* **sessions:** remove glow from repository rows ([9bd7ddd](https://github.com/TrentiStefano/PiFrame/commit/9bd7dddda8cc3a6020e8f0d7a766bc48f6e470a7))
+* **sessions:** reply from cached snapshot during refresh ([9805e99](https://github.com/TrentiStefano/PiFrame/commit/9805e9938fca02347e967c12bc499fda182effaa))
+* **subagents:** avoid duplicate cards and false zero costs ([656b8cd](https://github.com/TrentiStefano/PiFrame/commit/656b8cdefe4f096ba609912f2dc3c29267ee0f53))
+* **subagents:** restore recorded costs and keep cost displays live ([0de92ab](https://github.com/TrentiStefano/PiFrame/commit/0de92ab653a4168e55504263f5e7d63c05021bc6))
+* **test:** resolve workspace root dynamically in UI capture tests and ignore misplaced dumps ([3bedbc8](https://github.com/TrentiStefano/PiFrame/commit/3bedbc8b79a6b0870e506ef81d09ad599e34eb61))
+* **transcript:** align tool controls with reasoning ([6460093](https://github.com/TrentiStefano/PiFrame/commit/64600932d2b7519e0dd87cb574fcda6fc57ddb1b))
+* **transcript:** eliminate chat vibration when expanding or minimizing activity and subagent cards ([6385a05](https://github.com/TrentiStefano/PiFrame/commit/6385a051fe3259e07387ec6af6d4f84f5cf7c0ce))
+* **transcript:** keep activity and subagent cards minimized on session open and switch ([a4d1bbf](https://github.com/TrentiStefano/PiFrame/commit/a4d1bbf1b53db03e970f61d4b6554881013c9d77))
+* **transcript:** keep book tab bar height stable ([6203d06](https://github.com/TrentiStefano/PiFrame/commit/6203d06b1ef3c9b8a31b9c5ae7fdb7f3a79f6cc2))
+* **transcript:** preserve execution timers across session switches ([786b4ac](https://github.com/TrentiStefano/PiFrame/commit/786b4ac5319f10781a2cfedd911e8fdd31e03e80))
+* **transcript:** preserve Pi tool actions after interruption and reopen ([90ea79a](https://github.com/TrentiStefano/PiFrame/commit/90ea79ac7208b4faf5f65ce9e6ccfe5f64ec05f7))
+* **transcript:** prevent chat jumps when expanding cards ([f481373](https://github.com/TrentiStefano/PiFrame/commit/f481373d704cd40c412cadba4ea419c5bffca062))
+* **transcript:** prevent duplicate tool cards ([b1c0aa3](https://github.com/TrentiStefano/PiFrame/commit/b1c0aa3c415345b00a2ba38de26bc72757630752))
+* **transcript:** refresh height estimates after card toggles ([406e358](https://github.com/TrentiStefano/PiFrame/commit/406e35821f4a61a019c61951a34b4ac59ff6e6ab))
+* **ui:** prevent duplicate menus and blocked agent prompts ([598f266](https://github.com/TrentiStefano/PiFrame/commit/598f266802fae4ac92ccf477759e9e85fed2f358))
+* **window:** open centered and restore maximized state ([b5c177f](https://github.com/TrentiStefano/PiFrame/commit/b5c177f3bf799343ca7d1441fe59da6d6d237ee4))
+
 ## [1.1.1](https://github.com/TrentiStefano/PiFrame/compare/v1.1.0...v1.1.1) (2026-10-27)
 
 
