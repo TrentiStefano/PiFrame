@@ -8,6 +8,7 @@ import 'package:pi_frame/data/notifications/session_notification_watcher.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart';
+import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 class MockDesktopNotificationService extends DesktopNotificationService {
@@ -35,9 +36,19 @@ class MockDesktopNotificationService extends DesktopNotificationService {
 }
 
 class _TestPinnedNotifier extends PinnedSessionsNotifier {
-  _TestPinnedNotifier(Set<String> initial) : super() {
-    state = initial;
+  _TestPinnedNotifier(super.initial);
+}
+
+class _MockSubagentsNotifier extends StateNotifier<List<SubagentItem>>
+    implements SubagentsNotifier {
+  _MockSubagentsNotifier([List<SubagentItem>? initial]) : super(initial ?? []);
+
+  void updateState(List<SubagentItem> items) {
+    state = items;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -235,5 +246,206 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(container.read(activeSessionIdProvider), 'target_sess');
+  });
+
+  testWidgets('does not trigger completion notification when transitioning to retrying or compacting', (
+    tester,
+  ) async {
+    final mockService = MockDesktopNotificationService();
+    final notifier = SessionStateNotifier('sess_retry', null)
+      ..state = SessionState(
+        sessionId: 'sess_retry',
+        sessionName: 'Retry Session',
+        cwd: '/repo',
+        agentStatus: AgentStatus.working,
+        entries: [
+          SessionEntry(
+            id: 'asst_1',
+            role: 'assistant',
+            text: 'I will retry in 5 seconds...',
+            timestamp: 1,
+          ),
+        ],
+      );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          desktopNotificationServiceProvider.overrideWithValue(mockService),
+          appFocusProvider.overrideWith((ref) => false), // Unfocused
+          notificationsEnabledProvider.overrideWith((ref) => true),
+          activeSessionIdProvider.overrideWith((ref) => 'sess_retry'),
+          sessionStateFamily('sess_retry').overrideWith((ref) => notifier),
+          pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: SessionNotificationWatcher()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Agent transitions to retrying - must NOT trigger notification
+    notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.retrying);
+    await tester.pumpAndSettle();
+    expect(mockService.sent, isEmpty);
+
+    // Agent transitions to compacting - must NOT trigger notification
+    notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.compacting);
+    await tester.pumpAndSettle();
+    expect(mockService.sent, isEmpty);
+
+    // Agent transitions back to working
+    notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+    await tester.pumpAndSettle();
+    expect(mockService.sent, isEmpty);
+
+    // Now agent truly settles with final answer
+    notifier.state = notifier.state.copyWith(
+      agentStatus: AgentStatus.settled,
+      entries: [
+        ...notifier.state.entries,
+        SessionEntry(
+          id: 'asst_final',
+          role: 'assistant',
+          text: 'Final response after retry.',
+          timestamp: 2,
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    expect(mockService.sent, hasLength(1));
+    expect(mockService.sent.first.title, contains('Risposta completata'));
+    expect(mockService.sent.first.body, contains('Final response after retry.'));
+  });
+
+  testWidgets('does not trigger completion notification while subagents are running', (
+    tester,
+  ) async {
+    final mockService = MockDesktopNotificationService();
+    final sessionNotifier = SessionStateNotifier('sess_subagents', null)
+      ..state = SessionState(
+        sessionId: 'sess_subagents',
+        sessionName: 'Subagents Session',
+        cwd: '/repo',
+        agentStatus: AgentStatus.working,
+        entries: [],
+      );
+
+    late _MockSubagentsNotifier subagentsNotifier;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          desktopNotificationServiceProvider.overrideWithValue(mockService),
+          appFocusProvider.overrideWith((ref) => false), // Unfocused
+          notificationsEnabledProvider.overrideWith((ref) => true),
+          activeSessionIdProvider.overrideWith((ref) => 'sess_subagents'),
+          sessionStateFamily('sess_subagents').overrideWith((ref) => sessionNotifier),
+          subagentsFamily('sess_subagents').overrideWith((ref) {
+            subagentsNotifier = _MockSubagentsNotifier([
+              const SubagentItem(
+                id: 'sub_1',
+                name: 'Worker 1',
+                status: 'running',
+              ),
+            ]);
+            return subagentsNotifier;
+          }),
+          pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: SessionNotificationWatcher()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Main session settles its initial turn, but subagent is still running
+    sessionNotifier.state = sessionNotifier.state.copyWith(
+      agentStatus: AgentStatus.settled,
+      entries: [
+        SessionEntry(
+          id: 'asst_spawn',
+          role: 'assistant',
+          text: 'Launched background workers to analyze codebase.',
+          timestamp: 1,
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    // MUST NOT notify because subagent is still running!
+    expect(mockService.sent, isEmpty);
+
+    // Subagent completes!
+    subagentsNotifier.updateState([
+      const SubagentItem(
+        id: 'sub_1',
+        name: 'Worker 1',
+        status: 'completed',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    // Now notification fires because all work has settled
+    expect(mockService.sent, hasLength(1));
+    expect(mockService.sent.first.title, contains('Risposta completata'));
+    expect(mockService.sent.first.body, contains('Launched background workers'));
+  });
+
+  testWidgets('does not trigger notification for existing entries when watcher is mounted', (
+    tester,
+  ) async {
+    final mockService = MockDesktopNotificationService();
+    final notifier = SessionStateNotifier('sess_existing', null)
+      ..state = SessionState(
+        sessionId: 'sess_existing',
+        sessionName: 'Pre-existing Session',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: [
+          SessionEntry(
+            id: 'old_asst_1',
+            role: 'assistant',
+            text: 'This answer was completed yesterday.',
+            timestamp: 1,
+          ),
+        ],
+      );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          desktopNotificationServiceProvider.overrideWithValue(mockService),
+          appFocusProvider.overrideWith((ref) => false),
+          notificationsEnabledProvider.overrideWith((ref) => true),
+          activeSessionIdProvider.overrideWith((ref) => 'sess_existing'),
+          sessionStateFamily('sess_existing').overrideWith((ref) => notifier),
+          pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: SessionNotificationWatcher()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Trigger state change (e.g. queue or stats change) while settled
+    notifier.state = notifier.state.copyWith(steeringQueue: const []);
+    await tester.pumpAndSettle();
+
+    // Should NOT notify for old_asst_1
+    expect(mockService.sent, isEmpty);
   });
 }

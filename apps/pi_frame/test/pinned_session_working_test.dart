@@ -10,9 +10,7 @@ import 'package:pi_frame/ui/shimmer_border.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 class _TestPinnedNotifier extends PinnedSessionsNotifier {
-  _TestPinnedNotifier(Set<String> initial) : super() {
-    state = initial;
-  }
+  _TestPinnedNotifier(super.initial);
 }
 
 void main() {

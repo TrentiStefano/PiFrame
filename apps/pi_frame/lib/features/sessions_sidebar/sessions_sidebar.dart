@@ -428,15 +428,21 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 }
 
                 final pinnedIds = ref.watch(pinnedSessionsProvider);
-                final pinnedSessions = allSessions.where((s) {
-                  if (_isWorkerSession(s)) return false;
+                final sessionMap = {
+                  for (final s in allSessions)
+                    if (s['id'] is String) s['id'] as String: s
+                };
+                final pinnedSessions = <Map<String, dynamic>>[];
+                for (final id in pinnedIds) {
+                  final s = sessionMap[id];
+                  if (s == null) continue;
+                  if (_isWorkerSession(s)) continue;
                   final folder = _sessionFolder(s);
                   if (_searchQuery.isEmpty && removedRepos.contains(folder)) {
-                    return false;
+                    continue;
                   }
-                  final id = s['id'] as String? ?? '';
-                  return pinnedIds.contains(id);
-                }).toList();
+                  pinnedSessions.add(s);
+                }
 
                 final activeFolders = <String>{};
                 for (final s in allSessions) {
@@ -451,91 +457,176 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       .putIfAbsent(_sessionFolder(session), () => [])
                       .add(session);
                 }
-                final rows =
-                    <({String? folder, Map<String, dynamic>? session, bool isFolder, bool isPinnedHeader, bool isPinnedSession})>[];
-
-                // Pinned sessions section on top (if not filtering)
-                if (_searchQuery.isEmpty && _filterMode == 'all' && pinnedSessions.isNotEmpty) {
-                  rows.add((folder: null, session: null, isFolder: false, isPinnedHeader: true, isPinnedSession: false));
-                  for (final session in pinnedSessions) {
-                    rows.add((folder: null, session: session, isFolder: false, isPinnedHeader: false, isPinnedSession: true));
-                  }
-                }
+                final folderRows =
+                    <({String? folder, Map<String, dynamic>? session, bool isFolder})>[];
 
                 for (final group in grouped.entries) {
-                  rows.add((folder: group.key, session: null, isFolder: true, isPinnedHeader: false, isPinnedSession: false));
+                  folderRows.add((folder: group.key, session: null, isFolder: true));
                   final isExpanded = _expandedFolders.contains(group.key) ||
                       _searchQuery.isNotEmpty;
                   if (isExpanded) {
-                    rows.addAll(
+                    folderRows.addAll(
                       group.value.map(
-                        (session) => (folder: null, session: session, isFolder: false, isPinnedHeader: false, isPinnedSession: false),
+                        (session) => (folder: null, session: session, isFolder: false),
                       ),
                     );
                   }
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  itemCount: rows.length,
-                  itemBuilder: (rowContext, index) {
-                    final row = rows[index];
-                    if (row.isPinnedHeader) {
-                      final hasWorkingPinned = pinnedSessions.any((s) {
-                        final sId = s['id'] as String? ?? '';
-                        return ref.watch(sessionStateFamily(sId).select((st) =>
-                            st.agentStatus == AgentStatus.working ||
-                            st.isStreaming ||
-                            st.activeToolCalls.isNotEmpty));
-                      });
-                      final hasActivePinned = hasWorkingPinned ||
-                          pinnedSessions.any((s) => s['isActive'] == true);
+                final showPinnedSection = _searchQuery.isEmpty &&
+                    _filterMode == 'all' &&
+                    pinnedSessions.isNotEmpty;
 
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                        child: Row(
-                          children: [
-                            Icon(Icons.push_pin, size: 13, color: tokens.accent),
-                            const SizedBox(width: 6),
-                            Text(
-                              'FISSATE (${pinnedSessions.length})',
-                              style: TextStyle(
-                                color: tokens.textSecondary,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
+                Widget buildPinnedHeader() {
+                  final hasWorkingPinned = pinnedSessions.any((s) {
+                    final sId = s['id'] as String? ?? '';
+                    return ref.watch(sessionStateFamily(sId).select((st) =>
+                        st.agentStatus == AgentStatus.working ||
+                        st.isStreaming ||
+                        st.activeToolCalls.isNotEmpty));
+                  });
+                  final hasActivePinned = hasWorkingPinned ||
+                      pinnedSessions.any((s) => s['isActive'] == true);
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.push_pin, size: 13, color: tokens.accent),
+                        const SizedBox(width: 6),
+                        Text(
+                          'FISSATE (${pinnedSessions.length})',
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        if (hasWorkingPinned) ...[
+                          const SizedBox(width: 6),
+                          _WorkingDot(color: tokens.agentWorking, size: 7),
+                        ] else if (hasActivePinned) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: tokens.accent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: tokens.accent.withValues(alpha: 0.6),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
-                            if (hasWorkingPinned) ...[
-                              const SizedBox(width: 6),
-                              _WorkingDot(color: tokens.agentWorking, size: 7),
-                            ] else if (hasActivePinned) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tokens.accent,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: tokens.accent.withValues(alpha: 0.6),
-                                      blurRadius: 4,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }
+
+                return CustomScrollView(
+                  slivers: [
+                    if (showPinnedSection) ...[
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: buildPinnedHeader(),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                        sliver: SliverReorderableList(
+                          itemCount: pinnedSessions.length,
+                          proxyDecorator: (child, index, animation) {
+                            return Material(
+                              elevation: 4,
+                              color: tokens.surfaceElevated,
+                              borderRadius:
+                                  BorderRadius.circular(tokens.radiusSm),
+                              child: child,
+                            );
+                          },
+                          onReorderItem: (oldIndex, newIndex) {
+                            if (oldIndex < 0 ||
+                                oldIndex >= pinnedSessions.length) {
+                              return;
+                            }
+                            final movedId =
+                                pinnedSessions[oldIndex]['id'] as String? ?? '';
+                            if (movedId.isEmpty) {
+                              return;
+                            }
+                            ref
+                                .read(pinnedSessionsProvider.notifier)
+                                .reorderById(movedId, newIndex);
+                          },
+                          itemBuilder: (rowContext, index) {
+                            final s = pinnedSessions[index];
+                            final id = s['id'] as String? ?? 's';
+                            final isSelected = id == activeId;
+                            return ReorderableDelayedDragStartListener(
+                              key: ValueKey('pinned_session_$id'),
+                              index: index,
+                              child: _SessionTile(
+                                session: s,
+                                isPinned: true,
+                                isPinnedSection: true,
+                                isSelected: isSelected,
+                                onTap: () async {
+                                  if (await switchSessionSafely(
+                                      context, ref, id)) {
+                                    widget.onSessionSelected?.call();
+                                  }
+                                },
+                                onPinToggle: () => ref
+                                    .read(pinnedSessionsProvider.notifier)
+                                    .togglePin(id),
+                                onRename: (sId, sName) =>
+                                    _showRenameDialog(sId, sName),
+                                onTree: (sId) => SessionTreeDialog.show(
+                                  context,
+                                  sessionId: sId,
+                                ),
+                                onClone: (sId) => _cloneSession(sId),
+                                onInstructions: (sId, folder) =>
+                                    InstructionFileDialog.show(
+                                  context,
+                                  folder: folder,
+                                  sessionId: sId,
+                                ),
+                                onRemoveRepo: (folder) =>
+                                    removeRepoWithConfirmation(
+                                  context,
+                                  ref,
+                                  folder: folder,
+                                  repoName: _folderName(folder),
+                                  folderSessions: grouped[folder] ?? [s],
+                                ),
+                                onDelete: (sId, sName) =>
+                                    deleteSessionWithConfirmation(
+                                  context,
+                                  ref,
+                                  sessionId: sId,
+                                  sessionName: sName,
                                 ),
                               ),
-                            ],
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    }
-
-                    if (row.isFolder) {
+                      ),
+                    ],
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (rowContext, index) {
+                            final row = folderRows[index];
+                            if (row.isFolder) {
                       final folder = row.folder ?? '';
                       final expanded = _expandedFolders.contains(folder);
                       final hasActive = activeFolders.contains(folder);
@@ -798,43 +889,48 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     final isPinned = pinnedIds.contains(id);
 
                     return _SessionTile(
-                      session: s,
-                      isPinned: isPinned,
-                      isPinnedSection: row.isPinnedSession,
-                      isSelected: isSelected,
-                      onTap: () async {
-                        if (await switchSessionSafely(context, ref, id)) {
-                          widget.onSessionSelected?.call();
-                        }
-                      },
-                      onPinToggle: () => ref
-                          .read(pinnedSessionsProvider.notifier)
-                          .togglePin(id),
-                      onRename: (sId, sName) => _showRenameDialog(sId, sName),
-                      onTree: (sId) =>
-                          SessionTreeDialog.show(context, sessionId: sId),
-                      onClone: (sId) => _cloneSession(sId),
-                      onInstructions: (sId, folder) => InstructionFileDialog.show(
-                        context,
-                        folder: folder,
-                        sessionId: sId,
-                      ),
-                      onRemoveRepo: (folder) => removeRepoWithConfirmation(
-                        context,
-                        ref,
-                        folder: folder,
-                        repoName: _folderName(folder),
-                        folderSessions: grouped[folder] ?? [s],
-                      ),
-                      onDelete: (sId, sName) => deleteSessionWithConfirmation(
-                        context,
-                        ref,
-                        sessionId: sId,
-                        sessionName: sName,
-                      ),
-                    );
-                  },
-                );
+                        session: s,
+                        isPinned: isPinned,
+                        isPinnedSection: false,
+                        isSelected: isSelected,
+                        onTap: () async {
+                          if (await switchSessionSafely(context, ref, id)) {
+                            widget.onSessionSelected?.call();
+                          }
+                        },
+                        onPinToggle: () => ref
+                            .read(pinnedSessionsProvider.notifier)
+                            .togglePin(id),
+                        onRename: (sId, sName) => _showRenameDialog(sId, sName),
+                        onTree: (sId) =>
+                            SessionTreeDialog.show(context, sessionId: sId),
+                        onClone: (sId) => _cloneSession(sId),
+                        onInstructions: (sId, folder) => InstructionFileDialog.show(
+                          context,
+                          folder: folder,
+                          sessionId: sId,
+                        ),
+                        onRemoveRepo: (folder) => removeRepoWithConfirmation(
+                          context,
+                          ref,
+                          folder: folder,
+                          repoName: _folderName(folder),
+                          folderSessions: grouped[folder] ?? [s],
+                        ),
+                        onDelete: (sId, sName) => deleteSessionWithConfirmation(
+                          context,
+                          ref,
+                          sessionId: sId,
+                          sessionName: sName,
+                        ),
+                      );
+                    },
+                    childCount: folderRows.length,
+                  ),
+                ),
+              ),
+            ],
+          );
               },
               loading: () => Center(
                 child: CircularProgressIndicator(

@@ -14,9 +14,7 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 class _TestPinnedNotifier extends PinnedSessionsNotifier {
-  _TestPinnedNotifier(Set<String> initial) : super() {
-    state = initial;
-  }
+  _TestPinnedNotifier(super.initial);
 }
 
 class _TestRemovedNotifier extends RemovedReposNotifier {
