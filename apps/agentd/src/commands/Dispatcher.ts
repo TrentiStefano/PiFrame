@@ -171,13 +171,15 @@ export class Dispatcher {
         err.code === 'COMMAND_REJECTED' ||
         err.code === 'CONFIG_INVALID' ||
         err.code === 'SESSION_NOT_FOUND' ||
+        err.code === 'BRANCH_INVALID_NAME' ||
+        err.code === 'BRANCH_NOT_FOUND' ||
+        err.code === 'WORKSPACE_DIRTY' ||
         String(err.code || '').startsWith('WORKSPACE_') ||
         String(err.code || '').startsWith('REMOTE_');
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, err.message);
-      this.sendResult(conn, commandId, state, undefined, payload.error);
 
-      // Also send detailed PcpError envelope
+      // Send detailed PcpError envelope first, before terminal command.result
       conn.send({
         protocol: 1,
         kind: 'error',
@@ -192,6 +194,8 @@ export class Dispatcher {
           details: err.details
         }
       } as PcpError);
+
+      this.sendResult(conn, commandId, state, undefined, payload.error);
     }
   }
 
@@ -298,7 +302,8 @@ export class Dispatcher {
         'workspace.refresh',
         'workspace.getDiff',
         'workspace.listFiles',
-        'workspace.readFile'
+        'workspace.readFile',
+        'workspace.listBranches'
       ]);
 
       // Additional commands permitted ONLY in 'control' mode
@@ -324,7 +329,8 @@ export class Dispatcher {
         'session.clone',
         'session.closeWorker',
         'workspace.saveFile',
-        'workspace.gitAction'
+        'workspace.gitAction',
+        'workspace.switchBranch'
       ]);
 
       if (cmd.type === 'session.open') {
@@ -1101,6 +1107,22 @@ export class Dispatcher {
           payload.paths,
           payload.expectedStagedPaths,
           payload.message,
+          assertCanWrite
+        );
+      }
+
+      case 'workspace.listBranches': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        return this.workspaceService.listBranches(session.cwd);
+      }
+
+      case 'workspace.switchBranch': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        const assertCanWrite = () => this.assertWorkspaceWritable(session);
+        return this.workspaceService.switchBranch(
+          session.cwd,
+          payload.branch,
+          payload.onDirty,
           assertCanWrite
         );
       }

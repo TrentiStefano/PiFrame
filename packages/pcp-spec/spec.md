@@ -146,6 +146,9 @@ Followed by `result`:
 }
 ```
 
+### Error Ordering Guarantee
+When a command fails or is rejected, the daemon sends the detailed `kind: "error"` envelope (containing `code`, `message`, `hint`, and `details`) before sending the terminal `kind: "result"` envelope with `state: "failed"` or `state: "rejected"` for the same `commandId`. Because WebSocket delivery over a single connection is strictly ordered, clients observe the rich error details first, eliminating heuristic wait timers.
+
 ### Idempotency
 - `commandId` is cached for 10 minutes.
 - Re-sending an identical `commandId` returns `state: "deduplicated"` with original data without re-executing.
@@ -158,8 +161,10 @@ Workspace commands require `sessionId`; daemon derives repository root from that
 - `workspace.readFile` payload `{path}` → `{rootPath,path,content,revision,sizeBytes}`. `revision` is SHA-256 of file bytes. Only UTF-8 text files up to 1 MiB are supported; binary and larger files return explicit errors.
 - `workspace.saveFile` payload `{path,content,revision}` → `{path,revision}`. Revision is required and stale revisions are rejected; save uses an atomic same-directory replacement.
 - `workspace.gitAction` payload `{action,paths,expectedStagedPaths?,message?}` → `{status}`. `action` is `stage`, `unstage`, `commit`, or `discard`. Paths are explicit repository-relative paths. `commit` requires non-empty `message`, and both `paths` and `expectedStagedPaths` must exactly match current staged paths before commit.
+- `workspace.listBranches` payload `{}` → `{branches:[{name,isCurrent,upstream,ahead,behind,lastCommitUnix}],currentBranch,detached,headShortSha}`. Read-only command permitted in remote `view` mode. Branches are sorted with the current branch first, then by `lastCommitUnix` descending. Empty repositories return `branches: []` and retrieve `currentBranch` via `git symbolic-ref --short HEAD` when possible.
+- `workspace.switchBranch` payload `{branch,onDirty?}` → `{currentBranch,stashed,stashMessage}`. Mutating command requiring local or remote `control` mode and rejected while the session is read-only or active/streaming (`assertWorkspaceWritable`). `branch` must be 1..255 characters, non-empty, without whitespace/control characters, not leading with `-`, not `'HEAD'`, and pass `git check-ref-format --branch`. `onDirty` defaults to `'block'`. If already on the target branch, returns cleanly with `stashed: false, stashMessage: null`. If dirty and `onDirty: 'block'`, rejects with `WORKSPACE_DIRTY` and details `{changedFiles, untrackedFiles}` without touching files. If `onDirty: 'stash'`, creates an untracked-inclusive stash (`piframe: before switching to <name> (<iso time>)`) and switches; upon switch failure, restores the stash via `git stash pop` (or reports `stashRetained: true, stashMessage` in `BRANCH_SWITCH_FAILED` details if pop fails). No automatic event is broadcast; client refreshes explicitly after mutation.
 
-Repository writes (`saveFile` and every Git action) are rejected for read-only sessions or while the Pi worker is active/streaming. `workspace.refresh` keeps existing Git status fields and includes `staged` / `unstaged` flags with index/worktree status codes per path.
+Repository writes (`saveFile`, every Git action, and `switchBranch`) are rejected for read-only sessions or while the Pi worker is active/streaming. `workspace.refresh` keeps existing Git status fields and includes `staged` / `unstaged` flags with index/worktree status codes per path.
 
 ### 4.2 Pi package commands
 

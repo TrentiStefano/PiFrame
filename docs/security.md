@@ -98,11 +98,11 @@ Nessun listener remoto, processo di tunneling o porta viene avviata se l'utente 
 ### 4. Modello dei Permessi: Modalità View vs Control (C2)
 Ogni dispositivo associato opera secondo una modalità assegnata dal desktop:
 - **Modalità `view` (Predefinita e Consigliata)**:
-  - Consente esclusivamente l'ispezione dello stato: consultazione sessioni, statistiche, albero di conversazione, diff del workspace e lettura file.
+  - Consente esclusivamente l'ispezione dello stato: consultazione sessioni, statistiche, albero di conversazione, diff del workspace, lettura file ed enumerazione rami (`workspace.listBranches`).
   - **Permessi di Emergenza**: Include `agent.abort` e `agent.interrupt` per permettere all'utente di bloccare l'agente da mobile in caso di necessità.
-  - **Blocco Scrittura**: Qualsiasi comando di scrittura (`agent.prompt`, `agent.steer`, `workspace.saveFile`, `workspace.gitAction`, continuazione sessione) è respinto con `REMOTE_FORBIDDEN`.
+  - **Blocco Scrittura**: Qualsiasi comando di scrittura (`agent.prompt`, `agent.steer`, `workspace.saveFile`, `workspace.gitAction`, `workspace.switchBranch`, continuazione sessione) è respinto con `REMOTE_FORBIDDEN`.
 - **Modalità `control`**:
-  - Richiede un'esplicita conferma con dialog di avviso da parte dell'utente desktop.
+  - Richiede un'esplicita conferma con dialog di avviso da parte dell'utente desktop. Include comandi di scrittura e mutazione repository (`workspace.saveFile`, `workspace.gitAction`, `workspace.switchBranch`), comunque vincolati ad `assertWorkspaceWritable` che ne impedisce l'esecuzione mentre l'agente sta lavorando o per sessioni in sola lettura.
   - **Nota di Rischio**: Un dispositivo in modalità `control` ha la facoltà di inviare prompt ed eseguire comandi con i privilegi dell'utente del sistema operativo.
 
 ### 5. Allowlist Default-Deny nel Dispatcher (C1)

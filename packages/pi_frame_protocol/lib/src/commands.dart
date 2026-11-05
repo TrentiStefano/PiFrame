@@ -54,6 +54,35 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
+  static PcpCommand workspaceListBranches({
+    required String commandId,
+    required String sessionId,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sessionId,
+      type: 'workspace.listBranches',
+      payload: const {},
+    );
+  }
+
+  static PcpCommand workspaceSwitchBranch({
+    required String commandId,
+    required String sessionId,
+    required String branch,
+    String onDirty = 'block',
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sessionId,
+      type: 'workspace.switchBranch',
+      payload: {
+        'branch': branch,
+        'onDirty': onDirty,
+      },
+    );
+  }
+
   factory PcpCommand.fromJson(Map<String, dynamic> json) {
     return PcpCommand(
       protocol: json['protocol'] as int? ?? 1,

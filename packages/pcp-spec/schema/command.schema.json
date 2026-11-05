@@ -63,6 +63,8 @@
         "workspace.readFile",
         "workspace.saveFile",
         "workspace.gitAction",
+        "workspace.listBranches",
+        "workspace.switchBranch",
         "remote.getStatus",
         "remote.start",
         "remote.stop",
@@ -112,6 +114,26 @@
     {
       "if": { "properties": { "type": { "const": "workspace.gitAction" } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "required": ["action", "paths"], "properties": { "action": { "enum": ["stage", "unstage", "commit", "discard"] }, "paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "expectedStagedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "message": { "type": "string", "minLength": 1 } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "workspace.listBranches" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "workspace.switchBranch" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["branch"],
+            "properties": {
+              "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+              "onDirty": { "type": "string", "enum": ["block", "stash"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
     },
     {
       "if": { "properties": { "type": { "enum": ["system.metrics.subscribe", "system.metrics.unsubscribe"] } }, "required": ["type"] },

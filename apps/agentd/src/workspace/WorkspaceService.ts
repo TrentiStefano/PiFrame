@@ -1,7 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { checkIsGitRepo, getGitDiff, getGitStatus, getStagedPaths, runGitStrict, type GitStatusResult } from './gitClient.js';
+import type {
+  WorkspaceListBranchesResult,
+  WorkspaceSwitchBranchResult,
+} from '@piframe/pcp-ts';
+import {
+  checkIsGitRepo,
+  getGitDiff,
+  getGitStatus,
+  getStagedPaths,
+  listGitBranches,
+  runGitStrict,
+  switchGitBranch,
+  validateBranchName,
+  verifyBranchExists,
+  type GitStatusResult,
+  type GitSwitchHooks,
+} from './gitClient.js';
 
 type FileInfo = { path: string; sizeBytes: number };
 
@@ -78,6 +94,43 @@ export class WorkspaceService {
     const root = await fs.promises.realpath(repo.rootPath);
     const safePath = filePath === undefined ? undefined : await this.resolvePath(root, filePath, true);
     return getGitDiff(root, safePath ? path.relative(root, safePath).split(path.sep).join('/') : undefined);
+  }
+
+  async listBranches(cwd: string): Promise<WorkspaceListBranchesResult> {
+    const root = await this.resolveRepositoryRoot(cwd);
+    return listGitBranches(root);
+  }
+
+  async switchBranch(
+    cwd: string,
+    branchInput: unknown,
+    onDirtyInput?: unknown,
+    assertCanWrite?: () => void,
+    hooks?: GitSwitchHooks
+  ): Promise<WorkspaceSwitchBranchResult> {
+    const root = await this.resolveRepositoryRoot(cwd);
+    const branch = await validateBranchName(root, branchInput);
+    const onDirty = onDirtyInput === undefined ? 'block' : onDirtyInput;
+    if (onDirty !== 'block' && onDirty !== 'stash') {
+      throw workspaceError("onDirty must be either 'block' or 'stash'.", 'COMMAND_REJECTED');
+    }
+
+    return this.serialize(root, async () => {
+      assertCanWrite?.();
+      const exists = await verifyBranchExists(root, branch);
+      if (!exists) {
+        throw workspaceError(`Branch '${branch}' not found.`, 'BRANCH_NOT_FOUND');
+      }
+
+      try {
+        const result = await switchGitBranch(root, branch, onDirty, hooks);
+        return result;
+      } finally {
+        this.invalidate(root);
+      }
+      // Note: No unsolicited workspace event is broadcast by the daemon;
+      // the client Git Changes panel refreshes status explicitly after mutating operations.
+    });
   }
 
   async listFiles(cwd: string): Promise<{ rootPath: string; files: FileInfo[]; truncated: boolean }> {

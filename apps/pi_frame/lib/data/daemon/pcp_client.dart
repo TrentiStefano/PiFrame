@@ -177,8 +177,15 @@ class PcpClient {
           _inFlightCommands.remove(commandId);
           final payload = map['payload'] as Map<String, dynamic>? ?? {};
           if (payload['state'] == 'failed' || payload['state'] == 'rejected') {
+            final code = payload['code']?.toString() ?? '';
+            final details =
+                (payload['details'] as Map<String, dynamic>?) ?? const {};
             completer.completeError(
-              StateError(payload['error']?.toString() ?? 'Command failed'),
+              PcpException(
+                payload['error']?.toString() ?? 'Command failed',
+                code: code,
+                details: details,
+              ),
             );
           } else {
             completer.complete(payload);
@@ -193,7 +200,14 @@ class PcpClient {
           final completer = _pendingCommands.remove(commandId)!;
           _inFlightCommands.remove(commandId);
           final payload = map['payload'] as Map<String, dynamic>? ?? {};
-          completer.completeError(Exception(payload['message'] ?? 'PCP Error'));
+          completer.completeError(
+            PcpException(
+              payload['message']?.toString() ?? 'PCP Error',
+              code: payload['code']?.toString() ?? '',
+              details:
+                  (payload['details'] as Map<String, dynamic>?) ?? const {},
+            ),
+          );
         }
         return;
       }
@@ -964,6 +978,32 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<WorkspaceListBranchesResult> listBranches(String sessionId) async {
+    final cmd = PcpCommand.workspaceListBranches(
+      commandId: newCommandId('wlb'),
+      sessionId: sessionId,
+    );
+    final response = await sendCommand(cmd);
+    final data = (response['data'] as Map<String, dynamic>?) ?? response;
+    return WorkspaceListBranchesResult.fromJson(data);
+  }
+
+  Future<WorkspaceSwitchBranchResult> switchBranch(
+    String sessionId,
+    String branch, {
+    String onDirty = 'block',
+  }) async {
+    final cmd = PcpCommand.workspaceSwitchBranch(
+      commandId: newCommandId('wsb'),
+      sessionId: sessionId,
+      branch: branch,
+      onDirty: onDirty,
+    );
+    final response = await sendCommand(cmd);
+    final data = (response['data'] as Map<String, dynamic>?) ?? response;
+    return WorkspaceSwitchBranchResult.fromJson(data);
+  }
+
   Future<Map<String, dynamic>> getWorkspaceDiff(
     String sessionId, {
     String? filePath,
@@ -1107,4 +1147,126 @@ class PcpClient {
       c.close();
     }
   }
+}
+
+class PcpException extends StateError implements Exception {
+  final String code;
+  final Map<String, dynamic> details;
+
+  PcpException(
+    super.message, {
+    this.code = '',
+    this.details = const {},
+  });
+
+  int get changedFiles => (details['changedFiles'] as num?)?.toInt() ?? 0;
+  int get untrackedFiles => (details['untrackedFiles'] as num?)?.toInt() ?? 0;
+  String? get stderr => details['stderr']?.toString();
+  bool get stashRetained => details['stashRetained'] == true;
+  String? get stashMessage => details['stashMessage']?.toString();
+
+  @override
+  String toString() => 'Bad state: $message';
+}
+
+class WorkspaceBranchInfo {
+  final String name;
+  final bool isCurrent;
+  final String? upstream;
+  final int? ahead;
+  final int? behind;
+  final int? lastCommitUnix;
+
+  const WorkspaceBranchInfo({
+    required this.name,
+    required this.isCurrent,
+    this.upstream,
+    this.ahead,
+    this.behind,
+    this.lastCommitUnix,
+  });
+
+  factory WorkspaceBranchInfo.fromJson(Map<String, dynamic> json) {
+    return WorkspaceBranchInfo(
+      name: json['name'] as String? ?? '',
+      isCurrent: json['isCurrent'] as bool? ?? false,
+      upstream: json['upstream'] as String?,
+      ahead: (json['ahead'] as num?)?.toInt(),
+      behind: (json['behind'] as num?)?.toInt(),
+      lastCommitUnix: (json['lastCommitUnix'] as num?)?.toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'isCurrent': isCurrent,
+    if (upstream != null) 'upstream': upstream,
+    if (ahead != null) 'ahead': ahead,
+    if (behind != null) 'behind': behind,
+    if (lastCommitUnix != null) 'lastCommitUnix': lastCommitUnix,
+  };
+}
+
+class WorkspaceListBranchesResult {
+  final List<WorkspaceBranchInfo> branches;
+  final String? currentBranch;
+  final bool detached;
+  final String? headShortSha;
+
+  const WorkspaceListBranchesResult({
+    required this.branches,
+    this.currentBranch,
+    this.detached = false,
+    this.headShortSha,
+  });
+
+  factory WorkspaceListBranchesResult.fromJson(Map<String, dynamic> json) {
+    final rawBranches = (json['branches'] as List?) ?? const [];
+    final branches = rawBranches.map((b) {
+      if (b is Map<String, dynamic>) {
+        return WorkspaceBranchInfo.fromJson(b);
+      }
+      return WorkspaceBranchInfo.fromJson(Map<String, dynamic>.from(b as Map));
+    }).toList();
+
+    return WorkspaceListBranchesResult(
+      branches: branches,
+      currentBranch: json['currentBranch'] as String?,
+      detached: json['detached'] as bool? ?? false,
+      headShortSha: json['headShortSha'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'branches': branches.map((b) => b.toJson()).toList(),
+    if (currentBranch != null) 'currentBranch': currentBranch,
+    'detached': detached,
+    if (headShortSha != null) 'headShortSha': headShortSha,
+  };
+}
+
+class WorkspaceSwitchBranchResult {
+  final String currentBranch;
+  final bool stashed;
+  final String? stashMessage;
+
+  const WorkspaceSwitchBranchResult({
+    required this.currentBranch,
+    required this.stashed,
+    this.stashMessage,
+  });
+
+  factory WorkspaceSwitchBranchResult.fromJson(Map<String, dynamic> json) {
+    return WorkspaceSwitchBranchResult(
+      currentBranch: json['currentBranch'] as String? ?? '',
+      stashed: json['stashed'] as bool? ?? false,
+      stashMessage: json['stashMessage'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'currentBranch': currentBranch,
+    'stashed': stashed,
+    if (stashMessage != null) 'stashMessage': stashMessage,
+  };
 }

@@ -18,6 +18,9 @@ import '../transcript/rich_content.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../browser/browser_controller.dart';
 import '../browser/browser_models.dart';
+import '../../data/language/language_settings.dart';
+import '../session_changes/session_changes_provider.dart';
+import 'branch_picker_dialog.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -1795,6 +1798,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Map<String, dynamic>? _status;
   bool _loading = false;
   bool _working = false;
+  bool _branchPickerOpen = false;
   final _message = TextEditingController();
   @override
   void initState() {
@@ -1877,6 +1881,317 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<void> _openBranchPicker() async {
+    final session = ref.read(sessionStateFamily(widget.sessionId));
+    final readOnly = session.readOnly;
+    final agentStatus = session.agentStatus;
+    final blocked =
+        readOnly ||
+        const {
+          AgentStatus.working,
+          AgentStatus.retrying,
+          AgentStatus.compacting,
+          AgentStatus.awaitingUser,
+        }.contains(agentStatus);
+    if (_branchPickerOpen || _loading || _working || blocked) return;
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return;
+    _branchPickerOpen = true;
+    try {
+      final current = _status?['branch']?.toString();
+      final targetBranch = await BranchPickerDialog.show(
+        context,
+        sessionId: widget.sessionId,
+        client: client,
+        currentBranch: current,
+      );
+      if (targetBranch != null && mounted) {
+        await _handleSwitchBranch(targetBranch);
+      }
+    } finally {
+      _branchPickerOpen = false;
+    }
+  }
+
+  Future<void> _handleSwitchBranch(String branch, {bool stash = false}) async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return;
+    final strings = ref.read(appStringsProvider);
+    setState(() => _loading = true);
+    try {
+      final result = await client.switchBranch(
+        widget.sessionId,
+        branch,
+        onDirty: stash ? 'stash' : 'block',
+      );
+      await _refresh();
+      try {
+        await ref
+            .read(sessionChangesProvider(widget.sessionId).notifier)
+            .refresh();
+      } catch (_) {}
+      if (!mounted) return;
+      if (result.stashed) {
+        FrameSnackBar.show(
+          context,
+          message:
+              '${strings.branchSwitched(branch)}. ${strings.branchSwitchedStashNotice(result.stashMessage ?? '')}',
+        );
+      } else {
+        FrameSnackBar.show(
+          context,
+          message: strings.branchSwitched(branch),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      if (error is PcpException) {
+        if (error.code == 'WORKSPACE_DIRTY') {
+          final shouldStash = await _showDirtyWorkspaceDialog(
+            changedFiles: error.changedFiles,
+            untrackedFiles: error.untrackedFiles,
+          );
+          if (shouldStash == true && mounted) {
+            await _handleSwitchBranch(branch, stash: true);
+          }
+          return;
+        } else if (error.code == 'BRANCH_SWITCH_FAILED') {
+          await _showBranchSwitchFailedDialog(
+            stderr: error.stderr ?? error.message,
+            stashRetained: error.stashRetained,
+            stashMessage: error.stashMessage,
+          );
+          return;
+        } else if (error.code == 'COMMAND_REJECTED' ||
+            error.message.toLowerCase().contains('read-only') ||
+            error.message.toLowerCase().contains('busy') ||
+            error.message.toLowerCase().contains('working')) {
+          FrameSnackBar.show(
+            context,
+            message: strings.branchSwitchAgentWorking,
+          );
+          return;
+        } else if (error.code == 'BRANCH_NOT_FOUND') {
+          FrameSnackBar.show(context, message: strings.branchNotFound);
+          await _refresh();
+          return;
+        } else if (error.code == 'BRANCH_INVALID_NAME') {
+          FrameSnackBar.show(context, message: strings.branchInvalidName);
+          await _refresh();
+          return;
+        }
+      }
+      final msg = error.toString();
+      if (msg.toLowerCase().contains('read-only') ||
+          msg.toLowerCase().contains('working') ||
+          msg.toLowerCase().contains('busy') ||
+          msg.toLowerCase().contains('active')) {
+        FrameSnackBar.show(context, message: strings.branchSwitchAgentWorking);
+      } else if (msg.contains('BRANCH_NOT_FOUND')) {
+        FrameSnackBar.show(context, message: strings.branchNotFound);
+        await _refresh();
+      } else {
+        FrameSnackBar.show(context, message: msg);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<bool?> _showDirtyWorkspaceDialog({
+    required int changedFiles,
+    required int untrackedFiles,
+  }) {
+    final strings = ref.read(appStringsProvider);
+    final tokens = context.tokens;
+    var popped = false;
+    void popOnce(BuildContext dialogContext, bool result) {
+      if (popped) return;
+      popped = true;
+      Navigator.of(dialogContext).pop(result);
+    }
+
+    return showDialog<bool>(
+      context: context,
+      barrierColor: tokens.overlay,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: tokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+            side: BorderSide(color: tokens.border),
+          ),
+          title: Text(
+            strings.workspaceDirtyDialogTitle,
+            style: TextStyle(
+              color: tokens.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            strings.workspaceDirtyDialogMessage(changedFiles, untrackedFiles),
+            style: TextStyle(
+              color: tokens.textMuted,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            OutlinedButton(
+              key: const ValueKey('git-cancel-switch-btn'),
+              autofocus: true,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.border),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext, false),
+              child: Text(strings.cancel),
+            ),
+            FilledButton(
+              key: const ValueKey('git-stash-and-switch-btn'),
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext, true),
+              child: Text(strings.stashAndSwitchBtn),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showBranchSwitchFailedDialog({
+    required String stderr,
+    required bool stashRetained,
+    String? stashMessage,
+  }) {
+    final strings = ref.read(appStringsProvider);
+    final tokens = context.tokens;
+    final truncatedStderr =
+        stderr.length > 2048 ? '${stderr.substring(0, 2048)}\n…' : stderr;
+    var popped = false;
+    void popOnce(BuildContext dialogContext) {
+      if (popped) return;
+      popped = true;
+      Navigator.of(dialogContext).pop();
+    }
+
+    return showDialog<void>(
+      context: context,
+      barrierColor: tokens.overlay,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: tokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+            side: BorderSide(color: tokens.border),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: tokens.danger, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  strings.branchSwitchFailedTitle,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 320),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (stashRetained) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: tokens.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(
+                          color: tokens.warning.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: tokens.warning,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              strings.stashRetainedSafeNotice(
+                                stashMessage ?? '',
+                              ),
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: tokens.background,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border),
+                    ),
+                    child: SelectableText(
+                      truncatedStderr,
+                      style: TextStyle(
+                        fontFamily: tokens.monoFontFamily,
+                        fontSize: 12,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext),
+              child: Text(strings.close),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showDiff(String path) async {
@@ -2221,6 +2536,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final (readOnly, readOnlyReason, agentStatus, cwd, touchedKey) = ref.watch(
       sessionStateFamily(widget.sessionId).select(
         (s) => (
@@ -2407,15 +2723,83 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Text(
-              '$root · ${_status?['branch'] ?? '—'}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 10,
-                fontFamily: tokens.monoFontFamily,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    root,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10,
+                      fontFamily: tokens.monoFontFamily,
+                    ),
+                  ),
+                ),
+                if (repo || _status?['branch'] != null || _status?['detached'] == true) ...[
+                  const SizedBox(width: 6),
+                  Builder(
+                    builder: (context) {
+                      final branchDisabled = blocked || _working || _loading;
+                      final chipTooltip = (blocked && !readOnly)
+                          ? strings.branchSwitchAgentWorking
+                          : strings.branchChipTooltip;
+                      return Tooltip(
+                        message: chipTooltip,
+                        child: InkWell(
+                          key: const ValueKey('git-branch-chip'),
+                          onTap: branchDisabled ? null : _openBranchPicker,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(color: tokens.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.fork_right,
+                                  size: 13,
+                                  color: branchDisabled
+                                      ? tokens.textMuted
+                                      : tokens.accent,
+                                ),
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 160),
+                                  child: Text(
+                                    _status?['detached'] == true
+                                        ? (_status?['headShortSha']?.toString() ??
+                                            'detached')
+                                        : (_status?['branch']?.toString() ?? '—'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: branchDisabled
+                                          ? tokens.textMuted
+                                          : tokens.textPrimary,
+                                      fontSize: 11,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
           if (blocked)

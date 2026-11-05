@@ -2,6 +2,11 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type {
+  WorkspaceBranchInfo,
+  WorkspaceListBranchesResult,
+  WorkspaceSwitchBranchResult
+} from '@piframe/pcp-ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -56,7 +61,8 @@ export function toWslUncPath(linuxPath: string, uncPrefix: string): string {
 async function executeGit(
   args: string[],
   cwd: string,
-  acceptedExitCodes: number[] = []
+  acceptedExitCodes: number[] = [],
+  timeoutMs: number = EXEC_TIMEOUT_MS
 ): Promise<string> {
   const wslInfo = parseWslPath(cwd);
   const gitArgs = ['-c', 'safe.directory=*', ...args];
@@ -75,7 +81,7 @@ async function executeGit(
         'wsl.exe',
         ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs],
         {
-          timeout: EXEC_TIMEOUT_MS,
+          timeout: timeoutMs,
           windowsHide: true,
           maxBuffer: 10 * 1024 * 1024,
           encoding: 'utf8',
@@ -85,7 +91,7 @@ async function executeGit(
       if (wslError?.code === 'ENOENT') {
         return await run('git', gitArgs, {
           cwd,
-          timeout: EXEC_TIMEOUT_MS,
+          timeout: timeoutMs,
           windowsHide: true,
           maxBuffer: 10 * 1024 * 1024,
           encoding: 'utf8',
@@ -97,28 +103,30 @@ async function executeGit(
 
   return await run('git', gitArgs, {
     cwd,
-    timeout: EXEC_TIMEOUT_MS,
+    timeout: timeoutMs,
     windowsHide: true,
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
   });
 }
 
-async function runGit(args: string[], cwd: string, trim = true): Promise<string | null> {
+async function runGit(args: string[], cwd: string, trim = true, timeoutMs = EXEC_TIMEOUT_MS): Promise<string | null> {
   try {
-    const stdout = await executeGit(args, cwd);
+    const stdout = await executeGit(args, cwd, [], timeoutMs);
     return trim ? stdout.trim() : stdout;
   } catch {
     return null;
   }
 }
 
-export async function runGitStrict(args: string[], cwd: string): Promise<string> {
+export async function runGitStrict(args: string[], cwd: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
   try {
-    return await executeGit(args, cwd);
+    return await executeGit(args, cwd, [], timeoutMs);
   } catch (cause: any) {
-    const error: any = new Error((cause?.stderr || cause?.message || 'Git command failed').trim());
+    const rawStderr = (cause?.stderr || cause?.message || 'Git command failed').trim();
+    const error: any = new Error(rawStderr);
     error.code = 'GIT_FAILED';
+    error.stderr = rawStderr;
     error.details = { args, exitCode: cause?.code, signal: cause?.signal };
     throw error;
   }
@@ -327,4 +335,354 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
     cwd,
     [1]
   )).trim();
+}
+
+// -----------------------------------------------------------------------------
+// Branch Operations
+// -----------------------------------------------------------------------------
+
+export interface GitDirtyState {
+  isDirty: boolean;
+  changedFiles: number;
+  untrackedFiles: number;
+}
+
+export type GitSwitchHooks = {
+  injectBeforeStashPush?: () => Promise<void>;
+  injectSwitchFailure?: (branch: string) => Promise<void>;
+  injectPopFailure?: () => Promise<void>;
+};
+
+export async function getCurrentBranchName(cwd: string): Promise<string | null> {
+  const branch = await runGit(['symbolic-ref', '--short', '-q', 'HEAD'], cwd);
+  return branch && branch.length > 0 ? branch : null;
+}
+
+export async function getHeadShortSha(cwd: string): Promise<string | null> {
+  return await runGit(['rev-parse', '--short', 'HEAD'], cwd);
+}
+
+export async function isDetachedHead(cwd: string): Promise<boolean> {
+  const branch = await getCurrentBranchName(cwd);
+  if (branch !== null) return false;
+  return await hasHead(cwd);
+}
+
+export async function validateBranchName(cwd: string, name: unknown): Promise<string> {
+  if (typeof name !== 'string') {
+    const err: any = new Error('Branch name must be a string.');
+    err.code = 'BRANCH_INVALID_NAME';
+    throw err;
+  }
+  if (
+    name.length === 0 ||
+    name.length > 255 ||
+    name.startsWith('-') ||
+    /[\s\x00-\x1f\x7f]/.test(name) ||
+    name === 'HEAD' ||
+    name.includes('@{')
+  ) {
+    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    err.code = 'BRANCH_INVALID_NAME';
+    throw err;
+  }
+
+  try {
+    const output = await executeGit(['check-ref-format', '--branch', name], cwd);
+    if (output.trim() !== name) {
+      const err: any = new Error(`Invalid branch name: '${name}'.`);
+      err.code = 'BRANCH_INVALID_NAME';
+      throw err;
+    }
+  } catch {
+    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    err.code = 'BRANCH_INVALID_NAME';
+    throw err;
+  }
+
+  return name;
+}
+
+export async function verifyBranchExists(cwd: string, name: string): Promise<boolean> {
+  const res = await runGit(['rev-parse', '--verify', '--quiet', `refs/heads/${name}`], cwd);
+  return res !== null;
+}
+
+export async function getGitDirtyState(cwd: string): Promise<GitDirtyState> {
+  const statusOutput = (await runGit(['status', '--porcelain=v1', '-z'], cwd, false)) ?? '';
+  let changedFiles = 0;
+  let untrackedFiles = 0;
+  const entries = statusOutput.split('\0');
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+    if (!entry || entry.length < 3) continue;
+    const indexCode = entry[0];
+    const worktreeCode = entry[1];
+    if (indexCode === '?' && worktreeCode === '?') {
+      untrackedFiles++;
+    } else {
+      changedFiles++;
+    }
+    if (indexCode === 'R' || indexCode === 'C' || worktreeCode === 'R' || worktreeCode === 'C') {
+      index++;
+    }
+  }
+  return {
+    isDirty: changedFiles + untrackedFiles > 0,
+    changedFiles,
+    untrackedFiles,
+  };
+}
+
+export async function listGitBranches(cwd: string): Promise<WorkspaceListBranchesResult> {
+  const { isRepo, rootPath } = await checkIsGitRepo(cwd);
+  if (!isRepo || !rootPath) {
+    throw Object.assign(new Error('Working directory is not inside a Git repository.'), {
+      code: 'WORKSPACE_NOT_REPOSITORY',
+    });
+  }
+
+  const currentBranch = await getCurrentBranchName(rootPath);
+  const headShortSha = await getHeadShortSha(rootPath);
+  const headExists = await hasHead(rootPath);
+  const detached = headExists && currentBranch === null;
+
+  if (!headExists) {
+    return {
+      branches: [],
+      currentBranch,
+      detached: false,
+      headShortSha: null,
+    };
+  }
+
+  const output = await runGit(
+    [
+      'for-each-ref',
+      '--format=%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(committerdate:unix)',
+      'refs/heads',
+    ],
+    rootPath,
+    false
+  );
+
+  const branches: WorkspaceBranchInfo[] = [];
+  if (output) {
+    const lines = output.split(/\r?\n/).filter(Boolean);
+    for (const line of lines) {
+      const parts = line.split('\0');
+      if (parts.length < 5) continue;
+      const name = parts[0];
+      const headFlag = parts[1].trim();
+      const upstreamRaw = parts[2].trim();
+      const trackRaw = parts[3].trim();
+      const dateRaw = parts[4].trim();
+
+      const isCurrent = currentBranch !== null && (name === currentBranch || headFlag === '*');
+      const upstream = upstreamRaw.length > 0 ? upstreamRaw : null;
+      let ahead: number | null = null;
+      let behind: number | null = null;
+
+      if (upstream) {
+        if (trackRaw === 'gone') {
+          ahead = null;
+          behind = null;
+        } else {
+          const aheadMatch = trackRaw.match(/ahead\s+(\d+)/);
+          const behindMatch = trackRaw.match(/behind\s+(\d+)/);
+          ahead = aheadMatch ? parseInt(aheadMatch[1], 10) : 0;
+          behind = behindMatch ? parseInt(behindMatch[1], 10) : 0;
+        }
+      }
+
+      const parsedDate = parseInt(dateRaw, 10);
+      const lastCommitUnix = Number.isNaN(parsedDate) ? null : parsedDate;
+
+      branches.push({
+        name,
+        isCurrent,
+        upstream,
+        ahead,
+        behind,
+        lastCommitUnix,
+      });
+    }
+  }
+
+  // Current first, then by lastCommit desc, then alphabetical
+  branches.sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    const timeA = a.lastCommitUnix ?? -1;
+    const timeB = b.lastCommitUnix ?? -1;
+    if (timeB !== timeA) return timeB - timeA;
+    return a.name.localeCompare(b.name);
+  });
+
+  return {
+    branches,
+    currentBranch,
+    detached,
+    headShortSha,
+  };
+}
+
+async function resolveStashRefBySha(cwd: string, targetSha: string): Promise<string | null> {
+  const output = (await runGit(['stash', 'list', '--format=%gd%x00%H%x00%gs'], cwd, false, 30000)) ?? '';
+  const lines = output.split(/\r?\n/).filter(Boolean);
+  for (const line of lines) {
+    const parts = line.split('\0');
+    if (parts.length >= 2) {
+      const ref = parts[0].trim();
+      const sha = parts[1].trim();
+      if (sha === targetSha) {
+        return ref;
+      }
+    }
+  }
+  return null;
+}
+
+export async function switchGitBranch(
+  cwd: string,
+  branch: string,
+  onDirty: 'block' | 'stash' = 'block',
+  hooks?: GitSwitchHooks
+): Promise<WorkspaceSwitchBranchResult> {
+  const current = await getCurrentBranchName(cwd);
+  if (current === branch) {
+    return {
+      currentBranch: branch,
+      stashed: false,
+      stashMessage: null,
+    };
+  }
+
+  const dirtyState = await getGitDirtyState(cwd);
+  if (dirtyState.isDirty) {
+    if (onDirty === 'block') {
+      const err: any = new Error(
+        `Working directory has uncommitted changes (${dirtyState.changedFiles} changed, ${dirtyState.untrackedFiles} untracked).`
+      );
+      err.code = 'WORKSPACE_DIRTY';
+      err.details = {
+        changedFiles: dirtyState.changedFiles,
+        untrackedFiles: dirtyState.untrackedFiles,
+      };
+      throw err;
+    }
+
+    // onDirty === 'stash'
+    if (hooks?.injectBeforeStashPush) {
+      await hooks.injectBeforeStashPush();
+    }
+    const isoTime = new Date().toISOString();
+    const stashMessage = `piframe: before switching to ${branch} (${isoTime})`;
+    await runGitStrict(['stash', 'push', '--include-untracked', '-m', stashMessage], cwd, 30000);
+
+    const stashSha = await runGit(['rev-parse', '-q', '--verify', 'refs/stash'], cwd, true, 30000);
+    let createdStashSha: string | null = null;
+    let effectiveStashMessage: string | null = null;
+
+    if (stashSha) {
+      const stashListOutput = (await runGit(['stash', 'list', '--format=%gd%x00%H%x00%gs'], cwd, false, 30000)) ?? '';
+      const lines = stashListOutput.split(/\r?\n/).filter(Boolean);
+      for (const line of lines) {
+        const parts = line.split('\0');
+        if (parts.length >= 3) {
+          const sha = parts[1].trim();
+          const subject = parts[2].trim();
+          if (sha === stashSha && subject.includes(stashMessage)) {
+            createdStashSha = stashSha;
+            effectiveStashMessage = stashMessage;
+            break;
+          }
+        }
+      }
+    }
+
+    try {
+      if (hooks?.injectSwitchFailure) {
+        await hooks.injectSwitchFailure(branch);
+      } else {
+        await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
+      }
+    } catch (switchError: any) {
+      const rawStderr = (switchError.stderr || switchError.message || '').trim();
+      const stderrTrimmed = rawStderr.slice(0, 2048);
+
+      if (!createdStashSha) {
+        const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+        err.code = 'BRANCH_SWITCH_FAILED';
+        err.details = { stderr: stderrTrimmed };
+        throw err;
+      }
+
+      const targetRef = await resolveStashRefBySha(cwd, createdStashSha);
+      if (!targetRef) {
+        const err: any = new Error(
+          `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
+        );
+        err.code = 'BRANCH_SWITCH_FAILED';
+        err.details = {
+          stderr: stderrTrimmed,
+          stashRetained: true,
+          stashMessage: effectiveStashMessage,
+        };
+        throw err;
+      }
+
+      try {
+        if (hooks?.injectPopFailure) {
+          await hooks.injectPopFailure();
+        } else {
+          await runGitStrict(['stash', 'pop', targetRef], cwd, 30000);
+        }
+      } catch (popError: any) {
+        const err: any = new Error(
+          `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
+        );
+        err.code = 'BRANCH_SWITCH_FAILED';
+        err.details = {
+          stderr: stderrTrimmed,
+          stashRetained: true,
+          stashMessage: effectiveStashMessage,
+        };
+        throw err;
+      }
+
+      const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+      err.code = 'BRANCH_SWITCH_FAILED';
+      err.details = { stderr: stderrTrimmed };
+      throw err;
+    }
+
+    return {
+      currentBranch: branch,
+      stashed: createdStashSha !== null,
+      stashMessage: effectiveStashMessage,
+    };
+  }
+
+  // Not dirty
+  try {
+    if (hooks?.injectSwitchFailure) {
+      await hooks.injectSwitchFailure(branch);
+    } else {
+      await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
+    }
+  } catch (switchError: any) {
+    const rawStderr = (switchError.stderr || switchError.message || '').trim();
+    const stderrTrimmed = rawStderr.slice(0, 2048);
+    const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+    err.code = 'BRANCH_SWITCH_FAILED';
+    err.details = { stderr: stderrTrimmed };
+    throw err;
+  }
+
+  return {
+    currentBranch: branch,
+    stashed: false,
+    stashMessage: null,
+  };
 }

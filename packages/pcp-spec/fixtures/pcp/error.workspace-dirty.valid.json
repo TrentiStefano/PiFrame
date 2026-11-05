@@ -1,0 +1,18 @@
+{
+  "protocol": 1,
+  "kind": "error",
+  "id": "msg_01HZERR00000000000000002",
+  "ts": 1726640000450,
+  "commandId": "cmd_01HZIDEMPOTENT000000002",
+  "sessionId": "s_01HZSESSION00000000000001",
+  "type": "error",
+  "payload": {
+    "code": "WORKSPACE_DIRTY",
+    "message": "Working directory contains uncommitted changes.",
+    "retryable": false,
+    "details": {
+      "changedFiles": 3,
+      "untrackedFiles": 1
+    }
+  }
+}

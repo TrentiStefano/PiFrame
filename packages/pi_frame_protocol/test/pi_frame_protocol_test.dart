@@ -197,5 +197,35 @@ void main() {
       expect(unsub.type, 'system.metrics.unsubscribe');
       expect(unsub.payload, isEmpty);
     });
+
+    test('creates workspaceListBranches and workspaceSwitchBranch commands', () {
+      final listCmd = PcpCommand.workspaceListBranches(
+        commandId: 'cmd_lb_01',
+        sessionId: 's_workspace_01',
+      );
+      expect(listCmd.commandId, 'cmd_lb_01');
+      expect(listCmd.sessionId, 's_workspace_01');
+      expect(listCmd.type, 'workspace.listBranches');
+      expect(listCmd.payload, isEmpty);
+
+      final switchDefault = PcpCommand.workspaceSwitchBranch(
+        commandId: 'cmd_sb_01',
+        sessionId: 's_workspace_01',
+        branch: 'feature/new-branch',
+      );
+      expect(switchDefault.commandId, 'cmd_sb_01');
+      expect(switchDefault.sessionId, 's_workspace_01');
+      expect(switchDefault.type, 'workspace.switchBranch');
+      expect(switchDefault.payload['branch'], 'feature/new-branch');
+      expect(switchDefault.payload['onDirty'], 'block');
+
+      final switchStash = PcpCommand.workspaceSwitchBranch(
+        commandId: 'cmd_sb_02',
+        sessionId: 's_workspace_01',
+        branch: 'main',
+        onDirty: 'stash',
+      );
+      expect(switchStash.payload['onDirty'], 'stash');
+    });
   });
 }
