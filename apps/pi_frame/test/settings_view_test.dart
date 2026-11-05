@@ -239,4 +239,54 @@ void main() {
     final updatedSwitch = tester.widget<SwitchListTile>(switchFinder);
     expect(updatedSwitch.value, isTrue);
   });
+
+  testWidgets('SettingsView configures step grouping in Appearance tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: Scaffold(
+            body: SettingsView(onClose: () {}, initialTabIndex: 3),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (var i = 0; i < 6; i++) {
+      if (find
+          .byKey(const ValueKey('settings-step-grouping-auto-collapse-switch'))
+          .evaluate()
+          .isNotEmpty) {
+        // Drag a bit further to bring it fully into center of viewport
+        await tester.drag(find.byType(ListView).first, const Offset(0, -150));
+        await tester.pumpAndSettle();
+        break;
+      }
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+
+    final dropdownFinder = find.byKey(
+      const ValueKey('settings-step-grouping-mode-dropdown'),
+    );
+    expect(dropdownFinder, findsOneWidget);
+
+    final autoCollapseFinder = find.byKey(
+      const ValueKey('settings-step-grouping-auto-collapse-switch'),
+    );
+    expect(autoCollapseFinder, findsOneWidget);
+
+    final switchWidget = tester.widget<SwitchListTile>(autoCollapseFinder);
+    expect(switchWidget.value, isTrue); // default is true
+
+    await tester.tap(autoCollapseFinder);
+    await tester.pumpAndSettle();
+
+    final updatedSwitch = tester.widget<SwitchListTile>(autoCollapseFinder);
+    expect(updatedSwitch.value, isFalse);
+  });
 }

@@ -14,6 +14,8 @@ import '../../data/notifications/notification_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/composer/composer_settings.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
+import '../../data/transcript/step_grouping_settings.dart';
+import '../../domain/session/transcript_grouping.dart';
 import 'diagnostics.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
@@ -1420,6 +1422,159 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                   },
                                 ),
                               ),
+                            ),
+                            const SizedBox(height: 24),
+                            Builder(
+                              builder: (context) {
+                                final stepGroupingSettings =
+                                    ref.watch(stepGroupingSettingsProvider);
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      strings.stepGroupingSectionTitle,
+                                      style: TextStyle(
+                                        color: tokens.textPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      strings.stepGroupingModeDescription(
+                                        stepGroupingSettings.mode,
+                                      ),
+                                      style: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tokens.surfaceElevated,
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusMd,
+                                        ),
+                                        border: Border.all(color: tokens.border),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<StepGroupingMode>(
+                                          key: const ValueKey(
+                                            'settings-step-grouping-mode-dropdown',
+                                          ),
+                                          isExpanded: true,
+                                          value: stepGroupingSettings.mode,
+                                          dropdownColor: tokens.surfaceElevated,
+                                          style: TextStyle(
+                                            color: tokens.textPrimary,
+                                            fontSize: 13,
+                                            fontFamily: tokens.uiFontFamily,
+                                          ),
+                                          items: StepGroupingMode.values.map((mode) {
+                                            return DropdownMenuItem<StepGroupingMode>(
+                                              value: mode,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    strings.stepGroupingModeLabel(
+                                                      mode,
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    strings
+                                                        .stepGroupingModeDescription(
+                                                      mode,
+                                                    ),
+                                                    style: TextStyle(
+                                                      color: tokens.textMuted,
+                                                      fontSize: 11,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (newMode) {
+                                            if (newMode != null) {
+                                              ref
+                                                  .read(
+                                                    stepGroupingSettingsProvider
+                                                        .notifier,
+                                                  )
+                                                  .setMode(newMode);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tokens.surfaceElevated,
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusMd,
+                                        ),
+                                        border: Border.all(color: tokens.border),
+                                      ),
+                                      child: Material(
+                                        type: MaterialType.transparency,
+                                        child: SwitchListTile(
+                                          key: const ValueKey(
+                                            'settings-step-grouping-auto-collapse-switch',
+                                          ),
+                                          contentPadding: EdgeInsets.zero,
+                                          title: Text(
+                                            strings.stepGroupingAutoCollapseTitle,
+                                            style: TextStyle(
+                                              color: tokens.textPrimary,
+                                              fontSize: 13,
+                                              fontFamily: tokens.uiFontFamily,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            strings
+                                                .stepGroupingAutoCollapseSubtitle,
+                                            style: TextStyle(
+                                              color: tokens.textMuted,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          activeThumbColor: tokens.accent,
+                                          value: stepGroupingSettings.autoCollapse,
+                                          onChanged: (val) {
+                                            ref
+                                                .read(
+                                                  stepGroupingSettingsProvider
+                                                      .notifier,
+                                                )
+                                                .setAutoCollapse(val);
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         );

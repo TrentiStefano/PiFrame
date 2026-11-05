@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/session/transcript_grouping.dart';
+
 enum AppLanguage {
   it('it', 'Italiano (IT)', '🇮🇹'),
   en('en', 'English (EN)', '🇬🇧');
@@ -225,6 +227,93 @@ class AppStrings {
       isItalian ? 'Ramo non trovato' : 'Branch not found';
   String get branchInvalidName =>
       isItalian ? 'Nome del ramo non valido' : 'Invalid branch name';
+
+  // Step Grouping settings & transcript headers
+  String get stepGroupingSectionTitle =>
+      isItalian ? 'Raggruppamento passaggi' : 'Step grouping';
+
+  String get stepGroupingModeOff =>
+      isItalian ? 'Disattivato' : 'Off';
+  String get stepGroupingModeOffDescription => isItalian
+      ? 'Mostra tutti i messaggi singolarmente nel flusso normale.'
+      : 'Show all messages individually in the normal stream.';
+
+  String get stepGroupingModeWithThinking =>
+      isItalian ? 'Con ragionamento' : 'With thinking';
+  String get stepGroupingModeWithThinkingDescription => isItalian
+      ? 'Raggruppa solo i turni che contengono blocchi di ragionamento.'
+      : 'Group turns only when thinking blocks are present.';
+
+  String get stepGroupingModeAlways =>
+      isItalian ? 'Sempre' : 'Always';
+  String get stepGroupingModeAlwaysDescription => isItalian
+      ? 'Raggruppa qualsiasi turno con passaggi intermedi o chiamate a strumenti.'
+      : 'Group any turn with intermediate steps or tool calls.';
+
+  String stepGroupingModeLabel(StepGroupingMode mode) {
+    switch (mode) {
+      case StepGroupingMode.off:
+        return stepGroupingModeOff;
+      case StepGroupingMode.withThinking:
+        return stepGroupingModeWithThinking;
+      case StepGroupingMode.always:
+        return stepGroupingModeAlways;
+    }
+  }
+
+  String stepGroupingModeDescription(StepGroupingMode mode) {
+    switch (mode) {
+      case StepGroupingMode.off:
+        return stepGroupingModeOffDescription;
+      case StepGroupingMode.withThinking:
+        return stepGroupingModeWithThinkingDescription;
+      case StepGroupingMode.always:
+        return stepGroupingModeAlwaysDescription;
+    }
+  }
+
+  String get stepGroupingAutoCollapseTitle =>
+      isItalian ? 'Comprimi automaticamente' : 'Auto-collapse';
+  String get stepGroupingAutoCollapseSubtitle => isItalian
+      ? 'Comprime automaticamente il gruppo di passaggi al termine dell\'elaborazione.'
+      : 'Automatically collapse the step group when the turn finishes.';
+
+  // Step group headers & labels
+  String get stepGroupWorking =>
+      isItalian ? 'Elaborazione…' : 'Working…';
+
+  String stepGroupCompletedIn(int n, String s) => isItalian
+      ? (n == 1
+          ? 'Completato 1 passaggio in $s'
+          : 'Completati $n passaggi in $s')
+      : (n == 1
+          ? 'Completed 1 step in $s'
+          : 'Completed $n steps in $s');
+
+  String stepGroupCompleted(int n) => isItalian
+      ? (n == 1 ? 'Completato 1 passaggio' : 'Completati $n passaggi')
+      : (n == 1 ? 'Completed 1 step' : 'Completed $n steps');
+
+  String stepGroupFinished(int n) => isItalian
+      ? (n == 1 ? 'Terminato con 1 passaggio' : 'Terminato con $n passaggi')
+      : (n == 1 ? 'Finished with 1 step' : 'Finished with $n steps');
+
+  String stepGroupStoppedWithErrors(int n) => isItalian
+      ? (n == 1
+          ? 'Interrotto con errori dopo 1 passaggio'
+          : 'Interrotto con errori dopo $n passaggi')
+      : (n == 1
+          ? 'Stopped with errors after 1 step'
+          : 'Stopped with errors after $n steps');
+
+  String get stepGroupShowAll =>
+      isItalian ? 'Mostra tutti' : 'Show all';
+  String get stepGroupShowLess =>
+      isItalian ? 'Mostra meno' : 'Show less';
+  String get stepGroupInput =>
+      isItalian ? 'Input' : 'Input';
+  String get stepGroupOutput =>
+      isItalian ? 'Output' : 'Output';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {

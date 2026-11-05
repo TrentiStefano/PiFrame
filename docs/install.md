@@ -236,3 +236,25 @@ Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e
 - **Isolamento e Sicurezza**: i comandi sono rigorosamente confinati al repository della sessione corrente, eseguiti senza shell (`shell: false`) con argomenti array, protetti da injection su nomi di ramo non validi e respinti per sessioni in sola lettura o mentre l'agente sta lavorando.
 - **Interfaccia Utente (Branch Picker & Gestione Modifiche)**: nel pannello Git Changes, il ramo corrente è visualizzato come chip interattivo (con icona e commit SHA in caso di HEAD detached). Cliccandolo si apre un selettore rapido con ricerca, navigazione da tastiera (frecce, Invio, Esc) e stato di tracking (↑n ↓m). Se vi sono file non salvati, una finestra di dialogo di sicurezza blocca il cambio e richiede la conferma esplicita per archiviare nello stash o annullare, mostrando notifiche e dettagli chiari in caso di errori o recupero stash.
 
+---
+
+## 9. Raggruppamento dei Passaggi Intermedi (Step Grouping)
+
+PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dall'assistente durante un turno di conversazione (blocchi di ragionamento / thinking, chiamate agli strumenti / tool calls e testi intermedi), lasciando in risalto la risposta finale:
+
+- **Modalità di raggruppamento (Step Grouping Modes)**:
+  - **Con ragionamento (`withThinking`, predefinita)**: raggruppa automaticamente i turni che contengono blocchi di ragionamento (sia storici sia durante lo streaming).
+  - **Sempre (`always`)**: raggruppa qualsiasi turno che presenti almeno un passaggio intermedio (thinking, chiamata a tool o testo intermedio).
+  - **Disattivato (`off`)**: disattiva il raggruppamento; ogni messaggio, tool call e blocco di ragionamento viene visualizzato singolarmente nel flusso normale della chat con rendering pixel-identico alla visualizzazione classica.
+- **Compressione automatica (Auto-collapse, attiva per impostazione predefinita)**:
+  - Durante l'elaborazione (`Working…` / `Elaborazione…`), il gruppo di passaggi rimane aperto mostrando lo spinner in tempo reale e il dettaglio dell'ultimo passaggio in esecuzione.
+  - Al termine del turno, il gruppo si comprime automaticamente visualizzando lo stato riepilogativo (es. *Completati N passaggi in Xs*, oppure *Interrotto con errori dopo N passaggi* con icona rossa in caso di errore o abort).
+  - Le interazioni manuali dell'utente (espansione o chiusura manuale con un clic) prevalgono sul comportamento automatico e persistono attraverso i re-render e i nuovi streaming delta.
+- **Dettagli dei passaggi**:
+  - I passaggi all'interno del gruppo sono indentati e collegati visivamente da una linea verticale continua da 1px.
+  - **Thinking**: titolo sintetico (prima riga o primi ~80 caratteri) con anteprima muted di 2 righe; un clic espande il testo completo selezionabile.
+  - **Tool call**: riga compatta con icona dello strumento, nome, target sintetico (es. percorsi file abbreviati `lib/…/file.dart` o prima riga di comando), durata (con timer live se in esecuzione) e icona di stato. Un clic espande la sezione Input (JSON formattato) e Output (o blocco differenze diff per modifiche), con pulsanti *Mostra tutti* / *Mostra meno* per output estesi (> 20 righe o > 4000 caratteri).
+- **Configurazione**:
+  - Accessibile in **Impostazioni → Aspetto → Raggruppamento passaggi**, con selettore per la modalità e interruttore per la compressione automatica. Le preferenze vengono salvate in `~/.piframe/step_grouping_settings.json`.
+
+
