@@ -4,6 +4,21 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Domande con anteprime troppo alte per la finestra
+
+**Causa:** il fallback RPC di `rpiv-ask-user-question` inserisce tutte le anteprime nel titolo della richiesta. PiFrame mostrava il titolo fuori dall'area scorrevole, spingendo le risposte fuori dalla finestra.
+
+**Correzione:** PiFrame riconosce i blocchi di anteprima RPC e mostra solo quello dell'opzione selezionata. Usa il mouse o le frecce su/giù per cambiare scelta; su finestre strette l'anteprima compare sotto le opzioni. Le risposte inviate a Pi non cambiano. Anche un titolo lungo non riconosciuto è ora scorrevole.
+
+Il package limita ciascuna anteprima RPC ai primi 600 caratteri: PiFrame non può mostrare il testo che il package non ha inviato. Per applicare la modifica, ricompila e riavvia l'app.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/extension_ui_card_test.dart test/extension_ui_test.dart
+```
+
 ---
 
 ## Sottoagenti in background mostrati come completati

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
@@ -326,6 +327,143 @@ void main() {
     expect(client.responses, [
       ['Yes'],
     ]);
+  });
+
+  testWidgets('RPC previews stay bounded and follow the selected option', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = _Client();
+    final firstPreview = List.filled(30, 'First layout').join('\n');
+    final secondPreview = List.filled(30, 'Second layout').join('\n');
+    await mount(tester, client, {
+      'requestId': 'preview',
+      'method': 'select',
+      'title':
+          '[Layout] Choose?\n\n'
+          '--- 1. First preview ---\n$firstPreview\n\n'
+          '--- 2. Second preview ---\n$secondPreview',
+      'options': [
+        '1. First — Explanation',
+        '2. Second — Explanation',
+        '3. Type something.',
+      ],
+      'dialog': true,
+    });
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('[Layout] Choose?'), findsOneWidget);
+    expect(find.text(firstPreview), findsOneWidget);
+    expect(find.text(secondPreview), findsNothing);
+    expect(
+      tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top,
+      greaterThanOrEqualTo(0),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(find.text(firstPreview), findsNothing);
+    expect(find.text(secondPreview), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pump();
+    expect(client.responses, ['2. Second — Explanation']);
+  });
+
+  testWidgets('preview switches on click and hides for custom input', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'preview-custom',
+      'method': 'select',
+      'title':
+          'Choose?\n\n--- 1. First preview ---\n```text\n+---+\n```\n\n'
+          '--- 2. Second preview ---\nSecond preview content',
+      'options': [
+        '1. First — Explanation',
+        '2. Second — Explanation',
+        '3. Type something.',
+      ],
+      'dialog': true,
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('+---+'), findsOneWidget);
+    await tester.tap(find.text('2. Second — Explanation'));
+    await tester.pump();
+    expect(find.text('Second preview content'), findsOneWidget);
+    await tester.tap(find.text('3. Type something.'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('extension-ui-preview')), findsNothing);
+    final field = find.byKey(const ValueKey('extension-ui-custom-answer'));
+    await tester.enterText(field, 'My own design');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pump();
+    expect(client.responses, ['My own design']);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('preview parsing does not depend on the sentinel language', (
+    tester,
+  ) async {
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'localized-preview',
+      'method': 'select',
+      'title': 'Scegli?\n\n--- 1. Prima preview ---\nAnteprima',
+      'options': ['1. Prima — Descrizione', '2. Scrivi qualcosa.'],
+    });
+    expect(find.text('Scegli?'), findsOneWidget);
+    expect(find.text('Anteprima'), findsOneWidget);
+  });
+
+  testWidgets('incomplete preview marker remains visible and does not crash', (
+    tester,
+  ) async {
+    final client = _Client();
+    const title = 'Choose?\n\n--- 1. First preview ---';
+    await mount(tester, client, {
+      'requestId': 'incomplete-preview',
+      'method': 'select',
+      'title': title,
+      'options': ['1. First — Explanation', '2. Type something.'],
+    });
+    expect(tester.takeException(), isNull);
+    expect(find.text(title), findsOneWidget);
+  });
+
+  testWidgets('long title without RPC previews stays scrollable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'long-title',
+      'method': 'select',
+      'title': List.filled(40, 'Long title line').join('\n'),
+      'options': ['Yes', 'No'],
+      'dialog': true,
+    });
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(ExtensionUiDialog)).height,
+      lessThan(400),
+    );
+    expect(
+      tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top,
+      greaterThanOrEqualTo(0),
+    );
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pump();
+    expect(client.responses, ['Yes']);
   });
 
   testWidgets('long question: answer buttons stay on screen and work', (
