@@ -124,6 +124,14 @@ Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<ve
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
 
+## Invio dei messaggi con Enter (Invia con Enter)
+
+Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzione **Invia con Enter** (disattivata per impostazione predefinita):
+- **Disattivato (default)**: premendo `Ctrl+Invio` (o `Cmd+Invio` su macOS) viene inviato il messaggio o applicato lo steer; premendo `Invio` viene inserita una nuova riga nel composer.
+- **Attivo**: premendo `Invio` (o `Invio` da tastierino numerico) senza modificatori viene inviato il messaggio (o applicato lo steer se l'agente sta rispondendo); `Ctrl+Invio` / `Cmd+Invio` continua a inviare; premendo `Shift+Invio` viene inserita una nuova riga nel composer.
+- Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
+- Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
+
 ## Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.
