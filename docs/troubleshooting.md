@@ -670,5 +670,27 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 3. **Percorsi di fallback arricchiti in `devPaths`**:
    - `devPaths` include ora anche i percorsi relativi alla radice del repository a partire da `exeDir` (`build/windows/x64/runner/Release`), consentendo all'applicazione di individuare il bundle appena compilato in `apps/agentd/dist/pi-agentd.cjs`.
 
+---
+
+## 13. Processi GPU orfani (`typeperf.exe`, `nvidia-smi.exe`) o timer di campionamento attivi dopo disconnessione (Nerd stats)
+
+### Sintomi
+- Dopo aver abilitato le Statistiche nerd e successivamente chiuso l'app o disabilitato l'opzione, processi in background come `typeperf.exe` o `nvidia-smi.exe` rimangono attivi nella lista processi di Windows / Task Manager.
+- In esecuzione test o a seguito di terminazione client rapida, il daemon continuava il polling dei contatori con zero iscritti.
+
+### Cause Radice
+1. **Respawn accidentale del processo child su exit code 1 durante `stop()`**:
+   - In `WindowsTypeperfGpuProvider`, l'invocazione di `stop()` eseguiva `child.kill()`. Su Windows, il comando `typeperf` terminato con kill esce tipicamente con codice di uscita `1`. L'handler di uscita (`exit`) interpretava il codice diverso da 0 come errore inaspettato e richiamava `handleFailure()`, che riavviava un nuovo processo `typeperf` orfano.
+2. **Race condition e timer orfano su `SystemMetricsService.startSampling()`**:
+   - L'inizializzazione asincrona di `getProvider()` poteva completare dopo che il client si era già disiscritto (`unsubscribe`) o durante lo `stop()`. Senza una verifica di concorrenza, il daemon avviava il provider GPU e il timer a intervallo (`setInterval`) lasciandoli attivi indefinitamente con zero sottoscrittori.
+
+### Risoluzione Implementata
+1. **Flag deterministico `stopped` e disaccoppiamento eventi per tutti i provider GPU**:
+   - In `WindowsTypeperfGpuProvider`, `NvidiaGpuProvider` e `MacIoregGpuProvider` è stato introdotto il flag `stopped` e la verifica che l'evento provenga dall'istanza attiva `this.child`. Alla chiamata di `stop()`, qualsiasi evento tardivo (`stdout`, `error`, `exit`) viene ignorato senza innescare respawn né modificare lo stato dei campioni.
+   - Tutti i provider accettano l'iniezione delle funzioni di spawn/exec nei test per isolare completamente le suite ed evitare la creazione di processi reali.
+2. **Gestione con singola `startPromise` in-flight e ri-validazione sottoscrittori**:
+   - `SystemMetricsService.startSampling()` utilizza ora una singola promise in-flight per sottoscrizioni concorrenti. Al termine della risoluzione di `getProvider()`, viene nuovamente verificato `subscribers.size > 0` e lo stato `stopped` prima di avviare il provider GPU e istanziare il timer a intervallo.
+
+
 
 

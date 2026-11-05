@@ -148,7 +148,9 @@ export type PcpCommandType =
   | 'remote.setTailscaleHostname'
   | 'remote.revokeDevice'
   | 'remote.revokeAll'
-  | 'remote.setOptions';
+  | 'remote.setOptions'
+  | 'system.metrics.subscribe'
+  | 'system.metrics.unsubscribe';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
@@ -195,6 +197,47 @@ export interface WorkspaceGitActionRequest {
   paths: string[];
   expectedStagedPaths?: string[];
   message?: string;
+}
+
+// -----------------------------------------------------------------------------
+// System Metrics
+// -----------------------------------------------------------------------------
+
+export interface SystemMetricsSubscribeResult {
+  intervalMs: number;
+}
+
+export interface SystemCpuMetrics {
+  percent: number;
+}
+
+export interface SystemMemoryMetrics {
+  usedBytes: number;
+  totalBytes: number;
+  percent: number;
+}
+
+export interface SystemDiskMetrics {
+  usedBytes: number;
+  totalBytes: number;
+  percent: number;
+}
+
+export type SystemGpuSource = 'nvidia-smi' | 'typeperf' | 'sysfs' | 'ioreg' | null;
+
+export interface SystemGpuMetrics {
+  percent: number | null;
+  memoryUsedBytes: number | null;
+  memoryTotalBytes: number | null;
+  source: SystemGpuSource;
+}
+
+export interface SystemMetricsPayload {
+  sampledAt: number;
+  cpu: SystemCpuMetrics | null;
+  memory: SystemMemoryMetrics | null;
+  disk: SystemDiskMetrics | null;
+  gpu: SystemGpuMetrics;
 }
 
 // -----------------------------------------------------------------------------
@@ -276,7 +319,8 @@ export type PcpEventType =
   | 'journal.gap'
   | 'session.indexChanged'
   | 'daemon.configChanged'
-  | 'remote.statusChanged';
+  | 'remote.statusChanged'
+  | 'system.metrics';
 
 export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'event';
@@ -284,6 +328,10 @@ export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   seq: number;
   type: PcpEventType;
 }
+
+export type PcpSystemMetricsEvent = PcpEvent<SystemMetricsPayload> & {
+  type: 'system.metrics';
+};
 
 // -----------------------------------------------------------------------------
 // Snapshots

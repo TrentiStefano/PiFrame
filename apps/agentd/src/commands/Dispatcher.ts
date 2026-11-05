@@ -17,6 +17,7 @@ import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import { SnapshotBuilder } from '../journal/SnapshotBuilder.js';
+import { SystemMetricsService } from '../metrics/SystemMetricsService.js';
 import type {
   PcpCommand,
   PcpAck,
@@ -55,18 +56,25 @@ export class Dispatcher {
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
   private remoteManager?: RemoteManager;
+  private metricsService: SystemMetricsService;
 
   constructor(
     registry: SessionRegistry,
     connectionManager: ConnectionManager,
     piPackages?: PiPackageOperations,
-    remoteManager?: RemoteManager
+    remoteManager?: RemoteManager,
+    metricsService?: SystemMetricsService
   ) {
     this.registry = registry;
     this.connectionManager = connectionManager;
     this.sessionIndex = registry.getIndex();
     this.piPackages = piPackages ?? new PiPackageService(registry.getPiExecutablePath());
     this.remoteManager = remoteManager;
+    this.metricsService = metricsService ?? new SystemMetricsService();
+
+    this.connectionManager.onClose?.((conn) => {
+      this.metricsService.handleConnectionClose(conn.id);
+    });
 
     if (this.remoteManager) {
       this.remoteManager.on('statusChanged', (status) => {
@@ -83,6 +91,14 @@ export class Dispatcher {
         } as any);
       });
     }
+  }
+
+  public getMetricsService(): SystemMetricsService {
+    return this.metricsService;
+  }
+
+  public dispose(): void {
+    this.metricsService.stop();
   }
 
   private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
@@ -318,6 +334,10 @@ export class Dispatcher {
             code: 'REMOTE_FORBIDDEN'
           });
         }
+      } else if (cmd.type === 'system.metrics.subscribe' || cmd.type === 'system.metrics.unsubscribe') {
+        throw Object.assign(new Error(`Action blocked: command '${cmd.type}' is only available locally.`), {
+          code: 'REMOTE_FORBIDDEN'
+        });
       } else if (VIEW_ALLOWED.has(cmd.type)) {
         // Allowed in both view and control modes
       } else if (mode === 'control' && CONTROL_EXTRA.has(cmd.type)) {
@@ -533,6 +553,30 @@ export class Dispatcher {
         } as any);
 
         return updated;
+      }
+
+      // -----------------------------------------------------------------------
+      // System Metrics (LOCAL ONLY)
+      // -----------------------------------------------------------------------
+      case 'system.metrics.subscribe': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (payload && Object.keys(payload).length > 0) {
+          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.metricsService.subscribe(conn);
+      }
+
+      case 'system.metrics.unsubscribe': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (payload && Object.keys(payload).length > 0) {
+          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+        }
+        this.metricsService.unsubscribe(conn.id);
+        return {};
       }
 
       // -----------------------------------------------------------------------

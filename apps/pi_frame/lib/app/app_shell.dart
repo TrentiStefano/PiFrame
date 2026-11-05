@@ -33,6 +33,9 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
+import '../data/metrics/nerd_stats_settings.dart';
+import '../data/metrics/system_metrics_controller.dart';
+import '../features/metrics/nerd_stats_bar.dart';
 import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
 import '../data/window/window_state_service.dart';
@@ -445,6 +448,12 @@ class _AppShellState extends ConsumerState<AppShell>
                             ),
                           ),
                         ),
+                        if (ref.watch(nerdStatsSettingsProvider).enabled &&
+                            width >= (ref.watch(isWebProvider) ? 450 : 760)) ...[
+                          const SizedBox(width: 8),
+                          NerdStatsBar(width: width),
+                          const SizedBox(width: 8),
+                        ],
                         if (width > 680)
                           PressFeedback(
                             child: TextButton.icon(

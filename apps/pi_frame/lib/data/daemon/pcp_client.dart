@@ -53,6 +53,24 @@ class PcpClient {
   // Attached sessions with lastSeq
   final _attachedSessions = <String, int?>{};
 
+  Map<String, dynamic>? _welcomePayload;
+  Map<String, dynamic>? get welcomePayload => _welcomePayload;
+
+  List<String>? _customCapabilities;
+  @visibleForTesting
+  set customCapabilities(List<String>? caps) => _customCapabilities = caps;
+
+  List<String> get capabilities {
+    if (_customCapabilities != null) return _customCapabilities!;
+    final caps = _welcomePayload?['capabilities'];
+    if (caps is List) {
+      return caps.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  bool hasCapability(String capability) => capabilities.contains(capability);
+
   PcpClient({
     this.host = '127.0.0.1',
     required this.port,
@@ -116,6 +134,7 @@ class PcpClient {
       final kind = map['kind'] as String?;
 
       if (kind == 'welcome') {
+        _welcomePayload = map['payload'] as Map<String, dynamic>?;
         _setConnectionState(DaemonConnectionState.connected);
         _reconnectDelaySeconds = 1;
 
@@ -242,6 +261,7 @@ class PcpClient {
     _subscription = null;
     _channel?.sink.close();
     _channel = null;
+    _welcomePayload = null;
   }
 
   void _scheduleReconnect() {
@@ -1039,6 +1059,22 @@ class PcpClient {
       payload: {},
     );
     return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> subscribeSystemMetrics() {
+    return sendCommand(
+      PcpCommand.systemMetricsSubscribe(
+        commandId: newCommandId('cmd_metrics_sub'),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> unsubscribeSystemMetrics() {
+    return sendCommand(
+      PcpCommand.systemMetricsUnsubscribe(
+        commandId: newCommandId('cmd_metrics_unsub'),
+      ),
+    );
   }
 
   Stream<PcpEvent> events(String sessionId) {

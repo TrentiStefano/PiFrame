@@ -172,6 +172,13 @@ These authenticated local-daemon commands operate on Pi's user-level package set
 
 Mutating package commands require explicit confirmation in the UI. Pi remains owner of package settings and installation directories. Package code can execute in Pi's process; removal, update and pin controls must show package identity and scope before confirmation. Project-local resources remain governed by Pi's project-trust policy and are not managed by these user-scope commands.
 
+### 4.3 System metrics commands
+
+System metrics commands allow local clients to observe real-time host resource utilization (CPU, memory, primary user volume storage, and GPU engine/memory metrics) on a 1-second cadence. Both commands are strictly local-only and rejected for remote connections with `REMOTE_FORBIDDEN`.
+
+- `system.metrics.subscribe` target `sessionId: "@daemon"`, payload `{}` → `{ intervalMs: 1000 }`. Subscribes the current WebSocket connection to live periodic metric events (`system.metrics`). Sampling is started on the first subscriber. Idempotent per connection.
+- `system.metrics.unsubscribe` payload `{}` → `{}`. Cancels metrics subscription for the calling connection. When the active subscriber set becomes empty, all periodic timers are cleared, sampling ceases, and any persistent GPU monitoring child processes are immediately terminated. Idempotent.
+
 ---
 
 ## 5. Normalized Event Types
@@ -184,7 +191,42 @@ See Section 4.7 of the implementation plan for complete event catalogue:
 - `tool.started`, `tool.progress`, `tool.completed`
 - `queue.changed`, `compaction.started`, `compaction.ended`, `retry.started`, `retry.ended`
 - `ui.request`, `ui.claimed`, `ui.resolved`, `ui.notify`, `ui.status`, `ui.widget`, `ui.editorText`, `ui.title`
-- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`
+- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`, `remote.statusChanged`, `system.metrics`
+
+### 5.1 System Metrics Event (`system.metrics`)
+
+Emitted exclusively to active subscriber connections on `sessionId: "@daemon"` with `seq: 0`. It is never written to session journals or transcript replays.
+
+```json
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "evt_01...",
+  "ts": 1726640000000,
+  "sessionId": "@daemon",
+  "seq": 0,
+  "type": "system.metrics",
+  "payload": {
+    "sampledAt": 1726640000000,
+    "cpu": { "percent": 24.5 },
+    "memory": { "usedBytes": 8589934592, "totalBytes": 17179869184, "percent": 50.0 },
+    "disk": { "usedBytes": 107374182400, "totalBytes": 536870912000, "percent": 20.0 },
+    "gpu": {
+      "percent": 32.1,
+      "memoryUsedBytes": 2147483648,
+      "memoryTotalBytes": 8589934592,
+      "source": "nvidia-smi"
+    }
+  }
+}
+```
+
+Field semantics:
+- `sampledAt`: Unix timestamp in milliseconds when the resource metrics were sampled.
+- `cpu`: CPU percentage (`0.0` - `100.0`, rounded to 1 decimal place) across all cores since the prior tick, or `null` if the first delta has not elapsed.
+- `memory`: System RAM used, total bytes, and utilization percentage (`0.0` - `100.0`, rounded to 1 decimal place). On Linux, available memory accounts for `/proc/meminfo` `MemAvailable`.
+- `disk`: Storage utilization of the filesystem volume containing `os.homedir()`. Paths are never exposed over the wire.
+- `gpu`: GPU utilization percentage and VRAM bytes. If unsupported or metrics unavailable, `percent` is `null` (displaying "n/d" on client). `source` indicates the probing mechanism (`nvidia-smi`, `typeperf`, `sysfs`, `ioreg`, or `null`).
 
 ---
 

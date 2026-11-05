@@ -197,4 +197,46 @@ void main() {
       expect(find.textContaining('Abilita analytics'), findsNothing);
     },
   );
+
+  testWidgets('SettingsView toggles Nerd stats switch in Appearance tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: Scaffold(
+            body: SettingsView(onClose: () {}, initialTabIndex: 3),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (var i = 0; i < 5; i++) {
+      if (find
+          .byKey(const ValueKey('settings-nerd-stats-switch'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+      await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+
+    final switchFinder = find.byKey(
+      const ValueKey('settings-nerd-stats-switch'),
+    );
+    expect(switchFinder, findsOneWidget);
+
+    final switchWidget = tester.widget<SwitchListTile>(switchFinder);
+    expect(switchWidget.value, isFalse);
+
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    final updatedSwitch = tester.widget<SwitchListTile>(switchFinder);
+    expect(updatedSwitch.value, isTrue);
+  });
 }

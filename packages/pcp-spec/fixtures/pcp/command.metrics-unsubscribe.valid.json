@@ -1,0 +1,10 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "msg_01HZCMD00000000000000004",
+  "ts": 1726640000100,
+  "commandId": "cmd_01HZIDEMPOTENT000000004",
+  "sessionId": "@daemon",
+  "type": "system.metrics.unsubscribe",
+  "payload": {}
+}
