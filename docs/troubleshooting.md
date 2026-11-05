@@ -602,3 +602,73 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
      [https://aka.ms/vs/17/release/vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 2. **Risoluzione integrata nel pacchetto (App-Local Deployment)**:
    Lo script [**`tools/scripts/package-windows-installer.ps1`**](file:///c:/Personale/Repos/PiFrame/PiFrame/tools/scripts/package-windows-installer.ps1) ora include automaticamente le DLL del runtime CRT (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`, ecc.) direttamente nella directory di release accanto a `PiFrame.exe`. In questo modo, l'installer generato è autosufficiente al 100% e funziona immediatamente anche offline e su ambienti Windows completamente vergini senza richiedere installazioni esterne.
+
+
+---
+
+## 10. Notifiche di Sistema Premature "Risposta completata" mentre l'Agente sta ancora lavorando
+
+### Sintomi
+- Mentre l'applicazione non è a fuoco, il sistema operativo mostra una notifica desktop di "Risposta completata", ma cliccando sulla notifica si nota che l'agente è ancora in esecuzione (sta eseguendo tool intermedi, attendendo subagenti in background, compattando il contesto o riprovando una chiamata di rete).
+
+### Cause Radice
+1. **Verifica dello stato di settlement troppo permissiva**: Il watcher `SessionNotificationWatcher` considerava "conclusa" qualsiasi transizione in cui `agentStatus != AgentStatus.working`. Di conseguenza, passaggi intermedi a `AgentStatus.retrying`, `AgentStatus.compacting`, o `AgentStatus.awaitingUser` (richiesta di dialogo utente) innescavano erroneamente la notifica di completamento della risposta.
+2. **Ignorati subagenti e code di follow-up**: Se l'agente avviava subagenti in background o se erano presenti messaggi nella coda di steering/follow-up, il completamento del singolo turno genitore veniva scambiato per la fine dell'intero lavoro.
+3. **Mancato pre-seeding delle entry esistenti all'aggancio del watcher**: Quando il watcher veniva montato su sessioni già esistenti, le entry generate prima dell'avvio della sessione di osservazione potevano generare notifiche spurie su successivi aggiornamenti di stato.
+
+### Risoluzione Implementata
+1. **Controllo deterministico di settlement completo**: In `SessionNotificationWatcher`, la notifica "Risposta completata" viene inviata esclusivamente se l'agente era effettivamente attivo (`_isRunActive`) ed è ora in stato terminale (`AgentStatus.settled` o `AgentStatus.idle`), con assenza di streaming, nessun tool call in esecuzione, nessuna richiesta di dialogo interattivo pendente, e code di steering/follow-up vuote.
+2. **Monitoraggio integrato del ciclo di vita dei subagenti**: `SessionNotificationWatcher` ascolta `subagentsFamily` e sopprime la notifica di completamento finché vi sono subagenti collegati ancora in esecuzione (`isRunning == true`). Quando l'ultimo subagente completa la propria esecuzione, la notifica viene inoltrata correttamente.
+3. **Pre-seeding dei messaggi storici all'inizializzazione**: Durante `initState`, tutti i messaggi assistant e le richieste UI già presenti nella sessione vengono registrati in `_handledEntryIds` e `_handledUiRequestIds`, garantendo che solo nuovi output generati durante l'esecuzione corrente possano scatenare avvisi.
+
+
+---
+
+## 11. Riordinamento Imprevisto delle Sessioni Fissate e Supporto al Drag-and-Drop
+
+### Sintomi
+- All'arrivo di una risposta dall'agente in una qualsiasi sessione fissata (pinned), la sessione cambiava posizione all'interno del riquadro "Fissate" saltando in cima o muovendosi in base all'orario dell'ultima risposta.
+- L'utente non poteva spostare o riordinare le sessioni fissate tenendo premuto e trascinandole con il mouse.
+
+### Cause Radice
+1. **Ordinamento ereditato da `allSessions`**: Le sessioni fissate venivano estrapolate tramite `allSessions.where((s) => pinnedIds.contains(id))`. Poiché `allSessions` è ordinata dal daemon in ordine decrescente di attività (`updatedAt`), ogni nuova risposta faceva risalire la sessione in cima, alterando la disposizione decisa dall'utente.
+2. **Stato non indicizzato e vista statica**: `pinnedSessionsProvider` memorizzava un `Set<String>` senza API di riordinamento posizionale, e la sidebar renderizzava l'elenco come elementi piatti in un `ListView.builder` senza gesture di drag-and-drop.
+
+### Risoluzione Implementata
+1. **Ordine stabile e persistito**: `PinnedSessionsNotifier` gestisce una `List<String>` ordinata e memorizzata su disco in `pinned_sessions.json`. La costruzione di `pinnedSessions` nella barra laterale mappa ora le sessioni nell'ordine esatto di `pinnedIds`, garantendo stabilità assoluta di posizione a prescindere dall'attività dell'agente.
+2. **Reordering tramite pressione prolungata e trascinamento (Mouse Drag-and-Drop)**: La sezione fissate è stata integrata in un `CustomScrollView` con `SliverReorderableList` e `ReorderableDelayedDragStartListener`. In questo modo:
+   - Un click breve con il mouse apre e seleziona regolarmente la sessione.
+   - Tenendo premuto con il mouse, l'utente può afferrare la sessione fissata e trascinarla verso l'alto o verso il basso posizionandola liberamente nella sequenza desiderata.
+   - Il nuovo ordine viene immediatamente salvato su disco e mantenuto stabilmente.
+
+---
+
+## 12. Impossibile connettersi o riavviare il Daemon dopo una build Windows Release (Mancata sincronizzazione bundle e versione obsoleta)
+
+### Sintomi
+- Dopo aver buildato PiFrame per Windows (ad es. `flutter build windows --release`), l'applicazione non riesce a connettersi al daemon locale.
+- Il banner di stato indica errore di connessione e il pulsante «Riavvia daemon» fallisce continuamente senza riuscire a stabilire il collegamento.
+
+### Cause Radice
+1. **Disallineamento della versione del bundle sidecar (`pi-agentd.cjs`)**:
+   - `PiFrame.exe` viene compilato con la versione corrente dell'applicazione (ad es. `v1.3.0`).
+   - Se la cartella di output del runner Windows (`apps/pi_frame/build/windows/x64/runner/Release`) contiene una versione precedente del daemon bundle (`pi-agentd.cjs`, ad es. `v1.2.0`), `_spawnSidecarDaemon()` avvia il file presente nella cartella dell'eseguibile.
+   - All'avvio, il controllo di versione in `_probeActiveDaemon()` rileva `runningSemVer < appSemVer` (1.2.0 < 1.3.0). Per prevenire incompatibilità di protocollo, il client termina immediatamente il processo del daemon (`Process.killPid(pid)`) e cancella i file `daemon.json` e `daemon.token`.
+   - Il client tenta quindi di rieseguire l'autospawn, avviando di nuovo il vecchio bundle che viene tempestivamente terminato, creando un loop di fallimenti continuo.
+2. **Mancato aggiornamento automatico del bundle in CMake POST_BUILD**:
+   - `CMakeLists.txt` conteneva una regola `install(FILES "${AGENTD_BUNDLE}" ...)`. Tuttavia, la fase `install` non viene invocata automaticamente dai normali comandi di compilazione Flutter / MSBuild senza il target `INSTALL`, lasciando una copia obsoleta di `pi-agentd.cjs` nella directory `Release`.
+3. **Punti ciechi nel comando di riavvio (`restartDaemon`)**:
+   - `restartDaemon()` cercava il PID da terminare esclusivamente all'interno di `daemon.json`. Se `_probeActiveDaemon()` aveva già eliminato `daemon.json` a seguito del disallineamento di versione, `restartDaemon()` non individuava il processo (non consultando `daemon.pid` o `daemon.lock`), né ripuliva i file di lock residui.
+   - L'intervallo di 300ms risultava inoltre insufficiente su Windows affinché il sistema operativo liberasse completamente il PID e il lock prima del nuovo avvio.
+
+### Risoluzione Implementata
+1. **Sincronizzazione automatica del daemon in CMake POST_BUILD**:
+   - In [`apps/pi_frame/windows/runner/CMakeLists.txt`](file:///c:/Repos/PiFrame/PiFrame/apps/pi_frame/windows/runner/CMakeLists.txt), è stato aggiunto un comando `POST_BUILD` su `${BINARY_NAME}` con `${CMAKE_COMMAND} -E copy_if_different` che copia sempre in modo automatico il bundle aggiornato `${AGENTD_BUNDLE}` nella cartella dell'eseguibile (`Release` / `Debug`).
+2. **Risoluzione robusta del PID e pulizia lock in `restartDaemon`**:
+   - In [`apps/pi_frame/lib/data/daemon/daemon_locator.dart`](file:///c:/Repos/PiFrame/PiFrame/apps/pi_frame/lib/data/daemon/daemon_locator.dart), `restartDaemon()` ora esamina in cascata `daemon.json`, `daemon.pid` e `daemon.lock` per individuare con certezza qualsiasi processo daemon orfano o rimasto attivo.
+   - Vengono rimossi tutti i file di runtime (`daemon.json`, `daemon.token`, `daemon.pid`, `daemon.lock`) e concesso un intervallo congruo (600ms) affinché Windows rilasci gli handle dei socket e dei file prima del respawn.
+3. **Percorsi di fallback arricchiti in `devPaths`**:
+   - `devPaths` include ora anche i percorsi relativi alla radice del repository a partire da `exeDir` (`build/windows/x64/runner/Release`), consentendo all'applicazione di individuare il bundle appena compilato in `apps/agentd/dist/pi-agentd.cjs`.
+
+
+

@@ -41,20 +41,41 @@ class DaemonLocator {
   static Future<DaemonEndpoint?> restartDaemon() async {
     final jsonFile = File('$_runtimeDir/daemon.json');
     final tokenFile = File('$_runtimeDir/daemon.token');
+    final pidFile = File('$_runtimeDir/daemon.pid');
+    final lockFile = File('$_runtimeDir/daemon.lock');
+
+    int? pidToKill;
     if (await jsonFile.exists()) {
       try {
         final data = jsonDecode(await jsonFile.readAsString()) as Map<String, dynamic>;
-        final pid = data['pid'] as int?;
-        if (pid != null) {
-          Process.killPid(pid);
-        }
+        pidToKill = data['pid'] as int?;
       } catch (_) {}
-      try { await jsonFile.delete(); } catch (_) {}
     }
-    if (await tokenFile.exists()) {
-      try { await tokenFile.delete(); } catch (_) {}
+    if (pidToKill == null && await pidFile.exists()) {
+      try {
+        pidToKill = int.tryParse((await pidFile.readAsString()).trim());
+      } catch (_) {}
     }
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (pidToKill == null && await lockFile.exists()) {
+      try {
+        pidToKill = int.tryParse((await lockFile.readAsString()).trim());
+      } catch (_) {}
+    }
+
+    if (pidToKill != null && pidToKill > 0) {
+      try {
+        Process.killPid(pidToKill);
+      } catch (_) {}
+    }
+
+    for (final f in [jsonFile, tokenFile, pidFile, lockFile]) {
+      try {
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+    }
+
+    // Allow OS to release socket and file handles
+    await Future<void>.delayed(const Duration(milliseconds: 600));
     return locateOrProbe(autoSpawn: true);
   }
 
@@ -164,8 +185,14 @@ class DaemonLocator {
             if (pid != null) {
               Process.killPid(pid);
             }
-            try { await jsonFile.delete(); } catch (_) {}
-            try { await tokenFile.delete(); } catch (_) {}
+            final pidFile = File('$_runtimeDir/daemon.pid');
+            final lockFile = File('$_runtimeDir/daemon.lock');
+            for (final f in [jsonFile, tokenFile, pidFile, lockFile]) {
+              try {
+                if (await f.exists()) await f.delete();
+              } catch (_) {}
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 500));
             return null;
           }
 
@@ -250,6 +277,8 @@ class DaemonLocator {
       final devPaths = [
         '$exeDir/pi-agentd.cjs',
         '$exeDir/dist/pi-agentd.cjs',
+        '$exeDir/../../../../../../apps/agentd/dist/pi-agentd.cjs',
+        '$exeDir/../../../../../agentd/dist/pi-agentd.cjs',
         '../agentd/dist/pi-agentd.cjs',
         '../agentd/dist/main.js',
         'apps/agentd/dist/pi-agentd.cjs',
