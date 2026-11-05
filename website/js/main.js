@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initThemeToggle();
   initOsDetection();
   initRealUiTabs();
+  initHeroVideoObserver();
+  initCategoryFilters();
+  initFeatureLightbox();
   initSpotlightEffect();
   initMagneticButtons();
   initClipboardHandlers();
@@ -36,11 +39,12 @@ function initOsDetection() {
 }
 
 /* ==========================================================================
-   2. REAL APPLICATION UI TABS
+   2. REAL APPLICATION UI TABS & VIDEO PLAYBACK
    ========================================================================== */
 function initRealUiTabs() {
   const tabs = document.querySelectorAll('.win-tab[data-ui-target]');
   const views = document.querySelectorAll('.ui-view-wrapper');
+  const heroVideo = document.getElementById('heroShowcaseVideo');
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
@@ -60,7 +64,144 @@ function initRealUiTabs() {
       if (targetView) {
         targetView.classList.add('active');
       }
+
+      // Manage Hero video play/pause based on tab selection
+      if (heroVideo) {
+        if (targetId === 'ui-hero-video') {
+          heroVideo.play().catch(() => {});
+        } else {
+          heroVideo.pause();
+        }
+      }
     });
+  });
+}
+
+/* ==========================================================================
+   2b. HERO VIDEO INTERSECTION OBSERVER
+   ========================================================================== */
+function initHeroVideoObserver() {
+  const video = document.getElementById('heroShowcaseVideo');
+  if (!video || !('IntersectionObserver' in window)) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const activeTab = document.querySelector('.win-tab.active');
+      const isVideoTabActive = activeTab && activeTab.getAttribute('data-ui-target') === 'ui-hero-video';
+
+      if (entry.isIntersecting && isVideoTabActive) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
+  }, { threshold: 0.25 });
+
+  observer.observe(video);
+}
+
+/* ==========================================================================
+   2c. 20-FEATURE CATEGORY FILTERS
+   ========================================================================== */
+function initCategoryFilters() {
+  const filterPills = document.querySelectorAll('.filter-pill[data-category-filter]');
+  const cards = document.querySelectorAll('.bento-card[data-category]');
+
+  filterPills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      const targetCategory = pill.getAttribute('data-category-filter');
+      if (!targetCategory) return;
+
+      filterPills.forEach((p) => {
+        p.classList.remove('active');
+        p.setAttribute('aria-selected', 'false');
+      });
+      pill.classList.add('active');
+      pill.setAttribute('aria-selected', 'true');
+
+      cards.forEach((card) => {
+        const cardCategory = card.getAttribute('data-category');
+        if (targetCategory === 'all' || cardCategory === targetCategory) {
+          card.classList.remove('is-filtered-out');
+        } else {
+          card.classList.add('is-filtered-out');
+        }
+      });
+    });
+  });
+}
+
+/* ==========================================================================
+   2d. FEATURE LIGHTBOX MODAL
+   ========================================================================== */
+function initFeatureLightbox() {
+  const modal = document.getElementById('featureLightbox');
+  const backdrop = document.getElementById('lightboxBackdrop');
+  const closeBtn = document.getElementById('lightboxCloseBtn');
+  const body = document.getElementById('lightboxBody');
+  const titleEl = document.getElementById('lightboxTitle');
+  const descEl = document.getElementById('lightboxDesc');
+
+  if (!modal || !body) return;
+
+  const closeModal = () => {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    body.innerHTML = '';
+  };
+
+  const openModal = (src, title, desc) => {
+    body.innerHTML = '';
+    const isVideo = src.endsWith('.mp4') || src.endsWith('.webm');
+
+    if (isVideo) {
+      const video = document.createElement('video');
+      video.src = src;
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true;
+      video.controls = true;
+      video.playsInline = true;
+      body.appendChild(video);
+    } else {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = title || 'PiFrame Feature Preview';
+      img.onerror = () => {
+        // Fallback gracefully to workspace overview if asset not rendered yet
+        img.src = './assets/img/bento-triptych-fixture-dark-wide.png';
+      };
+      body.appendChild(img);
+    }
+
+    if (titleEl) titleEl.textContent = title || 'PiFrame Feature Showcase';
+    if (descEl) descEl.textContent = desc || '';
+
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  };
+
+  // Wire all card preview frames and zoom buttons
+  const frames = document.querySelectorAll('.card-real-img-frame[data-lightbox-src]');
+  frames.forEach((frame) => {
+    frame.addEventListener('click', (e) => {
+      e.preventDefault();
+      const src = frame.getAttribute('data-lightbox-src');
+      const title = frame.getAttribute('data-lightbox-title');
+      const desc = frame.getAttribute('data-lightbox-desc');
+      if (src) openModal(src, title, desc);
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (backdrop) backdrop.addEventListener('click', closeModal);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('active')) {
+      closeModal();
+    }
   });
 }
 

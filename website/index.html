@@ -52,7 +52,7 @@
       </a>
 
       <div class="nav-links">
-        <a href="#features" class="nav-link">Features</a>
+        <a href="#features" class="nav-link">Showcase</a>
         <a href="#architecture" class="nav-link">Architecture</a>
         <a href="#workflow" class="nav-link">Workflow</a>
         <a href="#faq" class="nav-link">FAQ</a>
@@ -188,13 +188,21 @@
 
               <!-- Interactive Tab Switcher for Real Application Views -->
               <div class="window-tabs" role="tablist" aria-label="PiFrame Real Application Views">
-                <button class="win-tab active" role="tab" aria-selected="true" data-ui-target="ui-bento-dark">
+                <button class="win-tab active" role="tab" aria-selected="true" data-ui-target="ui-hero-video">
+                  <span class="tab-indicator"></span>
+                  <span>⚡ 10s Showcase</span>
+                </button>
+                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-bento-dark">
                   <span class="tab-indicator"></span>
                   <span>PiFrame Dark</span>
                 </button>
                 <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-bento-light">
                   <span class="tab-indicator"></span>
                   <span>PiFrame Light</span>
+                </button>
+                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-git">
+                  <span class="tab-indicator"></span>
+                  <span>50/50 Diff Review</span>
                 </button>
                 <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-steer">
                   <span class="tab-indicator"></span>
@@ -203,10 +211,6 @@
                 <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-reasoning">
                   <span class="tab-indicator"></span>
                   <span>Reasoning Stream</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-git">
-                  <span class="tab-indicator"></span>
-                  <span>Git Staging Desk</span>
                 </button>
                 <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-themes">
                   <span class="tab-indicator"></span>
@@ -224,7 +228,25 @@
 
             <!-- Window Content: Displaying the Real Flutter UI Captures -->
             <div class="window-body real-ui-display">
-              <figure class="ui-view-wrapper active" id="ui-bento-dark">
+              <figure class="ui-view-wrapper active" id="ui-hero-video">
+                <div class="video-container">
+                  <video id="heroShowcaseVideo" class="real-ui-video" autoplay loop muted playsinline poster="./assets/img/bento-triptych-fixture-dark-wide.png">
+                    <source src="./assets/video/hero-10s-piframe-showcase.mp4" type="video/mp4">
+                    <source src="./assets/video/hero-10s-piframe-showcase.webm" type="video/webm">
+                    <img src="./assets/img/bento-triptych-fixture-dark-wide.png" alt="PiFrame Bento Workspace real UI in PiFrame Dark" class="real-ui-img">
+                  </video>
+                  <div class="video-overlay-chip">
+                    <span class="live-pulse-dot"></span>
+                    <span>10s Speed Walkthrough (Recordly & brag)</span>
+                  </div>
+                </div>
+                <figcaption class="ui-caption-bar">
+                  <span class="cap-tag">10-Second Launch Showcase</span>
+                  <span class="cap-text">Native Flutter Impeller 120fps engine: Bento ergonomics, in-flight steering, 50/50 split diff, and zero lost agent work</span>
+                </figcaption>
+              </figure>
+
+              <figure class="ui-view-wrapper" id="ui-bento-dark">
                 <img src="./assets/img/bento-triptych-fixture-dark-wide.png" alt="Real PiFrame Bento Triptych Workspace running official PiFrame Dark theme" class="real-ui-img" loading="eager">
                 <figcaption class="ui-caption-bar">
                   <span class="cap-tag">Actual Application UI</span>
@@ -303,112 +325,472 @@
       <div class="container">
         
         <div class="section-header">
-          <span class="section-tag">ENGINEERED FOR DEVELOPERS</span>
-          <h2 class="section-title">Built to eliminate friction between mind and machine</h2>
+          <span class="section-tag">COMPLETE FEATURE SHOWCASE</span>
+          <h2 class="section-title">20 Native Capabilities Engineered for Developer Flow</h2>
           <p class="section-subtitle">
-            Most agent GUIs are slow Electron wrappers that freeze on large token streams. PiFrame is compiled natively with Flutter for instant, tactile feedback.
+            Most agent GUIs are slow Electron wrappers that freeze on large token streams. PiFrame is compiled natively with Flutter for instant, tactile feedback, deep Git review, and uncompromising ergonomics.
           </p>
+
+          <!-- Interactive Category Filter Bar -->
+          <div class="feature-filter-bar" role="tablist" aria-label="Feature Showcase Categories">
+            <button class="filter-pill active" data-category-filter="all" role="tab" aria-selected="true">
+              <span>All Features</span>
+              <span class="filter-count">20</span>
+            </button>
+            <button class="filter-pill" data-category-filter="agent" role="tab" aria-selected="false">
+              <span>Agent Intelligence</span>
+              <span class="filter-count">4</span>
+            </button>
+            <button class="filter-pill" data-category-filter="workspace" role="tab" aria-selected="false">
+              <span>Bento Workspace & Panes</span>
+              <span class="filter-count">5</span>
+            </button>
+            <button class="filter-pill" data-category-filter="git" role="tab" aria-selected="false">
+              <span>Git & Context Control</span>
+              <span class="filter-count">4</span>
+            </button>
+            <button class="filter-pill" data-category-filter="system" role="tab" aria-selected="false">
+              <span>System & Extensibility</span>
+              <span class="filter-count">7</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Bento Grid Structure with Genuine UI Visuals -->
-        <div class="bento-grid">
-          
-          <!-- Card 1: Built with Flutter (Impeller Engine) (Large Span) -->
-          <article class="bento-card card-flutter bento-span-7 spotlight-card">
+        <!-- Bento Grid Structure Showcasing All 20 Features -->
+        <div class="bento-grid showcase-grid" id="featuresGrid">
+
+          <!-- ============================================================
+               CLUSTER 1: AGENT INTELLIGENCE & DIALOGUE
+               ============================================================ -->
+
+          <!-- Feature 1: Agent Questions to User -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="agent" data-feature-id="feature-01">
             <div class="card-glow" aria-hidden="true"></div>
             <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">⚡</span>
-                <span>Native Engine</span>
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
               </div>
-              <h3 class="card-title">120 FPS Fluidity with Flutter Impeller</h3>
+              <h3 class="card-title">Agent Questions to the User</h3>
               <p class="card-text">
-                No webview latency, no janky DOM recalculations. Powered by Flutter's modern Impeller graphics engine with custom physics, sub-10ms input response, and instant syntax-highlighted code scrolling.
+                Structured in-flight questioning dialog. When instructions are ambiguous, the agent prompts for decisions with pre-computed options, custom text input, and blocking safeguards.
               </p>
-              
-              <!-- Real Capture Preview -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/bento-triptych-fixture-dark-wide.png" alt="PiFrame Bento Workspace real UI in PiFrame Dark" class="card-preview-img" loading="lazy">
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-01-agent-questions.gif" data-lightbox-title="Agent Questions to the User" data-lightbox-desc="Structured decision questionnaire with pre-computed options and custom text response.">
+                <img src="./assets/img/ui/feature-01-agent-questions.gif" onerror="this.src='./assets/img/ui/clip-04-steer-queue.preview.png'" alt="Agent Questions to the User UI dialog in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
               </div>
             </div>
           </article>
 
-          <!-- Card 2: Visual Agent Workflow & Steer Queue (Span 5) -->
-          <article class="bento-card card-workflow bento-span-5 spotlight-card">
+          <!-- Feature 2: Model, Thinking & Context Tiers -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="agent" data-feature-id="feature-02">
             <div class="card-glow" aria-hidden="true"></div>
             <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🎯</span>
-                <span>Autonomous Flow</span>
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
               </div>
-              <h3 class="card-title">Visual Steering & Live ToDo Tasks</h3>
+              <h3 class="card-title">Model, Thinking Effort & Context Tiers</h3>
               <p class="card-text">
-                Steer the agent in-flight without interrupting generation. Re-order queued directions, track task milestones, and expand subagents in real time.
+                Granular composer controls. Switch provider models on the fly, adjust extended reasoning effort (off/low/high/max), and select token context budget tiers before sending prompts.
               </p>
-
-              <!-- Real Steer Queue Screenshot -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-04-steer-queue.preview.png" alt="PiFrame steer queue real UI" class="card-preview-img" loading="lazy">
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-02-composer-pickers.png" data-lightbox-title="Model, Thinking & Context Tiers" data-lightbox-desc="Granular composer popover for switching models, reasoning effort and context window size.">
+                <img src="./assets/img/ui/feature-02-composer-pickers.png" onerror="this.src='./assets/img/ui/clip-05-context-analytics.preview.png'" alt="Model, Thinking Effort and Context Size Tier Pickers in Composer" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
               </div>
             </div>
           </article>
 
-          <!-- Card 3: 3-Tier Decoupled Daemon (Disconnect-Safe) (Span 4) -->
-          <article class="bento-card card-daemon bento-span-4 spotlight-card">
+          <!-- Feature 18: File Mention Click -> OS Explorer -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="agent" data-feature-id="feature-18">
             <div class="card-glow" aria-hidden="true"></div>
             <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🛡️</span>
-                <span>Zero Work Loss</span>
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
               </div>
-              <h3 class="card-title">Disconnect-Safe Daemon</h3>
+              <h3 class="card-title">In-Chat File Jump to OS Explorer</h3>
               <p class="card-text">
-                Close your laptop lid or kill the window. The background daemon (<code>pi-agentd</code>) continues running tools, tests, and token streams, syncing monotonically when you return.
+                Every file path mentioned in agent reasoning or tool execution is an interactive target. Click any mentioned file to instantly highlight and open it in Windows Explorer or macOS Finder.
               </p>
-
-              <!-- Real Disconnect Safe UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-11-disconnect-safe.preview.png" alt="PiFrame disconnect-safe daemon real UI" class="card-preview-img" loading="lazy">
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-18-click-file-open-explorer.gif" data-lightbox-title="File Mention Jump to OS Explorer" data-lightbox-desc="Click any mentioned file path in the chat transcript to reveal it in the native operating system file manager.">
+                <img src="./assets/img/ui/feature-18-click-file-open-explorer.gif" onerror="this.src='./assets/img/ui/clip-06-reasoning-stream.preview.png'" alt="Click file link in agent response to open OS Explorer" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
               </div>
             </div>
           </article>
 
-          <!-- Card 4: Minimal & Distraction-Free Workspace (Span 4) -->
-          <article class="bento-card card-bento bento-span-4 spotlight-card">
+          <!-- Feature 20: Direct AGENTS.md Instruction Generator -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="agent" data-feature-id="feature-20">
             <div class="card-glow" aria-hidden="true"></div>
             <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🎨</span>
-                <span>Theme System</span>
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
               </div>
-              <h3 class="card-title">PiFrame Dark & Light Themes</h3>
+              <h3 class="card-title">Generate AGENTS.md with Pi Agent</h3>
               <p class="card-text">
-                Precision-engineered with PiFrame Dark (<code>#161c27</code>) and PiFrame Light (<code>#f1f3f7</code>) default themes for all-day focus. Import standard VSCode JSON theme files or tweak tokens directly in the live theme editor.
+                One-click repository bootstrap. Launch a guided dialog where the Pi agent analyzes your project architecture and synthesizes tailored guidelines directly into <code>AGENTS.md</code>.
               </p>
-
-              <!-- Real Theme UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/04_theme_editor.png" alt="PiFrame custom themes editor real UI" class="card-preview-img" loading="lazy">
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-20-generate-repo-instructions.gif" data-lightbox-title="AGENTS.md Instruction Generator" data-lightbox-desc="Directly prompt the Pi agent to inspect the codebase and generate structured AGENTS.md instructions.">
+                <img src="./assets/img/ui/feature-20-generate-repo-instructions.gif" onerror="this.src='./assets/img/ui/02_instruction_dialog.png'" alt="Generate repository instructions dialog with Pi agent" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
               </div>
             </div>
           </article>
 
-          <!-- Card 5: 100% Native Pi & Git Diff Staging (Span 4) -->
-          <article class="bento-card card-native bento-span-4 spotlight-card">
+          <!-- ============================================================
+               CLUSTER 2: BENTO WORKSPACE & PANES ERGONOMICS
+               ============================================================ -->
+
+          <!-- Feature 8: Repository Search & Add Lines to Chat -->
+          <article class="bento-card bento-span-7 spotlight-card" data-category="workspace" data-feature-id="feature-08">
             <div class="card-glow" aria-hidden="true"></div>
             <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">📂</span>
-                <span>Review & Stage</span>
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
               </div>
-              <h3 class="card-title">Git Changes Review Desk</h3>
+              <h3 class="card-title">Repository Search & "Add to Chat" Lines</h3>
               <p class="card-text">
-                Dedicated 50/50 split or unified diff viewing to inspect changes before committing. One-click staging, unstaging, and rollback.
+                Fuzzy search project files in the repository explorer, view syntax-highlighted code, select line ranges, and right-click to inject exact code references (e.g. <code>app_shell.dart#L14-L28</code>) straight into the composer.
               </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-08-repo-search-add-to-chat.gif" data-lightbox-title="Repository Explorer & Add to Chat" data-lightbox-desc="Fuzzy search files, select code lines, and right-click to insert exact file:line references into chat.">
+                <img src="./assets/img/ui/feature-08-repo-search-add-to-chat.gif" onerror="this.src='./assets/img/ui/clip-03-code-search.preview.png'" alt="Repository pane fuzzy file search and add lines to chat" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
 
-              <!-- Real Git Staging UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-08-git-staging.preview.png" alt="PiFrame Git staging review desk real UI" class="card-preview-img" loading="lazy">
+          <!-- Feature 9: Resizing Panes, Hiding Sidebars & Integrated Terminal -->
+          <article class="bento-card bento-span-5 spotlight-card" data-category="workspace" data-feature-id="feature-09">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">Adaptive Panes & Native Terminal</h3>
+              <p class="card-text">
+                Drag compartment splitters fluidly, toggle sidebar visibility to maximize workspace focus, and launch an integrated hardware-accelerated terminal (PowerShell, WSL bash) directly inside the repository pane.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-09-pane-resize-and-terminal.gif" data-lightbox-title="Adaptive Panes & Integrated Terminal" data-lightbox-desc="Fluid splitter resizing, companion pane toggle, and embedded OS terminal shell.">
+                <img src="./assets/img/ui/feature-09-pane-resize-and-terminal.gif" onerror="this.src='./assets/img/ui/bento-triptych-fixture-compact-files.png'" alt="Resizing compartments, hiding panes and integrated terminal in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 7: Integrated Web Browser -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="workspace" data-feature-id="feature-07">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">Web Browser Integration</h3>
+              <p class="card-text">
+                Live web preview tab inside the companion pane. Inspect localhost dev servers, view web tools, and browse documentation without leaving your PiFrame session.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-07-web-browser-pane.gif" data-lightbox-title="Web Browser Integration" data-lightbox-desc="Native embedded web browser tab for live dev server previews and web documentation.">
+                <img src="./assets/img/ui/feature-07-web-browser-pane.gif" onerror="this.src='./assets/img/ui/clip-01-bento-workspace.preview.png'" alt="Embedded web browser pane in PiFrame workspace" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 10: Double-Click Rename & Pin Session -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="workspace" data-feature-id="feature-10">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">Rename Session & Pin to Top</h3>
+              <p class="card-text">
+                Organize ongoing work effortlessly. Double-click any session in the sidebar to rename it inline, then pin active initiatives to keep them at the top of the session tree.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-10-rename-and-pin-session.gif" data-lightbox-title="Session Renaming & Pinning" data-lightbox-desc="Double-click inline renaming and persistent pinning of key sessions.">
+                <img src="./assets/img/ui/feature-10-rename-and-pin-session.gif" onerror="this.src='./assets/img/ui/clip-09-session-tree.preview.png'" alt="Renaming session with double click and pinning in sidebar" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 19: Markdown Rendering -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="workspace" data-feature-id="feature-19">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Rich Native Markdown Viewer</h3>
+              <p class="card-text">
+                Native parsing and rendering for <code>.md</code> documents. Open READMEs, specs, and design files with formatted typography, tables, badges, and syntax-highlighted code blocks.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-19-markdown-file-preview.png" data-lightbox-title="Rich Markdown File Viewer" data-lightbox-desc="Native high-contrast Markdown document rendering with styled headers, code and tables.">
+                <img src="./assets/img/ui/feature-19-markdown-file-preview.png" onerror="this.src='./assets/img/ui/clip-03-code-search.preview.png'" alt="Render markdown files when opening in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- ============================================================
+               CLUSTER 3: GIT & CONTEXT CONTROL
+               ============================================================ -->
+
+          <!-- Feature 5: Review Changes 50/50 View with Diff -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="git" data-feature-id="feature-05">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">50/50 Split Diff Review Desk</h3>
+              <p class="card-text">
+                Side-by-side synchronized diff comparison. Inspect additions and deletions with syntax highlighting, navigate hunk-by-hunk, or toggle between 50/50 split and unified diff view.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-05-review-changes-50-50-diff.gif" data-lightbox-title="50/50 Split Diff Review" data-lightbox-desc="Synchronized dual-column code diff comparison with syntax coloring and hunk navigation.">
+                <img src="./assets/img/ui/feature-05-review-changes-50-50-diff.gif" onerror="this.src='./assets/img/ui/clip-08-git-staging.preview.png'" alt="Review changes 50/50 view with diff in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 6: Git Changes with Staging and Commit -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="git" data-feature-id="feature-06">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">Git Changes Pane & One-Click Staging</h3>
+              <p class="card-text">
+                Full Git status at a glance. Modified tracked files are clearly distinguished; click <code>+</code> to stage, undo to rollback, write a commit message and commit without touching the CLI.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-06-git-changes-staging.gif" data-lightbox-title="Git Changes & Staging" data-lightbox-desc="Tracked file modifications, atomic per-file staging, discard controls, and commit desk.">
+                <img src="./assets/img/ui/feature-06-git-changes-staging.gif" onerror="this.src='./assets/img/ui/clip-08-git-staging.preview.png'" alt="Git changes pane with staging and commit controls" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 3: Work Area Context Limits & Compaction Limit -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="git" data-feature-id="feature-03">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Work Area Context & Compaction Limits</h3>
+              <p class="card-text">
+                Total control over token budgets. Define custom context limits and configure automatic compaction thresholds to maintain lightning-fast response times and control model cost.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-03-workarea-context-limits.png" data-lightbox-title="Work Area Context & Compaction" data-lightbox-desc="Custom context window limit slider and automated compaction trigger threshold settings.">
+                <img src="./assets/img/ui/feature-03-workarea-context-limits.png" onerror="this.src='./assets/img/ui/clip-05-context-analytics.preview.png'" alt="Work area panel with custom context limit and custom compaction limit" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 4: File Drag & Drop + Attach Button -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="git" data-feature-id="feature-04">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">File Drag-and-Drop & Attach Button</h3>
+              <p class="card-text">
+                Effortless context attachment. Drag files directly from your desktop into the chat window, or click the paperclip attach button with chips showing file sizes and token estimates.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-04-file-drag-drop-attach.gif" data-lightbox-title="File Drag-and-Drop & Attach Chips" data-lightbox-desc="Drag-and-drop file attachment target with interactive chips and token weight indicator.">
+                <img src="./assets/img/ui/feature-04-file-drag-drop-attach.gif" onerror="this.src='./assets/img/ui/clip-01-bento-workspace.preview.png'" alt="File drag and drop and attach button in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- ============================================================
+               CLUSTER 4: SYSTEM, THEMES & EXTENSIBILITY
+               ============================================================ -->
+
+          <!-- Feature 11: Switch to Light Mode & Hide Repo Pane Checklist -->
+          <article class="bento-card bento-span-7 spotlight-card" data-category="system" data-feature-id="feature-11">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-clip">
+                <span class="badge-icon">🎬</span>
+                <span>Interactive Clip</span>
+              </div>
+              <h3 class="card-title">Instant Light Mode & Pane Visibility Checklist</h3>
+              <p class="card-text">
+                Seamless palette transition between PiFrame Dark (<code>#161c27</code>) and PiFrame Light (<code>#f1f3f7</code>). Customize visible surfaces using the "Show or hide panes" dropdown checklist to tailor your display.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-11-light-mode-pane-checklist.gif" data-lightbox-title="Light Mode & Pane Visibility Checklist" data-lightbox-desc="Instant theme switch to PiFrame Light and custom pane hiding via the header checklist.">
+                <img src="./assets/img/ui/feature-11-light-mode-pane-checklist.gif" onerror="this.src='./assets/img/bento-triptych-fixture-wide.png'" alt="Switching to light mode and removing repository pane from checklist" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 13: Theme Editor in Settings -->
+          <article class="bento-card bento-span-5 spotlight-card" data-category="system" data-feature-id="feature-13">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Theme Editor in Settings</h3>
+              <p class="card-text">
+                Built-in visual theme customizer. Tweak background, chassis, thinking, and syntax tokens with live preview cards, or import/export standard JSON theme definitions.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-13-theme-editor.png" data-lightbox-title="Live Theme Editor" data-lightbox-desc="Custom visual theme editor with live swatch inheritance and JSON export.">
+                <img src="./assets/img/ui/feature-13-theme-editor.png" onerror="this.src='./assets/img/ui/04_theme_editor.png'" alt="Theme editor in settings with live token preview" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 12: In-App Update Flow -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="system" data-feature-id="feature-12">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">One-Click In-App Updates</h3>
+              <p class="card-text">
+                Non-intrusive update indicator in the status bar and full version management inside Settings with release notes and automatic installer handoff.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-12-in-app-update-flow.png" data-lightbox-title="In-App Update Flow" data-lightbox-desc="Status bar update prompt and direct installer launch from settings.">
+                <img src="./assets/img/ui/feature-12-in-app-update-flow.png" onerror="this.src='./assets/img/ui/01_landing_quick_launch.png'" alt="Update button and update from settings in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 14: Remote Connection via Tailscale & Phone -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="system" data-feature-id="feature-14">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Remote Mobile Connect (Tailscale)</h3>
+              <p class="card-text">
+                Pair your desktop daemon securely over a Tailscale mesh VPN. Scan the QR code with your smartphone to monitor agent reasoning and approve tools on the move.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-14-tailscale-remote-phone.png" data-lightbox-title="Remote Mobile Pairing via Tailscale" data-lightbox-desc="Encrypted remote companion mode paired via Tailscale mesh and instant smartphone QR scanning.">
+                <img src="./assets/img/ui/feature-14-tailscale-remote-phone.png" onerror="this.src='./assets/img/ui/clip-11-disconnect-safe.preview.png'" alt="Remote connection through Tailscale and smartphone QR code" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 15: Pi CLI Settings & Updates -->
+          <article class="bento-card bento-span-4 spotlight-card" data-category="system" data-feature-id="feature-15">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Pi CLI & Extension Updater</h3>
+              <p class="card-text">
+                Native engine maintenance. Monitor installed Pi CLI versions, check for engine upgrades, and update global extensions directly from the Settings panel.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-15-pi-cli-settings-update.png" data-lightbox-title="Pi CLI & Extensions Updater" data-lightbox-desc="Manage local pi-coding-agent engine binaries and update global extensions.">
+                <img src="./assets/img/ui/feature-15-pi-cli-settings-update.png" onerror="this.src='./assets/img/ui/05_appearance_settings.png'" alt="Pi CLI settings, show updating the Pi agent and extensions" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 16: Enable / Disable MCP Servers -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="system" data-feature-id="feature-16">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Model Context Protocol (MCP) Hub</h3>
+              <p class="card-text">
+                Toggle active MCP servers dynamically. Inspect registered tool capabilities, toggle individual servers on or off, and view diagnostic connection health.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-16-mcp-servers-toggle.png" data-lightbox-title="MCP Server Management Dialog" data-lightbox-desc="Interactive toggle switches for Model Context Protocol servers and live tool status.">
+                <img src="./assets/img/ui/feature-16-mcp-servers-toggle.png" onerror="this.src='./assets/img/ui/02_instruction_dialog.png'" alt="Enable and disable MCP servers modal in PiFrame" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Feature 17: View Installed Packages & Pin Version -->
+          <article class="bento-card bento-span-6 spotlight-card" data-category="system" data-feature-id="feature-17">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card-content">
+              <div class="card-badge badge-ui">
+                <span class="badge-icon">📸</span>
+                <span>Real UI Capture</span>
+              </div>
+              <h3 class="card-title">Installed Packages & Version Pinning</h3>
+              <p class="card-text">
+                Manage your agent skill ecosystem. View all installed Pi extensions, pin mission-critical package versions to prevent breaking updates, or remove unused packages.
+              </p>
+              <div class="card-real-img-frame" data-lightbox-src="./assets/img/ui/feature-17-packages-version-pinning.png" data-lightbox-title="Package Version Pinning" data-lightbox-desc="Inspect installed Pi extensions, pin versions against breaking changes, and manage dependencies.">
+                <img src="./assets/img/ui/feature-17-packages-version-pinning.png" onerror="this.src='./assets/img/ui/05_appearance_settings.png'" alt="View installed packages and pin package version in settings" class="card-preview-img" loading="lazy">
+                <button class="card-zoom-btn" aria-label="Expand preview" title="Expand preview">
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5"/></svg>
+                </button>
               </div>
             </div>
           </article>
@@ -848,6 +1230,19 @@
       </div>
     </div>
   </footer>
+
+  <!-- Feature Showcase Lightbox Modal -->
+  <div class="lightbox-modal" id="featureLightbox" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+    <div class="lightbox-dialog">
+      <button class="lightbox-close" id="lightboxCloseBtn" aria-label="Close feature preview">&times;</button>
+      <div class="lightbox-body" id="lightboxBody"></div>
+      <div class="lightbox-footer">
+        <h3 class="lightbox-title" id="lightboxTitle"></h3>
+        <p class="lightbox-desc" id="lightboxDesc"></p>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toastContainer" aria-live="polite"></div>

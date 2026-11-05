@@ -1,0 +1,7 @@
+Start-Sleep -Seconds 12
+$secPass = ConvertTo-SecureString "password" -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential("User", $secPass)
+
+Invoke-Command -VMName "Win11" -Credential $cred -ScriptBlock {
+    Get-Process | Where-Object { $_.ProcessName -match "PiFrame|node|explorer|pi" } | Select-Object Id, ProcessName, MainWindowTitle, MainWindowHandle, SessionId
+}

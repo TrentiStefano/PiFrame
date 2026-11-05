@@ -1,0 +1,73 @@
+{
+  "$schema": "./theme.schema.json",
+  "schemaVersion": 1,
+  "id": "visual-studio-dark",
+  "name": "Visual Studio Dark",
+  "author": "PiFrame",
+  "version": "1.0.0",
+  "variant": "dark",
+  "extends": null,
+  "colors": {
+    "background": "#1E1E1E",
+    "chassis": "#2D2D30",
+    "displaySurface": "#252526",
+    "displayText": "#D4D4D4",
+    "signalWarning": "#CCA700",
+    "signalDanger": "#F44747",
+    "surface": "#252526",
+    "surfaceElevated": "#2D2D30",
+    "overlay": "#11111199",
+    "border": "#3F3F46",
+    "borderStrong": "#007ACC",
+    "textPrimary": "#D4D4D4",
+    "textSecondary": "#B4B4B4",
+    "textMuted": "#858585",
+    "accent": "#007ACC",
+    "accentContrast": "#FFFFFF",
+    "focusRing": "#007ACC",
+    "success": "#57A64A",
+    "warning": "#CCA700",
+    "danger": "#F44747",
+    "info": "#75BEFF",
+    "agentWorking": "#75BEFF",
+    "agentRetrying": "#CCA700",
+    "agentCompacting": "#007ACC",
+    "agentSettled": "#57A64A",
+    "agentAwaitingUser": "#CCA700",
+    "agentError": "#F44747",
+    "userBubble": "#264F78",
+    "thinking": "#75BEFF",
+    "diffAddedBg": "#57A64A26",
+    "diffAddedFg": "#89D185",
+    "diffRemovedBg": "#F4474726",
+    "diffRemovedFg": "#F44747",
+    "diffContextFg": "#B4B4B4"
+  },
+  "syntax": {
+    "keyword": "#569CD6",
+    "string": "#D69D85",
+    "number": "#B5CEA8",
+    "comment": "#57A64A",
+    "function": "#DCDCAA",
+    "type": "#4EC9B0",
+    "variable": "#9CDCFE",
+    "operator": "#D4D4D4",
+    "punctuation": "#D4D4D4",
+    "invalid": "#F44747"
+  },
+  "typography": {
+    "uiFontFamily": "SchibstedGrotesk",
+    "headingFontFamily": "BarlowCondensed",
+    "monoFontFamily": "SourceCodePro"
+  },
+  "radii": {
+    "sm": 6,
+    "md": 10,
+    "lg": 14,
+    "pill": 999
+  },
+  "motion": {
+    "fast": 120,
+    "normal": 240
+  }
+}

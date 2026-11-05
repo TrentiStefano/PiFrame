@@ -153,11 +153,7 @@ else {
 }
 
 # Copy Flutter web assets
-$targetWeb = Join-Path $bundle 'web'
-if (Test-Path $targetWeb) {
-    Remove-Item $targetWeb -Recurse -Force
-}
-Copy-Item (Join-Path $repoRoot 'apps/pi_frame/build/web') $targetWeb -Recurse -Force
+Copy-Item (Join-Path $repoRoot 'apps/pi_frame/build/web') (Join-Path $bundle 'web') -Recurse -Force
 
 # Copy Visual C++ CRT runtime DLLs (App-Local deployment for clean Windows installations without VC++ Redistributable)
 $vcRedistDir = $null
