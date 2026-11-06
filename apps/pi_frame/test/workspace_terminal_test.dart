@@ -10,6 +10,24 @@ import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 
 void main() {
+  test('Integrated terminal preserves supplementary Unicode input', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+    const command = 'echo café 😀';
+
+    session.handleInput(command);
+
+    expect(session.currentInput, command);
+    expect(terminal.buffer.getText(), contains(command));
+    session.handleInput('\r');
+    expect(session.history, [command]);
+  });
+
   testWidgets('IntegratedTerminalPanel creates tabs and closes tabs', (tester) async {
     const tokens = FrameTokens.dark;
     var collapsed = false;
@@ -165,6 +183,21 @@ void main() {
     await tester.pumpAndSettle();
 
     final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+    const qCode = 0x71;
+    final qCountBefore = terminalView.terminal.buffer
+        .getText()
+        .runes
+        .where((rune) => rune == qCode)
+        .length;
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ, character: 'q');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ, character: 'q');
+    await tester.pump();
+    final qCountAfter = terminalView.terminal.buffer
+        .getText()
+        .runes
+        .where((rune) => rune == qCode)
+        .length;
+    expect(qCountAfter - qCountBefore, 1);
 
     // Test writing to terminal buffer
     terminalView.terminal.write('dir\r\n');

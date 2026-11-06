@@ -87,9 +87,8 @@ class TerminalTabSession {
     }
 
     // Process character sequence
-    for (int i = 0; i < data.length; i++) {
-      final char = data[i];
-      final code = char.codeUnitAt(0);
+    for (final code in data.runes) {
+      final char = String.fromCharCode(code);
 
       // Backspace (\x08 or \x7f)
       if (code == 8 || code == 127) {
@@ -331,14 +330,18 @@ class _IntegratedTerminalPanelState
         session.handleInput(data);
       };
 
-      session._stdoutSub = process.stdout.listen((bytes) {
+      session._stdoutSub = const Utf8Decoder(allowMalformed: true)
+          .bind(process.stdout)
+          .listen((text) {
         if (!mounted) return;
-        session.terminal.write(utf8.decode(bytes, allowMalformed: true));
+        session.terminal.write(text);
       });
 
-      session._stderrSub = process.stderr.listen((bytes) {
+      session._stderrSub = const Utf8Decoder(allowMalformed: true)
+          .bind(process.stderr)
+          .listen((text) {
         if (!mounted) return;
-        session.terminal.write(utf8.decode(bytes, allowMalformed: true));
+        session.terminal.write(text);
       });
 
       process.exitCode.then((code) {
@@ -678,7 +681,9 @@ class _IntegratedTerminalPanelState
   }
 
   KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) {
+    // Stop key-up text from falling through to xterm's insertion fallback.
+    if (event is KeyUpEvent) return KeyEventResult.handled;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
 
