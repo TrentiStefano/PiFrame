@@ -34,7 +34,7 @@ Implement Option C in `apps/agentd/src/side/SideConversationManager.ts` with the
 
 2. **Strict Tool Restriction & Isolation Guarantees:**
    - **CLI Flags:** Worker process is spawned with `--tools read,grep,find,ls`, `--no-mcp`, `--no-extensions`, `--no-skills`. Mutating tools (`bash`, `edit`, `write`) are never declared.
-   - **Runtime Tool Verification:** On startup, `get_state` is queried. If active tools are exposed, the daemon verifies that every tool is an exact subset of `{read, grep, find, ls}`; if any unsafe tool is found, the worker is immediately terminated with `SIDE_UNSAFE_TOOLS`.
+   - **Runtime Tool Verification:** On startup, `get_state` is queried. If active tools are exposed, the daemon verifies that every tool is an exact subset of `{read, grep, find, ls}`; if any unsafe tool is found, the worker is immediately terminated with `SIDE_UNSAFE_TOOLS`. Pi 1.5.0 does not include the active tool list in `get_state` (checked against a real `pi --mode rpc` worker started with these flags), so today this check is dormant defense in depth; the read-only guarantee rests on the launch flags (`--tools` is an exact allowlist and `--no-extensions` stops package-registered tools).
    - **RPC Allowlist in Transport Wrapper:** The worker transport wrapper (`SideTransport`) strictly blocks any RPC command other than `prompt`, `abort`, and `get_state` (throwing `SIDE_RPC_BLOCKED`).
    - **Byte-Identical Main Session Isolation:** The primary session file remains 100% byte-identical before and after side conversation activity.
    - **Journal Isolation:** Main session journals receive zero side events. All side events exist exclusively in a bounded in-memory buffer per side thread.
@@ -51,7 +51,7 @@ Implement Option C in `apps/agentd/src/side/SideConversationManager.ts` with the
 
 1. **Extension-Registered Tools Risk:**
    - *Risk:* If a future or customized version of Pi allows extension-registered tools to bypass `--tools <list>`, unauthorized tools might become declared.
-   - *Mitigation:* We pass `--no-extensions` (and `--no-skills`, `--no-mcp`), and additionally verify the active tools returned by `get_state` on worker startup against the allowed whitelist `{read, grep, find, ls}`, aborting with `SIDE_UNSAFE_TOOLS` if any unauthorized tool is detected.
+   - *Mitigation:* We pass `--no-extensions` (and `--no-skills`, `--no-mcp`), and additionally verify the active tools returned by `get_state` on worker startup against the allowed whitelist `{read, grep, find, ls}`, aborting with `SIDE_UNSAFE_TOOLS` if any unauthorized tool is detected. This second check only takes effect if a future Pi version exposes the tool list in `get_state`; Pi 1.5.0 does not.
 2. **Memory Footprint of Concurrent Workers:**
    - *Risk:* Multiple Node.js / Pi worker processes consume host RAM.
    - *Mitigation:* Hard limit of max 4 concurrent side threads host-wide, max 1 per parent session, and 10-minute idle termination.
