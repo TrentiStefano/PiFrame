@@ -536,7 +536,16 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               existing.text == text,
         );
         if (optimisticIndex >= 0) {
-          nextEntries[optimisticIndex] = entry;
+          final existing = nextEntries[optimisticIndex];
+          final optimisticId =
+              (existing.metadata?['optimisticId'] as String?) ?? existing.id;
+          final mergedMetadata = <String, dynamic>{
+            ...?existing.metadata,
+            ...?entry.metadata,
+            'optimisticId': optimisticId,
+          };
+          nextEntries[optimisticIndex] =
+              entry.copyWith(metadata: mergedMetadata);
           return current.copyWith(
             entries: nextEntries,
             streamingTextBlocks: const {},

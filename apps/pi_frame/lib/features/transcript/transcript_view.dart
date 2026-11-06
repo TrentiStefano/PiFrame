@@ -22,6 +22,9 @@ import 'thinking_block.dart';
 import 'subagents_provider.dart';
 import 'todo_panel.dart';
 import 'todo_provider.dart';
+import '../../data/transcript/step_grouping_settings.dart';
+import '../../domain/session/transcript_grouping.dart';
+import 'steps_group.dart';
 
 enum _ActiveBookTab { none, todos }
 
@@ -1537,6 +1540,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final showLiveStream = sessionState.isStreaming ||
         liveText.isNotEmpty || liveThinking.isNotEmpty || liveTools.isNotEmpty;
 
+    final stepGroupingSettings = ref.watch(stepGroupingSettingsProvider);
+    final isGroupedMode = stepGroupingSettings.mode != StepGroupingMode.off;
+    final liveState = isGroupedMode
+        ? TranscriptLiveState.fromSession(sessionState)
+        : TranscriptLiveState.empty;
+    final blocks = isGroupedMode
+        ? groupTranscript(
+            entries: visibleEntries,
+            mode: stepGroupingSettings.mode,
+            live: liveState,
+          )
+        : const <TranscriptBlock>[];
+
     // Auto-scroll fluidly with stream if user is near bottom
     if (!_userScrolledUp && showLiveStream) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1546,10 +1562,25 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     final itemKeys = <String>[];
     if (hasLoadBanner) itemKeys.add('banner');
-    for (final e in visibleEntries) {
-      itemKeys.add(e.id);
+    if (!isGroupedMode) {
+      for (final e in visibleEntries) {
+        itemKeys.add(e.id);
+      }
+      if (showLiveStream) itemKeys.add('livestream');
+    } else {
+      for (final block in blocks) {
+        switch (block) {
+          case EntryBlock():
+            itemKeys.add(block.entry.id);
+          case StepsGroupBlock():
+            itemKeys.add(block.groupId);
+          case FinalTextBlock():
+            itemKeys.add(block.entry.id);
+          case LiveTailBlock():
+            itemKeys.add('livestream');
+        }
+      }
     }
-    if (showLiveStream) itemKeys.add('livestream');
 
     // Initial scroll to bottom when opening session or receiving first entries
     if (!_initialScrollDone && sessionState.entries.isNotEmpty) {
@@ -1726,39 +1757,83 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           );
                         }
 
-                        final entryIndex = index - (hasLoadBanner ? 1 : 0);
-                        if (entryIndex < visibleEntries.length) {
-                          final entry = visibleEntries[entryIndex];
-                          int? elapsedSeconds;
-                          if (entry.role != 'user') {
-                            final cleanIdx = hiddenCount + entryIndex;
-                            if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                              final prev = cleanEntries[cleanIdx - 1];
-                              final diffMs = entry.timestamp - prev.timestamp;
-                              if (diffMs >= 5000) {
-                                elapsedSeconds = (diffMs / 1000).round();
-                              }
-                            }
-                            if (elapsedSeconds == null &&
-                                entry.toolCalls.isNotEmpty) {
-                              int totalToolMs = 0;
-                              for (final t in entry.toolCalls) {
-                                if (t.durationMs != null) {
-                                  totalToolMs += t.durationMs!;
+                        if (!isGroupedMode) {
+                          final entryIndex = index - (hasLoadBanner ? 1 : 0);
+                          if (entryIndex < visibleEntries.length) {
+                            final entry = visibleEntries[entryIndex];
+                            int? elapsedSeconds;
+                            if (entry.role != 'user') {
+                              final cleanIdx = hiddenCount + entryIndex;
+                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
+                                final prev = cleanEntries[cleanIdx - 1];
+                                final diffMs = entry.timestamp - prev.timestamp;
+                                if (diffMs >= 5000) {
+                                  elapsedSeconds = (diffMs / 1000).round();
                                 }
                               }
-                              if (totalToolMs >= 5000) {
-                                elapsedSeconds = (totalToolMs / 1000).round();
+                              if (elapsedSeconds == null &&
+                                  entry.toolCalls.isNotEmpty) {
+                                int totalToolMs = 0;
+                                for (final t in entry.toolCalls) {
+                                  if (t.durationMs != null) {
+                                    totalToolMs += t.durationMs!;
+                                  }
+                                }
+                                if (totalToolMs >= 5000) {
+                                  elapsedSeconds = (totalToolMs / 1000).round();
+                                }
                               }
                             }
+                            final firstVisibleId = _targetAnchorId ??
+                                (visibleEntries.isNotEmpty ? visibleEntries.first.id : null);
+                            final isAnchor = entry.id == firstVisibleId;
+                            return _MeasureSize(
+                              onSizeChange: (s) => _entryHeights[entry.id] = s.height,
+                              child: Padding(
+                                key: isAnchor ? _anchorKey : ValueKey('entry_row_${entry.id}'),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isCompact ? 12 : 24,
+                                ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 820),
+                                    child: RepaintBoundary(
+                                      key: ValueKey(entry.id),
+                                      child: _buildEntryItem(
+                                        entry.copyWith(
+                                          toolCalls: entry.toolCalls.map((tool) {
+                                            final live = tool.toolCallId.isEmpty
+                                                ? null
+                                                : sessionState.activeToolCalls[tool.toolCallId];
+                                            if (live == null) return tool;
+                                            return ToolExecutionState(
+                                              toolCallId: tool.toolCallId,
+                                              toolName: live.toolName.isEmpty
+                                                  ? tool.toolName : live.toolName,
+                                              args: live.args.isEmpty ? tool.args : live.args,
+                                              output: live.output.isEmpty
+                                                  ? tool.output : live.output,
+                                              isRunning: live.isRunning,
+                                              isError: live.isError || tool.isError,
+                                              durationMs: live.durationMs ?? tool.durationMs,
+                                              startedAt: live.startedAt ?? tool.startedAt,
+                                            );
+                                          }).toList(),
+                                        ),
+                                        tokens,
+                                        elapsedSeconds: elapsedSeconds,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
                           }
-                          final firstVisibleId = _targetAnchorId ??
-                              (visibleEntries.isNotEmpty ? visibleEntries.first.id : null);
-                          final isAnchor = entry.id == firstVisibleId;
+
                           return _MeasureSize(
-                            onSizeChange: (s) => _entryHeights[entry.id] = s.height,
+                            onSizeChange: (s) => _entryHeights['livestream'] = s.height,
                             child: Padding(
-                              key: isAnchor ? _anchorKey : ValueKey('entry_row_${entry.id}'),
+                              key: const ValueKey('entry_row_livestream'),
                               padding: EdgeInsets.symmetric(
                                 horizontal: isCompact ? 12 : 24,
                               ),
@@ -1766,30 +1841,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 child: ConstrainedBox(
                                   constraints: const BoxConstraints(maxWidth: 820),
                                   child: RepaintBoundary(
-                                    key: ValueKey(entry.id),
-                                    child: _buildEntryItem(
-                                      entry.copyWith(
-                                        toolCalls: entry.toolCalls.map((tool) {
-                                          final live = tool.toolCallId.isEmpty
-                                              ? null
-                                              : sessionState.activeToolCalls[tool.toolCallId];
-                                          if (live == null) return tool;
-                                          return ToolExecutionState(
-                                            toolCallId: tool.toolCallId,
-                                            toolName: live.toolName.isEmpty
-                                                ? tool.toolName : live.toolName,
-                                            args: live.args.isEmpty ? tool.args : live.args,
-                                            output: live.output.isEmpty
-                                                ? tool.output : live.output,
-                                            isRunning: live.isRunning,
-                                            isError: live.isError || tool.isError,
-                                            durationMs: live.durationMs ?? tool.durationMs,
-                                            startedAt: live.startedAt ?? tool.startedAt,
-                                          );
-                                        }).toList(),
-                                      ),
+                                    child: _buildLiveStream(
+                                      sessionState,
                                       tokens,
-                                      elapsedSeconds: elapsedSeconds,
+                                      liveThinking,
+                                      liveText,
+                                      hasActiveTools,
+                                      liveTools,
                                     ),
                                   ),
                                 ),
@@ -1798,30 +1856,194 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           );
                         }
 
-                        return _MeasureSize(
-                          onSizeChange: (s) => _entryHeights['livestream'] = s.height,
-                          child: Padding(
-                            key: const ValueKey('entry_row_livestream'),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isCompact ? 12 : 24,
-                            ),
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 820),
-                                child: RepaintBoundary(
-                                  child: _buildLiveStream(
-                                    sessionState,
-                                    tokens,
-                                    liveThinking,
-                                    liveText,
-                                    hasActiveTools,
-                                    liveTools,
+                        // Grouped mode
+                        final blockIndex = index - (hasLoadBanner ? 1 : 0);
+                        if (blockIndex < blocks.length) {
+                          final block = blocks[blockIndex];
+                          switch (block) {
+                            case EntryBlock():
+                              int? elapsedSeconds;
+                              final cleanIdx = cleanEntries
+                                  .indexWhere((e) => e.id == block.entry.id);
+                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
+                                final prev = cleanEntries[cleanIdx - 1];
+                                final diffMs =
+                                    block.entry.timestamp - prev.timestamp;
+                                if (diffMs >= 5000) {
+                                  elapsedSeconds = (diffMs / 1000).round();
+                                }
+                              }
+                              final firstVisibleId = _targetAnchorId ??
+                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
+                                      ? itemKeys[hasLoadBanner ? 1 : 0]
+                                      : null);
+                              final isAnchor = block.entry.id == firstVisibleId ||
+                                  (_targetAnchorId != null &&
+                                      block.entry.id == _targetAnchorId);
+                              return _MeasureSize(
+                                onSizeChange: (s) =>
+                                    _entryHeights[block.entry.id] = s.height,
+                                child: Padding(
+                                  key: isAnchor
+                                      ? _anchorKey
+                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isCompact ? 12 : 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 820),
+                                      child: RepaintBoundary(
+                                        key: ValueKey(block.entry.id),
+                                        child: _buildEntryItem(
+                                          block.entry.copyWith(
+                                            toolCalls: block.entry.toolCalls.map((tool) {
+                                              final live = tool.toolCallId.isEmpty
+                                                  ? null
+                                                  : sessionState.activeToolCalls[tool.toolCallId];
+                                              if (live == null) return tool;
+                                              return ToolExecutionState(
+                                                toolCallId: tool.toolCallId,
+                                                toolName: live.toolName.isEmpty
+                                                    ? tool.toolName
+                                                    : live.toolName,
+                                                args: live.args.isEmpty
+                                                    ? tool.args
+                                                    : live.args,
+                                                output: live.output.isEmpty
+                                                    ? tool.output
+                                                    : live.output,
+                                                isRunning: live.isRunning,
+                                                isError: live.isError || tool.isError,
+                                                durationMs: live.durationMs ?? tool.durationMs,
+                                                startedAt: live.startedAt ?? tool.startedAt,
+                                              );
+                                            }).toList(),
+                                          ),
+                                          tokens,
+                                          elapsedSeconds: elapsedSeconds,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                        );
+                              );
+
+                            case StepsGroupBlock():
+                              final firstVisibleId = _targetAnchorId ??
+                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
+                                      ? itemKeys[hasLoadBanner ? 1 : 0]
+                                      : null);
+                              final isAnchor = block.groupId == firstVisibleId ||
+                                  (_targetAnchorId != null &&
+                                      block.groupId == 'steps_$_targetAnchorId');
+                              return _MeasureSize(
+                                onSizeChange: (s) =>
+                                    _entryHeights[block.groupId] = s.height,
+                                child: Padding(
+                                  key: isAnchor
+                                      ? _anchorKey
+                                      : ValueKey('entry_row_${block.groupId}'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isCompact ? 12 : 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 820),
+                                      child: RepaintBoundary(
+                                        key: ValueKey(block.groupId),
+                                        child: StepsGroup(
+                                          block: block,
+                                          sessionId: widget.sessionId,
+                                          tokens: tokens,
+                                          onExpansionChanged:
+                                              _pauseStreamFollowing,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+
+                            case FinalTextBlock():
+                              int? elapsedSeconds;
+                              final cleanIdx = cleanEntries
+                                  .indexWhere((e) => e.id == block.entry.id);
+                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
+                                final prev = cleanEntries[cleanIdx - 1];
+                                final diffMs =
+                                    block.entry.timestamp - prev.timestamp;
+                                if (diffMs >= 5000) {
+                                  elapsedSeconds = (diffMs / 1000).round();
+                                }
+                              }
+                              final firstVisibleId = _targetAnchorId ??
+                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
+                                      ? itemKeys[hasLoadBanner ? 1 : 0]
+                                      : null);
+                              final isAnchor = block.entry.id == firstVisibleId ||
+                                  (_targetAnchorId != null &&
+                                      block.entry.id == _targetAnchorId);
+                              return _MeasureSize(
+                                onSizeChange: (s) =>
+                                    _entryHeights[block.entry.id] = s.height,
+                                child: Padding(
+                                  key: isAnchor
+                                      ? _anchorKey
+                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isCompact ? 12 : 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 820),
+                                      child: RepaintBoundary(
+                                        key: ValueKey(block.entry.id),
+                                        child: _buildEntryItem(
+                                          block.entry,
+                                          tokens,
+                                          elapsedSeconds: elapsedSeconds,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+
+                            case LiveTailBlock():
+                              return _MeasureSize(
+                                onSizeChange: (s) =>
+                                    _entryHeights['livestream'] = s.height,
+                                child: Padding(
+                                  key: const ValueKey('entry_row_livestream'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isCompact ? 12 : 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 820),
+                                      child: RepaintBoundary(
+                                        child: _buildLiveStream(
+                                          sessionState,
+                                          tokens,
+                                          '',
+                                          block.text,
+                                          false,
+                                          const [],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                          }
+                        }
+
+                        return const SizedBox.shrink();
                       },
                     ),
                   ),
