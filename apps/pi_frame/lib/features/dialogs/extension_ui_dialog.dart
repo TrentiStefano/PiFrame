@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../transcript/workflows_provider.dart';
 
 class ExtensionUiDialog extends ConsumerStatefulWidget {
   final String sessionId;
@@ -58,6 +59,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   bool get _isMultiSelect =>
       widget.request['multiSelect'] == true ||
       widget.request['isMultiSelect'] == true;
+
+  /// pi-subagents' `/agents` → `Workflows (N)` entry.
+  bool _opensWorkflowsMenu(String? option) =>
+      widget.request['method'] == 'select' &&
+      widget.request['title'] == 'Agents' &&
+      (option?.startsWith('Workflows (') ?? false);
 
   static const _secretPlaceholderPrefix = 'piframe-secret:';
   bool get _isSecretInput =>
@@ -683,6 +690,13 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                           );
                         } else if (_isMultiSelect) {
                           _sendResponse(value: _selectedOptions.toList());
+                        } else if (_opensWorkflowsMenu(_selectedOption)) {
+                          // RPC cannot render pi-subagents' custom workflow dialog, so its
+                          // menu would reopen forever; cancel it and show PiFrame's panel.
+                          ref
+                              .read(agentActivityPanelOpenProvider(widget.sessionId).notifier)
+                              .state = true;
+                          _sendResponse(cancelled: true);
                         } else {
                           _sendResponse(value: _selectedOption);
                         }

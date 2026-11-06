@@ -142,6 +142,16 @@ flutter test test/session_changes_review_test.dart
 
 ---
 
+## `/agents` → Workflows riapre il menu Agents
+
+**Sintomo:** nel menu `/agents` scegli **Workflows (1)** e premi **Invia**; ricompare subito la domanda **Agents**.
+
+**Causa:** con un solo workflow, `@tintinweb/pi-subagents` apre una vista TUI personalizzata (`ctx.ui.custom()`). In RPC questa vista non esiste e restituisce subito `undefined`, quindi l'estensione mostra di nuovo il menu principale.
+
+**Correzione:** PiFrame riconosce la scelta **Workflows (N)** del menu Agents, annulla la richiesta e apre il proprio pannello **Agenti**, che mostra workflow e sottoagenti. L'estensione non viene modificata.
+
+---
+
 ## Pannelli Repository e Git lenti
 
 **Sintomo:** l'apertura o l'aggiornamento dei pannelli Repository/Git e il caricamento di un diff possono rallentare nei repository con molti file non tracciati.
