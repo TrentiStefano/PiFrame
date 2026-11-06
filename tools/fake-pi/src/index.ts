@@ -19,6 +19,23 @@ function sendRaw(str: string): void {
 async function main() {
   const args = process.argv.slice(2);
 
+  // If env configured log file, record argv
+  if (process.env.FAKE_PI_LOG_FILE) {
+    try {
+      fs.appendFileSync(process.env.FAKE_PI_LOG_FILE, JSON.stringify({ argv: args, pid: process.pid, ts: Date.now() }) + '\n');
+    } catch {}
+  }
+
+  // Parse key flags for RPC reflection
+  const toolsIdx = args.indexOf('--tools');
+  const toolList = toolsIdx !== -1 && args[toolsIdx + 1]
+    ? args[toolsIdx + 1].split(',').map((s) => s.trim()).filter(Boolean)
+    : undefined;
+  const modelIdx = args.indexOf('--model');
+  const passedModelPattern = modelIdx !== -1 && args[modelIdx + 1] ? args[modelIdx + 1] : undefined;
+  const thinkingIdx = args.indexOf('--thinking');
+  const passedThinking = thinkingIdx !== -1 && args[thinkingIdx + 1] ? args[thinkingIdx + 1] : undefined;
+
   if (args.includes('--version') || args.includes('-v')) {
     console.log('0.85.1');
     process.exit(0);
@@ -86,14 +103,24 @@ async function main() {
     }
 
     if (type === 'get_state') {
+      const modelObj = passedModelPattern
+        ? {
+            id: passedModelPattern.includes('/') ? passedModelPattern.split('/')[1] : passedModelPattern,
+            provider: passedModelPattern.includes('/') ? passedModelPattern.split('/')[0] : 'fake',
+            name: passedModelPattern,
+            reasoning: true,
+            contextWindow: 128000
+          }
+        : { id: 'fake-model', name: 'Fake Pi Model', provider: 'fake', reasoning: true, contextWindow: 128000 };
+
       send({
         id,
         type: 'response',
         command: 'get_state',
         success: true,
         data: {
-          model: { id: 'fake-model', name: 'Fake Pi Model', provider: 'fake', reasoning: true, contextWindow: 128000 },
-          thinkingLevel: 'low',
+          model: modelObj,
+          thinkingLevel: passedThinking || 'low',
           isStreaming,
           isCompacting: false,
           steeringMode: 'one-at-a-time',
@@ -101,7 +128,49 @@ async function main() {
           sessionId: 'fake-session-001',
           autoCompactionEnabled: true,
           messageCount: 0,
-          pendingMessageCount: 0
+          pendingMessageCount: 0,
+          argv: args,
+          tools: toolList || ['read', 'bash', 'edit', 'write']
+        }
+      });
+      return;
+    }
+
+    if (type === 'get_messages') {
+      send({
+        id,
+        type: 'response',
+        command: 'get_messages',
+        success: true,
+        data: {
+          messages: scenarioConfig.messages || [
+            {
+              role: 'user',
+              content: [{ type: 'text', text: 'Hello, what is this project?' }],
+              timestamp: Date.now() - 60000
+            },
+            {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: 'This is PiFrame, a local GUI for Pi.' },
+                {
+                  type: 'toolCall',
+                  id: 'tc_001',
+                  name: 'read',
+                  arguments: { path: 'README.md' }
+                }
+              ],
+              timestamp: Date.now() - 30000
+            },
+            {
+              role: 'toolResult',
+              toolCallId: 'tc_001',
+              toolName: 'read',
+              content: [{ type: 'text', text: '# PiFrame\nWorkspace and session manager.' }],
+              isError: false,
+              timestamp: Date.now() - 25000
+            }
+          ]
         }
       });
       return;

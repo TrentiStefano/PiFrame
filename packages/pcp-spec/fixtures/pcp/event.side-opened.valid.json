@@ -1,0 +1,17 @@
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "msg_01HZEVT00000000000000002",
+  "ts": 1726640000200,
+  "sessionId": "side_01HZSESSION0000000000001",
+  "seq": 1,
+  "type": "side.opened",
+  "payload": {
+    "sideId": "side_01HZSESSION0000000000001",
+    "parentSessionId": "s_01HZSESSION00000000000001",
+    "model": {
+      "id": "claude-3-5-sonnet",
+      "provider": "anthropic"
+    }
+  }
+}

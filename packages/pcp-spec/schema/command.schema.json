@@ -79,7 +79,11 @@
         "remote.revokeAll",
         "remote.setOptions",
         "system.metrics.subscribe",
-        "system.metrics.unsubscribe"
+        "system.metrics.unsubscribe",
+        "side.open",
+        "side.prompt",
+        "side.abort",
+        "side.close"
       ]
     },
     "payload": { "type": "object" }
@@ -207,6 +211,53 @@
     {
       "if": { "properties": { "type": { "enum": ["system.metrics.subscribe", "system.metrics.unsubscribe"] } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.open" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sessionId"],
+            "properties": {
+              "sessionId": { "type": "string", "minLength": 1 },
+              "question": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.prompt" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "text"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["side.abort", "side.close"] } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
     }
   ]
 }

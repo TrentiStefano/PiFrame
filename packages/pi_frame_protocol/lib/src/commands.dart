@@ -107,6 +107,66 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
+  static PcpCommand sideOpen({
+    required String commandId,
+    required String sessionId,
+    String? question,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sessionId,
+      type: 'side.open',
+      payload: {
+        'sessionId': sessionId,
+        if (question != null) 'question': question,
+      },
+    );
+  }
+
+  static PcpCommand sidePrompt({
+    required String commandId,
+    required String sideId,
+    required String text,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sideId,
+      type: 'side.prompt',
+      payload: {
+        'sideId': sideId,
+        'text': text,
+      },
+    );
+  }
+
+  static PcpCommand sideAbort({
+    required String commandId,
+    required String sideId,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sideId,
+      type: 'side.abort',
+      payload: {
+        'sideId': sideId,
+      },
+    );
+  }
+
+  static PcpCommand sideClose({
+    required String commandId,
+    required String sideId,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: sideId,
+      type: 'side.close',
+      payload: {
+        'sideId': sideId,
+      },
+    );
+  }
+
   factory PcpCommand.fromJson(Map<String, dynamic> json) {
     return PcpCommand(
       protocol: json['protocol'] as int? ?? 1,

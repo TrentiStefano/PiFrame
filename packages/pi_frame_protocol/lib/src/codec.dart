@@ -128,6 +128,10 @@ class PcpCodec {
         return RemoteStatusChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'system.metrics':
         return SystemMetricsEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+      case 'side.opened':
+        return SideOpenedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+      case 'side.closed':
+        return SideClosedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       default:
         return UnknownEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, type: type, payload: payload);
     }

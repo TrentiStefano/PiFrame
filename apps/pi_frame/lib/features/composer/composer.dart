@@ -31,6 +31,7 @@ import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../context_panel/context_window_selector.dart';
+import '../side/side_provider.dart';
 
 final composerSendingProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
@@ -235,8 +236,41 @@ class _ComposerState extends ConsumerState<Composer> {
     _hasText = initialText.trim().isNotEmpty;
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
+    _availableCommands = _mergeLocalCommands(const []);
     _loadCommands();
     _loadModels();
+  }
+
+  List<Map<String, dynamic>> _mergeLocalCommands(
+    List<Map<String, dynamic>> cmds,
+  ) {
+    final strings = ref.read(appStringsProvider);
+    final localCommands = [
+      {
+        'name': 'side',
+        'description': strings.sideSlashDescription,
+        'argumentHint': '[question]',
+        'source': 'builtin',
+      },
+      {
+        'name': 'btw',
+        'description': strings.sideSlashDescription,
+        'argumentHint': '[question]',
+        'source': 'builtin',
+      },
+    ];
+    final result = List<Map<String, dynamic>>.from(cmds);
+    for (final local in localCommands) {
+      final existingIndex = result.indexWhere(
+        (c) => c['name'] == local['name'],
+      );
+      if (existingIndex >= 0) {
+        result[existingIndex] = local;
+      } else {
+        result.add(local);
+      }
+    }
+    return result;
   }
 
   Future<void> _loadCommands() async {
@@ -244,7 +278,7 @@ class _ComposerState extends ConsumerState<Composer> {
     final cmds = await notifier.getCommands();
     if (mounted) {
       setState(() {
-        _availableCommands = cmds;
+        _availableCommands = _mergeLocalCommands(cmds);
       });
     }
   }
@@ -705,6 +739,9 @@ class _ComposerState extends ConsumerState<Composer> {
     ).firstMatch(text);
     if (match == null) return null;
     final name = match.group(1)!.toLowerCase();
+    if (name == 'side' || name == 'btw') {
+      return (name, match.group(2)?.trim() ?? '');
+    }
     final isBuiltin = _availableCommands.any(
       (command) => command['source'] == 'builtin' && command['name'] == name,
     );
@@ -714,6 +751,16 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _runPiBuiltin(String name, String args) async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
     switch (name) {
+      case 'side':
+      case 'btw':
+        final sideNotifier =
+            ref.read(sideThreadFamily(widget.sessionId).notifier);
+        if (args.isEmpty) {
+          await sideNotifier.openSide();
+        } else {
+          await sideNotifier.openSide(question: args);
+        }
+        return;
       case 'settings':
         ref.read(showSettingsProvider.notifier).state = true;
         return;

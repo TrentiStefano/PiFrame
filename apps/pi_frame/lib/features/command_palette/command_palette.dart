@@ -8,6 +8,8 @@ import '../../ui/frame_snack_bar.dart';
 import '../sessions_sidebar/session_actions.dart';
 import '../browser/browser_models.dart';
 import '../browser/browser_controller.dart';
+import '../../data/language/language_settings.dart';
+import '../side/side_provider.dart';
 
 class PaletteAction {
   final String id;
@@ -91,8 +93,19 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   List<PaletteAction> _buildActions(BuildContext context) {
     final activeSessionId = ref.read(activeSessionIdProvider);
     final pcpClient = ref.read(pcpClientProvider);
+    final strings = ref.watch(appStringsProvider);
 
     return [
+      if (activeSessionId != null)
+        PaletteAction(
+          id: 'toggle_side_panel',
+          title: strings.sideToggleActionTitle,
+          subtitle: strings.sideToggleActionSubtitle,
+          icon: Icons.call_split,
+          onExecute: () async {
+            ref.read(sideThreadFamily(activeSessionId).notifier).togglePanel();
+          },
+        ),
       PaletteAction(
         id: 'new_session',
         title: 'Crea nuova sessione',

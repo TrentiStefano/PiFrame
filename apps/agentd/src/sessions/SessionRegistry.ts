@@ -44,6 +44,7 @@ export class SessionRegistry {
   private connectionManager: ConnectionManager;
   private piExecutablePath: string;
   private checkTerminalOwner: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
+  private onSessionClosed?: (sessionId: string) => Promise<void>;
 
   constructor(opts: SessionRegistryOptions) {
     this.index = opts.sessionIndex || new SessionIndex();
@@ -56,6 +57,10 @@ export class SessionRegistry {
       defaultIdleTimeoutMs: opts.workerIdleTimeoutMs,
       checkTerminalOwner: this.checkTerminalOwner
     });
+  }
+
+  public setSessionClosedCallback(cb: (sessionId: string) => Promise<void>): void {
+    this.onSessionClosed = cb;
   }
 
   public getSupervisor(): WorkerSupervisor {
@@ -616,11 +621,13 @@ export class SessionRegistry {
   }
 
   public async closeWorker(sessionId: string): Promise<void> {
+    await this.onSessionClosed?.(sessionId);
     await this.supervisor.stopWorker(sessionId);
   }
 
   public async deleteSession(sessionId: string): Promise<boolean> {
     this.pendingSessionNames.delete(sessionId);
+    await this.onSessionClosed?.(sessionId);
     const session = this.sessions.get(sessionId);
     let sessionFile = session?.sessionFile;
     if (session) {

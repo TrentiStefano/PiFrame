@@ -58,7 +58,9 @@
         "session.indexChanged",
         "daemon.configChanged",
         "remote.statusChanged",
-        "system.metrics"
+        "system.metrics",
+        "side.opened",
+        "side.closed"
       ]
     },
     "payload": { "type": "object" }
@@ -114,6 +116,42 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.opened" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "parentSessionId", "model"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "parentSessionId": { "type": "string", "minLength": 1 },
+              "model": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.closed" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "reason"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "reason": {
+                "type": "string",
+                "enum": ["user", "idle", "parentClosed", "error", "shutdown"]
+              }
+            },
+            "additionalProperties": false
           }
         }
       }

@@ -144,10 +144,18 @@ async function main() {
       await dispatcher.handle(conn, cmd);
     },
     onAttach: async (conn, sessionId, lastSeq, commandId) => {
-      await registry.attachClient(sessionId, conn, lastSeq, commandId);
+      if (sessionId.startsWith('side_') || dispatcher?.getSideManager().hasStream(sessionId)) {
+        await dispatcher.getSideManager().handleAttach(sessionId, conn, lastSeq, commandId);
+      } else {
+        await registry.attachClient(sessionId, conn, lastSeq, commandId);
+      }
     },
     onDetach: async (conn, sessionId) => {
-      await registry.detachClient(sessionId, conn);
+      if (sessionId.startsWith('side_') || dispatcher?.getSideManager().hasStream(sessionId)) {
+        dispatcher.getSideManager().handleDetach(sessionId, conn);
+      } else {
+        await registry.detachClient(sessionId, conn);
+      }
     }
   });
 
@@ -179,7 +187,7 @@ async function main() {
     await remoteManager.stop({ persistEnabled: false }).catch(() => {});
 
     // 2c. Stop system metrics sampling and kill any active probe child processes
-    dispatcher.dispose();
+    await dispatcher.dispose();
 
     // 3. Close HTTP/WS servers
     await Promise.all([

@@ -47,6 +47,85 @@ void main() {
       expect(evt.seq, 10);
     });
 
+    test('decodes side events correctly', () {
+      const openedJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_side_open_1",
+        "ts": 1726640000000,
+        "sessionId": "side_01",
+        "seq": 1,
+        "type": "side.opened",
+        "payload": {
+          "sideId": "side_01",
+          "parentSessionId": "s_001",
+          "model": "anthropic/claude-3-5-sonnet"
+        }
+      }
+      ''';
+      final opened = PcpCodec.decodeMessage(openedJson);
+      expect(opened, isA<SideOpenedEvent>());
+      final openedEvt = opened as SideOpenedEvent;
+      expect(openedEvt.sideId, 'side_01');
+      expect(openedEvt.parentSessionId, 's_001');
+
+      const closedJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_side_close_1",
+        "ts": 1726640001000,
+        "sessionId": "side_01",
+        "seq": 2,
+        "type": "side.closed",
+        "payload": {
+          "sideId": "side_01",
+          "reason": "user"
+        }
+      }
+      ''';
+      final closed = PcpCodec.decodeMessage(closedJson);
+      expect(closed, isA<SideClosedEvent>());
+      final closedEvt = closed as SideClosedEvent;
+      expect(closedEvt.sideId, 'side_01');
+      expect(closedEvt.reason, 'user');
+    });
+
+    test('creates side commands correctly', () {
+      final openCmd = PcpCommand.sideOpen(
+        commandId: 'cmd_side_open',
+        sessionId: 's_001',
+        question: 'Explain this function',
+      );
+      expect(openCmd.type, 'side.open');
+      expect(openCmd.payload['sessionId'], 's_001');
+      expect(openCmd.payload['question'], 'Explain this function');
+
+      final promptCmd = PcpCommand.sidePrompt(
+        commandId: 'cmd_side_prompt',
+        sideId: 'side_01',
+        text: 'What about edge cases?',
+      );
+      expect(promptCmd.type, 'side.prompt');
+      expect(promptCmd.payload['sideId'], 'side_01');
+      expect(promptCmd.payload['text'], 'What about edge cases?');
+
+      final abortCmd = PcpCommand.sideAbort(
+        commandId: 'cmd_side_abort',
+        sideId: 'side_01',
+      );
+      expect(abortCmd.type, 'side.abort');
+      expect(abortCmd.payload['sideId'], 'side_01');
+
+      final closeCmd = PcpCommand.sideClose(
+        commandId: 'cmd_side_close',
+        sideId: 'side_01',
+      );
+      expect(closeCmd.type, 'side.close');
+      expect(closeCmd.payload['sideId'], 'side_01');
+    });
+
     test('decodes UnknownEvent for forward compatibility without throwing', () {
       const futureEventJson = '''
       {

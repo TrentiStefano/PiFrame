@@ -267,4 +267,41 @@ PiFrame include il supporto nativo per l'ispezione e la configurazione dei subag
   - **Elenco Agenti**: visualizzazione dettagliata di tutti gli agenti scoperti, con badge della sorgente (`builtin`, `user`, `project`, `package`), descrizione, modello effettivo con badge d'origine (`override`, `frontmatter`, `default`), thinking effettivo e selettore tier di contesto (es. `272k`, `1.05M (full)`) solo se supportato (altrimenti `n/d` con tooltip *Model has a single context tier*). Gli agenti non modificabili (es. runner CLI esterni, progetti o tintinweb) appaiono disabilitati con tooltip che riporta la `readOnlyReason`. Ogni campo dispone di tasto *Reset* che invia `null` per cancellare l'override.
   - **Barra di Salvataggio e Sicurezza Remota**: pulsante *Salva modifiche* (abilitato solo quando lo stato è sporco / dirty), pulsante *Annulla* per scartare le modifiche locali, visualizzazione inline degli errori di validazione per campo (`AGENTS_VALIDATION_FAILED`), notifica snackbar di successo e blocco con avviso in sola lettura in caso di accesso remoto (`REMOTE_FORBIDDEN`).
 
+---
+
+## 11. Conversazioni Laterali Read-Only (Side Conversations)
+
+PiFrame introduce il supporto per conversazioni laterali effimere e di sola lettura (`side.open`, `side.prompt`, `side.abort`, `side.close`):
+- **Assistente di Consultazione Read-Only**: permette di porre domande di approfondimento o chiarimento ("Spiega questa funzione", "Rivedi i test", "Quali vincoli sono emersi?") operando su uno snapshot immutabile della conversazione principale e consentendo all'assistente di consultare i file del workspace.
+- **Isolamento Matematico del Transcript e della Sessione**:
+  - Il file della sessione principale in `~/.pi/agent/sessions/` non viene mai alterato o riscritto ed è byte-per-byte identico prima, durante e dopo ogni operazione laterale.
+  - Nessun evento della conversazione laterale inquina il journal degli eventi della sessione principale.
+  - Gli eventi della conversazione laterale sono veicolati su un flusso dedicato (`streamId = side_<ulid>`) e trattenuti esclusivamente in un buffer in memoria ad anello confinato al ciclo di vita del daemon per consentire la riconnessione dei client, senza mai eseguire spill su disco.
+- **Strumenti Rigidamente Confinati (`read, grep, find, ls`)**: il worker della conversazione laterale è avviato con `--tools read,grep,find,ls`, `--no-mcp`, `--no-extensions` e `--no-skills`. Gli strumenti di scrittura e mutazione (`bash`, `edit`, `write`) sono tassativamente esclusi e qualsiasi tentativo di invocazione RPC differente da `prompt`, `abort` o `get_state` viene interdetto dal daemon (`SIDE_RPC_BLOCKED`). Se all'avvio il worker esponesse strumenti non consentiti, viene abbattuto all'istante con `SIDE_UNSAFE_TOOLS`.
+- **Snapshot Criterioso e Pulizia Automatica**:
+  - Lo snapshot della conversazione attiva viene serializzato con preambolo di guardrail in `~/.piframe/runtime/side/<sideId>/context.md` (directory con permessi `0700` e file `0600`) e passato via `--append-system-prompt`.
+  - Lo snapshot è cappato a ~120.000 caratteri preservando le interazioni più recenti e includendo una notifica esplicita di troncamento se la soglia viene raggiunta.
+  - La directory temporanea viene distrutta all'atto della chiusura della conversazione laterale o all'arresto del daemon.
+- **Regole di Concorrenza e Sicurezza**:
+  - Massimo 1 thread laterale attivo per ciascuna sessione genitore (chiamate successive restituiscono il thread esistente).
+  - Massimo 4 thread laterali contemporaneamente attivi sull'intero host (`SIDE_LIMIT_REACHED`).
+  - Timeout di inattività a 10 minuti (`reason: 'idle'`) con arresto automatico del worker.
+  - Terminazione immediata in caso di chiusura della sessione genitore (`reason: 'parentClosed'`).
+  - Connessioni remote: l'apertura e l'invio di prompt richiedono la modalità `control` (`REMOTE_FORBIDDEN` in `view`), mentre abort e chiusura sono permesse anche in modalità `view`. Qualsiasi comando estraneo indirizzato allo stream laterale viene respinto con `SIDE_STREAM_READ_ONLY`.
+- **Interfaccia Utente & Comandi Client (Flutter)**:
+  - **Comandi Slash Built-in**: `/side [domanda]` e `/btw [domanda]` gestiti localmente dal composer (mai inviati come prompt all'agente principale). Presenti nel menu slash con la descrizione *"Conversazione laterale in sola lettura"*.
+  - **Scorciatoia da Tastiera & Command Palette**:
+    - Scorciatoia globale: `Ctrl+Shift+B` (Linux/Windows) o `Cmd+Shift+B` (macOS) per aprire/chiudere il pannello laterale nella sessione corrente.
+    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale (Ctrl+Shift+B)"*.
+  - **Pannello Laterale Agganciato (Side Panel)**:
+    - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
+    - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.
+    - Mini transcript che riusa i componenti `RichContent`, `ThinkingBlock` e `ToolCard`.
+    - Mini composer per domande di follow-up con gestione della preferenza Enter-to-send.
+    - Pulsante **Stop** (`side.abort`) per interrompere l'elaborazione in corso e pulsante **Chiudi** (`side.close`) con dialogo di conferma che attesta che nessun dato andrà perso dalla conversazione principale.
+    - Azione **"Inserisci nel composer"** per ciascuna risposta dell'assistente che appende il testo alla bozza del composer principale esclusivamente su click esplicito.
+    - Gestione delle causali di chiusura thread (`idle`, `parentClosed`, `error`, `user`) con banner di notifica dedicato.
+
+
+
 

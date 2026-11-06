@@ -688,6 +688,35 @@ class SystemMetricsEvent extends PcpEvent {
   }) : super(type: 'system.metrics');
 }
 
+class SideOpenedEvent extends PcpEvent {
+  String get sideId => payload['sideId'] as String? ?? '';
+  String get parentSessionId => payload['parentSessionId'] as String? ?? '';
+  dynamic get model => payload['model'];
+
+  const SideOpenedEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'side.opened');
+}
+
+class SideClosedEvent extends PcpEvent {
+  String get sideId => payload['sideId'] as String? ?? '';
+  String get reason => payload['reason'] as String? ?? 'user';
+
+  const SideClosedEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'side.closed');
+}
+
 // -----------------------------------------------------------------------------
 // Forward Compatibility: UnknownEvent
 // -----------------------------------------------------------------------------
