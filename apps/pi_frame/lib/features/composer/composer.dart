@@ -10,6 +10,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:file_selector/file_selector.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/composer/composer_settings.dart';
+import '../../data/language/language_settings.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_pricing_helper.dart';
@@ -364,6 +366,26 @@ class _ComposerState extends ConsumerState<Composer> {
       _matchingMentionFiles = [];
     });
     _focusNode.requestFocus();
+  }
+
+  void _insertNewlineAtSelection() {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final int start;
+    final int end;
+    if (selection.isValid && selection.start >= 0) {
+      start = selection.start < selection.end ? selection.start : selection.end;
+      end = selection.start < selection.end ? selection.end : selection.start;
+    } else {
+      start = text.length;
+      end = text.length;
+    }
+    final newText = text.replaceRange(start, end, '\n');
+    _controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + 1),
+    );
+    if (mounted) setState(() {});
   }
 
   @override
@@ -1343,6 +1365,8 @@ class _ComposerState extends ConsumerState<Composer> {
         );
       }
     });
+    final composerSettings = ref.watch(composerSettingsProvider);
+    final strings = ref.watch(appStringsProvider);
     final (
       readOnly,
       readOnlyReason,
@@ -1976,15 +2000,17 @@ class _ComposerState extends ConsumerState<Composer> {
                                     if (event.logicalKey ==
                                             LogicalKeyboardKey.tab ||
                                         event.logicalKey ==
-                                            LogicalKeyboardKey.enter) {
+                                            LogicalKeyboardKey.enter ||
+                                        event.logicalKey ==
+                                            LogicalKeyboardKey.numpadEnter) {
                                       final chosen =
                                           _matchingMentionFiles[_fileMentionSelectedIndex]['path']
                                               ?.toString() ??
                                           '';
                                       if (chosen.isNotEmpty) {
                                         _completeFileMention(chosen);
-                                        return KeyEventResult.handled;
                                       }
+                                      return KeyEventResult.handled;
                                     }
                                     if (event.logicalKey ==
                                         LogicalKeyboardKey.escape) {
@@ -2002,20 +2028,66 @@ class _ComposerState extends ConsumerState<Composer> {
                                       return KeyEventResult.handled;
                                     }
                                   }
-                                  if (event.logicalKey ==
-                                          LogicalKeyboardKey.enter &&
-                                      (HardwareKeyboard
-                                              .instance
-                                              .isMetaPressed ||
-                                          HardwareKeyboard
-                                              .instance
-                                              .isControlPressed)) {
+                                }
+
+                                final isEnter =
+                                    event.logicalKey ==
+                                        LogicalKeyboardKey.enter ||
+                                    event.logicalKey ==
+                                        LogicalKeyboardKey.numpadEnter;
+
+                                if (isEnter &&
+                                    (event is KeyDownEvent ||
+                                        event is KeyRepeatEvent)) {
+                                  // b. IME composition active -> never send
+                                  if (_controller.value.composing.isValid) {
+                                    return KeyEventResult.ignored;
+                                  }
+
+                                  final isShift =
+                                      HardwareKeyboard.instance.isShiftPressed;
+                                  final isCtrl =
+                                      HardwareKeyboard.instance.isControlPressed;
+                                  final isMeta =
+                                      HardwareKeyboard.instance.isMetaPressed;
+                                  final isAlt =
+                                      HardwareKeyboard.instance.isAltPressed;
+                                  final sendWithEnter =
+                                      composerSettings.sendWithEnter;
+
+                                  void triggerSend() {
                                     if (isStreaming) {
                                       _send(streamingBehavior: 'steer');
                                     } else {
                                       _send();
                                     }
-                                    return KeyEventResult.handled;
+                                  }
+
+                                  if (sendWithEnter) {
+                                    // ON mode:
+                                    // Shift+Enter -> newline (manual insertion kept: multiline TextField does not insert \n on Shift+Enter)
+                                    if (isShift) {
+                                      _insertNewlineAtSelection();
+                                      return KeyEventResult.handled;
+                                    }
+                                    // Ctrl/Cmd+Enter or plain Enter sends
+                                    if (isCtrl || isMeta || !isAlt) {
+                                      if (event is KeyDownEvent) {
+                                        triggerSend();
+                                      }
+                                      return KeyEventResult.handled;
+                                    }
+                                  } else {
+                                    // OFF mode:
+                                    // Ctrl/Cmd+Enter sends; everything else returns KeyEventResult.ignored
+                                    // so TextField inserts newlines natively (restore original behavior; numpadEnter included).
+                                    if (isCtrl || isMeta) {
+                                      if (event is KeyDownEvent) {
+                                        triggerSend();
+                                      }
+                                      return KeyEventResult.handled;
+                                    }
+                                    return KeyEventResult.ignored;
                                   }
                                 }
                                 return KeyEventResult.ignored;
@@ -2493,7 +2565,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                         const SizedBox(width: 4),
                                         Tooltip(
-                                          message: 'Steer: interrompe e applica (Ctrl+Invio)',
+                                          message: strings.composerSteerTooltip(
+                                            sendWithEnter:
+                                                composerSettings.sendWithEnter,
+                                          ),
                                           child: Container(
                                             width: 28,
                                             height: 28,
@@ -2692,7 +2767,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                         ],
                                         Tooltip(
-                                          message: 'Invia prompt (Ctrl+Invio)',
+                                          message: strings.composerSendTooltip(
+                                            sendWithEnter:
+                                                composerSettings.sendWithEnter,
+                                          ),
                                           child: PressFeedback(
                                             child: FilledButton(
                                               key: const ValueKey(

@@ -148,6 +148,28 @@ class AppStrings {
   String get updateNoticePackages => isItalian ? 'pacchetti con aggiornamenti' : 'packages with updates';
   String get updateNoticeOpenSettings => isItalian ? 'Dettagli / Aggiorna' : 'Details / Update';
   String get updateNoticeDismiss => isItalian ? 'Ignora' : 'Dismiss';
+
+  // Composer settings & shortcuts
+  String get composerSectionTitle => 'Composer';
+  String get sendWithEnterTitle =>
+      isItalian ? 'Invia con Enter' : 'Send with Enter';
+  String get sendWithEnterSubtitle => isItalian
+      ? 'Quando attivo, premi Invio per inviare e Shift+Invio per una nuova riga. Quando disattivato, usa Ctrl+Invio per inviare e Invio per andare a capo.'
+      : 'When enabled, press Enter to send and Shift+Enter for a new line. When disabled, use Ctrl+Enter to send and Enter for a new line.';
+  String get composerSendTooltipSendWithEnter =>
+      isItalian ? 'Invia prompt (Invio)' : 'Send prompt (Enter)';
+  String get composerSendTooltipDefault =>
+      isItalian ? 'Invia prompt (Ctrl+Invio)' : 'Send prompt (Ctrl+Enter)';
+  String get composerSteerTooltipSendWithEnter =>
+      isItalian ? 'Steer: interrompe e applica (Invio)' : 'Steer: interrupt and apply (Enter)';
+  String get composerSteerTooltipDefault =>
+      isItalian ? 'Steer: interrompe e applica (Ctrl+Invio)' : 'Steer: interrupt and apply (Ctrl+Enter)';
+
+  String composerSendTooltip({required bool sendWithEnter}) =>
+      sendWithEnter ? composerSendTooltipSendWithEnter : composerSendTooltipDefault;
+
+  String composerSteerTooltip({required bool sendWithEnter}) =>
+      sendWithEnter ? composerSteerTooltipSendWithEnter : composerSteerTooltipDefault;
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {
