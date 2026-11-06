@@ -122,6 +122,18 @@ test('gitClient: counts untracked multiline files without a final newline', asyn
   assert.match(diff, /No newline at end of file/);
 });
 
+test('gitClient: counts multiple untracked files across bounded numstat batches', async (t) => {
+  const repo = createTempRepo(t);
+  for (let i = 0; i < 17; i++) {
+    fs.writeFileSync(path.join(repo, `file-${i}.txt`), `line ${i}\n`);
+  }
+
+  const status = await getGitStatus(repo);
+  assert.equal(status.files.length, 17);
+  assert.equal(status.totalAdditions, 17);
+  assert.equal(status.totalDeletions, 0);
+});
+
 test('gitClient: supports an unborn repository with staged files', async (t) => {
   const repo = createTempRepo(t);
   fs.writeFileSync(path.join(repo, 'first commit.txt'), 'one\ntwo\n');
@@ -154,6 +166,10 @@ test('gitClient: parses NUL numstat paths and rename paths containing spaces', a
   assert.ok(special);
   assert.equal(special.additions, 2);
   assert.equal(special.deletions, 0);
+
+  fs.writeFileSync(path.join(repo, 'literal [a].txt'), 'literal\n');
+  fs.writeFileSync(path.join(repo, 'literal a.txt'), 'glob match\n');
+  assert.match(await getGitDiff(repo, 'literal [a].txt'), /\+literal/);
 });
 
 test('gitClient: binary files report zero line counts and retain binary diff output', async (t) => {

@@ -124,6 +124,26 @@ flutter test test/session_changes_review_test.dart
 
 ---
 
+## Input duplicato o caratteri errati nel terminale integrato
+
+**Sintomo:** alcuni tasti vengono mostrati due volte o i caratteri Unicode possono risultare errati.
+
+**Causa:** gli eventi di rilascio tasto non gestiti potevano ricadere nel fallback di inserimento testo di xterm. Inoltre, ogni blocco stdout/stderr veniva decodificato come UTF-8 indipendentemente: un carattere multibyte diviso tra due blocchi poteva corrompersi.
+
+**Correzione:** PiFrame consuma gli eventi di rilascio, gestisce la ripetizione dei tasti, itera l'input per code point e decodifica stdout/stderr come stream UTF-8. Il terminale usa già i token di colore del tema attivo.
+
+---
+
+## Pannelli Repository e Git lenti
+
+**Sintomo:** l'apertura o l'aggiornamento dei pannelli Repository/Git e il caricamento di un diff possono rallentare nei repository con molti file non tracciati.
+
+**Causa:** il diff di un singolo file richiedeva lo stato completo con tutti i conteggi, che calcolava i conteggi dei file non tracciati avviando un processo Git per file in sequenza. Il caricamento Repository risolveva inoltre il percorso reale di ogni file, anche quando molti file condividevano la stessa cartella.
+
+**Correzione:** i conteggi dei file non tracciati sono elaborati in batch limitati; il diff richiede lo stato mirato al percorso, mantenendo il controllo completo quando serve riconoscere un rename staged. Il caricamento Repository riusa la risoluzione canonica delle cartelle.
+
+---
+
 ## Pannelli nascosti tornati visibili al riavvio
 
 **Causa corretta:** la visibilità dei pannelli e il pannello sessioni erano solo in memoria, quindi ogni avvio ripartiva dal layout predefinito.
