@@ -207,6 +207,24 @@ async function getNoIndexNumstat(cwd: string, filePath: string): Promise<Numstat
   }
 }
 
+async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Numstat[]> {
+  const existingPaths = filePaths.filter((filePath) =>
+    fs.existsSync(path.resolve(cwd, ...filePath.split('/')))
+  );
+  const numstats: Numstat[] = [];
+  const batchSize = 16;
+  for (let i = 0; i < existingPaths.length; i += batchSize) {
+    numstats.push(
+      ...await Promise.all(
+        existingPaths.slice(i, i + batchSize).map((filePath) =>
+          getNoIndexNumstat(cwd, filePath)
+        )
+      )
+    );
+  }
+  return numstats;
+}
+
 function parseStatus(cwd: string, statusOutput: string): {
   changes: Map<string, GitFileChange>;
   renameSources: Map<string, string>;
@@ -255,16 +273,12 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   if (headExists) {
     const output = await runGitStrict(['diff', '--numstat', '-z', 'HEAD'], cwd);
     numstats = parseNumstatZ(output);
-    for (const change of changes.values()) {
-      if (change.status !== 'untracked') continue;
-      const fullPath = path.resolve(cwd, ...change.path.split('/'));
-      if (fs.existsSync(fullPath)) numstats.push(await getNoIndexNumstat(cwd, change.path));
-    }
+    const untrackedPaths = Array.from(changes.values())
+      .filter((change) => change.status === 'untracked')
+      .map((change) => change.path);
+    numstats.push(...await getNoIndexNumstats(cwd, untrackedPaths));
   } else {
-    for (const change of changes.values()) {
-      const fullPath = path.resolve(cwd, ...change.path.split('/'));
-      if (fs.existsSync(fullPath)) numstats.push(await getNoIndexNumstat(cwd, change.path));
-    }
+    numstats = await getNoIndexNumstats(cwd, Array.from(changes.keys()));
   }
 
   let totalAdditions = 0;
@@ -301,15 +315,28 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
   }
 
   const normalizedPath = filePath.replace(/\\/g, '/');
-  const status = await getGitStatus(cwd);
-  const change = status.files.find((item) => item.path === normalizedPath);
+  const statusOutput = await runGit(
+    ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${normalizedPath}`],
+    cwd,
+    false
+  ) ?? '';
+  let { changes, renameSources } = parseStatus(cwd, statusOutput);
+  let change = changes.get(normalizedPath);
   const headExists = await hasHead(cwd);
+  if (headExists && change?.stagedStatus === 'A') {
+    const fullStatusOutput = await runGit(
+      ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
+      cwd,
+      false
+    ) ?? '';
+    ({ changes, renameSources } = parseStatus(cwd, fullStatusOutput));
+    change = changes.get(normalizedPath) ?? change;
+  }
   const args = ['diff', ...(headExists ? ['HEAD'] : [])];
   if (headExists) {
     const paths = [normalizedPath];
     if (change?.status === 'renamed') {
-      const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false) ?? '';
-      const source = parseStatus(cwd, statusOutput).renameSources.get(normalizedPath);
+      const source = renameSources.get(normalizedPath);
       if (source) paths.unshift(source);
     }
     args.push('--', ...paths.map((value) => `:(literal)${value}`));

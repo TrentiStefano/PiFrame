@@ -721,15 +721,19 @@ class _ComposerState extends ConsumerState<Composer> {
         if (args.isEmpty) return _showModelPicker(context);
         final models = await notifier.getAvailableModels();
         final target = args.toLowerCase();
-        final selected = models.where((model) {
+        final matches = models.where((model) {
           final id = model['id']?.toString() ?? '';
           final provider = model['provider']?.toString() ?? '';
           final display = model['name']?.toString() ?? id;
           return id.toLowerCase() == target ||
               display.toLowerCase() == target ||
               '$provider/$id'.toLowerCase() == target;
-        }).firstOrNull;
-        if (selected == null) throw StateError('Modello "$args" non trovato.');
+        }).toList();
+        if (matches.isEmpty) throw StateError('Modello "$args" non trovato.');
+        if (matches.length > 1) {
+          throw StateError('Modello ambiguo. Usa provider/id per sceglierlo.');
+        }
+        final selected = matches.single;
         await notifier.setModel(
           selected['provider']?.toString() ?? 'default',
           selected['id']?.toString() ?? args,
@@ -1015,7 +1019,8 @@ class _ComposerState extends ConsumerState<Composer> {
     );
     if (!mounted || !chipContext.mounted) return;
     final tokens = context.tokens;
-    final current = ref.read(sessionStateFamily(widget.sessionId)).currentModel;
+    final currentState = ref.read(sessionStateFamily(widget.sessionId));
+    final currentModelIndex = models.indexWhere(currentState.matchesModel);
 
     if (models.isEmpty) {
       FrameSnackBar.show(
@@ -1044,10 +1049,11 @@ class _ComposerState extends ConsumerState<Composer> {
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         side: BorderSide(color: tokens.borderStrong),
       ),
-      items: models.map((m) {
+      items: models.asMap().entries.map((entry) {
+        final m = entry.value;
         final id = m['id']?.toString() ?? '';
         final name = m['name']?.toString() ?? id;
-        final isCurrent = id == current || name == current;
+        final isCurrent = entry.key == currentModelIndex;
         return PopupMenuItem<Map<String, dynamic>>(
           value: m,
           height: 38,
@@ -1176,9 +1182,9 @@ class _ComposerState extends ConsumerState<Composer> {
       // The first load can precede the daemon connection. Retry instead of silently using an empty catalogue.
       await _loadModels();
       if (!mounted || widget.sessionId != sessionId) return;
-      final currentModel = ref.read(sessionStateFamily(sessionId)).currentModel;
+      final currentState = ref.read(sessionStateFamily(sessionId));
       final model = _models.firstWhere(
-        (model) => model['name'] == currentModel || model['id'] == currentModel,
+        currentState.matchesModel,
         orElse: () => const <String, dynamic>{},
       );
       final maximum = modelContextWindow(model);
@@ -1377,6 +1383,8 @@ class _ComposerState extends ConsumerState<Composer> {
       pendingUiRequests,
       activeToolCallsNotEmpty,
       currentModel,
+      currentModelProvider,
+      currentModelId,
       currentThinkingLevel,
       contextOverride,
     ) = ref.watch(
@@ -1391,6 +1399,8 @@ class _ComposerState extends ConsumerState<Composer> {
           s.pendingUiRequests,
           s.activeToolCalls.isNotEmpty,
           s.currentModel,
+          s.currentModelProvider,
+          s.currentModelId,
           s.currentThinkingLevel,
           s.contextWindowOverride,
         ),
@@ -1478,7 +1488,11 @@ class _ComposerState extends ConsumerState<Composer> {
     final totalQueued = steeringQueue.length + followUpQueue.length;
 
     final activeModelMap = _models.firstWhere(
-      (m) => m['name'] == currentModel || m['id'] == currentModel,
+      (model) => currentModelId != null
+          ? model['id']?.toString() == currentModelId &&
+              (currentModelProvider == null ||
+                  model['provider']?.toString() == currentModelProvider)
+          : model['name'] == currentModel || model['id'] == currentModel,
       orElse: () => const {},
     );
     final isVariablePricing =

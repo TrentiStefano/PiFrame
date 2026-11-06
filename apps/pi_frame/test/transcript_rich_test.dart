@@ -102,8 +102,15 @@ void main() {}
       ),
     );
 
-    expect(find.text('lib/main.dart'), findsOneWidget);
-    expect(find.text('README.md'), findsOneWidget);
+    expect(find.textContaining('lib/main.dart', findRichText: true), findsWidgets);
+    expect(find.textContaining('README.md', findRichText: true), findsWidgets);
+    final selectableText = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .where((paragraph) => paragraph.selectionRegistrar != null)
+        .map((paragraph) => paragraph.text.toPlainText())
+        .join();
+    expect(selectableText, contains('lib/main.dart'));
+    expect(selectableText, contains('README.md'));
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
     expect(find.byTooltip('CTRL+clic per aprire in Esplora file'), findsWidgets);
 
@@ -187,8 +194,8 @@ void main() {}
       ),
     );
 
-    expect(find.text('apps/pi_frame/lib/main.dart'), findsOneWidget);
-    expect(find.text('la guida'), findsOneWidget);
+    expect(find.textContaining('apps/pi_frame/lib/main.dart', findRichText: true), findsWidgets);
+    expect(find.textContaining('la guida', findRichText: true), findsWidgets);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
   });
 }

@@ -124,6 +124,67 @@ flutter test test/session_changes_review_test.dart
 
 ---
 
+## Input duplicato o caratteri errati nel terminale integrato
+
+**Sintomo:** alcuni tasti vengono mostrati due volte o i caratteri Unicode possono risultare errati.
+
+**Causa:** gli eventi di rilascio tasto non gestiti potevano ricadere nel fallback di inserimento testo di xterm. Inoltre, ogni blocco stdout/stderr veniva decodificato come UTF-8 indipendentemente: un carattere multibyte diviso tra due blocchi poteva corrompersi.
+
+**Correzione:** PiFrame consuma gli eventi di rilascio, gestisce la ripetizione dei tasti, itera l'input per code point e decodifica stdout/stderr come stream UTF-8. Il terminale usa già i token di colore del tema attivo.
+
+## Comando PowerShell ripetuto e output indentato
+
+**Sintomo:** su Windows il comando appare una seconda volta sotto il prompt e l'output inizia spostato a destra.
+
+**Causa:** PiFrame mostra l'input mentre viene digitato. PowerShell, avviato con stdin/stdout collegati a pipe invece che a un terminale, rimanda anche una copia del comando; il suo eco termina con `LF` senza `CR`. xterm va quindi alla riga successiva senza riportare il cursore alla colonna zero, e l'output eredita l'offset del comando.
+
+**Correzione:** PiFrame riconosce e rimuove dallo stdout l'eco del comando già mostrato localmente, incluso il suo `LF`. I risultati tornano a iniziare dalla colonna zero.
+
+---
+
+## `/agents` → Workflows riapre il menu Agents
+
+**Sintomo:** nel menu `/agents` scegli **Workflows (1)** e premi **Invia**; ricompare subito la domanda **Agents**.
+
+**Causa:** con un solo workflow, `@tintinweb/pi-subagents` apre una vista TUI personalizzata (`ctx.ui.custom()`). In RPC questa vista non esiste e restituisce subito `undefined`, quindi l'estensione mostra di nuovo il menu principale.
+
+**Correzione:** PiFrame riconosce la scelta **Workflows (N)** del menu Agents, annulla la richiesta e apre il proprio pannello **Agenti**, che mostra workflow e sottoagenti. L'estensione non viene modificata.
+
+---
+
+## Pannello Agenti: agenti finiti mostrati "In corso" e Git non minimizzato
+
+**Sintomi:**
+- agenti già terminati restano "In corso";
+- le sessioni figlie dei workflow compaiono come nomi di file, senza indicare cosa fanno;
+- entrando in una sessione con il pannello Agenti già aperto, Git Changes resta espanso.
+
+**Cause:**
+- il daemon leggeva solo la prima `<task-notification>` di ogni messaggio e ignorava i record `subagents:record` che pi-subagents salva a fine agente;
+- le sessioni figlie senza una chiamata `Agent` collegata non avevano né stato né attività;
+- la minimizzazione di Git scattava solo sul passaggio chiuso → aperto, non quando il pannello era già aperto all'ingresso nella sessione;
+- una richiesta `session.subagents` senza risposta bloccava tutti gli aggiornamenti successivi.
+
+**Correzione:**
+- il daemon legge tutte le notifiche e i record finali;
+- per ogni sessione figlia ricava tipo, compito, attività corrente, inizio e ultimo aggiornamento; una sessione figlia ferma da 10 minuti è considerata terminata;
+- il pannello minimizza Git anche quando è già aperto all'ingresso nella sessione;
+- le richieste al daemon scadono dopo 30 secondi.
+
+Le correzioni del daemon valgono solo dopo il suo aggiornamento e riavvio.
+
+---
+
+## Pannelli Repository e Git lenti
+
+**Sintomo:** l'apertura o l'aggiornamento dei pannelli Repository/Git e il caricamento di un diff possono rallentare nei repository con molti file non tracciati.
+
+**Causa:** il diff di un singolo file richiedeva lo stato completo con tutti i conteggi, che calcolava i conteggi dei file non tracciati avviando un processo Git per file in sequenza. Il caricamento Repository risolveva inoltre il percorso reale di ogni file, anche quando molti file condividevano la stessa cartella.
+
+**Correzione:** i conteggi dei file non tracciati sono elaborati in batch limitati; il diff richiede lo stato mirato al percorso, mantenendo il controllo completo quando serve riconoscere un rename staged. Il caricamento Repository riusa la risoluzione canonica delle cartelle.
+
+---
+
 ## Pannelli nascosti tornati visibili al riavvio
 
 **Causa corretta:** la visibilità dei pannelli e il pannello sessioni erano solo in memoria, quindi ogni avvio ripartiva dal layout predefinito.
@@ -524,6 +585,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
    - corpo (messaggio e opzioni) scrollabile con altezza massima: pulsanti Annulla/Invia sempre visibili anche con molte opzioni o testo lungo;
    - i pulsanti non dipendono più dall'esito del claim: solo "già in uso da un altro client" blocca la card; claim lento, fallito o offline non la disabilita (il daemon arbitra comunque la risposta);
    - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
+4. **Modelli con lo stesso nome su provider diversi**: la sessione conservava solo il nome visualizzato e il selettore poteva evidenziare più righe o risolvere la voce al primo provider. PiFrame ora conserva provider e ID; menu e look-up usano entrambi, il menu della sessione distingue i provider e `/model` richiede `provider/id` quando il nome è ambiguo.
 
 ---
 

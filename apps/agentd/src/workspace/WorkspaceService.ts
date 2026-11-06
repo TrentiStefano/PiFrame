@@ -84,6 +84,7 @@ export class WorkspaceService {
     const root = await this.resolveRepositoryRoot(cwd);
     const output = await runGitStrict(['ls-files', '--cached', '--others', '--exclude-standard', '-z'], root);
     const files: FileInfo[] = [];
+    const realParents = new Map<string, Promise<string>>();
     let truncated = false;
     const items = output.split('\0').filter(Boolean);
     const BATCH_SIZE = 64;
@@ -106,8 +107,13 @@ export class WorkspaceService {
           try {
             const entry = await fs.promises.lstat(target);
             if (!entry.isFile() || entry.isSymbolicLink()) return null;
-            const canonical = await fs.promises.realpath(target);
-            if (!inside(root, canonical)) return null;
+            const parent = path.dirname(target);
+            let canonicalParent = realParents.get(parent);
+            if (!canonicalParent) {
+              canonicalParent = fs.promises.realpath(parent);
+              realParents.set(parent, canonicalParent);
+            }
+            if (!inside(root, await canonicalParent)) return null;
             return { path: relativePath, sizeBytes: entry.size };
           } catch (error: any) {
             if (error?.code !== 'ENOENT') throw error;

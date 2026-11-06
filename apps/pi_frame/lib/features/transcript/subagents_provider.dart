@@ -22,6 +22,14 @@ class SubagentItem {
   final int? timestamp;
   final bool isSteeringOpen;
   final bool isUnlinked;
+  /// Agent definition the child ran as (`general-purpose`, `Explore`, ...).
+  final String? agentType;
+  /// One distinctive line of the task the agent was given.
+  final String? prompt;
+  /// What the agent is doing now (last tool call) or its last answer line.
+  final String? activity;
+  final int? startedAt;
+  final int? updatedAt;
 
   const SubagentItem({
     required this.id,
@@ -36,6 +44,11 @@ class SubagentItem {
     this.timestamp,
     this.isSteeringOpen = false,
     this.isUnlinked = false,
+    this.agentType,
+    this.prompt,
+    this.activity,
+    this.startedAt,
+    this.updatedAt,
   });
 
   bool get isRunning => status == 'running' || status == 'steering';
@@ -71,6 +84,11 @@ class SubagentItem {
       timestamp: timestamp ?? this.timestamp,
       isSteeringOpen: isSteeringOpen ?? this.isSteeringOpen,
       isUnlinked: isUnlinked ?? this.isUnlinked,
+      agentType: agentType,
+      prompt: prompt,
+      activity: activity,
+      startedAt: startedAt,
+      updatedAt: updatedAt,
     );
   }
 }
@@ -295,7 +313,9 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _fetchingFromDaemon = true;
     try {
       // Keep one request in flight so a slow response is not discarded or duplicated.
-      final daemonSubagents = await client.getSubagents(sessionId);
+      // A daemon that never answers must not block every later refresh.
+      final daemonSubagents =
+          await client.getSubagents(sessionId).timeout(const Duration(seconds: 30));
       if (!mounted) return;
       final nextIds = daemonSubagents.map((raw) => raw['id']).toSet();
       final removedIds = _daemonSubagents
@@ -361,9 +381,16 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
         timestamp: existing?.timestamp,
         isSteeringOpen: isSteeringOpen,
         isUnlinked: raw['unlinked'] == true,
+        agentType: raw['agentType']?.toString() ?? existing?.agentType,
+        prompt: raw['prompt']?.toString() ?? existing?.prompt,
+        activity: raw['activity']?.toString() ?? existing?.activity,
+        startedAt: _epochMs(raw['startedAt']) ?? existing?.startedAt,
+        updatedAt: _epochMs(raw['updatedAt']) ?? existing?.updatedAt,
       );
     }
   }
+
+  static int? _epochMs(Object? value) => value is num && value.isFinite ? value.toInt() : null;
 
   void _readOutputFiles() {
     // Subagent output files are read from the host disk; the browser gets the

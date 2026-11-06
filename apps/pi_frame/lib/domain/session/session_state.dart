@@ -135,6 +135,8 @@ class SessionState {
   final List<String> followUpQueue;
   final List<Map<String, dynamic>> pendingUiRequests;
   final String? currentModel;
+  final String? currentModelProvider;
+  final String? currentModelId;
   final String? currentThinkingLevel;
   final Map<String, dynamic>? usage;
   final Map<String, dynamic>? sessionStats;
@@ -163,6 +165,8 @@ class SessionState {
     this.followUpQueue = const [],
     this.pendingUiRequests = const [],
     this.currentModel,
+    this.currentModelProvider,
+    this.currentModelId,
     this.currentThinkingLevel,
     this.usage,
     this.sessionStats,
@@ -178,6 +182,20 @@ class SessionState {
   String get currentStreamingText => streamingTextBlocks.values.join();
 
   String get currentStreamingThinking => streamingThinkingBlocks.values.join();
+
+  bool matchesModel(Map<String, dynamic> model) {
+    final provider = currentModelProvider;
+    if (provider != null &&
+        provider.isNotEmpty &&
+        model['provider']?.toString() != provider) {
+      return false;
+    }
+    if (currentModelId != null) {
+      return model['id']?.toString() == currentModelId;
+    }
+    return model['id']?.toString() == currentModel ||
+        model['name']?.toString() == currentModel;
+  }
 
   bool get isStreaming =>
       streamingTextBlocks.isNotEmpty ||
@@ -202,6 +220,8 @@ class SessionState {
     List<String>? followUpQueue,
     List<Map<String, dynamic>>? pendingUiRequests,
     String? currentModel,
+    String? currentModelProvider,
+    String? currentModelId,
     String? currentThinkingLevel,
     Map<String, dynamic>? usage,
     Map<String, dynamic>? sessionStats,
@@ -232,6 +252,8 @@ class SessionState {
       followUpQueue: followUpQueue ?? this.followUpQueue,
       pendingUiRequests: pendingUiRequests ?? this.pendingUiRequests,
       currentModel: currentModel ?? this.currentModel,
+      currentModelProvider: currentModelProvider ?? this.currentModelProvider,
+      currentModelId: currentModelId ?? this.currentModelId,
       currentThinkingLevel: currentThinkingLevel ?? this.currentThinkingLevel,
       usage: usage ?? this.usage,
       sessionStats: sessionStats ?? this.sessionStats,

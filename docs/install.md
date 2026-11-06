@@ -132,6 +132,19 @@ Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzio
 - Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
 - Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
 
+## Pannello Agenti e Workflow
+
+Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
+
+Il pannello mostra gli agenti come un albero che parte dalla **Sessione principale**:
+
+- **Workflow**: nome, stato, durata, una barra con un segmento per agente (verde finito, colorato al lavoro, rosso errore) e le fasi dichiarate in `meta`. Sotto il workflow sono agganciate le sue sessioni figlie, cioè gli agenti avviati mentre il workflow era attivo. Il percorso dello script non viene mostrato. Espanso, mostra descrizione e risultato finale; se il daemon non fornisce le sessioni figlie, sull'app desktop usa il journal `<runId>.workflow.jsonl`.
+- **Agenti**: compito (per gli agenti di workflow, la prima riga del prompt che non condividono con gli altri, per esempio `COMPITO: …`), tipo, modello, costo (o `N/D`), durata e attività corrente: lo strumento in uso con il suo argomento principale mentre lavora, l'ultima riga della risposta quando ha finito. I rami attivi hanno un anello animato e una scintilla che scorre lungo il collegamento. Espanso, un agente mostra l'output; gli agenti `Agent` hanno anche guida (steer) e interruzione.
+
+Il daemon legge l'attività dai file di sessione delle sessioni figlie (`~/.pi/agent/sessions`). Una sessione figlia senza attività per 10 minuti è considerata terminata. Lo stato finale degli agenti usa anche i record `subagents:record` salvati da pi-subagents. Serve un daemon aggiornato: con un daemon precedente il pannello mostra solo nome e stato.
+
+Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della vista TUI, che non è disponibile in RPC. Nella barra Sessioni, una sessione resta segnata come in corso finché i suoi sottoagenti o workflow in background non terminano.
+
 ## Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.

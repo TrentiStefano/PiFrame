@@ -21,6 +21,8 @@ class TerminalTabSession {
   int? exitCode;
   StreamSubscription? _stdoutSub;
   StreamSubscription? _stderrSub;
+  final List<String> _pendingPowerShellEchoes = [];
+  String _stdoutBuffer = '';
 
   final List<String> history = [];
   String currentInput = '';
@@ -39,6 +41,46 @@ class TerminalTabSession {
     try {
       process?.kill();
     } catch (_) {}
+  }
+
+  // PowerShell echoes piped commands with LF-only endings after local echo.
+  void writeProcessOutput(String text) {
+    if (shellName != 'PowerShell' || _pendingPowerShellEchoes.isEmpty) {
+      terminal.write(text);
+      return;
+    }
+
+    _stdoutBuffer += text;
+    while (_stdoutBuffer.isNotEmpty) {
+      final lineEnd = _stdoutBuffer.indexOf('\n');
+      if (lineEnd < 0) {
+        final isEchoPrefix = _pendingPowerShellEchoes.any(
+          (command) => command.startsWith(_stdoutBuffer),
+        );
+        if (isEchoPrefix) return;
+        terminal.write(_stdoutBuffer);
+        _stdoutBuffer = '';
+        return;
+      }
+
+      final rawLine = _stdoutBuffer.substring(0, lineEnd);
+      final line = rawLine.endsWith('\r')
+          ? rawLine.substring(0, rawLine.length - 1)
+          : rawLine;
+      final echoIndex = _pendingPowerShellEchoes.indexOf(line);
+      if (echoIndex >= 0) {
+        _pendingPowerShellEchoes.removeAt(echoIndex);
+      } else {
+        terminal.write(_stdoutBuffer.substring(0, lineEnd + 1));
+      }
+      _stdoutBuffer = _stdoutBuffer.substring(lineEnd + 1);
+
+      if (_pendingPowerShellEchoes.isEmpty && _stdoutBuffer.isNotEmpty) {
+        terminal.write(_stdoutBuffer);
+        _stdoutBuffer = '';
+        return;
+      }
+    }
   }
 
   void handleInput(String data) {
@@ -87,9 +129,8 @@ class TerminalTabSession {
     }
 
     // Process character sequence
-    for (int i = 0; i < data.length; i++) {
-      final char = data[i];
-      final code = char.codeUnitAt(0);
+    for (final code in data.runes) {
+      final char = String.fromCharCode(code);
 
       // Backspace (\x08 or \x7f)
       if (code == 8 || code == 127) {
@@ -105,6 +146,9 @@ class TerminalTabSession {
         currentInput = '';
         if (lineToSend.trim().isNotEmpty) {
           history.add(lineToSend);
+        }
+        if (shellName == 'PowerShell' && lineToSend.isNotEmpty) {
+          _pendingPowerShellEchoes.add(lineToSend);
         }
         historyIndex = history.length;
         try {
@@ -143,6 +187,9 @@ class TerminalTabSession {
       historyIndex = history.length;
     }
     terminal.write('$command\r\n');
+    if (shellName == 'PowerShell' && command.isNotEmpty) {
+      _pendingPowerShellEchoes.add(command);
+    }
     try {
       process?.stdin.writeln(command);
     } catch (_) {}
@@ -331,14 +378,18 @@ class _IntegratedTerminalPanelState
         session.handleInput(data);
       };
 
-      session._stdoutSub = process.stdout.listen((bytes) {
+      session._stdoutSub = const Utf8Decoder(allowMalformed: true)
+          .bind(process.stdout)
+          .listen((text) {
         if (!mounted) return;
-        session.terminal.write(utf8.decode(bytes, allowMalformed: true));
+        session.writeProcessOutput(text);
       });
 
-      session._stderrSub = process.stderr.listen((bytes) {
+      session._stderrSub = const Utf8Decoder(allowMalformed: true)
+          .bind(process.stderr)
+          .listen((text) {
         if (!mounted) return;
-        session.terminal.write(utf8.decode(bytes, allowMalformed: true));
+        session.terminal.write(text);
       });
 
       process.exitCode.then((code) {
@@ -678,7 +729,9 @@ class _IntegratedTerminalPanelState
   }
 
   KeyEventResult _handleTerminalKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) {
+    // Stop key-up text from falling through to xterm's insertion fallback.
+    if (event is KeyUpEvent) return KeyEventResult.handled;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
 

@@ -6,6 +6,8 @@ import 'package:pi_frame/app/desktop_chrome.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/features/transcript/subagents_provider.dart';
+import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 
 void main() {
@@ -194,4 +196,60 @@ void main() {
     expect(find.text('REPOSITORY'), findsOneWidget);
     expect(find.byTooltip('Espandi pannello Repository'), findsOneWidget);
   });
+
+  for (final preOpened in [false, true]) testWidgets(
+      preOpened
+          ? 'entering a session with the agents panel open collapses Git Changes'
+          : 'opening the agents panel collapses Git Changes', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final container = ProviderContainer(
+      overrides: [
+        desktopWindowLifecycleProvider.overrideWithValue(false),
+        desktopChromeProvider.overrideWithValue(false),
+        activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+        connectionStateProvider.overrideWith(
+          (ref) => Stream.value(DaemonConnectionState.connected),
+        ),
+        sessionStateFamily('session_1').overrideWith(
+          (ref) => SessionStateNotifier('session_1', null)
+            ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+        ),
+        repositoryStateProvider('session_1').overrideWith(
+          (ref) => RepositoryController('session_1', () => null),
+        ),
+        subagentsFamily('session_1').overrideWith(
+          (ref) => _FixedSubagents(ref, 'session_1', const [
+            SubagentItem(id: 'a1', name: 'Scout', status: 'completed'),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    if (preOpened) container.read(agentActivityPanelOpenProvider('session_1').notifier).state = true;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: AppShell()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    if (!preOpened) {
+      expect(find.byTooltip('Collassa pannello Git Changes'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+    expect(find.byTooltip('Espandi pannello Git Changes'), findsOneWidget);
+  });
+}
+
+class _FixedSubagents extends SubagentsNotifier {
+  _FixedSubagents(super.ref, super.sessionId, List<SubagentItem> initial) {
+    state = initial;
+  }
 }

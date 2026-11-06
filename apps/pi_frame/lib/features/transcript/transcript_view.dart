@@ -19,12 +19,11 @@ import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
-import 'subagent_panel.dart';
 import 'subagents_provider.dart';
 import 'todo_panel.dart';
 import 'todo_provider.dart';
 
-enum _ActiveBookTab { none, todos, subagents }
+enum _ActiveBookTab { none, todos }
 
 class BottomAnchoredScrollController extends ScrollController {
   BottomAnchoredScrollController({
@@ -228,7 +227,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   FrameTokens? _cachedHeaderTokens;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
   _ActiveBookTab _activeBookTab = _ActiveBookTab.none;
-  int _lastRunningSubagentCount = 0;
   int _lastActiveTodoCount = 0;
   bool _userManuallyToggledTabs = false;
   String? _trackedSessionId;
@@ -284,7 +282,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _userManuallyToggledTabs = false;
       _activeBookTab = _ActiveBookTab.none;
       _lastActiveTodoCount = 0;
-      _lastRunningSubagentCount = 0;
       _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -1468,7 +1465,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final cost = mainAgentCost;
 
     final activeTodoCount = todos.where((t) => !t.isCompleted).length;
-    final runningSubagentCount = subagents.where((s) => !s.isUnlinked && s.isRunning).length;
 
     final isNewSession = _trackedSessionId != widget.sessionId;
     if (isNewSession) {
@@ -1476,19 +1472,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _activeBookTab = _ActiveBookTab.none;
       _userManuallyToggledTabs = false;
       _lastActiveTodoCount = activeTodoCount;
-      _lastRunningSubagentCount = runningSubagentCount;
     } else {
-      if (runningSubagentCount > _lastRunningSubagentCount) {
-        if (!_userManuallyToggledTabs) {
-          _activeBookTab = _ActiveBookTab.subagents;
-        }
-      } else if (activeTodoCount > _lastActiveTodoCount) {
-        if (!_userManuallyToggledTabs && _activeBookTab != _ActiveBookTab.subagents) {
-          _activeBookTab = _ActiveBookTab.todos;
-        }
+      if (activeTodoCount > _lastActiveTodoCount && !_userManuallyToggledTabs) {
+        _activeBookTab = _ActiveBookTab.todos;
       }
       _lastActiveTodoCount = activeTodoCount;
-      _lastRunningSubagentCount = runningSubagentCount;
     }
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
@@ -1588,14 +1576,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           mainAgentCost: mainAgentCost,
           subagentsCost: subagentsCost,
         ),
-        if (todos.isNotEmpty || subagents.isNotEmpty)
+        if (todos.isNotEmpty)
           _buildUnifiedBookTabsBar(
             context,
             tokens,
             todos,
-            subagents,
-            subagentsCost,
-            runningSubagentCount,
             isCompact,
           ),
         Expanded(
@@ -1858,14 +1843,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           hideBookTab: true,
                           onClose: () => _toggleBookTab(_ActiveBookTab.todos),
                         )
-                      : _activeBookTab == _ActiveBookTab.subagents && subagents.isNotEmpty
-                          ? SubagentsPopDown(
-                              sessionId: widget.sessionId,
-                              isExpanded: true,
-                              hideBookTab: true,
-                              onClose: () => _toggleBookTab(_ActiveBookTab.subagents),
-                            )
-                          : const SizedBox.shrink(),
+                      : const SizedBox.shrink(),
                 ),
               ),
 
@@ -2206,9 +2184,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     BuildContext context,
     FrameTokens tokens,
     List<TodoItem> todos,
-    List<SubagentItem> subagents,
-    double subagentsCost,
-    int runningSubagentCount,
     bool isCompact,
   ) {
     final completedCount = todos.where((t) => t.isCompleted).length;
@@ -2304,97 +2279,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           color: _activeBookTab == _ActiveBookTab.todos
                               ? tokens.accent
                               : tokens.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (todos.isNotEmpty && subagents.isNotEmpty)
-                const SizedBox(width: 6),
-              if (subagents.isNotEmpty)
-                InkWell(
-                  key: const ValueKey('subagents-book-tab'),
-                  onTap: () => _toggleBookTab(_ActiveBookTab.subagents),
-                  borderRadius: _activeBookTab == _ActiveBookTab.subagents
-                      ? const BorderRadius.vertical(top: Radius.circular(6))
-                      : BorderRadius.circular(6),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: _activeBookTab == _ActiveBookTab.subagents ? 4.5 : 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _activeBookTab == _ActiveBookTab.subagents
-                          ? tokens.surface
-                          : tokens.surfaceElevated.withValues(alpha: 0.6),
-                      borderRadius: _activeBookTab == _ActiveBookTab.subagents
-                          ? const BorderRadius.vertical(top: Radius.circular(6))
-                          : BorderRadius.circular(6),
-                      border: Border.all(
-                        color: _activeBookTab == _ActiveBookTab.subagents
-                            ? tokens.borderStrong
-                            : tokens.borderStrong.withValues(alpha: 0.6),
-                        width: 1,
-                      ),
-                      boxShadow: _activeBookTab == _ActiveBookTab.subagents
-                          ? []
-                          : [
-                              BoxShadow(
-                                color: tokens.overlay.withValues(alpha: 0.08),
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.hub_outlined,
-                          size: 12,
-                          color: tokens.syntaxFunction,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Subagenti (${subagents.where((s) => !s.isUnlinked).length})',
-                          style: TextStyle(
-                            color: _activeBookTab == _ActiveBookTab.subagents
-                                ? tokens.textPrimary
-                                : tokens.textSecondary,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (subagentsCost > 0) ...[
-                          const SizedBox(width: 5),
-                          Text(
-                            '${subagents.any((s) => !s.isUnlinked && s.cost == null) ? 'Parziale ' : ''}\$${subagentsCost.toStringAsFixed(4)}',
-                            style: TextStyle(
-                              color: tokens.syntaxString,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
-                          ),
-                        ],
-                        if (runningSubagentCount > 0) ...[
-                          const SizedBox(width: 5),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: tokens.syntaxKeyword,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(width: 4),
-                        Icon(
-                          _activeBookTab == _ActiveBookTab.subagents
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
-                          size: 13,
-                          color: tokens.textMuted,
                         ),
                       ],
                     ),

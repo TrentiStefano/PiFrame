@@ -8,6 +8,35 @@ import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+class _DuplicateNamePickerSession extends SessionStateNotifier {
+  _DuplicateNamePickerSession() : super('slow-picker', null) {
+    state = const SessionState(
+      sessionId: 'slow-picker',
+      cwd: '/fixture',
+      currentModel: 'Shared',
+      currentModelProvider: 'anthropic',
+      currentModelId: 'shared-id',
+    );
+  }
+
+  final selected = <String>[];
+
+  @override
+  Future<List<Map<String, dynamic>>> getAvailableModels() async => [
+    {
+      'provider': 'github-copilot',
+      'id': 'shared-id',
+      'name': 'Shared',
+    },
+    {'provider': 'anthropic', 'id': 'shared-id', 'name': 'Shared'},
+  ];
+
+  @override
+  Future<void> setModel(String provider, String modelId) async {
+    selected.add('$provider/$modelId');
+  }
+}
+
 class _SlowPickerSession extends SessionStateNotifier {
   _SlowPickerSession() : super('slow-picker', null) {
     state = const SessionState(
@@ -52,7 +81,7 @@ class _SlowPickerSession extends SessionStateNotifier {
 }
 
 void main() {
-  Future<void> mount(WidgetTester tester, _SlowPickerSession session) async {
+  Future<void> mount(WidgetTester tester, SessionStateNotifier session) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -103,6 +132,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.selected, ['fixture/b']);
     expect(find.byType(PopupMenuItem<Map<String, dynamic>>), findsNothing);
+  });
+
+  testWidgets('same-name models mark and select only the active provider', (
+    tester,
+  ) async {
+    final session = _DuplicateNamePickerSession();
+    await mount(tester, session);
+
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    final menuItems = find.byType(PopupMenuItem<Map<String, dynamic>>);
+    expect(menuItems, findsNWidgets(2));
+    expect(
+      find.descendant(of: menuItems, matching: find.byIcon(Icons.check)),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('github-copilot'));
+    await tester.pumpAndSettle();
+    expect(session.selected, ['github-copilot/shared-id']);
   });
 
   testWidgets('the model menu can be opened again after it was closed', (
