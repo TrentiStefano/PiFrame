@@ -204,7 +204,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     const countAfter = receivedMessages.filter((m) => m.type === 'system.metrics').length;
     assert.equal(countAfter, countBefore, 'No additional system.metrics events should arrive after unsubscribe');
   } finally {
-    dispatcher.dispose();
+    await dispatcher.dispose();
     client.close();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
   }

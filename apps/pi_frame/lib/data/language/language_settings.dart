@@ -385,6 +385,53 @@ class AppStrings {
       : 'Remote access: agent configuration is read-only.';
   String get agentsReload => isItalian ? 'Ricarica' : 'Reload';
   String get agentsNotAvailableShort => isItalian ? 'n/d' : 'N/A';
+
+  // Side Conversation
+  String get sideConversationTitle =>
+      isItalian ? 'Conversazione laterale' : 'Side conversation';
+  String get sideReadOnlyBadge => 'Side · read-only';
+  String get sideNotPartOfMain => isItalian
+      ? 'Non fa parte della conversazione principale'
+      : 'Not part of the main conversation';
+  String get sideSlashDescription => isItalian
+      ? 'Conversazione laterale in sola lettura'
+      : 'Read-only side conversation';
+  String get sideInsertIntoComposer =>
+      isItalian ? 'Inserisci nel composer' : 'Insert into composer';
+  String get sideInsertedIntoComposer =>
+      isItalian ? 'Inserito nel composer' : 'Inserted into composer';
+  String get sideCloseConfirmTitle =>
+      isItalian ? 'Chiudi conversazione laterale' : 'Close side conversation';
+  String get sideCloseConfirmContent => isItalian
+      ? 'Nessun dato andrà perso nella conversazione principale.'
+      : 'Nothing is lost from the main conversation.';
+  String get sideClosedNoticeIdle => isItalian
+      ? 'Conversazione laterale chiusa per inattività.'
+      : 'Side conversation closed due to inactivity.';
+  String get sideClosedNoticeParentClosed => isItalian
+      ? 'Conversazione laterale chiusa perché la sessione genitore è stata chiusa.'
+      : 'Side conversation closed because the parent session was closed.';
+  String get sideClosedNoticeError => isItalian
+      ? 'Conversazione laterale chiusa a causa di un errore.'
+      : 'Side conversation closed due to an error.';
+  String get sideClosedNoticeUser =>
+      isItalian ? 'Conversazione laterale chiusa.' : 'Side conversation closed.';
+  String get sideMiniComposerHint => isItalian
+      ? 'Fai una domanda laterale...'
+      : 'Ask a side question...';
+  String get sideStopTooltip =>
+      isItalian ? 'Interrompi risposta' : 'Stop response';
+  String get sideCloseTooltip =>
+      isItalian ? 'Chiudi conversazione laterale' : 'Close side conversation';
+  String get sideToggleActionTitle => isItalian
+      ? 'Conversazione laterale (Ctrl+Shift+B)'
+      : 'Side conversation (Ctrl+Shift+B)';
+  String get sideToggleActionSubtitle => isItalian
+      ? 'Apri o chiudi il pannello laterale di sola lettura'
+      : 'Open or toggle read-only side conversation panel';
+  String get sideOpening => isItalian
+      ? 'Apertura conversazione laterale...'
+      : 'Opening side conversation...';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {

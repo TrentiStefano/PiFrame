@@ -1139,6 +1139,46 @@ class PcpClient {
     );
   }
 
+  Future<Map<String, dynamic>> openSide(
+    String sessionId, {
+    String? question,
+  }) {
+    final cmd = PcpCommand.sideOpen(
+      commandId: newCommandId('side_open'),
+      sessionId: sessionId,
+      question: question,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sidePrompt(
+    String sideId,
+    String text,
+  ) {
+    final cmd = PcpCommand.sidePrompt(
+      commandId: newCommandId('side_prompt'),
+      sideId: sideId,
+      text: text,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sideAbort(String sideId) {
+    final cmd = PcpCommand.sideAbort(
+      commandId: newCommandId('side_abort'),
+      sideId: sideId,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sideClose(String sideId) {
+    final cmd = PcpCommand.sideClose(
+      commandId: newCommandId('side_close'),
+      sideId: sideId,
+    );
+    return sendCommand(cmd);
+  }
+
   Stream<PcpEvent> events(String sessionId) {
     return _eventControllers
         .putIfAbsent(sessionId, () => StreamController<PcpEvent>.broadcast())

@@ -34,6 +34,8 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
+import '../features/side/side_panel.dart';
+import '../features/side/side_provider.dart';
 import '../data/metrics/nerd_stats_settings.dart';
 import '../data/metrics/system_metrics_controller.dart';
 import '../features/metrics/nerd_stats_bar.dart';
@@ -307,9 +309,22 @@ class _AppShellState extends ConsumerState<AppShell>
             child: Column(
               children: [
                 Expanded(
-                  child: TranscriptView(
-                    key: ValueKey('transcript_$activeId'),
-                    sessionId: activeId,
+                  child: Stack(
+                    children: [
+                      TranscriptView(
+                        key: ValueKey('transcript_$activeId'),
+                        sessionId: activeId,
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: SidePanel(
+                          key: ValueKey('side_panel_$activeId'),
+                          sessionId: activeId,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Composer(
@@ -323,12 +338,21 @@ class _AppShellState extends ConsumerState<AppShell>
     return Focus(
       autofocus: true,
       onKeyEvent: (_, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.keyK &&
-            (HardwareKeyboard.instance.isMetaPressed ||
-                HardwareKeyboard.instance.isControlPressed)) {
-          _palette();
-          return KeyEventResult.handled;
+        if (event is KeyDownEvent) {
+          final isMetaOrControl = HardwareKeyboard.instance.isMetaPressed ||
+              HardwareKeyboard.instance.isControlPressed;
+          if (event.logicalKey == LogicalKeyboardKey.keyK && isMetaOrControl) {
+            _palette();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyB &&
+              isMetaOrControl &&
+              HardwareKeyboard.instance.isShiftPressed) {
+            if (activeId != null) {
+              ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+              return KeyEventResult.handled;
+            }
+          }
         }
         return KeyEventResult.ignored;
       },

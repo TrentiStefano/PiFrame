@@ -525,4 +525,94 @@ void main() {
     );
     expect(stripped, 'Working directory has uncommitted changes');
   });
+
+  test('openSide sends side.open command with question and returns result', () async {
+    final openFuture = client.openSide('session-1', question: 'explain this');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.open');
+    expect(commands.last['sessionId'], 'session-1');
+    expect(commands.last['payload']['sessionId'], 'session-1');
+    expect(commands.last['payload']['question'], 'explain this');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'sideId': 'side-123',
+          'streamId': 'stream-456',
+        },
+      }),
+    );
+
+    final res = await openFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['sideId'], 'side-123');
+    expect(payload['streamId'], 'stream-456');
+  });
+
+  test('sidePrompt sends side.prompt command', () async {
+    final promptFuture = client.sidePrompt('side-123', 'follow up question');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.prompt');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(commands.last['payload']['text'], 'follow up question');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'prompted': true},
+      }),
+    );
+
+    final res = await promptFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['prompted'], true);
+  });
+
+  test('sideAbort sends side.abort command', () async {
+    final abortFuture = client.sideAbort('side-123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.abort');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'aborted': true},
+      }),
+    );
+
+    final res = await abortFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['aborted'], true);
+  });
+
+  test('sideClose sends side.close command', () async {
+    final closeFuture = client.sideClose('side-123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.close');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'closed': true},
+      }),
+    );
+
+    final res = await closeFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['closed'], true);
+  });
 }

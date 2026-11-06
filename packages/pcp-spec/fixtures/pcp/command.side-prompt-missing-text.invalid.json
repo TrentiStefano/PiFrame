@@ -1,0 +1,12 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "cmd_01HZCMD00000000000000006",
+  "ts": 1726640000100,
+  "commandId": "cmd_01HZIDEMPOTENT000000006",
+  "sessionId": "side_01HZSESSION0000000000001",
+  "type": "side.prompt",
+  "payload": {
+    "sideId": "side_01HZSESSION0000000000001"
+  }
+}

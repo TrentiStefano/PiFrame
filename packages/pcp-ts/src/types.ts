@@ -154,7 +154,11 @@ export type PcpCommandType =
   | 'remote.revokeAll'
   | 'remote.setOptions'
   | 'system.metrics.subscribe'
-  | 'system.metrics.unsubscribe';
+  | 'system.metrics.unsubscribe'
+  | 'side.open'
+  | 'side.prompt'
+  | 'side.abort'
+  | 'side.close';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
@@ -362,7 +366,9 @@ export type PcpEventType =
   | 'session.indexChanged'
   | 'daemon.configChanged'
   | 'remote.statusChanged'
-  | 'system.metrics';
+  | 'system.metrics'
+  | 'side.opened'
+  | 'side.closed';
 
 export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'event';
@@ -373,6 +379,43 @@ export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
 
 export type PcpSystemMetricsEvent = PcpEvent<SystemMetricsPayload> & {
   type: 'system.metrics';
+};
+
+export interface SideOpenPayload {
+  sessionId: string;
+  question?: string;
+}
+
+export interface SidePromptPayload {
+  sideId: string;
+  text: string;
+}
+
+export interface SideAbortPayload {
+  sideId: string;
+}
+
+export interface SideClosePayload {
+  sideId: string;
+}
+
+export interface SideOpenedPayload {
+  sideId: string;
+  parentSessionId: string;
+  model: any;
+}
+
+export interface SideClosedPayload {
+  sideId: string;
+  reason: 'user' | 'idle' | 'parentClosed' | 'error' | 'shutdown';
+}
+
+export type PcpSideOpenedEvent = PcpEvent<SideOpenedPayload> & {
+  type: 'side.opened';
+};
+
+export type PcpSideClosedEvent = PcpEvent<SideClosedPayload> & {
+  type: 'side.closed';
 };
 
 // -----------------------------------------------------------------------------

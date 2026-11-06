@@ -191,6 +191,15 @@ These authenticated local-daemon commands discover, inspect, and update subagent
 - `pi.agents.get` payload `{cwd?}` → `{packages, agents, subagentDefaults, sessionDefaults, thinkingLevels, availableModels, warnings}`.
 - `pi.agents.update` payload `{changes: [...]}` → same shape as `pi.agents.get` (fresh). Updates subagent configurations, subagent defaults, and session defaults with Pi-compatible file locking and atomic writes. Rejects unreadable config (`AGENTS_CONFIG_UNREADABLE`), lock timeouts (`AGENTS_CONFIG_LOCKED`), uninstalled packages (`AGENTS_PACKAGE_NOT_INSTALLED`), and invalid changes (`AGENTS_VALIDATION_FAILED`).
 
+### 4.5 Side conversation commands
+
+Ephemeral, read-only side conversations allow the user to ask auxiliary questions against a snapshot of the active workspace session without altering session transcript, journals, or disk state.
+
+- `side.open` payload `{sessionId, question?}` → `{sideId, streamId}`. Opens an ephemeral read-only side conversation for the given parent session. Requires control mode when remote. At most 1 active side thread per parent session and max 4 overall.
+- `side.prompt` payload `{sideId, text}` → `{prompted: true}`. Submits a user question to an active side thread. Requires control mode when remote.
+- `side.abort` payload `{sideId}` → `{aborted: true}`. Aborts any in-flight response generation in the side thread. Permitted in view and control modes.
+- `side.close` payload `{sideId}` → `{closed: true}`. Terminates the side thread, kills worker, and cleans up temporary runtime context files. Permitted in view and control modes.
+
 ---
 
 ## 5. Normalized Event Types
@@ -203,7 +212,7 @@ See Section 4.7 of the implementation plan for complete event catalogue:
 - `tool.started`, `tool.progress`, `tool.completed`
 - `queue.changed`, `compaction.started`, `compaction.ended`, `retry.started`, `retry.ended`
 - `ui.request`, `ui.claimed`, `ui.resolved`, `ui.notify`, `ui.status`, `ui.widget`, `ui.editorText`, `ui.title`
-- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`, `remote.statusChanged`, `system.metrics`
+- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`, `remote.statusChanged`, `system.metrics`, `side.opened`, `side.closed`
 
 ### 5.1 System Metrics Event (`system.metrics`)
 
