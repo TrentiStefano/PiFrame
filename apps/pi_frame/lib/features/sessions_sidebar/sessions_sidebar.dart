@@ -9,6 +9,7 @@ import '../../ui/frame_snack_bar.dart';
 import '../../ui/shimmer_border.dart';
 import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
+import '../transcript/workflows_provider.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import 'removed_repos_provider.dart';
@@ -551,7 +552,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               st.agentStatus == AgentStatus.retrying ||
                               st.agentStatus == AgentStatus.compacting ||
                               st.isStreaming ||
-                              st.activeToolCalls.isNotEmpty));
+                              st.activeToolCalls.isNotEmpty)) ||
+                              ref.watch(backgroundAgentsRunningProvider(sId));
                           if (isWorking) {
                             return true;
                           }
@@ -1283,7 +1285,9 @@ class _SessionTile extends ConsumerWidget {
             s.agentStatus == AgentStatus.retrying ||
             s.agentStatus == AgentStatus.compacting ||
             s.isStreaming ||
-            s.activeToolCalls.isNotEmpty))
+            s.activeToolCalls.isNotEmpty)) ||
+            // Waiting on background subagents or workflows still counts as running.
+            ref.watch(backgroundAgentsRunningProvider(id))
         : (session['status'] == 'working' || session['isStreaming'] == true);
 
     final tile = ListTile(
