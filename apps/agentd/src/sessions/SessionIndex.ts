@@ -725,6 +725,13 @@ export class SessionIndex {
     toolCallId?: string;
     sessionId?: string;
     unlinked?: boolean;
+    /** Child session details, so clients can show what a running agent is doing. */
+    agentType?: string;
+    prompt?: string;
+    activity?: string;
+    startedAt?: number;
+    updatedAt?: number;
+    finished?: boolean;
   }>> {
     const { sessions: all } = await this.scanFast();
     const resolvedParent = parentSessionFile || all.find((session) =>
@@ -755,6 +762,12 @@ export class SessionIndex {
       toolCallId?: string;
       sessionId?: string;
       unlinked?: boolean;
+      agentType?: string;
+      prompt?: string;
+      activity?: string;
+      startedAt?: number;
+      updatedAt?: number;
+      finished?: boolean;
     };
     const agentResults = new Map<string, Subagent>();
     if (resolvedParent && fs.existsSync(resolvedParent)) {
@@ -770,8 +783,8 @@ export class SessionIndex {
             if (message.role === 'user' ||
                 (entry.type === 'custom_message' && entry.customType === 'subagent-notification')) {
               const text = messageText(message);
-              const notification = /<task-notification>([\s\S]*?)<\/task-notification>/.exec(text)?.[1];
-              if (notification) {
+              for (const match of text.matchAll(/<task-notification>([\s\S]*?)<\/task-notification>/g)) {
+                const notification = match[1];
                 const id = /<task-id>([^<]+)<\/task-id>/.exec(notification)?.[1]?.trim();
                 const status = /<status>([^<]+)<\/status>/.exec(notification)?.[1]?.trim().toLowerCase();
                 const toolCallId = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(notification)?.[1]?.trim();
@@ -785,6 +798,17 @@ export class SessionIndex {
                     /stop|cancel/.test(status) ? 'stopped' :
                     /wrapped|steered/.test(status) ? 'steered' : 'completed';
                 }
+              }
+            }
+            if (entry.type === 'custom' && entry.customType === 'subagents:record' &&
+                typeof entry.data?.id === 'string') {
+              // pi-subagents persists a finished top-level agent's final state here.
+              const agent = agentResults.get(entry.data.id);
+              const status = String(entry.data.status ?? '').toLowerCase();
+              if (agent && status) {
+                agent.status = /error|fail/.test(status) ? 'error' :
+                  /stop|cancel|abort/.test(status) ? 'stopped' :
+                  /steer/.test(status) ? 'steered' : 'completed';
               }
             }
             const details = message.details || entry.details;
@@ -813,6 +837,7 @@ export class SessionIndex {
       model?: string;
       cost?: number;
       agentPrefix?: string;
+      live: ChildLiveState;
     }>();
     for (const child of children) {
       let output = '';
@@ -821,6 +846,7 @@ export class SessionIndex {
       let messageModel: string | undefined;
       let cost: number | undefined;
       let agentPrefix: string | undefined;
+      const live: ChildLiveState = {};
       try {
         if (child.sessionFile && fs.existsSync(child.sessionFile)) {
           const lines = readline.createInterface({
@@ -831,9 +857,11 @@ export class SessionIndex {
             try {
               const entry = JSON.parse(line);
               if (entry.type === 'model_change' && entry.modelId) modelChange = entry.modelId;
+              trackChildLiveState(live, entry);
               if (entry.type === 'session_info' && typeof entry.name === 'string') {
                 const suffix = entry.name.slice(entry.name.lastIndexOf('#') + 1);
                 if (entry.name.includes('#') && suffix) agentPrefix = suffix;
+                if (entry.name.includes('#')) live.agentType = entry.name.slice(0, entry.name.lastIndexOf('#'));
               }
               const costValue = entry.usage?.cost !== undefined ? entry.usage.cost : entry.message?.usage?.cost;
               const turnCost = parseCost(costValue);
@@ -861,13 +889,16 @@ export class SessionIndex {
           }
         }
       } catch {}
+      try { live.updatedAt = (await fs.promises.stat(child.sessionFile)).mtimeMs; } catch {}
       childData.set(child.sessionFile, {
+        live,
         child, output: output.trim(), lastMessagePreview,
         model: messageModel || modelChange, cost, agentPrefix
       });
     }
 
     const childMatches = new Map<string, Subagent>();
+    labelSiblingPrompts([...childData.values()].map((data) => data.live));
     for (const [file, data] of childData) {
       if (!data.agentPrefix) continue;
       const matches = [...agentResults.values()].filter((result) => result.id.startsWith(data.agentPrefix!));
@@ -879,7 +910,15 @@ export class SessionIndex {
 
     const result: Subagent[] = [...agentResults.values()];
     for (const [file, data] of childData) {
-      const { child, output, lastMessagePreview, model, cost } = data;
+      const { child, output, lastMessagePreview, model, cost, live, agentPrefix } = data;
+      const liveFields = {
+        agentType: live.agentType,
+        prompt: live.prompt,
+        activity: live.activity,
+        startedAt: live.startedAt,
+        updatedAt: live.updatedAt,
+        finished: live.finished,
+      };
       const agent = childMatches.get(file);
       if (agent) {
         const index = result.findIndex((item) => item.id === agent.id);
@@ -891,6 +930,7 @@ export class SessionIndex {
           output: output || lastMessagePreview || agent.output,
           status: child.isActive ? 'running' : agent.status,
           description: agent.description || lastMessagePreview,
+          ...liveFields,
         };
         continue;
       }
@@ -898,12 +938,13 @@ export class SessionIndex {
       result.push({
         id: child.id,
         unlinked: true,
-        name: child.name || child.id,
+        name: live.agentType && agentPrefix ? `${live.agentType}#${agentPrefix}` : child.name || child.id,
         model,
         cost,
         output: output || lastMessagePreview || '',
-        status: child.isActive ? 'running' : 'completed',
+        status: child.isActive ? 'running' : childStatus(live, Date.now()),
         description: lastMessagePreview,
+        ...liveFields,
       });
     }
     return result;
@@ -1038,3 +1079,99 @@ export class SessionIndex {
   }
 }
 
+/** What a child session's file says about the agent running in it. */
+export interface ChildLiveState {
+  agentType?: string;
+  prompt?: string;
+  /** Internal: prompt lines, used to tell sibling workflow agents apart. */
+  promptLines?: string[];
+  activity?: string;
+  startedAt?: number;
+  updatedAt?: number;
+  finished?: boolean;
+  errored?: boolean;
+}
+
+const ACTIVITY_ARG_KEYS = ['command', 'path', 'file_path', 'pattern', 'query', 'url', 'description', 'prompt'];
+
+function oneLine(text: string, max: number): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+}
+
+/** Folds one session-file entry into the child's live state. */
+export function trackChildLiveState(live: ChildLiveState, entry: any): void {
+  if (entry?.type === 'session' && typeof entry.timestamp === 'string') {
+    const startedAt = Date.parse(entry.timestamp);
+    if (Number.isFinite(startedAt)) live.startedAt = startedAt;
+    return;
+  }
+  const message = entry?.type === 'message' ? entry.message : undefined;
+  if (!message) return;
+  if (message.role === 'user') {
+    if (live.prompt === undefined) {
+      const lines = messageText(message).split('\n').map((line) => line.trim().replace(/^#+\s*/, '')).filter(Boolean);
+      live.promptLines = lines.slice(0, 400);
+      // Skip short headings such as "CONTESTO" so the label says what the agent does.
+      const text = lines.find((line) => line.length >= 24) ?? lines[0];
+      if (text) live.prompt = oneLine(text, 160);
+    }
+    live.finished = false;
+    return;
+  }
+  if (message.role === 'toolResult') {
+    live.finished = false;
+    return;
+  }
+  if (message.role !== 'assistant') return;
+  const blocks = Array.isArray(message.content) ? message.content : [];
+  const calls = blocks.filter((block: any) => block?.type === 'toolCall');
+  const lastCall = calls[calls.length - 1];
+  if (lastCall) {
+    const args = lastCall.arguments ?? {};
+    const key = ACTIVITY_ARG_KEYS.find((name) => typeof args[name] === 'string' && args[name].trim());
+    live.activity = oneLine(key ? `${lastCall.name}: ${args[key]}` : String(lastCall.name ?? 'tool'), 140);
+  } else {
+    const text = blocks.filter((block: any) => block?.type === 'text').map((block: any) => block.text).join('\n') ||
+      (typeof message.content === 'string' ? message.content : '');
+    const lastLine = text.split('\n').map((line: string) => line.trim()).filter(Boolean).pop();
+    if (lastLine) live.activity = oneLine(lastLine, 140);
+  }
+  live.finished = message.stopReason !== 'toolUse' && calls.length === 0;
+  live.errored = message.stopReason === 'error' || message.stopReason === 'aborted';
+}
+
+// shortcut: a child that stopped writing for this long counts as done; a single
+// tool call that runs longer shows as completed until the agent writes again.
+const CHILD_IDLE_MS = 10 * 60 * 1000;
+
+const TASK_LINE = /^(compito|task|obiettivo|goal|ruolo|role|mission)\b/i;
+
+/**
+ * Workflow agents usually share a long common preamble, so their first prompt
+ * line is identical. Label each with its first line the siblings do not share.
+ */
+export function labelSiblingPrompts(children: ChildLiveState[]): void {
+  const groups = new Map<string, ChildLiveState[]>();
+  for (const child of children) {
+    const first = child.promptLines?.[0];
+    if (first === undefined) continue;
+    groups.set(first, [...(groups.get(first) ?? []), child]);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const sets = group.map((child) => new Set(child.promptLines));
+    group.forEach((child, index) => {
+      const own = (child.promptLines ?? []).filter((line) =>
+        sets.some((set, other) => other !== index && !set.has(line)));
+      const label = own.find((line) => TASK_LINE.test(line)) ?? own.find((line) => line.length >= 24) ?? own[0];
+      if (label) child.prompt = oneLine(label, 160);
+    });
+  }
+}
+
+/** Status of a child session that runs inside a worker, not as a daemon session. */
+export function childStatus(live: ChildLiveState, now: number): string {
+  if (live.finished) return live.errored ? 'error' : 'completed';
+  return live.updatedAt !== undefined && now - live.updatedAt < CHILD_IDLE_MS ? 'running' : 'completed';
+}
