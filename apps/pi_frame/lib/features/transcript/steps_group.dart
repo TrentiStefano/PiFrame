@@ -118,8 +118,21 @@ class StepsGroup extends ConsumerStatefulWidget {
   ConsumerState<StepsGroup> createState() => _StepsGroupState();
 }
 
+/// Fraction of the window height that an expanded step list may occupy before
+/// it becomes a compact scrollable list.
+const double kStepListMaxHeightFraction = 0.5;
+
 class _StepsGroupState extends ConsumerState<StepsGroup> {
   Timer? _liveTimer;
+  final ScrollController _stepsScroll = ScrollController();
+
+  /// Whether the compact list content is taller than its maximum height.
+  bool _stepsOverflow = false;
+
+  /// Whether the compact list should keep following new steps (running turn
+  /// and the user has not scrolled away from the bottom).
+  bool _followLatest = true;
+  double _lastMaxExtent = 0;
 
   @override
   void initState() {
@@ -156,7 +169,42 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   @override
   void dispose() {
     _stopLiveTimer();
+    _stepsScroll.dispose();
     super.dispose();
+  }
+
+  bool _onStepsScrollMetrics(ScrollMetricsNotification notification) {
+    final metrics = notification.metrics;
+    final overflow = metrics.maxScrollExtent > 0.5;
+    if (overflow != _stepsOverflow) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _stepsOverflow != overflow) {
+          setState(() => _stepsOverflow = overflow);
+        }
+      });
+    }
+    // New steps grew the list: keep showing the latest one while the turn
+    // runs, unless the user scrolled up to read earlier steps.
+    final grew = metrics.maxScrollExtent > _lastMaxExtent + 0.5;
+    _lastMaxExtent = metrics.maxScrollExtent;
+    if (grew && widget.block.isRunning && _followLatest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _stepsScroll.hasClients) {
+          _stepsScroll.jumpTo(_stepsScroll.position.maxScrollExtent);
+        }
+      });
+    }
+    return false;
+  }
+
+  bool _onStepsScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null ||
+        notification is UserScrollNotification) {
+      final m = notification.metrics;
+      _followLatest = m.pixels >= m.maxScrollExtent - 16;
+    }
+    return false;
   }
 
   @override
@@ -176,6 +224,22 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
     );
+
+    final fullyExpanded =
+        expansionState.isGroupFullyExpanded(widget.block.turnId);
+    // Auto-collapse at turn end also returns the list to its compact form.
+    if (!expanded && fullyExpanded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          expansionNotifier.setGroupFullyExpanded(widget.block.turnId, false);
+        }
+      });
+    }
+    if (!expanded) {
+      _stepsOverflow = false;
+      _lastMaxExtent = 0;
+      _followLatest = true;
+    }
 
     final latestStepLabel = _formatLatestStep(widget.block.latestStep);
 
@@ -230,24 +294,108 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int i = 0; i < widget.block.steps.length; i++)
-                      _buildStepItem(
-                        context: context,
-                        step: widget.block.steps[i],
-                        tokens: tokens,
-                        strings: strings,
-                        expansionState: expansionState,
-                        expansionNotifier: expansionNotifier,
-                      ),
-                  ],
+                child: _buildStepList(
+                  context: context,
+                  fullyExpanded: fullyExpanded,
+                  tokens: tokens,
+                  strings: strings,
+                  expansionState: expansionState,
+                  expansionNotifier: expansionNotifier,
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStepList({
+    required BuildContext context,
+    required bool fullyExpanded,
+    required FrameTokens tokens,
+    required AppStrings strings,
+    required StepGroupExpansionState expansionState,
+    required StepGroupExpansionNotifier expansionNotifier,
+  }) {
+    final steps = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (int i = 0; i < widget.block.steps.length; i++)
+          _buildStepItem(
+            context: context,
+            step: widget.block.steps[i],
+            tokens: tokens,
+            strings: strings,
+            expansionState: expansionState,
+            expansionNotifier: expansionNotifier,
+          ),
+      ],
+    );
+    if (fullyExpanded) return steps;
+
+    final maxHeight =
+        MediaQuery.sizeOf(context).height * kStepListMaxHeightFraction;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ConstrainedBox(
+          key: ValueKey('step_group_compact_list_${widget.block.groupId}'),
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: NotificationListener<ScrollMetricsNotification>(
+            onNotification: _onStepsScrollMetrics,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _onStepsScroll,
+              child: Scrollbar(
+                controller: _stepsScroll,
+                thumbVisibility: _stepsOverflow,
+                child: SingleChildScrollView(
+                  controller: _stepsScroll,
+                  primary: false,
+                  padding: EdgeInsets.only(right: _stepsOverflow ? 10 : 0),
+                  child: steps,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (_stepsOverflow)
+          Align(
+            alignment: Alignment.center,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: TextButton.icon(
+                key: ValueKey(
+                  'step_group_expand_all_${widget.block.groupId}',
+                ),
+                onPressed: () {
+                  expansionNotifier.setGroupFullyExpanded(
+                    widget.block.turnId,
+                    true,
+                  );
+                  widget.onExpansionChanged?.call();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: tokens.textSecondary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  minimumSize: const Size(0, 28),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: TextStyle(
+                    fontFamily: tokens.uiFontFamily,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                icon: const Icon(Icons.keyboard_double_arrow_down, size: 16),
+                label: Text(
+                  strings.stepGroupShowAllSteps(widget.block.steps.length),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

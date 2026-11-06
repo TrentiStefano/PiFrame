@@ -319,6 +319,9 @@ class AppStrings {
       isItalian ? 'Mostra tutti' : 'Show all';
   String get stepGroupShowLess =>
       isItalian ? 'Mostra meno' : 'Show less';
+  String stepGroupShowAllSteps(int n) => isItalian
+      ? 'Mostra tutti i passaggi ($n)'
+      : 'Show all steps ($n)';
   String get stepGroupInput =>
       isItalian ? 'Input' : 'Input';
   String get stepGroupOutput =>

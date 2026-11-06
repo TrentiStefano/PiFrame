@@ -10,10 +10,20 @@ class StepGroupExpansionState {
   /// Set of child step IDs (e.g. tool steps, thinking steps) that are individually expanded.
   final Set<String> expandedStepIds;
 
+  /// Turn IDs whose expanded step list is shown at full height instead of the
+  /// compact, height-limited scrollable list. Cleared whenever the group
+  /// collapses, so re-expanding starts compact again.
+  final Set<String> fullyExpandedGroups;
+
   const StepGroupExpansionState({
     this.groupOverrides = const {},
     this.expandedStepIds = const {},
+    this.fullyExpandedGroups = const {},
   });
+
+  /// Whether the expanded step list of [turnId] is shown at full height.
+  bool isGroupFullyExpanded(String turnId) =>
+      fullyExpandedGroups.contains(turnId);
 
   /// Evaluates whether a group is expanded:
   /// User manual override takes precedence; otherwise expanded while running or if autoCollapse is false.
@@ -34,10 +44,12 @@ class StepGroupExpansionState {
   StepGroupExpansionState copyWith({
     Map<String, bool>? groupOverrides,
     Set<String>? expandedStepIds,
+    Set<String>? fullyExpandedGroups,
   }) {
     return StepGroupExpansionState(
       groupOverrides: groupOverrides ?? this.groupOverrides,
       expandedStepIds: expandedStepIds ?? this.expandedStepIds,
+      fullyExpandedGroups: fullyExpandedGroups ?? this.fullyExpandedGroups,
     );
   }
 
@@ -47,12 +59,14 @@ class StepGroupExpansionState {
       other is StepGroupExpansionState &&
           runtimeType == other.runtimeType &&
           mapEquals(groupOverrides, other.groupOverrides) &&
-          setEquals(expandedStepIds, other.expandedStepIds);
+          setEquals(expandedStepIds, other.expandedStepIds) &&
+          setEquals(fullyExpandedGroups, other.fullyExpandedGroups);
 
   @override
   int get hashCode => Object.hash(
         Object.hashAll(groupOverrides.entries),
         Object.hashAll(expandedStepIds),
+        Object.hashAll(fullyExpandedGroups),
       );
 
   @override
@@ -120,7 +134,27 @@ class StepGroupExpansionNotifier
       );
     }
     nextOverrides[turnId] = !currentEffective;
-    state = state.copyWith(groupOverrides: nextOverrides);
+    state = state.copyWith(
+      groupOverrides: nextOverrides,
+      // Collapsing resets the full-height list; the next expand is compact.
+      fullyExpandedGroups: currentEffective
+          ? (Set<String>.from(state.fullyExpandedGroups)..remove(turnId))
+          : null,
+    );
+  }
+
+  /// Shows the expanded step list of [turnId] at full height ([fully] true)
+  /// or as the compact scrollable list ([fully] false).
+  void setGroupFullyExpanded(String turnId, bool fully) {
+    if (state.isGroupFullyExpanded(turnId) == fully) return;
+    final next = Set<String>.from(state.fullyExpandedGroups);
+    if (fully) {
+      if (next.length >= maxGroupOverrides) next.remove(next.first);
+      next.add(turnId);
+    } else {
+      next.remove(turnId);
+    }
+    state = state.copyWith(fullyExpandedGroups: next);
   }
 
   /// Sets an explicit user override for a group (or removes override if null).
@@ -133,6 +167,13 @@ class StepGroupExpansionNotifier
   }) {
     if (runningTurnId != null) activeTurnId = runningTurnId;
     final nextOverrides = Map<String, bool>.from(state.groupOverrides);
+    if (override != true &&
+        state.fullyExpandedGroups.contains(turnId)) {
+      state = state.copyWith(
+        fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)
+          ..remove(turnId),
+      );
+    }
     if (override == null) {
       nextOverrides.remove(turnId);
     } else {
@@ -189,10 +230,15 @@ class StepGroupExpansionNotifier
 
   /// Clears override for a turn, returning it to default auto-collapse behavior.
   void resetTurn(String turnId) {
-    if (state.groupOverrides.containsKey(turnId)) {
+    if (state.groupOverrides.containsKey(turnId) ||
+        state.fullyExpandedGroups.contains(turnId)) {
       final nextOverrides = Map<String, bool>.from(state.groupOverrides)
         ..remove(turnId);
-      state = state.copyWith(groupOverrides: nextOverrides);
+      state = state.copyWith(
+        groupOverrides: nextOverrides,
+        fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)
+          ..remove(turnId),
+      );
     }
   }
 

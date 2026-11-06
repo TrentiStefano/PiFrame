@@ -263,6 +263,8 @@ PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dal
   - Al termine di un turno o all'apertura della sessione, i passaggi intermedi raggruppati vengono compressi automaticamente mostrando un header sintetico con il conteggio dei tool usati, il tempo trascorso e l'estratto del ragionamento.
   - Cliccando sull'header o premendo Invio/Spazio con il focus, la fisarmonica si espande o comprime istantaneamente con animazione fluida.
   - La preferenza utente (modalità di raggruppamento e auto-collapse) viene salvata nelle preferenze locali e ricordata tra le sessioni.
+- **Elenco compatto dei passaggi**: un gruppo espanso occupa al massimo metà dell'altezza della finestra. Se i passaggi sono di più, l'elenco scorre al suo interno (durante l'esecuzione segue l'ultimo passaggio, se sei già in fondo). In basso, il pulsante **Mostra tutti i passaggi (N)** espande l'elenco a tutta altezza. Quando il gruppo viene compresso (a mano o a fine turno) e poi riaperto, torna l'elenco compatto.
+- **Stato del turno**: un turno che arriva alla risposta finale mostra *Completati N passaggi*, con un'icona di avviso se qualche passaggio è fallito. *Interrotto con errori* compare solo se il turno stesso è terminato in errore; *Interrotto dopo N passaggi* se l'utente lo ha fermato. La risposta finale resta sempre fuori dal gruppo.
 
 ---
 

@@ -572,7 +572,9 @@ void main() {
         // Before clicking Show all, Line 29 is truncated
         expect(find.textContaining('Line 29 of output text'), findsNothing);
 
-        // Tap "Show all"
+        // Tap "Show all" (scroll the compact step list to it first)
+        await tester.ensureVisible(showAllBtn);
+        await tester.pumpAndSettle();
         await tester.tap(showAllBtn);
         await tester.pumpAndSettle();
 
