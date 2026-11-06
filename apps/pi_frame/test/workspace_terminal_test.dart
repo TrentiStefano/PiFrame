@@ -28,6 +28,26 @@ void main() {
     expect(session.history, [command]);
   });
 
+  test('PowerShell stdin echo does not duplicate or indent command output', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+
+    session.handleInput('usbipd list');
+    session.handleInput('\r');
+    session.writeProcessOutput('usbipd');
+    session.writeProcessOutput(' list\nConnected:\r\nBUSID\r\n');
+
+    final lines = terminal.buffer.getText().split('\n');
+    expect(lines.where((line) => line.contains('usbipd list')).length, 1);
+    expect(lines.any((line) => line.startsWith('Connected:')), isTrue);
+    session.dispose();
+  });
+
   testWidgets('IntegratedTerminalPanel creates tabs and closes tabs', (tester) async {
     const tokens = FrameTokens.dark;
     var collapsed = false;

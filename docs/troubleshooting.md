@@ -132,6 +132,14 @@ flutter test test/session_changes_review_test.dart
 
 **Correzione:** PiFrame consuma gli eventi di rilascio, gestisce la ripetizione dei tasti, itera l'input per code point e decodifica stdout/stderr come stream UTF-8. Il terminale usa già i token di colore del tema attivo.
 
+## Comando PowerShell ripetuto e output indentato
+
+**Sintomo:** su Windows il comando appare una seconda volta sotto il prompt e l'output inizia spostato a destra.
+
+**Causa:** PiFrame mostra l'input mentre viene digitato. PowerShell, avviato con stdin/stdout collegati a pipe invece che a un terminale, rimanda anche una copia del comando; il suo eco termina con `LF` senza `CR`. xterm va quindi alla riga successiva senza riportare il cursore alla colonna zero, e l'output eredita l'offset del comando.
+
+**Correzione:** PiFrame riconosce e rimuove dallo stdout l'eco del comando già mostrato localmente, incluso il suo `LF`. I risultati tornano a iniziare dalla colonna zero.
+
 ---
 
 ## Pannelli Repository e Git lenti
