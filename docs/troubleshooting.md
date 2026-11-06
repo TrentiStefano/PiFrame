@@ -773,3 +773,18 @@ Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `s
 
 
 
+
+---
+
+## 15. Statistiche nerd ferme su `n/d` dopo averle disattivate e riattivate
+
+### Sintomi
+- Con le Statistiche nerd attive i valori compaiono correttamente. Dopo aver disattivato e riattivato l'opzione (oppure dopo aver chiuso e riaperto l'app più volte senza riavviare il daemon), CPU, RAM, disco e GPU restano su `n/d`.
+- Il comando `system.metrics.subscribe` risponde `completed`, ma il daemon non invia più eventi `system.metrics`. Riavviare il daemon risolve temporaneamente.
+
+### Causa
+- In `SystemMetricsService.startSampling()` la promise di avvio veniva azzerata in un blocco `finally` interno alla funzione asincrona. Quando il provider GPU esisteva già (dalla seconda sottoscrizione in poi) la funzione non incontrava nessun `await` e veniva eseguita in modo sincrono: il `finally` azzerava `startPromise` *prima* dell'assegnazione, che poi salvava una promise già risolta e mai più azzerata. Alla sottoscrizione successiva `startSampling()` restituiva quella promise senza riavviare timer e provider.
+
+### Risoluzione
+- La promise di avvio viene assegnata prima e azzerata con `finally` esterno solo se è ancora quella corrente. Un test di regressione esegue cinque cicli consecutivi di sottoscrizione e disiscrizione e verifica che ogni ciclo riavvii il campionamento.
+- Serve un daemon aggiornato: dopo l'aggiornamento riavvia il daemon (Impostazioni → Daemon) per caricare la correzione.

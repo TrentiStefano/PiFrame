@@ -353,3 +353,41 @@ test('SystemMetricsService: concurrent subscribes share single start promise and
 });
 
 
+
+test('SystemMetricsService: repeated unsubscribe/subscribe cycles always restart sampling', async () => {
+  // Regression: with an existing GPU provider the start body ran synchronously,
+  // cleared startPromise before it was assigned, and from the third cycle on
+  // subscribe returned the stale promise without restarting the timer
+  // (Nerd stats stuck on n/d after toggling the setting off and on).
+  let active = 0;
+  let nextHandle = 1;
+  const gpu = new MockGpuProvider();
+  const service = new SystemMetricsService({
+    gpuProvider: gpu,
+    timerProvider: {
+      setInterval: () => {
+        active++;
+        return nextHandle++ as any;
+      },
+      clearInterval: () => {
+        active--;
+      }
+    },
+    sampleCpu: () => null,
+    sampleMemory: () => null,
+    sampleDisk: () => null
+  });
+  const conn = new MockConnection('conn-cycle');
+
+  for (let cycle = 1; cycle <= 5; cycle++) {
+    await service.subscribe(conn as any);
+    assert.equal(service.isSampling(), true, `cycle ${cycle}: sampling after subscribe`);
+    assert.equal(active, 1, `cycle ${cycle}: exactly one timer`);
+    service.unsubscribe('conn-cycle');
+    assert.equal(service.isSampling(), false, `cycle ${cycle}: stopped after unsubscribe`);
+    assert.equal(active, 0, `cycle ${cycle}: timer cleared`);
+  }
+  assert.equal(gpu.startCalls, 5);
+  assert.equal(gpu.stopCalls, 5);
+  service.stop();
+});

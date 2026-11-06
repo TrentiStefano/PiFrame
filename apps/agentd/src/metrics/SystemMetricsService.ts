@@ -95,7 +95,12 @@ export class SystemMetricsService {
       return this.startPromise;
     }
 
-    this.startPromise = (async () => {
+    // Assign the in-flight promise before clearing it. When the GPU provider
+    // already exists the start body has no await and runs synchronously, so a
+    // `finally` inside it would clear startPromise *before* the assignment and
+    // leave a settled promise behind; the next subscribe would then reuse it
+    // and never restart sampling.
+    const start = (async () => {
       try {
         if (!this.gpuProvider) {
           const provider = await this.gpuFactory.getProvider();
@@ -123,12 +128,16 @@ export class SystemMetricsService {
         this.timer.unref?.();
       } catch {
         // Provider resolution or startup failure should not crash daemon
-      } finally {
-        this.startPromise = undefined;
       }
     })();
+    this.startPromise = start;
+    void start.finally(() => {
+      if (this.startPromise === start) {
+        this.startPromise = undefined;
+      }
+    });
 
-    return this.startPromise;
+    return start;
   }
 
   private stopSampling(): void {
