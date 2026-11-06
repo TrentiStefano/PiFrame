@@ -15,6 +15,7 @@ import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
 import '../features/sessions_sidebar/session_actions.dart';
 import '../features/transcript/transcript_view.dart';
+import '../features/transcript/subagent_panel.dart';
 import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
@@ -70,6 +71,7 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   bool _sidebarCollapsed = false;
+  Widget? _chatSidecar;
   bool? _preReviewSidebarCollapsed;
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
@@ -661,6 +663,20 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    _chatSidecar = width < 900
+        ? null
+        : AgentActivitySidecar(
+            key: ValueKey('agent_activity_$sessionId'),
+            sessionId: sessionId,
+            onOpened: () {
+              if (mounted &&
+                  _paneVisibility[WorkspacePane.git] == true &&
+                  !_collapsedPanes.contains(WorkspacePane.git) &&
+                  !ref.read(isReviewingChangesProvider)) {
+                _collapsePane(WorkspacePane.git);
+              }
+            },
+          );
     final isReviewing = ref.watch(isReviewingChangesProvider);
     final visible = _visiblePanes(chatFirst: width < 900);
     final companions = visible
@@ -792,6 +808,16 @@ class _AppShellState extends ConsumerState<AppShell>
       }
     });
     _persistLayout();
+  }
+
+  /// Chat keeps the Agents/Workflows column as a sibling card on its right.
+  Widget _paneCard(WorkspacePane pane, Widget child) {
+    final sidecar = _chatSidecar;
+    if (pane != WorkspacePane.chat || sidecar == null) return _bentoPane(child);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [Expanded(child: _bentoPane(child)), sidecar],
+    );
   }
 
   Widget _bentoPane(Widget child) {
@@ -997,7 +1023,7 @@ class _AppShellState extends ConsumerState<AppShell>
   ) {
     if (panes.isEmpty) return const SizedBox.shrink();
     if (panes.length == 1 && _collapsedPanes.isEmpty) {
-      return _bentoPane(contents[panes.single]!);
+      return _paneCard(panes.single, contents[panes.single]!);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1022,7 +1048,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       .round()
                       .clamp(1, 100)
                       .toInt(),
-                  child: _bentoPane(contents[panes[index]]!),
+                  child: _paneCard(panes[index], contents[panes[index]]!),
                 ),
               if (index < panes.length - 1)
                 MouseRegion(

@@ -143,7 +143,7 @@ void main() {
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: SubagentsPopDown(
+              body: AgentActivityPanel(
                 sessionId: 'test_session',
               ),
             ),
@@ -191,7 +191,7 @@ void main() {
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: SubagentsPopDown(
+              body: AgentActivityPanel(
                 sessionId: 'test_session',
               ),
             ),
@@ -286,103 +286,110 @@ void main() {
 
       // Subagents header chip should NOT be in the session info card (removed per request)
       expect(find.byKey(const ValueKey('subagents-header-chip')), findsNothing);
-      expect(find.text('Subagenti (1)'), findsWidgets);
-
-      // Subagents card should be normally minimized when opening/reopening a session
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
-
-      // Tap book tab to expand it with smooth sliding animation
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      await tester.pumpAndSettle();
-
-      // Popdown is visible
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
-      expect(find.text('Active Subagent'), findsOneWidget);
-
-      // Click close button on popdown
-      await tester.tap(find.byKey(const ValueKey('subagents-popdown-close-btn')));
-      await tester.pumpAndSettle();
-
-      // Popdown should be collapsed and reveal the book tab
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
-
-      // Tap book tab to expand it again with smooth sliding animation
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      await tester.pumpAndSettle();
-
-      // Popdown is visible again
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
+      // Subagents moved to the side panel next to the chat card.
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
+      expect(find.text('Active Subagent'), findsNothing);
     });
 
-    testWidgets('expanding a subagent card preserves transcript position', (tester) async {
-      tester.view.physicalSize = const Size(1200, 760);
-      tester.view.devicePixelRatio = 1.25;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final entries = List.generate(
-        20,
-        (index) => SessionEntry(
-          id: 'entry_$index',
-          role: 'user',
-          text: 'Stable transcript message $index',
-          timestamp: index,
-        ),
-      );
+    testWidgets('agent activity sidecar opens from its strip and closes back to it', (tester) async {
       const subagents = [
         SubagentItem(
-          id: 'sub_agent_position',
-          name: 'Position Agent',
+          id: 'sub_side',
+          name: 'Side Agent',
           model: 'haiku',
-          output: 'Subagent output that expands the card.',
-          status: 'running',
+          output: 'Side output',
+          status: 'completed',
         ),
       ];
-
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStateFamily('sess_position').overrideWith(
-              (ref) => SessionStateNotifier('sess_position', null)
-                ..state = SessionState(
-                  sessionId: 'sess_position',
-                  cwd: '/repo',
-                  entries: entries,
-                  streamingTextBlocks: const {0: 'Agent is responding'},
-                ),
+            sessionStateFamily('sess_side').overrideWith(
+              (ref) => SessionStateNotifier('sess_side', null)
+                ..state = const SessionState(sessionId: 'sess_side', cwd: '/repo'),
             ),
-            subagentsFamily('sess_position').overrideWith(
-              (ref) => _MockSubagentsNotifier(
-                ref,
-                'sess_position',
-                subagents,
-              ),
+            subagentsFamily('sess_side').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_side', subagents),
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
-              body: TranscriptView(sessionId: 'sess_position'),
+              body: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: SizedBox()),
+                  AgentActivitySidecar(sessionId: 'sess_side'),
+                ],
+              ),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+      expect(find.text('Side Agent'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('agent-activity-close-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
+    });
+
+    testWidgets('agent panel lists a workflow run and expands to its phases', (tester) async {
+      const script = "export const meta = { name: 'audit', description: 'Audit the repo', "
+          "phases: [{ title: 'Scan' }] }";
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_wf').overrideWith(
+              (ref) => SessionStateNotifier('sess_wf', null)
+                ..state = const SessionState(
+                  sessionId: 'sess_wf',
+                  cwd: '/repo',
+                  entries: [
+                    SessionEntry(
+                      id: 'a',
+                      role: 'assistant',
+                      text: '',
+                      timestamp: 1,
+                      toolCalls: [
+                        ToolExecutionState(
+                          toolCallId: 'call_wf',
+                          toolName: 'SubagentWorkflow',
+                          args: {'script': script},
+                          output: 'Workflow "audit" started in the background.\nTask ID: wf_000000aaaaaa\n',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+            ),
+            subagentsFamily('sess_wf').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_wf', const []),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'sess_wf')),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      final anchor = find.text('Stable transcript message 19');
-      final before = tester.getTopLeft(anchor).dy;
-      await tester.tap(find.text('Position Agent'));
-      await tester.pumpAndSettle();
-      expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+      expect(find.text('Workflow (1)'), findsOneWidget);
+      expect(find.text('audit'), findsOneWidget);
+      expect(find.text('In corso'), findsOneWidget);
+      expect(find.text('Audit the repo'), findsNothing);
 
-      await tester.tap(find.text('Position Agent'));
+      await tester.tap(find.text('audit'));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
+      expect(find.text('Audit the repo'), findsOneWidget);
+      expect(find.text('Scan'), findsOneWidget);
     });
 
     testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
@@ -438,33 +445,17 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Both book tabs exist side-by-side
+      // Only the Activities tab remains; subagents live in the side panel.
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
-
-      // Cards are normally minimized when opening/reopening a session
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
 
-      // Tap on Activities (todos) book tab -> todos opens
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
       await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
 
-      // Tap on Subagents book tab -> todos closes, subagents opens
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
+      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
       await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-
-      // Tap on active subagents tab again -> collapses it so neither is expanded
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
     });
 
@@ -491,7 +482,7 @@ void main() {
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: SubagentsPopDown(sessionId: 'test_session'),
+              body: AgentActivityPanel(sessionId: 'test_session'),
             ),
           ),
         ),
@@ -893,7 +884,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: SubagentsPopDown(sessionId: 'unknown_cost_sub'),
+              body: AgentActivityPanel(sessionId: 'unknown_cost_sub'),
             ),
           ),
         ),
@@ -927,7 +918,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: SubagentsPopDown(sessionId: 'test_cost_sub'),
+              body: AgentActivityPanel(sessionId: 'test_cost_sub'),
             ),
           ),
         ),
@@ -1021,7 +1012,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       // Expand activities tab in Session A
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
@@ -1036,7 +1027,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       // Switch back to Session A
       currentSessionNotifier.value = 'sess_a';
@@ -1118,7 +1109,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
       await tester.pumpAndSettle();
@@ -1129,7 +1120,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       currentSessionNotifier.value = 'sess_a';
       await tester.pumpAndSettle();
@@ -1241,35 +1232,6 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-      expectStablePosition();
-
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      for (int i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        expectStablePosition();
-      }
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsOneWidget);
-      expectStablePosition();
-
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      for (int i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        expectStablePosition();
-      }
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expectStablePosition();
-
-      await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
-      expectStablePosition();
-
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      await tester.pumpAndSettle();
       expectStablePosition();
     });
   });

@@ -124,6 +124,15 @@ Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<ve
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
 
+## Pannello Agenti e Workflow
+
+Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Se è aperto, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
+
+- **Workflow**: nome, stato, fasi dichiarate in `meta`, agenti completati/falliti e risultato finale. Sull'app desktop l'avanzamento viene letto dal journal `<runId>.workflow.jsonl` accanto allo script salvato dall'estensione; nel client web compare solo l'esito finale.
+- **Subagenti**: modello, costo (o `N/D`), output, guida (steer) e interruzione. Fai clic su una voce per espanderla.
+
+Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della vista TUI, che non è disponibile in RPC. Nella barra Sessioni, una sessione resta segnata come in corso finché i suoi sottoagenti o workflow in background non terminano.
+
 ## Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.

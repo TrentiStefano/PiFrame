@@ -202,7 +202,7 @@ void main() {
       container: container,
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: const Scaffold(body: SubagentsPopDown(sessionId: 'card')),
+        home: const Scaffold(body: AgentActivityPanel(sessionId: 'card')),
       ),
     ));
     await tester.pumpAndSettle();
@@ -491,7 +491,7 @@ void main() {
       container: container,
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: const Scaffold(body: SubagentsPopDown(sessionId: 'ambiguous')),
+        home: const Scaffold(body: AgentActivityPanel(sessionId: 'ambiguous')),
       ),
     ));
     await tester.pump();
@@ -830,6 +830,9 @@ void main() {
       container.dispose();
       client.dispose();
     });
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
@@ -837,15 +840,20 @@ void main() {
           theme: ThemeData.dark().copyWith(
             extensions: const [FrameTokens.dark],
           ),
-          home: const Scaffold(body: TranscriptView(sessionId: 'costs')),
+          home: const Scaffold(
+            body: Row(
+              children: [
+                Expanded(child: TranscriptView(sessionId: 'costs')),
+                SizedBox(width: 360, child: AgentActivityPanel(sessionId: 'costs')),
+              ],
+            ),
+          ),
         ),
       ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(subagentsFamily('costs')).single.cost, 0.0175);
-    await tester.tap(find.byKey(const ValueKey('subagents-book-tab')));
-    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('\$0.0175'), findsWidgets);
 
     await tester.tap(find.textContaining('\$0.0200'));
