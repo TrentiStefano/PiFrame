@@ -19,10 +19,19 @@ export interface WsServerOptions {
   onCommand: (conn: Connection, cmd: any) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
+  onConnectionClose?: (conn: Connection) => void;
 }
 
 export class ConnectionManager {
   private connections = new Map<string, Connection>();
+  private closeListeners: Array<(conn: Connection) => void> = [];
+
+  public onClose(listener: (conn: Connection) => void): () => void {
+    this.closeListeners.push(listener);
+    return () => {
+      this.closeListeners = this.closeListeners.filter((l) => l !== listener);
+    };
+  }
 
   public add(conn: Connection): void {
     this.connections.set(conn.id, conn);
@@ -30,6 +39,11 @@ export class ConnectionManager {
 
   public remove(conn: Connection): void {
     this.connections.delete(conn.id);
+    for (const listener of this.closeListeners) {
+      try {
+        listener(conn);
+      } catch {}
+    }
   }
 
   public get(id: string): Connection | undefined {
@@ -304,6 +318,7 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
         for (const sessionId of closedConn.attachedSessions) {
           void onDetach?.(closedConn, sessionId).catch(() => {});
         }
+        opts.onConnectionClose?.(closedConn);
         manager.remove(closedConn);
       }
     });

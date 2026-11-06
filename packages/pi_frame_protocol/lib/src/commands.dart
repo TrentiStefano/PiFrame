@@ -36,6 +36,24 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
+  static PcpCommand systemMetricsSubscribe({required String commandId}) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: '@daemon',
+      type: 'system.metrics.subscribe',
+      payload: const {},
+    );
+  }
+
+  static PcpCommand systemMetricsUnsubscribe({required String commandId}) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: '@daemon',
+      type: 'system.metrics.unsubscribe',
+      payload: const {},
+    );
+  }
+
   factory PcpCommand.fromJson(Map<String, dynamic> json) {
     return PcpCommand(
       protocol: json['protocol'] as int? ?? 1,

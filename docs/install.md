@@ -145,6 +145,25 @@ Il daemon legge l'attività dai file di sessione delle sessioni figlie (`~/.pi/a
 
 Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della vista TUI, che non è disponibile in RPC. Nella barra Sessioni, una sessione resta segnata come in corso finché i suoi sottoagenti o workflow in background non terminano.
 
+## Statistiche nerd (Nerd stats) e monitoraggio delle risorse
+
+Nelle **Impostazioni** (sezione **Aspetto → Statistiche nerd**, IT: *Statistiche nerd*, EN: *Nerd stats*) è disponibile l'opzione per abilitare la telemetria di sistema in tempo reale nella barra del titolo dell'applicazione (disattivata per impostazione predefinita):
+- **Disattivato (default)**: la barra del titolo non mostra metriche hardware né contatori di frame; nessun comando di sottoscrizione viene inviato al daemon.
+- **Attivo**: mostra un riquadro compatto a caratteri monospace nella barra superiore nel formato:
+  `CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS`
+  Passando il cursore sopra il widget, un tooltip dettagliato espone l'utilizzo esatto della memoria RAM (usata / totale e percentuale), lo spazio disco sul volume principale dell'utente (usato / totale e percentuale), l'utilizzo GPU con VRAM e sorgente di rilevamento, nonché il frame rate di rendering.
+- **Soglie di avviso**: se una risorsa supera l'85% di utilizzo, la relativa percentuale assume il colore di warning del tema attivo.
+- **Dati non disponibili o obsoleti (`n/d`)**: se un sensore hardware o una metrica non è disponibile sul sistema host, oppure se nessun campionamento viene ricevuto dal daemon per oltre 5 secondi (o se la connessione cade), il valore viene mostrato come `n/d` senza mai inventare dati fittizi.
+- **Contatore FPS (Frame per secondo)**: misurato lato client tramite i timing di rendering di Flutter (`SchedulerBinding.instance.addTimingsCallback`). Quando l'applicazione è inattiva o non necessita di ridisegno, il motore grafico non esegue rendering superfluo e il contatore riporta giustamente un valore basso o zero frame renderizzati nell'ultimo secondo; la frequenza di aggiornamento della UI delle statistiche è limitata a 1 Hz per prevenire rebuild continui.
+- **Comportamento su Web**: nell'interfaccia Web (`http://127.0.0.1:<porta>/`), per motivi di sicurezza e assenza di accesso hardware diretto dal browser, il blocco delle metriche di sistema (CPU, RAM, disco, GPU) resta completamente nascosto e viene mostrato **esclusivamente il segmento FPS** locale del rendering client.
+- **Supporto GPU per piattaforma (Daemon `pi-agentd`)**:
+  - **NVIDIA**: supportata universalmente tramite `nvidia-smi` (Windows, Linux, macOS).
+  - **Windows (DirectX / GPU engine)**: supportata tramite contatori di prestazioni `typeperf` (esclusivamente con locale di sistema inglese; su installazioni Windows con altre lingue o contatori localizzati dove i nomi dei contatori differiscono, la GPU mostra `n/d`).
+  - **Linux (AMD)**: supportata tramite `sysfs` (`/sys/class/drm/card*/device/gpu_busy_percent`).
+  - **macOS (Apple Silicon / Metal)**: supportata tramite `ioreg` (`PerformanceStatistics`).
+  - **Altre schede o ambienti senza probe supportati**: mostra `n/d`.
+- **Zero telemetria (Strict Local-Only)**: Il campionamento delle risorse avviene esclusivamente in locale tramite il protocollo PCP (`system.metrics.subscribe` e `system.metrics`) tra il daemon `pi-agentd` locale e il client Flutter. Nessun dato di metrica o telemetria viene memorizzato permanentemente o inviato all'esterno. Le preferenze vengono salvate localmente in `~/.piframe/nerd_stats_settings.json`.
+
 ## Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.

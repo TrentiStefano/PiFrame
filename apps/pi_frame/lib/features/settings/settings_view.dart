@@ -13,6 +13,7 @@ import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/composer/composer_settings.dart';
+import '../../data/metrics/nerd_stats_settings.dart';
 import 'diagnostics.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
@@ -1357,6 +1358,65 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                           composerSettingsProvider.notifier,
                                         )
                                         .setSendWithEnter(val);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              strings.nerdStatsSectionTitle,
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              strings.nerdStatsSubtitle,
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusMd,
+                                ),
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: SwitchListTile(
+                                  key: const ValueKey(
+                                    'settings-nerd-stats-switch',
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    strings.nerdStatsTitle,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontFamily: tokens.uiFontFamily,
+                                    ),
+                                  ),
+                                  activeThumbColor: tokens.accent,
+                                  value: ref
+                                      .watch(nerdStatsSettingsProvider)
+                                      .enabled,
+                                  onChanged: (val) {
+                                    ref
+                                        .read(
+                                          nerdStatsSettingsProvider.notifier,
+                                        )
+                                        .setEnabled(val);
                                   },
                                 ),
                               ),

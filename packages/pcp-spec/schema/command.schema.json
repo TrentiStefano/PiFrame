@@ -73,7 +73,9 @@
         "remote.setTailscaleHostname",
         "remote.revokeDevice",
         "remote.revokeAll",
-        "remote.setOptions"
+        "remote.setOptions",
+        "system.metrics.subscribe",
+        "system.metrics.unsubscribe"
       ]
     },
     "payload": { "type": "object" }
@@ -110,6 +112,10 @@
     {
       "if": { "properties": { "type": { "const": "workspace.gitAction" } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "required": ["action", "paths"], "properties": { "action": { "enum": ["stage", "unstage", "commit", "discard"] }, "paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "expectedStagedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "message": { "type": "string", "minLength": 1 } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["system.metrics.subscribe", "system.metrics.unsubscribe"] } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "msg_01HZEVT00000000000000002",
+  "ts": 1726640000200,
+  "sessionId": "@daemon",
+  "seq": 0,
+  "type": "system.metrics",
+  "payload": {
+    "sampledAt": 1726640000200,
+    "cpu": {
+      "percent": 42.5
+    },
+    "memory": {
+      "usedBytes": 8589934592,
+      "totalBytes": 17179869184,
+      "percent": 50.0
+    },
+    "disk": {
+      "usedBytes": 107374182400,
+      "totalBytes": 536870912000,
+      "percent": 20.0
+    },
+    "gpu": {
+      "percent": 35.0,
+      "memoryUsedBytes": 1073741824,
+      "memoryTotalBytes": 8589934592,
+      "source": "nvidia-smi"
+    }
+  }
+}

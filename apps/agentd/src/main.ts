@@ -174,6 +174,9 @@ async function main() {
     remoteManager.flush();
     await remoteManager.stop({ persistEnabled: false }).catch(() => {});
 
+    // 2c. Stop system metrics sampling and kill any active probe child processes
+    dispatcher.dispose();
+
     // 3. Close HTTP/WS servers
     await Promise.all([
       new Promise<void>((resolve) => httpServer.close(() => resolve())),

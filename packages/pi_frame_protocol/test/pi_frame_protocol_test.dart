@@ -121,5 +121,81 @@ void main() {
       expect(sna.runtime.steeringQueue, ['Steer text']);
       expect(RuntimeMeta.fromJson({}).runStartedAt, isNull);
     });
+
+    test('decodes SystemMetricsEvent correctly', () {
+      const metricsJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_metrics_001",
+        "ts": 1726640000000,
+        "sessionId": "@daemon",
+        "seq": 0,
+        "type": "system.metrics",
+        "payload": {
+          "sampledAt": 1726640000000,
+          "cpu": { "percent": 34.5 },
+          "memory": { "usedBytes": 8000, "totalBytes": 16000, "percent": 50.0 },
+          "disk": { "usedBytes": 10000, "totalBytes": 50000, "percent": 20.0 },
+          "gpu": {
+            "percent": 15.0,
+            "memoryUsedBytes": 1024,
+            "memoryTotalBytes": 8192,
+            "source": "nvidia-smi"
+          }
+        }
+      }
+      ''';
+
+      final msg = PcpCodec.decodeMessage(metricsJson);
+      expect(msg, isA<SystemMetricsEvent>());
+      final evt = msg as SystemMetricsEvent;
+      expect(evt.sessionId, '@daemon');
+      expect(evt.seq, 0);
+      expect(evt.sampledAt, 1726640000000);
+      expect(evt.cpu?['percent'], 34.5);
+      expect(evt.memory?['percent'], 50.0);
+      expect(evt.disk?['percent'], 20.0);
+      expect(evt.gpu?['percent'], 15.0);
+      expect(evt.gpu?['source'], 'nvidia-smi');
+    });
+
+    test('decodes RemoteStatusChangedEvent correctly', () {
+      const remoteStatusJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_remote_001",
+        "ts": 1726640000000,
+        "sessionId": "@daemon",
+        "seq": 0,
+        "type": "remote.statusChanged",
+        "payload": {
+          "enabled": true,
+          "state": "running"
+        }
+      }
+      ''';
+
+      final msg = PcpCodec.decodeMessage(remoteStatusJson);
+      expect(msg, isA<RemoteStatusChangedEvent>());
+      final evt = msg as RemoteStatusChangedEvent;
+      expect(evt.status['enabled'], true);
+      expect(evt.status['state'], 'running');
+    });
+
+    test('creates systemMetricsSubscribe and systemMetricsUnsubscribe commands', () {
+      final sub = PcpCommand.systemMetricsSubscribe(commandId: 'cmd_sub_01');
+      expect(sub.commandId, 'cmd_sub_01');
+      expect(sub.sessionId, '@daemon');
+      expect(sub.type, 'system.metrics.subscribe');
+      expect(sub.payload, isEmpty);
+
+      final unsub = PcpCommand.systemMetricsUnsubscribe(commandId: 'cmd_unsub_01');
+      expect(unsub.commandId, 'cmd_unsub_01');
+      expect(unsub.sessionId, '@daemon');
+      expect(unsub.type, 'system.metrics.unsubscribe');
+      expect(unsub.payload, isEmpty);
+    });
   });
 }

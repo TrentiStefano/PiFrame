@@ -170,6 +170,15 @@ class AppStrings {
 
   String composerSteerTooltip({required bool sendWithEnter}) =>
       sendWithEnter ? composerSteerTooltipSendWithEnter : composerSteerTooltipDefault;
+
+  // Nerd stats
+  String get nerdStatsSectionTitle =>
+      isItalian ? 'Statistiche nerd' : 'Nerd stats';
+  String get nerdStatsTitle =>
+      isItalian ? 'Statistiche nerd' : 'Nerd stats';
+  String get nerdStatsSubtitle => isItalian
+      ? 'Mostra le statistiche di sistema (CPU, RAM, disco, GPU) e i frame al secondo (FPS) in tempo reale nella barra del titolo.'
+      : 'Show real-time system metrics (CPU, RAM, disk, GPU) and frames per second (FPS) in the title bar.';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {
