@@ -210,7 +210,7 @@ void main() {
         .where((rune) => rune == qCode)
         .length;
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ, character: 'q');
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ, character: 'q');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ);
     await tester.pump();
     final qCountAfter = terminalView.terminal.buffer
         .getText()

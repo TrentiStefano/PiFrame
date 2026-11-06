@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/snapshot_reducer.dart';
 
 class MockDefaultsPcpClient extends PcpClient {
