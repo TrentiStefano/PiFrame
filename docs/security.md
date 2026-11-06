@@ -110,6 +110,7 @@ Tutti i comandi amministrativi e di configurazione sono rigorosamente interdetti
 - `remote.*` (inclusi `remote.start`, `remote.setOptions`, `remote.generatePairing`, `remote.revokeDevice`) -> `REMOTE_FORBIDDEN`.
 - `daemon.getConfig` e `daemon.setConfig` -> `REMOTE_FORBIDDEN`.
 - `pi.packages.*` -> `REMOTE_FORBIDDEN`.
+- `pi.agents.*` (`pi.agents.get`, `pi.agents.update`) -> `REMOTE_FORBIDDEN`.
 - `system.metrics.*` (`system.metrics.subscribe`, `system.metrics.unsubscribe`) -> `REMOTE_FORBIDDEN`.
 - `daemon.setConfig` impedisce la modifica diretta delle sezioni `remote` e `web` anche da locale (`CONFIG_INVALID`).
 
@@ -132,6 +133,13 @@ Il campionamento delle risorse host (CPU, memoria, volume disco di `homedir`, GP
   - `ioreg` su macOS (argomenti fissi: `-r -d 1 -w 0 -c IOAccelerator` con timeout 800ms).
   - Linux effettua letture dirette da `/sys/class/drm/` senza spawnare alcun binario.
   Tutti i processi child sono eseguiti con `shell: false`, `windowsHide: true`, argomenti immutabili codificati nel codice sorgente e senza alcun input proveniente dal client. I processi child vengono terminati immediatamente alla rimozione dell'ultima sottoscrizione o allo shutdown del daemon.
+
+### 9. Configurazione Subagenti ed Estensioni Runtime (Pi Subagents)
+La gestione delle impostazioni dei subagenti e dei limiti di contesto adotta rigorose tutele di integrità e isolamento:
+- **Esclusivamente Locale**: I comandi `pi.agents.get` e `pi.agents.update` sono rigettati con `REMOTE_FORBIDDEN` per qualsiasi dispositivo remoto. La configurazione di Pi e dei subagenti può essere letta o modificata unicamente tramite connessioni locali.
+- **Scrittura Atomica e Lockfile Compatibile**: Le modifiche a `~/.pi/agent/settings.json`, `~/.pi/agent/subagents.json` e `~/.piframe/subagent-context.json` acquisiscono un lock directory `<file>.lock` pienamente compatibile con `proper-lockfile` di Pi (rilevamento stale lock a 10 secondi). Prima di qualsiasi scrittura viene generata una copia di backup `settings.json.piframe-backup`. La scrittura avviene su file temporaneo nella stessa directory con permessi restrittivi e successiva rinomina atomica. Se il file di configurazione non è un JSON valido, l'operazione fallisce closed (`AGENTS_CONFIG_UNREADABLE`) senza alterare il file.
+- **Generazione e Isolamento delle Estensioni**: L'estensione runtime per i limiti di contesto dei subagenti (`~/.piframe/runtime/subagent-context-limit.mjs`) è generata con codice completamente autosufficiente, privo di dipendenze esterne o accesso alla rete. Viene caricata unicamente nei processi child dei subagenti tramite l'impostazione nativa di Pi `subagentOnlyExtensions`, limitandosi a regolare `contextWindow` tramite `pi.setModel` all'avvio della sessione del subagente.
+
 
 ---
 

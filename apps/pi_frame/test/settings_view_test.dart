@@ -162,6 +162,7 @@ void main() {
       'AGGIORNAMENTI',
       'TERMINALE',
       'ACCESSO REMOTO',
+      'AGENTI',
     ]) {
       await tester.ensureVisible(find.text(tab).first);
       expect(find.text(tab), findsOneWidget);

@@ -26,6 +26,12 @@ void main() {
       expect(strings.settingsTitle, 'Impostazioni PiFrame');
       expect(strings.tabPackages, 'PACCHETTI');
       expect(strings.tabAppearance, 'ASPETTO');
+      expect(strings.tabAgents, 'AGENTI');
+      expect(strings.agentsTitle, 'Configurazione Agenti e Sottoagenti');
+      expect(strings.agentsPackagesLabel, 'Pacchetti:');
+      expect(strings.agentsContextSingleTierTooltip, 'Il modello ha un solo livello di contesto');
+      expect(strings.agentsModelUnavailableWarning, 'Non disponibile con le credenziali attuali');
+      expect(strings.agentsNotAvailableShort, 'n/d');
       expect(strings.languageSectionTitle, "Lingua dell'Applicazione");
       expect(strings.openThemeEditorBtn, 'Editor Temi / Personalizza Tema');
       expect(strings.updateNoticeTitle, 'Aggiornamenti Rilevati');
@@ -61,6 +67,12 @@ void main() {
       expect(strings.settingsTitle, 'PiFrame Settings');
       expect(strings.tabPackages, 'PACKAGES');
       expect(strings.tabAppearance, 'APPEARANCE');
+      expect(strings.tabAgents, 'AGENTS');
+      expect(strings.agentsTitle, 'Agent & Subagent Configuration');
+      expect(strings.agentsPackagesLabel, 'Packages:');
+      expect(strings.agentsContextSingleTierTooltip, 'Model has a single context tier');
+      expect(strings.agentsModelUnavailableWarning, 'Not available with current credentials');
+      expect(strings.agentsNotAvailableShort, 'N/A');
       expect(strings.languageSectionTitle, 'Application Language');
       expect(strings.openThemeEditorBtn, 'Theme Editor / Customize Theme');
       expect(strings.updateNoticeTitle, 'Updates Available');

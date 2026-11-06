@@ -46,6 +46,19 @@ export class WorkerSupervisor {
     }
   }
 
+  public getCapabilities(): PiCapabilities {
+    return this.capabilities;
+  }
+
+  public getActiveWorker(): StdioPiTransport | undefined {
+    for (const worker of this.activeWorkers.values()) {
+      if (worker && worker.health().alive) {
+        return worker;
+      }
+    }
+    return undefined;
+  }
+
   public async ensureWorker(session: Session): Promise<StdioPiTransport> {
     if (session.readOnly) throw new Error('External session is read-only. Duplicate it before sending commands.');
     if (this.shuttingDown) throw new Error('Daemon is shutting down');

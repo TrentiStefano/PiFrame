@@ -226,6 +226,26 @@ void main() {
         onDirty: 'stash',
       );
       expect(switchStash.payload['onDirty'], 'stash');
+
+      final agentsGet = PcpCommand.piAgentsGet(
+        commandId: 'cmd_ag_01',
+        cwd: '/project/dir',
+      );
+      expect(agentsGet.commandId, 'cmd_ag_01');
+      expect(agentsGet.sessionId, '@daemon');
+      expect(agentsGet.type, 'pi.agents.get');
+      expect(agentsGet.payload['cwd'], '/project/dir');
+
+      final agentsUpdate = PcpCommand.piAgentsUpdate(
+        commandId: 'cmd_au_01',
+        changes: [
+          {'kind': 'agent', 'name': 'worker', 'model': 'anthropic/claude-3-5-sonnet'}
+        ],
+      );
+      expect(agentsUpdate.commandId, 'cmd_au_01');
+      expect(agentsUpdate.sessionId, '@daemon');
+      expect(agentsUpdate.type, 'pi.agents.update');
+      expect(agentsUpdate.payload['changes'], isA<List>());
     });
   });
 }

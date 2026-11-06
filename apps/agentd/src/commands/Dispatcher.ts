@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Connection } from '../server/connection.js';
@@ -18,11 +19,14 @@ import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageServi
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import { SnapshotBuilder } from '../journal/SnapshotBuilder.js';
 import { SystemMetricsService } from '../metrics/SystemMetricsService.js';
+import { AgentsService } from '../pi/agents/AgentsService.js';
+import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type {
   PcpCommand,
   PcpAck,
   PcpResult,
-  PcpError
+  PcpError,
+  PiAvailableModel
 } from '@piframe/pcp-ts';
 
 function getOrCreateAuthDeviceId(): string {
@@ -57,13 +61,15 @@ export class Dispatcher {
   private piPackages: PiPackageOperations;
   private remoteManager?: RemoteManager;
   private metricsService: SystemMetricsService;
+  private agentsService: AgentsService;
 
   constructor(
     registry: SessionRegistry,
     connectionManager: ConnectionManager,
     piPackages?: PiPackageOperations,
     remoteManager?: RemoteManager,
-    metricsService?: SystemMetricsService
+    metricsService?: SystemMetricsService,
+    agentsService?: AgentsService
   ) {
     this.registry = registry;
     this.connectionManager = connectionManager;
@@ -71,6 +77,11 @@ export class Dispatcher {
     this.piPackages = piPackages ?? new PiPackageService(registry.getPiExecutablePath());
     this.remoteManager = remoteManager;
     this.metricsService = metricsService ?? new SystemMetricsService();
+    this.agentsService =
+      agentsService ??
+      new AgentsService({
+        getAvailableModels: () => this.fetchAvailableModelsForAgents(),
+      });
 
     this.connectionManager.onClose?.((conn) => {
       this.metricsService.handleConnectionClose(conn.id);
@@ -95,6 +106,10 @@ export class Dispatcher {
 
   public getMetricsService(): SystemMetricsService {
     return this.metricsService;
+  }
+
+  public getAgentsService(): AgentsService {
+    return this.agentsService;
   }
 
   public dispose(): void {
@@ -127,6 +142,87 @@ export class Dispatcher {
       ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
       : '/piframe-auth-logout';
     await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
+  }
+
+  private async fetchAvailableModelsForAgents(): Promise<{ models: PiAvailableModel[]; warning?: string }> {
+    let rawModels: any[] = [];
+    let warning: string | undefined;
+
+    const activeWorker = this.registry.getSupervisor().getActiveWorker();
+    if (activeWorker) {
+      try {
+        const res = await activeWorker.send({ command: 'get_available_models' });
+        if (Array.isArray(res.data?.models)) {
+          rawModels = res.data.models;
+        }
+      } catch (err: any) {
+        warning = `Failed to get models from active worker: ${err?.message || 'unknown error'}`;
+      }
+    } else {
+      const piPath = this.registry.getPiExecutablePath();
+      if (piPath) {
+        let tempWorker: StdioPiTransport | null = null;
+        try {
+          tempWorker = new StdioPiTransport({
+            executablePath: piPath,
+            capabilities: this.registry.getSupervisor().getCapabilities(),
+          });
+          await tempWorker.start({ cwd: os.tmpdir(), args: ['--mode', 'rpc'] });
+          const res = await tempWorker.send({ command: 'get_available_models', timeoutMs: 10000 });
+          if (Array.isArray(res.data?.models)) {
+            rawModels = res.data.models;
+          }
+        } catch (err: any) {
+          warning = `Pi is not available to query models: ${err?.message || 'unknown error'}`;
+        } finally {
+          if (tempWorker) {
+            try {
+              await tempWorker.stop({ graceMs: 1000 });
+            } catch {}
+          }
+        }
+      } else {
+        warning = 'Pi executable is not configured';
+      }
+    }
+
+    if (rawModels.length === 0) {
+      return { models: [], warning };
+    }
+
+    const entitlements = await getCopilotEntitlements().catch(() => ({
+      diagnostic: { available: true, message: '' },
+      allowedModelIds: new Set<string>(),
+    }));
+
+    const filtered = filterModelsByEnabledPatterns(
+      rawModels.filter((model: Record<string, unknown>) =>
+        model.provider !== 'github-copilot' ||
+        (entitlements.diagnostic.available &&
+          typeof model.id === 'string' &&
+          entitlements.allowedModelIds.has(model.id))
+      ),
+      readEnabledModelPatterns()
+    );
+
+    const mapped: PiAvailableModel[] = filtered.map((m: any) => {
+      const fullId = m.provider ? `${m.provider}/${m.id}` : String(m.id);
+      const tiers = Array.isArray(m.cost?.tiers)
+        ? m.cost.tiers
+            .map((t: any) => t.inputTokensAbove)
+            .filter((n: any) => typeof n === 'number' && Number.isFinite(n))
+            .sort((a: number, b: number) => a - b)
+        : [];
+      return {
+        id: fullId,
+        name: m.name ?? m.id,
+        contextWindow: typeof m.contextWindow === 'number' ? m.contextWindow : 0,
+        reasoning: !!m.reasoning,
+        tiers,
+      };
+    });
+
+    return { models: mapped, warning };
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -511,6 +607,23 @@ export class Dispatcher {
           String(payload.source ?? ''),
           String(payload.version ?? '')
         );
+
+      // -----------------------------------------------------------------------
+      // Pi Subagents Management (LOCAL ONLY)
+      // -----------------------------------------------------------------------
+      case 'pi.agents.get': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.agents is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        return await this.agentsService.getAgents(payload.cwd);
+      }
+
+      case 'pi.agents.update': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.agents is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        return await this.agentsService.updateAgents(payload.changes, payload.cwd);
+      }
 
       // -----------------------------------------------------------------------
       // Daemon configuration (LOCAL ONLY)

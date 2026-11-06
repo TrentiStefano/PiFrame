@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 
 import '../../app/app_version.dart';
+import '../agents/agents_config_model.dart';
 
 enum DaemonConnectionState {
   disconnected,
@@ -178,13 +179,12 @@ class PcpClient {
           final payload = map['payload'] as Map<String, dynamic>? ?? {};
           if (payload['state'] == 'failed' || payload['state'] == 'rejected') {
             final code = payload['code']?.toString() ?? '';
-            final details =
-                (payload['details'] as Map<String, dynamic>?) ?? const {};
+            final details = payload['details'];
             completer.completeError(
               PcpException(
                 payload['error']?.toString() ?? 'Command failed',
                 code: code,
-                details: details,
+                details: details ?? const {},
               ),
             );
           } else {
@@ -204,8 +204,7 @@ class PcpClient {
             PcpException(
               payload['message']?.toString() ?? 'PCP Error',
               code: payload['code']?.toString() ?? '',
-              details:
-                  (payload['details'] as Map<String, dynamic>?) ?? const {},
+              details: payload['details'] ?? const {},
             ),
           );
         }
@@ -624,6 +623,29 @@ class PcpClient {
           payload: {'source': source, 'version': version},
         ),
       );
+
+  Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
+    final cmd = PcpCommand.piAgentsGet(
+      commandId: newCommandId('ag_get'),
+      cwd: cwd,
+    );
+    final res = await sendCommand(cmd);
+    final map = (res['data'] as Map<String, dynamic>?) ?? res;
+    return PiAgentsConfig.fromJson(map);
+  }
+
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+    final typedChanges = changes
+        .map((c) => c.map((k, v) => MapEntry(k.toString(), v)))
+        .toList();
+    final cmd = PcpCommand.piAgentsUpdate(
+      commandId: newCommandId('ag_upd'),
+      changes: typedChanges,
+    );
+    final res = await sendCommand(cmd);
+    final map = (res['data'] as Map<String, dynamic>?) ?? res;
+    return PiAgentsConfig.fromJson(map);
+  }
 
   Future<Map<String, dynamic>> claimUiRequest(
     String sessionId,
@@ -1151,7 +1173,7 @@ class PcpClient {
 
 class PcpException extends StateError implements Exception {
   final String code;
-  final Map<String, dynamic> details;
+  final dynamic details;
 
   PcpException(
     super.message, {
@@ -1159,11 +1181,28 @@ class PcpException extends StateError implements Exception {
     this.details = const {},
   });
 
-  int get changedFiles => (details['changedFiles'] as num?)?.toInt() ?? 0;
-  int get untrackedFiles => (details['untrackedFiles'] as num?)?.toInt() ?? 0;
-  String? get stderr => details['stderr']?.toString();
-  bool get stashRetained => details['stashRetained'] == true;
-  String? get stashMessage => details['stashMessage']?.toString();
+  Map<String, dynamic> get detailsMap =>
+      details is Map<String, dynamic>
+          ? details as Map<String, dynamic>
+          : (details is Map
+              ? Map<String, dynamic>.from(details as Map)
+              : const {});
+
+  List<Map<String, dynamic>> get validationErrors {
+    if (details is List) {
+      return (details as List)
+          .whereType<Map>()
+          .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+          .toList();
+    }
+    return const [];
+  }
+
+  int get changedFiles => (detailsMap['changedFiles'] as num?)?.toInt() ?? 0;
+  int get untrackedFiles => (detailsMap['untrackedFiles'] as num?)?.toInt() ?? 0;
+  String? get stderr => detailsMap['stderr']?.toString();
+  bool get stashRetained => detailsMap['stashRetained'] == true;
+  String? get stashMessage => detailsMap['stashMessage']?.toString();
 
   @override
   String toString() => 'Bad state: $message';
