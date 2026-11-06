@@ -185,7 +185,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(
-          color: widget.block.hasError
+          color: widget.block.failed
               ? tokens.danger.withValues(alpha: 0.6)
               : tokens.borderStrong,
         ),
@@ -277,6 +277,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     final isRunning = widget.block.isRunning;
     final hasError = widget.block.hasError;
     final aborted = widget.block.aborted;
+    final failed = widget.block.failed;
     final stepCount = widget.block.stepCount;
 
     String headerLabel;
@@ -294,45 +295,46 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       headerLabel = latestStepLabel.isNotEmpty
           ? '${strings.stepGroupWorking} · $latestStepLabel'
           : strings.stepGroupWorking;
+    } else if (aborted) {
+      statusIcon = Icon(
+        Icons.stop_circle_outlined,
+        size: 15,
+        color: tokens.textMuted,
+      );
+      headerLabel = strings.stepGroupStopped(stepCount);
+    } else if (failed) {
+      statusIcon = Icon(
+        Icons.error_outline,
+        size: 15,
+        color: tokens.danger,
+      );
+      headerLabel = strings.stepGroupStoppedWithErrors(stepCount);
     } else {
-      if (hasError) {
-        if (aborted) {
-          statusIcon = Icon(
-            Icons.stop_circle_outlined,
-            size: 15,
-            color: tokens.textMuted,
-          );
-        } else {
-          statusIcon = Icon(
-            Icons.error_outline,
-            size: 15,
-            color: tokens.danger,
-          );
-        }
-        headerLabel = strings.stepGroupStoppedWithErrors(stepCount);
-      } else if (widget.block.elapsed != null) {
-        statusIcon = Icon(
-          Icons.check_circle_outline,
-          size: 15,
-          color: tokens.agentSettled,
-        );
+      // The turn completed. Failed tool calls along the way are flagged with
+      // a status icon; they do not turn the summary into a failure.
+      statusIcon = hasError
+          ? Tooltip(
+              message: strings.stepGroupSomeStepsFailed,
+              child: Icon(
+                Icons.error_outline,
+                key: const ValueKey('step_group_steps_failed_icon'),
+                size: 15,
+                color: tokens.warning,
+              ),
+            )
+          : Icon(
+              Icons.check_circle_outline,
+              size: 15,
+              color: tokens.agentSettled,
+            );
+      if (widget.block.elapsed != null) {
         headerLabel = strings.stepGroupCompletedIn(
           stepCount,
           formatDuration(widget.block.elapsed!),
         );
       } else if (stepCount > 0) {
-        statusIcon = Icon(
-          Icons.check_circle_outline,
-          size: 15,
-          color: tokens.agentSettled,
-        );
         headerLabel = strings.stepGroupCompleted(stepCount);
       } else {
-        statusIcon = Icon(
-          Icons.check_circle_outline,
-          size: 15,
-          color: tokens.agentSettled,
-        );
         headerLabel = strings.stepGroupFinished(stepCount);
       }
     }
@@ -359,7 +361,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                   style: TextStyle(
                     color: isRunning
                         ? tokens.agentWorking
-                        : hasError
+                        : failed
                             ? tokens.danger
                             : tokens.textSecondary,
                     fontSize: 12,

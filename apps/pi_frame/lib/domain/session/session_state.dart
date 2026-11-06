@@ -92,6 +92,75 @@ class SessionEntry {
     if (role == 'assistant' && isInternalOrJunkMessageText(text)) return true;
     return false;
   }
+
+  /// Number of leading [toolCalls] that ran before [text] was written.
+  ///
+  /// A text-less assistant message (tool calls only) is merged into the next
+  /// assistant message that has text, so the tool calls of the earlier message
+  /// precede the text. The remaining tool calls belong to the message that
+  /// carries the text and come after it.
+  int get toolCallsBeforeText {
+    final raw = metadata?[toolsBeforeTextKey];
+    if (raw is! int || raw <= 0) return 0;
+    return raw > toolCalls.length ? toolCalls.length : raw;
+  }
+
+  /// Tool calls that ran after [text]; an assistant text is final only if
+  /// this is empty.
+  List<ToolExecutionState> get toolCallsAfterText =>
+      toolCalls.sublist(toolCallsBeforeText);
+}
+
+/// Returns the turn-ending metadata (`stopReason`, `errorMessage`) of an
+/// assistant [message] that ended in error or was aborted, or null.
+Map<String, dynamic>? terminalStopMetadata(Map message) {
+  final stopReason = message['stopReason']?.toString();
+  if (stopReason != 'error' && stopReason != 'aborted') return null;
+  final errorMessage = message['errorMessage']?.toString();
+  return {'stopReason': stopReason, 'errorMessage': ?errorMessage};
+}
+
+/// Metadata key that records how many leading tool calls precede the text.
+const toolsBeforeTextKey = 'toolsBeforeText';
+
+/// Merges an assistant [entry] that has text into the preceding text-less
+/// assistant entry [prev] (tool calls and/or thinking only), so the classic
+/// transcript shows them as one bubble.
+///
+/// The merged entry records in [toolsBeforeTextKey] that the tool calls of
+/// [prev] ran before the text, so step grouping can keep the chronological
+/// order and still recognise the text as the final answer.
+SessionEntry mergeTextIntoTextlessAssistant(
+  SessionEntry prev,
+  SessionEntry entry,
+) {
+  final mergedTools = List<ToolExecutionState>.from(prev.toolCalls);
+  for (final t in entry.toolCalls) {
+    if (!mergedTools.any((e) => e.toolCallId == t.toolCallId)) {
+      mergedTools.add(t);
+    }
+  }
+  final prevThinking = prev.thinking?.trim();
+  final entryThinking = entry.thinking?.trim();
+  final combinedThinking =
+      prevThinking != null &&
+          entryThinking != null &&
+          prevThinking != entryThinking
+      ? '$prevThinking\n\n$entryThinking'
+      : (prevThinking ?? entryThinking);
+  return SessionEntry(
+    id: prev.id,
+    role: 'assistant',
+    text: entry.text,
+    thinking: combinedThinking,
+    toolCalls: mergedTools,
+    timestamp: prev.timestamp,
+    metadata: {
+      ...?prev.metadata,
+      ...?entry.metadata,
+      toolsBeforeTextKey: prev.toolCalls.length,
+    },
+  );
 }
 
 bool isInternalOrJunkMessageText(String text) {

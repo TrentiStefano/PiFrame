@@ -489,6 +489,22 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       if (text.trim().isEmpty &&
           (thinking == null || thinking.trim().isEmpty) &&
           turnTools.isEmpty) {
+        // An empty assistant message can still carry how the turn ended
+        // (e.g. a provider error). Keep that on the previous assistant entry.
+        final terminal = role == 'assistant' ? terminalStopMetadata(msg) : null;
+        if (terminal != null &&
+            current.entries.isNotEmpty &&
+            current.entries.last.role == 'assistant') {
+          final last = current.entries.last;
+          return current.copyWith(
+            entries: List<SessionEntry>.from(current.entries)
+              ..[current.entries.length - 1] = last.copyWith(
+                metadata: {...?last.metadata, ...terminal},
+              ),
+            streamingTextBlocks: const {},
+            lastAppliedSeq: nextSeq,
+          );
+        }
         return current.copyWith(
           streamingTextBlocks: const {},
           lastAppliedSeq: nextSeq,
@@ -513,6 +529,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         metadata: {
           'model': ?entryModel,
           'usage': ?entryUsage,
+          'stopReason': ?msg['stopReason']?.toString(),
         },
       );
 
@@ -562,31 +579,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           nextEntries.last.text.isEmpty &&
           text.isNotEmpty) {
         final prev = nextEntries.removeLast();
-        final mergedTools = List<ToolExecutionState>.from(prev.toolCalls);
-        for (final t in entry.toolCalls) {
-          if (!mergedTools.any((e) => e.toolCallId == t.toolCallId)) {
-            mergedTools.add(t);
-          }
-        }
-        final prevThinking = prev.thinking?.trim();
-        final entryThinking = entry.thinking?.trim();
-        final combinedThinking = prevThinking != null &&
-                entryThinking != null &&
-                prevThinking != entryThinking
-            ? '$prevThinking\n\n$entryThinking'
-            : (prevThinking ?? entryThinking);
-        nextEntries.add(SessionEntry(
-          id: prev.id,
-          role: 'assistant',
-          text: text,
-          thinking: combinedThinking,
-          toolCalls: mergedTools,
-          timestamp: prev.timestamp,
-          metadata: {
-            if (prev.metadata != null) ...prev.metadata!,
-            if (entry.metadata != null) ...entry.metadata!,
-          },
-        ));
+        nextEntries.add(mergeTextIntoTextlessAssistant(prev, entry));
       } else {
         nextEntries.add(entry);
       }

@@ -130,11 +130,16 @@ final class StepsGroupBlock extends TranscriptBlock {
   /// Whether the turn is currently executing.
   final bool isRunning;
 
-  /// Whether any step or turn termination encountered an error.
+  /// Whether any step or turn termination encountered an error. A completed
+  /// turn can have this set because a single tool call failed.
   final bool hasError;
 
   /// Whether the turn was aborted / cancelled.
   final bool aborted;
+
+  /// Whether the turn itself ended in failure (model/stream error, send
+  /// error, worker error) instead of reaching a normal end.
+  final bool failed;
 
   /// Total count of thinking steps and tool execution steps (excludes intermediate text).
   final int stepCount;
@@ -152,6 +157,7 @@ final class StepsGroupBlock extends TranscriptBlock {
     required this.isRunning,
     required this.hasError,
     required this.aborted,
+    this.failed = false,
     required this.stepCount,
     this.elapsed,
     this.latestStep,
@@ -447,7 +453,8 @@ void _processTurn({
   }
   if (!hasCommittedIntermediateText && assistantEntries.isNotEmpty) {
     final last = assistantEntries.last;
-    if (last.text.trim().isNotEmpty && (last.toolCalls.isNotEmpty || hasActiveTools)) {
+    if (last.text.trim().isNotEmpty &&
+        (last.toolCallsAfterText.isNotEmpty || hasActiveTools)) {
       hasCommittedIntermediateText = true;
     }
   }
@@ -505,7 +512,9 @@ void _processTurn({
           live.streamingText.trim().isNotEmpty)) {
     for (int i = assistantEntries.length - 1; i >= 0; i--) {
       final asst = assistantEntries[i];
-      if (asst.toolCalls.isNotEmpty) {
+      // Tool calls merged from an earlier text-less message ran before this
+      // text; only tool calls after the text make it intermediate.
+      if (asst.toolCallsAfterText.isNotEmpty) {
         break;
       }
       if (asst.text.trim().isNotEmpty) {
@@ -538,7 +547,21 @@ void _processTurn({
       );
     }
 
-    // 2. Text step (intermediate text)
+    // 2. Tool calls that ran before the text (merged from an earlier
+    // text-less message), kept in chronological order.
+    final toolsBeforeText = asst.toolCallsBeforeText;
+    for (int t = 0; t < toolsBeforeText; t++) {
+      final tool = asst.toolCalls[t];
+      steps.add(
+        ToolStep(
+          id: tool.toolCallId.isNotEmpty ? tool.toolCallId : '${asst.id}_tool_$t',
+          tool: tool,
+          timestamp: tool.startedAt ?? asst.timestamp,
+        ),
+      );
+    }
+
+    // 3. Text step (intermediate text)
     if (asst.id != finalAssistantEntry?.id && asst.text.trim().isNotEmpty) {
       steps.add(
         IntermediateTextStep(
@@ -550,8 +573,8 @@ void _processTurn({
       );
     }
 
-    // 3. Tool steps
-    for (int t = 0; t < asst.toolCalls.length; t++) {
+    // 4. Tool calls after the text
+    for (int t = toolsBeforeText; t < asst.toolCalls.length; t++) {
       final tool = asst.toolCalls[t];
       final stepId = tool.toolCallId.isNotEmpty
           ? tool.toolCallId
@@ -659,6 +682,12 @@ void _processTurn({
             e.metadata!['exitCode'] != 0),
   );
   final hasUserSendError = turn.userEntry?.metadata?['sendError'] != null;
+  // Pi retries failed requests, so only the last assistant message decides
+  // whether the turn ended in error.
+  final lastAssistant = assistantEntries.lastOrNull;
+  final hasTurnEndError =
+      lastAssistant?.metadata?['stopReason'] == 'error' ||
+      turn.nonUserEntries.any((e) => e.metadata?['sendError'] != null);
   final hasEntryAbort = turn.nonUserEntries.any(
     (e) =>
         e.metadata?['stopReason'] == 'aborted' ||
@@ -666,6 +695,22 @@ void _processTurn({
   );
 
   final isAborted = hasEntryAbort || (turn.isLastTurn && live.aborted);
+  // The turn failed only if the turn itself ended in error. Failed tool calls
+  // (e.g. a non-zero bash exit the agent then worked around) do not fail a
+  // turn that reached its final answer; they only flag it with an error icon.
+  // A settled turn that has no final answer and stopped right on a failed
+  // tool call also ended in failure.
+  final isTurnRunning = turn.isLastTurn && live.isRunning;
+  final lastStep = steps.isNotEmpty ? steps.last : null;
+  final endedOnFailedTool = !isTurnRunning &&
+      finalAssistantEntry == null &&
+      lastStep is ToolStep &&
+      lastStep.isError;
+  final isFailed = !isAborted &&
+      (hasTurnEndError ||
+          hasUserSendError ||
+          endedOnFailedTool ||
+          (turn.isLastTurn && live.hasError));
   final hasError = hasToolError ||
       hasEntryError ||
       hasUserSendError ||
@@ -679,6 +724,7 @@ void _processTurn({
     isRunning: turn.isLastTurn && live.isRunning,
     hasError: hasError,
     aborted: isAborted,
+    failed: isFailed,
     stepCount: stepCount,
     elapsed: elapsed,
     latestStep: latestStep,

@@ -307,6 +307,14 @@ class AppStrings {
           ? 'Stopped with errors after 1 step'
           : 'Stopped with errors after $n steps');
 
+  String stepGroupStopped(int n) => isItalian
+      ? (n == 1 ? 'Interrotto dopo 1 passaggio' : 'Interrotto dopo $n passaggi')
+      : (n == 1 ? 'Stopped after 1 step' : 'Stopped after $n steps');
+
+  String get stepGroupSomeStepsFailed => isItalian
+      ? 'Alcuni passaggi sono falliti'
+      : 'Some steps failed';
+
   String get stepGroupShowAll =>
       isItalian ? 'Mostra tutti' : 'Show all';
   String get stepGroupShowLess =>
