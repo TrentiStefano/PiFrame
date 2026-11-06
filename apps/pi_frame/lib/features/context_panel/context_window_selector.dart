@@ -82,8 +82,10 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    ref.listen<String?>(
-      sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
+    ref.listen<(String?, String?, String?)>(
+      sessionStateFamily(widget.sessionId).select(
+        (s) => (s.currentModel, s.currentModelProvider, s.currentModelId),
+      ),
       (previous, next) {
         if (previous != next) {
           ref.read(customContextModeProvider(widget.sessionId).notifier).state = null;

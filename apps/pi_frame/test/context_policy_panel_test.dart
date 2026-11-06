@@ -18,6 +18,10 @@ class _PanelSession extends SessionStateNotifier {
   _PanelSession({
     int? override = 272000,
     this.modelMaximum = 1000000,
+    this.modelCatalog,
+    String currentModel = 'Luna fixture',
+    this.currentModelProvider,
+    this.currentModelId,
     bool auto = true,
     bool readOnly = false,
     bool busy = false,
@@ -25,7 +29,9 @@ class _PanelSession extends SessionStateNotifier {
     state = SessionState(
       sessionId: 'policy-fixture',
       cwd: '/fixture',
-      currentModel: 'Luna fixture',
+      currentModel: currentModel,
+      currentModelProvider: currentModelProvider,
+      currentModelId: currentModelId,
       contextWindowOverride: override,
       autoCompaction: auto,
       readOnly: readOnly,
@@ -42,6 +48,10 @@ class _PanelSession extends SessionStateNotifier {
   }
 
   final int modelMaximum;
+  final List<Map<String, dynamic>>? modelCatalog;
+  final String? currentModelProvider;
+  final String? currentModelId;
+  final selectedModels = <String>[];
   bool failContext = false;
   bool failReserve = false;
   Completer<void>? pendingContext;
@@ -53,7 +63,7 @@ class _PanelSession extends SessionStateNotifier {
   @override
   Future<({List<Map<String, dynamic>> models, String? warning})>
   getAvailableModelsWithWarning() async => (
-    models: <Map<String, dynamic>>[
+    models: modelCatalog ?? <Map<String, dynamic>>[
       {
         'id': 'luna-fixture',
         'name': 'Luna fixture',
@@ -70,6 +80,10 @@ class _PanelSession extends SessionStateNotifier {
   );
   @override
   Future<List<String>> getAvailableThinkingLevels() async => ['medium'];
+  @override
+  Future<void> setModel(String provider, String modelId) async {
+    selectedModels.add('$provider/$modelId');
+  }
   @override
   Future<void> setContextWindow(int? size) async {
     if (pendingContext != null) await pendingContext!.future;
@@ -159,6 +173,44 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('same-name providers have unique and correct dropdown selection', (
+    tester,
+  ) async {
+    final session = _PanelSession(
+      currentModel: 'Shared',
+      currentModelProvider: 'anthropic',
+      currentModelId: 'shared-id',
+      modelCatalog: [
+        {
+          'provider': 'github-copilot',
+          'id': 'shared-id',
+          'name': 'Shared',
+          'contextWindow': 128000,
+        },
+        {
+          'provider': 'anthropic',
+          'id': 'shared-id',
+          'name': 'Shared',
+          'contextWindow': 200000,
+        },
+      ],
+    );
+    await mount(tester, session, GlobalKey());
+
+    final dropdownFinder = find.byKey(
+      const ValueKey('context-model-dropdown'),
+    );
+    final dropdown = tester.widget<DropdownButton<String>>(dropdownFinder);
+    expect(dropdown.value, 'anthropic\u0000shared-id');
+    expect(dropdown.items!.map((item) => item.value).toSet(), hasLength(2));
+
+    await tester.tap(dropdownFinder);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shared · github-copilot').last);
+    await tester.pumpAndSettle();
+    expect(session.selectedModels, ['github-copilot/shared-id']);
+  });
 
   testWidgets(
     'preset hides custom; Custom snaps to 50k and reveals bounded slider',

@@ -544,6 +544,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
    - corpo (messaggio e opzioni) scrollabile con altezza massima: pulsanti Annulla/Invia sempre visibili anche con molte opzioni o testo lungo;
    - i pulsanti non dipendono più dall'esito del claim: solo "già in uso da un altro client" blocca la card; claim lento, fallito o offline non la disabilita (il daemon arbitra comunque la risposta);
    - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
+4. **Modelli con lo stesso nome su provider diversi**: la sessione conservava solo il nome visualizzato e il selettore poteva evidenziare più righe o risolvere la voce al primo provider. PiFrame ora conserva provider e ID; menu e look-up usano entrambi, il menu della sessione distingue i provider e `/model` richiede `provider/id` quando il nome è ambiguo.
 
 ---
 

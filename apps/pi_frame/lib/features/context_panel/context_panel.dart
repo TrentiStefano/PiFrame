@@ -73,6 +73,28 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     }
   }
 
+  String _modelOptionValue(Map<String, dynamic> model) =>
+      '${model['provider'] ?? ''}\u0000${model['id'] ?? model['name'] ?? ''}';
+
+  String? _modelDropdownValue(
+    String? currentModel,
+    String? currentProvider,
+    String? currentId,
+  ) {
+    if (_models.isEmpty) return null;
+    final index = _models.indexWhere((model) {
+      if (currentProvider != null &&
+          currentProvider.isNotEmpty &&
+          model['provider']?.toString() != currentProvider) {
+        return false;
+      }
+      if (currentId != null) return model['id']?.toString() == currentId;
+      return model['id']?.toString() == currentModel ||
+          model['name']?.toString() == currentModel;
+    });
+    return _modelOptionValue(_models[index < 0 ? 0 : index]);
+  }
+
   Future<bool> _runAction(Future<void> Function() action) async {
     try {
       await action();
@@ -200,6 +222,13 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final currentModel = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
     );
+    final currentModelProvider = ref.watch(
+      sessionStateFamily(widget.sessionId)
+          .select((s) => s.currentModelProvider),
+    );
+    final currentModelId = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.currentModelId),
+    );
     final currentThinkingLevel = ref.watch(
       sessionStateFamily(widget.sessionId)
           .select((s) => s.currentThinkingLevel),
@@ -222,11 +251,6 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       sessionStateFamily(widget.sessionId).notifier,
     );
 
-    final currentModelName =
-        currentModel ??
-        (_models.isNotEmpty
-            ? (_models.first['name'] ?? _models.first['id'])
-            : 'Default');
     final currentThinking = currentThinkingLevel ?? 'medium';
 
     final contextUsage =
@@ -239,7 +263,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     );
 
     final activeModelMap = _models.firstWhere(
-      (m) => m['name'] == currentModel || m['id'] == currentModel,
+      (model) => currentModelId != null
+          ? model['id']?.toString() == currentModelId &&
+              (currentModelProvider == null ||
+                  model['provider']?.toString() == currentModelProvider)
+          : model['name'] == currentModel || model['id'] == currentModel,
       orElse: () => const {},
     );
     final fullWindow = modelContextWindow(activeModelMap);
@@ -343,29 +371,31 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                               tokens.radiusMd,
                             ),
                             dropdownColor: tokens.surfaceElevated,
-                            value:
-                                _models.any(
-                                  (m) =>
-                                      m['name'] == currentModelName ||
-                                      m['id'] == currentModelName,
-                                )
-                                ? currentModelName
-                                : (_models.isNotEmpty
-                                      ? (_models.first['name'] ??
-                                            _models.first['id'])
-                                      : null),
+                            key: const ValueKey('context-model-dropdown'),
+                            value: _modelDropdownValue(
+                              currentModel,
+                              currentModelProvider,
+                              currentModelId,
+                            ),
                             style: TextStyle(
                               color: tokens.textPrimary,
                               fontSize: 13,
                               fontFamily: tokens.uiFontFamily,
                             ),
-                            items: _models.map((m) {
+                            items: _models.map((model) {
                               final name =
-                                  m['name'] as String? ?? m['id'] as String;
+                                  model['name'] as String? ?? model['id'] as String;
+                              final provider = model['provider']?.toString();
+                              final duplicateName = _models.where(
+                                (other) =>
+                                    (other['name'] ?? other['id']) == name,
+                              ).length > 1;
                               return DropdownMenuItem<String>(
-                                value: name,
+                                value: _modelOptionValue(model),
                                 child: Text(
-                                  name,
+                                  duplicateName && provider != null
+                                      ? '$name · $provider'
+                                      : name,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               );
@@ -375,15 +405,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                                 : (newModel) {
                                     if (newModel != null) {
                                       final modelObj = _models.firstWhere(
-                                        (m) =>
-                                            (m['name'] ?? m['id'])
-                                                ?.toString() ==
-                                            newModel,
-                                        orElse: () => {
-                                          'provider': '',
-                                          'id': newModel,
-                                        },
+                                        (model) =>
+                                            _modelOptionValue(model) == newModel,
+                                        orElse: () => const <String, dynamic>{},
                                       );
+                                      if (modelObj.isEmpty) return;
                                       final provider =
                                           modelObj['provider']?.toString() ??
                                           '';

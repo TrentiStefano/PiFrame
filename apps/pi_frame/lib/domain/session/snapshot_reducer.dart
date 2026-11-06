@@ -407,6 +407,8 @@ SessionState applySessionSnapshot(
     currentModel: model is Map
         ? (model['name'] ?? model['id'])?.toString()
         : (model is String && model.isNotEmpty ? model : null),
+    currentModelProvider: model is Map ? model['provider']?.toString() : null,
+    currentModelId: model is Map ? model['id']?.toString() : null,
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
     contextWindowOverride: runtime.containsKey('contextWindowOverride')
         ? (runtime['contextWindowOverride'] as num?)?.toInt()
