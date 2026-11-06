@@ -135,6 +135,11 @@ class FakeSidePcpClient extends PcpClient {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
+    return [];
+  }
+
+  @override
   Future<Map<String, dynamic>> getAvailableThinkingLevels(
     String sessionId,
   ) async {
