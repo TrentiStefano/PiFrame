@@ -104,6 +104,13 @@ void main() {}
 
     expect(find.text('lib/main.dart'), findsOneWidget);
     expect(find.text('README.md'), findsOneWidget);
+    final selectableText = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .where((paragraph) => paragraph.selectionRegistrar != null)
+        .map((paragraph) => paragraph.text.toPlainText())
+        .join();
+    expect(selectableText, contains('lib/main.dart'));
+    expect(selectableText, contains('README.md'));
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
     expect(find.byTooltip('CTRL+clic per aprire in Esplora file'), findsWidgets);
 
