@@ -179,6 +179,52 @@ class AppStrings {
   String get nerdStatsSubtitle => isItalian
       ? 'Mostra le statistiche di sistema (CPU, RAM, disco, GPU) e i frame al secondo (FPS) in tempo reale nella barra del titolo.'
       : 'Show real-time system metrics (CPU, RAM, disk, GPU) and frames per second (FPS) in the title bar.';
+
+  // Git branch browser
+  String get branchChipTooltip =>
+      isItalian ? 'Cambia ramo Git' : 'Switch Git branch';
+  String get branchPickerTitle =>
+      isItalian ? 'Passa a un altro ramo' : 'Switch branch';
+  String get branchPickerSearchHint =>
+      isItalian ? 'Cerca ramo...' : 'Search branches...';
+  String get branchPickerNoBranches =>
+      isItalian ? 'Nessun ramo trovato' : 'No branches found';
+  String get branchPickerLoading =>
+      isItalian ? 'Caricamento rami...' : 'Loading branches...';
+  String get branchPickerError =>
+      isItalian ? 'Impossibile caricare i rami' : 'Failed to load branches';
+  String get branchPickerRetry =>
+      isItalian ? 'Riprova' : 'Retry';
+  String get branchPickerCurrentBranch =>
+      isItalian ? 'Ramo corrente' : 'Current branch';
+  String get workspaceDirtyDialogTitle =>
+      isItalian ? 'Modifiche non salvate' : 'Uncommitted Changes';
+  String workspaceDirtyDialogMessage(int changedFiles, int untrackedFiles) =>
+      isItalian
+          ? 'Hai $changedFiles file modificati e $untrackedFiles non tracciati. Il cambio di ramo è bloccato per proteggere le tue modifiche.'
+          : 'You have $changedFiles modified and $untrackedFiles untracked files. Switching branch is blocked to protect your changes.';
+  String get stashAndSwitchBtn =>
+      isItalian ? 'Salva nello stash e cambia' : 'Stash changes and switch';
+  String branchSwitched(String branch) =>
+      isItalian ? 'Passato al ramo $branch' : 'Switched to $branch';
+  String branchSwitchedStashNotice(String stashMessage) =>
+      isItalian
+          ? 'Le tue modifiche sono state salvate nello stash: $stashMessage'
+          : 'Your changes were stashed: $stashMessage';
+  String get branchSwitchFailedTitle =>
+      isItalian ? 'Cambio di ramo non riuscito' : 'Branch switch failed';
+  String stashRetainedSafeNotice(String stashMessage) =>
+      isItalian
+          ? 'Le tue modifiche sono al sicuro nello stash: $stashMessage'
+          : 'Your changes are safe in the stash: $stashMessage';
+  String get branchSwitchAgentWorking =>
+      isItalian
+          ? 'Impossibile cambiare ramo mentre l\'agente sta lavorando'
+          : 'Cannot switch branch while the agent is working';
+  String get branchNotFound =>
+      isItalian ? 'Ramo non trovato' : 'Branch not found';
+  String get branchInvalidName =>
+      isItalian ? 'Nome del ramo non valido' : 'Invalid branch name';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {

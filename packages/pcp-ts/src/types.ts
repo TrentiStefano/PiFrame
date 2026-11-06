@@ -138,6 +138,8 @@ export type PcpCommandType =
   | 'workspace.readFile'
   | 'workspace.saveFile'
   | 'workspace.gitAction'
+  | 'workspace.listBranches'
+  | 'workspace.switchBranch'
   | 'remote.getStatus'
   | 'remote.start'
   | 'remote.stop'
@@ -197,6 +199,44 @@ export interface WorkspaceGitActionRequest {
   paths: string[];
   expectedStagedPaths?: string[];
   message?: string;
+}
+
+export interface WorkspaceBranchInfo {
+  name: string;
+  isCurrent: boolean;
+  upstream: string | null;
+  ahead: number | null;
+  behind: number | null;
+  lastCommitUnix: number | null;
+}
+
+export interface WorkspaceListBranchesResult {
+  branches: WorkspaceBranchInfo[];
+  currentBranch: string | null;
+  detached: boolean;
+  headShortSha: string | null;
+}
+
+export interface WorkspaceSwitchBranchPayload {
+  branch: string;
+  onDirty?: 'block' | 'stash';
+}
+
+export interface WorkspaceSwitchBranchResult {
+  currentBranch: string;
+  stashed: boolean;
+  stashMessage: string | null;
+}
+
+export interface WorkspaceDirtyDetails {
+  changedFiles: number;
+  untrackedFiles: number;
+}
+
+export interface BranchSwitchFailedDetails {
+  stderr?: string;
+  stashRetained?: boolean;
+  stashMessage?: string | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -450,7 +490,12 @@ export type PcpErrorCode =
   | 'JOURNAL_GAP'
   | 'CONFIG_INVALID'
   | 'RATE_LIMITED'
-  | 'INTERNAL';
+  | 'INTERNAL'
+  | 'REMOTE_FORBIDDEN'
+  | 'BRANCH_INVALID_NAME'
+  | 'BRANCH_NOT_FOUND'
+  | 'WORKSPACE_DIRTY'
+  | 'BRANCH_SWITCH_FAILED';
 
 export interface PcpErrorPayload {
   code: PcpErrorCode;

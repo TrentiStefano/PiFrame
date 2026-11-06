@@ -239,3 +239,13 @@ Nelle sessioni con cronologia molto estesa (migliaia di messaggi o log di tool v
 2. **Caricamento a ritroso on-demand**: in cima alla chat, il pulsante dinamico *"Carica altri messaggi dalla cronologia"* consente di recuperare blocchi incrementali di messaggi precedenti tramite il comando `session.getHistory`, preservando la posizione di scorrimento senza salti visivi.
 3. **Integrità assoluta**: l'intero archivio storico resta conservato su disco in `~/.pi/agent/sessions/` e può essere sfogliato progressivamente a ritroso fino al primissimo messaggio della sessione.
 
+---
+
+## 8. Navigazione e Cambio Branch Git nel Workspace
+
+Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e il cambio controllato dei rami Git (`workspace.listBranches` e `workspace.switchBranch`):
+- **Enumerazione e Tracking**: restituisce tutti i rami locali con indicatore del ramo corrente, stato di tracking upstream (`ahead` / `behind`), data dell'ultimo commit e rilevamento di HEAD staccata (detached HEAD).
+- **Protezione Anti-Sovrascrittura**: il cambio ramo rifiuta working tree sporchi (`onDirty: 'block'`, predefinito) segnalando il numero esatto di file modificati e non tracciati. Con `onDirty: 'stash'`, le modifiche pendenti vengono archiviate in modo sicuro nello stash Git (`piframe: before switching to <name> (<iso time>)`) prima dello switch, con ripristino automatico via `git stash pop` in caso di fallimento del checkout.
+- **Isolamento e Sicurezza**: i comandi sono rigorosamente confinati al repository della sessione corrente, eseguiti senza shell (`shell: false`) con argomenti array, protetti da injection su nomi di ramo non validi e respinti per sessioni in sola lettura o mentre l'agente sta lavorando.
+- **Interfaccia Utente (Branch Picker & Gestione Modifiche)**: nel pannello Git Changes, il ramo corrente è visualizzato come chip interattivo (con icona e commit SHA in caso di HEAD detached). Cliccandolo si apre un selettore rapido con ricerca, navigazione da tastiera (frecce, Invio, Esc) e stato di tracking (↑n ↓m). Se vi sono file non salvati, una finestra di dialogo di sicurezza blocca il cambio e richiede la conferma esplicita per archiviare nello stash o annullare, mostrando notifiche e dettagli chiari in caso di errori o recupero stash.
+

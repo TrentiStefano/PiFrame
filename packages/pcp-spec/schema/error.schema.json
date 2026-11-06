@@ -35,7 +35,12 @@
             "JOURNAL_GAP",
             "CONFIG_INVALID",
             "RATE_LIMITED",
-            "INTERNAL"
+            "INTERNAL",
+            "REMOTE_FORBIDDEN",
+            "BRANCH_INVALID_NAME",
+            "BRANCH_NOT_FOUND",
+            "WORKSPACE_DIRTY",
+            "BRANCH_SWITCH_FAILED"
           ]
         },
         "message": { "type": "string" },

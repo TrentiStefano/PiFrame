@@ -1,0 +1,10 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "msg_01HZCMDLB0000000000000001",
+  "ts": 1726640000100,
+  "commandId": "cmd_01HZIDEMPOTENTLB0000001",
+  "sessionId": "s_01HZSESSION00000000000001",
+  "type": "workspace.listBranches",
+  "payload": {}
+}
