@@ -152,6 +152,29 @@ flutter test test/session_changes_review_test.dart
 
 ---
 
+## Pannello Agenti: agenti finiti mostrati "In corso" e Git non minimizzato
+
+**Sintomi:**
+- agenti già terminati restano "In corso";
+- le sessioni figlie dei workflow compaiono come nomi di file, senza indicare cosa fanno;
+- entrando in una sessione con il pannello Agenti già aperto, Git Changes resta espanso.
+
+**Cause:**
+- il daemon leggeva solo la prima `<task-notification>` di ogni messaggio e ignorava i record `subagents:record` che pi-subagents salva a fine agente;
+- le sessioni figlie senza una chiamata `Agent` collegata non avevano né stato né attività;
+- la minimizzazione di Git scattava solo sul passaggio chiuso → aperto, non quando il pannello era già aperto all'ingresso nella sessione;
+- una richiesta `session.subagents` senza risposta bloccava tutti gli aggiornamenti successivi.
+
+**Correzione:**
+- il daemon legge tutte le notifiche e i record finali;
+- per ogni sessione figlia ricava tipo, compito, attività corrente, inizio e ultimo aggiornamento; una sessione figlia ferma da 10 minuti è considerata terminata;
+- il pannello minimizza Git anche quando è già aperto all'ingresso nella sessione;
+- le richieste al daemon scadono dopo 30 secondi.
+
+Le correzioni del daemon valgono solo dopo il suo aggiornamento e riavvio.
+
+---
+
 ## Pannelli Repository e Git lenti
 
 **Sintomo:** l'apertura o l'aggiornamento dei pannelli Repository/Git e il caricamento di un diff possono rallentare nei repository con molti file non tracciati.

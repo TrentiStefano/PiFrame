@@ -18,6 +18,8 @@ class WorkflowItem {
   final String summary;
   final String result;
   final int timestamp;
+  /// When the run's settling notification arrived, if it has.
+  final int? endedAt;
 
   const WorkflowItem({
     required this.id,
@@ -30,6 +32,7 @@ class WorkflowItem {
     this.summary = '',
     this.result = '',
     required this.timestamp,
+    this.endedAt,
   });
 
   bool get isRunning => status == 'running';
@@ -42,7 +45,7 @@ class WorkflowItem {
     return path.replaceFirst(RegExp(r'\.js$'), '.jsonl');
   }
 
-  WorkflowItem copyWith({String? status, String? summary, String? result}) => WorkflowItem(
+  WorkflowItem copyWith({String? status, String? summary, String? result, int? endedAt}) => WorkflowItem(
         id: id,
         name: name,
         description: description,
@@ -53,6 +56,7 @@ class WorkflowItem {
         summary: summary ?? this.summary,
         result: result ?? this.result,
         timestamp: timestamp,
+        endedAt: endedAt ?? this.endedAt,
       );
 }
 
@@ -113,6 +117,7 @@ List<WorkflowItem> parseWorkflows(
       result: tool.isError || runId == null ? output : previous?.result ?? '',
       summary: previous?.summary ?? '',
       timestamp: previous?.timestamp ?? timestamp,
+      endedAt: previous?.endedAt,
     );
   }
 
@@ -133,6 +138,7 @@ List<WorkflowItem> parseWorkflows(
         status: _workflowStatus(notification.status),
         summary: notification.summary,
         result: notification.result,
+        endedAt: entry.timestamp,
       );
     }
   }
@@ -148,6 +154,37 @@ final workflowsFamily = Provider.autoDispose.family<List<WorkflowItem>, String>(
   );
   return parseWorkflows(entries, activeTools.values);
 });
+
+/// Splits child sessions the daemon could not tie to an `Agent` call between
+/// the workflow runs whose lifetime covers their start. Runs are matched
+/// newest first; children no run claims come back under the `''` key.
+Map<String, List<SubagentItem>> workflowChildren(
+  List<WorkflowItem> runs,
+  List<SubagentItem> unlinked,
+) {
+  const slack = 5000;
+  final byRun = <String, List<SubagentItem>>{for (final run in runs) run.id: []};
+  final loose = <SubagentItem>[];
+  final newestFirst = [...runs]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  for (final child in unlinked) {
+    final started = child.startedAt;
+    WorkflowItem? owner;
+    if (started != null) {
+      for (final run in newestFirst) {
+        final end = run.endedAt;
+        if (started >= run.timestamp - slack && (end == null || started <= end + slack)) {
+          owner = run;
+          break;
+        }
+      }
+    }
+    (owner == null ? loose : byRun[owner.id]!).add(child);
+  }
+  for (final list in byRun.values) {
+    list.sort((a, b) => (a.startedAt ?? 0).compareTo(b.startedAt ?? 0));
+  }
+  return {...byRun, '': loose};
+}
 
 /// Whether the session still has background agents or workflows at work,
 /// even when its own turn has ended.

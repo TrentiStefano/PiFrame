@@ -154,10 +154,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify header and subagent details
-      expect(find.textContaining('Subagenti (1)'), findsOneWidget);
+      expect(find.text('Sessione principale'), findsOneWidget);
       expect(find.text('Explore Agent'), findsOneWidget);
-      expect(find.text('gpt-6-luna'), findsOneWidget);
-      expect(find.text('\$0.0175'), findsNWidgets(2));
+      expect(find.textContaining('gpt-6-luna'), findsOneWidget);
+      expect(find.textContaining('\$0.0175'), findsNWidgets(2));
       expect(find.textContaining('In corso'), findsWidgets);
 
       // Individual subagent cards start collapsed; expand to inspect output.
@@ -301,6 +301,7 @@ void main() {
           status: 'completed',
         ),
       ];
+      var opened = 0;
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -314,12 +315,12 @@ void main() {
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-            home: const Scaffold(
+            home: Scaffold(
               body: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(child: SizedBox()),
-                  AgentActivitySidecar(sessionId: 'sess_side'),
+                  const Expanded(child: SizedBox()),
+                  AgentActivitySidecar(sessionId: 'sess_side', onOpened: () => opened++),
                 ],
               ),
             ),
@@ -333,6 +334,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
       expect(find.text('Side Agent'), findsOneWidget);
+      expect(opened, 1, reason: 'the shell collapses Git when the panel opens');
 
       await tester.tap(find.byKey(const ValueKey('agent-activity-close-btn')));
       await tester.pumpAndSettle();
@@ -370,7 +372,17 @@ void main() {
                 ),
             ),
             subagentsFamily('sess_wf').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_wf', const []),
+              (ref) => _MockSubagentsNotifier(ref, 'sess_wf', const [
+                SubagentItem(
+                  id: 'child_1',
+                  name: 'general-purpose#child_1',
+                  status: 'running',
+                  isUnlinked: true,
+                  prompt: 'COMPITO: QA finale del sito',
+                  activity: 'bash: npm test',
+                  startedAt: 5,
+                ),
+              ]),
             ),
           ],
           child: MaterialApp(
@@ -381,15 +393,20 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Workflow (1)'), findsOneWidget);
+      expect(find.text('WORKFLOW'), findsOneWidget);
       expect(find.text('audit'), findsOneWidget);
-      expect(find.text('In corso'), findsOneWidget);
+      expect(find.text('In corso'), findsNWidgets(2));
+      expect(find.text('Scan'), findsOneWidget);
+      expect(find.text('0/1 agenti finiti · 1 al lavoro'), findsOneWidget);
+      // The workflow child shows its own task and what it is running now.
+      expect(find.text('COMPITO: QA finale del sito'), findsOneWidget);
+      expect(find.textContaining('npm test'), findsOneWidget);
       expect(find.text('Audit the repo'), findsNothing);
+      expect(find.textContaining('wf_000000aaaaaa'), findsNothing);
 
       await tester.tap(find.text('audit'));
       await tester.pumpAndSettle();
       expect(find.text('Audit the repo'), findsOneWidget);
-      expect(find.text('Scan'), findsOneWidget);
     });
 
     testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
@@ -494,7 +511,7 @@ void main() {
       expect(find.byType(Checkbox), findsNothing);
 
       // Verify model used is displayed
-      expect(find.text('claude-3-5-sonnet'), findsOneWidget);
+      expect(find.textContaining('claude-3-5-sonnet'), findsOneWidget);
 
       // Find the text widget for completed agent task and verify strikethrough decoration
       final titleFinder = find.text('Completed Agent Task');
@@ -891,7 +908,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       );
 
       await tester.pumpAndSettle();
-      expect(find.text('N/D'), findsNWidgets(2)); // Unknown model and cost.
+      expect(find.text('N/D · N/D'), findsOneWidget); // Unknown model and cost.
       expect(find.text('\$0.0000'), findsNothing);
     });
 
@@ -927,7 +944,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       await tester.pumpAndSettle();
 
       // Check header cost badge and item row
-      expect(find.text('\$0.0250'), findsNWidgets(2));
+      expect(find.textContaining('\$0.0250'), findsNWidgets(2));
     });
 
     testWidgets('Changing session keeps cards minimized and does not re-open expanded cards', (tester) async {

@@ -495,11 +495,12 @@ void main() {
       ),
     ));
     await tester.pump();
-    expect(find.text('Subagenti (2)'), findsOneWidget);
+    expect(find.text('Sessione principale'), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-2')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-child')), findsNothing);
-    expect(find.textContaining('Sessione figlia non attribuita: reviewer#12345678'), findsOneWidget);
+    expect(find.byKey(const ValueKey('unlinked-session-child')), findsOneWidget);
+    expect(find.text('reviewer#12345678'), findsOneWidget);
     expect(find.text('Parziale \$0.0150'), findsNothing);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,

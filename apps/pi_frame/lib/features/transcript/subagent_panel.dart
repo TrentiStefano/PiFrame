@@ -16,7 +16,7 @@ bool get _isTestBinding =>
 /// The Agents/Workflows column beside the chat card: a slim strip while
 /// closed, the full [AgentActivityPanel] while open, nothing when the session
 /// never delegated work.
-class AgentActivitySidecar extends ConsumerWidget {
+class AgentActivitySidecar extends ConsumerStatefulWidget {
   final String sessionId;
 
   /// Called whenever the panel opens, so the shell can make room for it.
@@ -25,27 +25,42 @@ class AgentActivitySidecar extends ConsumerWidget {
   const AgentActivitySidecar({super.key, required this.sessionId, this.onOpened});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AgentActivitySidecar> createState() => _AgentActivitySidecarState();
+}
+
+class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
+  @override
+  void initState() {
+    super.initState();
+    final sessionId = widget.sessionId;
+    // fireImmediately: a session entered with agents at work, or with the
+    // panel left open, must open it and make room just like a fresh launch.
+    ref.listenManual<bool>(backgroundAgentsRunningProvider(sessionId), (previous, next) {
+      if (next && previous != true) {
+        // Deferred: the change can surface while another widget is building.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = true;
+        });
+      }
+    }, fireImmediately: true);
+    ref.listenManual<bool>(agentActivityPanelOpenProvider(sessionId), (previous, next) {
+      if (next && previous != true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onOpened?.call();
+        });
+      }
+    }, fireImmediately: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionId = widget.sessionId;
     final tokens = context.tokens;
     final agents = ref.watch(subagentsFamily(sessionId));
     final workflows = ref.watch(workflowsFamily(sessionId));
     final open = ref.watch(agentActivityPanelOpenProvider(sessionId));
     final running = agents.where((a) => a.isRunning).length +
         workflows.where((w) => w.isRunning).length;
-
-    ref.listen<bool>(backgroundAgentsRunningProvider(sessionId), (previous, next) {
-      if (next && previous == false) {
-        // Deferred: the change can surface while another widget is building.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = true;
-        });
-      }
-    });
-    ref.listen<bool>(agentActivityPanelOpenProvider(sessionId), (previous, next) {
-      if (next && previous != true) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => onOpened?.call());
-      }
-    });
 
     final hasItems = agents.isNotEmpty || workflows.isNotEmpty;
     final Widget child;
@@ -130,8 +145,8 @@ class AgentActivitySidecar extends ConsumerWidget {
   }
 }
 
-/// Compact list of this session's workflows and subagents; a row expands to
-/// the agent's output or the workflow's progress.
+/// This session's workflows and subagents as a live tree; a node expands to
+/// the agent's task and output or the workflow's result.
 class AgentActivityPanel extends ConsumerStatefulWidget {
   final String sessionId;
   final VoidCallback? onClose;
@@ -143,44 +158,18 @@ class AgentActivityPanel extends ConsumerStatefulWidget {
 }
 
 class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
-  final Set<String> _expandedIds = <String>{};
-
-  void _toggle(String id) => setState(() {
-        if (!_expandedIds.remove(id)) _expandedIds.add(id);
-      });
-
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final workflows = ref.watch(workflowsFamily(widget.sessionId)).reversed.toList();
-    final agents = subagents.where((s) => !s.isUnlinked).toList();
-    final children = subagents.where((s) => s.isUnlinked).toList();
     final runningCount = subagents.where((s) => s.isRunning).length +
         workflows.where((w) => w.isRunning).length;
+    // Unlinked children may belong to a listed agent; summing them could count a cost twice.
+    final agents = subagents.where((s) => !s.isUnlinked).toList();
     final knownCost = agents.fold<double>(0, (total, s) => total + (s.cost ?? 0));
     final costLabel =
         '${agents.any((s) => s.cost == null) ? 'Parziale ' : ''}\$${knownCost.toStringAsFixed(4)}';
-    final notifier = ref.read(subagentsFamily(widget.sessionId).notifier);
-
-    Widget section(String label, IconData icon) => Padding(
-          padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-          child: Row(
-            children: [
-              Icon(icon, size: 12, color: tokens.textMuted),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-        );
 
     return Column(
       key: const ValueKey('agent-activity-panel'),
@@ -242,73 +231,10 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
           ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            children: [
-              if (workflows.isNotEmpty) ...[
-                section('Workflow (${workflows.length})', Icons.account_tree_outlined),
-                for (final run in workflows)
-                  _Entrance(
-                    key: ValueKey('workflow-entry-${run.id}'),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _WorkflowCard(
-                        key: ValueKey('workflow-card-${run.id}'),
-                        run: run,
-                        isExpanded: _expandedIds.contains(run.id),
-                        onToggleExpand: () => _toggle(run.id),
-                      ),
-                    ),
-                  ),
-              ],
-              if (agents.isNotEmpty) ...[
-                section('Subagenti (${agents.length})', Icons.smart_toy_outlined),
-                for (final subagent in agents)
-                  _Entrance(
-                    key: ValueKey('subagent-entry-${subagent.id}'),
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.topCenter,
-                        child: SubagentExpandableCard(
-                          key: ValueKey('subagent-card-${subagent.id}'),
-                          subagent: subagent,
-                          isExpanded: _expandedIds.contains(subagent.id),
-                          onToggleExpand: () => _toggle(subagent.id),
-                          onSteer: (msg) => notifier.steerSubagent(subagent.id, msg),
-                          onStop: () => notifier.stopSubagent(subagent.id),
-                          onToggleSteeringBox: () => notifier.toggleSteering(subagent.id),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-              if (children.isNotEmpty) ...[
-                section('Sessioni figlie (${children.length})', Icons.account_tree_outlined),
-                for (final child in children)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                    child: Row(
-                      children: [
-                        _StatusDot(running: child.isRunning),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Sessione figlia non attribuita: ${child.name} · ${child.model ?? 'N/D'} · '
-                            '${child.cost == null ? 'N/D' : '\$${child.cost!.toStringAsFixed(4)}'}',
-                            key: ValueKey('unlinked-session-${child.id}'),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ],
+          child: _AgentTree(
+            sessionId: widget.sessionId,
+            workflows: workflows,
+            subagents: subagents,
           ),
         ),
       ],
@@ -366,23 +292,810 @@ class _StatusDot extends StatelessWidget {
 /// One settled agent call from a workflow's journal.
 typedef _JournalEntry = ({int index, bool ok, String text});
 
-class _WorkflowCard extends StatefulWidget {
-  final WorkflowItem run;
-  final bool isExpanded;
-  final VoidCallback onToggleExpand;
+const double _treeStep = 22;
+const double _avatarSize = 22;
+const double _rowTopPad = 5;
+const double _nodeCenterY = _rowTopPad + _avatarSize / 2;
 
-  const _WorkflowCard({
+/// One row of the agent map: a node on the session tree.
+class _TreeNode {
+  final String id;
+  final int depth;
+  final bool isLast;
+  final bool hasChildren;
+  /// For each ancestor level, whether its trunk continues past this row.
+  final List<bool> guides;
+  final SubagentItem? agent;
+  final WorkflowItem? run;
+  final List<SubagentItem> runChildren;
+
+  const _TreeNode({
+    required this.id,
+    required this.depth,
+    required this.isLast,
+    this.hasChildren = false,
+    this.guides = const [],
+    this.agent,
+    this.run,
+    this.runChildren = const [],
+  });
+
+  bool get isRunning => agent?.isRunning ?? run?.isRunning ?? false;
+}
+
+String _elapsed(int? from, int? to) {
+  if (from == null) return '';
+  final seconds = ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
+  if (seconds < 0) return '';
+  if (seconds < 60) return '${seconds}s';
+  final minutes = seconds ~/ 60;
+  if (minutes < 60) return '${minutes}m ${(seconds % 60).toString().padLeft(2, '0')}s';
+  return '${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}m';
+}
+
+(String, Color) _statusStyle(FrameTokens tokens, String status) => switch (status) {
+      'running' || 'steering' => ('In corso', tokens.agentWorking),
+      'error' => ('Errore', tokens.agentError),
+      'stopped' => ('Fermato', tokens.textMuted),
+      _ => ('Completato', tokens.success),
+    };
+
+Color _typeColor(FrameTokens tokens, String? type) {
+  final palette = [
+    tokens.syntaxFunction,
+    tokens.syntaxString,
+    tokens.syntaxType,
+    tokens.syntaxNumber,
+    tokens.syntaxVariable,
+    tokens.info,
+  ];
+  final key = (type ?? '').toLowerCase();
+  return palette[key.codeUnits.fold<int>(0, (h, c) => (h * 31 + c) & 0x7fffffff) % palette.length];
+}
+
+IconData _typeIcon(String? type) {
+  final key = (type ?? '').toLowerCase();
+  if (key.contains('explore') || key.contains('locator') || key.contains('scout')) return Icons.travel_explore;
+  if (key.contains('review') || key.contains('verif') || key.contains('audit')) return Icons.fact_check_outlined;
+  if (key.contains('plan') || key.contains('architect')) return Icons.architecture;
+  if (key.contains('research') || key.contains('web')) return Icons.public;
+  if (key.contains('analy')) return Icons.insights_outlined;
+  if (key.contains('worker') || key.contains('builder')) return Icons.construction_outlined;
+  return Icons.smart_toy_outlined;
+}
+
+IconData _toolIcon(String tool) {
+  final key = tool.toLowerCase();
+  if (key.contains('shell') || key == 'bash' || key.contains('terminal')) return Icons.terminal;
+  if (key.contains('read')) return Icons.description_outlined;
+  if (key.contains('edit') || key.contains('write')) return Icons.edit_outlined;
+  if (key.contains('grep') || key.contains('find') || key.contains('ls') || key.contains('search')) {
+    return Icons.search;
+  }
+  if (key.contains('web') || key.contains('fetch')) return Icons.public;
+  if (key.contains('agent')) return Icons.hub_outlined;
+  return Icons.bolt_outlined;
+}
+
+/// Agents and workflow runs of a session drawn as a tree hanging from the
+/// session, with live activity on each running branch.
+class _AgentTree extends ConsumerStatefulWidget {
+  final String sessionId;
+  final List<WorkflowItem> workflows;
+  final List<SubagentItem> subagents;
+
+  const _AgentTree({required this.sessionId, required this.workflows, required this.subagents});
+
+  @override
+  ConsumerState<_AgentTree> createState() => _AgentTreeState();
+}
+
+class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
+  final Set<String> _expandedIds = <String>{};
+  late final AnimationController _pulse =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  void _toggle(String id) => setState(() {
+        if (!_expandedIds.remove(id)) _expandedIds.add(id);
+      });
+
+  List<_TreeNode> _nodes() {
+    final linked = widget.subagents.where((s) => !s.isUnlinked).toList().reversed.toList();
+    final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
+    final top = <({WorkflowItem? run, SubagentItem? agent})>[
+      for (final run in widget.workflows) (run: run, agent: null),
+      for (final agent in linked) (run: null, agent: agent),
+      for (final agent in split['']!.reversed) (run: null, agent: agent),
+    ];
+    final nodes = <_TreeNode>[];
+    for (var i = 0; i < top.length; i++) {
+      final item = top[i];
+      final isLast = i == top.length - 1;
+      final children = item.run == null ? const <SubagentItem>[] : split[item.run!.id]!;
+      nodes.add(_TreeNode(
+        id: item.run?.id ?? item.agent!.id,
+        depth: 1,
+        isLast: isLast,
+        hasChildren: children.isNotEmpty,
+        agent: item.agent,
+        run: item.run,
+        runChildren: children,
+      ));
+      for (var j = 0; j < children.length; j++) {
+        nodes.add(_TreeNode(
+          id: children[j].id,
+          depth: 2,
+          isLast: j == children.length - 1,
+          guides: [!isLast],
+          agent: children[j],
+        ));
+      }
+    }
+    return nodes;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nodes = _nodes();
+    final anyRunning = nodes.any((n) => n.isRunning);
+    if (anyRunning && !_isTestBinding) {
+      if (!_pulse.isAnimating) _pulse.repeat();
+    } else if (_pulse.isAnimating) {
+      _pulse.stop();
+    }
+    final notifier = ref.read(subagentsFamily(widget.sessionId).notifier);
+    final agentNodes = nodes.where((n) => n.agent != null);
+    final working = agentNodes.where((n) => n.isRunning).length;
+    final runCount = widget.workflows.length;
+    final summary = [
+      if (runCount > 0) '$runCount workflow',
+      '${agentNodes.length} agenti',
+      working > 0 ? '$working al lavoro' : 'tutti fermi',
+    ].join(' · ');
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
+      children: [
+        _TreeRow(
+          key: const ValueKey('agent-tree-root'),
+          depth: 0,
+          isLast: true,
+          hasChildren: nodes.isNotEmpty,
+          running: anyRunning,
+          color: context.tokens.accent,
+          pulse: _pulse,
+          avatar: _NodeAvatar(
+            icon: Icons.forum_outlined,
+            color: context.tokens.accent,
+            running: false,
+            pulse: _pulse,
+          ),
+          title: 'Sessione principale',
+          subtitle: Text(
+            summary,
+            style: TextStyle(color: context.tokens.textMuted, fontSize: 10.5),
+          ),
+        ),
+        for (final node in nodes)
+          _Entrance(
+            key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
+            child: node.run != null
+                ? _workflowRow(node)
+                : _agentRow(node, notifier),
+          ),
+      ],
+    );
+  }
+
+  Widget _workflowRow(_TreeNode node) {
+    final tokens = context.tokens;
+    final run = node.run!;
+    final done = node.runChildren.where((c) => !c.isRunning).length;
+    final working = node.runChildren.where((c) => c.isRunning).length;
+    final (statusLabel, statusColor) = _statusStyle(tokens, run.status);
+    final counts = node.runChildren.isEmpty
+        ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? 'In avvio…' : ''))
+        : '$done/${node.runChildren.length} agenti finiti${working > 0 ? ' · $working al lavoro' : ''}';
+    final expanded = _expandedIds.contains(run.id);
+    return _TreeRow(
+      key: ValueKey('workflow-card-${run.id}'),
+      depth: node.depth,
+      isLast: node.isLast,
+      guides: node.guides,
+      hasChildren: node.hasChildren,
+      running: run.isRunning,
+      color: tokens.syntaxKeyword,
+      pulse: _pulse,
+      onTap: () => _toggle(run.id),
+      avatar: _NodeAvatar(
+        icon: Icons.account_tree_outlined,
+        color: tokens.syntaxKeyword,
+        running: run.isRunning,
+        pulse: _pulse,
+        status: run.status,
+      ),
+      title: run.name,
+      badge: 'WORKFLOW',
+      trailing: _StatusChip(
+        label: statusLabel,
+        color: statusColor,
+        detail: _elapsed(run.timestamp, run.endedAt),
+        expanded: expanded,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (counts.isNotEmpty)
+            Text(
+              counts,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+            ),
+          if (node.runChildren.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _ProgressSegments(children: node.runChildren),
+          ],
+          if (run.phases.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _PhaseTrack(phases: run.phases, settled: !run.isRunning),
+          ],
+        ],
+      ),
+      details: expanded ? _WorkflowDetails(run: run, hasChildren: node.runChildren.isNotEmpty) : null,
+    );
+  }
+
+  Widget _agentRow(_TreeNode node, SubagentsNotifier notifier) {
+    final tokens = context.tokens;
+    final agent = node.agent!;
+    final (statusLabel, statusColor) = _statusStyle(tokens, agent.status);
+    final color = _typeColor(tokens, agent.agentType ?? agent.name);
+    final expanded = _expandedIds.contains(agent.id);
+    // Workflow children have no name of their own; their task line says what they do.
+    final title = agent.isUnlinked ? (agent.prompt ?? agent.name) : agent.name;
+    final type = agent.agentType ?? (agent.isUnlinked ? agent.name.split('#').first : null);
+    final meta = [
+      if (type != null && type.isNotEmpty) type,
+      // Unknown stays unknown: never shown as a zero cost.
+      agent.model ?? 'N/D',
+      agent.cost == null ? 'N/D' : '\$${agent.cost!.toStringAsFixed(4)}',
+    ].join(' · ');
+    return _TreeRow(
+      key: ValueKey(agent.isUnlinked ? 'unlinked-session-${agent.id}' : 'subagent-card-${agent.id}'),
+      depth: node.depth,
+      isLast: node.isLast,
+      guides: node.guides,
+      running: agent.isRunning,
+      color: color,
+      pulse: _pulse,
+      onTap: () => _toggle(agent.id),
+      avatar: _NodeAvatar(
+        icon: _typeIcon(type ?? agent.name),
+        color: color,
+        running: agent.isRunning,
+        pulse: _pulse,
+        status: agent.status,
+      ),
+      title: title,
+      titleMaxLines: agent.isUnlinked ? 2 : 1,
+      struck: agent.isCompleted && !agent.isUnlinked,
+      trailing: _StatusChip(
+        label: statusLabel,
+        color: statusColor,
+        detail: _elapsed(agent.startedAt, agent.isRunning ? null : agent.updatedAt),
+        expanded: expanded,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (meta.isNotEmpty)
+            Text(
+              meta,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: tokens.textMuted, fontSize: 10.5, fontFamily: tokens.monoFontFamily),
+            ),
+          if (agent.activity != null && agent.activity!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            _ActivityLine(text: agent.activity!, running: agent.isRunning, color: color),
+          ],
+        ],
+      ),
+      details: expanded
+          ? _AgentDetails(
+              agent: agent,
+              onSteer: (msg) => notifier.steerSubagent(agent.id, msg),
+              onStop: () => notifier.stopSubagent(agent.id),
+              onToggleSteeringBox: () => notifier.toggleSteering(agent.id),
+            )
+          : null,
+    );
+  }
+}
+
+/// A tree row: guide lines and elbow in the gutter, avatar, then content.
+class _TreeRow extends StatelessWidget {
+  final int depth;
+  final bool isLast;
+  final bool hasChildren;
+  final List<bool> guides;
+  final bool running;
+  final Color color;
+  final Animation<double> pulse;
+  final Widget avatar;
+  final String title;
+  final int titleMaxLines;
+  /// Settled agents read as done, like a ticked-off task.
+  final bool struck;
+  final String? badge;
+  final Widget? trailing;
+  final Widget? subtitle;
+  final Widget? details;
+  final VoidCallback? onTap;
+
+  const _TreeRow({
     super.key,
-    required this.run,
-    required this.isExpanded,
-    required this.onToggleExpand,
+    required this.depth,
+    required this.isLast,
+    this.hasChildren = false,
+    this.guides = const [],
+    required this.running,
+    required this.color,
+    required this.pulse,
+    required this.avatar,
+    required this.title,
+    this.titleMaxLines = 1,
+    this.struck = false,
+    this.badge,
+    this.trailing,
+    this.subtitle,
+    this.details,
+    this.onTap,
   });
 
   @override
-  State<_WorkflowCard> createState() => _WorkflowCardState();
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final indent = depth * _treeStep;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            avatar,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (badge != null) ...[
+                        Container(
+                          margin: const EdgeInsets.only(top: 1, right: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            badge!,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ],
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: titleMaxLines,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: struck ? tokens.textMuted : tokens.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            height: 1.25,
+                            decoration: struck ? TextDecoration.lineThrough : null,
+                            decorationColor: tokens.textMuted,
+                          ),
+                        ),
+                      ),
+                      if (trailing != null) ...[const SizedBox(width: 6), trailing!],
+                    ],
+                  ),
+                  if (subtitle != null) ...[const SizedBox(height: 2), subtitle!],
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (details != null)
+          Padding(
+            padding: const EdgeInsets.only(left: _avatarSize + 8, top: 6),
+            child: details!,
+          ),
+      ],
+    );
+    return CustomPaint(
+      painter: _TreeLinePainter(
+        depth: depth,
+        isLast: isLast,
+        hasChildren: hasChildren,
+        guides: guides,
+        running: running,
+        line: tokens.borderStrong,
+        color: color,
+        pulse: pulse,
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(left: indent),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, _rowTopPad, 4, 7),
+              child: content,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _WorkflowCardState extends State<_WorkflowCard> {
+class _TreeLinePainter extends CustomPainter {
+  final int depth;
+  final bool isLast;
+  final bool hasChildren;
+  final List<bool> guides;
+  final bool running;
+  final Color line;
+  final Color color;
+  final Animation<double> pulse;
+
+  _TreeLinePainter({
+    required this.depth,
+    required this.isLast,
+    required this.hasChildren,
+    required this.guides,
+    required this.running,
+    required this.line,
+    required this.color,
+    required this.pulse,
+  }) : super(repaint: running ? pulse : null);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = line
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    for (var i = 0; i < guides.length; i++) {
+      if (!guides[i]) continue;
+      final x = i * _treeStep + _avatarSize / 2;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), stroke);
+    }
+    if (hasChildren) {
+      final x = depth * _treeStep + _avatarSize / 2;
+      canvas.drawLine(Offset(x, _nodeCenterY + _avatarSize / 2), Offset(x, size.height), stroke);
+    }
+    if (depth == 0) return;
+    final x = (depth - 1) * _treeStep + _avatarSize / 2;
+    final end = depth * _treeStep;
+    const radius = 6.0;
+    final elbow = Path()
+      ..moveTo(x, 0)
+      ..lineTo(x, _nodeCenterY - radius)
+      ..quadraticBezierTo(x, _nodeCenterY, x + radius, _nodeCenterY)
+      ..lineTo(end, _nodeCenterY);
+    canvas.drawPath(elbow, stroke);
+    if (!isLast) canvas.drawLine(Offset(x, _nodeCenterY - radius), Offset(x, size.height), stroke);
+    if (!running) return;
+    canvas.drawPath(
+      elbow,
+      Paint()
+        ..color = color.withValues(alpha: 0.55)
+        ..strokeWidth = 1.6
+        ..style = PaintingStyle.stroke,
+    );
+    // A spark travels down the branch while the agent works.
+    final metric = elbow.computeMetrics().first;
+    final at = metric.getTangentForOffset(metric.length * pulse.value)?.position;
+    if (at == null) return;
+    canvas.drawCircle(at, 4, Paint()..color = color.withValues(alpha: 0.25));
+    canvas.drawCircle(at, 2, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeLinePainter old) =>
+      old.depth != depth ||
+      old.isLast != isLast ||
+      old.hasChildren != hasChildren ||
+      old.running != running ||
+      old.line != line ||
+      old.color != color ||
+      old.guides.length != guides.length ||
+      !Iterable.generate(guides.length).every((i) => old.guides[i] == guides[i]);
+}
+
+/// Round agent badge; a running agent gets an orbiting arc.
+class _NodeAvatar extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final bool running;
+  final Animation<double> pulse;
+  final String? status;
+
+  const _NodeAvatar({
+    required this.icon,
+    required this.color,
+    required this.running,
+    required this.pulse,
+    this.status,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final (badgeIcon, badgeColor) = switch (status) {
+      'error' => (Icons.priority_high, tokens.agentError),
+      'stopped' => (Icons.stop, tokens.textMuted),
+      'completed' || 'steered' => (Icons.check, tokens.success),
+      _ => (null, null),
+    };
+    return SizedBox(
+      width: _avatarSize,
+      height: _avatarSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color.alphaBlend(color.withValues(alpha: running ? 0.22 : 0.12), tokens.surface),
+                border: Border.all(color: color.withValues(alpha: running ? 0.9 : 0.45), width: 1.2),
+              ),
+              child: Icon(icon, size: 12, color: running ? color : color.withValues(alpha: 0.8)),
+            ),
+          ),
+          if (running)
+            Positioned(
+              left: -3,
+              top: -3,
+              right: -3,
+              bottom: -3,
+              child: CustomPaint(painter: _OrbitPainter(color: color, pulse: pulse)),
+            ),
+          if (badgeIcon != null)
+            Positioned(
+              right: -3,
+              bottom: -3,
+              child: Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tokens.surface, width: 1.5),
+                ),
+                child: Icon(badgeIcon, size: 7, color: tokens.surface),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrbitPainter extends CustomPainter {
+  final Color color;
+  final Animation<double> pulse;
+  _OrbitPainter({required this.color, required this.pulse}) : super(repaint: pulse);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawArc(
+      rect.deflate(0.8),
+      pulse.value * 2 * 3.14159265,
+      1.9,
+      false,
+      Paint()
+        ..color = color
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrbitPainter old) => old.color != color;
+}
+
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final String detail;
+  final bool expanded;
+  const _StatusChip({required this.label, required this.color, required this.detail, required this.expanded});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+            if (detail.isNotEmpty)
+              Text(
+                detail,
+                style: TextStyle(color: tokens.textMuted, fontSize: 9.5, fontFamily: tokens.monoFontFamily),
+              ),
+          ],
+        ),
+        Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 15, color: tokens.textMuted),
+      ],
+    );
+  }
+}
+
+/// "tool: argument" while the agent works; its last answer line once done.
+class _ActivityLine extends StatelessWidget {
+  final String text;
+  final bool running;
+  final Color color;
+  const _ActivityLine({required this.text, required this.running, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final tool = running ? RegExp(r'^([\w.\-]+):\s+(.*)$').firstMatch(text) : null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: running ? color.withValues(alpha: 0.08) : tokens.background.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border(left: BorderSide(color: running ? color : tokens.border, width: 2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              tool != null ? _toolIcon(tool.group(1)!) : (running ? Icons.chat_bubble_outline : Icons.notes),
+              size: 11,
+              color: running ? color : tokens.textMuted,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                if (tool != null)
+                  TextSpan(
+                    text: '${tool.group(1)} ',
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                  ),
+                TextSpan(text: tool?.group(2) ?? text),
+              ]),
+              maxLines: running ? 2 : 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: running ? tokens.textPrimary : tokens.textSecondary,
+                fontSize: 10.5,
+                height: 1.3,
+                fontFamily: tool != null ? tokens.monoFontFamily : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One segment per workflow agent: filled when done, pulsing while it works.
+class _ProgressSegments extends StatelessWidget {
+  final List<SubagentItem> children;
+  const _ProgressSegments({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return SizedBox(
+      height: 4,
+      child: Row(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(width: 2),
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: switch (children[i].status) {
+                    'running' || 'steering' => tokens.agentWorking.withValues(alpha: 0.55),
+                    'error' => tokens.agentError,
+                    'stopped' => tokens.textMuted.withValues(alpha: 0.5),
+                    _ => tokens.success,
+                  },
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The workflow's declared phases as a connected track.
+class _PhaseTrack extends StatelessWidget {
+  final List<String> phases;
+  final bool settled;
+  const _PhaseTrack({required this.phases, required this.settled});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 0,
+      runSpacing: 3,
+      children: [
+        for (var i = 0; i < phases.length; i++) ...[
+          if (i > 0) Container(width: 8, height: 1, color: tokens.borderStrong),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: settled ? tokens.success.withValues(alpha: 0.6) : tokens.border),
+              color: tokens.surfaceElevated,
+            ),
+            child: Text(
+              phases[i],
+              style: TextStyle(color: tokens.textSecondary, fontSize: 9.5),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Description, final result and, without child sessions, the journal of a
+/// workflow run.
+class _WorkflowDetails extends StatefulWidget {
+  final WorkflowItem run;
+  final bool hasChildren;
+  const _WorkflowDetails({required this.run, required this.hasChildren});
+
+  @override
+  State<_WorkflowDetails> createState() => _WorkflowDetailsState();
+}
+
+class _WorkflowDetailsState extends State<_WorkflowDetails> {
   List<_JournalEntry> _journal = const [];
   Timer? _timer;
 
@@ -394,7 +1107,7 @@ class _WorkflowCardState extends State<_WorkflowCard> {
   }
 
   @override
-  void didUpdateWidget(covariant _WorkflowCard oldWidget) {
+  void didUpdateWidget(covariant _WorkflowDetails oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.run.status != widget.run.status) _readJournal();
     _syncTimer();
@@ -407,7 +1120,7 @@ class _WorkflowCardState extends State<_WorkflowCard> {
   }
 
   void _syncTimer() {
-    if (widget.run.isRunning && !kIsWeb && !_isTestBinding) {
+    if (widget.run.isRunning && !widget.hasChildren && !kIsWeb && !_isTestBinding) {
       _timer ??= Timer.periodic(const Duration(seconds: 2), (_) => _readJournal());
     } else {
       _timer?.cancel();
@@ -418,7 +1131,7 @@ class _WorkflowCardState extends State<_WorkflowCard> {
   void _readJournal() {
     final path = widget.run.journalPath;
     // The journal lives on the host disk; the browser build only sees the final notification.
-    if (kIsWeb || path == null) return;
+    if (kIsWeb || path == null || widget.hasChildren) return;
     try {
       final file = File(path);
       if (!file.existsSync()) return;
@@ -443,190 +1156,213 @@ class _WorkflowCardState extends State<_WorkflowCard> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final run = widget.run;
-    final ok = _journal.where((e) => e.ok).length;
-    final failed = _journal.length - ok;
-    final progress = _journal.isEmpty
-        ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? 'In avvio…' : ''))
-        : '$ok agenti completati${failed > 0 ? ' · $failed falliti' : ''}';
-    final (statusLabel, statusColor) = switch (run.status) {
-      'running' => ('In corso', tokens.syntaxKeyword),
-      'error' => ('Errore', tokens.danger),
-      'stopped' => ('Fermato', tokens.textMuted),
-      _ => ('Completato', tokens.syntaxFunction),
-    };
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: run.isRunning ? tokens.syntaxKeyword.withValues(alpha: 0.5) : tokens.border,
-        ),
-      ),
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.topCenter,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            InkWell(
-              onTap: widget.onToggleExpand,
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: Row(
-                  children: [
-                    _StatusDot(running: run.isRunning),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            run.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                          if (progress.isNotEmpty)
-                            Text(
-                              progress,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      statusLabel,
-                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      widget.isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: tokens.textMuted,
-                    ),
-                  ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (run.description != null && run.description!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(run.description!, style: TextStyle(color: tokens.textSecondary, fontSize: 11.5)),
+          ),
+        for (final entry in _journal)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  entry.ok ? Icons.check_circle_outline : Icons.error_outline,
+                  size: 12,
+                  color: entry.ok ? tokens.success : tokens.danger,
                 ),
-              ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'Agente #${entry.index + 1}${entry.text.isEmpty ? '' : ': ${entry.text.trim().split('\n').first}'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+                  ),
+                ),
+              ],
             ),
-            if (widget.isExpanded) ...[
-              Container(height: 1, color: tokens.border),
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (run.description != null && run.description!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          run.description!,
-                          style: TextStyle(color: tokens.textSecondary, fontSize: 11.5),
-                        ),
-                      ),
-                    if (run.phases.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: [
-                            for (final phase in run.phases)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: tokens.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                                  border: Border.all(color: tokens.border),
-                                ),
-                                child: Text(
-                                  phase,
-                                  style: TextStyle(color: tokens.textSecondary, fontSize: 10.5),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    for (final entry in _journal)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 3),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              entry.ok ? Icons.check_circle_outline : Icons.error_outline,
-                              size: 12,
-                              color: entry.ok ? tokens.syntaxFunction : tokens.danger,
-                            ),
-                            const SizedBox(width: 5),
-                            Expanded(
-                              child: Text(
-                                'Agente #${entry.index + 1}${entry.text.isEmpty ? '' : ': ${entry.text.trim().split('\n').first}'}',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: tokens.textSecondary, fontSize: 11),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (run.result.isNotEmpty)
-                      Container(
-                        constraints: const BoxConstraints(maxHeight: 220),
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: tokens.background,
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: tokens.border),
-                        ),
-                        child: SingleChildScrollView(
-                          child: SelectableText(
-                            run.result,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 11,
-                              fontFamily: tokens.monoFontFamily,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      )
-                    else if (_journal.isEmpty)
-                      Text(
-                        run.isRunning ? 'In attesa del primo agente completato…' : 'Nessun risultato registrato.',
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
-                      ),
-                    if (run.scriptPath != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: SelectableText(
-                          run.scriptPath!,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 10,
-                            fontFamily: tokens.monoFontFamily,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ],
+          ),
+        if (run.result.isNotEmpty)
+          _OutputBox(text: run.result)
+        else if (_journal.isEmpty && !widget.hasChildren)
+          Text(
+            run.isRunning ? 'In attesa del primo agente…' : 'Nessun risultato registrato.',
+            style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
+          ),
+      ],
+    );
+  }
+}
+
+class _OutputBox extends StatelessWidget {
+  final String text;
+  const _OutputBox({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    // Long transcripts only matter at their end; keep layout cheap.
+    final shown = text.length > 6000 ? '…${text.substring(text.length - 6000)}' : text;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 220),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: tokens.background,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(color: tokens.border),
+      ),
+      child: SingleChildScrollView(
+        reverse: true,
+        child: SelectableText(
+          shown,
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 11,
+            fontFamily: tokens.monoFontFamily,
+            height: 1.4,
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Task, output and controls of one agent in the tree.
+class _AgentDetails extends StatefulWidget {
+  final SubagentItem agent;
+  final ValueChanged<String> onSteer;
+  final VoidCallback onStop;
+  final VoidCallback onToggleSteeringBox;
+
+  const _AgentDetails({
+    required this.agent,
+    required this.onSteer,
+    required this.onStop,
+    required this.onToggleSteeringBox,
+  });
+
+  @override
+  State<_AgentDetails> createState() => _AgentDetailsState();
+}
+
+class _AgentDetailsState extends State<_AgentDetails> {
+  final TextEditingController _steer = TextEditingController();
+
+  @override
+  void dispose() {
+    _steer.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _steer.text.trim();
+    if (text.isEmpty) return;
+    widget.onSteer(text);
+    _steer.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final agent = widget.agent;
+    final task = agent.isUnlinked ? null : (agent.description ?? agent.prompt);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (task != null && task.isNotEmpty && task != agent.name)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(task, style: TextStyle(color: tokens.textSecondary, fontSize: 11, height: 1.35)),
+          ),
+        // Child sessions run in a worker the daemon cannot steer.
+        if (!agent.isUnlinked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                TextButton.icon(
+                  key: ValueKey('subagent-steer-btn-${agent.id}'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onPressed: agent.isRunning ? widget.onToggleSteeringBox : null,
+                  icon: Icon(Icons.alt_route, size: 13, color: tokens.syntaxFunction),
+                  label: Text(
+                    agent.isSteeringOpen ? 'Chiudi guida' : 'Guida',
+                    style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                  ),
+                ),
+                TextButton.icon(
+                  key: ValueKey('subagent-stop-btn-${agent.id}'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onPressed: agent.isRunning ? widget.onStop : null,
+                  icon: Icon(
+                    Icons.stop_circle_outlined,
+                    size: 13,
+                    color: agent.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
+                  ),
+                  label: Text(
+                    agent.isRunning ? 'Interrompi' : 'Terminato',
+                    style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (agent.isSteeringOpen && agent.isRunning)
+          Padding(
+            key: ValueKey('subagent-steer-box-${agent.id}'),
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: ValueKey('subagent-steer-input-${agent.id}'),
+                    controller: _steer,
+                    autofocus: true,
+                    onSubmitted: (_) => _submit(),
+                    style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Nuova istruzione per l\'agente…',
+                      hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                      filled: true,
+                      fillColor: tokens.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        borderSide: BorderSide(color: tokens.border),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  key: ValueKey('subagent-steer-send-${agent.id}'),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.send, size: 16, color: tokens.syntaxFunction),
+                  onPressed: _submit,
+                ),
+              ],
+            ),
+          ),
+        if (agent.output.isNotEmpty)
+          _OutputBox(text: agent.output)
+        else
+          Text(
+            agent.isRunning ? 'L\'agente sta lavorando…' : 'Nessun output registrato.',
+            style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
+          ),
+      ],
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame/features/transcript/workflows_provider.dart';
 
 void main() {
@@ -63,5 +64,19 @@ phase('Review')''';
     ], const []);
     expect(failed.single.status, 'error');
     expect(failed.single.result, 'meta must be a pure literal');
+  });
+
+  test('child sessions go to the run that was live when they started', () {
+    const old = WorkflowItem(id: 'wf_old', name: 'old', status: 'completed', timestamp: 1000, endedAt: 20000);
+    const live = WorkflowItem(id: 'wf_new', name: 'new', timestamp: 60000);
+    SubagentItem child(String id, int? startedAt) =>
+        SubagentItem(id: id, name: id, isUnlinked: true, startedAt: startedAt);
+    final split = workflowChildren(
+      [old, live],
+      [child('b', 70000), child('a', 2000), child('late', 61000), child('stray', 40000), child('unknown', null)],
+    );
+    expect(split['wf_old']!.map((c) => c.id), ['a']);
+    expect(split['wf_new']!.map((c) => c.id), ['late', 'b']);
+    expect(split['']!.map((c) => c.id), ['stray', 'unknown']);
   });
 }
