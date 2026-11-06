@@ -90,6 +90,8 @@ export type PcpCommandType =
   | 'pi.packages.update'
   | 'pi.packages.remove'
   | 'pi.packages.pin'
+  | 'pi.agents.get'
+  | 'pi.agents.update'
   | 'daemon.getStatus'
   | 'daemon.getConfig'
   | 'daemon.setConfig'
@@ -495,13 +497,17 @@ export type PcpErrorCode =
   | 'BRANCH_INVALID_NAME'
   | 'BRANCH_NOT_FOUND'
   | 'WORKSPACE_DIRTY'
-  | 'BRANCH_SWITCH_FAILED';
+  | 'BRANCH_SWITCH_FAILED'
+  | 'AGENTS_VALIDATION_FAILED'
+  | 'AGENTS_CONFIG_UNREADABLE'
+  | 'AGENTS_CONFIG_LOCKED'
+  | 'AGENTS_PACKAGE_NOT_INSTALLED';
 
 export interface PcpErrorPayload {
   code: PcpErrorCode;
   message: string;
   retryable?: boolean;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | Array<unknown>;
   hint?: string;
 }
 
@@ -522,6 +528,107 @@ export interface PcpPing extends PcpEnvelope<Record<string, unknown>> {
 export interface PcpPong extends PcpEnvelope<Record<string, unknown>> {
   kind: 'pong';
   type: 'heartbeat.pong';
+}
+
+// -----------------------------------------------------------------------------
+// Agent Settings (pi.agents.*)
+// -----------------------------------------------------------------------------
+
+export type PiSubagentPackageId = 'pi-subagents' | '@tintinweb/pi-subagents';
+
+export interface PiSubagentPackageInfo {
+  id: PiSubagentPackageId;
+  version: string | null;
+  installed: boolean;
+  configFile: string;
+}
+
+export interface PiAgentModelInfo {
+  effective: string | null;
+  origin: 'override' | 'frontmatter' | 'default' | 'none';
+  available: boolean | null;
+}
+
+export interface PiAgentThinkingInfo {
+  effective: string | null;
+  origin: 'override' | 'frontmatter' | 'default' | 'none';
+}
+
+export interface PiAgentContextInfo {
+  supported: boolean;
+  limit: number | null;
+  options: number[];
+  modelContextWindow: number | null;
+}
+
+export interface PiAgentInfo {
+  name: string;
+  aliases?: string[];
+  package: string | null;
+  source: 'builtin' | 'user' | 'project' | 'package';
+  description: string | null;
+  editable: boolean;
+  readOnlyReason: string | null;
+  model: PiAgentModelInfo;
+  thinking: PiAgentThinkingInfo;
+  context: PiAgentContextInfo;
+}
+
+export interface PiSubagentDefaults {
+  package: string | null;
+  model: string | null;
+  thinking: string | null;
+  modelAvailable: boolean | null;
+  fallbackAgent: string | null;
+}
+
+export interface PiSessionDefaults {
+  provider: string | null;
+  model: string | null;
+  thinking: string | null;
+  modelAvailable: boolean | null;
+}
+
+export interface PiAvailableModel {
+  id: string;
+  name: string;
+  contextWindow: number;
+  reasoning: boolean;
+  tiers: number[];
+}
+
+export interface PiAgentsGetResult {
+  packages: PiSubagentPackageInfo[];
+  agents: PiAgentInfo[];
+  subagentDefaults: PiSubagentDefaults;
+  sessionDefaults: PiSessionDefaults;
+  thinkingLevels: string[];
+  availableModels: PiAvailableModel[];
+  warnings: string[];
+}
+
+export type PiAgentChange =
+  | {
+      kind: 'agent';
+      name: string;
+      model?: string | null;
+      thinking?: string | null;
+      contextLimit?: number | null;
+    }
+  | {
+      kind: 'subagentDefaults';
+      model?: string | null;
+      thinking?: string | null;
+      fallbackAgent?: string | null;
+    }
+  | {
+      kind: 'sessionDefaults';
+      model?: string | null;
+      thinking?: string | null;
+    };
+
+export interface PiAgentsUpdatePayload {
+  changes: PiAgentChange[];
 }
 
 // -----------------------------------------------------------------------------

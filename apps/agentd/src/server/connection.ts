@@ -254,7 +254,7 @@ export class Connection {
         pid: process.pid
       },
       pi: this.piInfo,
-      capabilities: ['replay.v1', 'ui.claim.v1', 'workspace.v1', 'system.metrics.v1'],
+      capabilities: ['replay.v1', 'ui.claim.v1', 'workspace.v1', 'system.metrics.v1', 'pi.agents.v1'],
       limits: {
         maxFrameBytes: 4 * 1024 * 1024,
         journalMaxEvents: 2000

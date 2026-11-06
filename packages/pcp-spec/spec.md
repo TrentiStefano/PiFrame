@@ -184,6 +184,13 @@ System metrics commands allow local clients to observe real-time host resource u
 - `system.metrics.subscribe` target `sessionId: "@daemon"`, payload `{}` → `{ intervalMs: 1000 }`. Subscribes the current WebSocket connection to live periodic metric events (`system.metrics`). Sampling is started on the first subscriber. Idempotent per connection.
 - `system.metrics.unsubscribe` payload `{}` → `{}`. Cancels metrics subscription for the calling connection. When the active subscriber set becomes empty, all periodic timers are cleared, sampling ceases, and any persistent GPU monitoring child processes are immediately terminated. Idempotent.
 
+### 4.4 Pi agent settings commands
+
+These authenticated local-daemon commands discover, inspect, and update subagent configurations, session defaults, and subagent context limits. Both commands target `sessionId: "@daemon"`, are strictly local-only, and are rejected for remote connections with `REMOTE_FORBIDDEN` (`capability: 'pi.agents.v1'`).
+
+- `pi.agents.get` payload `{cwd?}` → `{packages, agents, subagentDefaults, sessionDefaults, thinkingLevels, availableModels, warnings}`.
+- `pi.agents.update` payload `{changes: [...]}` → same shape as `pi.agents.get` (fresh). Updates subagent configurations, subagent defaults, and session defaults with Pi-compatible file locking and atomic writes. Rejects unreadable config (`AGENTS_CONFIG_UNREADABLE`), lock timeouts (`AGENTS_CONFIG_LOCKED`), uninstalled packages (`AGENTS_PACKAGE_NOT_INSTALLED`), and invalid changes (`AGENTS_VALIDATION_FAILED`).
+
 ---
 
 ## 5. Normalized Event Types

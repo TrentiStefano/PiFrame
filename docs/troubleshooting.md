@@ -691,6 +691,23 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 2. **Gestione con singola `startPromise` in-flight e ri-validazione sottoscrittori**:
    - `SystemMetricsService.startSampling()` utilizza ora una singola promise in-flight per sottoscrizioni concorrenti. Al termine della risoluzione di `getProvider()`, viene nuovamente verificato `subscribers.size > 0` e lo stato `stopped` prima di avviare il provider GPU e istanziare il timer a intervallo.
 
+---
+
+## 14. Subagents fail to start after removing PiFrame / ERR_MODULE_NOT_FOUND subagent-context-limit.mjs
+
+### Sintomi
+- Dopo aver rimosso o disinstallato PiFrame (o cancellato la cartella `~/.piframe`), l'avvio dei subagenti dal Pi CLI ufficiale o da altre interfacce fallisce con l'errore:
+  `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '.../.piframe/runtime/subagent-context-limit.mjs'`
+
+### Causa Radice
+Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `subagents.agentOverrides.<name>.subagentOnlyExtensions` contiene il percorso all'estensione generata da PiFrame per il limite di contesto (`subagent-context-limit.mjs`). Se la directory `~/.piframe` viene eliminata, Node.js non trova più il file `.mjs` all'avvio del subagente.
+
+### Risoluzione
+1. **Prima di disinstallare PiFrame**: azzera i limiti di contesto configurati per i subagenti nella scheda *Agenti* di PiFrame (Impostazioni → Agenti) e fai clic su *Salva modifiche*. PiFrame rimuoverà automaticamente il percorso dell'estensione dall'array `subagentOnlyExtensions` in `settings.json`.
+2. **A disinstallazione già avvenuta**: apri `~/.pi/agent/settings.json` con un editor di testo e rimuovi il riferimento a `subagent-context-limit.mjs` da `subagents.agentOverrides.<name>.subagentOnlyExtensions` per ciascun agente configurato (o rimuovi la proprietà `subagentOnlyExtensions` se non contiene altre estensioni).
+3. **Rigenerazione automatica con PiFrame**: se reinstalli o avvii nuovamente il daemon di PiFrame (`agentd`), all'avvio il daemon esegue una verifica in sola lettura di `settings.json`: se rileva riferimenti attivi all'estensione in `subagentOnlyExtensions`, rigenera automaticamente `~/.piframe/runtime/subagent-context-limit.mjs` se mancante o non aggiornato.
+
+
 
 
 

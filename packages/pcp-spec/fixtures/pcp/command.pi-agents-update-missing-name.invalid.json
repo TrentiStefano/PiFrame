@@ -1,0 +1,17 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "cmd_01J8Y2ABCDEFGHJKMNPQRSTVWZ",
+  "ts": 1726640000000,
+  "commandId": "cmd_agents_update_missing_name",
+  "sessionId": "@daemon",
+  "type": "pi.agents.update",
+  "payload": {
+    "changes": [
+      {
+        "kind": "agent",
+        "model": "anthropic/claude-3-5-sonnet"
+      }
+    ]
+  }
+}

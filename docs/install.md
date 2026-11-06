@@ -247,14 +247,24 @@ PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dal
   - **Sempre (`always`)**: raggruppa qualsiasi turno che presenti almeno un passaggio intermedio (thinking, chiamata a tool o testo intermedio).
   - **Disattivato (`off`)**: disattiva il raggruppamento; ogni messaggio, tool call e blocco di ragionamento viene visualizzato singolarmente nel flusso normale della chat con rendering pixel-identico alla visualizzazione classica.
 - **Compressione automatica (Auto-collapse, attiva per impostazione predefinita)**:
-  - Durante l'elaborazione (`Working…` / `Elaborazione…`), il gruppo di passaggi rimane aperto mostrando lo spinner in tempo reale e il dettaglio dell'ultimo passaggio in esecuzione.
-  - Al termine del turno, il gruppo si comprime automaticamente visualizzando lo stato riepilogativo (es. *Completati N passaggi in Xs*, oppure *Interrotto con errori dopo N passaggi* con icona rossa in caso di errore o abort).
-  - Le interazioni manuali dell'utente (espansione o chiusura manuale con un clic) prevalgono sul comportamento automatico e persistono attraverso i re-render e i nuovi streaming delta.
-- **Dettagli dei passaggi**:
-  - I passaggi all'interno del gruppo sono indentati e collegati visivamente da una linea verticale continua da 1px.
-  - **Thinking**: titolo sintetico (prima riga o primi ~80 caratteri) con anteprima muted di 2 righe; un clic espande il testo completo selezionabile.
-  - **Tool call**: riga compatta con icona dello strumento, nome, target sintetico (es. percorsi file abbreviati `lib/…/file.dart` o prima riga di comando), durata (con timer live se in esecuzione) e icona di stato. Un clic espande la sezione Input (JSON formattato) e Output (o blocco differenze diff per modifiche), con pulsanti *Mostra tutti* / *Mostra meno* per output estesi (> 20 righe o > 4000 caratteri).
-- **Configurazione**:
-  - Accessibile in **Impostazioni → Aspetto → Raggruppamento passaggi**, con selettore per la modalità e interruttore per la compressione automatica. Le preferenze vengono salvate in `~/.piframe/step_grouping_settings.json`.
+  - Al termine di un turno o all'apertura della sessione, i passaggi intermedi raggruppati vengono compressi automaticamente mostrando un header sintetico con il conteggio dei tool usati, il tempo trascorso e l'estratto del ragionamento.
+  - Cliccando sull'header o premendo Invio/Spazio con il focus, la fisarmonica si espande o comprime istantaneamente con animazione fluida.
+  - La preferenza utente (modalità di raggruppamento e auto-collapse) viene salvata nelle preferenze locali e ricordata tra le sessioni.
+
+---
+
+## 10. Gestione Subagenti e Limiti di Contesto (Subagents Settings)
+
+PiFrame include il supporto nativo per l'ispezione e la configurazione dei subagenti (`pi.agents.get` e `pi.agents.update`):
+- **Auto-Discovery dei Pacchetti e Profili**: rileva automaticamente i pacchetti di subagenti installati (`pi-subagents` di nicobailon e `@tintinweb/pi-subagents`), gli agenti nativi, gli agenti definiti dall'utente in `~/.pi/agent/agents/` e gli agenti di progetto in `.pi/agents/`.
+- **Risoluzione Valori Effettivi**: calcola con precisione il modello e il livello di thinking effettivi per ciascun agente tracciandone l'origine esatta (`override`, `frontmatter`, `default` o `none`) e la disponibilità con le credenziali attive.
+- **Limiti di Contesto Dedicati**: consente di impostare limiti di finestra di contesto (tier di costo) specifici per ciascun subagente. Il daemon genera un'estensione leggera e isolata in `~/.piframe/runtime/subagent-context-limit.mjs` agganciata tramite `subagentOnlyExtensions`, che adatta la finestra di contesto del modello solo all'avvio del subagente specificato senza interferire con la sessione principale o i binari installati. *(Nota: prima di disinstallare PiFrame o rimuovere `~/.piframe`, azzera i limiti di contesto nella scheda Agenti o rimuovi il percorso da `~/.pi/agent/settings.json` in `subagents.agentOverrides.<name>.subagentOnlyExtensions` per evitare errori `ERR_MODULE_NOT_FOUND` al successivo avvio dei subagenti in Pi CLI).*
+- **Scrittura Sicura e Lock Compatibile**: le modifiche a `settings.json` avvengono con lock compatibile con `proper-lockfile` di Pi (rilevamento stale lock a 10 secondi), backup automatico `settings.json.piframe-backup` e scrittura atomica, rifiutando file JSON non validi (`AGENTS_CONFIG_UNREADABLE`) e impedendo qualsiasi mutazione da dispositivi remoti (`REMOTE_FORBIDDEN`).
+- **Interfaccia Utente (Scheda Impostazioni 'Agenti')**:
+  - **Header e Pacchetti**: visualizzazione dinamica dei pacchetti rilevati con versione (`pi-subagents`, `@tintinweb/pi-subagents`). Se nessun pacchetto è installato, viene mostrato un banner esplicativo con istruzioni per l'installazione via CLI (`pi install pi-subagents`) o dalla scheda Pacchetti, senza liste inventate. Eventuali avvisi di configurazione dal daemon sono riportati in evidenza. Una nota ricorda che le modifiche si applicano globalmente a Pi (anche da terminale) e alle nuove sessioni ed esecuzioni di sottoagenti.
+  - **Card Default per nuove sessioni**: selezione del modello predefinito per le sessioni primarie Pi (il dropdown include solo i modelli disponibili con avviso in caso di credenziali assenti) e del livello di thinking (limitato a `off` se il modello non supporta il reasoning). Tasto *Reimposta* dedicato per rimuovere il default.
+  - **Card Default sottoagenti**: configurazione dei default globali dei sottoagenti (modello e thinking per `pi-subagents` o agente di fallback per `@tintinweb/pi-subagents`), con tasti di reset e avvisi per modelli non disponibili.
+  - **Elenco Agenti**: visualizzazione dettagliata di tutti gli agenti scoperti, con badge della sorgente (`builtin`, `user`, `project`, `package`), descrizione, modello effettivo con badge d'origine (`override`, `frontmatter`, `default`), thinking effettivo e selettore tier di contesto (es. `272k`, `1.05M (full)`) solo se supportato (altrimenti `n/d` con tooltip *Model has a single context tier*). Gli agenti non modificabili (es. runner CLI esterni, progetti o tintinweb) appaiono disabilitati con tooltip che riporta la `readOnlyReason`. Ogni campo dispone di tasto *Reset* che invia `null` per cancellare l'override.
+  - **Barra di Salvataggio e Sicurezza Remota**: pulsante *Salva modifiche* (abilitato solo quando lo stato è sporco / dirty), pulsante *Annulla* per scartare le modifiche locali, visualizzazione inline degli errori di validazione per campo (`AGENTS_VALIDATION_FAILED`), notifica snackbar di successo e blocco con avviso in sola lettura in caso di accesso remoto (`REMOTE_FORBIDDEN`).
 
 

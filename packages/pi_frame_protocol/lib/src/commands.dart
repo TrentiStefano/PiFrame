@@ -83,6 +83,30 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
+  static PcpCommand piAgentsGet({
+    required String commandId,
+    String? cwd,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: '@daemon',
+      type: 'pi.agents.get',
+      payload: cwd != null ? {'cwd': cwd} : const {},
+    );
+  }
+
+  static PcpCommand piAgentsUpdate({
+    required String commandId,
+    required List<Map<String, dynamic>> changes,
+  }) {
+    return PcpCommand.create(
+      commandId: commandId,
+      sessionId: '@daemon',
+      type: 'pi.agents.update',
+      payload: {'changes': changes},
+    );
+  }
+
   factory PcpCommand.fromJson(Map<String, dynamic> json) {
     return PcpCommand(
       protocol: json['protocol'] as int? ?? 1,

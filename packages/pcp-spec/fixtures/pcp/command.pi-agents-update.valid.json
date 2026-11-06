@@ -1,0 +1,30 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "cmd_01J8Y2ABCDEFGHJKMNPQRSTVWY",
+  "ts": 1726640000000,
+  "commandId": "cmd_agents_update_1",
+  "sessionId": "@daemon",
+  "type": "pi.agents.update",
+  "payload": {
+    "changes": [
+      {
+        "kind": "agent",
+        "name": "worker",
+        "model": "anthropic/claude-3-5-sonnet",
+        "thinking": "high",
+        "contextLimit": 64000
+      },
+      {
+        "kind": "subagentDefaults",
+        "model": "anthropic/claude-3-5-sonnet",
+        "thinking": "medium"
+      },
+      {
+        "kind": "sessionDefaults",
+        "model": "anthropic/claude-3-5-sonnet",
+        "thinking": "low"
+      }
+    ]
+  }
+}

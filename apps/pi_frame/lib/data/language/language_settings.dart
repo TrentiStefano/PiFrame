@@ -103,6 +103,7 @@ class AppStrings {
   String get tabUpdates => isItalian ? 'AGGIORNAMENTI' : 'UPDATES';
   String get tabTerminal => isItalian ? 'TERMINALE' : 'TERMINAL';
   String get tabRemote => isItalian ? 'ACCESSO REMOTO' : 'REMOTE ACCESS';
+  String get tabAgents => isItalian ? 'AGENTI' : 'AGENTS';
 
   // Appearance tab
   String get appearanceTitle => isItalian ? 'Personalizzazione Tema e UI' : 'Theme & UI Customization';
@@ -314,6 +315,76 @@ class AppStrings {
       isItalian ? 'Input' : 'Input';
   String get stepGroupOutput =>
       isItalian ? 'Output' : 'Output';
+
+  // Agents tab
+  String get agentsTitle => isItalian
+      ? 'Configurazione Agenti e Sottoagenti'
+      : 'Agent & Subagent Configuration';
+  String get agentsSubtitle => isItalian
+      ? 'Gestisci modelli predefiniti, livelli di thinking e quote di contesto per la sessione principale e i sottoagenti.'
+      : 'Manage default models, thinking levels, and context limits for primary sessions and subagents.';
+  String get agentsGlobalNote => isItalian
+      ? 'Nota: le modifiche si applicano a Pi a livello globale (incluse le sessioni da terminale) e alle NUOVE sessioni o esecuzioni di sottoagenti.'
+      : 'Note: changes apply to Pi globally (including terminal sessions) and to NEW sessions or subagent runs.';
+  String get agentsNoPackagesTitle => isItalian
+      ? 'Nessun pacchetto di sottoagenti installato'
+      : 'No subagent package installed';
+  String get agentsNoPackagesDesc => isItalian
+      ? 'Installa un pacchetto di sottoagenti come pi-subagents (nicobailon) o @tintinweb/pi-subagents usando la scheda PACCHETTI o da terminale con "pi install pi-subagents". Consulta il README per maggiori dettagli.'
+      : 'Install a subagent package such as pi-subagents (nicobailon) or @tintinweb/pi-subagents using the PACKAGES tab or terminal with "pi install pi-subagents". See the README for details.';
+  String get agentsWarningsTitle => isItalian
+      ? 'Avvisi di configurazione'
+      : 'Configuration warnings';
+  String get agentsSessionDefaultsTitle => isItalian
+      ? 'Default per nuove sessioni'
+      : 'Defaults for new sessions';
+  String get agentsSessionDefaultsSubtitle => isItalian
+      ? 'Modello e livello di thinking predefiniti per le nuove sessioni primarie di Pi.'
+      : 'Default model and thinking level for new primary Pi sessions.';
+  String get agentsSubagentDefaultsTitle => isItalian
+      ? 'Default sottoagenti'
+      : 'Subagent defaults';
+  String get agentsSubagentDefaultsSubtitle => isItalian
+      ? 'Impostazioni globali ereditate dai sottoagenti in assenza di override specifici.'
+      : 'Global defaults inherited by subagents when no specific override is set.';
+  String get agentsDefaultModel => isItalian
+      ? 'Modello predefinito'
+      : 'Default model';
+  String get agentsThinkingLevel => isItalian
+      ? 'Livello di thinking'
+      : 'Thinking level';
+  String get agentsFallbackAgent => isItalian
+      ? 'Agente di fallback (tintinweb)'
+      : 'Fallback agent (tintinweb)';
+  String get agentsListTitle => isItalian
+      ? 'Elenco Agenti'
+      : 'Agents List';
+  String get agentsListSubtitle => isItalian
+      ? 'Configura modello, thinking e quote di contesto per ciascun agente.'
+      : 'Configure model, thinking, and context limit per agent.';
+  String get agentsTableHeaderName => isItalian ? 'Agente' : 'Agent';
+  String get agentsTableHeaderModel => isItalian ? 'Modello' : 'Model';
+  String get agentsTableHeaderThinking => 'Thinking';
+  String get agentsTableHeaderContext => isItalian ? 'Contesto' : 'Context';
+  String get agentsPackagesLabel => isItalian ? 'Pacchetti:' : 'Packages:';
+  String get agentsContextSingleTierTooltip => isItalian
+      ? 'Il modello ha un solo livello di contesto'
+      : 'Model has a single context tier';
+  String get agentsModelUnavailableWarning => isItalian
+      ? 'Non disponibile con le credenziali attuali'
+      : 'Not available with current credentials';
+  String get agentsResetField => isItalian ? 'Reimposta' : 'Reset';
+  String get agentsDiscard => isItalian ? 'Annulla' : 'Discard';
+  String get agentsSave => isItalian ? 'Salva modifiche' : 'Save changes';
+  String get agentsSaving => isItalian ? 'Salvataggio...' : 'Saving...';
+  String get agentsSaveSuccess => isItalian
+      ? 'Configurazione agenti salvata con successo.'
+      : 'Agent configuration saved successfully.';
+  String get agentsReadOnlyNotice => isItalian
+      ? 'Accesso remoto: la configurazione degli agenti è in sola lettura.'
+      : 'Remote access: agent configuration is read-only.';
+  String get agentsReload => isItalian ? 'Ricarica' : 'Reload';
+  String get agentsNotAvailableShort => isItalian ? 'n/d' : 'N/A';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {

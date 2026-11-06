@@ -126,7 +126,23 @@ async function main() {
         success: true,
         data: {
           models: [
-            { id: 'fake-model', name: 'Fake Pi Model', provider: 'fake', reasoning: true, contextWindow: 128000 }
+            {
+              id: 'fake-model',
+              name: 'Fake Pi Model',
+              provider: 'fake',
+              reasoning: true,
+              contextWindow: 128000,
+              cost: {
+                tiers: [{ inputTokensAbove: 64000 }]
+              }
+            },
+            {
+              id: 'fake-fast',
+              name: 'Fake Fast Model',
+              provider: 'fake',
+              reasoning: false,
+              contextWindow: 64000
+            }
           ]
         }
       });

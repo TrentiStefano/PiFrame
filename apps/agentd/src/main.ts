@@ -10,6 +10,8 @@ import { findStaticDir } from './server/static.js';
 import { SessionRegistry } from './sessions/SessionRegistry.js';
 import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
+import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
+import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
 
 const VERSION = '1.3.0'; // x-release-please-version
 
@@ -108,6 +110,8 @@ async function main() {
   }
 
   // 5. Initialize runtime directory (~/.piframe/runtime/daemon.json, daemon.token, etc.)
+  ensureContextLimitExtension();
+  ensureSubagentContextLimitExtensionIfReferenced();
   token = generateAndSaveToken();
   writeRuntimeInfo({
     port: actualPort,

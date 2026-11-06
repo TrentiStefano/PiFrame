@@ -184,8 +184,8 @@ export function contextLimitExtension(pi: any): void {
   pi.on('before_agent_start', async (_event: unknown, ctx: any) => { await apply(ctx); });
 }
 
-export function ensureContextLimitExtension(): string {
-  const directory = path.join(getPiFrameBaseDir(), 'runtime');
+export function ensureContextLimitExtension(baseDir = getPiFrameBaseDir()): string {
+  const directory = path.join(baseDir, 'runtime');
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'context-limit.mjs');
   const source = `export default ${contextLimitExtension.toString()}\n`;

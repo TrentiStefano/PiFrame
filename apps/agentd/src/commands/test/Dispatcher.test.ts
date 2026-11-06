@@ -260,6 +260,16 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
   assert.deepEqual(calls, ['list', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
 });
 
+test('Dispatcher: delegates pi.agents.get and pi.agents.update for local connection', async () => {
+  const setup = createTestSetup();
+  const getRes = await sendCommand(setup, 'pi.agents.get', '@daemon', {});
+  assert.equal(getRes[0].payload.state, 'accepted');
+  assert.equal(getRes[1].payload.state, 'completed');
+  assert.ok(Array.isArray(getRes[1].payload.data.packages));
+  assert.ok(Array.isArray(getRes[1].payload.data.agents));
+  assert.ok(Array.isArray(getRes[1].payload.data.thinkingLevels));
+});
+
 test('Dispatcher: executes daemon.getConfig and returns config', async () => {
   const { dispatcher, ws, conn } = createTestSetup();
 
@@ -457,6 +467,22 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   });
   const res5 = getLastResult(remoteWs);
   assert.equal(res5.payload.state, 'rejected');
+
+  // Remote attempts pi.agents.get -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_agents_get_att', ts: Date.now(),
+    commandId: 'c_ag_att', type: 'pi.agents.get', payload: {}
+  });
+  const resAgentsGet = getLastResult(remoteWs);
+  assert.equal(resAgentsGet.payload.state, 'rejected');
+
+  // Remote attempts pi.agents.update -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_agents_upd_att', ts: Date.now(),
+    commandId: 'c_au_att', type: 'pi.agents.update', payload: { changes: [] }
+  });
+  const resAgentsUpd = getLastResult(remoteWs);
+  assert.equal(resAgentsUpd.payload.state, 'rejected');
 
   // Remote in view mode attempts workspace.saveFile -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
