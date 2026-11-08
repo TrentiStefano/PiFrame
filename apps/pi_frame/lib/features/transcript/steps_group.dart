@@ -183,6 +183,11 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   }
 
   bool _onStepsScrollMetrics(ScrollMetricsNotification notification) {
+    // Only the list's own viewport counts. Nested scrollables (the
+    // SelectableText of a streaming thinking step has one) report their own
+    // metrics on every new line; reading those toggled the overflow state
+    // and the "show all" button each frame, making the transcript jump.
+    if (notification.depth != 0) return false;
     final metrics = notification.metrics;
     final overflow = metrics.maxScrollExtent > 0.5;
     if (overflow != _stepsOverflow) {
@@ -198,6 +203,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   }
 
   bool _onStepsScroll(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
     if (notification is ScrollUpdateNotification &&
         notification.dragDetails != null ||
         notification is UserScrollNotification) {
