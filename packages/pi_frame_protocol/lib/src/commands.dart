@@ -13,10 +13,7 @@ class PcpCommand extends PcpEnvelope {
     super.sessionId,
     required super.type,
     required super.payload,
-  }) : super(
-          kind: 'command',
-          commandId: commandId,
-        );
+  }) : super(kind: 'command', commandId: commandId);
 
   factory PcpCommand.create({
     required String commandId,
@@ -76,17 +73,11 @@ class PcpCommand extends PcpEnvelope {
       commandId: commandId,
       sessionId: sessionId,
       type: 'workspace.switchBranch',
-      payload: {
-        'branch': branch,
-        'onDirty': onDirty,
-      },
+      payload: {'branch': branch, 'onDirty': onDirty},
     );
   }
 
-  static PcpCommand piAgentsGet({
-    required String commandId,
-    String? cwd,
-  }) {
+  static PcpCommand piAgentsGet({required String commandId, String? cwd}) {
     return PcpCommand.create(
       commandId: commandId,
       sessionId: '@daemon',
@@ -116,10 +107,7 @@ class PcpCommand extends PcpEnvelope {
       commandId: commandId,
       sessionId: sessionId,
       type: 'side.open',
-      payload: {
-        'sessionId': sessionId,
-        if (question != null) 'question': question,
-      },
+      payload: {'sessionId': sessionId, 'question': ?question},
     );
   }
 
@@ -132,10 +120,7 @@ class PcpCommand extends PcpEnvelope {
       commandId: commandId,
       sessionId: sideId,
       type: 'side.prompt',
-      payload: {
-        'sideId': sideId,
-        'text': text,
-      },
+      payload: {'sideId': sideId, 'text': text},
     );
   }
 
@@ -147,9 +132,7 @@ class PcpCommand extends PcpEnvelope {
       commandId: commandId,
       sessionId: sideId,
       type: 'side.abort',
-      payload: {
-        'sideId': sideId,
-      },
+      payload: {'sideId': sideId},
     );
   }
 
@@ -161,9 +144,7 @@ class PcpCommand extends PcpEnvelope {
       commandId: commandId,
       sessionId: sideId,
       type: 'side.close',
-      payload: {
-        'sideId': sideId,
-      },
+      payload: {'sideId': sideId},
     );
   }
 
@@ -175,7 +156,8 @@ class PcpCommand extends PcpEnvelope {
       commandId: json['commandId'] as String? ?? '',
       sessionId: json['sessionId'] as String?,
       type: json['type'] as String? ?? '',
-      payload: (json['payload'] as Map<String, dynamic>?) ?? <String, dynamic>{},
+      payload:
+          (json['payload'] as Map<String, dynamic>?) ?? <String, dynamic>{},
     );
   }
 }
