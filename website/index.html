@@ -68,7 +68,7 @@
           <img src="./assets/icons/piframe-light-64.png" alt="" class="logo-dark" width="28" height="28" aria-hidden="true">
         </span>
         <span class="brand-name">PiFrame</span>
-        <span class="brand-pill">Open source</span>
+        <span class="brand-pill" title="MIT License">Open source</span>
       </a>
 
       <nav class="nav-desktop" aria-label="Primary Navigation">
@@ -481,7 +481,7 @@
               <span class="chapter-tag">CODE INSPECTION</span>
               <h3 class="chapter-title">Review changes with 50/50 side-by-side diff</h3>
               <p class="chapter-desc">
-                Verify modifications with total confidence before committing. PiFrame renders synchronized side-by-side split diffs right inside the chat turn, with unified view toggle, syntax coloring, line numbers, and native rendered markdown preview for documentation files.
+                Check every change before you commit. PiFrame renders synchronized side-by-side split diffs right inside the chat turn, with unified view toggle, syntax coloring, line numbers, and native rendered markdown preview for documentation files.
               </p>
               <div class="chapter-badges">
                 <span class="feature-chip">50/50 Side-by-Side Diff</span>
@@ -950,7 +950,7 @@
             </summary>
             <div class="faq-body">
               <p>
-                Removing PiFrame leaves Pi and your sessions untouched. PiFrame keeps its own files in <code>~/.piframe/</code> (daemon tokens, journal cache, layout preferences), which the uninstaller leaves in place so you don't lose preferences. You can delete <code>~/.piframe/</code> manually at any time. <em>Note:</em> if you configured custom subagent context limits in Settings → Agents, reset them before uninstalling to ensure Pi settings don't reference helper files.
+                Removing PiFrame leaves Pi and your sessions in place. PiFrame keeps its own files in <code>~/.piframe/</code> (daemon tokens, journal cache, layout preferences), which the uninstaller leaves in place so you don't lose preferences. You can delete <code>~/.piframe/</code> manually at any time. <em>Note:</em> if you configured custom subagent context limits in Settings → Agents, reset them before uninstalling to ensure Pi settings don't reference helper files.
               </p>
             </div>
           </details>
@@ -1005,12 +1005,24 @@
 
           <details class="faq-item">
             <summary class="faq-summary">
+              <span class="faq-question">Is PiFrame free? What is the license?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <strong>Yes.</strong> PiFrame is free and open source under the <a href="https://github.com/TrentiStefano/PiFrame/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>. You can use it for personal and commercial work, read the code, and change it. The licenses of the third-party software in the installers are in <a href="https://github.com/TrentiStefano/PiFrame/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener noreferrer">THIRD_PARTY_NOTICES.md</a>. Your model provider's usage terms and costs still apply.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary class="faq-summary">
               <span class="faq-question">Why is my Windows desktop window white or blank on launch?</span>
               <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
             <div class="faq-body">
               <p>
-                On Windows desktop, Flutter utilizes the ANGLE Direct3D 11 backend. In environments with virtual display drivers (such as <code>USB Mobile Monitor</code>, <code>IddSampleDriver</code>, Spacedesk, or secondary smartphone screen mirrors) or hybrid multi-GPU configurations, the Windows Desktop Window Manager swapchain can occasionally stall. A system reboot resolves the DirectX context state. You can also temporarily disable the virtual display adapter in Device Manager. See <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">docs/troubleshooting.md</a> for complete instructions.
+                On Windows, PiFrame draws through Direct3D 11. In environments with virtual display drivers (such as <code>USB Mobile Monitor</code>, <code>IddSampleDriver</code>, Spacedesk, or secondary smartphone screen mirrors) or hybrid multi-GPU configurations, the Windows Desktop Window Manager swapchain can occasionally stall. A system reboot resolves the DirectX context state. You can also temporarily disable the virtual display adapter in Device Manager. See <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">docs/troubleshooting.md</a> for complete instructions.
               </p>
             </div>
           </details>
@@ -1036,7 +1048,7 @@
             The desktop app for Pi Coding Agent. Built with Flutter. No analytics, no telemetry.
           </p>
           <div class="footer-badge-box">
-            <span>Engine: Flutter • Daemon: Node • Open source</span>
+            <span>Engine: Flutter • Daemon: Node • <a href="https://github.com/TrentiStefano/PiFrame/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></span>
           </div>
         </div>
 
@@ -1075,7 +1087,7 @@
       <div class="footer-bottom">
         <div class="footer-bottom-info">
           <p class="footer-copy">
-            © 2026 Stefano Trenti &amp; contributors.
+            © 2026 Stefano Trenti &amp; contributors. Released under the <a href="https://github.com/TrentiStefano/PiFrame/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>.
           </p>
           <p class="footer-music-credit">
             Music: “Happy Beats – Business Moves Vol. 12” by Sascha Ende (<a href="https://ende.app" target="_blank" rel="noopener noreferrer">ende.app</a>), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>
