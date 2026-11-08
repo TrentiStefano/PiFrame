@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.4.0](https://github.com/TrentiStefano/PiFrame/compare/v1.3.1...v1.4.0) (2026-11-08)
+
+
+### Features
+
+* add agents and workflows side panel ([6d84723](https://github.com/TrentiStefano/PiFrame/commit/6d847237f0310caa2ce77fc9eca7177ad043e6c2))
+* **chat:** add read-only /side conversations ([2e48ed2](https://github.com/TrentiStefano/PiFrame/commit/2e48ed29c27ac0983747de48c3a71dfdd9a2faff))
+* **chat:** cap expanded step groups with a scrollable list ([8964cdd](https://github.com/TrentiStefano/PiFrame/commit/8964cddd37136e29b464c09d23b32fe759f8ac38))
+* **chat:** group intermediate turn steps into collapsible blocks ([f87ab9c](https://github.com/TrentiStefano/PiFrame/commit/f87ab9c7384de87d40853f78030ec6be98e533ea))
+* **git:** add branch browser with safe daemon-side switching ([4e4c5d1](https://github.com/TrentiStefano/PiFrame/commit/4e4c5d1254829ad0b6bfdc53c7c7acef11673782))
+* **i18n:** translate the UI into Italian, fix terminal line endings ([ce483c0](https://github.com/TrentiStefano/PiFrame/commit/ce483c00569988d854e9c376c254c4352890a3b7))
+* **metrics:** add opt-in nerd stats with daemon system metrics ([0739e2f](https://github.com/TrentiStefano/PiFrame/commit/0739e2f44de602dbbddcfad1efa668c64a0f8407))
+* **settings:** add Agents page for subagent and session defaults ([5534ea9](https://github.com/TrentiStefano/PiFrame/commit/5534ea96b6e4da169f47759b214f98c8bea82eff))
+* **settings:** add Enter-to-send toggle ([4a2217a](https://github.com/TrentiStefano/PiFrame/commit/4a2217a05173ad0d63f252f0f2a3a0cefb27c111))
+* show agents and workflows as a live tree ([3a41e08](https://github.com/TrentiStefano/PiFrame/commit/3a41e081b418bd68037e8afd5e5b1196b69747a3))
+* show sessions waiting on background agents as running ([5b127fb](https://github.com/TrentiStefano/PiFrame/commit/5b127fb3bdd6f40ee9d29d3bbd05c600029648ee))
+* **website:** rework the site with real captures, dark mode, new copy ([fd34cbb](https://github.com/TrentiStefano/PiFrame/commit/fd34cbb64b7c713c388f642b3f4e51063e3644eb))
+
+
+### Bug Fixes
+
+* **agentd:** report real subagent status and live activity ([bc9b24e](https://github.com/TrentiStefano/PiFrame/commit/bc9b24e8994a2e528de404a586a1fbd418280e74))
+* **chat:** keep final answers out of step groups and fix turn status ([c08b2e0](https://github.com/TrentiStefano/PiFrame/commit/c08b2e0122761ca467a5b53591e930eae49a8530))
+* **daemon:** sync bundle on build and improve daemon restart and process resolution ([ae118f7](https://github.com/TrentiStefano/PiFrame/commit/ae118f7b59ca1dc1a480c77296cb1ad2e35fc090))
+* disambiguate models by provider ([f1e5831](https://github.com/TrentiStefano/PiFrame/commit/f1e5831dda083bfa47d22d163ea5fb89b8c1747e))
+* keep transcript links selectable ([086aa36](https://github.com/TrentiStefano/PiFrame/commit/086aa3661af41a93ab43f736cd0e5488770dbd83))
+* **metrics:** restart sampling on every resubscribe ([bce3831](https://github.com/TrentiStefano/PiFrame/commit/bce3831c5db65074282a4f7bb3eee9d8aa8b64c3))
+* open PiFrame workflows panel from /agents ([e487f62](https://github.com/TrentiStefano/PiFrame/commit/e487f628ae8ff4fdb69b3fd0bee322e67a9bcced))
+* prevent duplicate terminal input ([ffda10d](https://github.com/TrentiStefano/PiFrame/commit/ffda10dd52a49c9c6cdd8981180d578d0825ecb5))
+* speed up repository and git panels ([133c0c1](https://github.com/TrentiStefano/PiFrame/commit/133c0c102fe88777d4f3d42dc23782a4e49beb06))
+* suppress PowerShell terminal input echo ([567b77d](https://github.com/TrentiStefano/PiFrame/commit/567b77df183d340f42e92b2019d531f5f24bd4f0))
+* **ui:** dynamic question preview pane and bounded dialog layout ([a5610c1](https://github.com/TrentiStefano/PiFrame/commit/a5610c1500ccf0ffe78a50cb9f75d545ab198d0b))
+* **ui:** stable pinned sessions order with drag-and-drop and accurate response notifications ([cf5c83c](https://github.com/TrentiStefano/PiFrame/commit/cf5c83c84c632590d8d0df9b97662fb8efecf686))
+
 ## [1.3.1](https://github.com/TrentiStefano/PiFrame/compare/v1.3.0...v1.3.1) (2026-11-05)
 
 
