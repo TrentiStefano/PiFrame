@@ -12,6 +12,8 @@
     "smoke:real-pi": "pnpm --filter @piframe/agentd build && node tools/scripts/smoke-real-pi.mjs",
     "build:agentd": "pnpm --filter @piframe/agentd build && pnpm --filter @piframe/agentd build:bundle && node tools/scripts/check-agentd-bundle.mjs && node tools/scripts/smoke-agentd-bundle.mjs",
     "check:agentd-bundle": "node tools/scripts/check-agentd-bundle.mjs",
+    "verify": "node tools/scripts/verify-ci.mjs",
+    "pr": "node tools/scripts/open-pr.mjs",
     "check:version": "node tools/scripts/check-version-sync.mjs",
     "notices": "node tools/scripts/generate-third-party-notices.mjs",
     "check:notices": "node tools/scripts/generate-third-party-notices.mjs --check",
