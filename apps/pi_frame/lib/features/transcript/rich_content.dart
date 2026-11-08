@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
@@ -285,6 +287,7 @@ class RichContent extends StatefulWidget {
     String text,
     FrameTokens tokens, {
     String? cwd,
+    AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
   }) {
     final rawLines =
@@ -306,6 +309,7 @@ class RichContent extends StatefulWidget {
                   content,
                   tokens,
                   cwd: cwd,
+                  strings: strings,
                   createTapRecognizer: createTapRecognizer,
                 ),
                 style: TextStyle(
@@ -401,6 +405,7 @@ class RichContent extends StatefulWidget {
                 trimmed.substring(2).trim(),
                 tokens,
                 cwd: cwd,
+                strings: strings,
                 createTapRecognizer: createTapRecognizer,
               ),
               style: TextStyle(
@@ -437,6 +442,7 @@ class RichContent extends StatefulWidget {
                       trimmed.substring(2).trim(),
                       tokens,
                       cwd: cwd,
+                      strings: strings,
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
@@ -480,6 +486,7 @@ class RichContent extends StatefulWidget {
                       itemText,
                       tokens,
                       cwd: cwd,
+                      strings: strings,
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
@@ -512,6 +519,7 @@ class RichContent extends StatefulWidget {
     String text,
     FrameTokens tokens, {
     String? cwd,
+    AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
   }) {
     final spans = <InlineSpan>[];
@@ -657,6 +665,7 @@ class RichContent extends StatefulWidget {
               targetPath: m.text,
               tokens: tokens,
               cwd: cwd,
+              strings: strings,
               createTapRecognizer: createTapRecognizer,
             ),
           );
@@ -675,6 +684,7 @@ class RichContent extends StatefulWidget {
               targetPath: target,
               tokens: tokens,
               cwd: cwd,
+              strings: strings,
               createTapRecognizer: createTapRecognizer,
             ),
           );
@@ -689,6 +699,7 @@ class RichContent extends StatefulWidget {
                 targetPath: targetUrl,
                 tokens: tokens,
                 cwd: cwd,
+                strings: strings,
                 createTapRecognizer: createTapRecognizer,
               ),
             );
@@ -724,6 +735,7 @@ class RichContent extends StatefulWidget {
     required FrameTokens tokens,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
     String? cwd,
+    AppStrings? strings,
   }) {
     void openFile() => openInOsFileExplorer(targetPath, cwd: cwd);
 
@@ -733,7 +745,8 @@ class RichContent extends StatefulWidget {
           alignment: PlaceholderAlignment.middle,
           child: SelectionContainer.disabled(
             child: Tooltip(
-              message: 'CTRL+clic per aprire in Esplora file',
+              message: strings?.richContentOpenFileTooltip ??
+                  'CTRL+clic per aprire in Esplora file',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: GestureDetector(
@@ -803,15 +816,18 @@ class _RichContentState extends State<RichContent> {
   String? _cachedText;
   FrameTokens? _cachedTokens;
   String? _cachedCwd;
+  AppStrings? _cachedStrings;
   Widget? _cachedBuiltWidget;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     if (_cachedBuiltWidget != null &&
         _cachedText == widget.text &&
         _cachedCwd == widget.cwd &&
-        identical(_cachedTokens, tokens)) {
+        identical(_cachedTokens, tokens) &&
+        _cachedStrings == strings) {
       return _cachedBuiltWidget!;
     }
 
@@ -823,6 +839,7 @@ class _RichContentState extends State<RichContent> {
     _cachedText = widget.text;
     _cachedTokens = tokens;
     _cachedCwd = widget.cwd;
+    _cachedStrings = strings;
 
     TapGestureRecognizer createTapRecognizer(VoidCallback onTap) {
       final recognizer = TapGestureRecognizer()..onTap = onTap;
@@ -851,6 +868,7 @@ class _RichContentState extends State<RichContent> {
               seg.content,
               tokens,
               cwd: widget.cwd,
+              strings: strings,
               createTapRecognizer: createTapRecognizer,
             );
           }

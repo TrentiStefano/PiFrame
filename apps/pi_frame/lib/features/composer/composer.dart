@@ -12,6 +12,7 @@ import 'package:file_selector/file_selector.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/composer/composer_settings.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_pricing_helper.dart';
@@ -128,6 +129,7 @@ class _ComposerState extends ConsumerState<Composer> {
     int index,
     String initialText,
   ) async {
+    final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
     final textController = TextEditingController(text: initialText);
     final sessionNotifier = ref.read(
@@ -148,7 +150,7 @@ class _ComposerState extends ConsumerState<Composer> {
               Icon(Icons.edit_note, size: 20, color: tokens.accent),
               const SizedBox(width: 8),
               Text(
-                'Modifica messaggio in coda (Steer #${index + 1})',
+                strings.steerEditDialogTitle(index),
                 style: TextStyle(
                   color: tokens.textPrimary,
                   fontSize: 14,
@@ -164,7 +166,7 @@ class _ComposerState extends ConsumerState<Composer> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Modifica il testo del messaggio in coda prima che venga inviato all\'agente:',
+                  strings.steerEditDialogDesc,
                   style: TextStyle(color: tokens.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 10),
@@ -198,18 +200,18 @@ class _ComposerState extends ConsumerState<Composer> {
                 _focusNode.requestFocus();
                 FrameSnackBar.show(
                   context,
-                  message: 'Messaggio caricato nel composer per la modifica',
+                  message: strings.steerLoadedToComposer,
                   duration: const Duration(seconds: 2),
                 );
               },
               child: Text(
-                'Carica nel composer',
+                strings.steerLoadToComposerAction,
                 style: TextStyle(color: tokens.accent),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogCtx).pop(),
-              child: Text('Annulla', style: TextStyle(color: tokens.textMuted)),
+              child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
             ),
             FilledButton(
               key: const ValueKey('edit-steer-dialog-save'),
@@ -220,7 +222,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   await sessionNotifier.updateSteerMessage(index, newText);
                 }
               },
-              child: const Text('Aggiorna'),
+              child: Text(strings.steerUpdateAction),
             ),
           ],
         );
@@ -447,6 +449,7 @@ class _ComposerState extends ConsumerState<Composer> {
     }
     final builtin = _parsePiBuiltin(text);
     if (builtin != null) {
+      final strings = ref.read(appStringsProvider);
       final sending = ref.read(
         composerSendingProvider(widget.sessionId).notifier,
       );
@@ -454,7 +457,7 @@ class _ComposerState extends ConsumerState<Composer> {
       try {
         if (attachments.isNotEmpty) {
           throw StateError(
-            'Rimuovi gli allegati prima di eseguire un comando Pi.',
+            strings.composerRemoveAttachmentsBeforePiCommand,
           );
         }
         await _runPiBuiltin(builtin.$1, builtin.$2);
@@ -468,7 +471,7 @@ class _ComposerState extends ConsumerState<Composer> {
         }
       } catch (error) {
         if (mounted) {
-          FrameSnackBar.show(context, message: 'Comando non riuscito: $error');
+          FrameSnackBar.show(context, message: strings.composerCommandFailed(error));
         }
       } finally {
         if (sending.mounted) sending.state = false;
@@ -513,7 +516,8 @@ class _ComposerState extends ConsumerState<Composer> {
       }
     } catch (error) {
       if (mounted && streamingBehavior != null) {
-        FrameSnackBar.show(context, message: 'Invio non riuscito: $error');
+        final strings = ref.read(appStringsProvider);
+        FrameSnackBar.show(context, message: strings.composerSendFailed(error));
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -521,22 +525,20 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   Future<void> _continueAmbiguousSession() async {
+    final strings = ref.read(appStringsProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Verifica la sessione Pi'),
-        content: const Text(
-          'PiFrame rileva Pi interattivo aperto in questa cartella, ma Pi non comunica quale file di sessione usa. '
-          'Continua solo se questa sessione non è aperta nel terminale. Due processi sullo stesso file possono danneggiare la cronologia.',
-        ),
+        title: Text(strings.composerVerifySessionTitle),
+        content: Text(strings.composerVerifySessionContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annulla'),
+            child: Text(strings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Continua qui'),
+            child: Text(strings.composerContinueHereAction),
           ),
         ],
       ),
@@ -544,14 +546,14 @@ class _ComposerState extends ConsumerState<Composer> {
     if (confirmed != true || !mounted) return;
     try {
       final client = ref.read(pcpClientProvider);
-      if (client == null) throw StateError('Daemon non connesso');
+      if (client == null) throw StateError(strings.composerDaemonNotConnected);
       await client.continueSession(widget.sessionId, confirmed: true);
       if (!mounted) return;
       ref.invalidate(sessionListProvider);
       ref.invalidate(sessionStateFamily(widget.sessionId));
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: 'Ripresa non riuscita: $error');
+        FrameSnackBar.show(context, message: strings.composerResumeFailed(error));
       }
     }
   }
@@ -561,7 +563,8 @@ class _ComposerState extends ConsumerState<Composer> {
       await action();
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
+        final strings = ref.read(appStringsProvider);
+        FrameSnackBar.show(context, message: strings.composerActionFailed(error));
       }
     }
   }
@@ -590,15 +593,16 @@ class _ComposerState extends ConsumerState<Composer> {
     if (repository.currentState.files.isEmpty) await repository.loadFiles();
     if (!mounted) return;
     final state = repository.currentState;
+    final strings = ref.read(appStringsProvider);
     if (state.files.isEmpty) {
       FrameSnackBar.show(
         context,
-        message: state.error ?? 'Nessun file disponibile nella sessione.',
+        message: state.error ?? strings.composerNoFilesAvailable,
       );
       return;
     }
 
-    final result = await CopilotFilePicker.show(context, files: state.files);
+    final result = await CopilotFilePicker.show(context, files: state.files, strings: strings);
     if (result == null || !mounted) return;
 
     final isImg = isImageExtension(result.path);
@@ -657,11 +661,12 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _addImageFiles() async {
     try {
+      final strings = ref.read(appStringsProvider);
       final files = await openFiles(
         acceptedTypeGroups: [
-          const XTypeGroup(
-            label: 'Immagini',
-            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'],
+          XTypeGroup(
+            label: strings.composerImagesFilterLabel,
+            extensions: const ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'],
           ),
         ],
       );
@@ -702,9 +707,10 @@ class _ComposerState extends ConsumerState<Composer> {
       await sessionNotifier.interrupt();
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Interruzione non riuscita: $error',
+          message: strings.composerInterruptFailed(error),
         );
       }
       return;
@@ -713,9 +719,10 @@ class _ComposerState extends ConsumerState<Composer> {
     }
     if (!mounted) return;
 
+    final strings = ref.read(appStringsProvider);
     FrameSnackBar.show(
       context,
-      message: 'Agente interrotto. La coda di messaggi è stata cancellata.',
+      message: strings.composerAgentInterrupted,
       duration: const Duration(seconds: 3),
     );
   }
@@ -749,6 +756,7 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   Future<void> _runPiBuiltin(String name, String args) async {
+    final strings = ref.read(appStringsProvider);
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
     switch (name) {
       case 'side':
@@ -776,9 +784,9 @@ class _ComposerState extends ConsumerState<Composer> {
               display.toLowerCase() == target ||
               '$provider/$id'.toLowerCase() == target;
         }).toList();
-        if (matches.isEmpty) throw StateError('Modello "$args" non trovato.');
+        if (matches.isEmpty) throw StateError(strings.composerModelNotFound(args));
         if (matches.length > 1) {
-          throw StateError('Modello ambiguo. Usa provider/id per sceglierlo.');
+          throw StateError(strings.composerModelAmbiguous);
         }
         final selected = matches.single;
         await notifier.setModel(
@@ -794,7 +802,7 @@ class _ComposerState extends ConsumerState<Composer> {
             .where((item) => item.toLowerCase() == args.toLowerCase())
             .firstOrNull;
         if (level == null) {
-          throw StateError('Livello di thinking "$args" non disponibile.');
+          throw StateError(strings.composerThinkingLevelNotAvailable(args));
         }
         await notifier.setThinkingLevel(level);
         return;
@@ -810,14 +818,14 @@ class _ComposerState extends ConsumerState<Composer> {
         return;
       case 'login':
         if (args.isNotEmpty) {
-          throw StateError('/login non accetta argomenti.');
+          throw StateError(strings.composerLoginNoArgs);
         }
         await notifier.piAuthLogin();
         await _loadModels();
         return;
       case 'logout':
         if (args.isNotEmpty) {
-          throw StateError('/logout non accetta argomenti.');
+          throw StateError(strings.composerLogoutNoArgs);
         }
         await notifier.piAuthLogout();
         await _loadModels();
@@ -832,13 +840,13 @@ class _ComposerState extends ConsumerState<Composer> {
             )
             .lastOrNull;
         if (latest == null) {
-          throw StateError('Nessun messaggio dell’agente da copiare.');
+          throw StateError(strings.composerNoAgentMessageToCopy);
         }
         await Clipboard.setData(ClipboardData(text: latest.text));
         if (!mounted) return;
         FrameSnackBar.show(
           context,
-          message: 'Ultimo messaggio dell’agente copiato.',
+          message: strings.composerLastAgentMessageCopied,
         );
         return;
       case 'name':
@@ -870,20 +878,20 @@ class _ComposerState extends ConsumerState<Composer> {
       default:
         FrameSnackBar.show(
           context,
-          message:
-              '/$name è un comando integrato di Pi basato sulla TUI. PiFrame non lo invia al modello, ma non offre ancora questa azione.',
+          message: strings.composerTuiCommandNotice(name),
           duration: const Duration(seconds: 5),
         );
     }
   }
 
   Future<String?> _askSessionName(String initial) async {
+    final strings = ref.read(appStringsProvider);
     final controller = TextEditingController(text: initial);
     try {
       return await showDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Nome sessione'),
+          title: Text(strings.composerSessionNameTitle),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -892,11 +900,11 @@ class _ComposerState extends ConsumerState<Composer> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
+              child: Text(strings.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, controller.text),
-              child: const Text('Salva'),
+              child: Text(strings.save),
             ),
           ],
         ),
@@ -909,13 +917,14 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _cloneFromSlash() async {
     if (!await resolveDirtyRepository(context, ref, widget.sessionId)) return;
     if (!mounted) return;
+    final strings = ref.read(appStringsProvider);
     final client = ref.read(pcpClientProvider);
-    if (client == null) throw StateError('Daemon non connesso.');
+    if (client == null) throw StateError(strings.composerDaemonNotConnected);
     final result = await client.cloneSession(widget.sessionId);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     final targetId = (data['sessionId'] ?? data['id']) as String?;
     if (targetId == null) {
-      throw StateError('La sessione duplicata non è stata restituita.');
+      throw StateError(strings.composerCloneNotReturned);
     }
     if (!mounted || !await switchSessionSafely(context, ref, targetId)) return;
     ref.invalidate(sessionListProvider);
@@ -924,6 +933,7 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _forkFromSlash(String args) async {
     if (!await resolveDirtyRepository(context, ref, widget.sessionId)) return;
     if (!mounted) return;
+    final strings = ref.read(appStringsProvider);
     final state = ref.read(sessionStateFamily(widget.sessionId));
     var entryId = args.isEmpty ? null : args;
     if (entryId == null) {
@@ -931,14 +941,12 @@ class _ComposerState extends ConsumerState<Composer> {
           .where((entry) => entry.role == 'user')
           .toList();
       if (userEntries.isEmpty) {
-        throw StateError(
-          'La sessione non contiene messaggi utente da cui creare un fork.',
-        );
+        throw StateError(strings.composerForkNoUserMessages);
       }
       entryId = await showDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Crea un fork'),
+          title: Text(strings.composerForkTitle),
           content: SizedBox(
             width: 460,
             height: 360,
@@ -961,7 +969,7 @@ class _ComposerState extends ConsumerState<Composer> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
+              child: Text(strings.cancel),
             ),
           ],
         ),
@@ -969,28 +977,29 @@ class _ComposerState extends ConsumerState<Composer> {
       if (entryId == null) return;
     }
     final client = ref.read(pcpClientProvider);
-    if (client == null) throw StateError('Daemon non connesso.');
+    if (client == null) throw StateError(strings.composerDaemonNotConnected);
     final result = await client.forkSession(widget.sessionId, entryId: entryId);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     final targetId = (data['sessionId'] ?? data['id']) as String?;
-    if (targetId == null) throw StateError('Il fork non è stato creato.');
+    if (targetId == null) throw StateError(strings.composerForkNotCreated);
     if (!mounted || !await switchSessionSafely(context, ref, targetId)) return;
     ref.invalidate(sessionListProvider);
   }
 
   Future<void> _resumeFromSlash() async {
     ref.invalidate(sessionListProvider);
+    final strings = ref.read(appStringsProvider);
     final sessions = await ref.read(sessionListProvider.future);
     if (!mounted) return;
     final selectedId = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Riprendi una sessione'),
+        title: Text(strings.composerResumeTitle),
         content: SizedBox(
           width: 460,
           height: 360,
           child: sessions.isEmpty
-              ? const Center(child: Text('Nessuna sessione disponibile.'))
+              ? Center(child: Text(strings.composerNoSessionsAvailable))
               : ListView.builder(
                   itemCount: sessions.length,
                   itemBuilder: (_, index) {
@@ -1013,7 +1022,7 @@ class _ComposerState extends ConsumerState<Composer> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annulla'),
+            child: Text(strings.cancel),
           ),
         ],
       ),
@@ -1023,12 +1032,13 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   Future<void> _showPiSessionInfo() async {
+    final strings = ref.read(appStringsProvider);
     final state = ref.read(sessionStateFamily(widget.sessionId));
     final stats = state.sessionStats ?? const <String, dynamic>{};
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sessione Pi'),
+        title: Text(strings.composerPiSessionTitle),
         content: SizedBox(
           width: 440,
           child: SingleChildScrollView(
@@ -1036,11 +1046,11 @@ class _ComposerState extends ConsumerState<Composer> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Nome: ${state.sessionName ?? '—'}'),
-                Text('Sessione: ${state.sessionId}'),
-                Text('Cartella: ${state.cwd}'),
-                Text('Modello: ${state.currentModel ?? '—'}'),
-                Text('Thinking: ${state.currentThinkingLevel ?? '—'}'),
+                Text(strings.composerSessionInfoName(state.sessionName ?? '—')),
+                Text(strings.composerSessionInfoSession(state.sessionId)),
+                Text(strings.composerSessionInfoFolder(state.cwd)),
+                Text(strings.composerSessionInfoModel(state.currentModel ?? '—')),
+                Text(strings.composerSessionInfoThinking(state.currentThinkingLevel ?? '—')),
                 const SizedBox(height: 12),
                 for (final entry in stats.entries)
                   Text('${entry.key}: ${entry.value}'),
@@ -1051,7 +1061,7 @@ class _ComposerState extends ConsumerState<Composer> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Chiudi'),
+            child: Text(strings.close),
           ),
         ],
       ),
@@ -1070,9 +1080,10 @@ class _ComposerState extends ConsumerState<Composer> {
     final currentModelIndex = models.indexWhere(currentState.matchesModel);
 
     if (models.isEmpty) {
+      final strings = ref.read(appStringsProvider);
       FrameSnackBar.show(
         context,
-        message: 'Nessun modello alternativo disponibile.',
+        message: strings.composerNoAlternativeModels,
       );
       return;
     }
@@ -1236,13 +1247,15 @@ class _ComposerState extends ConsumerState<Composer> {
       );
       final maximum = modelContextWindow(model);
       if (maximum == null || maximum <= 0) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Contesto del modello non disponibile. Riprova quando il daemon è connesso.',
+          message: strings.composerModelContextNotAvailableDaemon,
         );
         return;
       }
       final tokens = context.tokens;
+      final strings = ref.read(appStringsProvider);
       setState(() => _isContextPickerLoading = false);
       await showDialog<void>(
         context: context,
@@ -1253,7 +1266,7 @@ class _ComposerState extends ConsumerState<Composer> {
             borderRadius: BorderRadius.circular(tokens.radiusMd),
             side: BorderSide(color: tokens.borderStrong),
           ),
-          title: const Text('Dimensione Contesto'),
+          title: Text(strings.composerContextSizeTitle),
           content: SizedBox(
             width: 340,
             child: SingleChildScrollView(
@@ -1263,16 +1276,17 @@ class _ComposerState extends ConsumerState<Composer> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Chiudi'),
+              child: Text(strings.close),
             ),
           ],
         ),
       );
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Selezione contesto non riuscita: $error',
+          message: strings.composerContextSelectionFailed(error),
         );
       }
     } finally {
@@ -1280,10 +1294,10 @@ class _ComposerState extends ConsumerState<Composer> {
     }
   }
 
-  Widget _buildAttachButton(FrameTokens tokens) {
+  Widget _buildAttachButton(FrameTokens tokens, AppStrings strings) {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
-      tooltip: 'Allega file, link o immagine',
+      tooltip: strings.composerAttachTooltip,
       icon: Icon(Icons.attach_file, size: 17, color: tokens.textSecondary),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -1307,7 +1321,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'File dal repository',
+                  strings.composerAttachFromRepo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
@@ -1332,7 +1346,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'File esterno',
+                  strings.composerAttachExternalFile,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
@@ -1353,7 +1367,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Link web',
+                  strings.composerAttachWebLink,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
@@ -1374,7 +1388,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Immagine',
+                  strings.composerAttachImage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
@@ -1464,8 +1478,8 @@ class _ComposerState extends ConsumerState<Composer> {
           children: [
             Text(
               readOnlyReason == 'terminal'
-                  ? 'Pi ha una sessione interattiva aperta in questa cartella. Duplica per evitare scritture concorrenti.'
-                  : 'PiFrame non può verificare che questa sessione sia chiusa. Duplica per continuare in sicurezza.',
+                  ? strings.composerReadOnlyTerminalNotice
+                  : strings.composerReadOnlyUnknownNotice,
               style: TextStyle(color: tokens.textSecondary),
             ),
             const SizedBox(height: 8),
@@ -1476,19 +1490,19 @@ class _ComposerState extends ConsumerState<Composer> {
                 if (readOnlyReason == 'unknown') ...[
                   TextButton.icon(
                     icon: const Icon(Icons.play_arrow),
-                    label: const Text('Continua qui'),
+                    label: Text(strings.composerContinueHereAction),
                     onPressed: _continueAmbiguousSession,
                   ),
                   const SizedBox(width: 8),
                 ],
                 TextButton.icon(
                   icon: const Icon(Icons.copy_outlined),
-                  label: const Text('Duplica e continua'),
+                  label: Text(strings.composerCloneAndContinueAction),
                   onPressed: () async {
                     try {
                       final client = ref.read(pcpClientProvider);
                       if (client == null) {
-                        throw StateError('Daemon non connesso');
+                        throw StateError(strings.composerDaemonNotConnected);
                       }
                       if (!await resolveDirtyRepository(
                         context,
@@ -1519,7 +1533,7 @@ class _ComposerState extends ConsumerState<Composer> {
                       if (context.mounted) {
                         FrameSnackBar.show(
                           context,
-                          message: 'Duplicazione non riuscita: $error',
+                          message: strings.composerDuplicationFailed(error),
                         );
                       }
                     }
@@ -1737,7 +1751,7 @@ class _ComposerState extends ConsumerState<Composer> {
                               child: childWidget,
                             );
                           },
-                          child: _buildMinimizedBar(tokens, isStreaming),
+                          child: _buildMinimizedBar(tokens, strings, isStreaming),
                         ),
                       )
                     : Column(
@@ -1760,6 +1774,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                 query: _fileMentionQuery,
                                 selectedIndex: _fileMentionSelectedIndex,
                                 onSelect: _completeFileMention,
+                                strings: strings,
                               ),
                             ),
 
@@ -1801,7 +1816,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'In coda ($totalQueued): ${steeringQueue.length} steer, ${followUpQueue.length} follow-up',
+                                          strings.composerQueuedSummary(totalQueued, steeringQueue.length, followUpQueue.length),
                                           style: TextStyle(
                                             color: tokens.textSecondary,
                                             fontSize: 12,
@@ -1813,9 +1828,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           key: const ValueKey(
                                             'composer-queue-toggle-expand',
                                           ),
-                                          tooltip: _queueExpanded
-                                              ? 'Nascondi messaggi in coda'
-                                              : 'Mostra messaggi in coda',
+                                          tooltip: strings.composerToggleQueueTooltip(_queueExpanded),
                                           icon: Icon(
                                             _queueExpanded
                                                 ? Icons.keyboard_arrow_up
@@ -1844,7 +1857,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           color: tokens.textMuted,
                                         ),
                                         label: Text(
-                                          'Svuota coda',
+                                          strings.composerClearQueueAction,
                                           style: TextStyle(
                                             color: tokens.textMuted,
                                             fontSize: 11,
@@ -1928,7 +1941,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               key: ValueKey(
                                                 'edit-steer-btn-$i',
                                               ),
-                                              tooltip: 'Modifica messaggio steer in coda',
+                                              tooltip: strings.composerEditSteerTooltip,
                                               icon: Icon(
                                                 Icons.edit_outlined,
                                                 size: 14,
@@ -1950,7 +1963,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               key: ValueKey(
                                                 'delete-steer-btn-$i',
                                               ),
-                                              tooltip: 'Elimina dalla coda',
+                                              tooltip: strings.composerDeleteFromQueueTooltip,
                                               icon: Icon(
                                                 Icons.close,
                                                 size: 14,
@@ -1992,7 +2005,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Il worker Pi è terminato inaspettatamente. Nessun comando è stato re-inviato automaticamente.',
+                                      strings.composerWorkerCrashBanner,
                                       style: TextStyle(
                                         color: tokens.danger,
                                         fontSize: 12,
@@ -2012,9 +2025,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                       minimumSize: Size.zero,
                                     ),
                                     icon: const Icon(Icons.refresh, size: 14),
-                                    label: const Text(
-                                      'Riprendi sessione',
-                                      style: TextStyle(
+                                    label: Text(
+                                      strings.composerRecoverSessionAction,
+                                      style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -2191,9 +2204,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           height: 1.45,
                                         ),
                                         decoration: InputDecoration(
-                                          hintText: isStreaming
-                                              ? 'Aggiungi istruzioni o prepara il prossimo turno...'
-                                              : 'Cosa vuoi realizzare? Digita / per i comandi.',
+                                          hintText: strings.composerInputHint(isStreaming: isStreaming),
                                           hintStyle: TextStyle(
                                             color: tokens.textMuted,
                                             fontSize: 13.5,
@@ -2217,9 +2228,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           top: 2,
                                           right: 2,
                                           child: Tooltip(
-                                            message: _isInputEnlarged
-                                                ? 'Riduci area di testo'
-                                                : 'Ingrandisci area di testo',
+                                            message: strings.composerEnlargeTooltip(_isInputEnlarged),
                                             child: InkWell(
                                               key: const ValueKey(
                                                 'composer-enlarge-prompt-btn',
@@ -2268,9 +2277,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                     ),
                                                     const SizedBox(width: 3),
                                                     Text(
-                                                      _isInputEnlarged
-                                                          ? 'Riduci'
-                                                          : 'Ingrandisci',
+                                                      strings.composerEnlargeLabel(_isInputEnlarged),
                                                       style: TextStyle(
                                                         color: _isInputEnlarged
                                                             ? tokens.accent
@@ -2300,7 +2307,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             children: [
                                               Builder(
                                                 builder: (chipCtx) => Tooltip(
-                                                  message: 'Cambia modello',
+                                                  message: strings.composerChangeModelTooltip,
                                                   child: InkWell(
                                                     key: const ValueKey(
                                                       'composer-model-picker-btn',
@@ -2358,7 +2365,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             ),
                                                             child: Text(
                                                               currentModel ??
-                                                                  'Modello',
+                                                                  strings.composerModelDefaultLabel,
                                                               maxLines: 1,
                                                               overflow:
                                                                   TextOverflow
@@ -2392,7 +2399,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               const SizedBox(width: 4),
                                               Builder(
                                                 builder: (chipCtx) => Tooltip(
-                                                  message: 'Livello thinking',
+                                                  message: strings.composerThinkingLevelTooltip,
                                                   child: InkWell(
                                                     key: const ValueKey(
                                                       'composer-thinking-picker-btn',
@@ -2470,7 +2477,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 const SizedBox(width: 4),
                                                 Builder(
                                                   builder: (chipCtx) => Tooltip(
-                                                    message: 'Dimensione contesto (pricing variabile)',
+                                                    message: strings.composerVariablePricingContextTooltip,
                                                     child: InkWell(
                                                       key: const ValueKey(
                                                         'composer-context-size-picker-btn',
@@ -2562,9 +2569,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                       ),
                                       Tooltip(
-                                        message: _isInputEnlarged
-                                            ? 'Riduci area di testo'
-                                            : 'Ingrandisci area di testo',
+                                        message: strings.composerEnlargeTooltip(_isInputEnlarged),
                                         child: IconButton(
                                           key: const ValueKey(
                                             'composer-enlarge-toggle-btn',
@@ -2593,7 +2598,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      _buildAttachButton(tokens),
+                                      _buildAttachButton(tokens, strings),
                                       const SizedBox(width: 4),
                                       if (isStreaming ||
                                           agentStatus == AgentStatus.working ||
@@ -2614,7 +2619,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   color: tokens.signalDanger,
                                                   size: 19,
                                                 ),
-                                          tooltip: 'Interrompi (Esc)',
+                                          tooltip: strings.composerStopEscTooltip,
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(
                                             minWidth: 28,
@@ -2681,7 +2686,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                         const SizedBox(width: 4),
                                         Tooltip(
-                                          message: 'Follow-up: metti in coda',
+                                          message: strings.composerFollowUpTooltip,
                                           child: Container(
                                             width: 28,
                                             height: 28,
@@ -2740,12 +2745,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                         )) ...[
                                           Tooltip(
-                                            message:
-                                                ref.watch(
-                                                  isReviewingChangesProvider,
-                                                )
-                                                ? 'Chiudi revisione modifiche'
-                                                : 'Rivedi modifiche ai file',
+                                            message: strings.composerReviewChangesTooltip(
+                                              ref.watch(isReviewingChangesProvider),
+                                            ),
                                             child: Container(
                                               width: 28,
                                               height: 28,
@@ -2881,7 +2883,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                     width: 0,
                                                     height: 0,
                                                     child: Text(
-                                                      'Invia',
+                                                      strings.composerSendLabel,
                                                       style: TextStyle(
                                                         fontSize: 0,
                                                         color: tokens.background
@@ -2922,7 +2924,7 @@ class _ComposerState extends ConsumerState<Composer> {
     );
   }
 
-  Widget _buildMinimizedBar(FrameTokens tokens, bool isStreaming) {
+  Widget _buildMinimizedBar(FrameTokens tokens, AppStrings strings, bool isStreaming) {
     final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
       'Test',
     );
@@ -2953,7 +2955,7 @@ class _ComposerState extends ConsumerState<Composer> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'L\'agente sta rispondendo... Passa il mouse o clicca per scrivere',
+                strings.composerAgentAnsweringMinimized,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -2985,7 +2987,7 @@ class _ComposerState extends ConsumerState<Composer> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Interrompi',
+                        strings.composerStopAction,
                         style: TextStyle(
                           color: tokens.signalDanger,
                           fontSize: 11,

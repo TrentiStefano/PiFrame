@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import 'syntax_highlighter.dart';
 
 class CodeBlock extends StatefulWidget {
@@ -47,6 +50,26 @@ class _CodeBlockState extends State<CodeBlock> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final hasScope =
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
+            null ||
+        context.findAncestorWidgetOfExactType<ProviderScope>() != null;
+    if (hasScope) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final strings = ref.watch(appStringsProvider);
+          return _buildContent(context, tokens, strings);
+        },
+      );
+    }
+    return _buildContent(context, tokens, const AppStrings(AppLanguage.it));
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    FrameTokens tokens,
+    AppStrings strings,
+  ) {
     final lang = widget.language?.trim().toLowerCase() ?? 'text';
 
     return RepaintBoundary(
@@ -105,7 +128,7 @@ class _CodeBlockState extends State<CodeBlock> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _copied ? 'Copiato!' : 'Copia',
+                          _copied ? strings.copiedAction : strings.copyAction,
                           style: TextStyle(
                             color: _copied
                                 ? tokens.textPrimary

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 
 class FileMentionMenu extends StatelessWidget {
   final List<Map<String, dynamic>> files;
   final String query;
   final int selectedIndex;
   final ValueChanged<String> onSelect;
+  final AppStrings? strings;
 
   const FileMentionMenu({
     super.key,
@@ -13,6 +17,7 @@ class FileMentionMenu extends StatelessWidget {
     required this.query,
     required this.selectedIndex,
     required this.onSelect,
+    this.strings,
   });
 
   IconData _getFileIcon(String path) {
@@ -37,9 +42,19 @@ class FileMentionMenu extends StatelessWidget {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  AppStrings _resolveStrings(BuildContext context) {
+    if (strings != null) return strings!;
+    try {
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final appStrings = _resolveStrings(context);
     if (files.isEmpty) return const SizedBox.shrink();
 
     return Material(
@@ -76,7 +91,7 @@ class FileMentionMenu extends StatelessWidget {
                   Icon(Icons.alternate_email, size: 12, color: tokens.accent),
                   const SizedBox(width: 4),
                   Text(
-                    'Collega file (@)',
+                    appStrings.mentionLinkFileHeader,
                     style: TextStyle(
                       color: tokens.textSecondary,
                       fontSize: 10.5,
@@ -85,7 +100,7 @@ class FileMentionMenu extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    'Tab / Invio per completare',
+                    appStrings.mentionTabEnterComplete,
                     style: TextStyle(
                       color: tokens.textMuted,
                       fontSize: 9.5,

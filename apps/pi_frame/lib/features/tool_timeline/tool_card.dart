@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -289,6 +290,7 @@ class _ToolCardState extends State<ToolCard> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     final tool = widget.tool;
     final isTerminal = _isTerminalTool(tool.toolName);
     final commandText = _getCommandText(tool);
@@ -570,8 +572,8 @@ class _ToolCardState extends State<ToolCard> {
                           const SizedBox(width: 6),
                           Text(
                             isTerminal
-                                ? 'Comando lanciato'
-                                : 'Parametri comando',
+                                ? strings.toolCardExecutedCommand
+                                : strings.toolCardCommandParams,
                             style: TextStyle(
                               color: tokens.textMuted,
                               fontSize: 10.5,
@@ -603,7 +605,7 @@ class _ToolCardState extends State<ToolCard> {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Timeout richiesto: $timeoutLabel',
+                                    strings.toolCardRequestedTimeout(timeoutLabel),
                                     style: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 9.5,
@@ -623,7 +625,7 @@ class _ToolCardState extends State<ToolCard> {
                               );
                               FrameSnackBar.show(
                                 context,
-                                message: 'Comando copiato negli appunti',
+                                message: strings.toolCardCopiedToClipboard,
                                 duration: const Duration(seconds: 1),
                               );
                             },
@@ -642,7 +644,7 @@ class _ToolCardState extends State<ToolCard> {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Copia comando',
+                                    strings.toolCardCopyCommand,
                                     style: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 10,

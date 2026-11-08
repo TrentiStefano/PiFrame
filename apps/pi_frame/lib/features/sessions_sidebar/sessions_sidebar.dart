@@ -14,6 +14,8 @@ import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import 'removed_repos_provider.dart';
 import '../../domain/session/agent_status.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../data/update/update_providers.dart';
 
 bool _isSubsession(Map<String, dynamic> session) {
@@ -37,12 +39,12 @@ String _sessionFolder(Map<String, dynamic> session) {
   return gitRoot.isNotEmpty ? gitRoot : (session['cwd'] ?? '').toString();
 }
 
-String _folderName(String path) {
+String _folderName(String path, [String fallback = 'Sessioni']) {
   final segments = path
       .replaceAll('\\', '/')
       .split('/')
       .where((part) => part.isNotEmpty);
-  return segments.isEmpty ? 'Sessioni' : segments.last;
+  return segments.isEmpty ? fallback : segments.last;
 }
 
 class SessionsSidebar extends ConsumerStatefulWidget {
@@ -84,6 +86,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   Future<void> _showRenameDialog(String sessionId, String currentName) async {
     final tokens = context.tokens;
+    final strings = ref.read(appStringsProvider);
     final textController = TextEditingController(text: currentName);
 
     String? newName;
@@ -97,7 +100,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             side: BorderSide(color: tokens.border, width: 1),
           ),
           title: Text(
-            'Rinomina Sessione',
+            strings.renameSessionDialogTitle,
             style: TextStyle(
               color: tokens.textPrimary,
               fontSize: 15,
@@ -109,7 +112,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             autofocus: true,
             style: TextStyle(color: tokens.textPrimary, fontSize: 13),
             decoration: InputDecoration(
-              hintText: 'Nome sessione...',
+              hintText: strings.sessionNameHint,
               hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
               enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: tokens.border),
@@ -126,7 +129,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             TextButton(
               style: TextButton.styleFrom(foregroundColor: tokens.textMuted),
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Annulla'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -134,7 +137,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 foregroundColor: tokens.surface,
               ),
               onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
-              child: const Text('Salva'),
+              child: Text(strings.save),
             ),
           ],
         ),
@@ -152,14 +155,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           if (mounted) {
             FrameSnackBar.show(
               context,
-              message: 'Sessione rinominata in "$newName"',
+              message: strings.sessionRenamedNotice(newName),
             );
           }
         } catch (e) {
           if (mounted) {
             FrameSnackBar.show(
               context,
-              message: 'Errore rinomina: $e',
+              message: strings.renameErrorNotice(e),
               backgroundColor: tokens.danger,
             );
           }
@@ -170,6 +173,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   Future<void> _cloneSession(String sessionId) async {
     final tokens = context.tokens;
+    final strings = ref.read(appStringsProvider);
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
     if (!await resolveDirtyRepository(
@@ -191,7 +195,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         if (mounted) {
           FrameSnackBar.show(
             context,
-            message: 'Sessione duplicata: $newSid',
+            message: strings.sessionDuplicatedNotice(newSid),
           );
         }
       }
@@ -199,7 +203,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
       if (mounted) {
         FrameSnackBar.show(
           context,
-          message: 'Errore duplicazione: $e',
+          message: strings.duplicateErrorNotice(e),
           backgroundColor: tokens.danger,
         );
       }
@@ -209,6 +213,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
     final activeSessionCwd = activeId != null
@@ -235,7 +240,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               children: [
                 Expanded(
                   child: Text(
-                    'Sessioni',
+                    strings.sidebarTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -249,7 +254,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 IconButton(
                   icon: Icon(Icons.refresh, color: tokens.textMuted, size: 18),
-                  tooltip: 'Aggiorna sessioni',
+                  tooltip: strings.refreshSessionsTooltip,
                   onPressed: () {
                     ref.invalidate(sessionListProvider);
                     final active = ref.read(activeSessionIdProvider);
@@ -260,7 +265,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 IconButton(
                   icon: Icon(Icons.add, color: tokens.accent, size: 20),
-                  tooltip: 'Nuova Sessione',
+                  tooltip: strings.newSessionTooltip,
                   onPressed: _creating || ref.watch(pcpClientProvider) == null
                       ? null
                       : () async {
@@ -275,7 +280,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 if (widget.onCollapse != null)
                   IconButton(
                     icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: 20),
-                    tooltip: 'Collassa barra sessioni',
+                    tooltip: strings.collapseSidebarTooltip,
                     onPressed: widget.onCollapse,
                   ),
               ],
@@ -295,7 +300,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               style: TextStyle(color: tokens.textPrimary, fontSize: 12),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Cerca sessioni...',
+                hintText: strings.searchSessionsHint,
                 hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
                 prefixIcon: Icon(
                   Icons.search,
@@ -355,11 +360,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip('all', 'Tutte', tokens),
+                  _buildFilterChip('all', strings.filterAll, tokens),
                   const SizedBox(width: 6),
-                  _buildFilterChip('active', 'Gestite', tokens),
+                  _buildFilterChip('active', strings.filterActive, tokens),
                   const SizedBox(width: 6),
-                  _buildFilterChip('repo', 'Questo repo', tokens),
+                  _buildFilterChip('repo', strings.filterRepo, tokens),
                 ],
               ),
             ),
@@ -419,8 +424,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
                         _searchQuery.isNotEmpty || _filterMode != 'all'
-                            ? 'Nessuna sessione corrisponde ai filtri'
-                            : 'Nessuna sessione trovata',
+                            ? strings.noSessionsMatchFilters
+                            : strings.noSessionsFound,
                         style: TextStyle(color: tokens.textMuted, fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
@@ -496,7 +501,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         Icon(Icons.push_pin, size: 13, color: tokens.accent),
                         const SizedBox(width: 6),
                         Text(
-                          'FISSATE (${pinnedSessions.length})',
+                          strings.pinnedSessionsHeader(pinnedSessions.length),
                           style: TextStyle(
                             color: tokens.textSecondary,
                             fontSize: 10.5,
@@ -699,7 +704,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           ],
                         ),
                         title: Text(
-                          _folderName(folder),
+                          _folderName(folder, strings.sidebarFallbackFolderLabel),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -709,7 +714,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           ),
                         ),
                         subtitle: Text(
-                          folder.isEmpty ? 'Cartella non nota' : folder,
+                          folder.isEmpty ? strings.unknownFolderLabel : folder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -731,7 +736,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               ),
                               constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                               icon: Icon(Icons.add, size: 14, color: tokens.accent),
-                              tooltip: 'Nuova sessione in questa cartella',
+                              tooltip: strings.newSessionInFolderTooltip,
                               onPressed: () async {
                                 setState(() => _expandedFolders.add(folder));
                                 await createSession(context, ref, cwd: folder);
@@ -788,7 +793,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        'Istruzioni repository',
+                                        strings.repoInstructionsAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -815,7 +820,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        'Nuova sessione',
+                                        strings.newSessionAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -843,7 +848,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                     const SizedBox(width: 8),
                                     Flexible(
                                       child: Text(
-                                        'Rimuovi repository dal riquadro',
+                                        strings.removeRepoFromSidebarAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -942,7 +947,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               ),
               error: (err, _) => Center(
                 child: Text(
-                  'Errore: $err',
+                  strings.sidebarErrorNotice(err),
                   style: TextStyle(color: tokens.danger, fontSize: 12),
                 ),
               ),
@@ -986,9 +991,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           ),
                       ],
                     ),
-                    label: const Text(
-                      'Impostazioni',
-                      style: TextStyle(fontSize: 12),
+                    label: Text(
+                      strings.settingsLabel,
+                      style: const TextStyle(fontSize: 12),
                     ),
                     onPressed: () {
                       ref.read(showSettingsProvider.notifier).state = true;
@@ -997,7 +1002,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 IconButton(
                   icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                  tooltip: 'Command Palette (Ctrl+K)',
+                  tooltip: strings.commandPaletteTooltip,
                   onPressed: () {
                     CommandPalette.show(
                       context,
@@ -1145,6 +1150,7 @@ class _SessionTile extends ConsumerWidget {
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
     FrameTokens tokens,
+    AppStrings strings,
   ) {
     return [
       PopupMenuItem(
@@ -1162,7 +1168,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                isPinned ? 'Rimuovi dai fissati' : 'Fissa in cima',
+                isPinned ? strings.unpinAction : strings.pinAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1189,7 +1195,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Istruzioni repository',
+                strings.repoInstructionsAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1216,7 +1222,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Rinomina',
+                strings.renameAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1243,7 +1249,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Albero rami',
+                strings.branchTreeAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1270,7 +1276,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Duplica',
+                strings.duplicateAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1299,7 +1305,7 @@ class _SessionTile extends ConsumerWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Rimuovi repository dal riquadro',
+                  strings.removeRepoFromSidebarAction,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1327,7 +1333,7 @@ class _SessionTile extends ConsumerWidget {
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Elimina sessione',
+                strings.deleteSessionAction,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1368,6 +1374,7 @@ class _SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final id = session['id'] as String? ?? 's';
     final name = session['name'] as String? ?? id;
     final cwd = session['cwd'] as String? ?? '';
@@ -1453,7 +1460,7 @@ class _SessionTile extends ConsumerWidget {
         ),
       ),
       trailing: PopupMenuButton<String>(
-        tooltip: 'Azioni sessione',
+        tooltip: strings.sessionActionsTooltip,
         icon: Icon(
           Icons.more_horiz,
           size: 18,
@@ -1465,7 +1472,7 @@ class _SessionTile extends ConsumerWidget {
           side: BorderSide(color: tokens.border),
         ),
         onSelected: (action) => _handleAction(action, id, name, folder),
-        itemBuilder: (ctx) => _buildMenuItems(ctx, tokens),
+        itemBuilder: (ctx) => _buildMenuItems(ctx, tokens, strings),
       ),
       onTap: onTap,
     );
@@ -1501,7 +1508,7 @@ class _SessionTile extends ConsumerWidget {
             pos.dx + 1,
             pos.dy + 1,
           ),
-          items: _buildMenuItems(context, tokens),
+          items: _buildMenuItems(context, tokens, strings),
         );
         if (action != null) {
           _handleAction(action, id, name, folder);

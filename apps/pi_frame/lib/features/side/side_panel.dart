@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/composer/composer_settings.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../composer/composer_draft.dart';
@@ -698,7 +699,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.textPrimary,
                 ),
-                tooltip: sendWithEnter ? 'Invia (Invio)' : 'Invia (Ctrl+Invio)',
+                tooltip: strings.sideSendTooltip(sendWithEnter: sendWithEnter),
                 icon: const Icon(Icons.send_rounded, size: 16),
                 onPressed: _send,
               ),

@@ -12,6 +12,7 @@ import '../../data/terminal/terminal_settings.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../data/notifications/notification_providers.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../data/composer/composer_settings.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
 import '../../data/transcript/step_grouping_settings.dart';
@@ -101,26 +102,28 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     try {
       final endpoint = await DaemonLocator.restartDaemon();
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         if (endpoint != null) {
           ref.invalidate(daemonEndpointProvider);
           _fetchDaemonConfig();
           _fetchPiPackages();
           FrameSnackBar.show(
             context,
-            message: 'Daemon riavviato con successo',
+            message: strings.daemonRestartSuccess,
           );
         } else {
           FrameSnackBar.show(
             context,
-            message: 'Riavvio daemon non riuscito',
+            message: strings.daemonRestartFailed,
           );
         }
       }
     } catch (e) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Errore durante il riavvio: $e',
+          message: strings.daemonRestartError(e),
         );
       }
     } finally {
@@ -130,11 +133,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   Future<void> _fetchPiPackages() async {
     final client = ref.read(pcpClientProvider);
+    final strings = ref.read(appStringsProvider);
     if (client == null) {
       if (mounted) {
         setState(() {
           _packages = [];
-          _packageError = 'Daemon non connesso';
+          _packageError = strings.daemonNotConnected;
           _isLoadingPackages = false;
         });
       }
@@ -161,25 +165,27 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     String title,
     String message,
     String confirmation,
-  ) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(confirmation),
-            ),
-          ],
-        ),
-      ) ??
-      false;
+  ) async {
+    final strings = ref.read(appStringsProvider);
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(strings.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(confirmation),
+          ),
+        ],
+      ),
+    ) ??
+    false;
+  }
 
   Future<void> _performPackageAction(
     String source,
@@ -192,18 +198,19 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     try {
       await action(client);
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message:
-              '$successMessage: $source. Riavvia Pi per applicare le modifiche.',
+          message: strings.packageActionNotice(successMessage, source),
         );
       }
       await _fetchPiPackages();
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Operazione sul pacchetto non riuscita: $error',
+          message: strings.packageActionFailedNotice(error),
         );
       }
     } finally {
@@ -212,38 +219,41 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   }
 
   Future<void> _updatePackage(Map<String, dynamic> package) async {
+    final strings = ref.read(appStringsProvider);
     final source = package['source'].toString();
     if (!await _confirmPackageAction(
-      'Aggiornare il pacchetto?',
-      'Pi aggiornerà $source usando il package manager installato. Il codice aggiornato verrà caricato al prossimo avvio di Pi.',
-      'Aggiorna',
+      strings.confirmPackageUpdateTitle,
+      strings.confirmPackageUpdateDesc(source),
+      strings.actionUpdate,
     )) {
       return;
     }
     await _performPackageAction(
       source,
       (client) => client.updatePiPackage(source),
-      successMessage: 'Pacchetto aggiornato',
+      successMessage: strings.packageUpdatedSuccess,
     );
   }
 
   Future<void> _removePackage(Map<String, dynamic> package) async {
+    final strings = ref.read(appStringsProvider);
     final source = package['source'].toString();
     if (!await _confirmPackageAction(
-      'Rimuovere il pacchetto?',
-      'Pi rimuoverà $source dalle impostazioni utente e dalla directory dei pacchetti. Le cronologie delle sessioni non vengono modificate.',
-      'Rimuovi',
+      strings.confirmPackageRemoveTitle,
+      strings.confirmPackageRemoveDesc(source),
+      strings.actionRemove,
     )) {
       return;
     }
     await _performPackageAction(
       source,
       (client) => client.removePiPackage(source),
-      successMessage: 'Pacchetto rimosso',
+      successMessage: strings.packageRemovedSuccess,
     );
   }
 
   Future<void> _pinPackage(Map<String, dynamic> package) async {
+    final strings = ref.read(appStringsProvider);
     final source = package['source'].toString();
     final currentVersion =
         (package['pinnedVersion'] ?? package['version'] ?? '').toString();
@@ -252,25 +262,25 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Blocca versione npm'),
+          title: Text(strings.pinNpmVersionTitle),
           content: TextFormField(
             initialValue: currentVersion,
             onChanged: (value) => setDialogState(() => version = value.trim()),
-            decoration: const InputDecoration(
-              labelText: 'Versione semver',
+            decoration: InputDecoration(
+              labelText: strings.semverVersionLabel,
               hintText: '1.2.3',
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
+              child: Text(strings.cancel),
             ),
             FilledButton(
               onPressed: version.isEmpty
                   ? null
                   : () => Navigator.pop(dialogContext, version),
-              child: const Text('Blocca'),
+              child: Text(strings.actionPin),
             ),
           ],
         ),
@@ -278,20 +288,20 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     );
     if (selected == null || !mounted) return;
     if (!await _confirmPackageAction(
-      'Confermare versione bloccata?',
-      '$source verrà impostato sulla versione $selected.',
-      'Blocca versione',
+      strings.confirmPinTitle,
+      strings.confirmPinDesc(source, selected),
+      strings.actionPinVersion,
     )) {
       return;
     }
     await _performPackageAction(
       source,
       (client) => client.pinPiPackage(source, selected),
-      successMessage: 'Versione bloccata',
+      successMessage: strings.versionPinnedSuccess,
     );
   }
 
-  Widget _packageList(FrameTokens tokens) {
+  Widget _packageList(FrameTokens tokens, AppStrings strings) {
     if (_isLoadingPackages) {
       return Center(child: CircularProgressIndicator(color: tokens.accent));
     }
@@ -305,7 +315,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             OutlinedButton.icon(
               onPressed: _fetchPiPackages,
               icon: const Icon(Icons.refresh),
-              label: const Text('Riprova'),
+              label: Text(strings.retryAction),
             ),
           ],
         ),
@@ -314,7 +324,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     if (_packages.isEmpty) {
       return Center(
         child: Text(
-          'Nessun pacchetto Pi utente installato.',
+          strings.noPackagesInstalled,
           style: TextStyle(color: tokens.textMuted),
         ),
       );
@@ -323,7 +333,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       padding: const EdgeInsets.all(24),
       children: [
         Text(
-          'Pacchetti Pi installati',
+          strings.packagesInstalledTitle,
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: 16,
@@ -332,7 +342,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         const SizedBox(height: 6),
         Text(
-          'Pacchetti utente globali, gestiti dal package manager Pi. Modifiche attive al prossimo avvio di Pi.',
+          strings.packagesInstalledSubtitle,
           style: TextStyle(color: tokens.textMuted, fontSize: 12),
         ),
         if (_isWorkingWithPackage) ...[
@@ -340,15 +350,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           LinearProgressIndicator(color: tokens.accent),
         ],
         const SizedBox(height: 16),
-        for (final package in _packages) _buildPackageCard(tokens, package),
+        for (final package in _packages) _buildPackageCard(tokens, package, strings),
       ],
     );
   }
 
-  Widget _buildPackageCard(FrameTokens tokens, Map<String, dynamic> package) {
+  Widget _buildPackageCard(FrameTokens tokens, Map<String, dynamic> package, AppStrings strings) {
     final source = package['source']?.toString() ?? '';
     final name = package['name']?.toString() ?? source;
-    final version = package['version']?.toString() ?? 'versione sconosciuta';
+    final version = package['version']?.toString() ?? strings.unknownVersion;
     final pin = package['pinnedVersion']?.toString();
     final supportsPin = source.startsWith('npm:');
     return Container(
@@ -391,7 +401,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               ),
             ),
             IconButton(
-              tooltip: 'Aggiorna $name',
+              tooltip: strings.updatePackageTooltip(name),
               onPressed: _isWorkingWithPackage
                   ? null
                   : () => _updatePackage(package),
@@ -399,14 +409,14 @@ class _SettingsViewState extends ConsumerState<SettingsView>
             ),
             if (supportsPin)
               IconButton(
-                tooltip: 'Blocca versione $name',
+                tooltip: strings.pinPackageTooltip(name),
                 onPressed: _isWorkingWithPackage
                     ? null
                     : () => _pinPackage(package),
                 icon: const Icon(Icons.push_pin_outlined, size: 18),
               ),
             IconButton(
-              tooltip: 'Rimuovi $name',
+              tooltip: strings.removePackageTooltip(name),
               onPressed: _isWorkingWithPackage
                   ? null
                   : () => _removePackage(package),
@@ -421,17 +431,18 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   Future<void> _updateTimeout(int newMinutes) async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
+    final strings = ref.read(appStringsProvider);
 
     setState(() {
       _workerIdleTimeoutMinutes = newMinutes;
-      _configStatusMessage = 'Salvataggio in corso...';
+      _configStatusMessage = strings.timeoutSavingStatus;
     });
 
     try {
       await client.setDaemonConfig({'workerIdleTimeoutMs': newMinutes * 60000});
       if (mounted) {
         setState(() {
-          _configStatusMessage = 'Timeout aggiornato con successo!';
+          _configStatusMessage = strings.timeoutUpdatedStatus;
         });
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -442,7 +453,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     } catch (e) {
       if (mounted) {
         setState(() {
-          _configStatusMessage = 'Errore: $e';
+          _configStatusMessage = strings.timeoutErrorStatus(e);
         });
       }
     }
@@ -557,6 +568,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     // -------------------------------------------------------------
                     PiCliSection(
                       tokens: tokens,
+                      strings: strings,
                       onRecheck: () {
                         ref.invalidate(daemonEndpointProvider);
                       },
@@ -565,7 +577,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     // -------------------------------------------------------------
                     // Tab 2: Pacchetti Pi
                     // -------------------------------------------------------------
-                    _packageList(tokens),
+                    _packageList(tokens, strings),
 
                     // -------------------------------------------------------------
                     // Tab 3: Daemon
@@ -574,7 +586,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                       padding: const EdgeInsets.all(24),
                       children: [
                         Text(
-                          'Stato del Daemon pi-agentd',
+                          strings.daemonStatusTitle,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 16,
@@ -583,7 +595,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Il daemon locale gestisce i processi Pi worker, il journal e il protocollo PCP/1.',
+                          strings.daemonStatusSubtitle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 13,
@@ -593,27 +605,27 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         _buildInfoCard(tokens, [
                           _buildInfoRow(
                             tokens,
-                            'Porta HTTP/WS',
+                            strings.labelHttpWsPort,
                             endpoint != null
                                 ? '127.0.0.1:${endpoint.port}'
-                                : 'In connessione...',
+                                : strings.labelConnecting,
                           ),
                           _buildInfoRow(
                             tokens,
-                            'Stato',
+                            strings.labelStatus,
                             endpoint == null
-                                ? 'Non connesso'
-                                : 'Endpoint rilevato',
+                                ? strings.labelNotConnected
+                                : strings.labelEndpointDetected,
                           ),
                           _buildInfoRow(
                             tokens,
-                            'Protocollo',
-                            'PCP/1 (JSON testuale)',
+                            strings.labelProtocol,
+                            strings.protocolPcp1,
                           ),
                         ]),
                         const SizedBox(height: 24),
                         Text(
-                          'Timeout Inattività Worker (D9)',
+                          strings.workerIdleTimeoutTitle,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 14,
@@ -622,7 +634,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Dopo quanto tempo di inattività i processi Pi in idle vengono terminati per risparmiare risorse (i worker occupati non vengono mai terminati).',
+                          strings.workerIdleTimeoutSubtitle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 12,
@@ -673,30 +685,30 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                           color: tokens.textPrimary,
                                           fontSize: 14,
                                         ),
-                                        items: const [
+                                        items: [
                                           DropdownMenuItem(
                                             value: 0,
-                                            child: Text('Mai (0 min)'),
+                                            child: Text(strings.timeoutNever),
                                           ),
                                           DropdownMenuItem(
                                             value: 5,
-                                            child: Text('5 minuti'),
+                                            child: Text(strings.timeout5Min),
                                           ),
                                           DropdownMenuItem(
                                             value: 15,
-                                            child: Text('15 minuti'),
+                                            child: Text(strings.timeout15Min),
                                           ),
                                           DropdownMenuItem(
                                             value: 30,
-                                            child: Text('30 minuti (Default)'),
+                                            child: Text(strings.timeout30Min),
                                           ),
                                           DropdownMenuItem(
                                             value: 60,
-                                            child: Text('1 ora (60 min)'),
+                                            child: Text(strings.timeout1Hour),
                                           ),
                                           DropdownMenuItem(
                                             value: 120,
-                                            child: Text('2 ore (120 min)'),
+                                            child: Text(strings.timeout2Hours),
                                           ),
                                         ],
                                         onChanged: (val) {
@@ -737,15 +749,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                 : const Icon(Icons.restart_alt, size: 16),
                             label: Text(
                               _isRestartingDaemon
-                                  ? 'Riavvio in corso...'
-                                  : 'Riavvia Daemon',
+                                  ? strings.restartingDaemonStatus
+                                  : strings.restartDaemonBtn,
                             ),
                             onPressed: _isRestartingDaemon ? null : _restartDaemon,
                           ),
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'Notifiche di Sistema (macOS, Windows, Linux)',
+                          strings.notificationsSectionTitle,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 14,
@@ -754,7 +766,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Invia notifiche di sistema quando l\'agente completa una risposta o richiede una scelta/conferma e l\'applicazione non è a fuoco.',
+                          strings.notificationsSectionSubtitle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 12,
@@ -766,7 +778,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                           child: SwitchListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(
-                              'Notifiche di sistema quando l\'app non è a fuoco',
+                              strings.notificationsSwitchTitle,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 13,
@@ -1232,9 +1244,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                     try {
                                       final file = await openFile(
                                         acceptedTypeGroups: [
-                                          const XTypeGroup(
-                                            label: 'Tema JSON (*.json)',
-                                            extensions: ['json'],
+                                          XTypeGroup(
+                                            label: strings.themeJsonFilterLabel,
+                                            extensions: const ['json'],
                                           ),
                                         ],
                                       );
@@ -1251,16 +1263,14 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                       if (context.mounted) {
                                         FrameSnackBar.show(
                                           context,
-                                          message:
-                                              'Tema "${importedSpec.name}" importato e attivato con successo!',
+                                          message: strings.themeImportSuccess(importedSpec.name),
                                         );
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
                                         FrameSnackBar.show(
                                           context,
-                                          message:
-                                              'Errore durante l\'importazione del tema: $e',
+                                          message: strings.themeImportError(e),
                                         );
                                       }
                                     }
@@ -1272,24 +1282,27 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             _buildInfoCard(tokens, [
                               _buildInfoRow(
                                 tokens,
-                                'Tema attivo',
+                                strings.labelActiveTheme,
                                 '${activeTheme.name} (v${activeTheme.version})',
                               ),
                               _buildInfoRow(
                                 tokens,
-                                'Densità layout',
-                                'Confortevole (Default 1.0x)',
+                                strings.labelLayoutDensity,
+                                strings.layoutDensityDefault,
                               ),
                               _buildInfoRow(
                                 tokens,
-                                'Caratteri',
-                                '${activeTheme.toTokens().uiFontFamily} (UI) · ${activeTheme.toTokens().monoFontFamily} (Codice)',
+                                strings.labelFonts,
+                                strings.fontsDetail(
+                                  activeTheme.toTokens().uiFontFamily,
+                                  activeTheme.toTokens().monoFontFamily,
+                                ),
                               ),
                             ]),
                             if (activeTheme.diagnostics.isNotEmpty) ...[
                               const SizedBox(height: 16),
                               Text(
-                                'Diagnostica tema:',
+                                strings.themeDiagnosticsHeader,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
                                   fontSize: 12,
@@ -1599,7 +1612,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Informativa sulla Privacy e Tracciamento',
+                                strings.privacyTitle,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
                                   fontSize: 18,
@@ -1620,7 +1633,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             border: Border.all(color: tokens.border),
                           ),
                           child: Text(
-                            'PiFrame non invia alcun dato di utilizzo a server remoti. I log restano sul tuo computer; puoi esportarli manualmente dalla sezione Diagnostica per condividerli con chi ti assiste.',
+                            strings.privacyCardContent,
                             style: TextStyle(
                               color: tokens.textPrimary,
                               fontSize: 14,
@@ -1630,9 +1643,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '• Zero telemetria, zero analytics di terze parti (nessun Google Analytics, Mixpanel o Sentry).\n'
-                          '• Comunicazione locale confinata all\'interfaccia loopback 127.0.0.1 con token di autenticazione 256 bit.\n'
-                          '• Nessuna modifica ai file di sessione o configurazioni originali di Pi in ~/.pi/.',
+                          strings.privacyBulletPoints,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 12,
@@ -1655,7 +1666,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     // -------------------------------------------------------------
                     // Tab 8: Terminale & Ambiente di Esecuzione
                     // -------------------------------------------------------------
-                    _buildTerminalSettingsTab(tokens),
+                    _buildTerminalSettingsTab(tokens, strings),
 
                     // -------------------------------------------------------------
                     // Tab 9: Accesso Remoto Sicuro
@@ -1676,7 +1687,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     );
   }
 
-  Widget _buildTerminalSettingsTab(FrameTokens tokens) {
+  Widget _buildTerminalSettingsTab(FrameTokens tokens, AppStrings strings) {
     final termSettings = ref.watch(terminalSettingsProvider);
     final notifier = ref.read(terminalSettingsProvider.notifier);
 
@@ -1684,7 +1695,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       padding: const EdgeInsets.all(24),
       children: [
         Text(
-          'Terminale & Ambiente di Esecuzione',
+          strings.terminalTabTitle,
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: 16,
@@ -1693,14 +1704,14 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         const SizedBox(height: 6),
         Text(
-          'Scegli se utilizzare il terminale integrato direttamente nell\'interfaccia o aprire il terminale nativo del sistema operativo (es. Windows Terminal, PowerShell, CMD, WSL, o un eseguibile personalizzato).',
+          strings.terminalTabSubtitle,
           style: TextStyle(color: tokens.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 20),
 
         // Section 1: Modalità di esecuzione
         Text(
-          'MODALITÀ PREFERITA',
+          strings.terminalPreferredModeHeader,
           style: TextStyle(
             color: tokens.textSecondary,
             fontSize: 11,
@@ -1726,7 +1737,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   value: TerminalMode.integrated,
                   activeColor: tokens.accent,
                   title: Text(
-                    'Terminale integrato (in PiFrame)',
+                    strings.terminalIntegratedTitle,
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 13,
@@ -1734,7 +1745,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
                   ),
                   subtitle: Text(
-                    'Scrivi direttamente nella finestra di terminale integrata, con cronologia frecce su/giù e supporto shell di sistema.',
+                    strings.terminalIntegratedSubtitle,
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                 ),
@@ -1743,7 +1754,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   value: TerminalMode.native,
                   activeColor: tokens.accent,
                   title: Text(
-                    'Terminale nativo OS (applicazione esterna)',
+                    strings.terminalNativeTitle,
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 13,
@@ -1751,7 +1762,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     ),
                   ),
                   subtitle: Text(
-                    'Apre una finestra di terminale esterna nativa direttamente nella cartella del repository.',
+                    strings.terminalNativeSubtitle,
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                 ),
@@ -1763,7 +1774,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
         // Section 2: Scelta applicazione terminale nativo
         Text(
-          'APPLICAZIONE TERMINALE NATIVO (OS)',
+          strings.terminalNativeAppHeader,
           style: TextStyle(
             color: tokens.textSecondary,
             fontSize: 11,
@@ -1789,9 +1800,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   value: NativeTerminalApp.systemDefault,
                   activeColor: tokens.accent,
                   title: Text(
-                    _isWindowsOs
-                        ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
-                        : 'Terminale predefinito di sistema',
+                    strings.terminalNativeAppDefault(_isWindowsOs),
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
                 ),
@@ -1801,7 +1810,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     value: NativeTerminalApp.powershell,
                     activeColor: tokens.accent,
                     title: Text(
-                      'PowerShell (powershell.exe)',
+                      strings.terminalPowershell,
                       style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                     ),
                   ),
@@ -1810,7 +1819,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     value: NativeTerminalApp.cmd,
                     activeColor: tokens.accent,
                     title: Text(
-                      'Command Prompt (cmd.exe)',
+                      strings.terminalCmd,
                       style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                     ),
                   ),
@@ -1819,7 +1828,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     value: NativeTerminalApp.wsl,
                     activeColor: tokens.accent,
                     title: Text(
-                      'WSL (Windows Subsystem for Linux)',
+                      strings.terminalWsl,
                       style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                     ),
                   ),
@@ -1829,7 +1838,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   value: NativeTerminalApp.custom,
                   activeColor: tokens.accent,
                   title: Text(
-                    'Applicazione o eseguibile personalizzato',
+                    strings.terminalCustomApp,
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
                   subtitle: termSettings.nativeApp == NativeTerminalApp.custom
@@ -1866,13 +1875,13 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             const SizedBox(width: 8),
                             OutlinedButton.icon(
                               icon: const Icon(Icons.folder_open, size: 14),
-                              label: const Text('Sfoglia'),
+                              label: Text(strings.terminalBrowseBtn),
                               onPressed: () async {
                                 final file = await openFile(
                                   acceptedTypeGroups: [
-                                    const XTypeGroup(
-                                      label: 'Eseguibile',
-                                      extensions: ['exe', 'bat', 'cmd', 'sh'],
+                                    XTypeGroup(
+                                      label: strings.terminalExecutableFilterLabel,
+                                      extensions: const ['exe', 'bat', 'cmd', 'sh'],
                                     ),
                                   ],
                                 );
@@ -1901,7 +1910,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               foregroundColor: tokens.surface,
             ),
             icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Testa apertura terminale nativo'),
+            label: Text(strings.terminalTestBtn),
             onPressed: () async {
               final launched = await launchNativeTerminal(
                 cwd: Directory.current.path,
@@ -1912,8 +1921,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                 FrameSnackBar.show(
                   context,
                   message: launched
-                      ? 'Terminale nativo avviato con successo!'
-                      : 'Impossibile avviare il terminale con la configurazione scelta.',
+                      ? strings.terminalTestSuccess
+                      : strings.terminalTestFailed,
                 );
               }
             },

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/session/transcript_grouping.dart';
+import 'web_language_store_stub.dart'
+    if (dart.library.html) 'web_language_store_html.dart';
 
 enum AppLanguage {
   it('it', 'Italiano (IT)', '🇮🇹'),
@@ -47,6 +49,15 @@ class AppLanguageNotifier extends StateNotifier<AppLanguage> {
   }
 
   void _load() {
+    if (kIsWeb) {
+      // Saved choice first, then the browser language (Italian only for it-*).
+      final saved = readWebLanguage();
+      final browser = browserLanguage()?.toLowerCase() ?? '';
+      state = saved != null
+          ? AppLanguage.fromCode(saved)
+          : (browser.startsWith('it') || browser.isEmpty ? AppLanguage.it : AppLanguage.en);
+      return;
+    }
     final file = _getStorageFile();
     if (file != null && file.existsSync()) {
       try {
@@ -58,6 +69,10 @@ class AppLanguageNotifier extends StateNotifier<AppLanguage> {
   }
 
   void _save() {
+    if (kIsWeb) {
+      writeWebLanguage(state.code);
+      return;
+    }
     final file = _getStorageFile();
     if (file != null) {
       try {

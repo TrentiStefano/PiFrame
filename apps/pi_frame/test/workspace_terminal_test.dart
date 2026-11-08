@@ -48,6 +48,28 @@ void main() {
     session.dispose();
   });
 
+  test('LF-only process output starts each line at column zero', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+
+    // git writes LF-only lines over a pipe; a CRLF split across chunks must
+    // not gain an extra carriage return.
+    session.writeProcessOutput('  feat/rate-limit\n* main\n');
+    session.writeProcessOutput('done\r');
+    session.writeProcessOutput('\nnext\n');
+    session.writeErrorOutput('warning: lf only\n');
+
+    final lines = terminal.buffer.getText().split('\n');
+    expect(lines, containsAllInOrder(['  feat/rate-limit', '* main', 'done', 'next']));
+    expect(lines.any((l) => l.startsWith('warning: lf only')), isTrue);
+    session.dispose();
+  });
+
   testWidgets('IntegratedTerminalPanel creates tabs and closes tabs', (tester) async {
     const tokens = FrameTokens.dark;
     var collapsed = false;

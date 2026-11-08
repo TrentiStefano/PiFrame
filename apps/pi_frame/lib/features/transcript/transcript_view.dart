@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
@@ -228,7 +230,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   bool? _cachedHeaderIsRenaming;
   bool? _cachedHeaderIsCompact;
   FrameTokens? _cachedHeaderTokens;
+  AppStrings? _cachedHeaderStrings;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
+  AppStrings _currentStrings = const AppStrings(AppLanguage.it);
   _ActiveBookTab _activeBookTab = _ActiveBookTab.none;
   int _lastActiveTodoCount = 0;
   bool _userManuallyToggledTabs = false;
@@ -341,7 +345,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       if (mounted) {
         FrameSnackBar.show(
           context,
-          message: 'Errore durante la rinomina: $e',
+          message: _currentStrings.transcriptRenameError('$e'),
           backgroundColor: Theme.of(context).colorScheme.error,
         );
       }
@@ -475,7 +479,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         if (req['method'] == 'notify') {
           FrameSnackBar.show(
             context,
-            message: req['message']?.toString() ?? 'Notifica',
+            message: req['message']?.toString() ?? _currentStrings.transcriptNotification,
           );
         }
       });
@@ -610,6 +614,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         bool compacting = false;
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
+            final strings = ref.watch(appStringsProvider);
             final currentSession = ref.watch(
               sessionStateFamily(widget.sessionId),
             );
@@ -665,7 +670,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'Contesto & Token',
+                                strings.transcriptContextTokensTitle,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
                                   fontSize: 13,
@@ -692,7 +697,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Utilizzo:',
+                            strings.transcriptUsageLabel,
                             style: TextStyle(
                               color: tokens.textSecondary,
                               fontSize: 11,
@@ -727,11 +732,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       const SizedBox(height: 10),
                       Divider(color: tokens.border, height: 1),
                       const SizedBox(height: 8),
-                      _tokenRow('Token Input', inTokens.toString(), tokens),
-                      _tokenRow('Token Output', outTokens.toString(), tokens),
-                      _tokenRow('Token Cache', cacheTokens.toString(), tokens),
+                      _tokenRow(strings.transcriptTokenInput, inTokens.toString(), tokens),
+                      _tokenRow(strings.transcriptTokenOutput, outTokens.toString(), tokens),
+                      _tokenRow(strings.transcriptTokenCache, cacheTokens.toString(), tokens),
                       _tokenRow(
-                        'Costo Stimato',
+                        strings.transcriptEstimatedCost,
                         cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
                         tokens,
                       ),
@@ -759,7 +764,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               )
                             : const Icon(Icons.compress, size: 15),
                         label: Text(
-                          compacting ? 'Compattazione...' : 'Compatta Contesto',
+                          compacting ? strings.transcriptCompacting : strings.transcriptCompactContext,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -774,14 +779,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   if (mounted && ctx.mounted) {
                                     FrameSnackBar.show(
                                       context,
-                                      message: 'Compattazione completata!',
+                                      message: strings.transcriptCompactionCompleted,
                                     );
                                   }
                                 } catch (e) {
                                   if (mounted && ctx.mounted) {
                                     FrameSnackBar.show(
                                       context,
-                                      message: 'Errore compattazione: $e',
+                                      message: strings.transcriptCompactionError('$e'),
                                     );
                                   }
                                 } finally {
@@ -901,14 +906,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
         return StatefulBuilder(
           builder: (ctx, setDialogState) => Consumer(builder: (ctx, dialogRef, _) {
+            final strings = dialogRef.watch(appStringsProvider);
             final subagents = dialogRef.watch(subagentsFamily(sessionState.sessionId));
             final agents = subagents.where((sub) => !sub.isUnlinked).toList();
             final subagentsCost = agents.fold<double>(0, (sum, sub) => sum + (sub.cost ?? 0));
             final knownSubagentCosts = agents.where((sub) => sub.cost != null).length;
             final subagentsCostLabel = knownSubagentCosts == 0
-                ? 'N/D'
-                : '${knownSubagentCosts < agents.length ? 'Parziale ' : ''}\$${subagentsCost.toStringAsFixed(4)}';
-            final sessionCostLabel = mainAgentCost == null ? 'N/D' : '\$${mainAgentCost.toStringAsFixed(4)}';
+                ? strings.transcriptNotAvailable
+                : '${knownSubagentCosts < agents.length ? strings.subagentsPartialCostPrefix : ''}\$${subagentsCost.toStringAsFixed(4)}';
+            final sessionCostLabel = mainAgentCost == null ? strings.transcriptNotAvailable : '\$${mainAgentCost.toStringAsFixed(4)}';
             final agentCount = agents.length;
             Widget content;
             String title;
@@ -916,7 +922,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
             if (level == 1) {
               // Level 1: Agent Models
-              title = 'Costi Modelli Agente';
+              title = strings.transcriptAgentModelCosts;
               titleIcon = Icons.smart_toy_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
@@ -934,7 +940,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Costo riportato da Pi',
+                            strings.transcriptCostReportedByPi,
                             style: TextStyle(
                               color: tokens.textSecondary,
                               fontSize: 11,
@@ -955,7 +961,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ),
                   const SizedBox(height: 8),
                   if (agentModelCosts.isEmpty)
-                    Text('Costi per modello non disponibili', style: TextStyle(color: tokens.textMuted, fontSize: 11))
+                    Text(strings.transcriptModelCostsUnavailable, style: TextStyle(color: tokens.textMuted, fontSize: 11))
                   else
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 280),
@@ -1036,7 +1042,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               );
             } else if (level == 2) {
               // Level 2: Subagents Breakdown
-              title = 'Costi Subagenti & Modelli';
+              title = strings.transcriptSubagentModelCosts;
               titleIcon = Icons.hub_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1054,7 +1060,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Costi sessioni figlie ($agentCount agenti)',
+                            strings.transcriptChildSessionCosts(agentCount),
                             style: TextStyle(
                               color: tokens.textSecondary,
                               fontSize: 11,
@@ -1079,7 +1085,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Center(
                         child: Text(
-                          'Nessun subagente eseguito.',
+                          strings.transcriptNoSubagentsExecuted,
                           style: TextStyle(color: tokens.textMuted, fontSize: 11),
                         ),
                       ),
@@ -1096,14 +1102,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           final sub = subagents[i];
                           final subCost = sub.cost != null
                               ? '\$${sub.cost!.toStringAsFixed(4)}'
-                              : 'N/D';
-                          final subModel = sub.model ?? 'N/D';
+                              : strings.transcriptNotAvailable;
+                          final subModel = sub.model ?? strings.transcriptNotAvailable;
                           if (sub.isUnlinked) {
                             return Padding(
                               key: ValueKey('unlinked-session-cost-${sub.id}'),
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                               child: Text(
-                                'Sessione figlia non attribuita: ${sub.name} · $subModel · $subCost',
+                                strings.transcriptUnattributedChildSession(sub.name, subModel, subCost),
                                 style: TextStyle(color: tokens.textMuted, fontSize: 11),
                               ),
                             );
@@ -1126,7 +1132,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        sub.name.isNotEmpty ? sub.name : 'Subagente #${i + 1}',
+                                        sub.name.isNotEmpty ? sub.name : strings.transcriptSubagentNumbered(i + 1),
                                         style: TextStyle(
                                           color: tokens.textPrimary,
                                           fontSize: 11.5,
@@ -1176,7 +1182,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               );
             } else {
               // Level 0: Main Overview (Total, Agent, Subagents)
-              title = 'Dettaglio Costi Sessione';
+              title = strings.transcriptSessionCostBreakdown;
               titleIcon = Icons.monetization_on_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1194,7 +1200,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Costo riportato da Pi',
+                            strings.transcriptCostReportedByPi,
                             style: TextStyle(
                               color: tokens.textSecondary,
                               fontSize: 11.5,
@@ -1216,7 +1222,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Il costo Pi può già includere i subagenti. Le cifre non vengono sommate.',
+                    strings.transcriptPiCostDisclaimer,
                     style: TextStyle(
                       color: tokens.textMuted,
                       fontSize: 10.5,
@@ -1250,7 +1256,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Sessione Pi',
+                                  strings.transcriptPiSession,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
                                     fontSize: 12,
@@ -1258,7 +1264,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   ),
                                 ),
                                 Text(
-                                  sessionState.currentModel ?? 'Modello sessione',
+                                  sessionState.currentModel ?? strings.transcriptSessionModel,
                                   style: TextStyle(
                                     color: tokens.textMuted,
                                     fontSize: 10,
@@ -1314,7 +1320,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Subagenti',
+                                  strings.transcriptSubagents,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
                                     fontSize: 12,
@@ -1322,7 +1328,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   ),
                                 ),
                                 Text(
-                                  '$agentCount subagenti identificati',
+                                  strings.transcriptIdentifiedSubagents(agentCount),
                                   style: TextStyle(
                                     color: tokens.textMuted,
                                     fontSize: 10,
@@ -1432,6 +1438,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    _currentStrings = ref.watch(appStringsProvider);
+    final strings = _currentStrings;
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
     final stats = sessionState.sessionStats;
     final contextUsage =
@@ -1443,9 +1451,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
         : (contextUsage?['percent'] as num?);
     final contextLabel = contextUsage == null
-        ? 'non disponibile'
+        ? strings.transcriptUnavailable
         : effectivePercent == null
-        ? 'post-compattazione · —/${_formatTokens(effectiveContextWindow)}'
+        ? '${strings.transcriptPostCompaction} · —/${_formatTokens(effectiveContextWindow)}'
         : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final todos = ref.watch(todosFamily(widget.sessionId));
@@ -2122,6 +2130,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _cachedHeaderIsRenaming == _isRenaming &&
         _cachedHeaderIsCompact == isCompact &&
         identical(_cachedHeaderTokens, tokens) &&
+        identical(_cachedHeaderStrings, _currentStrings) &&
         _extensionStatusesEqual(extensionStatuses, _cachedHeaderExtStatuses)) {
       return _cachedBentoHeader!;
     }
@@ -2136,6 +2145,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderIsRenaming = _isRenaming;
     _cachedHeaderIsCompact = isCompact;
     _cachedHeaderTokens = tokens;
+    _cachedHeaderStrings = _currentStrings;
     _cachedHeaderExtStatuses = extensionStatuses;
 
     _cachedBentoHeader = Container(
@@ -2252,7 +2262,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 minWidth: 26,
                                 minHeight: 26,
                               ),
-                              tooltip: 'Salva',
+                              tooltip: _currentStrings.transcriptSaveTooltip,
                               onPressed: _submitRename,
                             ),
                             IconButton(
@@ -2267,7 +2277,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 minWidth: 26,
                                 minHeight: 26,
                               ),
-                              tooltip: 'Annulla',
+                              tooltip: _currentStrings.transcriptCancelTooltip,
                               onPressed: _cancelRename,
                             ),
                           ],
@@ -2281,7 +2291,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           sessionState.sessionName ?? widget.sessionId,
                         ),
                         child: Tooltip(
-                          message: 'Doppio clic per rinominare',
+                          message: _currentStrings.transcriptDoubleClickToRename,
                           waitDuration: const Duration(milliseconds: 400),
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
@@ -2329,7 +2339,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           child: Text(
                             sessionState.cwd.isNotEmpty
                                 ? sessionState.cwd
-                                : 'Nessuna cartella aperta',
+                                : _currentStrings.transcriptNoFolderOpened,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -2359,7 +2369,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               children: [
                 _metricChip(
                   tokens,
-                  'Contesto',
+                  _currentStrings.transcriptContext,
                   contextLabel,
                   leadingIcon: Icons.pie_chart_outline,
                   iconColor: tokens.syntaxFunction,
@@ -2370,7 +2380,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 const SizedBox(width: 6),
                 _metricChip(
                   tokens,
-                  'Costo',
+                  _currentStrings.transcriptCost,
                   cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
                   leadingIcon: Icons.monetization_on_outlined,
                   iconColor: tokens.syntaxString,
@@ -2483,7 +2493,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          'Attività ($completedCount/$totalCount)',
+                          _currentStrings.todoPeekTab(completedCount, totalCount),
                           style: TextStyle(
                             color: _activeBookTab == _ActiveBookTab.todos
                                 ? tokens.textPrimary
@@ -2585,7 +2595,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Elaborazione in corso...',
+                  _currentStrings.transcriptProcessing,
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
@@ -2625,7 +2635,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         if (!mounted) return;
         FrameSnackBar.show(
           context,
-          message: "Fork annullato dall'extension",
+          message: _currentStrings.transcriptForkCancelledByExtension,
         );
         return;
       }
@@ -2636,14 +2646,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         if (!mounted) return;
         FrameSnackBar.show(
           context,
-          message: 'Nuovo ramo avviato: $newSid',
+          message: _currentStrings.transcriptNewBranchStarted(newSid),
         );
       }
     } catch (e) {
       if (!mounted) return;
       FrameSnackBar.show(
         context,
-        message: 'Errore fork: $e',
+        message: _currentStrings.transcriptForkError('$e'),
         backgroundColor: context.tokens.danger,
       );
     }
@@ -2706,7 +2716,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     Icon(Icons.person_outline, size: 13, color: tokens.accent),
                     const SizedBox(width: 4),
                     Text(
-                      'Tu',
+                      _currentStrings.transcriptYou,
                       style: TextStyle(
                         color: tokens.textPrimary,
                         fontSize: 11,
@@ -2735,7 +2745,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              'Riparti da qui',
+                              _currentStrings.transcriptRestartFromHere,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -2767,7 +2777,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             if (sendError != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Invio non riuscito: $sendError',
+                _currentStrings.transcriptSendFailed(sendError),
                 key: ValueKey('failed-message-error-${entry.id}'),
                 style: TextStyle(color: tokens.danger, fontSize: 12),
               ),
@@ -2807,7 +2817,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             ),
             IconButton(
               key: ValueKey('retry-user-message-${entry.id}'),
-              tooltip: 'Riprova invio',
+              tooltip: _currentStrings.transcriptRetrySend,
               onPressed: () => unawaited(
                 ref
                     .read(sessionStateFamily(widget.sessionId).notifier)
@@ -2901,7 +2911,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Assistente',
+                            _currentStrings.transcriptAssistant,
                             style: TextStyle(
                               color: tokens.textSecondary,
                               fontSize: 11,
@@ -2952,12 +2962,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             const SizedBox(width: 6),
                           ],
                           IconButton(
-                            tooltip: 'Copia messaggio',
+                            tooltip: _currentStrings.transcriptCopyMessage,
                             onPressed: () {
                               Clipboard.setData(ClipboardData(text: entry.text));
                               FrameSnackBar.show(
                                 context,
-                                message: 'Messaggio copiato negli appunti',
+                                message: _currentStrings.transcriptMessageCopied,
                                 duration: const Duration(seconds: 1),
                               );
                             },
@@ -3054,7 +3064,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       border: Border.all(color: tokens.warning.withValues(alpha: 0.3)),
                     ),
                     child: Text(
-                      'annullato',
+                      _currentStrings.transcriptCancelledBadge,
                       style: TextStyle(
                         fontSize: 10,
                         color: tokens.warning,
@@ -3089,14 +3099,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 const SizedBox(width: 6),
                 IconButton(
                   icon: const Icon(Icons.copy, size: 13),
-                  tooltip: 'Copia output',
+                  tooltip: _currentStrings.transcriptCopyOutput,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: output));
                     FrameSnackBar.show(
                       context,
-                      message: 'Output copiato',
+                      message: _currentStrings.transcriptOutputCopied,
                       duration: const Duration(seconds: 1),
                     );
                   },
@@ -3121,7 +3131,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Text(
-                'Output parziale (troncato)',
+                _currentStrings.transcriptPartialOutputTruncated,
                 style: TextStyle(
                   fontStyle: FontStyle.italic,
                   fontSize: 10,
@@ -3151,7 +3161,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             child: Text(
               entry.text.isNotEmpty
                   ? entry.text
-                  : 'Diramazione creata da ${entry.metadata?['fromId'] ?? ''}',
+                  : _currentStrings.transcriptBranchCreatedFrom('${entry.metadata?['fromId'] ?? ''}'),
               style: TextStyle(
                 fontSize: 11,
                 color: tokens.textSecondary,
@@ -3188,7 +3198,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              entry.text.isNotEmpty ? entry.text : 'Contesto compattato',
+              entry.text.isNotEmpty
+                  ? entry.text
+                  : _currentStrings.transcriptContextCompacted,
               style: TextStyle(
                 fontSize: 11,
                 color: tokens.textSecondary,
@@ -3198,7 +3210,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           ),
           if (entry.metadata?['tokensBefore'] != null)
             Text(
-              '${entry.metadata!['tokensBefore']} token iniziali',
+              _currentStrings.transcriptInitialTokens(entry.metadata!['tokensBefore'] as num),
               style: TextStyle(
                 fontFamily: tokens.monoFontFamily,
                 fontSize: 10,
@@ -3212,7 +3224,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   Widget _buildCustomItem(SessionEntry entry, FrameTokens tokens) {
     final customType =
-        entry.metadata?['customType']?.toString() ?? 'Estensione';
+        entry.metadata?['customType']?.toString() ?? _currentStrings.transcriptCustomTypeDefault;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(

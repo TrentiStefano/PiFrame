@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
 
@@ -463,7 +465,8 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   SubagentItem? _parseFromTool(ToolExecutionState tool) {
     final args = tool.args;
     String id = tool.toolCallId;
-    String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? 'Subagente').toString();
+    final strings = ref.read(appStringsProvider);
+    String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? strings.subagentDefaultName).toString();
     String? description = args['description']?.toString() ?? args['prompt']?.toString();
     String? outputFile;
 
@@ -549,12 +552,13 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _locallySteered.add(subagentId);
     _openSteeringIds.remove(subagentId);
 
+    final strings = ref.read(appStringsProvider);
     state = state.map((item) {
       if (item.id == subagentId) {
         return item.copyWith(
           status: 'steering',
           isSteeringOpen: false,
-          output: '${item.output}\n\n[Guida utente]: $trimmed',
+          output: '${item.output}\n\n${strings.subagentSteeringNote(trimmed)}',
         );
       }
       return item;
@@ -572,12 +576,13 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _locallyStopped.add(subagentId);
     _openSteeringIds.remove(subagentId);
 
+    final strings = ref.read(appStringsProvider);
     state = state.map((item) {
       if (item.id == subagentId) {
         return item.copyWith(
           status: 'stopped',
           isSteeringOpen: false,
-          output: '${item.output}\n\n[Interrotto dall\'utente]',
+          output: '${item.output}\n\n${strings.subagentStoppedNote}',
         );
       }
       return item;

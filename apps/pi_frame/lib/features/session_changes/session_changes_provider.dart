@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import '../../domain/session/agent_status.dart';
 
 /// Whether the "Review Changes" layout mode is currently active.
@@ -119,12 +121,13 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
   Future<void> refresh() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
+      final strings = ref.read(appStringsProvider);
       state = state.copyWith(
         isLoading: false,
         files: const [],
         totalAdditions: 0,
         totalDeletions: 0,
-        error: 'Daemon non connesso',
+        error: strings.daemonNotConnectedCapital,
       );
       return;
     }
@@ -208,12 +211,13 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
         state = state.copyWith(files: finalFiles);
       }
     } catch (_) {
+      final strings = ref.read(appStringsProvider);
       final finalFiles = List<SessionChangedFile>.from(state.files);
       final finalIdx = finalFiles.indexWhere((f) => f.path == filePath);
       if (finalIdx >= 0) {
         finalFiles[finalIdx] = finalFiles[finalIdx].copyWith(
           isLoadingDiff: false,
-          diff: 'Impossibile caricare il diff del file.',
+          diff: strings.cannotLoadFileDiff,
         );
         state = state.copyWith(files: finalFiles);
       }

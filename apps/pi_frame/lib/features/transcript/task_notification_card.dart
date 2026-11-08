@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/strings_transcript.dart';
 import 'rich_content.dart';
 
 class TaskNotificationData {
@@ -139,6 +140,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     final data = widget.data;
 
     final isWrappedUp = data.status.toLowerCase().contains('turn limit') ||
@@ -200,7 +202,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Notifica Subagente',
+                  strings.taskNotifSubagentNotification,
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
@@ -331,7 +333,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                           Icon(Icons.pie_chart_outline, size: 12, color: tokens.textMuted),
                           const SizedBox(width: 3),
                           Text(
-                            '${data.contextPercent}% contesto',
+                            strings.taskNotifContextPercent(data.contextPercent!),
                             style: TextStyle(
                               color: tokens.textMuted,
                               fontSize: 10.5,
@@ -373,7 +375,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      'Risultato operazione',
+                                      strings.taskNotifOperationResult,
                                       style: TextStyle(
                                         color: tokens.textSecondary,
                                         fontSize: 11,
@@ -465,7 +467,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Apri trascrizione completa',
+                                strings.taskNotifOpenFullTranscript,
                                 style: TextStyle(
                                   color: tokens.accent,
                                   fontSize: 11,

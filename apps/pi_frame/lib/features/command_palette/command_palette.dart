@@ -9,6 +9,7 @@ import '../sessions_sidebar/session_actions.dart';
 import '../browser/browser_models.dart';
 import '../browser/browser_controller.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../side/side_provider.dart';
 
 class PaletteAction {
@@ -76,7 +77,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       if (mounted) Navigator.of(context).pop();
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
+        FrameSnackBar.show(
+          context,
+          message: ref.read(appStringsProvider).actionFailedNotice(error),
+        );
       }
     } finally {
       if (mounted) setState(() => _executing = false);
@@ -108,12 +112,16 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ),
       PaletteAction(
         id: 'new_session',
-        title: 'Crea nuova sessione',
-        subtitle: 'Avvia una nuova sessione Pi',
+        title: strings.paletteNewSessionTitle,
+        subtitle: strings.paletteNewSessionSubtitle,
         icon: Icons.add_circle_outline,
         onExecute: () async {
           if (pcpClient == null) return;
-          await createSession(context, ref, name: 'Nuova Sessione');
+          await createSession(
+            context,
+            ref,
+            name: strings.isItalian ? 'Nuova Sessione' : 'New Session',
+          );
           if (!mounted || !context.mounted) return;
           ref.invalidate(sessionListProvider);
         },
@@ -122,8 +130,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           !ref.watch(sessionStateFamily(activeSessionId)).readOnly) ...[
         PaletteAction(
           id: 'compact',
-          title: 'Compatta contesto',
-          subtitle: 'Esegui manual compaction per ridurre i token',
+          title: strings.paletteCompactTitle,
+          subtitle: strings.paletteCompactSubtitle,
           icon: Icons.compress,
           onExecute: () async {
             await ref
@@ -133,8 +141,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ),
         PaletteAction(
           id: 'clear_queue',
-          title: 'Svuota coda',
-          subtitle: 'Rimuovi tutti i messaggi steer e follow-up in attesa',
+          title: strings.paletteClearQueueTitle,
+          subtitle: strings.paletteClearQueueSubtitle,
           icon: Icons.clear_all,
           onExecute: () async {
             await ref
@@ -144,8 +152,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ),
         PaletteAction(
           id: 'interrupt',
-          title: 'Interrompi agente (Esc)',
-          subtitle: 'Ferma il modello in esecuzione',
+          title: strings.paletteInterruptTitle,
+          subtitle: strings.paletteInterruptSubtitle,
           icon: Icons.stop_circle_outlined,
           onExecute: () async {
             await ref
@@ -157,8 +165,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       if (ref.watch(browserPaneSupportedProvider)) ...[
         PaletteAction(
           id: 'switch_to_browser',
-          title: 'Mostra Web Browser',
-          subtitle: 'Apri il browser web integrato nel pannello laterale',
+          title: strings.paletteSwitchBrowserTitle,
+          subtitle: strings.paletteSwitchBrowserSubtitle,
           icon: Icons.language_outlined,
           onExecute: () async {
             ref.read(rightPaneModeProvider.notifier).state =
@@ -167,8 +175,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ),
         PaletteAction(
           id: 'switch_to_git',
-          title: 'Mostra Modifiche Git',
-          subtitle: 'Mostra il pannello delle modifiche Git nel pannello laterale',
+          title: strings.paletteSwitchGitTitle,
+          subtitle: strings.paletteSwitchGitSubtitle,
           icon: Icons.source_outlined,
           onExecute: () async {
             ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
@@ -177,8 +185,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       ],
       PaletteAction(
         id: 'settings',
-        title: 'Apri Impostazioni',
-        subtitle: 'Configura percorso Pi, timeout worker e aspetto',
+        title: strings.paletteSettingsTitle,
+        subtitle: strings.paletteSettingsSubtitle,
         icon: Icons.settings,
         onExecute: () async {
           widget.onOpenSettings?.call();
@@ -190,6 +198,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final allActions = _buildActions(context);
     final query = _searchController.text.trim().toLowerCase();
 
@@ -242,7 +251,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                               fontSize: 15,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Cerca un\'azione o comando...',
+                              hintText: strings.paletteSearchHint,
                               hintStyle: TextStyle(
                                 color: tokens.textMuted,
                                 fontSize: 14,
@@ -286,7 +295,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                     child: filtered.isEmpty
                         ? Center(
                             child: Text(
-                              'Nessuna azione trovata',
+                              strings.paletteNoActionsFound,
                               style: TextStyle(
                                 color: tokens.textMuted,
                                 fontSize: 13,

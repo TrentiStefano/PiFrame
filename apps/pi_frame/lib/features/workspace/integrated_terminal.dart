@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:xterm/xterm.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import '../../data/terminal/terminal_settings.dart';
 
 class TerminalTabSession {
@@ -23,6 +25,7 @@ class TerminalTabSession {
   StreamSubscription? _stderrSub;
   final List<String> _pendingPowerShellEchoes = [];
   String _stdoutBuffer = '';
+  bool _lastOutputEndedWithCr = false;
 
   final List<String> history = [];
   String currentInput = '';
@@ -43,10 +46,31 @@ class TerminalTabSession {
     } catch (_) {}
   }
 
+  /// Writes process output, turning bare LF into CRLF. Child processes run
+  /// over pipes (no pseudo console), so tools like git emit LF-only lines that
+  /// would otherwise render as a staircase.
+  void _emit(String text) {
+    if (text.isEmpty) return;
+    final out = StringBuffer();
+    for (var i = 0; i < text.length; i++) {
+      final ch = text[i];
+      if (ch == '\n') {
+        final prevIsCr = i == 0 ? _lastOutputEndedWithCr : text[i - 1] == '\r';
+        if (!prevIsCr) out.write('\r');
+      }
+      out.write(ch);
+    }
+    _lastOutputEndedWithCr = text.endsWith('\r');
+    terminal.write(out.toString());
+  }
+
+  /// Writes stderr output with the same newline handling as stdout.
+  void writeErrorOutput(String text) => _emit(text);
+
   // PowerShell echoes piped commands with LF-only endings after local echo.
   void writeProcessOutput(String text) {
     if (shellName != 'PowerShell' || _pendingPowerShellEchoes.isEmpty) {
-      terminal.write(text);
+      _emit(text);
       return;
     }
 
@@ -58,7 +82,7 @@ class TerminalTabSession {
           (command) => command.startsWith(_stdoutBuffer),
         );
         if (isEchoPrefix) return;
-        terminal.write(_stdoutBuffer);
+        _emit(_stdoutBuffer);
         _stdoutBuffer = '';
         return;
       }
@@ -71,12 +95,12 @@ class TerminalTabSession {
       if (echoIndex >= 0) {
         _pendingPowerShellEchoes.removeAt(echoIndex);
       } else {
-        terminal.write(_stdoutBuffer.substring(0, lineEnd + 1));
+        _emit(_stdoutBuffer.substring(0, lineEnd + 1));
       }
       _stdoutBuffer = _stdoutBuffer.substring(lineEnd + 1);
 
       if (_pendingPowerShellEchoes.isEmpty && _stdoutBuffer.isNotEmpty) {
-        terminal.write(_stdoutBuffer);
+        _emit(_stdoutBuffer);
         _stdoutBuffer = '';
         return;
       }
@@ -346,6 +370,22 @@ class _IntegratedTerminalPanelState
     _startProcessForTab(session, shellExe, shellArgs);
   }
 
+  AppStrings _getStrings() {
+    try {
+      return ref.watch(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
+  AppStrings _getReadStrings() {
+    try {
+      return ref.read(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   Future<void> _startProcessForTab(
     TerminalTabSession session,
     String executable,
@@ -359,8 +399,9 @@ class _IntegratedTerminalPanelState
         : Directory.current.path;
 
     final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
+    final strings = _getReadStrings();
     session.terminal.write(
-      'Avvio sessione terminale in: $displayDir\r\n\r\n',
+      strings.terminalStartingSession(displayDir),
     );
 
     try {
@@ -389,7 +430,7 @@ class _IntegratedTerminalPanelState
           .bind(process.stderr)
           .listen((text) {
         if (!mounted) return;
-        session.terminal.write(text);
+        session.writeErrorOutput(text);
       });
 
       process.exitCode.then((code) {
@@ -399,13 +440,13 @@ class _IntegratedTerminalPanelState
           session.exitCode = code;
         });
         session.terminal.write(
-          '\r\n[Processo terminato con codice $code]\r\n',
+          strings.terminalProcessTerminated(code),
         );
       });
     } catch (e) {
       if (!mounted) return;
       session.terminal.write(
-        'Impossibile avviare il processo della shell ($executable): $e\r\n',
+        strings.terminalCannotStartProcess(executable, e),
       );
       setState(() {
         session.isRunning = false;
@@ -455,6 +496,7 @@ class _IntegratedTerminalPanelState
   @override
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
+    final strings = _getStrings();
 
     if (_tabs.isEmpty) {
       return Container(
@@ -464,7 +506,7 @@ class _IntegratedTerminalPanelState
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Nessun terminale aperto',
+                strings.terminalNoOpenTerminals,
                 style: TextStyle(color: tokens.textMuted, fontSize: 13),
               ),
               const SizedBox(height: 8),
@@ -475,7 +517,7 @@ class _IntegratedTerminalPanelState
                 ),
                 onPressed: () => _createNewTab(),
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Apri nuovo terminale'),
+                label: Text(strings.terminalOpenNew),
               ),
             ],
           ),
@@ -580,7 +622,7 @@ class _IntegratedTerminalPanelState
 
                 // "+" Add Tab Button
                 PopupMenuButton<String>(
-                  tooltip: 'Nuovo terminale',
+                  tooltip: strings.terminalNewTabTooltip,
                   icon: Icon(Icons.add, size: 16, color: tokens.displayText),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -601,7 +643,7 @@ class _IntegratedTerminalPanelState
                             children: [
                               const Icon(Icons.terminal, size: 15),
                               const SizedBox(width: 8),
-                              Text('Nuovo terminale WSL (${wslInfo['distro']})'),
+                              Text(strings.terminalNewWslTab(wslInfo['distro']!)),
                             ],
                           ),
                         ),
@@ -613,8 +655,8 @@ class _IntegratedTerminalPanelState
                             const SizedBox(width: 8),
                             Text(
                               Platform.isWindows
-                                  ? 'Nuovo terminale (PowerShell)'
-                                  : 'Nuovo terminale',
+                                  ? strings.terminalNewPowerShellTab
+                                  : strings.terminalNewTabTooltip,
                             ),
                           ],
                         ),
@@ -641,7 +683,7 @@ class _IntegratedTerminalPanelState
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Interrompi processo (Ctrl+C)',
+                  tooltip: strings.terminalInterruptTooltip,
                   icon: Icon(Icons.stop_circle_outlined, size: 15, color: tokens.danger),
                   onPressed: _sendInterrupt,
                 ),
@@ -653,7 +695,7 @@ class _IntegratedTerminalPanelState
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Pulisci schermo (Clear)',
+                  tooltip: strings.terminalClearTooltip,
                   icon: const Icon(Icons.block, size: 14),
                   onPressed: _clearScreen,
                 ),
@@ -665,7 +707,7 @@ class _IntegratedTerminalPanelState
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Apri nel terminale nativo (OS)',
+                  tooltip: strings.terminalNativeAppTooltip,
                   icon: const Icon(Icons.open_in_new, size: 14),
                   onPressed: _openInNativeTerminal,
                 ),
@@ -677,7 +719,7 @@ class _IntegratedTerminalPanelState
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Collassa in basso',
+                  tooltip: strings.terminalCollapseTooltip,
                   icon: const Icon(Icons.keyboard_arrow_down, size: 18),
                   onPressed: widget.onCollapseDownward,
                 ),
@@ -689,7 +731,7 @@ class _IntegratedTerminalPanelState
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Chiudi terminale',
+                  tooltip: strings.terminalCloseTooltip,
                   icon: const Icon(Icons.close, size: 16),
                   onPressed: widget.onClose,
                 ),

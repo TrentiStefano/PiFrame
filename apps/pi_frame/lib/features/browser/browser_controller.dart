@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import 'browser_models.dart';
 import 'browser_service.dart';
 
@@ -98,9 +100,10 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
       currentTab.history.take(currentTab.historyIndex + 1),
     )..add(normalized);
 
+    final strings = _ref.read(appStringsProvider);
     final loadingTab = currentTab.copyWith(
       url: normalized,
-      title: input.trim().isEmpty ? 'Caricamento...' : input.trim(),
+      title: input.trim().isEmpty ? strings.browserLoading : input.trim(),
       isLoading: true,
       clearError: true,
       history: newHistory,
@@ -121,6 +124,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
       final content = await _service.load(
         normalized,
         defaultEngine: state.searchEngine,
+        strings: strings,
       );
       final loadedTab = loadingTab.copyWith(
         url: content.url,
@@ -203,9 +207,11 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     _updateTab(loadingTab);
 
     try {
+      final strings = _ref.read(appStringsProvider);
       final content = await _service.load(
         url,
         defaultEngine: state.searchEngine,
+        strings: strings,
       );
       final loadedTab = loadingTab.copyWith(
         title: content.title.isNotEmpty ? content.title : url,

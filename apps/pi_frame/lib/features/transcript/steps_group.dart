@@ -8,6 +8,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
@@ -79,11 +80,11 @@ String abbreviateTarget(ToolExecutionState tool) {
 }
 
 /// Extracts title for thinking step (first non-empty line or ~80 chars).
-String thinkingTitle(String text, {int maxLength = 80}) {
+String thinkingTitle(String text, {int maxLength = 80, String defaultLabel = 'Ragionamento'}) {
   final trimmed = text.trim();
-  if (trimmed.isEmpty) return 'Ragionamento';
+  if (trimmed.isEmpty) return defaultLabel;
   final firstLine = trimmed.split('\n').first.trim();
-  if (firstLine.isEmpty) return 'Ragionamento';
+  if (firstLine.isEmpty) return defaultLabel;
   if (firstLine.length <= maxLength) return firstLine;
   return '${firstLine.substring(0, maxLength - 1)}…';
 }
@@ -241,7 +242,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       _followLatest = true;
     }
 
-    final latestStepLabel = _formatLatestStep(widget.block.latestStep);
+    final latestStepLabel = _formatLatestStep(widget.block.latestStep, strings);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -399,17 +400,23 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     );
   }
 
-  String _formatLatestStep(StepItem? step) {
+  String _formatLatestStep(StepItem? step, [AppStrings? strings]) {
     if (step == null) return '';
     if (step is ToolStep) {
       final target = abbreviateTarget(step.tool);
       return target.isNotEmpty ? '${step.toolName} $target' : step.toolName;
     }
     if (step is ThinkingStep) {
-      return thinkingTitle(step.text);
+      return thinkingTitle(
+        step.text,
+        defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento',
+      );
     }
     if (step is IntermediateTextStep) {
-      return thinkingTitle(step.text);
+      return thinkingTitle(
+        step.text,
+        defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento',
+      );
     }
     return '';
   }
@@ -585,7 +592,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     final trimmed = step.text.trim();
     if (trimmed.isEmpty) return const SizedBox.shrink();
 
-    final title = thinkingTitle(trimmed);
+    final title = thinkingTitle(
+      trimmed,
+      defaultLabel: strings.transcriptReasoning,
+    );
     final preview = trimmed.split('\n').skip(1).join('\n').trim();
 
     return Padding(
@@ -597,7 +607,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
           Semantics(
             button: true,
             expanded: effectiveExpanded,
-            label: 'Ragionamento · $title',
+            label: '${strings.transcriptReasoning} · $title',
             child: InkWell(
               key: ValueKey('thinking_step_header_${step.id}'),
               borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -616,9 +626,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       color: tokens.thinking,
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Ragionamento',
-                      style: TextStyle(
+                    Text(
+                      strings.transcriptReasoning,
+                      style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1014,7 +1024,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                     Clipboard.setData(ClipboardData(text: prettyInput));
                     FrameSnackBar.show(
                       context,
-                      message: 'Input copiato',
+                      message: strings.stepsGroupInputCopied,
                       duration: const Duration(seconds: 1),
                     );
                   },
@@ -1033,7 +1043,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          'Copia',
+                          strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 10,
@@ -1114,7 +1124,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                     Clipboard.setData(ClipboardData(text: tool.output));
                     FrameSnackBar.show(
                       context,
-                      message: 'Output copiato',
+                      message: strings.stepsGroupOutputCopied,
                       duration: const Duration(seconds: 1),
                     );
                   },
@@ -1133,7 +1143,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          'Copia',
+                          strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 10,

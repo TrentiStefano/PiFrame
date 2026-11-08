@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import '../../domain/session/agent_status.dart';
 import '../session_tree/session_tree_dialog.dart';
@@ -67,8 +69,9 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       }
     } catch (error) {
       if (mounted && widget.sessionId == sessionId) {
+        final strings = ref.read(appStringsProvider);
         setState(() => _isLoadingParams = false);
-        FrameSnackBar.show(context, message: 'Modelli non disponibili: $error');
+        FrameSnackBar.show(context, message: strings.modelsNotAvailable(error));
       }
     }
   }
@@ -101,7 +104,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       return true;
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: 'Azione non riuscita: $error');
+        final strings = ref.read(appStringsProvider);
+        FrameSnackBar.show(context, message: strings.actionFailed(error));
       }
       return false;
     }
@@ -119,7 +123,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           .setCompactionReservePercent(percent);
     } catch (error) {
       if (mounted) {
-        if (widget.sessionId == sessionId) FrameSnackBar.show(context, message: 'Margine non applicato: $error');
+        final strings = ref.read(appStringsProvider);
+        if (widget.sessionId == sessionId) FrameSnackBar.show(context, message: strings.compactionMarginNotApplied(error));
       }
     } finally {
       if (saving.mounted) saving.state = false;
@@ -143,9 +148,10 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       res = (result?['data'] as Map<String, dynamic>?) ?? result;
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Compattazione non riuscita: $error',
+          message: strings.compactionFailed(error),
         );
       }
     } finally {
@@ -153,6 +159,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     }
 
     if (mounted && res != null) {
+      final strings = ref.read(appStringsProvider);
       final tokensBefore = res['tokensBefore'] ?? '?';
       final tokensAfter =
           res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
@@ -164,11 +171,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         builder: (ctx) => AlertDialog(
           backgroundColor: context.tokens.surface,
           title: Text(
-            'Compattazione completata',
+            strings.compactionCompletedTitle,
             style: TextStyle(color: context.tokens.textPrimary),
           ),
           content: Text(
-            'Token prima: $tokensBefore\nToken dopo: $tokensAfter\n${cost.isNotEmpty ? "Costo: $cost" : ""}',
+            strings.compactionDialogContent(tokensBefore, tokensAfter, cost),
             style: TextStyle(color: context.tokens.textSecondary),
           ),
           actions: [
@@ -208,9 +215,10 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       }
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Duplicazione non riuscita: $error',
+          message: strings.duplicationFailed(error),
         );
       }
     }
@@ -219,6 +227,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final currentModel = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
     );
@@ -310,7 +319,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    'Sessione',
+                    strings.sessionHeader,
                     style: TextStyle(
                       color: tokens.displayText,
                       fontSize: 24,
@@ -332,7 +341,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 // Session settings; repository and Git status live in Git Changes.
                 // 1. Modello Attivo
                 Text(
-                  'Modello LLM',
+                  strings.modelHeader,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 12,
@@ -353,8 +362,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     : _models.isEmpty
                     ? Text(
                         currentModel == null
-                            ? 'Nessun modello abilitato in Pi.'
-                            : '$currentModel\nElenco modelli non disponibile.',
+                            ? strings.noModelEnabled
+                            : strings.modelListNotAvailable(currentModel),
                         style: TextStyle(color: tokens.textMuted, fontSize: 12),
                       )
                     : Container(
@@ -431,7 +440,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
 
                 // 2. Livello Reasoning / Thinking
                 Text(
-                  'Livello Thinking',
+                  strings.thinkingLevelHeader,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 12,
@@ -484,7 +493,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 const SizedBox(height: 16),
 
                 Text(
-                  'Dimensione Contesto',
+                  strings.contextSizeHeader,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 12,
@@ -499,7 +508,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Margine per compattazione (%)',
+                  strings.compactionMarginHeader,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 12,
@@ -528,28 +537,28 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('0,5–25% · Passo 0,5%', style: TextStyle(color: tokens.textMuted, fontSize: 10)),
+                    Text(strings.compactionMarginStep, style: TextStyle(color: tokens.textMuted, fontSize: 10)),
                     Text('${reserveValue.toStringAsFixed(1)}%',
                       style: TextStyle(color: tokens.textMuted, fontSize: 11)),
                   ],
                 ),
                 if (reservePercent < 0.5 || reservePercent > 25)
-                  Text('Margine salvato fuori intervallo: ${reservePercent.toStringAsFixed(1)}%. Trascina per aggiornarlo.',
+                  Text(strings.compactionMarginOutOfRange(reservePercent.toStringAsFixed(1)),
                     style: TextStyle(color: tokens.warning, fontSize: 10)),
                 const SizedBox(height: 4),
                 Text(
                   !autoCompaction
-                      ? 'Compattazione automatica disabilitata in Pi.'
+                      ? strings.autoCompactionDisabled
                       : effectiveWindow > 0
-                          ? 'Soglia: ${formatTokens(compactionThreshold.floor())} token; margine ${reservePercent.toStringAsFixed(1)}%. Pi può compattare prima se la sua riserva nativa è maggiore. Output singoli possono oltrepassare la soglia.'
-                          : 'Il margine resta inutilizzato prima della compattazione automatica.',
+                          ? strings.compactionThresholdInfo(formatTokens(compactionThreshold.floor()), reservePercent.toStringAsFixed(1))
+                          : strings.compactionMarginUnused,
                   style: TextStyle(color: tokens.textMuted, fontSize: 10),
                 ),
                 const SizedBox(height: 16),
 
                 // 4. Finestra di Contesto
                 Text(
-                  'Utilizzo Contesto',
+                  strings.contextUsageHeader,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 12,
@@ -579,8 +588,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   children: [
                     Text(
                       totalTokens == null
-                          ? 'Dati non disponibili'
-                          : '$totalTokens / ${formatTokens(effectiveWindow)} token',
+                          ? strings.dataNotAvailable
+                          : strings.contextTokensUsage(totalTokens, formatTokens(effectiveWindow)),
                       style: TextStyle(color: tokens.textMuted, fontSize: 11),
                     ),
                     if (effectivePercent != null)
@@ -621,7 +630,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                         )
                       : Icon(Icons.compress, size: 16, color: tokens.accent),
                   label: Text(
-                    _isCompacting ? 'Compattazione...' : 'Compatta contesto',
+                    _isCompacting ? strings.compactingLabel : strings.compactContextAction,
                   ),
                   onPressed: _isCompacting || readOnly
                       ? null
@@ -645,7 +654,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     size: 15,
                     color: tokens.textSecondary,
                   ),
-                  label: const Text('Duplica Ramo (Clone)'),
+                  label: Text(strings.duplicateBranchAction),
                   onPressed: _cloneSession,
                 ),
                 const SizedBox(height: 10),
@@ -666,7 +675,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     size: 15,
                     color: tokens.textSecondary,
                   ),
-                  label: const Text('Albero dei Rami (Tree)'),
+                  label: Text(strings.branchTreeAction),
                   onPressed: () => SessionTreeDialog.show(
                     context,
                     sessionId: widget.sessionId,

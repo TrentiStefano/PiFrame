@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 
 int parseTodoId(dynamic val) {
@@ -585,7 +587,8 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
           return _nextGeneratedId++;
         });
       }
-      final newSubject = subject ?? 'Nuovo task #$taskId';
+      final strings = ref.read(appStringsProvider);
+      final newSubject = subject ?? strings.todoNewTaskSubject(taskId);
       final newStatus = status ?? 'pending';
       final existing = tasks[taskId];
       if (existing != null) {
@@ -645,10 +648,13 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     // Optional: send steering message to daemon so agent is aware of manual toggle
     final client = ref.read(pcpClientProvider);
     if (client != null) {
-      final verb = newStatus == 'completed' ? 'completato' : 'da fare (pending)';
+      final strings = ref.read(appStringsProvider);
+      final verb = newStatus == 'completed'
+          ? strings.todoVerbCompleted
+          : strings.todoVerbPending;
       client.sendPrompt(
         sessionId,
-        'Nota utente: il task #$id "${task.subject}" è stato contrassegnato come $verb.',
+        strings.todoSteerPrompt(id, task.subject, verb),
         streamingBehavior: 'steer',
       ).catchError((_) => <String, dynamic>{});
     }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../data/language/language_settings.dart';
+import '../data/language/strings_shell.dart';
 import '../data/window/window_state_service.dart';
 
 // Set only after successful native initialization. Web and widget tests do not
@@ -22,10 +24,12 @@ class DesktopCaptionButtons extends StatefulWidget {
   final Future<bool> Function()? onCloseRequested;
   const DesktopCaptionButtons({super.key, this.onCloseRequested});
   @override
-  State<DesktopCaptionButtons> createState() => _DesktopCaptionButtonsState();
+  State<DesktopCaptionButtons> createState() =>
+      _DesktopCaptionButtonsState();
 }
 
-class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
+class _DesktopCaptionButtonsState
+    extends State<DesktopCaptionButtons>
     with WindowListener {
   bool _maximized = false;
   bool _closing = false;
@@ -75,6 +79,26 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final hasScope =
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
+            null ||
+        context.findAncestorWidgetOfExactType<ProviderScope>() != null;
+    if (hasScope) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final strings = ref.watch(appStringsProvider);
+          return _buildButtons(context, tokens, strings);
+        },
+      );
+    }
+    return _buildButtons(context, tokens, const AppStrings(AppLanguage.it));
+  }
+
+  Widget _buildButtons(
+    BuildContext context,
+    FrameTokens tokens,
+    AppStrings strings,
+  ) {
     Widget button(
       String label,
       IconData icon,
@@ -100,16 +124,16 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        button('Riduci a icona', Icons.remove, () => windowManager.minimize()),
+        button(strings.captionMinimize, Icons.remove, () => windowManager.minimize()),
         button(
-          _maximized ? 'Ripristina finestra' : 'Massimizza finestra',
+          _maximized ? strings.captionRestore : strings.captionMaximize,
           _maximized ? Icons.filter_none : Icons.crop_square,
           () => _maximized
               ? windowManager.unmaximize()
               : windowManager.maximize(),
         ),
         button(
-          'Chiudi finestra',
+          strings.captionClose,
           Icons.close,
           () => windowManager.close(),
           close: true,

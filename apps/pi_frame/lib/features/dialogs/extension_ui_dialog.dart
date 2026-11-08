@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../transcript/workflows_provider.dart';
 
 class ExtensionUiDialog extends ConsumerStatefulWidget {
@@ -275,7 +277,8 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     }
     final client = ref.read(pcpClientProvider);
     if (client == null) {
-      setState(() => _responseError = 'Daemon non connesso');
+      final strings = ref.read(appStringsProvider);
+      setState(() => _responseError = strings.composerDaemonNotConnected);
       return;
     }
     setState(() {
@@ -302,10 +305,11 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         _dismiss();
         return;
       }
+      final strings = ref.read(appStringsProvider);
       setState(() {
         _isResponding = false;
         _responseError = error is TimeoutException
-            ? 'Nessuna risposta dal daemon. Riprova.'
+            ? strings.extUiNoDaemonResponse
             : error.toString();
       });
     }
@@ -314,9 +318,10 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final method = widget.request['method']?.toString() ?? 'confirm';
     final rawTitle =
-        widget.request['title']?.toString() ?? 'Richiesta di Interazione';
+        widget.request['title']?.toString() ?? strings.extUiInteractionRequest;
     final message = widget.request['message']?.toString() ?? '';
     final rawPlaceholder = widget.request['placeholder']?.toString() ?? '';
     final placeholder = _isSecretInput
@@ -422,7 +427,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Un altro client sta rispondendo a questa richiesta.',
+                            strings.extUiLockedByOther,
                             style: TextStyle(
                               color: tokens.textPrimary,
                               fontSize: 12,
@@ -510,7 +515,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                                           ),
                                           decoration: InputDecoration(
                                             isDense: true,
-                                            hintText: 'Scrivi la risposta...',
+                                            hintText: strings.extUiCustomAnswerHint,
                                             contentPadding:
                                                 const EdgeInsets.symmetric(
                                                   horizontal: 10,
@@ -636,7 +641,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                       decoration: InputDecoration(
                         hintText: placeholder.isNotEmpty
                             ? placeholder
-                            : 'Inserisci testo...',
+                            : strings.extUiEnterTextHint,
                         contentPadding: const EdgeInsets.all(10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -671,7 +676,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                   : () => _sendResponse(cancelled: true),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
               child: Text(
-                'Annulla',
+                strings.cancel,
                 style: TextStyle(color: tokens.textSecondary, fontSize: 12),
               ),
             ),
@@ -715,7 +720,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 ),
               ),
               child: Text(
-                method == 'confirm' ? 'Conferma' : 'Invia',
+                method == 'confirm' ? strings.extUiConfirm : strings.extUiSend,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,

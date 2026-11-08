@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import '../../data/metrics/fps_counter.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
 import '../../data/metrics/system_metrics_controller.dart';
@@ -23,6 +25,7 @@ class NerdStatsBar extends ConsumerWidget {
     }
 
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final metrics = isWeb ? null : ref.watch(systemMetricsProvider);
     final fps = ref.watch(fpsProvider);
 
@@ -40,17 +43,18 @@ class NerdStatsBar extends ConsumerWidget {
     final diskVal = isStaleOrUnavailable ? null : metrics.diskPercent;
     final gpuVal = isStaleOrUnavailable ? null : metrics.gpuPercent;
 
+    final notAvailableStr = strings.nerdStatsNotAvailable;
     final cpuStr = isStaleOrUnavailable || metrics.cpuPercent == null
-        ? 'n/d'
+        ? notAvailableStr
         : formatCpuPercent(metrics.cpuPercent);
     final ramStr = isStaleOrUnavailable || metrics.memoryPercent == null
-        ? 'n/d'
+        ? notAvailableStr
         : formatResourcePercent(metrics.memoryPercent);
     final diskStr = isStaleOrUnavailable || metrics.diskPercent == null
-        ? 'n/d'
+        ? notAvailableStr
         : formatResourcePercent(metrics.diskPercent);
     final gpuStr = isStaleOrUnavailable || metrics.gpuPercent == null
-        ? 'n/d'
+        ? notAvailableStr
         : formatResourcePercent(metrics.gpuPercent);
 
     return Tooltip(

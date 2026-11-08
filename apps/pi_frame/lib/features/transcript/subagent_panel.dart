@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import 'subagents_provider.dart';
 import 'workflows_provider.dart';
 
@@ -56,6 +58,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
   Widget build(BuildContext context) {
     final sessionId = widget.sessionId;
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final agents = ref.watch(subagentsFamily(sessionId));
     final workflows = ref.watch(workflowsFamily(sessionId));
     final open = ref.watch(agentActivityPanelOpenProvider(sessionId));
@@ -116,7 +119,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                       quarterTurns: 3,
                       child: Center(
                         child: Text(
-                          running > 0 ? 'AGENTI · $running ATTIVI' : 'AGENTI',
+                          running > 0
+                              ? strings.subagentsStripActive(running)
+                              : strings.subagentsStripIdle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 10,
@@ -161,6 +166,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final workflows = ref.watch(workflowsFamily(widget.sessionId)).reversed.toList();
     final runningCount = subagents.where((s) => s.isRunning).length +
@@ -169,7 +175,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
     final agents = subagents.where((s) => !s.isUnlinked).toList();
     final knownCost = agents.fold<double>(0, (total, s) => total + (s.cost ?? 0));
     final costLabel =
-        '${agents.any((s) => s.cost == null) ? 'Parziale ' : ''}\$${knownCost.toStringAsFixed(4)}';
+        '${agents.any((s) => s.cost == null) ? strings.subagentsPartialCostPrefix : ''}\$${knownCost.toStringAsFixed(4)}';
 
     return Column(
       key: const ValueKey('agent-activity-panel'),
@@ -187,7 +193,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
               Icon(Icons.hub_outlined, size: 15, color: tokens.syntaxFunction),
               const SizedBox(width: 8),
               Text(
-                'Agenti',
+                strings.subagentsPanelTitle,
                 style: TextStyle(
                   color: tokens.textPrimary,
                   fontSize: 12.5,
@@ -212,7 +218,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 _StatusDot(running: true),
                 const SizedBox(width: 4),
                 Text(
-                  '$runningCount in esecuzione',
+                  strings.subagentsRunningCount(runningCount),
                   style: TextStyle(color: tokens.syntaxKeyword, fontSize: 10.5),
                 ),
               ],
@@ -223,7 +229,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   padding: EdgeInsets.zero,
-                  tooltip: 'Chiudi pannello agenti',
+                  tooltip: strings.subagentsCloseTooltip,
                   icon: Icon(Icons.chevron_right, size: 18, color: tokens.textMuted),
                   onPressed: widget.onClose,
                 ),
@@ -333,11 +339,11 @@ String _elapsed(int? from, int? to) {
   return '${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}m';
 }
 
-(String, Color) _statusStyle(FrameTokens tokens, String status) => switch (status) {
-      'running' || 'steering' => ('In corso', tokens.agentWorking),
-      'error' => ('Errore', tokens.agentError),
-      'stopped' => ('Fermato', tokens.textMuted),
-      _ => ('Completato', tokens.success),
+(String, Color) _statusStyle(FrameTokens tokens, AppStrings strings, String status) => switch (status) {
+      'running' || 'steering' => (strings.subagentStatusInProgress, tokens.agentWorking),
+      'error' => (strings.subagentStatusError, tokens.agentError),
+      'stopped' => (strings.subagentStatusStopped, tokens.textMuted),
+      _ => (strings.subagentStatusCompleted, tokens.success),
     };
 
 Color _typeColor(FrameTokens tokens, String? type) {
@@ -449,14 +455,15 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     } else if (_pulse.isAnimating) {
       _pulse.stop();
     }
+    final strings = ref.watch(appStringsProvider);
     final notifier = ref.read(subagentsFamily(widget.sessionId).notifier);
     final agentNodes = nodes.where((n) => n.agent != null);
     final working = agentNodes.where((n) => n.isRunning).length;
     final runCount = widget.workflows.length;
     final summary = [
       if (runCount > 0) '$runCount workflow',
-      '${agentNodes.length} agenti',
-      working > 0 ? '$working al lavoro' : 'tutti fermi',
+      strings.subagentsCount(agentNodes.length),
+      working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
     ].join(' · ');
 
     return ListView(
@@ -476,7 +483,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
             running: false,
             pulse: _pulse,
           ),
-          title: 'Sessione principale',
+          title: strings.subagentMainSession,
           subtitle: Text(
             summary,
             style: TextStyle(color: context.tokens.textMuted, fontSize: 10.5),
@@ -486,22 +493,22 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           _Entrance(
             key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
             child: node.run != null
-                ? _workflowRow(node)
-                : _agentRow(node, notifier),
+                ? _workflowRow(node, strings)
+                : _agentRow(node, notifier, strings),
           ),
       ],
     );
   }
 
-  Widget _workflowRow(_TreeNode node) {
+  Widget _workflowRow(_TreeNode node, AppStrings strings) {
     final tokens = context.tokens;
     final run = node.run!;
     final done = node.runChildren.where((c) => !c.isRunning).length;
     final working = node.runChildren.where((c) => c.isRunning).length;
-    final (statusLabel, statusColor) = _statusStyle(tokens, run.status);
+    final (statusLabel, statusColor) = _statusStyle(tokens, strings, run.status);
     final counts = node.runChildren.isEmpty
-        ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? 'In avvio…' : ''))
-        : '$done/${node.runChildren.length} agenti finiti${working > 0 ? ' · $working al lavoro' : ''}';
+        ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? strings.workflowStarting : ''))
+        : strings.subagentsFinishedWorking(done, node.runChildren.length, working);
     final expanded = _expandedIds.contains(run.id);
     return _TreeRow(
       key: ValueKey('workflow-card-${run.id}'),
@@ -548,14 +555,14 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           ],
         ],
       ),
-      details: expanded ? _WorkflowDetails(run: run, hasChildren: node.runChildren.isNotEmpty) : null,
+      details: expanded ? _WorkflowDetails(run: run, hasChildren: node.runChildren.isNotEmpty, strings: strings) : null,
     );
   }
 
-  Widget _agentRow(_TreeNode node, SubagentsNotifier notifier) {
+  Widget _agentRow(_TreeNode node, SubagentsNotifier notifier, AppStrings strings) {
     final tokens = context.tokens;
     final agent = node.agent!;
-    final (statusLabel, statusColor) = _statusStyle(tokens, agent.status);
+    final (statusLabel, statusColor) = _statusStyle(tokens, strings, agent.status);
     final color = _typeColor(tokens, agent.agentType ?? agent.name);
     final expanded = _expandedIds.contains(agent.id);
     // Workflow children have no name of their own; their task line says what they do.
@@ -564,8 +571,8 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final meta = [
       if (type != null && type.isNotEmpty) type,
       // Unknown stays unknown: never shown as a zero cost.
-      agent.model ?? 'N/D',
-      agent.cost == null ? 'N/D' : '\$${agent.cost!.toStringAsFixed(4)}',
+      agent.model ?? strings.transcriptNotAvailable,
+      agent.cost == null ? strings.transcriptNotAvailable : '\$${agent.cost!.toStringAsFixed(4)}',
     ].join(' · ');
     return _TreeRow(
       key: ValueKey(agent.isUnlinked ? 'unlinked-session-${agent.id}' : 'subagent-card-${agent.id}'),
@@ -611,6 +618,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       details: expanded
           ? _AgentDetails(
               agent: agent,
+              strings: strings,
               onSteer: (msg) => notifier.steerSubagent(agent.id, msg),
               onStop: () => notifier.stopSubagent(agent.id),
               onToggleSteeringBox: () => notifier.toggleSteering(agent.id),
@@ -1089,7 +1097,8 @@ class _PhaseTrack extends StatelessWidget {
 class _WorkflowDetails extends StatefulWidget {
   final WorkflowItem run;
   final bool hasChildren;
-  const _WorkflowDetails({required this.run, required this.hasChildren});
+  final AppStrings? strings;
+  const _WorkflowDetails({required this.run, required this.hasChildren, this.strings});
 
   @override
   State<_WorkflowDetails> createState() => _WorkflowDetailsState();
@@ -1155,6 +1164,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = widget.strings ?? safeTranscriptStrings(context);
     final run = widget.run;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1179,7 +1189,10 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
                 const SizedBox(width: 5),
                 Expanded(
                   child: Text(
-                    'Agente #${entry.index + 1}${entry.text.isEmpty ? '' : ': ${entry.text.trim().split('\n').first}'}',
+                    strings.workflowJournalAgent(
+                      entry.index,
+                      entry.text.isEmpty ? '' : entry.text.trim().split('\n').first,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: tokens.textSecondary, fontSize: 11),
@@ -1192,7 +1205,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
           _OutputBox(text: run.result)
         else if (_journal.isEmpty && !widget.hasChildren)
           Text(
-            run.isRunning ? 'In attesa del primo agente…' : 'Nessun risultato registrato.',
+            run.isRunning ? strings.workflowWaitingFirstAgent : strings.workflowNoResultsRecorded,
             style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
           ),
       ],
@@ -1239,12 +1252,14 @@ class _AgentDetails extends StatefulWidget {
   final ValueChanged<String> onSteer;
   final VoidCallback onStop;
   final VoidCallback onToggleSteeringBox;
+  final AppStrings? strings;
 
   const _AgentDetails({
     required this.agent,
     required this.onSteer,
     required this.onStop,
     required this.onToggleSteeringBox,
+    this.strings,
   });
 
   @override
@@ -1270,6 +1285,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = widget.strings ?? safeTranscriptStrings(context);
     final agent = widget.agent;
     final task = agent.isUnlinked ? null : (agent.description ?? agent.prompt);
     return Column(
@@ -1296,7 +1312,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                   onPressed: agent.isRunning ? widget.onToggleSteeringBox : null,
                   icon: Icon(Icons.alt_route, size: 13, color: tokens.syntaxFunction),
                   label: Text(
-                    agent.isSteeringOpen ? 'Chiudi guida' : 'Guida',
+                    agent.isSteeringOpen ? strings.subagentSteerClose : strings.subagentSteer,
                     style: TextStyle(fontSize: 11, color: tokens.textSecondary),
                   ),
                 ),
@@ -1313,7 +1329,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     color: agent.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
                   ),
                   label: Text(
-                    agent.isRunning ? 'Interrompi' : 'Terminato',
+                    agent.isRunning ? strings.subagentStop : strings.subagentFinished,
                     style: TextStyle(fontSize: 11, color: tokens.textSecondary),
                   ),
                 ),
@@ -1335,7 +1351,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                     decoration: InputDecoration(
                       isDense: true,
-                      hintText: 'Nuova istruzione per l\'agente…',
+                      hintText: strings.subagentSteerInputHint,
                       hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
                       filled: true,
                       fillColor: tokens.background,
@@ -1359,7 +1375,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
           _OutputBox(text: agent.output)
         else
           Text(
-            agent.isRunning ? 'L\'agente sta lavorando…' : 'Nessun output registrato.',
+            agent.isRunning ? strings.subagentWorkingOutput : strings.subagentNoOutputRecorded,
             style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
           ),
       ],
@@ -1374,6 +1390,7 @@ class SubagentExpandableCard extends StatefulWidget {
   final ValueChanged<String> onSteer;
   final VoidCallback onStop;
   final VoidCallback onToggleSteeringBox;
+  final AppStrings? strings;
 
   const SubagentExpandableCard({
     super.key,
@@ -1383,6 +1400,7 @@ class SubagentExpandableCard extends StatefulWidget {
     required this.onSteer,
     required this.onStop,
     required this.onToggleSteeringBox,
+    this.strings,
   });
 
   @override
@@ -1410,6 +1428,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = widget.strings ?? safeTranscriptStrings(context);
     final sub = widget.subagent;
 
     return Container(
@@ -1459,7 +1478,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                             // Always display the model used for each subagent
                             Flexible(
                               child: Text(
-                                sub.model != null && sub.model!.isNotEmpty ? sub.model! : 'N/D',
+                                sub.model != null && sub.model!.isNotEmpty
+                                    ? sub.model!
+                                    : strings.transcriptNotAvailable,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -1471,7 +1492,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              sub.cost == null ? 'N/D' : '\$${sub.cost!.toStringAsFixed(4)}',
+                              sub.cost == null
+                                  ? strings.transcriptNotAvailable
+                                  : '\$${sub.cost!.toStringAsFixed(4)}',
                               style: TextStyle(
                                 color: tokens.syntaxString,
                                 fontSize: 10,
@@ -1527,7 +1550,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           color: sub.isSteeringOpen ? tokens.textMuted : tokens.syntaxFunction,
                         ),
                         label: Text(
-                          sub.isSteeringOpen ? 'Chiudi guida' : 'Guida',
+                          sub.isSteeringOpen
+                              ? strings.subagentSteerClose
+                              : strings.subagentSteer,
                           style: TextStyle(fontSize: 11, color: tokens.textSecondary),
                         ),
                         onPressed: widget.onToggleSteeringBox,
@@ -1542,7 +1567,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           color: sub.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
                         ),
                         label: Text(
-                          sub.isRunning ? 'Interrompi' : 'Terminato',
+                          sub.isRunning
+                              ? strings.subagentStop
+                              : strings.subagentFinished,
                           style: TextStyle(fontSize: 11, color: tokens.textSecondary),
                         ),
                         onPressed: sub.isRunning ? widget.onStop : null,
@@ -1577,7 +1604,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                'Guida manuale subagente',
+                                strings.subagentManualSteeringTitle,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
                                   fontSize: 11,
@@ -1599,8 +1626,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                     fontSize: 12,
                                   ),
                                   decoration: InputDecoration(
-                                    hintText:
-                                        'Invia istruzioni per guidare il subagente...',
+                                    hintText: strings.subagentManualSteeringHint,
                                     hintStyle: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 11.5,
@@ -1643,8 +1669,8 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 icon: const Icon(Icons.send, size: 12),
-                                label: const Text('Invia',
-                                    style: TextStyle(fontSize: 11)),
+                                label: Text(strings.subagentSendButton,
+                                    style: const TextStyle(fontSize: 11)),
                                 onPressed: _submitSteer,
                               ),
                             ],
@@ -1686,11 +1712,11 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                               child: Text(
                                 sub.isRunning
                                     ? (sub.description != null && sub.description!.isNotEmpty
-                                        ? 'Attività: ${sub.description}\n\nIn attesa di output dal subagente...'
-                                        : 'In attesa di output dal subagente...')
+                                        ? strings.subagentWaitingWithTask(sub.description!)
+                                        : strings.subagentWaitingOutput)
                                     : (sub.description != null && sub.description!.isNotEmpty
-                                        ? 'Attività: ${sub.description}\n\nCompletato.'
-                                        : 'Nessun output registrato per questo subagente.'),
+                                        ? strings.subagentCompletedWithTask(sub.description!)
+                                        : strings.subagentNoOutputForThis),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: tokens.textMuted,
@@ -1714,34 +1740,35 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
     Color color;
     IconData icon;
     String label;
+    final strings = widget.strings ?? safeTranscriptStrings(context);
 
     switch (status) {
       case 'running':
         color = tokens.syntaxKeyword;
         icon = Icons.refresh;
-        label = 'In corso';
+        label = strings.subagentStatusInProgress;
         break;
       case 'steering':
       case 'steered':
         color = tokens.syntaxFunction;
         icon = Icons.alt_route;
-        label = 'Guidato';
+        label = strings.subagentStatusSteered;
         break;
       case 'stopped':
         color = tokens.textMuted;
         icon = Icons.stop_circle_outlined;
-        label = 'Fermato';
+        label = strings.subagentStatusStopped;
         break;
       case 'error':
         color = tokens.danger;
         icon = Icons.error_outline;
-        label = 'Errore';
+        label = strings.subagentStatusError;
         break;
       case 'completed':
       default:
         color = tokens.syntaxFunction;
         icon = Icons.check_circle_outline;
-        label = 'Completato';
+        label = strings.subagentStatusCompleted;
         break;
     }
 
