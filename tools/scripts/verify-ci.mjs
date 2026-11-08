@@ -19,7 +19,6 @@
  */
 import { spawnSync, execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -127,7 +126,9 @@ for (const w of warnings) console.warn(yellow(`! ${w}`));
 // Temporary worktree = HEAD + origin/main
 // ---------------------------------------------------------------------------
 
-const work = path.join(os.tmpdir(), `piframe-verify-${process.pid}`);
+// NOT under os.tmpdir(): some agentd tests use process.cwd() as a session cwd and the session index
+// ignores sessions located in the OS temp dir, so they fail when the repo itself lives there.
+const work = `${REPO}-verify-${process.pid}`;
 let worktreeCreated = false;
 function cleanup() {
   if (!worktreeCreated || opt.keep) return;

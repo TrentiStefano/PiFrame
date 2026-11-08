@@ -24,7 +24,7 @@ Opzioni (valgono per entrambi; con `pnpm` vanno dopo `--`):
 
 ## Cosa controlla
 
-`verify` controlla il **commit** corrente (`HEAD`) con dentro `origin/main`, in un worktree temporaneo fuori dal repo. Così verifica ciò che `main` diventerà dopo il merge, non solo il tuo ramo. Se il merge con `origin/main` ha conflitti, si ferma e te lo dice.
+`verify` controlla il **commit** corrente (`HEAD`) con dentro `origin/main`, in un worktree temporaneo accanto al repo (`<repo>-verify-<pid>`, non nella cartella temp del sistema: alcuni test falliscono se il repo sta lì). Così verifica ciò che `main` diventerà dopo il merge, non solo il tuo ramo. Se il merge con `origin/main` ha conflitti, si ferma e te lo dice.
 
 Passi (nello stesso ordine dei workflow):
 
