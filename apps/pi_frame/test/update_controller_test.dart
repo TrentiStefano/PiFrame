@@ -70,14 +70,14 @@ void main() {
 
     test('sets updateAvailable when GitHub has newer version', () async {
       client.nextRelease = AppRelease(
-        tagName: 'v1.4.0',
-        name: 'PiFrame v1.4.0',
+        tagName: 'v99.0.0',
+        name: 'PiFrame v99.0.0',
         body: 'Awesome update',
-        htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.4.0',
+        htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v99.0.0',
         assets: [
           const ReleaseAsset(
-            name: 'PiFrame-Setup-1.4.0-windows-x64.exe',
-            downloadUrl: 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
+            name: 'PiFrame-Setup-99.0.0-windows-x64.exe',
+            downloadUrl: 'https://github.com/TrentiStefano/piframe/releases/download/v99.0.0/PiFrame-Setup-99.0.0-windows-x64.exe',
             size: 100000,
             contentType: 'application/octet-stream',
           ),
@@ -89,9 +89,9 @@ void main() {
 
       final state = container.read(updateControllerProvider);
       expect(state.status, UpdateStatus.updateAvailable);
-      expect(state.latestRelease?.tagName, 'v1.4.0');
+      expect(state.latestRelease?.tagName, 'v99.0.0');
       expect(state.selectedAsset, isNotNull);
-      expect(state.selectedAsset?.name, contains('1.4.0'));
+      expect(state.selectedAsset?.name, contains('99.0.0'));
       expect(container.read(hasUpdateBadgeProvider), isTrue);
 
       final settings = container.read(updateSettingsProvider);
@@ -128,8 +128,8 @@ void main() {
 
     test('downloads update and handles installation launch', () async {
       final release = AppRelease(
-        tagName: 'v1.4.0',
-        name: 'v1.4.0',
+        tagName: 'v99.0.0',
+        name: 'v99.0.0',
         body: 'Changelog',
         htmlUrl: 'https://github.com/test',
         assets: [
@@ -154,7 +154,7 @@ void main() {
 
       await controller.installUpdate();
       expect(launcher.launchedFilePath, downloadedState.downloadedFilePath);
-      expect(launcher.launchedRelease?.tagName, 'v1.4.0');
+      expect(launcher.launchedRelease?.tagName, 'v99.0.0');
     });
 
     test('update settings can toggle auto-check and change interval', () async {
