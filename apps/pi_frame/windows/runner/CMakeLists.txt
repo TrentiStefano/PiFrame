@@ -38,3 +38,14 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# Always copy the daemon bundle directly beside the executable upon build
+set(AGENTD_BUNDLE "${CMAKE_SOURCE_DIR}/../../agentd/dist/pi-agentd.cjs")
+if(EXISTS "${AGENTD_BUNDLE}")
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${AGENTD_BUNDLE}"
+      "$<TARGET_FILE_DIR:${BINARY_NAME}>/pi-agentd.cjs"
+    COMMENT "Syncing pi-agentd.cjs to build directory"
+  )
+endif()

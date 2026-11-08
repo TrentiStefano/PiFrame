@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../data/theme/theme_providers.dart';
 import '../../ui/frame_snack_bar.dart';
 
@@ -83,6 +84,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
 
   Future<void> _openColorPicker(String key, String title, Color currentColor, {bool isSyntax = false}) async {
     final tokens = context.tokens;
+    final strings = ref.read(appStringsProvider);
     final hexController = TextEditingController(
       text: '#${currentColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
     );
@@ -154,7 +156,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Colori Suggeriti',
+                    strings.themeEditorSuggestedColors,
                     style: TextStyle(color: tokens.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
@@ -192,14 +194,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
-                child: Text('Annulla', style: TextStyle(color: tokens.textMuted)),
+                child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
               ),
               FilledButton(
                 onPressed: () {
                   _setColor(key, selectedColor, isSyntax: isSyntax);
                   Navigator.pop(dialogCtx);
                 },
-                child: const Text('Applica'),
+                child: Text(strings.themeEditorApplyColor),
               ),
             ],
           );
@@ -210,8 +212,9 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
 
   Future<void> _saveAndApplyTheme() async {
     final name = _nameController.text.trim();
+    final strings = ref.read(appStringsProvider);
     if (name.isEmpty) {
-      setState(() => _errorMessage = 'Il nome del tema non può essere vuoto');
+      setState(() => _errorMessage = strings.themeEditorNameEmptyError);
       return;
     }
 
@@ -246,13 +249,13 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
         Navigator.of(context).pop();
         FrameSnackBar.show(
           context,
-          message: 'Tema "$name" salvato e attivato con successo!',
+          message: strings.themeEditorSavedSuccess(name),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Errore durante il salvataggio: $e';
+          _errorMessage = strings.themeEditorSaveError(e);
           _isSaving = false;
         });
       }
@@ -309,7 +312,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     );
   }
 
-  Widget _buildLivePreview(FrameTokens currentTokens) {
+  Widget _buildLivePreview(FrameTokens currentTokens, AppStrings strings) {
     // Generate simulated tokens from the user's customized colors
     final bg = _resolveColor('background', fallback: currentTokens.background);
     final surf = _resolveColor('surface', fallback: currentTokens.surface);
@@ -343,7 +346,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Anteprima Componenti',
+                  strings.previewLabel,
                   style: TextStyle(
                     color: txtPrim,
                     fontSize: 13,
@@ -366,7 +369,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                   children: [
                     Container(width: 6, height: 6, decoration: BoxDecoration(color: wrk, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text('In corso', style: TextStyle(color: wrk, fontSize: 10, fontWeight: FontWeight.bold)),
+                    Text(strings.themeEditorPreviewWorking, style: TextStyle(color: wrk, fontSize: 10, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -383,9 +386,9 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Scheda Bento & Superfici', style: TextStyle(color: txtPrim, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(strings.themeEditorPreviewBentoCard, style: TextStyle(color: txtPrim, fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text('Testo secondario / descrittivo del tema in modifica.', style: TextStyle(color: txtMut, fontSize: 11)),
+                Text(strings.themeEditorPreviewBentoDesc, style: TextStyle(color: txtMut, fontSize: 11)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -397,7 +400,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                         color: acc,
                         borderRadius: BorderRadius.circular(currentTokens.radiusSm),
                       ),
-                      child: Text('Pulsante Accento', style: TextStyle(color: accTxt, fontSize: 11, fontWeight: FontWeight.w600)),
+                      child: Text(strings.themeEditorPreviewAccentBtn, style: TextStyle(color: accTxt, fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -406,7 +409,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                         borderRadius: BorderRadius.circular(currentTokens.radiusSm),
                         border: Border.all(color: brd),
                       ),
-                      child: Text('Pulsante Secondario', style: TextStyle(color: txtPrim, fontSize: 11)),
+                      child: Text(strings.themeEditorPreviewSecondaryBtn, style: TextStyle(color: txtPrim, fontSize: 11)),
                     ),
                     Icon(Icons.check_circle, size: 16, color: succ),
                   ],
@@ -427,7 +430,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               text: TextSpan(
                 style: TextStyle(fontFamily: currentTokens.monoFontFamily, fontSize: 11),
                 children: [
-                  TextSpan(text: '// Codice di esempio\n', style: TextStyle(color: synCm)),
+                  TextSpan(text: strings.themeEditorPreviewCodeComment, style: TextStyle(color: synCm)),
                   TextSpan(text: 'const ', style: TextStyle(color: synKw, fontWeight: FontWeight.bold)),
                   TextSpan(text: 'answer', style: TextStyle(color: synFn)),
                   TextSpan(text: ' = ', style: TextStyle(color: txtPrim)),
@@ -615,43 +618,43 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           children: [
                             Text(strings.catSurfaces, style: TextStyle(color: tokens.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            _buildColorRow('background', 'Sfondo Principale', tokens: tokens, fallback: tokens.background),
-                            _buildColorRow('surface', 'Superficie Bento (Card)', tokens: tokens, fallback: tokens.surface),
-                            _buildColorRow('surfaceElevated', 'Superficie Elevata (Pannelli)', tokens: tokens, fallback: tokens.surfaceElevated),
-                            _buildColorRow('border', 'Bordi & Separatori', tokens: tokens, fallback: tokens.border),
-                            _buildColorRow('borderStrong', 'Bordi Evidenziati', tokens: tokens, fallback: tokens.borderStrong),
+                            _buildColorRow('background', strings.colorLabelBackground, tokens: tokens, fallback: tokens.background),
+                            _buildColorRow('surface', strings.colorLabelSurface, tokens: tokens, fallback: tokens.surface),
+                            _buildColorRow('surfaceElevated', strings.colorLabelSurfaceElevated, tokens: tokens, fallback: tokens.surfaceElevated),
+                            _buildColorRow('border', strings.colorLabelBorder, tokens: tokens, fallback: tokens.border),
+                            _buildColorRow('borderStrong', strings.colorLabelBorderStrong, tokens: tokens, fallback: tokens.borderStrong),
 
                             const SizedBox(height: 12),
                             Text(strings.catAccents, style: TextStyle(color: tokens.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            _buildColorRow('accent', 'Colore Accento (Primario)', tokens: tokens, fallback: tokens.accent),
-                            _buildColorRow('accentContrast', 'Testo su Accento', tokens: tokens, fallback: tokens.accentContrast),
-                            _buildColorRow('focusRing', 'Focus Ring / Selezione', tokens: tokens, fallback: tokens.focusRing),
+                            _buildColorRow('accent', strings.colorLabelAccent, tokens: tokens, fallback: tokens.accent),
+                            _buildColorRow('accentContrast', strings.colorLabelAccentContrast, tokens: tokens, fallback: tokens.accentContrast),
+                            _buildColorRow('focusRing', strings.colorLabelFocusRing, tokens: tokens, fallback: tokens.focusRing),
 
                             const SizedBox(height: 12),
                             Text(strings.catText, style: TextStyle(color: tokens.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            _buildColorRow('textPrimary', 'Testo Primario', tokens: tokens, fallback: tokens.textPrimary),
-                            _buildColorRow('textSecondary', 'Testo Secondario', tokens: tokens, fallback: tokens.textSecondary),
-                            _buildColorRow('textMuted', 'Testo Disattivato / Muted', tokens: tokens, fallback: tokens.textMuted),
+                            _buildColorRow('textPrimary', strings.colorLabelTextPrimary, tokens: tokens, fallback: tokens.textPrimary),
+                            _buildColorRow('textSecondary', strings.colorLabelTextSecondary, tokens: tokens, fallback: tokens.textSecondary),
+                            _buildColorRow('textMuted', strings.colorLabelTextMuted, tokens: tokens, fallback: tokens.textMuted),
 
                             const SizedBox(height: 12),
                             Text(strings.catAgent, style: TextStyle(color: tokens.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            _buildColorRow('agentWorking', 'Agente in Corso (Working)', tokens: tokens, fallback: tokens.agentWorking),
-                            _buildColorRow('agentSettled', 'Agente Riposo (Settled)', tokens: tokens, fallback: tokens.agentSettled),
-                            _buildColorRow('agentRetrying', 'Agente Riprova (Retrying)', tokens: tokens, fallback: tokens.agentRetrying),
-                            _buildColorRow('agentCompacting', 'Agente Compattazione', tokens: tokens, fallback: tokens.agentCompacting),
-                            _buildColorRow('danger', 'Errore / Pericolo (Danger)', tokens: tokens, fallback: tokens.danger),
+                            _buildColorRow('agentWorking', strings.colorLabelAgentWorking, tokens: tokens, fallback: tokens.agentWorking),
+                            _buildColorRow('agentSettled', strings.colorLabelAgentSettled, tokens: tokens, fallback: tokens.agentSettled),
+                            _buildColorRow('agentRetrying', strings.colorLabelAgentRetrying, tokens: tokens, fallback: tokens.agentRetrying),
+                            _buildColorRow('agentCompacting', strings.colorLabelAgentCompacting, tokens: tokens, fallback: tokens.agentCompacting),
+                            _buildColorRow('danger', strings.colorLabelDanger, tokens: tokens, fallback: tokens.danger),
 
                             const SizedBox(height: 12),
                             Text(strings.catSyntax, style: TextStyle(color: tokens.accent, fontSize: 12, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
-                            _buildColorRow('keyword', 'Parole Chiave (Keyword)', isSyntax: true, tokens: tokens, fallback: tokens.syntaxKeyword),
-                            _buildColorRow('function', 'Funzioni / Metodi (Function)', isSyntax: true, tokens: tokens, fallback: tokens.syntaxFunction),
-                            _buildColorRow('string', 'Stringhe (String)', isSyntax: true, tokens: tokens, fallback: tokens.syntaxString),
-                            _buildColorRow('number', 'Numeri (Number)', isSyntax: true, tokens: tokens, fallback: tokens.syntaxNumber),
-                            _buildColorRow('comment', 'Commenti (Comment)', isSyntax: true, tokens: tokens, fallback: tokens.syntaxComment),
+                            _buildColorRow('keyword', strings.colorLabelKeyword, isSyntax: true, tokens: tokens, fallback: tokens.syntaxKeyword),
+                            _buildColorRow('function', strings.colorLabelFunction, isSyntax: true, tokens: tokens, fallback: tokens.syntaxFunction),
+                            _buildColorRow('string', strings.colorLabelString, isSyntax: true, tokens: tokens, fallback: tokens.syntaxString),
+                            _buildColorRow('number', strings.colorLabelNumber, isSyntax: true, tokens: tokens, fallback: tokens.syntaxNumber),
+                            _buildColorRow('comment', strings.colorLabelComment, isSyntax: true, tokens: tokens, fallback: tokens.syntaxComment),
                           ],
                         ),
                       ),
@@ -665,7 +668,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildLivePreview(tokens),
+                            _buildLivePreview(tokens, strings),
                             if (_errorMessage != null) ...[
                               const SizedBox(height: 12),
                               Text(

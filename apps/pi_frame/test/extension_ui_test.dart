@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/features/dialogs/extension_ui_dialog.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/features/transcript/workflows_provider.dart';
 
 class DialogClient extends PcpClient {
   bool responded = false;
@@ -143,5 +144,36 @@ void main() {
     expect(find.text('Development'), findsOneWidget);
     expect(find.text('Staging'), findsOneWidget);
     expect(find.text('Production'), findsOneWidget);
+  });
+
+  testWidgets('/agents Workflows choice cancels the menu and opens the PiFrame panel', (tester) async {
+    final client = DialogClient();
+    final container = ProviderContainer(
+      overrides: [pcpClientProvider.overrideWithValue(client)],
+    );
+    addTearDown(() {
+      container.dispose();
+      client.dispose();
+    });
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+        home: const Scaffold(body: ExtensionUiDialog(
+          sessionId: 's_agents',
+          request: {
+            'requestId': 'agents_1', 'method': 'select', 'title': 'Agents',
+            'options': ['Workflows (1)', 'Create new agent', 'Settings'], 'dialog': true,
+          },
+          isCard: true,
+        )),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Workflows (1)'));
+    await tester.tap(find.text('Invia'));
+    await tester.pumpAndSettle();
+    expect(client.cancelled, isTrue);
+    expect(container.read(agentActivityPanelOpenProvider('s_agents')), isTrue);
   });
 }

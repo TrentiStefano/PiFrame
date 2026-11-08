@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
@@ -27,6 +29,14 @@ class SessionChangesPane extends ConsumerStatefulWidget {
 }
 
 class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
+  AppStrings _getStrings() {
+    try {
+      return ref.watch(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +64,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = _getStrings();
     final changes = ref.watch(sessionChangesProvider(widget.sessionId));
     final expandedFiles = ref.watch(
       expandedReviewFilesProvider(widget.sessionId),
@@ -215,8 +226,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                 // Diff View Mode Toggle Button
                 Tooltip(
                   message: diffMode == DiffViewMode.singleColumn
-                      ? 'Passa a visualizzazione a 2 colonne'
-                      : 'Passa a visualizzazione a colonna singola',
+                      ? strings.twoColumnDiffTooltip
+                      : strings.singleColumnDiffTooltip,
                   child: InkWell(
                     key: const ValueKey('toggle-diff-mode-btn'),
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -272,7 +283,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     minHeight: 26,
                   ),
                   icon: const Icon(Icons.refresh, size: 16),
-                  tooltip: 'Aggiorna modifiche',
+                  tooltip: strings.refreshSessionChangesTooltip,
                   onPressed: () {
                     ref
                         .read(sessionChangesProvider(widget.sessionId).notifier)
@@ -291,7 +302,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                       minHeight: 26,
                     ),
                     icon: const Icon(Icons.close, size: 16),
-                    tooltip: 'Chiudi revisione',
+                    tooltip: strings.closeReviewTooltip,
                     onPressed: widget.onClose,
                   ),
                 ],
@@ -322,7 +333,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Nessun file modificato in questa sessione.',
+                            strings.noModifiedFilesInSession,
                             style: TextStyle(
                               color: tokens.textMuted,
                               fontSize: 12,

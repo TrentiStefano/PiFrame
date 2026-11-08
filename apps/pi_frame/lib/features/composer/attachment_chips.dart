@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../domain/session/attachment_model.dart';
 
-class WebLinkInputDialog extends StatefulWidget {
+class WebLinkInputDialog extends ConsumerStatefulWidget {
   const WebLinkInputDialog({super.key});
 
   static Future<ChatAttachment?> show(BuildContext context) {
@@ -17,10 +20,10 @@ class WebLinkInputDialog extends StatefulWidget {
   }
 
   @override
-  State<WebLinkInputDialog> createState() => _WebLinkInputDialogState();
+  ConsumerState<WebLinkInputDialog> createState() => _WebLinkInputDialogState();
 }
 
-class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
+class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
   final _urlController = TextEditingController();
   final _nameController = TextEditingController();
   String? _error;
@@ -33,9 +36,10 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
   }
 
   void _submit() {
+    final strings = ref.read(appStringsProvider);
     final rawUrl = _urlController.text.trim();
     if (rawUrl.isEmpty) {
-      setState(() => _error = 'Inserisci un URL valido');
+      setState(() => _error = strings.attEnterValidUrl);
       return;
     }
 
@@ -47,7 +51,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
 
     final uri = Uri.tryParse(formattedUrl);
     if (uri == null || !uri.hasAuthority) {
-      setState(() => _error = 'Formato URL non valido');
+      setState(() => _error = strings.attInvalidUrlFormat);
       return;
     }
 
@@ -67,6 +71,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     return Dialog(
       backgroundColor: tokens.surfaceElevated,
       shape: RoundedRectangleBorder(
@@ -93,7 +98,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Aggiungi Link Web',
+                    strings.attAddWebLinkTitle,
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 15,
@@ -132,8 +137,8 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
                 controller: _nameController,
                 style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
-                  labelText: 'Titolo o etichetta (opzionale)',
-                  hintText: 'Documentazione API, PR GitHub...',
+                  labelText: strings.attTitleOptional,
+                  hintText: strings.attTitleHint,
                   prefixIcon: const Icon(Icons.label_outline, size: 16),
                   filled: true,
                   fillColor: tokens.background,
@@ -149,7 +154,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text('Annulla', style: TextStyle(color: tokens.textMuted)),
+                    child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -162,7 +167,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
                       ),
                     ),
                     onPressed: _submit,
-                    child: const Text('Aggiungi Link'),
+                    child: Text(strings.attAddLinkAction),
                   ),
                 ],
               ),
@@ -174,7 +179,7 @@ class _WebLinkInputDialogState extends State<WebLinkInputDialog> {
   }
 }
 
-class ImagePreviewDialog extends StatelessWidget {
+class ImagePreviewDialog extends ConsumerWidget {
   final String pathOrUrl;
   final String title;
 
@@ -198,8 +203,9 @@ class ImagePreviewDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
 
     return Dialog(
       key: const ValueKey('image-lightbox-dialog'),
@@ -269,7 +275,7 @@ class ImagePreviewDialog extends StatelessWidget {
                     ),
                     IconButton(
                       icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
-                      tooltip: 'Chiudi anteprima',
+                      tooltip: strings.attClosePreviewTooltip,
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -291,7 +297,7 @@ class ImagePreviewDialog extends StatelessWidget {
                         child: buildAttachmentImage(
                           pathOrUrl,
                           fit: BoxFit.contain,
-                          errorBuilder: (ctx, err, stack) => _buildError(tokens),
+                          errorBuilder: (ctx, err, stack) => _buildError(tokens, strings),
                         ),
                       ),
                     ),
@@ -305,14 +311,14 @@ class ImagePreviewDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildError(FrameTokens tokens) {
+  Widget _buildError(FrameTokens tokens, AppStrings strings) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.broken_image_outlined, size: 48, color: tokens.danger),
         const SizedBox(height: 8),
         Text(
-          'Impossibile caricare l\'immagine',
+          strings.attImageLoadError,
           style: TextStyle(color: tokens.textSecondary, fontSize: 13),
         ),
       ],
@@ -320,7 +326,7 @@ class ImagePreviewDialog extends StatelessWidget {
   }
 }
 
-class AttachmentChip extends StatelessWidget {
+class AttachmentChip extends ConsumerWidget {
   final ChatAttachment attachment;
   final bool isEditable;
   final VoidCallback? onRemove;
@@ -344,11 +350,12 @@ class AttachmentChip extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
 
     if (attachment.isImage) {
-      return _buildImageThumbnail(context, tokens);
+      return _buildImageThumbnail(context, tokens, strings);
     }
 
     if (attachment.isWebLink) {
@@ -474,13 +481,13 @@ class AttachmentChip extends StatelessWidget {
     );
   }
 
-  Widget _buildImageThumbnail(BuildContext context, FrameTokens tokens) {
+  Widget _buildImageThumbnail(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return Stack(
       key: ValueKey('attachment-image-${attachment.id}'),
       clipBehavior: Clip.none,
       children: [
         Tooltip(
-          message: '${attachment.name} (Clicca per ingrandire)',
+          message: strings.attClickToExpand(attachment.name),
           child: InkWell(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             onTap: onImageTap ??

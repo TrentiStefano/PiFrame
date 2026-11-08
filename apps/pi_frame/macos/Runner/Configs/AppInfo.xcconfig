@@ -11,4 +11,4 @@ PRODUCT_NAME = pi_frame
 PRODUCT_BUNDLE_IDENTIFIER = com.piframe.piFrame
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.piframe. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Stefano Trenti and PiFrame contributors. MIT License.

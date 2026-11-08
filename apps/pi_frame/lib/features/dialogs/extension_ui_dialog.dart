@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
+import '../transcript/workflows_provider.dart';
 
 class ExtensionUiDialog extends ConsumerStatefulWidget {
   final String sessionId;
@@ -58,6 +62,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       widget.request['multiSelect'] == true ||
       widget.request['isMultiSelect'] == true;
 
+  /// pi-subagents' `/agents` → `Workflows (N)` entry.
+  bool _opensWorkflowsMenu(String? option) =>
+      widget.request['method'] == 'select' &&
+      widget.request['title'] == 'Agents' &&
+      (option?.startsWith('Workflows (') ?? false);
+
   static const _secretPlaceholderPrefix = 'piframe-secret:';
   bool get _isSecretInput =>
       widget.request['method'] == 'input' &&
@@ -89,6 +99,78 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       final prefix = RegExp(r'^\d+\.\s*').firstMatch(option);
       return prefix != null &&
           option.substring(prefix.end).startsWith('$trimmed — ');
+    });
+  }
+
+  // The package's RPC fallback embeds numbered preview blocks in the title.
+  ({String title, Map<String, String> previews}) _splitRpcPreviews(
+    String title,
+    List<String> options,
+  ) {
+    final markers =
+        RegExp(
+          r'^--- (\d+)\. (.+) preview ---\r?$',
+          multiLine: true,
+        ).allMatches(title).where((match) {
+          final index = int.tryParse(match[1]!) ?? 0;
+          return index > 0 &&
+              index <= options.length &&
+              match.start >= 2 &&
+              title.substring(match.start - 2, match.start) == '\n\n' &&
+              match.end < title.length &&
+              title[match.end] == '\n' &&
+              options[index - 1].startsWith('$index. ${match[2]} — ');
+        }).toList();
+    if (markers.isEmpty) {
+      return (title: title, previews: {});
+    }
+    final previews = <String, String>{};
+    for (var i = 0; i < markers.length; i++) {
+      final match = markers[i];
+      final index = int.parse(match[1]!) - 1;
+      if (previews.containsKey(options[index])) {
+        return (title: title, previews: {});
+      }
+      var preview = title.substring(
+        match.end + 1,
+        i + 1 < markers.length ? markers[i + 1].start : title.length,
+      );
+      if (i + 1 < markers.length && preview.endsWith('\n\n')) {
+        preview = preview.substring(0, preview.length - 2);
+      }
+      previews[options[index]] = preview;
+    }
+    return (
+      title: title.substring(0, markers.first.start - 2),
+      previews: previews,
+    );
+  }
+
+  void _selectOption(String option) {
+    if (_isFreeTextOption(option)) {
+      if (_isCustomAnswerSelected) return;
+      if (!_hasEnteredCustomAnswer) {
+        _textController.clear();
+        _hasEnteredCustomAnswer = true;
+      }
+      setState(() {
+        _isCustomAnswerSelected = true;
+        _selectedOption = null;
+        _selectedOptions.clear();
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_lockedByOther) _customAnswerFocusNode.requestFocus();
+      });
+      return;
+    }
+    _customAnswerFocusNode.unfocus();
+    setState(() {
+      _isCustomAnswerSelected = false;
+      if (_isMultiSelect) {
+        if (!_selectedOptions.remove(option)) _selectedOptions.add(option);
+      } else {
+        _selectedOption = option;
+      }
     });
   }
 
@@ -195,7 +277,8 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     }
     final client = ref.read(pcpClientProvider);
     if (client == null) {
-      setState(() => _responseError = 'Daemon non connesso');
+      final strings = ref.read(appStringsProvider);
+      setState(() => _responseError = strings.composerDaemonNotConnected);
       return;
     }
     setState(() {
@@ -222,10 +305,11 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         _dismiss();
         return;
       }
+      final strings = ref.read(appStringsProvider);
       setState(() {
         _isResponding = false;
         _responseError = error is TimeoutException
-            ? 'Nessuna risposta dal daemon. Riprova.'
+            ? strings.extUiNoDaemonResponse
             : error.toString();
       });
     }
@@ -234,9 +318,10 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final method = widget.request['method']?.toString() ?? 'confirm';
-    final title =
-        widget.request['title']?.toString() ?? 'Richiesta di Interazione';
+    final rawTitle =
+        widget.request['title']?.toString() ?? strings.extUiInteractionRequest;
     final message = widget.request['message']?.toString() ?? '';
     final rawPlaceholder = widget.request['placeholder']?.toString() ?? '';
     final placeholder = _isSecretInput
@@ -247,6 +332,10 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ?.map((e) => e.toString())
             .toList() ??
         const [];
+    final parsed = method == 'select'
+        ? _splitRpcPreviews(rawTitle, options)
+        : (title: rawTitle, previews: <String, String>{});
+    final title = parsed.title;
     final canSubmit =
         method != 'select' ||
         (_isCustomAnswerSelected
@@ -265,12 +354,22 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             Icon(Icons.smart_toy_outlined, size: 18, color: tokens.accent),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.bold,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: (MediaQuery.sizeOf(context).height * 0.15).clamp(
+                    40.0,
+                    100.0,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -328,7 +427,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Un altro client sta rispondendo a questa richiesta.',
+                            strings.extUiLockedByOther,
                             style: TextStyle(
                               color: tokens.textPrimary,
                               fontSize: 12,
@@ -354,119 +453,160 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 ],
 
                 // Body based on method
-                if (method == 'select') ...[
-                  ...options.map((opt) {
-                    final isFreeTextOption = _isFreeTextOption(opt);
-                    final isSelected = isFreeTextOption
-                        ? _isCustomAnswerSelected
-                        : _isMultiSelect
-                        ? _selectedOptions.contains(opt)
-                        : _selectedOption == opt;
+                if (method == 'select')
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final optionRows = options.map((opt) {
+                        final isFreeTextOption = _isFreeTextOption(opt);
+                        final isSelected = isFreeTextOption
+                            ? _isCustomAnswerSelected
+                            : _isMultiSelect
+                            ? _selectedOptions.contains(opt)
+                            : _selectedOption == opt;
 
-                    return InkWell(
-                      onTap: !_lockedByOther
-                          ? () {
-                              if (isFreeTextOption) {
-                                if (!_isCustomAnswerSelected) {
-                                  if (!_hasEnteredCustomAnswer) {
-                                    _textController.clear();
-                                    _hasEnteredCustomAnswer = true;
-                                  }
-                                  setState(() {
-                                    _isCustomAnswerSelected = true;
-                                    _selectedOption = null;
-                                    _selectedOptions.clear();
-                                  });
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    if (mounted && !_lockedByOther) {
-                                      _customAnswerFocusNode.requestFocus();
-                                    }
-                                  });
-                                }
-                                return;
-                              }
-                              _customAnswerFocusNode.unfocus();
-                              setState(() {
-                                _isCustomAnswerSelected = false;
-                                if (_isMultiSelect) {
-                                  if (_selectedOptions.contains(opt)) {
-                                    _selectedOptions.remove(opt);
-                                  } else {
-                                    _selectedOptions.add(opt);
-                                  }
-                                } else {
-                                  _selectedOption = opt;
-                                }
-                              });
+                        return InkWell(
+                          onTap: !_lockedByOther
+                              ? () => _selectOption(opt)
+                              : null,
+                          onFocusChange: (focused) {
+                            if (focused &&
+                                parsed.previews.isNotEmpty &&
+                                !_isMultiSelect &&
+                                !_lockedByOther &&
+                                !isSelected) {
+                              _selectOption(opt);
                             }
-                          : null,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 4,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              _isMultiSelect
-                                  ? (isSelected
-                                        ? Icons.check_box
-                                        : Icons.check_box_outline_blank)
-                                  : (isSelected
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_unchecked),
-                              size: 18,
-                              color: isSelected
-                                  ? tokens.accent
-                                  : tokens.textSecondary,
+                          },
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 6,
+                              horizontal: 4,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: isFreeTextOption && isSelected
-                                  ? TextField(
-                                      key: const ValueKey(
-                                        'extension-ui-custom-answer',
-                                      ),
-                                      controller: _textController,
-                                      focusNode: _customAnswerFocusNode,
-                                      enabled: !_lockedByOther,
-                                      onChanged: (_) => setState(() {}),
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 13,
-                                      ),
-                                      decoration: InputDecoration(
-                                        isDense: true,
-                                        hintText: 'Scrivi la risposta...',
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _isMultiSelect
+                                      ? (isSelected
+                                            ? Icons.check_box
+                                            : Icons.check_box_outline_blank)
+                                      : (isSelected
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_unchecked),
+                                  size: 18,
+                                  color: isSelected
+                                      ? tokens.accent
+                                      : tokens.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: isFreeTextOption && isSelected
+                                      ? TextField(
+                                          key: const ValueKey(
+                                            'extension-ui-custom-answer',
+                                          ),
+                                          controller: _textController,
+                                          focusNode: _customAnswerFocusNode,
+                                          enabled: !_lockedByOther,
+                                          onChanged: (_) => setState(() {}),
+                                          style: TextStyle(
+                                            color: tokens.textPrimary,
+                                            fontSize: 13,
+                                          ),
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            hintText: strings.extUiCustomAnswerHint,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    tokens.radiusSm,
+                                                  ),
                                             ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusSm,
+                                          ),
+                                        )
+                                      : Text(
+                                          opt,
+                                          style: TextStyle(
+                                            color: tokens.textPrimary,
+                                            fontSize: 13,
                                           ),
                                         ),
-                                      ),
-                                    )
-                                  : Text(
-                                      opt,
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 13,
-                                      ),
-                                    ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        );
+                      }).toList();
+                      final preview = _isCustomAnswerSelected
+                          ? null
+                          : parsed.previews[_selectedOption];
+                      if (preview == null) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: optionRows,
+                        );
+                      }
+                      final fence = RegExp(r'^```[^\n]*\n([\s\S]*?)\n```\s*$')
+                          .firstMatch(preview);
+                      final previewPane = Container(
+                        key: const ValueKey('extension-ui-preview'),
+                        constraints: BoxConstraints(
+                          maxHeight: (MediaQuery.sizeOf(context).height * 0.25)
+                              .clamp(80.0, 200.0),
                         ),
-                      ),
-                    );
-                  }),
-                ] else if (method == 'input') ...[
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: tokens.border),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        ),
+                        child: SingleChildScrollView(
+                          key: ValueKey(_selectedOption),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Text(
+                              fence?.group(1) ?? preview,
+                              softWrap: false,
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 12,
+                                fontFamily: tokens.monoFontFamily,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                      if (constraints.maxWidth >= 580) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: optionRows,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: previewPane),
+                          ],
+                        );
+                      }
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ...optionRows,
+                          const SizedBox(height: 8),
+                          previewPane,
+                        ],
+                      );
+                    },
+                  )
+                else if (method == 'input') ...[
                   TextField(
                     controller: _textController,
                     enabled: !_lockedByOther,
@@ -501,7 +641,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                       decoration: InputDecoration(
                         hintText: placeholder.isNotEmpty
                             ? placeholder
-                            : 'Inserisci testo...',
+                            : strings.extUiEnterTextHint,
                         contentPadding: const EdgeInsets.all(10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -536,7 +676,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                   : () => _sendResponse(cancelled: true),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
               child: Text(
-                'Annulla',
+                strings.cancel,
                 style: TextStyle(color: tokens.textSecondary, fontSize: 12),
               ),
             ),
@@ -555,6 +695,13 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                           );
                         } else if (_isMultiSelect) {
                           _sendResponse(value: _selectedOptions.toList());
+                        } else if (_opensWorkflowsMenu(_selectedOption)) {
+                          // RPC cannot render pi-subagents' custom workflow dialog, so its
+                          // menu would reopen forever; cancel it and show PiFrame's panel.
+                          ref
+                              .read(agentActivityPanelOpenProvider(widget.sessionId).notifier)
+                              .state = true;
+                          _sendResponse(cancelled: true);
                         } else {
                           _sendResponse(value: _selectedOption);
                         }
@@ -573,7 +720,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 ),
               ),
               child: Text(
-                method == 'confirm' ? 'Conferma' : 'Invia',
+                method == 'confirm' ? strings.extUiConfirm : strings.extUiSend,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -584,6 +731,35 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         ),
       ],
     );
+
+    final focusContent = method == 'select' && parsed.previews.isNotEmpty
+        ? Focus(
+            autofocus: true,
+            onKeyEvent: (node, event) {
+              if (_lockedByOther ||
+                  _isMultiSelect ||
+                  _customAnswerFocusNode.hasFocus ||
+                  event is! KeyDownEvent && event is! KeyRepeatEvent) {
+                return KeyEventResult.ignored;
+              }
+              final direction = event.logicalKey == LogicalKeyboardKey.arrowDown
+                  ? 1
+                  : event.logicalKey == LogicalKeyboardKey.arrowUp
+                  ? -1
+                  : 0;
+              if (direction == 0 || options.isEmpty) {
+                return KeyEventResult.ignored;
+              }
+              final current = _isCustomAnswerSelected
+                  ? options.indexWhere(_isFreeTextOption)
+                  : options.indexOf(_selectedOption ?? '');
+              final index = (current + direction).clamp(0, options.length - 1);
+              if (index != current) _selectOption(options[index]);
+              return KeyEventResult.handled;
+            },
+            child: content,
+          )
+        : content;
 
     if (widget.isCard) {
       return Container(
@@ -604,7 +780,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
             ),
           ],
         ),
-        child: content,
+        child: focusContent,
       );
     }
 
@@ -617,7 +793,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500),
         padding: const EdgeInsets.all(20),
-        child: content,
+        child: focusContent,
       ),
     );
   }

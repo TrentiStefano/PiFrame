@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 
 enum CopilotFileActionType { mention, attach }
 
@@ -13,18 +16,20 @@ class CopilotFileResult {
 
 class CopilotFilePicker extends StatefulWidget {
   final List<Map<String, dynamic>> files;
+  final AppStrings? strings;
 
-  const CopilotFilePicker({super.key, required this.files});
+  const CopilotFilePicker({super.key, required this.files, this.strings});
 
   static Future<CopilotFileResult?> show(
     BuildContext context, {
     required List<Map<String, dynamic>> files,
+    AppStrings? strings,
   }) {
     final tokens = context.tokens;
     return showDialog<CopilotFileResult>(
       context: context,
       barrierColor: tokens.overlay,
-      builder: (ctx) => CopilotFilePicker(files: files),
+      builder: (ctx) => CopilotFilePicker(files: files, strings: strings),
     );
   }
 
@@ -109,9 +114,19 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
     Navigator.of(context).pop(CopilotFileResult(path: path, action: action));
   }
 
+  AppStrings _resolveStrings(BuildContext context) {
+    if (widget.strings != null) return widget.strings!;
+    try {
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = _resolveStrings(context);
 
     return Dialog(
       backgroundColor: tokens.surface,
@@ -173,7 +188,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Aggiungi contesto al chat',
+                          strings.copilotAddContextTitle,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 14,
@@ -181,7 +196,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                           ),
                         ),
                         Text(
-                          'Cerca file per includere il contenuto o collegarlo con @',
+                          strings.copilotAddContextSubtitle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 11,
@@ -192,7 +207,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                   ),
                   IconButton(
                     icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
-                    tooltip: 'Chiudi (Esc)',
+                    tooltip: strings.copilotCloseEscTooltip,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -206,7 +221,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 autofocus: true,
                 style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Cerca per nome file o percorso...',
+                  hintText: strings.copilotSearchHint,
                   hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
                   prefixIcon: Icon(Icons.search, size: 18, color: tokens.textMuted),
                   suffixIcon: _searchController.text.isNotEmpty
@@ -235,12 +250,12 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_filteredFiles.length} file trovati',
+                    strings.copilotFilesFound(_filteredFiles.length),
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                   Flexible(
                     child: Text(
-                      '↑↓ seleziona · Invio conferma',
+                      strings.copilotKeyNavHint,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
@@ -260,7 +275,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 child: _filteredFiles.isEmpty
                     ? Center(
                         child: Text(
-                          'Nessun file corrisponde alla ricerca',
+                          strings.copilotNoFilesMatch,
                           style: TextStyle(color: tokens.textMuted, fontSize: 12),
                         ),
                       )
@@ -281,7 +296,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                             if (index == _renderedLimit && _renderedLimit < _filteredFiles.length) {
                               return Center(
                                 child: Text(
-                                  'Caricamento altri file ($_renderedLimit/${_filteredFiles.length})...',
+                                  strings.copilotLoadingMore(_renderedLimit, _filteredFiles.length),
                                   style: TextStyle(
                                     color: tokens.textMuted,
                                     fontSize: 11,
@@ -347,7 +362,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         ),
                                       ),
                                       onPressed: () => _selectFile(path, CopilotFileActionType.mention),
-                                      child: const Text('Collega @', style: TextStyle(fontSize: 10.5)),
+                                      child: Text(strings.copilotLinkAtAction, style: const TextStyle(fontSize: 10.5)),
                                     ),
                                   ],
                                 ),

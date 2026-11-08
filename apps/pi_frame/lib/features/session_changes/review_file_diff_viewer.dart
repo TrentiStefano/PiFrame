@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import '../../ui/code/syntax_highlighter.dart';
 import 'diff_parser.dart';
 import 'session_changes_provider.dart';
 
-class ReviewFileDiffViewer extends StatefulWidget {
+class ReviewFileDiffViewer extends ConsumerStatefulWidget {
   final SessionChangedFile file;
   final DiffViewMode mode;
 
@@ -15,13 +18,21 @@ class ReviewFileDiffViewer extends StatefulWidget {
   });
 
   @override
-  State<ReviewFileDiffViewer> createState() => _ReviewFileDiffViewerState();
+  ConsumerState<ReviewFileDiffViewer> createState() => _ReviewFileDiffViewerState();
 }
 
-class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
+class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
   ParsedDiff? _parsedDiff;
   String? _lastDiffText;
   final Set<int> _expandedHunkGaps = {};
+
+  AppStrings _getStrings() {
+    try {
+      return ref.watch(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
 
   void _parseDiffIfNeeded() {
     final diffText = widget.file.diff ?? '';
@@ -33,6 +44,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = _getStrings();
     _parseDiffIfNeeded();
 
     if (widget.file.isLoadingDiff) {
@@ -52,7 +64,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
             ),
             const SizedBox(width: 8),
             Text(
-              'Caricamento diff...',
+              strings.loadingDiff,
               style: TextStyle(color: tokens.textMuted, fontSize: 11),
             ),
           ],
@@ -68,7 +80,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
         child: Text(
           widget.file.diff?.isNotEmpty == true
               ? widget.file.diff!
-              : 'Nessuna differenza da mostrare.',
+              : strings.noDiffToShow,
           style: TextStyle(
             color: tokens.textMuted,
             fontSize: 11,
@@ -360,6 +372,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
     int nextStart,
     FrameTokens tokens,
   ) {
+    final strings = _getStrings();
     final count = (nextStart - prevEnd).clamp(1, 100000);
     final isExpanded = _expandedHunkGaps.contains(gapIndex);
 
@@ -378,7 +391,7 @@ class _ReviewFileDiffViewerState extends State<ReviewFileDiffViewer> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isExpanded ? 'Linee espanse' : '+$count more lines',
+                isExpanded ? strings.linesExpanded : strings.moreLines(count),
                 style: TextStyle(
                   fontFamily: tokens.monoFontFamily,
                   fontSize: 10,

@@ -356,4 +356,263 @@ void main() {
       await stopFuture;
     },
   );
+
+  test('listBranches and switchBranch format payloads and parse typed results', () async {
+    final listFuture = client.listBranches('session-b');
+    final switchFuture = client.switchBranch('session-b', 'feature/test', onDirty: 'stash');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.map((c) => c['type']).toList(), [
+      'workspace.listBranches',
+      'workspace.switchBranch',
+    ]);
+    expect(commands[0]['sessionId'], 'session-b');
+    expect(commands[1]['sessionId'], 'session-b');
+    expect(commands[1]['payload'], {'branch': 'feature/test', 'onDirty': 'stash'});
+
+    // Reply to listBranches
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands[0]['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {
+            'branches': [
+              {
+                'name': 'main',
+                'isCurrent': true,
+                'upstream': 'origin/main',
+                'ahead': 1,
+                'behind': 0,
+                'lastCommitUnix': 1700000000,
+              },
+            ],
+            'currentBranch': 'main',
+            'detached': false,
+            'headShortSha': 'abc1234',
+          },
+        },
+      }),
+    );
+
+    // Reply to switchBranch
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands[1]['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {
+            'currentBranch': 'feature/test',
+            'stashed': true,
+            'stashMessage': 'piframe: before switching',
+          },
+        },
+      }),
+    );
+
+    final listRes = await listFuture;
+    final switchRes = await switchFuture;
+
+    expect(listRes.branches.length, 1);
+    expect(listRes.branches[0].name, 'main');
+    expect(listRes.branches[0].isCurrent, isTrue);
+    expect(listRes.branches[0].ahead, 1);
+    expect(listRes.currentBranch, 'main');
+    expect(listRes.detached, isFalse);
+    expect(listRes.headShortSha, 'abc1234');
+
+    expect(switchRes.currentBranch, 'feature/test');
+    expect(switchRes.stashed, isTrue);
+    expect(switchRes.stashMessage, 'piframe: before switching');
+  });
+
+  test(
+    'error-then-result ordering yields PcpException with code/details (WORKSPACE_DIRTY details)',
+    () async {
+      final switchFuture = client.switchBranch('session-b', 'dirty-branch');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(commands.single['type'], 'workspace.switchBranch');
+
+      // Daemon sends detailed kind:'error' envelope FIRST
+      socket.add(
+        jsonEncode({
+          'kind': 'error',
+          'commandId': commands.single['commandId'],
+          'payload': {
+            'code': 'WORKSPACE_DIRTY',
+            'message': 'Working directory has uncommitted changes',
+            'details': {
+              'changedFiles': 3,
+              'untrackedFiles': 1,
+            },
+          },
+        }),
+      );
+
+      // Followed by terminal kind:'result' envelope SECOND
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands.single['commandId'],
+          'payload': {
+            'state': 'rejected',
+            'error': 'Working directory has uncommitted changes',
+          },
+        }),
+      );
+
+      try {
+        await switchFuture;
+        fail('Expected PcpException');
+      } catch (e) {
+        expect(e, isA<PcpException>());
+        expect(e, isA<StateError>());
+        expect(e, isA<Exception>());
+        final pcpErr = e as PcpException;
+        expect(pcpErr.code, 'WORKSPACE_DIRTY');
+        expect(pcpErr.changedFiles, 3);
+        expect(pcpErr.untrackedFiles, 1);
+        expect(pcpErr.message, 'Working directory has uncommitted changes');
+      }
+    },
+  );
+
+  test('result-only failure yields PcpException with message', () async {
+    final switchFuture = client.switchBranch('session-c', 'some-branch');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    // Simulate daemon sending only a kind:'result' failure without preceding error envelope
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {
+          'state': 'failed',
+          'error': 'Daemon failed to switch branch',
+        },
+      }),
+    );
+
+    try {
+      await switchFuture;
+      fail('Expected PcpException');
+    } catch (e) {
+      expect(e, isA<PcpException>());
+      expect(e, isA<StateError>());
+      expect(e, isA<Exception>());
+      final pcpErr = e as PcpException;
+      expect(pcpErr.message, 'Daemon failed to switch branch');
+      expect(pcpErr.code, '');
+    }
+  });
+
+  test('PcpException toString() starts with "Bad state: " and strips cleanly', () {
+    final err = PcpException(
+      'Working directory has uncommitted changes',
+      code: 'WORKSPACE_DIRTY',
+      details: {'changedFiles': 2},
+    );
+    expect(err.toString(), startsWith('Bad state: '));
+    expect(err.toString(), 'Bad state: Working directory has uncommitted changes');
+
+    // Existing caller regex stripping ^(Bad state|Exception):\s*
+    final stripped = err.toString().replaceFirst(
+      RegExp(r'^(Bad state|Exception):\s*'),
+      '',
+    );
+    expect(stripped, 'Working directory has uncommitted changes');
+  });
+
+  test('openSide sends side.open command with question and returns result', () async {
+    final openFuture = client.openSide('session-1', question: 'explain this');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.open');
+    expect(commands.last['sessionId'], 'session-1');
+    expect(commands.last['payload']['sessionId'], 'session-1');
+    expect(commands.last['payload']['question'], 'explain this');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'sideId': 'side-123',
+          'streamId': 'stream-456',
+        },
+      }),
+    );
+
+    final res = await openFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['sideId'], 'side-123');
+    expect(payload['streamId'], 'stream-456');
+  });
+
+  test('sidePrompt sends side.prompt command', () async {
+    final promptFuture = client.sidePrompt('side-123', 'follow up question');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.prompt');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(commands.last['payload']['text'], 'follow up question');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'prompted': true},
+      }),
+    );
+
+    final res = await promptFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['prompted'], true);
+  });
+
+  test('sideAbort sends side.abort command', () async {
+    final abortFuture = client.sideAbort('side-123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.abort');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'aborted': true},
+      }),
+    );
+
+    final res = await abortFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['aborted'], true);
+  });
+
+  test('sideClose sends side.close command', () async {
+    final closeFuture = client.sideClose('side-123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(commands.last['type'], 'side.close');
+    expect(commands.last['sessionId'], 'side-123');
+    expect(commands.last['payload']['sideId'], 'side-123');
+
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'closed': true},
+      }),
+    );
+
+    final res = await closeFuture;
+    final payload = res['data'] as Map<String, dynamic>? ?? res;
+    expect(payload['closed'], true);
+  });
 }

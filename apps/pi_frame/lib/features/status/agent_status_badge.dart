@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../domain/session/agent_status.dart';
 
 class AgentStatusBadge extends StatelessWidget {
@@ -15,6 +18,27 @@ class AgentStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final hasScope =
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
+            null ||
+        context.findAncestorWidgetOfExactType<ProviderScope>() != null;
+    if (hasScope) {
+      return Consumer(
+        builder: (context, ref, _) {
+          final strings = ref.watch(appStringsProvider);
+          return _buildBadge(context, tokens, strings);
+        },
+      );
+    }
+    return _buildBadge(context, tokens, const AppStrings(AppLanguage.it));
+  }
+
+  Widget _buildBadge(
+    BuildContext context,
+    FrameTokens tokens,
+    AppStrings strings,
+  ) {
+    final label = strings.agentStatusLabel(status);
     final foreground = switch (status) {
       AgentStatus.idle || AgentStatus.settled => tokens.success,
       AgentStatus.working => tokens.agentWorking,
@@ -47,7 +71,7 @@ class AgentStatusBadge extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              status.label,
+              label,
               style: TextStyle(
                 color: tokens.displayText,
                 fontSize: 12,
@@ -88,7 +112,7 @@ class AgentStatusBadge extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              status.label,
+              label,
               style: TextStyle(
                 color: tokens.textPrimary,
                 fontSize: 12,

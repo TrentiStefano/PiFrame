@@ -98,11 +98,11 @@ Nessun listener remoto, processo di tunneling o porta viene avviata se l'utente 
 ### 4. Modello dei Permessi: Modalità View vs Control (C2)
 Ogni dispositivo associato opera secondo una modalità assegnata dal desktop:
 - **Modalità `view` (Predefinita e Consigliata)**:
-  - Consente esclusivamente l'ispezione dello stato: consultazione sessioni, statistiche, albero di conversazione, diff del workspace e lettura file.
+  - Consente esclusivamente l'ispezione dello stato: consultazione sessioni, statistiche, albero di conversazione, diff del workspace, lettura file ed enumerazione rami (`workspace.listBranches`).
   - **Permessi di Emergenza**: Include `agent.abort` e `agent.interrupt` per permettere all'utente di bloccare l'agente da mobile in caso di necessità.
-  - **Blocco Scrittura**: Qualsiasi comando di scrittura (`agent.prompt`, `agent.steer`, `workspace.saveFile`, `workspace.gitAction`, continuazione sessione) è respinto con `REMOTE_FORBIDDEN`.
+  - **Blocco Scrittura**: Qualsiasi comando di scrittura (`agent.prompt`, `agent.steer`, `workspace.saveFile`, `workspace.gitAction`, `workspace.switchBranch`, continuazione sessione) è respinto con `REMOTE_FORBIDDEN`.
 - **Modalità `control`**:
-  - Richiede un'esplicita conferma con dialog di avviso da parte dell'utente desktop.
+  - Richiede un'esplicita conferma con dialog di avviso da parte dell'utente desktop. Include comandi di scrittura e mutazione repository (`workspace.saveFile`, `workspace.gitAction`, `workspace.switchBranch`), comunque vincolati ad `assertWorkspaceWritable` che ne impedisce l'esecuzione mentre l'agente sta lavorando o per sessioni in sola lettura.
   - **Nota di Rischio**: Un dispositivo in modalità `control` ha la facoltà di inviare prompt ed eseguire comandi con i privilegi dell'utente del sistema operativo.
 
 ### 5. Allowlist Default-Deny nel Dispatcher (C1)
@@ -110,6 +110,8 @@ Tutti i comandi amministrativi e di configurazione sono rigorosamente interdetti
 - `remote.*` (inclusi `remote.start`, `remote.setOptions`, `remote.generatePairing`, `remote.revokeDevice`) -> `REMOTE_FORBIDDEN`.
 - `daemon.getConfig` e `daemon.setConfig` -> `REMOTE_FORBIDDEN`.
 - `pi.packages.*` -> `REMOTE_FORBIDDEN`.
+- `pi.agents.*` (`pi.agents.get`, `pi.agents.update`) -> `REMOTE_FORBIDDEN`.
+- `system.metrics.*` (`system.metrics.subscribe`, `system.metrics.unsubscribe`) -> `REMOTE_FORBIDDEN`.
 - `daemon.setConfig` impedisce la modifica diretta delle sezioni `remote` e `web` anche da locale (`CONFIG_INVALID`).
 
 ### 6. Confinamento del Filesystem per Comandi Remoti (M7)
@@ -119,6 +121,41 @@ La creazione di nuove sessioni da remoto (`session.create` o `session.open {cwd}
 - Il comando del tunnel custom (`customTunnelCommand`) viene eseguito **senza shell** (`shell: false`), con parsing manuale degli argomenti (argv) ed eliminando qualsiasi rischio di shell injection (`&`, `|`, `;`).
 - L'URL custom (`customTunnelUrl`) è convalidato rigorosamente: deve utilizzare `https://`, non può contenere credenziali e non può puntare a indirizzi di loopback.
 - Alla terminazione, l'intero albero dei processi del tunnel viene abbattuto in modo pulito (`taskkill /T /F` su Windows, signal process group su POSIX).
+
+### 8. Metriche di Sistema e Monitoraggio Hardware (System Metrics)
+Il campionamento delle risorse host (CPU, memoria, volume disco di `homedir`, GPU) è progettato per minimizzare l'impatto energetico e garantire l'assoluta assenza di fughe di telemetria verso dispositivi remoti:
+- **Esclusivamente Locale**: I comandi `system.metrics.subscribe` e `system.metrics.unsubscribe` sono rigettati con `REMOTE_FORBIDDEN` per qualsiasi connessione remota (in modalità `view` e `control`).
+- **Gating a Sottoscrizione Attiva**: A zero sottoscrittori attivi non vi è alcun timer in esecuzione, non vengono eseguite letture su filesystem o kernel e nessun processo child è attivo.
+- **Strumenti Esterni Ammessi e Assenza di Input Utente**:
+  I processi child avviati per la rilevazione GPU sono rigidamente limitati a un set chiuso:
+  - `nvidia-smi` (argomenti fissi: `-L` per il probe; `--query-gpu=...` con formato CSV per il polling).
+  - `typeperf` su Windows (argomento fisso: `\GPU Engine(*)\Utilization Percentage` a intervallo `-si 1`).
+  - `ioreg` su macOS (argomenti fissi: `-r -d 1 -w 0 -c IOAccelerator` con timeout 800ms).
+  - Linux effettua letture dirette da `/sys/class/drm/` senza spawnare alcun binario.
+  Tutti i processi child sono eseguiti con `shell: false`, `windowsHide: true`, argomenti immutabili codificati nel codice sorgente e senza alcun input proveniente dal client. I processi child vengono terminati immediatamente alla rimozione dell'ultima sottoscrizione o allo shutdown del daemon.
+
+### 9. Configurazione Subagenti ed Estensioni Runtime (Pi Subagents)
+La gestione delle impostazioni dei subagenti e dei limiti di contesto adotta rigorose tutele di integrità e isolamento:
+- **Esclusivamente Locale**: I comandi `pi.agents.get` e `pi.agents.update` sono rigettati con `REMOTE_FORBIDDEN` per qualsiasi dispositivo remoto. La configurazione di Pi e dei subagenti può essere letta o modificata unicamente tramite connessioni locali.
+- **Scrittura Atomica e Lockfile Compatibile**: Le modifiche a `~/.pi/agent/settings.json`, `~/.pi/agent/subagents.json` e `~/.piframe/subagent-context.json` acquisiscono un lock directory `<file>.lock` pienamente compatibile con `proper-lockfile` di Pi (rilevamento stale lock a 10 secondi). Prima di qualsiasi scrittura viene generata una copia di backup `settings.json.piframe-backup`. La scrittura avviene su file temporaneo nella stessa directory con permessi restrittivi e successiva rinomina atomica. Se il file di configurazione non è un JSON valido, l'operazione fallisce closed (`AGENTS_CONFIG_UNREADABLE`) senza alterare il file.
+- **Generazione e Isolamento delle Estensioni**: L'estensione runtime per i limiti di contesto dei subagenti (`~/.piframe/runtime/subagent-context-limit.mjs`) è generata con codice completamente autosufficiente, privo di dipendenze esterne o accesso alla rete. Viene caricata unicamente nei processi child dei subagenti tramite l'impostazione nativa di Pi `subagentOnlyExtensions`, limitandosi a regolare `contextWindow` tramite `pi.setModel` all'avvio della sessione del subagente.
+
+### 10. Conversazioni Laterali Read-Only (Side Conversations)
+Le conversazioni laterali effimere permettono all'utente di consultare un assistente secondario vincolato a strumenti di sola lettura, operando su uno snapshot immutabile della conversazione principale:
+- **Isolamento del Filesystem e Divieto di Scrittura su Sessioni Pi**: I worker laterali sono avviati con `--no-session` e non creano alcun file nella directory delle sessioni di Pi (`~/.pi/agent/sessions/`). Lo snapshot della sessione principale viene reso in markdown e salvato esclusivamente in `~/.piframe/runtime/side/<sideId>/context.md` (directory creata con permessi `0700` e file con permessi `0600`), con eliminazione garantita all'atto della chiusura del thread laterale o allo shutdown del daemon. Il file della sessione principale rimane matematicamente e byte-per-byte identico prima, durante e dopo ogni operazione laterale.
+- **Zero Spill su Disco & Eventi Solo in Memoria**: Gli eventi delle conversazioni laterali non vengono mai registrati nel journal della sessione principale né scritti su disco; sono trattenuti unicamente in un buffer in memoria ad anello confinato alla durata del daemon per supportare la riconnessione dei client.
+- **Restrizione Rigida degli Strumenti (Allowlist `{read, grep, find, ls}`)**: I worker delle conversazioni laterali vengono avviati con `--tools read,grep,find,ls`, `--no-mcp`, `--no-extensions`, `--no-skills`. Gli strumenti con facoltà di mutazione (`bash`, `edit`, `write`) sono completamente interdetti. Subito dopo l'avvio, il daemon interroga `get_state`: se viene esposto un elenco di strumenti attivi non strettamente incluso nell'allowlist `{read, grep, find, ls}`, il worker viene immediatamente terminato con l'errore `SIDE_UNSAFE_TOOLS`. Pi 1.5.0 non include l'elenco degli strumenti in `get_state`: oggi questo controllo resta inattivo e la garanzia di sola lettura si basa sui flag di avvio (`--tools` è un'allowlist esatta e `--no-extensions` esclude gli strumenti registrati dai pacchetti).
+- **Allowlist Rigida per il Trasporto RPC**: Il wrapper di trasporto `SideTransport` blocca tassativamente qualsiasi comando RPC differente da `prompt`, `abort` e `get_state` (respinto con `SIDE_RPC_BLOCKED`), impedendo qualsiasi tentativo di eseguire `bash`, `switch_session`, `fork` o altre operazioni non consentite.
+- **Permessi Remoti e Modalità View vs Control**: L'apertura (`side.open`) e l'invio di prompt (`side.prompt`) richiedono tassativamente la modalità `control` da remoto (rigettati con `REMOTE_FORBIDDEN` in modalità `view`). L'interruzione (`side.abort`) e la chiusura (`side.close`) sono invece ammesse anche in modalità `view`, consentendo l'arresto immediato di emergenza da dispositivo mobile.
+- **Immutabilità dello Stream Laterale**: Qualsiasi comando che non sia di sottoscrizione (`session.attach` o `session.detach`) indirizzato verso uno stream laterale (`sessionId = side_<ulid>`) viene bloccato con `SIDE_STREAM_READ_ONLY`.
+- **Limiti di Concorrenza, Idle Timeout e Lifecycle**:
+  - Massimo 1 thread laterale aperto per ciascuna sessione genitore (ulteriori chiamate ad apertura restituiscono il thread attivo esistente).
+  - Massimo 4 thread laterali contemporaneamente attivi sull'intero sistema (`SIDE_LIMIT_REACHED`).
+  - Spegnimento automatico del worker per inattività dopo 10 minuti di inutilizzo (`reason: 'idle'`).
+  - Chiusura immediata del thread laterale se la sessione genitore viene chiusa o eliminata (`reason: 'parentClosed'`).
+  - Pulizia completa e terminazione dei processi allo shutdown del daemon (`reason: 'shutdown'`).
+  - Nessun comando child viene mai invocato con `shell: true`, e il daemon non esegue alcuna chiamata di rete esterna.
+
 
 ---
 

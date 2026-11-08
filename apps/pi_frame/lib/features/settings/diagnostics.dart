@@ -8,6 +8,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../app/app_version.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../ui/frame_snack_bar.dart';
 
 /// Tests may label synthetic diagnostic fixtures without changing runtime UI.
@@ -76,21 +78,23 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
       await Clipboard.setData(ClipboardData(text: jsonStr));
 
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         setState(() {
           _isExporting = false;
-          _exportSuccess = 'Bundle diagnostico copiato negli appunti (tutti i segreti sono stati redatti con [REDACTED])';
+          _exportSuccess = strings.diagBundleCopiedRedacted;
         });
 
         FrameSnackBar.show(
           context,
-          message: 'Bundle diagnostico copiato negli appunti!',
+          message: strings.diagBundleCopiedSnackBar,
         );
       }
     } catch (e) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         setState(() {
           _isExporting = false;
-          _exportSuccess = 'Errore durante esportazione: $e';
+          _exportSuccess = strings.diagExportError(e);
         });
       }
     }
@@ -99,6 +103,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final connState =
         ref.watch(connectionStateProvider).value ??
         DaemonConnectionState.disconnected;
@@ -138,7 +143,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         ],
         // Title & description
         Text(
-          'Diagnostica Locale & Stato di Sistema',
+          strings.diagTitle,
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: 18,
@@ -147,8 +152,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tutti i dati di diagnostica rimangono confinati sulla tua macchina locale. '
-          'In conformità con la politica di privacy D16, nessun dato viene mai trasmesso a server esterni.',
+          strings.diagSubtitle,
           style: TextStyle(
             color: tokens.textSecondary,
             fontSize: 13,
@@ -169,7 +173,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'STATO ATTUALE DEL RUNTIME',
+                strings.diagRuntimeStateHeader,
                 style: TextStyle(
                   color: tokens.textMuted,
                   fontSize: 11,
@@ -179,27 +183,27 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
               ),
               const SizedBox(height: 12),
               _buildMetricRow(
-                'Connessione Daemon',
+                strings.diagDaemonConnection,
                 connState.name.toUpperCase(),
                 tokens,
                 color: connState == DaemonConnectionState.connected
                     ? tokens.agentSettled
                     : tokens.warning,
               ),
-              _buildMetricRow('Versione PiFrame App', 'v$piFrameVersion', tokens),
+              _buildMetricRow(strings.diagAppVersionLabel, 'v$piFrameVersion', tokens),
               _buildMetricRow(
-                'Protocollo PCP',
+                strings.diagPcpProtocol,
                 'PCP/1 (JSON over WebSocket)',
                 tokens,
               ),
               _buildMetricRow(
-                'Sessioni archiviate',
+                strings.diagArchivedSessions,
                 '${sessions.length}',
                 tokens,
               ),
               _buildMetricRow(
-                'Telemetria Remota',
-                'DISABILITATA (Zero Analytics)',
+                strings.diagRemoteTelemetry,
+                strings.diagTelemetryDisabled,
                 tokens,
                 color: tokens.agentSettled,
               ),
@@ -230,7 +234,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Esporta Bundle Diagnostico',
+                      strings.diagExportBundleTitle,
                       style: TextStyle(
                         color: tokens.textPrimary,
                         fontSize: 14,
@@ -242,8 +246,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Genera un rapporto diagnostico completo formattato in JSON. '
-                'Tutti i token, credenziali e percorsi sensibili vengono automaticamente anonimizzati e redatti prima della copia negli appunti.',
+                strings.diagExportBundleDesc,
                 style: TextStyle(
                   color: tokens.textSecondary,
                   fontSize: 12,
@@ -275,8 +278,8 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                     : const Icon(Icons.copy, size: 16),
                 label: Text(
                   _isExporting
-                      ? 'Generazione...'
-                      : 'Copia Bundle Diagnostico negli Appunti',
+                      ? strings.diagGenerating
+                      : strings.diagCopyBundleBtn,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,

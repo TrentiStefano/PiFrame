@@ -10,6 +10,8 @@ import { findStaticDir } from './server/static.js';
 import { SessionRegistry } from './sessions/SessionRegistry.js';
 import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
+import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
+import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
 
 const VERSION = '1.3.1'; // x-release-please-version
 
@@ -108,6 +110,8 @@ async function main() {
   }
 
   // 5. Initialize runtime directory (~/.piframe/runtime/daemon.json, daemon.token, etc.)
+  ensureContextLimitExtension();
+  ensureSubagentContextLimitExtensionIfReferenced();
   token = generateAndSaveToken();
   writeRuntimeInfo({
     port: actualPort,
@@ -140,10 +144,18 @@ async function main() {
       await dispatcher.handle(conn, cmd);
     },
     onAttach: async (conn, sessionId, lastSeq, commandId) => {
-      await registry.attachClient(sessionId, conn, lastSeq, commandId);
+      if (sessionId.startsWith('side_') || dispatcher?.getSideManager().hasStream(sessionId)) {
+        await dispatcher.getSideManager().handleAttach(sessionId, conn, lastSeq, commandId);
+      } else {
+        await registry.attachClient(sessionId, conn, lastSeq, commandId);
+      }
     },
     onDetach: async (conn, sessionId) => {
-      await registry.detachClient(sessionId, conn);
+      if (sessionId.startsWith('side_') || dispatcher?.getSideManager().hasStream(sessionId)) {
+        dispatcher.getSideManager().handleDetach(sessionId, conn);
+      } else {
+        await registry.detachClient(sessionId, conn);
+      }
     }
   });
 
@@ -173,6 +185,9 @@ async function main() {
     // 2b. Flush and stop remote tunnel without resetting enabled state in config
     remoteManager.flush();
     await remoteManager.stop({ persistEnabled: false }).catch(() => {});
+
+    // 2c. Stop system metrics sampling and kill any active probe child processes
+    await dispatcher.dispose();
 
     // 3. Close HTTP/WS servers
     await Promise.all([

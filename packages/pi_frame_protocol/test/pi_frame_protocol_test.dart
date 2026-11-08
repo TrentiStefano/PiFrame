@@ -47,6 +47,85 @@ void main() {
       expect(evt.seq, 10);
     });
 
+    test('decodes side events correctly', () {
+      const openedJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_side_open_1",
+        "ts": 1726640000000,
+        "sessionId": "side_01",
+        "seq": 1,
+        "type": "side.opened",
+        "payload": {
+          "sideId": "side_01",
+          "parentSessionId": "s_001",
+          "model": "anthropic/claude-3-5-sonnet"
+        }
+      }
+      ''';
+      final opened = PcpCodec.decodeMessage(openedJson);
+      expect(opened, isA<SideOpenedEvent>());
+      final openedEvt = opened as SideOpenedEvent;
+      expect(openedEvt.sideId, 'side_01');
+      expect(openedEvt.parentSessionId, 's_001');
+
+      const closedJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_side_close_1",
+        "ts": 1726640001000,
+        "sessionId": "side_01",
+        "seq": 2,
+        "type": "side.closed",
+        "payload": {
+          "sideId": "side_01",
+          "reason": "user"
+        }
+      }
+      ''';
+      final closed = PcpCodec.decodeMessage(closedJson);
+      expect(closed, isA<SideClosedEvent>());
+      final closedEvt = closed as SideClosedEvent;
+      expect(closedEvt.sideId, 'side_01');
+      expect(closedEvt.reason, 'user');
+    });
+
+    test('creates side commands correctly', () {
+      final openCmd = PcpCommand.sideOpen(
+        commandId: 'cmd_side_open',
+        sessionId: 's_001',
+        question: 'Explain this function',
+      );
+      expect(openCmd.type, 'side.open');
+      expect(openCmd.payload['sessionId'], 's_001');
+      expect(openCmd.payload['question'], 'Explain this function');
+
+      final promptCmd = PcpCommand.sidePrompt(
+        commandId: 'cmd_side_prompt',
+        sideId: 'side_01',
+        text: 'What about edge cases?',
+      );
+      expect(promptCmd.type, 'side.prompt');
+      expect(promptCmd.payload['sideId'], 'side_01');
+      expect(promptCmd.payload['text'], 'What about edge cases?');
+
+      final abortCmd = PcpCommand.sideAbort(
+        commandId: 'cmd_side_abort',
+        sideId: 'side_01',
+      );
+      expect(abortCmd.type, 'side.abort');
+      expect(abortCmd.payload['sideId'], 'side_01');
+
+      final closeCmd = PcpCommand.sideClose(
+        commandId: 'cmd_side_close',
+        sideId: 'side_01',
+      );
+      expect(closeCmd.type, 'side.close');
+      expect(closeCmd.payload['sideId'], 'side_01');
+    });
+
     test('decodes UnknownEvent for forward compatibility without throwing', () {
       const futureEventJson = '''
       {
@@ -120,6 +199,132 @@ void main() {
       expect(sna.runtime.runStartedAt, 1726639990000);
       expect(sna.runtime.steeringQueue, ['Steer text']);
       expect(RuntimeMeta.fromJson({}).runStartedAt, isNull);
+    });
+
+    test('decodes SystemMetricsEvent correctly', () {
+      const metricsJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_metrics_001",
+        "ts": 1726640000000,
+        "sessionId": "@daemon",
+        "seq": 0,
+        "type": "system.metrics",
+        "payload": {
+          "sampledAt": 1726640000000,
+          "cpu": { "percent": 34.5 },
+          "memory": { "usedBytes": 8000, "totalBytes": 16000, "percent": 50.0 },
+          "disk": { "usedBytes": 10000, "totalBytes": 50000, "percent": 20.0 },
+          "gpu": {
+            "percent": 15.0,
+            "memoryUsedBytes": 1024,
+            "memoryTotalBytes": 8192,
+            "source": "nvidia-smi"
+          }
+        }
+      }
+      ''';
+
+      final msg = PcpCodec.decodeMessage(metricsJson);
+      expect(msg, isA<SystemMetricsEvent>());
+      final evt = msg as SystemMetricsEvent;
+      expect(evt.sessionId, '@daemon');
+      expect(evt.seq, 0);
+      expect(evt.sampledAt, 1726640000000);
+      expect(evt.cpu?['percent'], 34.5);
+      expect(evt.memory?['percent'], 50.0);
+      expect(evt.disk?['percent'], 20.0);
+      expect(evt.gpu?['percent'], 15.0);
+      expect(evt.gpu?['source'], 'nvidia-smi');
+    });
+
+    test('decodes RemoteStatusChangedEvent correctly', () {
+      const remoteStatusJson = '''
+      {
+        "protocol": 1,
+        "kind": "event",
+        "id": "evt_remote_001",
+        "ts": 1726640000000,
+        "sessionId": "@daemon",
+        "seq": 0,
+        "type": "remote.statusChanged",
+        "payload": {
+          "enabled": true,
+          "state": "running"
+        }
+      }
+      ''';
+
+      final msg = PcpCodec.decodeMessage(remoteStatusJson);
+      expect(msg, isA<RemoteStatusChangedEvent>());
+      final evt = msg as RemoteStatusChangedEvent;
+      expect(evt.status['enabled'], true);
+      expect(evt.status['state'], 'running');
+    });
+
+    test('creates systemMetricsSubscribe and systemMetricsUnsubscribe commands', () {
+      final sub = PcpCommand.systemMetricsSubscribe(commandId: 'cmd_sub_01');
+      expect(sub.commandId, 'cmd_sub_01');
+      expect(sub.sessionId, '@daemon');
+      expect(sub.type, 'system.metrics.subscribe');
+      expect(sub.payload, isEmpty);
+
+      final unsub = PcpCommand.systemMetricsUnsubscribe(commandId: 'cmd_unsub_01');
+      expect(unsub.commandId, 'cmd_unsub_01');
+      expect(unsub.sessionId, '@daemon');
+      expect(unsub.type, 'system.metrics.unsubscribe');
+      expect(unsub.payload, isEmpty);
+    });
+
+    test('creates workspaceListBranches and workspaceSwitchBranch commands', () {
+      final listCmd = PcpCommand.workspaceListBranches(
+        commandId: 'cmd_lb_01',
+        sessionId: 's_workspace_01',
+      );
+      expect(listCmd.commandId, 'cmd_lb_01');
+      expect(listCmd.sessionId, 's_workspace_01');
+      expect(listCmd.type, 'workspace.listBranches');
+      expect(listCmd.payload, isEmpty);
+
+      final switchDefault = PcpCommand.workspaceSwitchBranch(
+        commandId: 'cmd_sb_01',
+        sessionId: 's_workspace_01',
+        branch: 'feature/new-branch',
+      );
+      expect(switchDefault.commandId, 'cmd_sb_01');
+      expect(switchDefault.sessionId, 's_workspace_01');
+      expect(switchDefault.type, 'workspace.switchBranch');
+      expect(switchDefault.payload['branch'], 'feature/new-branch');
+      expect(switchDefault.payload['onDirty'], 'block');
+
+      final switchStash = PcpCommand.workspaceSwitchBranch(
+        commandId: 'cmd_sb_02',
+        sessionId: 's_workspace_01',
+        branch: 'main',
+        onDirty: 'stash',
+      );
+      expect(switchStash.payload['onDirty'], 'stash');
+
+      final agentsGet = PcpCommand.piAgentsGet(
+        commandId: 'cmd_ag_01',
+        cwd: '/project/dir',
+      );
+      expect(agentsGet.commandId, 'cmd_ag_01');
+      expect(agentsGet.sessionId, '@daemon');
+      expect(agentsGet.type, 'pi.agents.get');
+      expect(agentsGet.payload['cwd'], '/project/dir');
+
+      final agentsUpdate = PcpCommand.piAgentsUpdate(
+        commandId: 'cmd_au_01',
+        changes: [
+          {'kind': 'agent', 'name': 'worker', 'model': 'anthropic/claude-3-5-sonnet'}
+        ],
+      );
+      expect(agentsUpdate.commandId, 'cmd_au_01');
+      expect(agentsUpdate.sessionId, '@daemon');
+      expect(agentsUpdate.type, 'pi.agents.update');
+      expect(agentsUpdate.payload['changes'], isA<List>());
     });
   });
 }

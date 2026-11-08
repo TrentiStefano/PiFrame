@@ -227,11 +227,23 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     if (text.trim().isEmpty &&
         thinking.trim().isEmpty &&
         entryToolCalls.isEmpty) {
+      // An empty assistant message can still carry how the turn ended
+      // (e.g. a provider error). Keep that on the previous assistant entry.
+      if (role == 'assistant' && entries.isNotEmpty) {
+        final terminal = terminalStopMetadata(message);
+        if (terminal != null && entries.last.role == 'assistant') {
+          final last = entries.removeLast();
+          entries.add(
+            last.copyWith(metadata: {...?last.metadata, ...terminal}),
+          );
+        }
+      }
       continue;
     }
 
     final entryModel = message['model'] ?? message['modelId'];
     final entryUsage = message['usage'];
+    final entryStopReason = message['stopReason']?.toString();
     final entry = SessionEntry(
       id: entryId,
       role: role,
@@ -239,7 +251,11 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
       thinking: thinking.isNotEmpty ? thinking : null,
       toolCalls: entryToolCalls,
       timestamp: timestamp,
-      metadata: {'model': ?entryModel, 'usage': ?entryUsage},
+      metadata: {
+        'model': ?entryModel,
+        'usage': ?entryUsage,
+        'stopReason': ?entryStopReason,
+      },
     );
 
     // If previous entry was an assistant entry with empty text and this is an assistant entry with text,
@@ -250,34 +266,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
         role == 'assistant' &&
         text.isNotEmpty) {
       final prev = entries.removeLast();
-      final mergedTools = List<ToolExecutionState>.from(prev.toolCalls);
-      for (final t in entry.toolCalls) {
-        if (!mergedTools.any((e) => e.toolCallId == t.toolCallId)) {
-          mergedTools.add(t);
-        }
-      }
-      final prevThinking = prev.thinking?.trim();
-      final entryThinking = entry.thinking?.trim();
-      final combinedThinking =
-          prevThinking != null &&
-              entryThinking != null &&
-              prevThinking != entryThinking
-          ? '$prevThinking\n\n$entryThinking'
-          : (prevThinking ?? entryThinking);
-      entries.add(
-        SessionEntry(
-          id: prev.id,
-          role: 'assistant',
-          text: text,
-          thinking: combinedThinking,
-          toolCalls: mergedTools,
-          timestamp: prev.timestamp,
-          metadata: {
-            if (prev.metadata != null) ...prev.metadata!,
-            if (entry.metadata != null) ...entry.metadata!,
-          },
-        ),
-      );
+      entries.add(mergeTextIntoTextlessAssistant(prev, entry));
     } else {
       entries.add(entry);
     }
@@ -407,6 +396,8 @@ SessionState applySessionSnapshot(
     currentModel: model is Map
         ? (model['name'] ?? model['id'])?.toString()
         : (model is String && model.isNotEmpty ? model : null),
+    currentModelProvider: model is Map ? model['provider']?.toString() : null,
+    currentModelId: model is Map ? model['id']?.toString() : null,
     currentThinkingLevel: runtime['thinkingLevel']?.toString(),
     contextWindowOverride: runtime.containsKey('contextWindowOverride')
         ? (runtime['contextWindowOverride'] as num?)?.toInt()

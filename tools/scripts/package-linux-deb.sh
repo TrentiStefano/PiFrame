@@ -20,6 +20,10 @@ cp -a "$bundle/." "$app_dir/"
 install -m 0755 "$node_bin" "$app_dir/node"
 install -m 0644 "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app_dir/NODE-LICENSE.txt"
 install -m 0644 "$daemon" "$app_dir/pi-agentd.cjs"
+install -m 0644 LICENSE "$app_dir/LICENSE"
+install -m 0644 THIRD_PARTY_NOTICES.md "$app_dir/THIRD_PARTY_NOTICES.md"
+install -d "$stage/usr/share/doc/pi-frame"
+install -m 0644 LICENSE "$stage/usr/share/doc/pi-frame/copyright"
 # The daemon serves the web build for remote phone/browser access.
 cp -R "$web" "$app_dir/web"
 
@@ -50,6 +54,7 @@ EOF
 [[ -x "$app_dir/pi_frame" ]]
 [[ -x "$app_dir/node" ]]
 [[ -s "$app_dir/NODE-LICENSE.txt" ]]
+[[ -s "$app_dir/LICENSE" ]]
 [[ -s "$app_dir/pi-agentd.cjs" ]]
 [[ -s "$app_dir/web/index.html" ]]
 node --check "$app_dir/pi-agentd.cjs"

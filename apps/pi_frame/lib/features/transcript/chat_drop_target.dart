@@ -2,6 +2,8 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/attachment_model.dart';
 import '../composer/composer_attachments_provider.dart';
 
@@ -52,6 +54,7 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
 
     return DropTarget(
       key: const ValueKey('chat-drop-target'),
@@ -119,7 +122,7 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Rilascia i file qui per allegarli',
+                              strings.dropTargetTitle,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 16,
@@ -129,7 +132,7 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Supporta file del repository, file locali e immagini',
+                              strings.dropTargetSubtitle,
                               style: TextStyle(
                                 color: tokens.textMuted,
                                 fontSize: 12,

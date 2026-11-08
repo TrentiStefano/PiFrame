@@ -136,9 +136,16 @@ test('Dispatcher: workspace commands require session scope and ignore client cwd
     const setup = createTestSetup();
     const session = await setup.registry.createSession({ cwd: repoA.root });
     const scoped = await sendCommand(setup, 'workspace.refresh', session.id, { cwd: repoB.root });
-    assert.equal(path.normalize(scoped[1].payload.data.rootPath), path.normalize(fs.realpathSync(repoA.root)));
+    const scopedRes = scoped.find((m) => m.kind === 'result');
+    assert.ok(scopedRes);
+    assert.equal(path.normalize(scopedRes.payload.data.rootPath), path.normalize(fs.realpathSync(repoA.root)));
     const unscoped = await sendCommand(setup, 'workspace.refresh', undefined, { cwd: repoB.root });
-    assert.equal(unscoped[1].payload.state, 'rejected');
+    const unscopedErr = unscoped.find((m) => m.kind === 'error');
+    const unscopedRes = unscoped.find((m) => m.kind === 'result');
+    assert.ok(unscopedErr);
+    assert.ok(unscopedRes);
+    assert.ok(unscoped.indexOf(unscopedErr) < unscoped.indexOf(unscopedRes));
+    assert.equal(unscopedRes.payload.state, 'rejected');
   } finally {
     repoA.cleanup();
     repoB.cleanup();
@@ -150,19 +157,25 @@ test('Dispatcher: workspace blocks writes for read-only and active sessions, but
   try {
     const setup = createTestSetup();
     const session = await setup.registry.createSession({ cwd: repo.root });
-    const file = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' }))[1].payload.data;
+    const file = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' })).find((m) => m.kind === 'result').payload.data;
     fs.writeFileSync(path.join(repo.root, 'file.txt'), 'edited\n');
     session.worker = { health: () => ({ alive: true }) } as any; // healthy idle workers may still use the workspace
     session.readOnly = true;
     let result = await sendCommand(setup, 'workspace.saveFile', session.id, { path: 'file.txt', content: 'blocked', revision: file.revision });
-    assert.equal(result[1].payload.state, 'rejected');
-    assert.equal((await sendCommand(setup, 'workspace.listFiles', session.id))[1].payload.state, 'completed');
+    let res = result.find((m) => m.kind === 'result');
+    let err = result.find((m) => m.kind === 'error');
+    assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
+    assert.equal(res.payload.state, 'rejected');
+    assert.equal((await sendCommand(setup, 'workspace.listFiles', session.id)).find((m) => m.kind === 'result').payload.state, 'completed');
     session.readOnly = false;
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['file.txt'] });
-    assert.equal(result[1].payload.state, 'completed');
+    assert.equal(result.find((m) => m.kind === 'result').payload.state, 'completed');
     session.isStreaming = true;
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'unstage', paths: ['file.txt'] });
-    assert.equal(result[1].payload.state, 'rejected');
+    res = result.find((m) => m.kind === 'result');
+    err = result.find((m) => m.kind === 'error');
+    assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
+    assert.equal(res.payload.state, 'rejected');
     assert.equal(fs.readFileSync(path.join(repo.root, 'file.txt'), 'utf8'), 'edited\n');
   } finally {
     repo.cleanup();
@@ -178,12 +191,21 @@ test('Dispatcher: workspace rejects traversal and symlink escape and surfaces Gi
     const setup = createTestSetup();
     const session = await setup.registry.createSession({ cwd: repo.root });
     let result = await sendCommand(setup, 'workspace.readFile', session.id, { path: '../secret.txt' });
-    assert.equal(result[1].payload.state, 'rejected');
+    let res = result.find((m) => m.kind === 'result');
+    let err = result.find((m) => m.kind === 'error');
+    assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
+    assert.equal(res.payload.state, 'rejected');
     result = await sendCommand(setup, 'workspace.readFile', session.id, { path: 'outside-link/secret.txt' });
-    assert.equal(result[1].payload.state, 'rejected');
+    res = result.find((m) => m.kind === 'result');
+    err = result.find((m) => m.kind === 'error');
+    assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
+    assert.equal(res.payload.state, 'rejected');
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['missing.txt'] });
-    assert.equal(result[1].payload.state, 'rejected');
-    assert.match(result[1].payload.error, /stale/i);
+    res = result.find((m) => m.kind === 'result');
+    err = result.find((m) => m.kind === 'error');
+    assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
+    assert.equal(res.payload.state, 'rejected');
+    assert.match(res.payload.error, /stale/i);
   } finally {
     fs.rmSync(outside, { recursive: true, force: true });
     repo.cleanup();
@@ -236,6 +258,16 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
   const pinned = await sendCommand(setup, 'pi.packages.pin', undefined, { source: 'npm:pi-caveman', version: '1.2.3' });
   assert.equal(pinned[1].payload.data.source, 'npm:pi-caveman@1.2.3');
   assert.deepEqual(calls, ['list', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
+});
+
+test('Dispatcher: delegates pi.agents.get and pi.agents.update for local connection', async () => {
+  const setup = createTestSetup();
+  const getRes = await sendCommand(setup, 'pi.agents.get', '@daemon', {});
+  assert.equal(getRes[0].payload.state, 'accepted');
+  assert.equal(getRes[1].payload.state, 'completed');
+  assert.ok(Array.isArray(getRes[1].payload.data.packages));
+  assert.ok(Array.isArray(getRes[1].payload.data.agents));
+  assert.ok(Array.isArray(getRes[1].payload.data.thinkingLevels));
 });
 
 test('Dispatcher: executes daemon.getConfig and returns config', async () => {
@@ -325,7 +357,12 @@ test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates run
     payload: { workerIdleTimeoutMs: -100 }
   });
 
-  const errRes = JSON.parse(ws.sentMessages[3]);
+  const sent = ws.sentMessages.slice(2).map((m) => JSON.parse(m));
+  const errEnvelope = sent.find((m) => m.kind === 'error');
+  const errRes = sent.find((m) => m.kind === 'result');
+  assert.ok(errEnvelope);
+  assert.ok(errRes);
+  assert.ok(sent.indexOf(errEnvelope) < sent.indexOf(errRes), 'Error envelope must precede rejected result');
   assert.equal(errRes.payload.state, 'rejected');
 });
 
@@ -430,6 +467,22 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   });
   const res5 = getLastResult(remoteWs);
   assert.equal(res5.payload.state, 'rejected');
+
+  // Remote attempts pi.agents.get -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_agents_get_att', ts: Date.now(),
+    commandId: 'c_ag_att', type: 'pi.agents.get', payload: {}
+  });
+  const resAgentsGet = getLastResult(remoteWs);
+  assert.equal(resAgentsGet.payload.state, 'rejected');
+
+  // Remote attempts pi.agents.update -> MUST BE BLOCKED
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_agents_upd_att', ts: Date.now(),
+    commandId: 'c_au_att', type: 'pi.agents.update', payload: { changes: [] }
+  });
+  const resAgentsUpd = getLastResult(remoteWs);
+  assert.equal(resAgentsUpd.payload.state, 'rejected');
 
   // Remote in view mode attempts workspace.saveFile -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {

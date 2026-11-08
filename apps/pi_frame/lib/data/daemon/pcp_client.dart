@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 
 import '../../app/app_version.dart';
+import '../agents/agents_config_model.dart';
 
 enum DaemonConnectionState {
   disconnected,
@@ -52,6 +53,24 @@ class PcpClient {
 
   // Attached sessions with lastSeq
   final _attachedSessions = <String, int?>{};
+
+  Map<String, dynamic>? _welcomePayload;
+  Map<String, dynamic>? get welcomePayload => _welcomePayload;
+
+  List<String>? _customCapabilities;
+  @visibleForTesting
+  set customCapabilities(List<String>? caps) => _customCapabilities = caps;
+
+  List<String> get capabilities {
+    if (_customCapabilities != null) return _customCapabilities!;
+    final caps = _welcomePayload?['capabilities'];
+    if (caps is List) {
+      return caps.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  bool hasCapability(String capability) => capabilities.contains(capability);
 
   PcpClient({
     this.host = '127.0.0.1',
@@ -116,6 +135,7 @@ class PcpClient {
       final kind = map['kind'] as String?;
 
       if (kind == 'welcome') {
+        _welcomePayload = map['payload'] as Map<String, dynamic>?;
         _setConnectionState(DaemonConnectionState.connected);
         _reconnectDelaySeconds = 1;
 
@@ -158,8 +178,14 @@ class PcpClient {
           _inFlightCommands.remove(commandId);
           final payload = map['payload'] as Map<String, dynamic>? ?? {};
           if (payload['state'] == 'failed' || payload['state'] == 'rejected') {
+            final code = payload['code']?.toString() ?? '';
+            final details = payload['details'];
             completer.completeError(
-              StateError(payload['error']?.toString() ?? 'Command failed'),
+              PcpException(
+                payload['error']?.toString() ?? 'Command failed',
+                code: code,
+                details: details ?? const {},
+              ),
             );
           } else {
             completer.complete(payload);
@@ -174,7 +200,13 @@ class PcpClient {
           final completer = _pendingCommands.remove(commandId)!;
           _inFlightCommands.remove(commandId);
           final payload = map['payload'] as Map<String, dynamic>? ?? {};
-          completer.completeError(Exception(payload['message'] ?? 'PCP Error'));
+          completer.completeError(
+            PcpException(
+              payload['message']?.toString() ?? 'PCP Error',
+              code: payload['code']?.toString() ?? '',
+              details: payload['details'] ?? const {},
+            ),
+          );
         }
         return;
       }
@@ -242,6 +274,7 @@ class PcpClient {
     _subscription = null;
     _channel?.sink.close();
     _channel = null;
+    _welcomePayload = null;
   }
 
   void _scheduleReconnect() {
@@ -590,6 +623,29 @@ class PcpClient {
           payload: {'source': source, 'version': version},
         ),
       );
+
+  Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
+    final cmd = PcpCommand.piAgentsGet(
+      commandId: newCommandId('ag_get'),
+      cwd: cwd,
+    );
+    final res = await sendCommand(cmd);
+    final map = (res['data'] as Map<String, dynamic>?) ?? res;
+    return PiAgentsConfig.fromJson(map);
+  }
+
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+    final typedChanges = changes
+        .map((c) => c.map((k, v) => MapEntry(k.toString(), v)))
+        .toList();
+    final cmd = PcpCommand.piAgentsUpdate(
+      commandId: newCommandId('ag_upd'),
+      changes: typedChanges,
+    );
+    final res = await sendCommand(cmd);
+    final map = (res['data'] as Map<String, dynamic>?) ?? res;
+    return PiAgentsConfig.fromJson(map);
+  }
 
   Future<Map<String, dynamic>> claimUiRequest(
     String sessionId,
@@ -944,6 +1000,32 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<WorkspaceListBranchesResult> listBranches(String sessionId) async {
+    final cmd = PcpCommand.workspaceListBranches(
+      commandId: newCommandId('wlb'),
+      sessionId: sessionId,
+    );
+    final response = await sendCommand(cmd);
+    final data = (response['data'] as Map<String, dynamic>?) ?? response;
+    return WorkspaceListBranchesResult.fromJson(data);
+  }
+
+  Future<WorkspaceSwitchBranchResult> switchBranch(
+    String sessionId,
+    String branch, {
+    String onDirty = 'block',
+  }) async {
+    final cmd = PcpCommand.workspaceSwitchBranch(
+      commandId: newCommandId('wsb'),
+      sessionId: sessionId,
+      branch: branch,
+      onDirty: onDirty,
+    );
+    final response = await sendCommand(cmd);
+    final data = (response['data'] as Map<String, dynamic>?) ?? response;
+    return WorkspaceSwitchBranchResult.fromJson(data);
+  }
+
   Future<Map<String, dynamic>> getWorkspaceDiff(
     String sessionId, {
     String? filePath,
@@ -1041,6 +1123,62 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
+  Future<Map<String, dynamic>> subscribeSystemMetrics() {
+    return sendCommand(
+      PcpCommand.systemMetricsSubscribe(
+        commandId: newCommandId('cmd_metrics_sub'),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> unsubscribeSystemMetrics() {
+    return sendCommand(
+      PcpCommand.systemMetricsUnsubscribe(
+        commandId: newCommandId('cmd_metrics_unsub'),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> openSide(
+    String sessionId, {
+    String? question,
+  }) {
+    final cmd = PcpCommand.sideOpen(
+      commandId: newCommandId('side_open'),
+      sessionId: sessionId,
+      question: question,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sidePrompt(
+    String sideId,
+    String text,
+  ) {
+    final cmd = PcpCommand.sidePrompt(
+      commandId: newCommandId('side_prompt'),
+      sideId: sideId,
+      text: text,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sideAbort(String sideId) {
+    final cmd = PcpCommand.sideAbort(
+      commandId: newCommandId('side_abort'),
+      sideId: sideId,
+    );
+    return sendCommand(cmd);
+  }
+
+  Future<Map<String, dynamic>> sideClose(String sideId) {
+    final cmd = PcpCommand.sideClose(
+      commandId: newCommandId('side_close'),
+      sideId: sideId,
+    );
+    return sendCommand(cmd);
+  }
+
   Stream<PcpEvent> events(String sessionId) {
     return _eventControllers
         .putIfAbsent(sessionId, () => StreamController<PcpEvent>.broadcast())
@@ -1071,4 +1209,143 @@ class PcpClient {
       c.close();
     }
   }
+}
+
+class PcpException extends StateError implements Exception {
+  final String code;
+  final dynamic details;
+
+  PcpException(
+    super.message, {
+    this.code = '',
+    this.details = const {},
+  });
+
+  Map<String, dynamic> get detailsMap =>
+      details is Map<String, dynamic>
+          ? details as Map<String, dynamic>
+          : (details is Map
+              ? Map<String, dynamic>.from(details as Map)
+              : const {});
+
+  List<Map<String, dynamic>> get validationErrors {
+    if (details is List) {
+      return (details as List)
+          .whereType<Map>()
+          .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+          .toList();
+    }
+    return const [];
+  }
+
+  int get changedFiles => (detailsMap['changedFiles'] as num?)?.toInt() ?? 0;
+  int get untrackedFiles => (detailsMap['untrackedFiles'] as num?)?.toInt() ?? 0;
+  String? get stderr => detailsMap['stderr']?.toString();
+  bool get stashRetained => detailsMap['stashRetained'] == true;
+  String? get stashMessage => detailsMap['stashMessage']?.toString();
+
+  @override
+  String toString() => 'Bad state: $message';
+}
+
+class WorkspaceBranchInfo {
+  final String name;
+  final bool isCurrent;
+  final String? upstream;
+  final int? ahead;
+  final int? behind;
+  final int? lastCommitUnix;
+
+  const WorkspaceBranchInfo({
+    required this.name,
+    required this.isCurrent,
+    this.upstream,
+    this.ahead,
+    this.behind,
+    this.lastCommitUnix,
+  });
+
+  factory WorkspaceBranchInfo.fromJson(Map<String, dynamic> json) {
+    return WorkspaceBranchInfo(
+      name: json['name'] as String? ?? '',
+      isCurrent: json['isCurrent'] as bool? ?? false,
+      upstream: json['upstream'] as String?,
+      ahead: (json['ahead'] as num?)?.toInt(),
+      behind: (json['behind'] as num?)?.toInt(),
+      lastCommitUnix: (json['lastCommitUnix'] as num?)?.toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'isCurrent': isCurrent,
+    if (upstream != null) 'upstream': upstream,
+    if (ahead != null) 'ahead': ahead,
+    if (behind != null) 'behind': behind,
+    if (lastCommitUnix != null) 'lastCommitUnix': lastCommitUnix,
+  };
+}
+
+class WorkspaceListBranchesResult {
+  final List<WorkspaceBranchInfo> branches;
+  final String? currentBranch;
+  final bool detached;
+  final String? headShortSha;
+
+  const WorkspaceListBranchesResult({
+    required this.branches,
+    this.currentBranch,
+    this.detached = false,
+    this.headShortSha,
+  });
+
+  factory WorkspaceListBranchesResult.fromJson(Map<String, dynamic> json) {
+    final rawBranches = (json['branches'] as List?) ?? const [];
+    final branches = rawBranches.map((b) {
+      if (b is Map<String, dynamic>) {
+        return WorkspaceBranchInfo.fromJson(b);
+      }
+      return WorkspaceBranchInfo.fromJson(Map<String, dynamic>.from(b as Map));
+    }).toList();
+
+    return WorkspaceListBranchesResult(
+      branches: branches,
+      currentBranch: json['currentBranch'] as String?,
+      detached: json['detached'] as bool? ?? false,
+      headShortSha: json['headShortSha'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'branches': branches.map((b) => b.toJson()).toList(),
+    if (currentBranch != null) 'currentBranch': currentBranch,
+    'detached': detached,
+    if (headShortSha != null) 'headShortSha': headShortSha,
+  };
+}
+
+class WorkspaceSwitchBranchResult {
+  final String currentBranch;
+  final bool stashed;
+  final String? stashMessage;
+
+  const WorkspaceSwitchBranchResult({
+    required this.currentBranch,
+    required this.stashed,
+    this.stashMessage,
+  });
+
+  factory WorkspaceSwitchBranchResult.fromJson(Map<String, dynamic> json) {
+    return WorkspaceSwitchBranchResult(
+      currentBranch: json['currentBranch'] as String? ?? '',
+      stashed: json['stashed'] as bool? ?? false,
+      stashMessage: json['stashMessage'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'currentBranch': currentBranch,
+    'stashed': stashed,
+    if (stashMessage != null) 'stashMessage': stashMessage,
+  };
 }

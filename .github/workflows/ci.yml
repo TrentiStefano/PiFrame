@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: pnpm -r run test
 
+      - name: Check third-party notices
+        run: pnpm run check:notices
+
   flutter:
     name: Flutter (Analyze & Test)
     runs-on: ubuntu-24.04

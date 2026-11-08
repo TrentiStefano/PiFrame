@@ -4,8 +4,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../ui/frame_snack_bar.dart';
 
 class McpServerItem {
@@ -60,12 +63,14 @@ class McpServersDialog extends StatefulWidget {
   final FrameTokens tokens;
   final String? projectDir;
   final List<McpServerItem>? initialServers;
+  final AppStrings? strings;
 
   const McpServersDialog({
     super.key,
     required this.tokens,
     this.projectDir,
     this.initialServers,
+    this.strings,
   });
 
   static Future<void> show(
@@ -73,6 +78,7 @@ class McpServersDialog extends StatefulWidget {
     FrameTokens tokens, {
     String? projectDir,
     List<McpServerItem>? initialServers,
+    AppStrings? strings,
   }) {
     return showDialog<void>(
       context: context,
@@ -81,6 +87,7 @@ class McpServersDialog extends StatefulWidget {
         tokens: tokens,
         projectDir: projectDir,
         initialServers: initialServers,
+        strings: strings,
       ),
     );
   }
@@ -90,6 +97,15 @@ class McpServersDialog extends StatefulWidget {
 }
 
 class _McpServersDialogState extends State<McpServersDialog> {
+  AppStrings get _strings {
+    if (widget.strings != null) return widget.strings!;
+    try {
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   bool _isLoading = true;
   String? _errorMessage;
   List<McpServerItem> _servers = [];
@@ -123,8 +139,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
     if (kIsWeb) {
       setState(() {
         _isLoading = false;
-        _errorMessage =
-            'La configurazione MCP è disponibile solo su desktop.';
+        _errorMessage = _strings.mcpDesktopOnly;
       });
       return;
     }
@@ -287,7 +302,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Impossibile caricare i server MCP: $e';
+          _errorMessage = _strings.mcpLoadError(e);
           _isLoading = false;
         });
       }
@@ -331,7 +346,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
       if (mounted) {
         FrameSnackBar.show(
           context,
-          message: 'Errore nel salvataggio: $e',
+          message: _strings.mcpSaveError(e),
         );
       }
     } finally {
@@ -346,6 +361,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
+    final strings = _strings;
     final enabledCount = _servers.where((s) => s.enabled).length;
 
     return Dialog(
@@ -383,7 +399,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Server MCP Disponibili',
+                          strings.mcpDialogTitle,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 16,
@@ -392,7 +408,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Configura e attiva o disattiva i server MCP per il coding agent.',
+                          strings.mcpDialogSubtitle,
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: 12,
@@ -402,12 +418,12 @@ class _McpServersDialogState extends State<McpServersDialog> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Aggiorna elenco',
+                    tooltip: strings.mcpRefreshListTooltip,
                     icon: Icon(Icons.refresh, size: 18, color: tokens.textMuted),
                     onPressed: _isLoading ? null : _loadServers,
                   ),
                   IconButton(
-                    tooltip: 'Chiudi',
+                    tooltip: strings.close,
                     icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -434,7 +450,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Caricamento server MCP in corso...',
+                              strings.mcpLoadingServers,
                               style: TextStyle(color: tokens.textMuted, fontSize: 12),
                             ),
                           ],
@@ -452,13 +468,13 @@ class _McpServersDialogState extends State<McpServersDialog> {
                             ),
                           )
                         : _servers.isEmpty
-                            ? _buildEmptyState(tokens)
+                            ? _buildEmptyState(tokens, strings)
                             : ListView.separated(
                                 itemCount: _servers.length,
                                 separatorBuilder: (context, index) => const SizedBox(height: 10),
                                 itemBuilder: (context, index) {
                                   final server = _servers[index];
-                                  return _buildServerCard(tokens, server);
+                                  return _buildServerCard(tokens, server, strings);
                                 },
                               ),
               ),
@@ -473,8 +489,8 @@ class _McpServersDialogState extends State<McpServersDialog> {
                 children: [
                   Text(
                     _servers.isEmpty
-                        ? '0 server'
-                        : '$enabledCount su ${_servers.length} server attivi',
+                        ? strings.mcpZeroServers
+                        : strings.mcpActiveServersCount(enabledCount, _servers.length),
                     style: TextStyle(
                       color: tokens.textSecondary,
                       fontSize: 12,
@@ -492,7 +508,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                       ),
                     ),
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Chiudi'),
+                    child: Text(strings.close),
                   ),
                 ],
               ),
@@ -503,7 +519,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
     );
   }
 
-  Widget _buildEmptyState(FrameTokens tokens) {
+  Widget _buildEmptyState(FrameTokens tokens, AppStrings strings) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -513,7 +529,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
             Icon(Icons.dns_outlined, size: 40, color: tokens.textMuted.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Text(
-              'Nessun server MCP configurato',
+              strings.mcpEmptyTitle,
               style: TextStyle(
                 color: tokens.textPrimary,
                 fontSize: 14,
@@ -522,7 +538,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Aggiungi un server con "pi mcp add <nome> -- <comando>"\noppure modifica ~/.pi/agent/mcp.json.',
+              strings.mcpEmptySubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: tokens.textMuted,
@@ -536,7 +552,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
     );
   }
 
-  Widget _buildServerCard(FrameTokens tokens, McpServerItem server) {
+  Widget _buildServerCard(FrameTokens tokens, McpServerItem server, AppStrings strings) {
     final isToggling = _togglingServers.contains(server.name);
     final isToolsExpanded = _expandedTools.contains(server.name);
 
@@ -549,12 +565,12 @@ class _McpServersDialogState extends State<McpServersDialog> {
                 : tokens.accent;
 
     final statusLabel = !server.enabled
-        ? 'Disabilitato'
+        ? strings.mcpStatusDisabled
         : server.state == 'connected'
-            ? 'Connesso'
+            ? strings.mcpStatusConnected
             : server.state == 'failed'
-                ? 'Non connesso'
-                : 'Abilitato';
+                ? strings.mcpStatusFailed
+                : strings.mcpStatusEnabled;
 
     return Container(
       decoration: BoxDecoration(
@@ -655,7 +671,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                             ),
                           ),
                           child: Text(
-                            'Progetto',
+                            strings.mcpScopeProject,
                             style: TextStyle(
                               color: tokens.syntaxKeyword,
                               fontSize: 10,
@@ -689,7 +705,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
                           Icon(Icons.build_outlined, size: 12, color: tokens.syntaxFunction),
                           const SizedBox(width: 4),
                           Text(
-                            '${server.tools.length} tool',
+                            strings.mcpToolsCount(server.tools.length),
                             style: TextStyle(
                               color: tokens.syntaxFunction,
                               fontSize: 11,
@@ -748,13 +764,13 @@ class _McpServersDialogState extends State<McpServersDialog> {
                       ),
                     ),
                     Tooltip(
-                      message: 'Copia comando',
+                      message: strings.mcpCopyCommandTooltip,
                       child: InkWell(
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: server.transport));
                           FrameSnackBar.show(
                             context,
-                            message: 'Comando copiato',
+                            message: strings.mcpCommandCopiedSnackBar,
                             duration: const Duration(seconds: 1),
                           );
                         },

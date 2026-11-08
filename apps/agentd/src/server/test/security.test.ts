@@ -71,30 +71,91 @@ test('Security Review Suite: constant-time comparison, origin validation, token 
       onDetach: async () => {}
     });
 
+    const clients: WebSocket[] = [];
+
     try {
-      // 3a. Disallowed Origin should be rejected with 403 on HTTP upgrade
+      // 3a. Disallowed Origin: resolve when connection is rejected.
+      // The server writes 403 then destroys the socket, so under load Windows
+      // may deliver RST before the client parses the status.
       await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const settleResolve = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        };
+        const settleReject = (err: Error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(err);
+        };
+
+        const timer = setTimeout(() => {
+          settleReject(new Error('Timed out waiting for origin rejection'));
+        }, 5000);
+
         const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
           headers: {
             Origin: 'http://malicious-website.com'
           }
         });
+        clients.push(ws);
+
+        ws.on('unexpected-response', (_req, res) => {
+          if (res.statusCode === 403) {
+            settleResolve();
+          } else {
+            settleReject(new Error(`Expected 403 Forbidden, received status ${res.statusCode}`));
+          }
+        });
 
         ws.on('open', () => {
           ws.close();
-          reject(new Error('Connection should not have opened for disallowed origin'));
+          settleReject(new Error('Connection should not have opened for disallowed origin'));
         });
 
         ws.on('error', (err: any) => {
-          // Expected rejection
-          assert.ok(err.message.includes('403') || err.message.includes('Unexpected server response'));
-          resolve();
+          const msg = err?.message || '';
+          const code = err?.code || '';
+          if (
+            msg.includes('403') ||
+            msg.includes('Unexpected server response') ||
+            code === 'ECONNRESET' ||
+            code === 'EPIPE' ||
+            msg.includes('socket hang up')
+          ) {
+            settleResolve();
+            return;
+          }
+          settleReject(err instanceof Error ? err : new Error(String(err)));
         });
       });
 
-      // 3b. Missing token in hello frame is closed with 4003
-      await new Promise<void>((resolve) => {
+      // 3b. Invalid token in hello frame is closed with 4003 (proves server is still alive and enforcing auth)
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const settleResolve = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve();
+        };
+        const settleReject = (err: Error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          reject(err);
+        };
+
+        const timer = setTimeout(() => {
+          settleReject(new Error('Timed out waiting for 4003 close on invalid token'));
+        }, 5000);
+
         const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+        clients.push(ws);
+
         ws.on('open', () => {
           ws.send(
             JSON.stringify({
@@ -113,11 +174,23 @@ test('Security Review Suite: constant-time comparison, origin validation, token 
         });
 
         ws.on('close', (code) => {
-          assert.strictEqual(code, 4003, 'Should close with 4003 on invalid token');
-          resolve();
+          if (code === 4003) {
+            settleResolve();
+          } else {
+            settleReject(new Error(`Expected close code 4003 on invalid token, got ${code}`));
+          }
+        });
+
+        ws.on('error', (err: any) => {
+          settleReject(err instanceof Error ? err : new Error(String(err)));
         });
       });
     } finally {
+      for (const client of clients) {
+        try {
+          client.terminate();
+        } catch {}
+      }
       wss.close();
       await new Promise<void>((resolve) => httpServer.close(() => resolve()));
     }

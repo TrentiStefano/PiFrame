@@ -171,17 +171,21 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null || state.readOnly || _defaultsLoading) return;
     final needsModel =
         state.currentModel == null || state.currentModel!.isEmpty;
+    final needsModelIdentity =
+        state.currentModelProvider == null || state.currentModelId == null;
     final needsThinking =
         state.currentThinkingLevel == null ||
         state.currentThinkingLevel!.isEmpty;
-    if (!needsModel && !needsThinking) return;
+    if (!needsModel && !needsModelIdentity && !needsThinking) return;
 
     _defaultsLoading = true;
     try {
       String? resolvedModel;
+      String? resolvedModelProvider;
+      String? resolvedModelId;
       String? resolvedThinking;
 
-      if (needsModel) {
+      if (needsModel || needsModelIdentity) {
         final res = await client!
             .getAvailableModels(sessionId)
             .timeout(const Duration(seconds: 4));
@@ -190,15 +194,40 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         if (currentModelRaw is Map) {
           resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])
               ?.toString();
+          resolvedModelProvider = currentModelRaw['provider']?.toString();
+          resolvedModelId = currentModelRaw['id']?.toString();
         } else if (currentModelRaw is String && currentModelRaw.isNotEmpty) {
           resolvedModel = currentModelRaw;
         }
 
-        if (resolvedModel == null || resolvedModel.isEmpty) {
-          final models =
-              (data['models'] as List<dynamic>?)
-                  ?.cast<Map<String, dynamic>>() ??
-              [];
+        final models =
+            (data['models'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>() ??
+            [];
+        if (needsModelIdentity && currentModelRaw != null) {
+          final rawId = currentModelRaw is Map
+              ? currentModelRaw['id']?.toString()
+              : currentModelRaw.toString();
+          final rawName = currentModelRaw is Map
+              ? currentModelRaw['name']?.toString()
+              : currentModelRaw.toString();
+          final byId = rawId == null
+              ? <Map<String, dynamic>>[]
+              : models
+                    .where((model) => model['id']?.toString() == rawId)
+                    .toList();
+          final matches = byId.isNotEmpty
+              ? byId
+              : models
+                    .where((model) => model['name']?.toString() == rawName)
+                    .toList();
+          if (matches.length == 1) {
+            resolvedModelProvider = matches.single['provider']?.toString();
+            resolvedModelId = matches.single['id']?.toString();
+          }
+        }
+
+        if (needsModel && (resolvedModel == null || resolvedModel.isEmpty)) {
           final defaultModel = models.firstWhere(
             (m) => m['isDefault'] == true || m['default'] == true,
             orElse: () => models.isNotEmpty ? models.first : const {},
@@ -206,6 +235,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
           if (defaultModel.isNotEmpty) {
             resolvedModel = (defaultModel['name'] ?? defaultModel['id'])
                 ?.toString();
+            resolvedModelProvider = defaultModel['provider']?.toString();
+            resolvedModelId = defaultModel['id']?.toString();
           }
         }
 
@@ -245,6 +276,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       if (mounted && (resolvedModel != null || resolvedThinking != null)) {
         state = state.copyWith(
           currentModel: resolvedModel ?? state.currentModel,
+          currentModelProvider:
+              resolvedModelProvider ?? state.currentModelProvider,
+          currentModelId: resolvedModelId ?? state.currentModelId,
           currentThinkingLevel: resolvedThinking ?? state.currentThinkingLevel,
         );
       }
@@ -501,6 +535,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     final model = data['model'] as Map<String, dynamic>? ?? data;
     state = state.copyWith(
       currentModel: (model['name'] ?? model['id'] ?? modelId).toString(),
+      currentModelProvider: (model['provider'] ?? provider).toString(),
+      currentModelId: (model['id'] ?? modelId).toString(),
     );
     client!.attach(sessionId, lastSeq: null);
   }

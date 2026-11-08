@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import '../../domain/session/agent_status.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -69,7 +71,8 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
     } catch (error) {
       if (generation == _generation) _draft = null;
       if (mounted && generation == _generation) {
-        FrameSnackBar.show(context, message: 'Limite non applicato: $error');
+        final strings = ref.read(appStringsProvider);
+        FrameSnackBar.show(context, message: strings.contextLimitNotApplied(error));
       }
     } finally {
       if (saving.mounted) saving.state = false;
@@ -82,8 +85,11 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    ref.listen<String?>(
-      sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
+    final strings = ref.watch(appStringsProvider);
+    ref.listen<(String?, String?, String?)>(
+      sessionStateFamily(widget.sessionId).select(
+        (s) => (s.currentModel, s.currentModelProvider, s.currentModelId),
+      ),
       (previous, next) {
         if (previous != next) {
           ref.read(customContextModeProvider(widget.sessionId).notifier).state = null;
@@ -150,8 +156,8 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
               value: selected,
               hint: Text(
                 maximum == null
-                    ? 'Massimo non disponibile'
-                    : 'Seleziona limite',
+                    ? strings.contextMaxNotAvailable
+                    : strings.contextSelectLimit,
                 style: TextStyle(color: tokens.textMuted, fontSize: 12),
               ),
               borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -174,7 +180,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                       maximum == null
                           ? formatTokens(size)
                           : hasVariableContextPricing(widget.model)
-                          ? formatContextSize(size, maximum)
+                          ? formatContextSize(size, maximum, italian: strings.isItalian)
                           : '${formatTokens(size)} (Max)',
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -200,7 +206,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
         if (isCustom && sliderEnabled) ...[
           const SizedBox(height: 6),
           Text(
-            'Finestra massima di contesto',
+            strings.contextMaxWindow,
             style: TextStyle(
               color: tokens.textSecondary,
               fontSize: 12,
@@ -209,7 +215,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${formatTokens(sliderValue.round())} token (${sliderValue.round()} token esatti)',
+            strings.contextTokensExact(formatTokens(sliderValue.round()), sliderValue.round()),
             style: TextStyle(color: tokens.textSecondary, fontSize: 11),
           ),
           Slider(
@@ -223,8 +229,8 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                 ? (sliderMaximum - 100000) ~/ _step
                 : null,
             value: sliderValue,
-            label: '${sliderValue.round()} token',
-            semanticFormatterCallback: (value) => '${value.round()} token',
+            label: strings.contextTokensLabel(sliderValue.round()),
+            semanticFormatterCallback: (value) => strings.contextTokensLabel(value.round()),
             onChanged: disabled || sliderMaximum == 100000
                 ? null
                 : (value) => setState(() => _draft = value),
@@ -233,7 +239,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                 : (value) => _save(value.round(), custom: true),
           ),
           Text(
-            '100k–${formatTokens(sliderMaximum)} · Passo 50k',
+            strings.contextStep50k(formatTokens(sliderMaximum)),
             style: TextStyle(color: tokens.textMuted, fontSize: 10),
           ),
         ],

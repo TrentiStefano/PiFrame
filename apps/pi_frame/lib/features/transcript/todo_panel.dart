@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import 'todo_provider.dart';
 
 class TodoPopDown extends ConsumerStatefulWidget {
@@ -69,6 +71,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final todos = ref.watch(todosFamily(widget.sessionId));
     final notifier = ref.read(todosFamily(widget.sessionId).notifier);
 
@@ -136,7 +139,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Task Agente (Todo)',
+                  strings.todoAgentTasksTitle,
                   style: TextStyle(
                     color: tokens.textPrimary,
                     fontSize: 12,
@@ -152,7 +155,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
                   ),
                   child: Text(
-                    '$completedCount / $totalCount completati',
+                    strings.todoCompletedCount(completedCount, totalCount),
                     style: TextStyle(
                       color: percent >= 1.0 ? tokens.success : tokens.accent,
                       fontSize: 10,
@@ -169,7 +172,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
                     child: Text(
-                      '$inProgressCount in corso',
+                      strings.todoInProgressCount(inProgressCount),
                       style: TextStyle(
                         color: tokens.agentWorking,
                         fontSize: 10,
@@ -180,7 +183,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 ],
                 const Spacer(),
                 IconButton(
-                  tooltip: _isAdding ? 'Annulla' : 'Aggiungi task',
+                  tooltip: _isAdding ? strings.todoCancelTooltip : strings.todoAddTaskTooltip,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -193,7 +196,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 ),
                 IconButton(
                   key: const ValueKey('todo-popdown-close-btn'),
-                  tooltip: 'Nascondi attività',
+                  tooltip: strings.todoHideTasksTooltip,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -221,7 +224,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                        hintText: 'Aggiungi task e premi Invio...',
+                        hintText: strings.todoAddTaskHint,
                         hintStyle: TextStyle(color: tokens.textMuted, fontSize: 11.5),
                         border: InputBorder.none,
                       ),
@@ -234,7 +237,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     ),
                     onPressed: _submitNewTask,
-                    child: const Text('Aggiungi', style: TextStyle(fontSize: 10.5)),
+                    child: Text(strings.todoAddButton, style: const TextStyle(fontSize: 10.5)),
                   ),
                 ],
               ),
@@ -246,7 +249,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               padding: const EdgeInsets.all(14),
               child: Center(
                 child: Text(
-                  'Nessun task ancora pianificato per questa sessione.',
+                  strings.todoNoTasksYet,
                   style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
                 ),
               ),
@@ -332,7 +335,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                               const SizedBox(width: 6),
 
                               // Status Badge
-                              _buildStatusBadge(task, tokens),
+                              _buildStatusBadge(task, tokens, strings),
 
                               // Expand / Collapse Chevron
                               const SizedBox(width: 4),
@@ -362,7 +365,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                               child: Text(
                                 hasDescription
                                     ? task.description!
-                                    : 'Nessuna descrizione dettagliata disponibile per questo task.',
+                                    : strings.todoNoDetailedDescription,
                                 style: TextStyle(
                                   color: hasDescription ? tokens.textSecondary : tokens.textMuted,
                                   fontSize: 11,
@@ -439,7 +442,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Attività ($completedCount/$totalCount)',
+                        strings.todoPeekTab(completedCount, totalCount),
                         style: TextStyle(
                           color: tokens.textSecondary,
                           fontSize: 10,
@@ -472,7 +475,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     );
   }
 
-  Widget _buildStatusBadge(TodoItem task, FrameTokens tokens) {
+  Widget _buildStatusBadge(TodoItem task, FrameTokens tokens, AppStrings strings) {
     if (task.isCompleted) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -485,7 +488,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
           ),
         ),
         child: Text(
-          'COMPLETATO',
+          strings.todoBadgeCompleted,
           style: TextStyle(
             color: tokens.success,
             fontSize: 8.5,
@@ -519,7 +522,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
             ),
             const SizedBox(width: 4),
             Text(
-              'IN CORSO',
+              strings.todoBadgeInProgress,
               style: TextStyle(
                 color: tokens.agentWorking,
                 fontSize: 8.5,
@@ -539,7 +542,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
         border: Border.all(color: tokens.border, width: 0.8),
       ),
       child: Text(
-        'IN ATTESA',
+        strings.todoBadgePending,
         style: TextStyle(
           color: tokens.textMuted,
           fontSize: 8.5,

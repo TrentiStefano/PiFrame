@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Connection } from '../server/connection.js';
@@ -17,11 +18,16 @@ import { getCopilotEntitlements } from '../pi/copilotModels.js';
 import { PiPackageService, type PiPackageOperations } from '../pi/PiPackageService.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import { SnapshotBuilder } from '../journal/SnapshotBuilder.js';
+import { SystemMetricsService } from '../metrics/SystemMetricsService.js';
+import { AgentsService } from '../pi/agents/AgentsService.js';
+import { StdioPiTransport } from '../pi/StdioPiTransport.js';
+import { SideConversationManager } from '../side/SideConversationManager.js';
 import type {
   PcpCommand,
   PcpAck,
   PcpResult,
-  PcpError
+  PcpError,
+  PiAvailableModel
 } from '@piframe/pcp-ts';
 
 function getOrCreateAuthDeviceId(): string {
@@ -55,18 +61,41 @@ export class Dispatcher {
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
   private remoteManager?: RemoteManager;
+  private metricsService: SystemMetricsService;
+  private agentsService: AgentsService;
+  private sideManager: SideConversationManager;
 
   constructor(
     registry: SessionRegistry,
     connectionManager: ConnectionManager,
     piPackages?: PiPackageOperations,
-    remoteManager?: RemoteManager
+    remoteManager?: RemoteManager,
+    metricsService?: SystemMetricsService,
+    agentsService?: AgentsService,
+    sideManager?: SideConversationManager
   ) {
     this.registry = registry;
     this.connectionManager = connectionManager;
     this.sessionIndex = registry.getIndex();
     this.piPackages = piPackages ?? new PiPackageService(registry.getPiExecutablePath());
     this.remoteManager = remoteManager;
+    this.metricsService = metricsService ?? new SystemMetricsService();
+    this.agentsService =
+      agentsService ??
+      new AgentsService({
+        getAvailableModels: () => this.fetchAvailableModelsForAgents(),
+      });
+    this.sideManager =
+      sideManager ??
+      new SideConversationManager({
+        piExecutablePath: registry.getPiExecutablePath(),
+        connectionManager,
+        sessionRegistry: registry
+      });
+
+    this.connectionManager.onClose?.((conn) => {
+      this.metricsService.handleConnectionClose(conn.id);
+    });
 
     if (this.remoteManager) {
       this.remoteManager.on('statusChanged', (status) => {
@@ -83,6 +112,23 @@ export class Dispatcher {
         } as any);
       });
     }
+  }
+
+  public getMetricsService(): SystemMetricsService {
+    return this.metricsService;
+  }
+
+  public getAgentsService(): AgentsService {
+    return this.agentsService;
+  }
+
+  public getSideManager(): SideConversationManager {
+    return this.sideManager;
+  }
+
+  public async dispose(): Promise<void> {
+    this.metricsService.stop();
+    await this.sideManager.dispose();
   }
 
   private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
@@ -111,6 +157,87 @@ export class Dispatcher {
       ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
       : '/piframe-auth-logout';
     await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
+  }
+
+  private async fetchAvailableModelsForAgents(): Promise<{ models: PiAvailableModel[]; warning?: string }> {
+    let rawModels: any[] = [];
+    let warning: string | undefined;
+
+    const activeWorker = this.registry.getSupervisor().getActiveWorker();
+    if (activeWorker) {
+      try {
+        const res = await activeWorker.send({ command: 'get_available_models' });
+        if (Array.isArray(res.data?.models)) {
+          rawModels = res.data.models;
+        }
+      } catch (err: any) {
+        warning = `Failed to get models from active worker: ${err?.message || 'unknown error'}`;
+      }
+    } else {
+      const piPath = this.registry.getPiExecutablePath();
+      if (piPath) {
+        let tempWorker: StdioPiTransport | null = null;
+        try {
+          tempWorker = new StdioPiTransport({
+            executablePath: piPath,
+            capabilities: this.registry.getSupervisor().getCapabilities(),
+          });
+          await tempWorker.start({ cwd: os.tmpdir(), args: ['--mode', 'rpc'] });
+          const res = await tempWorker.send({ command: 'get_available_models', timeoutMs: 10000 });
+          if (Array.isArray(res.data?.models)) {
+            rawModels = res.data.models;
+          }
+        } catch (err: any) {
+          warning = `Pi is not available to query models: ${err?.message || 'unknown error'}`;
+        } finally {
+          if (tempWorker) {
+            try {
+              await tempWorker.stop({ graceMs: 1000 });
+            } catch {}
+          }
+        }
+      } else {
+        warning = 'Pi executable is not configured';
+      }
+    }
+
+    if (rawModels.length === 0) {
+      return { models: [], warning };
+    }
+
+    const entitlements = await getCopilotEntitlements().catch(() => ({
+      diagnostic: { available: true, message: '' },
+      allowedModelIds: new Set<string>(),
+    }));
+
+    const filtered = filterModelsByEnabledPatterns(
+      rawModels.filter((model: Record<string, unknown>) =>
+        model.provider !== 'github-copilot' ||
+        (entitlements.diagnostic.available &&
+          typeof model.id === 'string' &&
+          entitlements.allowedModelIds.has(model.id))
+      ),
+      readEnabledModelPatterns()
+    );
+
+    const mapped: PiAvailableModel[] = filtered.map((m: any) => {
+      const fullId = m.provider ? `${m.provider}/${m.id}` : String(m.id);
+      const tiers = Array.isArray(m.cost?.tiers)
+        ? m.cost.tiers
+            .map((t: any) => t.inputTokensAbove)
+            .filter((n: any) => typeof n === 'number' && Number.isFinite(n))
+            .sort((a: number, b: number) => a - b)
+        : [];
+      return {
+        id: fullId,
+        name: m.name ?? m.id,
+        contextWindow: typeof m.contextWindow === 'number' ? m.contextWindow : 0,
+        reasoning: !!m.reasoning,
+        tiers,
+      };
+    });
+
+    return { models: mapped, warning };
   }
 
   public async handle(conn: Connection, cmd: PcpCommand): Promise<void> {
@@ -155,13 +282,16 @@ export class Dispatcher {
         err.code === 'COMMAND_REJECTED' ||
         err.code === 'CONFIG_INVALID' ||
         err.code === 'SESSION_NOT_FOUND' ||
+        err.code === 'BRANCH_INVALID_NAME' ||
+        err.code === 'BRANCH_NOT_FOUND' ||
+        err.code === 'WORKSPACE_DIRTY' ||
         String(err.code || '').startsWith('WORKSPACE_') ||
-        String(err.code || '').startsWith('REMOTE_');
+        String(err.code || '').startsWith('REMOTE_') ||
+        String(err.code || '').startsWith('SIDE_');
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, err.message);
-      this.sendResult(conn, commandId, state, undefined, payload.error);
 
-      // Also send detailed PcpError envelope
+      // Send detailed PcpError envelope first, before terminal command.result
       conn.send({
         protocol: 1,
         kind: 'error',
@@ -176,6 +306,8 @@ export class Dispatcher {
           details: err.details
         }
       } as PcpError);
+
+      this.sendResult(conn, commandId, state, undefined, payload.error);
     }
   }
 
@@ -282,7 +414,10 @@ export class Dispatcher {
         'workspace.refresh',
         'workspace.getDiff',
         'workspace.listFiles',
-        'workspace.readFile'
+        'workspace.readFile',
+        'workspace.listBranches',
+        'side.abort',
+        'side.close'
       ]);
 
       // Additional commands permitted ONLY in 'control' mode
@@ -308,7 +443,10 @@ export class Dispatcher {
         'session.clone',
         'session.closeWorker',
         'workspace.saveFile',
-        'workspace.gitAction'
+        'workspace.gitAction',
+        'workspace.switchBranch',
+        'side.open',
+        'side.prompt'
       ]);
 
       if (cmd.type === 'session.open') {
@@ -318,6 +456,10 @@ export class Dispatcher {
             code: 'REMOTE_FORBIDDEN'
           });
         }
+      } else if (cmd.type === 'system.metrics.subscribe' || cmd.type === 'system.metrics.unsubscribe') {
+        throw Object.assign(new Error(`Action blocked: command '${cmd.type}' is only available locally.`), {
+          code: 'REMOTE_FORBIDDEN'
+        });
       } else if (VIEW_ALLOWED.has(cmd.type)) {
         // Allowed in both view and control modes
       } else if (mode === 'control' && CONTROL_EXTRA.has(cmd.type)) {
@@ -327,6 +469,32 @@ export class Dispatcher {
           new Error(`Action blocked: command '${cmd.type}' is not permitted for remote connections in '${mode}' mode.`),
           { code: 'REMOTE_FORBIDDEN' }
         );
+      }
+    }
+
+    if (sessionId && (sessionId.startsWith('side_') || this.sideManager.hasStream(sessionId))) {
+      if (cmd.type === 'session.attach') {
+        await this.sideManager.handleAttach(sessionId, conn, payload?.lastSeq, cmd.commandId);
+        return { attached: true, sessionId };
+      }
+      if (cmd.type === 'session.detach') {
+        this.sideManager.handleDetach(sessionId, conn);
+        return { detached: true, sessionId };
+      }
+      if (cmd.type === 'side.prompt' || cmd.type === 'side.abort' || cmd.type === 'side.close') {
+        const streamThread = this.sideManager.getSideByStreamId(sessionId) ?? this.sideManager.getSide(sessionId);
+        const resolvedSideId = streamThread?.sideId ?? sessionId;
+        if (!payload?.sideId || (payload.sideId !== sessionId && payload.sideId !== resolvedSideId)) {
+          throw Object.assign(
+            new Error(`Side conversation payload sideId '${payload?.sideId}' does not match stream '${sessionId}'`),
+            { code: 'COMMAND_REJECTED' }
+          );
+        }
+        // Allowed to proceed to switch (cmd.type)
+      } else {
+        throw Object.assign(new Error('Side conversation streams are read-only'), {
+          code: 'SIDE_STREAM_READ_ONLY'
+        });
       }
     }
 
@@ -487,6 +655,23 @@ export class Dispatcher {
         );
 
       // -----------------------------------------------------------------------
+      // Pi Subagents Management (LOCAL ONLY)
+      // -----------------------------------------------------------------------
+      case 'pi.agents.get': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.agents is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        return await this.agentsService.getAgents(payload.cwd);
+      }
+
+      case 'pi.agents.update': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('pi.agents is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        return await this.agentsService.updateAgents(payload.changes, payload.cwd);
+      }
+
+      // -----------------------------------------------------------------------
       // Daemon configuration (LOCAL ONLY)
       // -----------------------------------------------------------------------
       case 'daemon.getConfig': {
@@ -533,6 +718,30 @@ export class Dispatcher {
         } as any);
 
         return updated;
+      }
+
+      // -----------------------------------------------------------------------
+      // System Metrics (LOCAL ONLY)
+      // -----------------------------------------------------------------------
+      case 'system.metrics.subscribe': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (payload && Object.keys(payload).length > 0) {
+          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+        }
+        return await this.metricsService.subscribe(conn);
+      }
+
+      case 'system.metrics.unsubscribe': {
+        if (conn.isRemote) {
+          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+        }
+        if (payload && Object.keys(payload).length > 0) {
+          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+        }
+        this.metricsService.unsubscribe(conn.id);
+        return {};
       }
 
       // -----------------------------------------------------------------------
@@ -621,14 +830,44 @@ export class Dispatcher {
 
       case 'session.closeWorker': {
         if (!sessionId) throw new Error('sessionId is required for session.closeWorker');
+        await this.sideManager.onParentSessionClosed(sessionId);
         await this.registry.closeWorker(sessionId);
         return { closed: true };
       }
 
       case 'session.delete': {
         if (!sessionId) throw new Error('sessionId is required for session.delete');
+        await this.sideManager.onParentSessionClosed(sessionId);
         await this.registry.deleteSession(sessionId);
         return { deleted: true, sessionId };
+      }
+
+      // -----------------------------------------------------------------------
+      // Side Conversation Commands
+      // -----------------------------------------------------------------------
+      case 'side.open': {
+        return await this.sideManager.open({
+          parentSessionId: payload.sessionId || sessionId,
+          question: payload.question,
+          conn
+        });
+      }
+
+      case 'side.prompt': {
+        if (!payload || typeof payload.text !== 'string' || payload.text.trim().length === 0) {
+          throw Object.assign(new Error('Prompt text cannot be empty'), {
+            code: 'COMMAND_REJECTED'
+          });
+        }
+        return await this.sideManager.prompt(payload.sideId, payload.text);
+      }
+
+      case 'side.abort': {
+        return await this.sideManager.abort(payload.sideId);
+      }
+
+      case 'side.close': {
+        return await this.sideManager.close(payload.sideId, 'user');
       }
 
       // -----------------------------------------------------------------------
@@ -1057,6 +1296,22 @@ export class Dispatcher {
           payload.paths,
           payload.expectedStagedPaths,
           payload.message,
+          assertCanWrite
+        );
+      }
+
+      case 'workspace.listBranches': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        return this.workspaceService.listBranches(session.cwd);
+      }
+
+      case 'workspace.switchBranch': {
+        const session = await this.requireWorkspaceSession(sessionId);
+        const assertCanWrite = () => this.assertWorkspaceWritable(session);
+        return this.workspaceService.switchBranch(
+          session.cwd,
+          payload.branch,
+          payload.onDirty,
           assertCanWrite
         );
       }

@@ -12,6 +12,9 @@
 AppId={{A9C50DD7-27AF-44C0-A1A4-9C132A354C4A}
 AppName=PiFrame
 AppVersion={#AppVersion}
+AppPublisher=Stefano Trenti and PiFrame contributors
+AppPublisherURL=https://github.com/TrentiStefano/PiFrame
+AppCopyright=Copyright (C) 2026 Stefano Trenti and PiFrame contributors. MIT License.
 DefaultDirName={localappdata}\Programs\PiFrame
 DefaultGroupName=PiFrame
 DisableProgramGroupPage=yes

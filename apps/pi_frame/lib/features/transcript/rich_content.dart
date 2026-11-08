@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
@@ -284,6 +287,8 @@ class RichContent extends StatefulWidget {
     String text,
     FrameTokens tokens, {
     String? cwd,
+    AppStrings? strings,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
   }) {
     final rawLines =
         (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split(
@@ -300,7 +305,13 @@ class RichContent extends StatefulWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Text.rich(
-                _parseInlineSpans(content, tokens, cwd: cwd),
+                _parseInlineSpans(
+                  content,
+                  tokens,
+                  cwd: cwd,
+                  strings: strings,
+                  createTapRecognizer: createTapRecognizer,
+                ),
                 style: TextStyle(
                   color: tokens.textPrimary,
                   fontSize: 13.5,
@@ -390,7 +401,13 @@ class RichContent extends StatefulWidget {
               ),
             ),
             child: Text.rich(
-              _parseInlineSpans(trimmed.substring(2).trim(), tokens, cwd: cwd),
+              _parseInlineSpans(
+                trimmed.substring(2).trim(),
+                tokens,
+                cwd: cwd,
+                strings: strings,
+                createTapRecognizer: createTapRecognizer,
+              ),
               style: TextStyle(
                 color: tokens.textSecondary,
                 fontSize: 13,
@@ -425,6 +442,8 @@ class RichContent extends StatefulWidget {
                       trimmed.substring(2).trim(),
                       tokens,
                       cwd: cwd,
+                      strings: strings,
+                      createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
                       color: tokens.textPrimary,
@@ -463,7 +482,13 @@ class RichContent extends StatefulWidget {
                 ),
                 Expanded(
                   child: Text.rich(
-                    _parseInlineSpans(itemText, tokens, cwd: cwd),
+                    _parseInlineSpans(
+                      itemText,
+                      tokens,
+                      cwd: cwd,
+                      strings: strings,
+                      createTapRecognizer: createTapRecognizer,
+                    ),
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 13.5,
@@ -494,6 +519,8 @@ class RichContent extends StatefulWidget {
     String text,
     FrameTokens tokens, {
     String? cwd,
+    AppStrings? strings,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
   }) {
     final spans = <InlineSpan>[];
 
@@ -638,6 +665,8 @@ class RichContent extends StatefulWidget {
               targetPath: m.text,
               tokens: tokens,
               cwd: cwd,
+              strings: strings,
+              createTapRecognizer: createTapRecognizer,
             ),
           );
         } else if (m.type == _InlineType.bold) {
@@ -655,6 +684,8 @@ class RichContent extends StatefulWidget {
               targetPath: target,
               tokens: tokens,
               cwd: cwd,
+              strings: strings,
+              createTapRecognizer: createTapRecognizer,
             ),
           );
         } else if (m.type == _InlineType.link) {
@@ -668,6 +699,8 @@ class RichContent extends StatefulWidget {
                 targetPath: targetUrl,
                 tokens: tokens,
                 cwd: cwd,
+                strings: strings,
+                createTapRecognizer: createTapRecognizer,
               ),
             );
           } else {
@@ -676,6 +709,7 @@ class RichContent extends StatefulWidget {
                 displayText: m.text,
                 targetUrl: targetUrl,
                 tokens: tokens,
+                createTapRecognizer: createTapRecognizer,
               ),
             );
           }
@@ -699,62 +733,62 @@ class RichContent extends StatefulWidget {
     required String displayText,
     required String targetPath,
     required FrameTokens tokens,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
     String? cwd,
+    AppStrings? strings,
   }) {
-    final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      constraints: const BoxConstraints(maxWidth: 360),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: tokens.accent.withValues(alpha: 0.5),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.insert_drive_file_outlined,
-            size: 11,
-            color: tokens.accent,
-          ),
-          const SizedBox(width: 3),
-          Flexible(
-            child: Text(
-              displayText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontFamily: tokens.monoFontFamily,
-                fontSize: 12,
+    void openFile() => openInOsFileExplorer(targetPath, cwd: cwd);
+
+    return TextSpan(
+      children: [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: SelectionContainer.disabled(
+            child: Tooltip(
+              message: strings?.richContentOpenFileTooltip ??
+                  'CTRL+clic per aprire in Esplora file',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: openFile,
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 3,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(
+                        color: tokens.accent.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.insert_drive_file_outlined,
+                      size: 11,
+                      color: tokens.accent,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ],
-      ),
-    );
-
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: SelectionContainer.disabled(
-        child: Tooltip(
-          message: 'CTRL+clic per aprire in Esplora file',
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                openInOsFileExplorer(targetPath, cwd: cwd);
-              },
-              child: chip,
-            ),
-          ),
         ),
-      ),
+        TextSpan(
+          text: displayText,
+          style: TextStyle(
+            color: tokens.textPrimary,
+            backgroundColor: tokens.surfaceElevated,
+            fontFamily: tokens.monoFontFamily,
+            fontSize: 12,
+            decoration: TextDecoration.underline,
+            decorationColor: tokens.accent.withValues(alpha: 0.6),
+          ),
+          recognizer: createTapRecognizer(openFile),
+        ),
+      ],
     );
   }
 
@@ -762,54 +796,56 @@ class RichContent extends StatefulWidget {
     required String displayText,
     required String targetUrl,
     required FrameTokens tokens,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
   }) {
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.middle,
-      child: SelectionContainer.disabled(
-        child: Tooltip(
-          message: targetUrl,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _openUrl(targetUrl),
-              child: Text(
-                displayText,
-                style: TextStyle(
-                  color: tokens.accent,
-                  decoration: TextDecoration.underline,
-                  decorationColor: tokens.accent.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ),
+    return TextSpan(
+      text: displayText,
+      style: TextStyle(
+        color: tokens.accent,
+        decoration: TextDecoration.underline,
+        decorationColor: tokens.accent.withValues(alpha: 0.6),
+        fontWeight: FontWeight.w500,
       ),
+      recognizer: createTapRecognizer(() => _openUrl(targetUrl)),
     );
   }
 }
 
-
 class _RichContentState extends State<RichContent> {
+  final _tapRecognizers = <TapGestureRecognizer>[];
   String? _cachedText;
   FrameTokens? _cachedTokens;
   String? _cachedCwd;
+  AppStrings? _cachedStrings;
   Widget? _cachedBuiltWidget;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     if (_cachedBuiltWidget != null &&
         _cachedText == widget.text &&
         _cachedCwd == widget.cwd &&
-        identical(_cachedTokens, tokens)) {
+        identical(_cachedTokens, tokens) &&
+        _cachedStrings == strings) {
       return _cachedBuiltWidget!;
     }
+
+    for (final recognizer in _tapRecognizers) {
+      recognizer.dispose();
+    }
+    _tapRecognizers.clear();
 
     _cachedText = widget.text;
     _cachedTokens = tokens;
     _cachedCwd = widget.cwd;
+    _cachedStrings = strings;
+
+    TapGestureRecognizer createTapRecognizer(VoidCallback onTap) {
+      final recognizer = TapGestureRecognizer()..onTap = onTap;
+      _tapRecognizers.add(recognizer);
+      return recognizer;
+    }
 
     final segments = RichContent._parseSegments(widget.text);
 
@@ -832,6 +868,8 @@ class _RichContentState extends State<RichContent> {
               seg.content,
               tokens,
               cwd: widget.cwd,
+              strings: strings,
+              createTapRecognizer: createTapRecognizer,
             );
           }
           return const SizedBox.shrink();
@@ -840,6 +878,14 @@ class _RichContentState extends State<RichContent> {
     );
 
     return _cachedBuiltWidget!;
+  }
+
+  @override
+  void dispose() {
+    for (final recognizer in _tapRecognizers) {
+      recognizer.dispose();
+    }
+    super.dispose();
   }
 }
 

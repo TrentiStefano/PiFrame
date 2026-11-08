@@ -18,6 +18,10 @@ import '../transcript/rich_content.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../browser/browser_controller.dart';
 import '../browser/browser_models.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
+import '../session_changes/session_changes_provider.dart';
+import 'branch_picker_dialog.dart';
 
 enum WorkspacePane { chat, repository, git }
 
@@ -33,10 +37,11 @@ final gitUnstagedExpandedProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
 );
 
-String _repositoryLoadError(Object error) {
+String _repositoryLoadError(Object error, [AppStrings? strings]) {
   final message = error.toString();
   if (message.contains('Unsupported command type: workspace.listFiles')) {
-    return 'Daemon obsoleto: esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon solo quando nessun worker Pi è attivo.';
+    return strings?.repositoryDaemonOutdatedError ??
+        'Daemon obsoleto: esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon solo quando nessun worker Pi è attivo.';
   }
   return message;
 }
@@ -78,14 +83,21 @@ bool _pathSetContains(Set<String> paths, String path) =>
 String _changeOriginLabel(
   String path,
   Set<String> piTouchedPaths,
-  Set<String> manualSavedPaths,
-) {
+  Set<String> manualSavedPaths, [
+  AppStrings? strings,
+]) {
   final touchedByPi = _pathSetContains(piTouchedPaths, path);
   final savedHere = _pathSetContains(manualSavedPaths, path);
-  if (touchedByPi && savedHere) return 'Tool Pi + salvataggio PiFrame';
-  if (touchedByPi) return 'Tool Pi ha scritto il percorso';
-  if (savedHere) return 'Salvato da te in PiFrame';
-  return 'Origine non determinata';
+  if (touchedByPi && savedHere) {
+    return strings?.gitOriginPiAndManual ?? 'Tool Pi + salvataggio PiFrame';
+  }
+  if (touchedByPi) {
+    return strings?.gitOriginPiTool ?? 'Tool Pi ha scritto il percorso';
+  }
+  if (savedHere) {
+    return strings?.gitOriginManualSave ?? 'Salvato da te in PiFrame';
+  }
+  return strings?.gitOriginUndetermined ?? 'Origine non determinata';
 }
 
 bool _sessionWritesBlocked(SessionState session) =>
@@ -133,22 +145,30 @@ final repositoryStateProvider =
         return RepositoryController(
           sessionId,
           () => ref.read(pcpClientProvider),
+          () => ref.read(appStringsProvider),
         );
       },
     );
 
 class RepositoryController extends StateNotifier<RepositoryState> {
-  RepositoryController(this.sessionId, this._readClient)
-    : super(const RepositoryState());
+  RepositoryController(
+    this.sessionId,
+    this._readClient, [
+    this._readStrings,
+  ]) : super(const RepositoryState());
   final String sessionId;
   final PcpClient? Function() _readClient;
+  final AppStrings Function()? _readStrings;
 
   RepositoryState get currentState => state;
 
   Future<void> loadFiles() async {
     final client = _readClient();
     if (client == null) {
-      state = const RepositoryState(error: 'Daemon non connesso');
+      state = RepositoryState(
+        error: _readStrings?.call().daemonNotConnectedCapital ??
+            'Daemon non connesso',
+      );
       return;
     }
     state = RepositoryState(
@@ -178,7 +198,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
         selectedPath: state.selectedPath,
         buffers: state.buffers,
         manualSavedPaths: state.manualSavedPaths,
-        error: _repositoryLoadError(error),
+        error: _repositoryLoadError(error, _readStrings?.call()),
       );
     }
   }
@@ -373,43 +393,44 @@ Future<bool> resolveDirtyRepository(
   if (!controller.currentState.dirty) return true;
   final tokens = context.tokens;
   final session = ref.read(sessionStateFamily(sessionId));
+  final strings = ref.read(appStringsProvider);
   final writesBlocked = _sessionWritesBlocked(session);
   final canSave = !writesBlocked && ref.read(pcpClientProvider) != null;
   final blockedReason = session.readOnly
-      ? (session.readOnlyReason ?? 'sessione in sola lettura')
+      ? (session.readOnlyReason ?? strings.readOnlySessionLower)
       : writesBlocked
       ? session.agentStatus.label
-      : 'daemon non connesso';
+      : strings.daemonNotConnectedLower;
   final choice = await showDialog<String>(
     context: context,
     barrierDismissible: false,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: tokens.surface,
-      title: const Text('Modifiche non salvate'),
+      title: Text(strings.unsavedChangesTitle),
       content: Text(
         canSave
-            ? 'Salva o scarta le modifiche prima di lasciare questa sessione.'
-            : 'Salvataggio non disponibile: $blockedReason. Puoi scartare le modifiche o annullare.',
+            ? strings.unsavedChangesContentCanSave
+            : strings.unsavedChangesContentBlocked(blockedReason),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-          child: const Text('Annulla'),
+          child: Text(strings.cancel),
         ),
         if (canSave)
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: const Text('Scarta'),
+            child: Text(strings.discard),
           ),
         if (!canSave)
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: const Text('Scarta'),
+            child: Text(strings.discard),
           ),
         if (canSave)
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: const Text('Salva'),
+            child: Text(strings.save),
           ),
       ],
     ),
@@ -444,10 +465,11 @@ Future<void> saveRepositoryFile(
   String path,
 ) async {
   final session = ref.read(sessionStateFamily(sessionId));
+  final strings = ref.read(appStringsProvider);
   if (_sessionWritesBlocked(session)) {
     throw StateError(
       session.readOnly
-          ? (session.readOnlyReason ?? 'Sessione in sola lettura')
+          ? (session.readOnlyReason ?? strings.readOnlySessionCapital)
           : session.agentStatus.label,
     );
   }
@@ -467,22 +489,22 @@ Future<void> saveRepositoryFile(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('File modificato altrove'),
+        title: Text(strings.fileModifiedExternallyTitle),
         content: Text(
-          '$path è cambiato su disco. Il testo locale resta intatto.',
+          strings.fileModifiedExternallyContent(path),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'keep'),
-            child: const Text('Mantieni modifiche'),
+            child: Text(strings.keepChanges),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'reload'),
-            child: const Text('Ricarica disco'),
+            child: Text(strings.reloadFromDisk),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, 'overwrite'),
-            child: const Text('Sovrascrivi esplicitamente'),
+            child: Text(strings.overwriteExplicitly),
           ),
         ],
       ),
@@ -516,6 +538,14 @@ class RepositoryPane extends ConsumerStatefulWidget {
 }
 
 class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
+  AppStrings _getStrings() {
+    try {
+      return ref.watch(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   CodeEditorController? _editor;
   String? _editorPath;
   bool _previewMarkdown = true;
@@ -772,6 +802,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         (repo.files.isEmpty && isCwdEmpty);
 
     if (isAttaching || (repo.loading && repo.files.isEmpty)) {
+      final strings = _getStrings();
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -786,17 +817,18 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Caricamento file...',
+              strings.loadingFiles,
               style: TextStyle(color: tokens.textMuted, fontSize: 11),
             ),
           ],
         ),
       );
     }
+    final strings = _getStrings();
     if (repo.files.isEmpty) {
       return Center(
         child: Text(
-          repo.error ?? 'Nessun file disponibile.',
+          repo.error ?? strings.noFilesAvailable,
           style: TextStyle(
             color: repo.error == null ? tokens.textMuted : tokens.danger,
           ),
@@ -841,7 +873,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   style: TextStyle(color: tokens.textPrimary, fontSize: 12),
                   decoration: InputDecoration(
                     isDense: true,
-                    hintText: 'Cerca file...',
+                    hintText: strings.searchFilesHint,
                     hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.zero,
@@ -857,7 +889,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     minWidth: 24,
                     minHeight: 24,
                   ),
-                  tooltip: 'Cancella ricerca',
+                  tooltip: strings.clearSearchTooltip,
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -872,7 +904,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
-                      'Nessun file trovato per "$_searchQuery"',
+                      strings.noFilesFound(_searchQuery),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: tokens.textMuted, fontSize: 12),
                     ),
@@ -934,7 +966,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         );
                         FrameSnackBar.show(
                           context,
-                          message: 'Aggiunto @$filePath alla chat',
+                          message: strings.addedFileToChat(filePath),
                         );
                       },
                     );
@@ -956,10 +988,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     required bool readOnly,
     required bool compact,
   }) {
+    final strings = _getStrings();
     if (path == null) {
       return Center(
         child: Text(
-          'Seleziona un file',
+          strings.selectAFile,
           style: TextStyle(color: tokens.textMuted),
         ),
       );
@@ -967,7 +1000,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     if (buffer == null) {
       return Center(
         child: Text(
-          repo.error ?? 'Caricamento file...',
+          repo.error ?? strings.loadingFiles,
           style: TextStyle(
             color: repo.error == null ? tokens.textMuted : tokens.danger,
           ),
@@ -982,7 +1015,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             children: [
               if (compact)
                 IconButton(
-                  tooltip: 'Torna ai file',
+                  tooltip: strings.backToFilesTooltip,
                   onPressed: () => ref
                       .read(repositoryStateProvider(widget.sessionId).notifier)
                       .showFileList(),
@@ -1012,7 +1045,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     border: Border.all(color: tokens.border),
                   ),
                   child: Text(
-                    'MODIFICATO',
+                    strings.modifiedBadge,
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 9,
@@ -1037,21 +1070,21 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           if (context.mounted) {
                             FrameSnackBar.show(
                               context,
-                              message: 'Salvataggio non riuscito: $error',
+                              message: strings.saveFailed(error),
                             );
                           }
                         }
                       },
-                child: const Text('Salva'),
+                child: Text(strings.save),
               ),
               const SizedBox(width: 4),
               IconButton(
-                tooltip: 'Aggiungi file alla chat',
+                tooltip: strings.addFileToChatTooltip,
                 onPressed: () {
                   appendFileMentionToComposer(ref, widget.sessionId, path);
                   FrameSnackBar.show(
                     context,
-                    message: 'Aggiunto @$path alla chat',
+                    message: strings.addedFileToChat(path),
                   );
                 },
                 icon: const Icon(Icons.add_comment_outlined, size: 16),
@@ -1062,8 +1095,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 IconButton(
                   key: const ValueKey('repository-markdown-toggle-btn'),
                   tooltip: _previewMarkdown
-                      ? 'Modifica markdown sorgente'
-                      : 'Visualizza anteprima formattata',
+                      ? strings.editMarkdownSourceTooltip
+                      : strings.viewMarkdownPreviewTooltip,
                   onPressed: () {
                     setState(() {
                       _previewMarkdown = !_previewMarkdown;
@@ -1081,7 +1114,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               const SizedBox(width: 4),
               IconButton(
                 key: const ValueKey('repository-editor-search-btn'),
-                tooltip: 'Cerca nel file (Ctrl+F)',
+                tooltip: strings.searchInFileTooltip,
                 onPressed: _openFileSearch,
                 icon: Icon(
                   Icons.search,
@@ -1091,7 +1124,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               ),
               const SizedBox(width: 4),
               IconButton(
-                tooltip: 'Chiudi file',
+                tooltip: strings.closeFileTooltip,
                 onPressed: () => ref
                     .read(repositoryStateProvider(widget.sessionId).notifier)
                     .showFileList(),
@@ -1168,7 +1201,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     if (selection.isValid && !selection.isCollapsed) {
                       items.add(
                         ContextMenuButtonItem(
-                          label: 'Aggiungi alla chat',
+                          label: strings.addPathToChat,
                           onPressed: () {
                             appendCodeSelectionToComposer(
                               ref,
@@ -1201,7 +1234,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     fillColor: tokens.background,
                     contentPadding: const EdgeInsets.all(12),
                     border: InputBorder.none,
-                    hintText: writeBlocked ? 'Sola lettura' : 'Contenuto file',
+                    hintText: writeBlocked ? strings.readOnlyBlockedReason : strings.fileContentHint,
                   ),
                 ),
               ),
@@ -1267,7 +1300,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                               ),
                               decoration: InputDecoration(
                                 isDense: true,
-                                hintText: 'Cerca nel file...',
+                                hintText: strings.searchInFileHint,
                                 hintStyle: TextStyle(
                                   color: tokens.textMuted,
                                   fontSize: 12,
@@ -1295,8 +1328,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                               _fileSearchQueryController.text.isEmpty
                                   ? ''
                                   : _fileSearchMatches.isEmpty
-                                  ? '0 risultati'
-                                  : '${_fileSearchCurrentIndex + 1} di ${_fileSearchMatches.length}',
+                                  ? strings.zeroResults
+                                  : strings.searchResultsCount(
+                                      _fileSearchCurrentIndex + 1,
+                                      _fileSearchMatches.length,
+                                    ),
                               style: TextStyle(
                                 color:
                                     _fileSearchMatches.isEmpty &&
@@ -1313,7 +1349,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           const SizedBox(width: 4),
                           IconButton(
                             key: const ValueKey('repository-file-search-prev'),
-                            tooltip: 'Precedente (Shift+Enter)',
+                            tooltip: strings.previousMatchTooltip,
                             icon: const Icon(Icons.keyboard_arrow_up, size: 16),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
@@ -1326,7 +1362,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           ),
                           IconButton(
                             key: const ValueKey('repository-file-search-next'),
-                            tooltip: 'Successivo (Enter)',
+                            tooltip: strings.nextMatchTooltip,
                             icon: const Icon(
                               Icons.keyboard_arrow_down,
                               size: 16,
@@ -1342,7 +1378,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           ),
                           IconButton(
                             key: const ValueKey('repository-file-search-case'),
-                            tooltip: 'Distingui maiuscole/minuscole',
+                            tooltip: strings.matchCaseTooltip,
                             icon: Text(
                               'Aa',
                               style: TextStyle(
@@ -1368,7 +1404,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           ),
                           IconButton(
                             key: const ValueKey('repository-file-search-close'),
-                            tooltip: 'Chiudi (Esc)',
+                            tooltip: strings.closeFileSearchTooltip,
                             icon: const Icon(Icons.close, size: 14),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(
@@ -1458,10 +1494,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
           AgentStatus.compacting,
           AgentStatus.awaitingUser,
         }.contains(agentStatus);
+    final strings = _getStrings();
     final blockReason = readOnly
-        ? (readOnlyReason ?? 'Sessione in sola lettura')
+        ? (readOnlyReason ?? strings.readOnlySessionCapital)
         : writeBlocked
-        ? 'Salvataggio disabilitato: ${agentStatus.label}.'
+        ? strings.savingDisabledReason(agentStatus.label)
         : null;
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
@@ -1489,10 +1526,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     tooltip:
                         ref.watch(terminalSettingsProvider).mode ==
                             TerminalMode.native
-                        ? 'Apri terminale nativo (OS)'
+                        ? strings.openNativeTerminalTooltip
                         : (_terminalOpen && !_terminalCollapsed
-                              ? 'Nascondi terminale'
-                              : 'Terminale integrato'),
+                              ? strings.hideTerminalTooltip
+                              : strings.integratedTerminalTooltip),
                     onPressed: () {
                       final termSettings = ref.read(
                         terminalSettingsProvider,
@@ -1524,7 +1561,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Collassa tutte le cartelle',
+                  tooltip: strings.collapseAllFoldersTooltip,
                   onPressed: _collapseAll,
                   icon: const Icon(Icons.unfold_less, size: 16),
                 ),
@@ -1533,7 +1570,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Espandi tutte le cartelle',
+                  tooltip: strings.expandAllFoldersTooltip,
                   onPressed: () => _expandAll(repo.files),
                   icon: const Icon(Icons.unfold_more, size: 16),
                 ),
@@ -1542,7 +1579,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
-                  tooltip: 'Aggiorna file',
+                  tooltip: strings.refreshFilesTooltip,
                   onPressed: repo.loading
                       ? null
                       : () => ref
@@ -1559,7 +1596,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.all(4),
                     constraints: const BoxConstraints(),
-                    tooltip: 'Collassa pannello Repository',
+                    tooltip: strings.collapseRepoPanelTooltip,
                     onPressed: widget.onCollapse,
                     icon: const Icon(Icons.chevron_left, size: 18),
                   ),
@@ -1714,7 +1751,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
-                'Elenco file limitato dal daemon.',
+                strings.fileListLimitedNotice,
                 style: TextStyle(color: tokens.textMuted, fontSize: 10),
               ),
             ),
@@ -1724,6 +1761,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   }
 
   Widget _collapsedTerminalBar(FrameTokens tokens) {
+    final strings = _getStrings();
     return InkWell(
       onTap: () => setState(() => _terminalCollapsed = false),
       child: Container(
@@ -1740,7 +1778,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             Icon(Icons.terminal, size: 13, color: tokens.displayText),
             const SizedBox(width: 6),
             Text(
-              'TERMINALE',
+              strings.terminalBadge,
               style: TextStyle(
                 color: tokens.displayText,
                 fontSize: 11,
@@ -1753,7 +1791,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-              tooltip: 'Espandi terminale',
+              tooltip: strings.expandTerminalTooltip,
               icon: const Icon(Icons.unfold_more, size: 14),
               onPressed: () => setState(() => _terminalCollapsed = false),
             ),
@@ -1762,7 +1800,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
-              tooltip: 'Chiudi terminale',
+              tooltip: strings.closeTerminalTooltip,
               icon: const Icon(Icons.close, size: 13),
               onPressed: () => setState(() => _terminalOpen = false),
             ),
@@ -1795,6 +1833,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Map<String, dynamic>? _status;
   bool _loading = false;
   bool _working = false;
+  bool _branchPickerOpen = false;
   final _message = TextEditingController();
   @override
   void initState() {
@@ -1869,14 +1908,326 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       await _refresh();
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Operazione Git non riuscita: $error',
+          message: strings.gitOperationFailed(error),
         );
       }
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  Future<void> _openBranchPicker() async {
+    final session = ref.read(sessionStateFamily(widget.sessionId));
+    final readOnly = session.readOnly;
+    final agentStatus = session.agentStatus;
+    final blocked =
+        readOnly ||
+        const {
+          AgentStatus.working,
+          AgentStatus.retrying,
+          AgentStatus.compacting,
+          AgentStatus.awaitingUser,
+        }.contains(agentStatus);
+    if (_branchPickerOpen || _loading || _working || blocked) return;
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return;
+    _branchPickerOpen = true;
+    try {
+      final current = _status?['branch']?.toString();
+      final targetBranch = await BranchPickerDialog.show(
+        context,
+        sessionId: widget.sessionId,
+        client: client,
+        currentBranch: current,
+      );
+      if (targetBranch != null && mounted) {
+        await _handleSwitchBranch(targetBranch);
+      }
+    } finally {
+      _branchPickerOpen = false;
+    }
+  }
+
+  Future<void> _handleSwitchBranch(String branch, {bool stash = false}) async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return;
+    final strings = ref.read(appStringsProvider);
+    setState(() => _loading = true);
+    try {
+      final result = await client.switchBranch(
+        widget.sessionId,
+        branch,
+        onDirty: stash ? 'stash' : 'block',
+      );
+      await _refresh();
+      try {
+        await ref
+            .read(sessionChangesProvider(widget.sessionId).notifier)
+            .refresh();
+      } catch (_) {}
+      if (!mounted) return;
+      if (result.stashed) {
+        FrameSnackBar.show(
+          context,
+          message:
+              '${strings.branchSwitched(branch)}. ${strings.branchSwitchedStashNotice(result.stashMessage ?? '')}',
+        );
+      } else {
+        FrameSnackBar.show(
+          context,
+          message: strings.branchSwitched(branch),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      if (error is PcpException) {
+        if (error.code == 'WORKSPACE_DIRTY') {
+          final shouldStash = await _showDirtyWorkspaceDialog(
+            changedFiles: error.changedFiles,
+            untrackedFiles: error.untrackedFiles,
+          );
+          if (shouldStash == true && mounted) {
+            await _handleSwitchBranch(branch, stash: true);
+          }
+          return;
+        } else if (error.code == 'BRANCH_SWITCH_FAILED') {
+          await _showBranchSwitchFailedDialog(
+            stderr: error.stderr ?? error.message,
+            stashRetained: error.stashRetained,
+            stashMessage: error.stashMessage,
+          );
+          return;
+        } else if (error.code == 'COMMAND_REJECTED' ||
+            error.message.toLowerCase().contains('read-only') ||
+            error.message.toLowerCase().contains('busy') ||
+            error.message.toLowerCase().contains('working')) {
+          FrameSnackBar.show(
+            context,
+            message: strings.branchSwitchAgentWorking,
+          );
+          return;
+        } else if (error.code == 'BRANCH_NOT_FOUND') {
+          FrameSnackBar.show(context, message: strings.branchNotFound);
+          await _refresh();
+          return;
+        } else if (error.code == 'BRANCH_INVALID_NAME') {
+          FrameSnackBar.show(context, message: strings.branchInvalidName);
+          await _refresh();
+          return;
+        }
+      }
+      final msg = error.toString();
+      if (msg.toLowerCase().contains('read-only') ||
+          msg.toLowerCase().contains('working') ||
+          msg.toLowerCase().contains('busy') ||
+          msg.toLowerCase().contains('active')) {
+        FrameSnackBar.show(context, message: strings.branchSwitchAgentWorking);
+      } else if (msg.contains('BRANCH_NOT_FOUND')) {
+        FrameSnackBar.show(context, message: strings.branchNotFound);
+        await _refresh();
+      } else {
+        FrameSnackBar.show(context, message: msg);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<bool?> _showDirtyWorkspaceDialog({
+    required int changedFiles,
+    required int untrackedFiles,
+  }) {
+    final strings = ref.read(appStringsProvider);
+    final tokens = context.tokens;
+    var popped = false;
+    void popOnce(BuildContext dialogContext, bool result) {
+      if (popped) return;
+      popped = true;
+      Navigator.of(dialogContext).pop(result);
+    }
+
+    return showDialog<bool>(
+      context: context,
+      barrierColor: tokens.overlay,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: tokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+            side: BorderSide(color: tokens.border),
+          ),
+          title: Text(
+            strings.workspaceDirtyDialogTitle,
+            style: TextStyle(
+              color: tokens.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            strings.workspaceDirtyDialogMessage(changedFiles, untrackedFiles),
+            style: TextStyle(
+              color: tokens.textMuted,
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            OutlinedButton(
+              key: const ValueKey('git-cancel-switch-btn'),
+              autofocus: true,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.border),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext, false),
+              child: Text(strings.cancel),
+            ),
+            FilledButton(
+              key: const ValueKey('git-stash-and-switch-btn'),
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext, true),
+              child: Text(strings.stashAndSwitchBtn),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showBranchSwitchFailedDialog({
+    required String stderr,
+    required bool stashRetained,
+    String? stashMessage,
+  }) {
+    final strings = ref.read(appStringsProvider);
+    final tokens = context.tokens;
+    final truncatedStderr =
+        stderr.length > 2048 ? '${stderr.substring(0, 2048)}\n…' : stderr;
+    var popped = false;
+    void popOnce(BuildContext dialogContext) {
+      if (popped) return;
+      popped = true;
+      Navigator.of(dialogContext).pop();
+    }
+
+    return showDialog<void>(
+      context: context,
+      barrierColor: tokens.overlay,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: tokens.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusLg),
+            side: BorderSide(color: tokens.border),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: tokens.danger, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  strings.branchSwitchFailedTitle,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 320),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (stashRetained) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: tokens.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(
+                          color: tokens.warning.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: tokens.warning,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              strings.stashRetainedSafeNotice(
+                                stashMessage ?? '',
+                              ),
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: tokens.background,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border),
+                    ),
+                    child: SelectableText(
+                      truncatedStderr,
+                      style: TextStyle(
+                        fontFamily: tokens.monoFontFamily,
+                        fontSize: 12,
+                        color: tokens.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                ),
+              ),
+              onPressed: () => popOnce(dialogContext),
+              child: Text(strings.close),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showDiff(String path) async {
@@ -1920,7 +2271,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Chiudi diff',
+                          tooltip: ref.read(appStringsProvider).closeDiffTooltip,
                           onPressed: () => Navigator.pop(dialogContext),
                           icon: const Icon(Icons.close),
                         ),
@@ -1931,7 +2282,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       child: SingleChildScrollView(
                         child: DiffBlock(
                           diffText: diff.isEmpty
-                              ? 'Nessuna differenza trovata.'
+                              ? ref.read(appStringsProvider).noDifferencesFound
                               : diff,
                           filename: path,
                         ),
@@ -1946,9 +2297,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       );
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(appStringsProvider);
         FrameSnackBar.show(
           context,
-          message: 'Diff non disponibile: $error',
+          message: strings.diffUnavailable(error),
         );
       }
     }
@@ -1966,10 +2318,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       diff = (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
     } catch (_) {}
     if (!mounted) return;
+    final strings = ref.read(appStringsProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Annullare tutte le modifiche?'),
+        title: Text(strings.discardAllChangesTitle),
         content: Builder(
           builder: (dialogContext) {
             final mediaSize = MediaQuery.sizeOf(dialogContext);
@@ -1986,14 +2339,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   Expanded(
                     child: SingleChildScrollView(
                       child: DiffBlock(
-                        diffText: diff.isEmpty ? 'Diff non disponibile.' : diff,
+                        diffText: diff.isEmpty ? strings.diffUnavailableShort : diff,
                         filename: path,
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'L’operazione rimuove modifiche staged e unstaged.',
+                  Text(
+                    strings.discardAllChangesWarning,
                   ),
                 ],
               ),
@@ -2003,11 +2356,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annulla'),
+            child: Text(strings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Annulla modifiche'),
+            child: Text(strings.discardChangesBtn),
           ),
         ],
       ),
@@ -2019,10 +2372,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Future<void> _commit() async {
     final staged = _staged;
     if (staged.isEmpty) return;
+    final strings = ref.read(appStringsProvider);
     final message = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Commit dei file staged'),
+        title: Text(strings.commitStagedFilesTitle),
         content: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 520,
@@ -2037,15 +2391,20 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Repository: ${_status?['rootPath'] ?? '—'} · ramo: ${_status?['branch'] ?? '—'}\n'
-                  'File revisionati (${staged.length}): ${staged.take(5).join(', ')}${staged.length > 5 ? ' (+${staged.length - 5} altri)' : ''}',
+                  strings.commitDialogDetails(
+                    root: _status?['rootPath']?.toString() ?? '—',
+                    branch: _status?['branch']?.toString() ?? '—',
+                    count: staged.length,
+                    filesPreview: staged.take(5).join(', '),
+                    remaining: staged.length > 5 ? staged.length - 5 : 0,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _message,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Messaggio commit',
+                  decoration: InputDecoration(
+                    labelText: strings.commitMessageLabel,
                   ),
                 ),
               ],
@@ -2055,11 +2414,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annulla'),
+            child: Text(strings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, _message.text.trim()),
-            child: const Text('Commit'),
+            child: Text(strings.commitAction),
           ),
         ],
       ),
@@ -2140,6 +2499,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     required Set<String> piTouchedPaths,
     required Set<String> manualSavedPaths,
     required bool blocked,
+    required AppStrings strings,
   }) {
     final path = file['path'].toString();
     final stateLabel = isStaged && hasUnstagedEdit
@@ -2168,7 +2528,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
         ),
         subtitle: Text(
-          '${file['status'] ?? 'modified'} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths)}',
+          '${file['status'] ?? 'modified'} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths, strings)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -2184,7 +2544,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             children: [
               if (isStaged)
                 IconButton(
-                  tooltip: 'Togli dallo stage $path',
+                  tooltip: strings.unstageFileTooltip(path),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   onPressed: blocked || _working
@@ -2194,7 +2554,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 )
               else if (hasUnstagedEdit || !isStaged)
                 IconButton(
-                  tooltip: 'Metti in stage $path',
+                  tooltip: strings.stageFileTooltip(path),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   onPressed: blocked || _working
@@ -2203,7 +2563,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   icon: const Icon(Icons.add, size: 17),
                 ),
               IconButton(
-                tooltip: 'Annulla modifiche a $path',
+                tooltip: strings.discardFileTooltip(path),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 onPressed: blocked || _working
@@ -2221,6 +2581,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final (readOnly, readOnlyReason, agentStatus, cwd, touchedKey) = ref.watch(
       sessionStateFamily(widget.sessionId).select(
         (s) => (
@@ -2370,7 +2731,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 if (ref.watch(browserPaneSupportedProvider))
                   IconButton(
                     key: const ValueKey('git-switch-to-browser-btn'),
-                    tooltip: 'Passa a Web Browser',
+                    tooltip: strings.switchToWebBrowserTooltip,
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
@@ -2384,7 +2745,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     icon: const Icon(Icons.language, size: 16),
                   ),
                 IconButton(
-                  tooltip: 'Aggiorna stato Git',
+                  tooltip: strings.refreshGitStatusTooltip,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -2397,7 +2758,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.all(4),
                     constraints: const BoxConstraints(),
-                    tooltip: 'Collassa pannello Git Changes',
+                    tooltip: strings.collapseGitPanelTooltip,
                     onPressed: widget.onCollapse,
                     icon: const Icon(Icons.chevron_right, size: 18),
                   ),
@@ -2407,15 +2768,83 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Text(
-              '$root · ${_status?['branch'] ?? '—'}',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 10,
-                fontFamily: tokens.monoFontFamily,
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    root,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textMuted,
+                      fontSize: 10,
+                      fontFamily: tokens.monoFontFamily,
+                    ),
+                  ),
+                ),
+                if (repo || _status?['branch'] != null || _status?['detached'] == true) ...[
+                  const SizedBox(width: 6),
+                  Builder(
+                    builder: (context) {
+                      final branchDisabled = blocked || _working || _loading;
+                      final chipTooltip = (blocked && !readOnly)
+                          ? strings.branchSwitchAgentWorking
+                          : strings.branchChipTooltip;
+                      return Tooltip(
+                        message: chipTooltip,
+                        child: InkWell(
+                          key: const ValueKey('git-branch-chip'),
+                          onTap: branchDisabled ? null : _openBranchPicker,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(color: tokens.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.fork_right,
+                                  size: 13,
+                                  color: branchDisabled
+                                      ? tokens.textMuted
+                                      : tokens.accent,
+                                ),
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 160),
+                                  child: Text(
+                                    _status?['detached'] == true
+                                        ? (_status?['headShortSha']?.toString() ??
+                                            'detached')
+                                        : (_status?['branch']?.toString() ?? '—'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: branchDisabled
+                                          ? tokens.textMuted
+                                          : tokens.textPrimary,
+                                      fontSize: 11,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
           if (blocked)
@@ -2430,8 +2859,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 ),
                 child: Text(
                   readOnly
-                      ? 'Scritture disabilitate: ${readOnlyReason ?? 'sessione in sola lettura'}'
-                      : 'Scritture disabilitate mentre Pi sta lavorando.',
+                      ? strings.writesDisabledReadOnly(readOnlyReason)
+                      : strings.writesDisabledPiWorking,
                   style: TextStyle(color: tokens.textPrimary, fontSize: 11),
                 ),
               ),
@@ -2462,7 +2891,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Collegamento a Git...',
+                            strings.connectingToGit,
                             style: TextStyle(
                               color: tokens.textMuted,
                               fontSize: 11,
@@ -2477,7 +2906,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 return Expanded(
                   child: Center(
                     child: Text(
-                      rawError ?? 'Nessun repository Git.',
+                      rawError ?? strings.noGitRepository,
                       style: TextStyle(
                         color: rawError == null
                             ? tokens.textMuted
@@ -2495,7 +2924,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 spacing: 4,
                 children: [
                   Text(
-                    '${files.length} file',
+                    strings.gitFilesCount(files.length),
                     style: TextStyle(color: tokens.textSecondary, fontSize: 11),
                   ),
                   Text(
@@ -2513,14 +2942,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               child: files.isEmpty
                   ? Center(
                       child: Text(
-                        'Working tree pulito',
+                        strings.workingTreeClean,
                         style: TextStyle(color: tokens.textMuted),
                       ),
                     )
                   : ListView(
                       children: [
                         _buildGitSectionHeader(
-                          title: 'Modifiche preparate (Staged)',
+                          title: strings.stagedChangesSectionUpper,
                           count: stagedFiles.length,
                           isExpanded: isStagedExpanded,
                           tokens: tokens,
@@ -2537,7 +2966,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           trailing: stagedFiles.isEmpty || blocked || _working
                               ? null
                               : IconButton(
-                                  tooltip: 'Togli tutti dallo stage',
+                                  tooltip: strings.unstageAllTooltip,
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
@@ -2564,7 +2993,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                 vertical: 10,
                               ),
                               child: Text(
-                                'Nessun file preparato.',
+                                strings.noStagedFiles,
                                 style: TextStyle(
                                   color: tokens.textMuted,
                                   fontSize: 11,
@@ -2581,10 +3010,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                 piTouchedPaths: piTouchedPaths,
                                 manualSavedPaths: repository.manualSavedPaths,
                                 blocked: blocked,
+                                strings: strings,
                               ),
                         ],
                         _buildGitSectionHeader(
-                          title: 'Modifiche (Changes)',
+                          title: strings.changesSectionUpper,
                           count: unstagedFiles.length,
                           isExpanded: isUnstagedExpanded,
                           tokens: tokens,
@@ -2601,7 +3031,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           trailing: unstagedFiles.isEmpty || blocked || _working
                               ? null
                               : IconButton(
-                                  tooltip: 'Metti tutti in stage',
+                                  tooltip: strings.stageAllTooltip,
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
@@ -2625,7 +3055,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                 vertical: 10,
                               ),
                               child: Text(
-                                'Nessuna modifica non preparata.',
+                                strings.noUnstagedChanges,
                                 style: TextStyle(
                                   color: tokens.textMuted,
                                   fontSize: 11,
@@ -2642,6 +3072,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                 piTouchedPaths: piTouchedPaths,
                                 manualSavedPaths: repository.manualSavedPaths,
                                 blocked: blocked,
+                                strings: strings,
                               ),
                         ],
                       ],
@@ -2655,7 +3086,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   onPressed: blocked || _working || staged.isEmpty
                       ? null
                       : _commit,
-                  child: Text('Commit (${staged.length})'),
+                  child: Text(strings.commitButtonLabel(staged.length)),
                 ),
               ),
             ),
@@ -2925,7 +3356,7 @@ void _expandParentsOf(String path, Set<String> target) {
   }
 }
 
-class _TreeRow extends StatelessWidget {
+class _TreeRow extends ConsumerWidget {
   const _TreeRow({
     super.key,
     required this.row,
@@ -2944,7 +3375,13 @@ class _TreeRow extends StatelessWidget {
   final ValueChanged<String>? onAddToChat;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    AppStrings strings;
+    try {
+      strings = ref.watch(appStringsProvider);
+    } catch (_) {
+      strings = const AppStrings(AppLanguage.it);
+    }
     final node = row.node;
     final indent = (row.depth * 14.0).clamp(0.0, 160.0);
 
@@ -2979,7 +3416,7 @@ class _TreeRow extends StatelessWidget {
                             color: tokens.accent,
                           ),
                           const SizedBox(width: 8),
-                          const Text('Aggiungi alla chat'),
+                          Text(strings.addPathToChat),
                         ],
                       ),
                     ),
@@ -2989,7 +3426,7 @@ class _TreeRow extends StatelessWidget {
                         children: [
                           Icon(Icons.copy, size: 16, color: tokens.textMuted),
                           const SizedBox(width: 8),
-                          const Text('Copia percorso'),
+                          Text(strings.copyPath),
                         ],
                       ),
                     ),
@@ -3002,7 +3439,7 @@ class _TreeRow extends StatelessWidget {
                     if (context.mounted) {
                       FrameSnackBar.show(
                         context,
-                        message: 'Percorso copiato: ${node.path}',
+                        message: strings.pathCopied(node.path),
                       );
                     }
                   }
@@ -3058,7 +3495,7 @@ class _TreeRow extends StatelessWidget {
                       ),
                       if (!node.isDirectory && onAddToChat != null)
                         IconButton(
-                          tooltip: 'Aggiungi alla chat',
+                          tooltip: strings.addPathToChat,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(

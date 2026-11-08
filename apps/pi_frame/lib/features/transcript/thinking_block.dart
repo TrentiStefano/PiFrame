@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/strings_transcript.dart';
 
 class ThinkingBlock extends StatefulWidget {
   final String thinkingText;
@@ -70,6 +71,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
       return const SizedBox.shrink();
     }
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     final words = _countWords(trimmed);
     final newlineIdx = trimmed.indexOf('\n');
     final firstLine = newlineIdx >= 0
@@ -93,13 +95,13 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                     color: tokens.thinking,
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Ragionamento',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                  Text(
+                    strings.transcriptReasoning,
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '$words parole',
+                    strings.transcriptWordsCount(words),
                     style: TextStyle(color: tokens.textMuted, fontSize: 11),
                   ),
                   if (MediaQuery.sizeOf(context).width > 700) ...[

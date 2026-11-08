@@ -2,6 +2,7 @@
   "name": "@piframe/pcp-spec",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Source of truth for the PiFrame Protocol (PCP/1) specification and JSON Schemas",
   "scripts": {
     "test": "node test/validate-schemas.js"

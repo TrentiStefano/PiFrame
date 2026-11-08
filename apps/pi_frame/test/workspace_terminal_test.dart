@@ -10,6 +10,66 @@ import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 
 void main() {
+  test('Integrated terminal preserves supplementary Unicode input', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+    const command = 'echo café 😀';
+
+    session.handleInput(command);
+
+    expect(session.currentInput, command);
+    expect(terminal.buffer.getText(), contains(command));
+    session.handleInput('\r');
+    expect(session.history, [command]);
+  });
+
+  test('PowerShell stdin echo does not duplicate or indent command output', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+
+    session.handleInput('usbipd list');
+    session.handleInput('\r');
+    session.writeProcessOutput('usbipd');
+    session.writeProcessOutput(' list\nConnected:\r\nBUSID\r\n');
+
+    final lines = terminal.buffer.getText().split('\n');
+    expect(lines.where((line) => line.contains('usbipd list')).length, 1);
+    expect(lines.any((line) => line.startsWith('Connected:')), isTrue);
+    session.dispose();
+  });
+
+  test('LF-only process output starts each line at column zero', () {
+    final terminal = Terminal();
+    final session = TerminalTabSession(
+      id: 'term_1',
+      title: 'PowerShell 1',
+      shellName: 'PowerShell',
+      terminal: terminal,
+    );
+
+    // git writes LF-only lines over a pipe; a CRLF split across chunks must
+    // not gain an extra carriage return.
+    session.writeProcessOutput('  feat/rate-limit\n* main\n');
+    session.writeProcessOutput('done\r');
+    session.writeProcessOutput('\nnext\n');
+    session.writeErrorOutput('warning: lf only\n');
+
+    final lines = terminal.buffer.getText().split('\n');
+    expect(lines, containsAllInOrder(['  feat/rate-limit', '* main', 'done', 'next']));
+    expect(lines.any((l) => l.startsWith('warning: lf only')), isTrue);
+    session.dispose();
+  });
+
   testWidgets('IntegratedTerminalPanel creates tabs and closes tabs', (tester) async {
     const tokens = FrameTokens.dark;
     var collapsed = false;
@@ -165,6 +225,21 @@ void main() {
     await tester.pumpAndSettle();
 
     final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
+    const qCode = 0x71;
+    final qCountBefore = terminalView.terminal.buffer
+        .getText()
+        .runes
+        .where((rune) => rune == qCode)
+        .length;
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ, character: 'q');
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ);
+    await tester.pump();
+    final qCountAfter = terminalView.terminal.buffer
+        .getText()
+        .runes
+        .where((rune) => rune == qCode)
+        .length;
+    expect(qCountAfter - qCountBefore, 1);
 
     // Test writing to terminal buffer
     terminalView.terminal.write('dir\r\n');

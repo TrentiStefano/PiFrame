@@ -658,6 +658,65 @@ class DaemonConfigChangedEvent extends PcpEvent {
   }) : super(type: 'daemon.configChanged');
 }
 
+class RemoteStatusChangedEvent extends PcpEvent {
+  Map<String, dynamic> get status => payload;
+
+  const RemoteStatusChangedEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'remote.statusChanged');
+}
+
+class SystemMetricsEvent extends PcpEvent {
+  int get sampledAt => payload['sampledAt'] as int? ?? 0;
+  Map<String, dynamic>? get cpu => payload['cpu'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get memory => payload['memory'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get disk => payload['disk'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get gpu => payload['gpu'] as Map<String, dynamic>?;
+
+  const SystemMetricsEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'system.metrics');
+}
+
+class SideOpenedEvent extends PcpEvent {
+  String get sideId => payload['sideId'] as String? ?? '';
+  String get parentSessionId => payload['parentSessionId'] as String? ?? '';
+  dynamic get model => payload['model'];
+
+  const SideOpenedEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'side.opened');
+}
+
+class SideClosedEvent extends PcpEvent {
+  String get sideId => payload['sideId'] as String? ?? '';
+  String get reason => payload['reason'] as String? ?? 'user';
+
+  const SideClosedEvent({
+    required super.protocol,
+    required super.id,
+    required super.ts,
+    required super.sessionId,
+    required super.seq,
+    required super.payload,
+  }) : super(type: 'side.closed');
+}
+
 // -----------------------------------------------------------------------------
 // Forward Compatibility: UnknownEvent
 // -----------------------------------------------------------------------------

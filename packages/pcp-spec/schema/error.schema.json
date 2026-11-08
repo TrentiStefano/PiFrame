@@ -35,12 +35,26 @@
             "JOURNAL_GAP",
             "CONFIG_INVALID",
             "RATE_LIMITED",
-            "INTERNAL"
+            "INTERNAL",
+            "REMOTE_FORBIDDEN",
+            "BRANCH_INVALID_NAME",
+            "BRANCH_NOT_FOUND",
+            "WORKSPACE_DIRTY",
+            "BRANCH_SWITCH_FAILED",
+            "AGENTS_VALIDATION_FAILED",
+            "AGENTS_CONFIG_UNREADABLE",
+            "AGENTS_CONFIG_LOCKED",
+            "AGENTS_PACKAGE_NOT_INSTALLED"
           ]
         },
         "message": { "type": "string" },
         "retryable": { "type": "boolean" },
-        "details": { "type": "object" },
+        "details": {
+          "anyOf": [
+            { "type": "object" },
+            { "type": "array" }
+          ]
+        },
         "hint": { "type": "string" }
       }
     }

@@ -124,6 +124,46 @@ Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<ve
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
 
+## Invio dei messaggi con Enter (Invia con Enter)
+
+Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzione **Invia con Enter** (disattivata per impostazione predefinita):
+- **Disattivato (default)**: premendo `Ctrl+Invio` (o `Cmd+Invio` su macOS) viene inviato il messaggio o applicato lo steer; premendo `Invio` viene inserita una nuova riga nel composer.
+- **Attivo**: premendo `Invio` (o `Invio` da tastierino numerico) senza modificatori viene inviato il messaggio (o applicato lo steer se l'agente sta rispondendo); `Ctrl+Invio` / `Cmd+Invio` continua a inviare; premendo `Shift+Invio` viene inserita una nuova riga nel composer.
+- Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
+- Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
+
+## Pannello Agenti e Workflow
+
+Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
+
+Il pannello mostra gli agenti come un albero che parte dalla **Sessione principale**:
+
+- **Workflow**: nome, stato, durata, una barra con un segmento per agente (verde finito, colorato al lavoro, rosso errore) e le fasi dichiarate in `meta`. Sotto il workflow sono agganciate le sue sessioni figlie, cioè gli agenti avviati mentre il workflow era attivo. Il percorso dello script non viene mostrato. Espanso, mostra descrizione e risultato finale; se il daemon non fornisce le sessioni figlie, sull'app desktop usa il journal `<runId>.workflow.jsonl`.
+- **Agenti**: compito (per gli agenti di workflow, la prima riga del prompt che non condividono con gli altri, per esempio `COMPITO: …`), tipo, modello, costo (o `N/D`), durata e attività corrente: lo strumento in uso con il suo argomento principale mentre lavora, l'ultima riga della risposta quando ha finito. I rami attivi hanno un anello animato e una scintilla che scorre lungo il collegamento. Espanso, un agente mostra l'output; gli agenti `Agent` hanno anche guida (steer) e interruzione.
+
+Il daemon legge l'attività dai file di sessione delle sessioni figlie (`~/.pi/agent/sessions`). Una sessione figlia senza attività per 10 minuti è considerata terminata. Lo stato finale degli agenti usa anche i record `subagents:record` salvati da pi-subagents. Serve un daemon aggiornato: con un daemon precedente il pannello mostra solo nome e stato.
+
+Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della vista TUI, che non è disponibile in RPC. Nella barra Sessioni, una sessione resta segnata come in corso finché i suoi sottoagenti o workflow in background non terminano.
+
+## Statistiche nerd (Nerd stats) e monitoraggio delle risorse
+
+Nelle **Impostazioni** (sezione **Aspetto → Statistiche nerd**, IT: *Statistiche nerd*, EN: *Nerd stats*) è disponibile l'opzione per abilitare la telemetria di sistema in tempo reale nella barra del titolo dell'applicazione (disattivata per impostazione predefinita):
+- **Disattivato (default)**: la barra del titolo non mostra metriche hardware né contatori di frame; nessun comando di sottoscrizione viene inviato al daemon.
+- **Attivo**: mostra un riquadro compatto a caratteri monospace nella barra superiore nel formato:
+  `CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS`
+  Passando il cursore sopra il widget, un tooltip dettagliato espone l'utilizzo esatto della memoria RAM (usata / totale e percentuale), lo spazio disco sul volume principale dell'utente (usato / totale e percentuale), l'utilizzo GPU con VRAM e sorgente di rilevamento, nonché il frame rate di rendering.
+- **Soglie di avviso**: se una risorsa supera l'85% di utilizzo, la relativa percentuale assume il colore di warning del tema attivo.
+- **Dati non disponibili o obsoleti (`n/d`)**: se un sensore hardware o una metrica non è disponibile sul sistema host, oppure se nessun campionamento viene ricevuto dal daemon per oltre 5 secondi (o se la connessione cade), il valore viene mostrato come `n/d` senza mai inventare dati fittizi.
+- **Contatore FPS (Frame per secondo)**: misurato lato client tramite i timing di rendering di Flutter (`SchedulerBinding.instance.addTimingsCallback`). Quando l'applicazione è inattiva o non necessita di ridisegno, il motore grafico non esegue rendering superfluo e il contatore riporta giustamente un valore basso o zero frame renderizzati nell'ultimo secondo; la frequenza di aggiornamento della UI delle statistiche è limitata a 1 Hz per prevenire rebuild continui.
+- **Comportamento su Web**: nell'interfaccia Web (`http://127.0.0.1:<porta>/`), per motivi di sicurezza e assenza di accesso hardware diretto dal browser, il blocco delle metriche di sistema (CPU, RAM, disco, GPU) resta completamente nascosto e viene mostrato **esclusivamente il segmento FPS** locale del rendering client.
+- **Supporto GPU per piattaforma (Daemon `pi-agentd`)**:
+  - **NVIDIA**: supportata universalmente tramite `nvidia-smi` (Windows, Linux, macOS).
+  - **Windows (DirectX / GPU engine)**: supportata tramite contatori di prestazioni `typeperf` (esclusivamente con locale di sistema inglese; su installazioni Windows con altre lingue o contatori localizzati dove i nomi dei contatori differiscono, la GPU mostra `n/d`).
+  - **Linux (AMD)**: supportata tramite `sysfs` (`/sys/class/drm/card*/device/gpu_busy_percent`).
+  - **macOS (Apple Silicon / Metal)**: supportata tramite `ioreg` (`PerformanceStatistics`).
+  - **Altre schede o ambienti senza probe supportati**: mostra `n/d`.
+- **Zero telemetria (Strict Local-Only)**: Il campionamento delle risorse avviene esclusivamente in locale tramite il protocollo PCP (`system.metrics.subscribe` e `system.metrics`) tra il daemon `pi-agentd` locale e il client Flutter. Nessun dato di metrica o telemetria viene memorizzato permanentemente o inviato all'esterno. Le preferenze vengono salvate localmente in `~/.piframe/nerd_stats_settings.json`.
+
 ## Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.
@@ -199,3 +239,97 @@ Nelle sessioni con cronologia molto estesa (migliaia di messaggi o log di tool v
 2. **Caricamento a ritroso on-demand**: in cima alla chat, il pulsante dinamico *"Carica altri messaggi dalla cronologia"* consente di recuperare blocchi incrementali di messaggi precedenti tramite il comando `session.getHistory`, preservando la posizione di scorrimento senza salti visivi.
 3. **Integrità assoluta**: l'intero archivio storico resta conservato su disco in `~/.pi/agent/sessions/` e può essere sfogliato progressivamente a ritroso fino al primissimo messaggio della sessione.
 
+---
+
+## 8. Navigazione e Cambio Branch Git nel Workspace
+
+Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e il cambio controllato dei rami Git (`workspace.listBranches` e `workspace.switchBranch`):
+- **Enumerazione e Tracking**: restituisce tutti i rami locali con indicatore del ramo corrente, stato di tracking upstream (`ahead` / `behind`), data dell'ultimo commit e rilevamento di HEAD staccata (detached HEAD).
+- **Protezione Anti-Sovrascrittura**: il cambio ramo rifiuta working tree sporchi (`onDirty: 'block'`, predefinito) segnalando il numero esatto di file modificati e non tracciati. Con `onDirty: 'stash'`, le modifiche pendenti vengono archiviate in modo sicuro nello stash Git (`piframe: before switching to <name> (<iso time>)`) prima dello switch, con ripristino automatico via `git stash pop` in caso di fallimento del checkout.
+- **Isolamento e Sicurezza**: i comandi sono rigorosamente confinati al repository della sessione corrente, eseguiti senza shell (`shell: false`) con argomenti array, protetti da injection su nomi di ramo non validi e respinti per sessioni in sola lettura o mentre l'agente sta lavorando.
+- **Interfaccia Utente (Branch Picker & Gestione Modifiche)**: nel pannello Git Changes, il ramo corrente è visualizzato come chip interattivo (con icona e commit SHA in caso di HEAD detached). Cliccandolo si apre un selettore rapido con ricerca, navigazione da tastiera (frecce, Invio, Esc) e stato di tracking (↑n ↓m). Se vi sono file non salvati, una finestra di dialogo di sicurezza blocca il cambio e richiede la conferma esplicita per archiviare nello stash o annullare, mostrando notifiche e dettagli chiari in caso di errori o recupero stash.
+
+---
+
+## 9. Raggruppamento dei Passaggi Intermedi (Step Grouping)
+
+PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dall'assistente durante un turno di conversazione (blocchi di ragionamento / thinking, chiamate agli strumenti / tool calls e testi intermedi), lasciando in risalto la risposta finale:
+
+- **Modalità di raggruppamento (Step Grouping Modes)**:
+  - **Con ragionamento (`withThinking`, predefinita)**: raggruppa automaticamente i turni che contengono blocchi di ragionamento (sia storici sia durante lo streaming).
+  - **Sempre (`always`)**: raggruppa qualsiasi turno che presenti almeno un passaggio intermedio (thinking, chiamata a tool o testo intermedio).
+  - **Disattivato (`off`)**: disattiva il raggruppamento; ogni messaggio, tool call e blocco di ragionamento viene visualizzato singolarmente nel flusso normale della chat con rendering pixel-identico alla visualizzazione classica.
+- **Compressione automatica (Auto-collapse, attiva per impostazione predefinita)**:
+  - Al termine di un turno o all'apertura della sessione, i passaggi intermedi raggruppati vengono compressi automaticamente mostrando un header sintetico con il conteggio dei tool usati, il tempo trascorso e l'estratto del ragionamento.
+  - Cliccando sull'header o premendo Invio/Spazio con il focus, la fisarmonica si espande o comprime istantaneamente con animazione fluida.
+  - La preferenza utente (modalità di raggruppamento e auto-collapse) viene salvata nelle preferenze locali e ricordata tra le sessioni.
+- **Elenco compatto dei passaggi**: un gruppo espanso occupa al massimo metà dell'altezza della finestra. Se i passaggi sono di più, l'elenco scorre al suo interno (durante l'esecuzione segue l'ultimo passaggio, se sei già in fondo). In basso, il pulsante **Mostra tutti i passaggi (N)** espande l'elenco a tutta altezza. Quando il gruppo viene compresso (a mano o a fine turno) e poi riaperto, torna l'elenco compatto.
+- **Stato del turno**: un turno che arriva alla risposta finale mostra *Completati N passaggi*, con un'icona di avviso se qualche passaggio è fallito. *Interrotto con errori* compare solo se il turno stesso è terminato in errore; *Interrotto dopo N passaggi* se l'utente lo ha fermato. La risposta finale resta sempre fuori dal gruppo.
+
+---
+
+## 10. Gestione Subagenti e Limiti di Contesto (Subagents Settings)
+
+PiFrame include il supporto nativo per l'ispezione e la configurazione dei subagenti (`pi.agents.get` e `pi.agents.update`):
+- **Auto-Discovery dei Pacchetti e Profili**: rileva automaticamente i pacchetti di subagenti installati (`pi-subagents` di nicobailon e `@tintinweb/pi-subagents`), gli agenti nativi, gli agenti definiti dall'utente in `~/.pi/agent/agents/` e gli agenti di progetto in `.pi/agents/`.
+- **Risoluzione Valori Effettivi**: calcola con precisione il modello e il livello di thinking effettivi per ciascun agente tracciandone l'origine esatta (`override`, `frontmatter`, `default` o `none`) e la disponibilità con le credenziali attive.
+- **Limiti di Contesto Dedicati**: consente di impostare limiti di finestra di contesto (tier di costo) specifici per ciascun subagente. Il daemon genera un'estensione leggera e isolata in `~/.piframe/runtime/subagent-context-limit.mjs` agganciata tramite `subagentOnlyExtensions`, che adatta la finestra di contesto del modello solo all'avvio del subagente specificato senza interferire con la sessione principale o i binari installati. *(Nota: prima di disinstallare PiFrame o rimuovere `~/.piframe`, azzera i limiti di contesto nella scheda Agenti o rimuovi il percorso da `~/.pi/agent/settings.json` in `subagents.agentOverrides.<name>.subagentOnlyExtensions` per evitare errori `ERR_MODULE_NOT_FOUND` al successivo avvio dei subagenti in Pi CLI).*
+- **Scrittura Sicura e Lock Compatibile**: le modifiche a `settings.json` avvengono con lock compatibile con `proper-lockfile` di Pi (rilevamento stale lock a 10 secondi), backup automatico `settings.json.piframe-backup` e scrittura atomica, rifiutando file JSON non validi (`AGENTS_CONFIG_UNREADABLE`) e impedendo qualsiasi mutazione da dispositivi remoti (`REMOTE_FORBIDDEN`).
+- **Interfaccia Utente (Scheda Impostazioni 'Agenti')**:
+  - **Header e Pacchetti**: visualizzazione dinamica dei pacchetti rilevati con versione (`pi-subagents`, `@tintinweb/pi-subagents`). Se nessun pacchetto è installato, viene mostrato un banner esplicativo con istruzioni per l'installazione via CLI (`pi install pi-subagents`) o dalla scheda Pacchetti, senza liste inventate. Eventuali avvisi di configurazione dal daemon sono riportati in evidenza. Una nota ricorda che le modifiche si applicano globalmente a Pi (anche da terminale) e alle nuove sessioni ed esecuzioni di sottoagenti.
+  - **Card Default per nuove sessioni**: selezione del modello predefinito per le sessioni primarie Pi (il dropdown include solo i modelli disponibili con avviso in caso di credenziali assenti) e del livello di thinking (limitato a `off` se il modello non supporta il reasoning). Tasto *Reimposta* dedicato per rimuovere il default.
+  - **Card Default sottoagenti**: configurazione dei default globali dei sottoagenti (modello e thinking per `pi-subagents` o agente di fallback per `@tintinweb/pi-subagents`), con tasti di reset e avvisi per modelli non disponibili.
+  - **Elenco Agenti**: visualizzazione dettagliata di tutti gli agenti scoperti, con badge della sorgente (`builtin`, `user`, `project`, `package`), descrizione, modello effettivo con badge d'origine (`override`, `frontmatter`, `default`), thinking effettivo e selettore tier di contesto (es. `272k`, `1.05M (full)`) solo se supportato (altrimenti `n/d` con tooltip *Model has a single context tier*). Gli agenti non modificabili (es. runner CLI esterni, progetti o tintinweb) appaiono disabilitati con tooltip che riporta la `readOnlyReason`. Ogni campo dispone di tasto *Reset* che invia `null` per cancellare l'override.
+  - **Barra di Salvataggio e Sicurezza Remota**: pulsante *Salva modifiche* (abilitato solo quando lo stato è sporco / dirty), pulsante *Annulla* per scartare le modifiche locali, visualizzazione inline degli errori di validazione per campo (`AGENTS_VALIDATION_FAILED`), notifica snackbar di successo e blocco con avviso in sola lettura in caso di accesso remoto (`REMOTE_FORBIDDEN`).
+
+---
+
+## 11. Conversazioni Laterali Read-Only (Side Conversations)
+
+PiFrame introduce il supporto per conversazioni laterali effimere e di sola lettura (`side.open`, `side.prompt`, `side.abort`, `side.close`):
+- **Assistente di Consultazione Read-Only**: permette di porre domande di approfondimento o chiarimento ("Spiega questa funzione", "Rivedi i test", "Quali vincoli sono emersi?") operando su uno snapshot immutabile della conversazione principale e consentendo all'assistente di consultare i file del workspace.
+- **Isolamento Matematico del Transcript e della Sessione**:
+  - Il file della sessione principale in `~/.pi/agent/sessions/` non viene mai alterato o riscritto ed è byte-per-byte identico prima, durante e dopo ogni operazione laterale.
+  - Nessun evento della conversazione laterale inquina il journal degli eventi della sessione principale.
+  - Gli eventi della conversazione laterale sono veicolati su un flusso dedicato (`streamId = side_<ulid>`) e trattenuti esclusivamente in un buffer in memoria ad anello confinato al ciclo di vita del daemon per consentire la riconnessione dei client, senza mai eseguire spill su disco.
+- **Strumenti Rigidamente Confinati (`read, grep, find, ls`)**: il worker della conversazione laterale è avviato con `--tools read,grep,find,ls`, `--no-mcp`, `--no-extensions` e `--no-skills`. Gli strumenti di scrittura e mutazione (`bash`, `edit`, `write`) sono tassativamente esclusi e qualsiasi tentativo di invocazione RPC differente da `prompt`, `abort` o `get_state` viene interdetto dal daemon (`SIDE_RPC_BLOCKED`). Se all'avvio il worker esponesse strumenti non consentiti, viene abbattuto all'istante con `SIDE_UNSAFE_TOOLS`.
+- **Snapshot Criterioso e Pulizia Automatica**:
+  - Lo snapshot della conversazione attiva viene serializzato con preambolo di guardrail in `~/.piframe/runtime/side/<sideId>/context.md` (directory con permessi `0700` e file `0600`) e passato via `--append-system-prompt`.
+  - Lo snapshot è cappato a ~120.000 caratteri preservando le interazioni più recenti e includendo una notifica esplicita di troncamento se la soglia viene raggiunta.
+  - La directory temporanea viene distrutta all'atto della chiusura della conversazione laterale o all'arresto del daemon.
+- **Regole di Concorrenza e Sicurezza**:
+  - Massimo 1 thread laterale attivo per ciascuna sessione genitore (chiamate successive restituiscono il thread esistente).
+  - Massimo 4 thread laterali contemporaneamente attivi sull'intero host (`SIDE_LIMIT_REACHED`).
+  - Timeout di inattività a 10 minuti (`reason: 'idle'`) con arresto automatico del worker.
+  - Terminazione immediata in caso di chiusura della sessione genitore (`reason: 'parentClosed'`).
+  - Connessioni remote: l'apertura e l'invio di prompt richiedono la modalità `control` (`REMOTE_FORBIDDEN` in `view`), mentre abort e chiusura sono permesse anche in modalità `view`. Qualsiasi comando estraneo indirizzato allo stream laterale viene respinto con `SIDE_STREAM_READ_ONLY`.
+- **Interfaccia Utente & Comandi Client (Flutter)**:
+  - **Comandi Slash Built-in**: `/side [domanda]` e `/btw [domanda]` gestiti localmente dal composer (mai inviati come prompt all'agente principale). Presenti nel menu slash con la descrizione *"Conversazione laterale in sola lettura"*.
+  - **Scorciatoia da Tastiera & Command Palette**:
+    - Scorciatoia globale: `Ctrl+Shift+B` (Linux/Windows) o `Cmd+Shift+B` (macOS) per aprire/chiudere il pannello laterale nella sessione corrente.
+    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale (Ctrl+Shift+B)"*.
+  - **Pannello Laterale Agganciato (Side Panel)**:
+    - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
+    - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.
+    - Mini transcript che riusa i componenti `RichContent`, `ThinkingBlock` e `ToolCard`.
+    - Mini composer per domande di follow-up con gestione della preferenza Enter-to-send.
+    - Pulsante **Stop** (`side.abort`) per interrompere l'elaborazione in corso e pulsante **Chiudi** (`side.close`) con dialogo di conferma che attesta che nessun dato andrà perso dalla conversazione principale.
+    - Azione **"Inserisci nel composer"** per ciascuna risposta dell'assistente che appende il testo alla bozza del composer principale esclusivamente su click esplicito.
+    - Gestione delle causali di chiusura thread (`idle`, `parentClosed`, `error`, `user`) con banner di notifica dedicato.
+
+
+
+
+
+---
+
+## 12. Lingua dell'interfaccia (Italiano / English)
+
+In **Impostazioni → Aspetto → Lingua dell'applicazione** puoi scegliere **Italiano** o **English**. La scelta ora vale per tutta l'interfaccia: barra del titolo, barra Sessioni, Repository, chat e passaggi raggruppati, composer, pannello Area di lavoro e selettore del contesto, Git Changes, revisione delle modifiche, browser integrato, terminale, pannello Agenti, conversazioni laterali e Impostazioni. Restano in italiano solo alcuni messaggi di errore e di aggiornamento.
+
+- **App desktop**: la scelta è salvata in `~/.piframe/language_settings.json`. Il valore predefinito resta l'italiano.
+- **Web e telefono (accesso remoto)**: il client web non può leggere `~/.piframe`, quindi salva la scelta nel `localStorage` del browser. Se non hai mai scelto una lingua, il client web usa la lingua del browser: italiano per `it-*`, inglese per le altre lingue.
+
+## 13. Terminale integrato: output di Git allineato
+
+I processi del terminale integrato usano pipe e non una pseudo-console. Strumenti come `git` scrivono righe terminate solo con LF, che venivano mostrate "a scaletta" (ogni riga partiva dalla colonna in cui finiva la precedente). Ora PiFrame converte ogni LF isolato in CRLF prima di scrivere nel terminale, anche per lo stderr e quando un CRLF è diviso tra due blocchi di output. Comandi come `git branch` o `git log --oneline` vengono quindi mostrati allineati.

@@ -4,6 +4,21 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Domande con anteprime troppo alte per la finestra
+
+**Causa:** il fallback RPC di `rpiv-ask-user-question` inserisce tutte le anteprime nel titolo della richiesta. PiFrame mostrava il titolo fuori dall'area scorrevole, spingendo le risposte fuori dalla finestra.
+
+**Correzione:** PiFrame riconosce i blocchi di anteprima RPC e mostra solo quello dell'opzione selezionata. Usa il mouse o le frecce su/giù per cambiare scelta; su finestre strette l'anteprima compare sotto le opzioni. Le risposte inviate a Pi non cambiano. Anche un titolo lungo non riconosciuto è ora scorrevole.
+
+Il package limita ciascuna anteprima RPC ai primi 600 caratteri: PiFrame non può mostrare il testo che il package non ha inviato. Per applicare la modifica, ricompila e riavvia l'app.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/extension_ui_card_test.dart test/extension_ui_test.dart
+```
+
 ---
 
 ## Sottoagenti in background mostrati come completati
@@ -106,6 +121,67 @@ node --test apps/agentd/.temp/bugfix-tests/workspace/test/gitClient.test.js
 cd apps/pi_frame
 flutter test test/session_changes_review_test.dart
 ```
+
+---
+
+## Input duplicato o caratteri errati nel terminale integrato
+
+**Sintomo:** alcuni tasti vengono mostrati due volte o i caratteri Unicode possono risultare errati.
+
+**Causa:** gli eventi di rilascio tasto non gestiti potevano ricadere nel fallback di inserimento testo di xterm. Inoltre, ogni blocco stdout/stderr veniva decodificato come UTF-8 indipendentemente: un carattere multibyte diviso tra due blocchi poteva corrompersi.
+
+**Correzione:** PiFrame consuma gli eventi di rilascio, gestisce la ripetizione dei tasti, itera l'input per code point e decodifica stdout/stderr come stream UTF-8. Il terminale usa già i token di colore del tema attivo.
+
+## Comando PowerShell ripetuto e output indentato
+
+**Sintomo:** su Windows il comando appare una seconda volta sotto il prompt e l'output inizia spostato a destra.
+
+**Causa:** PiFrame mostra l'input mentre viene digitato. PowerShell, avviato con stdin/stdout collegati a pipe invece che a un terminale, rimanda anche una copia del comando; il suo eco termina con `LF` senza `CR`. xterm va quindi alla riga successiva senza riportare il cursore alla colonna zero, e l'output eredita l'offset del comando.
+
+**Correzione:** PiFrame riconosce e rimuove dallo stdout l'eco del comando già mostrato localmente, incluso il suo `LF`. I risultati tornano a iniziare dalla colonna zero.
+
+---
+
+## `/agents` → Workflows riapre il menu Agents
+
+**Sintomo:** nel menu `/agents` scegli **Workflows (1)** e premi **Invia**; ricompare subito la domanda **Agents**.
+
+**Causa:** con un solo workflow, `@tintinweb/pi-subagents` apre una vista TUI personalizzata (`ctx.ui.custom()`). In RPC questa vista non esiste e restituisce subito `undefined`, quindi l'estensione mostra di nuovo il menu principale.
+
+**Correzione:** PiFrame riconosce la scelta **Workflows (N)** del menu Agents, annulla la richiesta e apre il proprio pannello **Agenti**, che mostra workflow e sottoagenti. L'estensione non viene modificata.
+
+---
+
+## Pannello Agenti: agenti finiti mostrati "In corso" e Git non minimizzato
+
+**Sintomi:**
+- agenti già terminati restano "In corso";
+- le sessioni figlie dei workflow compaiono come nomi di file, senza indicare cosa fanno;
+- entrando in una sessione con il pannello Agenti già aperto, Git Changes resta espanso.
+
+**Cause:**
+- il daemon leggeva solo la prima `<task-notification>` di ogni messaggio e ignorava i record `subagents:record` che pi-subagents salva a fine agente;
+- le sessioni figlie senza una chiamata `Agent` collegata non avevano né stato né attività;
+- la minimizzazione di Git scattava solo sul passaggio chiuso → aperto, non quando il pannello era già aperto all'ingresso nella sessione;
+- una richiesta `session.subagents` senza risposta bloccava tutti gli aggiornamenti successivi.
+
+**Correzione:**
+- il daemon legge tutte le notifiche e i record finali;
+- per ogni sessione figlia ricava tipo, compito, attività corrente, inizio e ultimo aggiornamento; una sessione figlia ferma da 10 minuti è considerata terminata;
+- il pannello minimizza Git anche quando è già aperto all'ingresso nella sessione;
+- le richieste al daemon scadono dopo 30 secondi.
+
+Le correzioni del daemon valgono solo dopo il suo aggiornamento e riavvio.
+
+---
+
+## Pannelli Repository e Git lenti
+
+**Sintomo:** l'apertura o l'aggiornamento dei pannelli Repository/Git e il caricamento di un diff possono rallentare nei repository con molti file non tracciati.
+
+**Causa:** il diff di un singolo file richiedeva lo stato completo con tutti i conteggi, che calcolava i conteggi dei file non tracciati avviando un processo Git per file in sequenza. Il caricamento Repository risolveva inoltre il percorso reale di ogni file, anche quando molti file condividevano la stessa cartella.
+
+**Correzione:** i conteggi dei file non tracciati sono elaborati in batch limitati; il diff richiede lo stato mirato al percorso, mantenendo il controllo completo quando serve riconoscere un rename staged. Il caricamento Repository riusa la risoluzione canonica delle cartelle.
 
 ---
 
@@ -295,6 +371,11 @@ Se il problema persiste dopo il riavvio:
 3. Se è presente un dispositivo virtuale (ad esempio `USB Mobile Monitor Virtual Display`, `IddSampleDriver` o simili):
    - Fai clic destro sul dispositivo virtuale e seleziona **Disabilita dispositivo** (o scollega l'applicazione di mirroring dello smartphone).
 4. Avvia nuovamente PiFrame.
+
+#### Caso particolare: Nessun Monitor Attivo (monitor spento o DisplayPort in deep sleep)
+Se il monitor viene spento, o un monitor DisplayPort entra in deep sleep, Windows può restare senza un display attivo (in Gestione dispositivi i monitor risultano con stato *Unknown*, e restano solo modalità generiche a 60 Hz). In questo stato PiFrame si apre con finestra bianca anche con il rendering software di Flutter, perché il motore non riceve vsync dal display. Altre app (terminale, Electron) possono invece sembrare normali.
+1. Accendi il monitor o riattivalo, poi riavvia PiFrame.
+2. Per sessioni non presidiate (ad esempio registrazioni automatiche), disattiva lo standby del monitor (`powercfg /change monitor-timeout-ac 0`) e la funzione deep sleep del monitor.
 
 #### Soluzione 3: Assegnare la GPU Dedicata (Impostazioni Grafica Windows)
 In sistemi con grafica integrata e scheda grafica dedicata (es. AMD + NVIDIA):
@@ -509,6 +590,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
    - corpo (messaggio e opzioni) scrollabile con altezza massima: pulsanti Annulla/Invia sempre visibili anche con molte opzioni o testo lungo;
    - i pulsanti non dipendono più dall'esito del claim: solo "già in uso da un altro client" blocca la card; claim lento, fallito o offline non la disabilita (il daemon arbitra comunque la risposta);
    - dopo risposta, scadenza del timeout o richiesta non più presente sul daemon (`Request not found`) la card viene chiusa localmente, senza attendere l'evento `ui.resolved`;
+4. **Modelli con lo stesso nome su provider diversi**: la sessione conservava solo il nome visualizzato e il selettore poteva evidenziare più righe o risolvere la voce al primo provider. PiFrame ora conserva provider e ID; menu e look-up usano entrambi, il menu della sessione distingue i provider e `/model` richiede `provider/id` quando il nome è ambiguo.
 
 ---
 
@@ -587,3 +669,140 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
      [https://aka.ms/vs/17/release/vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe)
 2. **Risoluzione integrata nel pacchetto (App-Local Deployment)**:
    Lo script [**`tools/scripts/package-windows-installer.ps1`**](file:///c:/Personale/Repos/PiFrame/PiFrame/tools/scripts/package-windows-installer.ps1) ora include automaticamente le DLL del runtime CRT (`msvcp140.dll`, `vcruntime140.dll`, `vcruntime140_1.dll`, ecc.) direttamente nella directory di release accanto a `PiFrame.exe`. In questo modo, l'installer generato è autosufficiente al 100% e funziona immediatamente anche offline e su ambienti Windows completamente vergini senza richiedere installazioni esterne.
+
+
+---
+
+## 10. Notifiche di Sistema Premature "Risposta completata" mentre l'Agente sta ancora lavorando
+
+### Sintomi
+- Mentre l'applicazione non è a fuoco, il sistema operativo mostra una notifica desktop di "Risposta completata", ma cliccando sulla notifica si nota che l'agente è ancora in esecuzione (sta eseguendo tool intermedi, attendendo subagenti in background, compattando il contesto o riprovando una chiamata di rete).
+
+### Cause Radice
+1. **Verifica dello stato di settlement troppo permissiva**: Il watcher `SessionNotificationWatcher` considerava "conclusa" qualsiasi transizione in cui `agentStatus != AgentStatus.working`. Di conseguenza, passaggi intermedi a `AgentStatus.retrying`, `AgentStatus.compacting`, o `AgentStatus.awaitingUser` (richiesta di dialogo utente) innescavano erroneamente la notifica di completamento della risposta.
+2. **Ignorati subagenti e code di follow-up**: Se l'agente avviava subagenti in background o se erano presenti messaggi nella coda di steering/follow-up, il completamento del singolo turno genitore veniva scambiato per la fine dell'intero lavoro.
+3. **Mancato pre-seeding delle entry esistenti all'aggancio del watcher**: Quando il watcher veniva montato su sessioni già esistenti, le entry generate prima dell'avvio della sessione di osservazione potevano generare notifiche spurie su successivi aggiornamenti di stato.
+
+### Risoluzione Implementata
+1. **Controllo deterministico di settlement completo**: In `SessionNotificationWatcher`, la notifica "Risposta completata" viene inviata esclusivamente se l'agente era effettivamente attivo (`_isRunActive`) ed è ora in stato terminale (`AgentStatus.settled` o `AgentStatus.idle`), con assenza di streaming, nessun tool call in esecuzione, nessuna richiesta di dialogo interattivo pendente, e code di steering/follow-up vuote.
+2. **Monitoraggio integrato del ciclo di vita dei subagenti**: `SessionNotificationWatcher` ascolta `subagentsFamily` e sopprime la notifica di completamento finché vi sono subagenti collegati ancora in esecuzione (`isRunning == true`). Quando l'ultimo subagente completa la propria esecuzione, la notifica viene inoltrata correttamente.
+3. **Pre-seeding dei messaggi storici all'inizializzazione**: Durante `initState`, tutti i messaggi assistant e le richieste UI già presenti nella sessione vengono registrati in `_handledEntryIds` e `_handledUiRequestIds`, garantendo che solo nuovi output generati durante l'esecuzione corrente possano scatenare avvisi.
+
+
+---
+
+## 11. Riordinamento Imprevisto delle Sessioni Fissate e Supporto al Drag-and-Drop
+
+### Sintomi
+- All'arrivo di una risposta dall'agente in una qualsiasi sessione fissata (pinned), la sessione cambiava posizione all'interno del riquadro "Fissate" saltando in cima o muovendosi in base all'orario dell'ultima risposta.
+- L'utente non poteva spostare o riordinare le sessioni fissate tenendo premuto e trascinandole con il mouse.
+
+### Cause Radice
+1. **Ordinamento ereditato da `allSessions`**: Le sessioni fissate venivano estrapolate tramite `allSessions.where((s) => pinnedIds.contains(id))`. Poiché `allSessions` è ordinata dal daemon in ordine decrescente di attività (`updatedAt`), ogni nuova risposta faceva risalire la sessione in cima, alterando la disposizione decisa dall'utente.
+2. **Stato non indicizzato e vista statica**: `pinnedSessionsProvider` memorizzava un `Set<String>` senza API di riordinamento posizionale, e la sidebar renderizzava l'elenco come elementi piatti in un `ListView.builder` senza gesture di drag-and-drop.
+
+### Risoluzione Implementata
+1. **Ordine stabile e persistito**: `PinnedSessionsNotifier` gestisce una `List<String>` ordinata e memorizzata su disco in `pinned_sessions.json`. La costruzione di `pinnedSessions` nella barra laterale mappa ora le sessioni nell'ordine esatto di `pinnedIds`, garantendo stabilità assoluta di posizione a prescindere dall'attività dell'agente.
+2. **Reordering tramite pressione prolungata e trascinamento (Mouse Drag-and-Drop)**: La sezione fissate è stata integrata in un `CustomScrollView` con `SliverReorderableList` e `ReorderableDelayedDragStartListener`. In questo modo:
+   - Un click breve con il mouse apre e seleziona regolarmente la sessione.
+   - Tenendo premuto con il mouse, l'utente può afferrare la sessione fissata e trascinarla verso l'alto o verso il basso posizionandola liberamente nella sequenza desiderata.
+   - Il nuovo ordine viene immediatamente salvato su disco e mantenuto stabilmente.
+
+---
+
+## 12. Impossibile connettersi o riavviare il Daemon dopo una build Windows Release (Mancata sincronizzazione bundle e versione obsoleta)
+
+### Sintomi
+- Dopo aver buildato PiFrame per Windows (ad es. `flutter build windows --release`), l'applicazione non riesce a connettersi al daemon locale.
+- Il banner di stato indica errore di connessione e il pulsante «Riavvia daemon» fallisce continuamente senza riuscire a stabilire il collegamento.
+
+### Cause Radice
+1. **Disallineamento della versione del bundle sidecar (`pi-agentd.cjs`)**:
+   - `PiFrame.exe` viene compilato con la versione corrente dell'applicazione (ad es. `v1.3.0`).
+   - Se la cartella di output del runner Windows (`apps/pi_frame/build/windows/x64/runner/Release`) contiene una versione precedente del daemon bundle (`pi-agentd.cjs`, ad es. `v1.2.0`), `_spawnSidecarDaemon()` avvia il file presente nella cartella dell'eseguibile.
+   - All'avvio, il controllo di versione in `_probeActiveDaemon()` rileva `runningSemVer < appSemVer` (1.2.0 < 1.3.0). Per prevenire incompatibilità di protocollo, il client termina immediatamente il processo del daemon (`Process.killPid(pid)`) e cancella i file `daemon.json` e `daemon.token`.
+   - Il client tenta quindi di rieseguire l'autospawn, avviando di nuovo il vecchio bundle che viene tempestivamente terminato, creando un loop di fallimenti continuo.
+2. **Mancato aggiornamento automatico del bundle in CMake POST_BUILD**:
+   - `CMakeLists.txt` conteneva una regola `install(FILES "${AGENTD_BUNDLE}" ...)`. Tuttavia, la fase `install` non viene invocata automaticamente dai normali comandi di compilazione Flutter / MSBuild senza il target `INSTALL`, lasciando una copia obsoleta di `pi-agentd.cjs` nella directory `Release`.
+3. **Punti ciechi nel comando di riavvio (`restartDaemon`)**:
+   - `restartDaemon()` cercava il PID da terminare esclusivamente all'interno di `daemon.json`. Se `_probeActiveDaemon()` aveva già eliminato `daemon.json` a seguito del disallineamento di versione, `restartDaemon()` non individuava il processo (non consultando `daemon.pid` o `daemon.lock`), né ripuliva i file di lock residui.
+   - L'intervallo di 300ms risultava inoltre insufficiente su Windows affinché il sistema operativo liberasse completamente il PID e il lock prima del nuovo avvio.
+
+### Risoluzione Implementata
+1. **Sincronizzazione automatica del daemon in CMake POST_BUILD**:
+   - In [`apps/pi_frame/windows/runner/CMakeLists.txt`](file:///c:/Repos/PiFrame/PiFrame/apps/pi_frame/windows/runner/CMakeLists.txt), è stato aggiunto un comando `POST_BUILD` su `${BINARY_NAME}` con `${CMAKE_COMMAND} -E copy_if_different` che copia sempre in modo automatico il bundle aggiornato `${AGENTD_BUNDLE}` nella cartella dell'eseguibile (`Release` / `Debug`).
+2. **Risoluzione robusta del PID e pulizia lock in `restartDaemon`**:
+   - In [`apps/pi_frame/lib/data/daemon/daemon_locator.dart`](file:///c:/Repos/PiFrame/PiFrame/apps/pi_frame/lib/data/daemon/daemon_locator.dart), `restartDaemon()` ora esamina in cascata `daemon.json`, `daemon.pid` e `daemon.lock` per individuare con certezza qualsiasi processo daemon orfano o rimasto attivo.
+   - Vengono rimossi tutti i file di runtime (`daemon.json`, `daemon.token`, `daemon.pid`, `daemon.lock`) e concesso un intervallo congruo (600ms) affinché Windows rilasci gli handle dei socket e dei file prima del respawn.
+3. **Percorsi di fallback arricchiti in `devPaths`**:
+   - `devPaths` include ora anche i percorsi relativi alla radice del repository a partire da `exeDir` (`build/windows/x64/runner/Release`), consentendo all'applicazione di individuare il bundle appena compilato in `apps/agentd/dist/pi-agentd.cjs`.
+
+---
+
+## 13. Processi GPU orfani (`typeperf.exe`, `nvidia-smi.exe`) o timer di campionamento attivi dopo disconnessione (Nerd stats)
+
+### Sintomi
+- Dopo aver abilitato le Statistiche nerd e successivamente chiuso l'app o disabilitato l'opzione, processi in background come `typeperf.exe` o `nvidia-smi.exe` rimangono attivi nella lista processi di Windows / Task Manager.
+- In esecuzione test o a seguito di terminazione client rapida, il daemon continuava il polling dei contatori con zero iscritti.
+
+### Cause Radice
+1. **Respawn accidentale del processo child su exit code 1 durante `stop()`**:
+   - In `WindowsTypeperfGpuProvider`, l'invocazione di `stop()` eseguiva `child.kill()`. Su Windows, il comando `typeperf` terminato con kill esce tipicamente con codice di uscita `1`. L'handler di uscita (`exit`) interpretava il codice diverso da 0 come errore inaspettato e richiamava `handleFailure()`, che riavviava un nuovo processo `typeperf` orfano.
+2. **Race condition e timer orfano su `SystemMetricsService.startSampling()`**:
+   - L'inizializzazione asincrona di `getProvider()` poteva completare dopo che il client si era già disiscritto (`unsubscribe`) o durante lo `stop()`. Senza una verifica di concorrenza, il daemon avviava il provider GPU e il timer a intervallo (`setInterval`) lasciandoli attivi indefinitamente con zero sottoscrittori.
+
+### Risoluzione Implementata
+1. **Flag deterministico `stopped` e disaccoppiamento eventi per tutti i provider GPU**:
+   - In `WindowsTypeperfGpuProvider`, `NvidiaGpuProvider` e `MacIoregGpuProvider` è stato introdotto il flag `stopped` e la verifica che l'evento provenga dall'istanza attiva `this.child`. Alla chiamata di `stop()`, qualsiasi evento tardivo (`stdout`, `error`, `exit`) viene ignorato senza innescare respawn né modificare lo stato dei campioni.
+   - Tutti i provider accettano l'iniezione delle funzioni di spawn/exec nei test per isolare completamente le suite ed evitare la creazione di processi reali.
+2. **Gestione con singola `startPromise` in-flight e ri-validazione sottoscrittori**:
+   - `SystemMetricsService.startSampling()` utilizza ora una singola promise in-flight per sottoscrizioni concorrenti. Al termine della risoluzione di `getProvider()`, viene nuovamente verificato `subscribers.size > 0` e lo stato `stopped` prima di avviare il provider GPU e istanziare il timer a intervallo.
+
+---
+
+## 14. Subagents fail to start after removing PiFrame / ERR_MODULE_NOT_FOUND subagent-context-limit.mjs
+
+### Sintomi
+- Dopo aver rimosso o disinstallato PiFrame (o cancellato la cartella `~/.piframe`), l'avvio dei subagenti dal Pi CLI ufficiale o da altre interfacce fallisce con l'errore:
+  `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '.../.piframe/runtime/subagent-context-limit.mjs'`
+
+### Causa Radice
+Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `subagents.agentOverrides.<name>.subagentOnlyExtensions` contiene il percorso all'estensione generata da PiFrame per il limite di contesto (`subagent-context-limit.mjs`). Se la directory `~/.piframe` viene eliminata, Node.js non trova più il file `.mjs` all'avvio del subagente.
+
+### Risoluzione
+1. **Prima di disinstallare PiFrame**: azzera i limiti di contesto configurati per i subagenti nella scheda *Agenti* di PiFrame (Impostazioni → Agenti) e fai clic su *Salva modifiche*. PiFrame rimuoverà automaticamente il percorso dell'estensione dall'array `subagentOnlyExtensions` in `settings.json`.
+2. **A disinstallazione già avvenuta**: apri `~/.pi/agent/settings.json` con un editor di testo e rimuovi il riferimento a `subagent-context-limit.mjs` da `subagents.agentOverrides.<name>.subagentOnlyExtensions` per ciascun agente configurato (o rimuovi la proprietà `subagentOnlyExtensions` se non contiene altre estensioni).
+3. **Rigenerazione automatica con PiFrame**: se reinstalli o avvii nuovamente il daemon di PiFrame (`agentd`), all'avvio il daemon esegue una verifica in sola lettura di `settings.json`: se rileva riferimenti attivi all'estensione in `subagentOnlyExtensions`, rigenera automaticamente `~/.piframe/runtime/subagent-context-limit.mjs` se mancante o non aggiornato.
+
+
+
+
+
+
+---
+
+## 15. Statistiche nerd ferme su `n/d` dopo averle disattivate e riattivate
+
+### Sintomi
+- Con le Statistiche nerd attive i valori compaiono correttamente. Dopo aver disattivato e riattivato l'opzione (oppure dopo aver chiuso e riaperto l'app più volte senza riavviare il daemon), CPU, RAM, disco e GPU restano su `n/d`.
+- Il comando `system.metrics.subscribe` risponde `completed`, ma il daemon non invia più eventi `system.metrics`. Riavviare il daemon risolve temporaneamente.
+
+### Causa
+- In `SystemMetricsService.startSampling()` la promise di avvio veniva azzerata in un blocco `finally` interno alla funzione asincrona. Quando il provider GPU esisteva già (dalla seconda sottoscrizione in poi) la funzione non incontrava nessun `await` e veniva eseguita in modo sincrono: il `finally` azzerava `startPromise` *prima* dell'assegnazione, che poi salvava una promise già risolta e mai più azzerata. Alla sottoscrizione successiva `startSampling()` restituiva quella promise senza riavviare timer e provider.
+
+### Risoluzione
+- La promise di avvio viene assegnata prima e azzerata con `finally` esterno solo se è ancora quella corrente. Un test di regressione esegue cinque cicli consecutivi di sottoscrizione e disiscrizione e verifica che ogni ciclo riavvii il campionamento.
+- Serve un daemon aggiornato: dopo l'aggiornamento riavvia il daemon (Impostazioni → Daemon) per caricare la correzione.
+
+---
+
+## Terminale integrato: output "a scaletta" con `git`
+
+### Sintomi
+Nel terminale integrato, l'output di comandi come `git branch`, `git log --oneline` o `npm test` appariva spostato: ogni riga iniziava nella colonna in cui finiva la riga precedente.
+
+### Causa
+Il terminale integrato avvia la shell tramite pipe, senza pseudo-console. I programmi nativi come `git` scrivono righe terminate solo con LF e l'emulatore non tornava a inizio riga.
+
+### Risoluzione
+PiFrame converte ora ogni LF isolato in CRLF prima di scrivere nel terminale (stdout e stderr), anche quando un CRLF arriva diviso in due blocchi. Aggiorna PiFrame per ricevere la correzione.

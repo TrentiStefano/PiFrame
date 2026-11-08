@@ -18,6 +18,8 @@
         "pi.packages.update",
         "pi.packages.remove",
         "pi.packages.pin",
+        "pi.agents.get",
+        "pi.agents.update",
         "daemon.getStatus",
         "daemon.getConfig",
         "daemon.setConfig",
@@ -63,6 +65,8 @@
         "workspace.readFile",
         "workspace.saveFile",
         "workspace.gitAction",
+        "workspace.listBranches",
+        "workspace.switchBranch",
         "remote.getStatus",
         "remote.start",
         "remote.stop",
@@ -73,7 +77,13 @@
         "remote.setTailscaleHostname",
         "remote.revokeDevice",
         "remote.revokeAll",
-        "remote.setOptions"
+        "remote.setOptions",
+        "system.metrics.subscribe",
+        "system.metrics.unsubscribe",
+        "side.open",
+        "side.prompt",
+        "side.abort",
+        "side.close"
       ]
     },
     "payload": { "type": "object" }
@@ -90,6 +100,73 @@
     {
       "if": { "properties": { "type": { "const": "pi.packages.pin" } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "required": ["source", "version"], "properties": { "source": { "type": "string", "minLength": 1, "maxLength": 512 }, "version": { "type": "string", "minLength": 1, "maxLength": 128 } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "pi.agents.get" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "properties": { "cwd": { "type": "string" } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "pi.agents.update" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["changes"],
+            "properties": {
+              "changes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["kind"],
+                  "properties": {
+                    "kind": { "type": "string", "enum": ["agent", "subagentDefaults", "sessionDefaults"] }
+                  },
+                  "allOf": [
+                    {
+                      "if": { "properties": { "kind": { "const": "agent" } }, "required": ["kind"] },
+                      "then": {
+                        "required": ["name"],
+                        "properties": {
+                          "kind": { "type": "string" },
+                          "name": { "type": "string", "minLength": 1 },
+                          "model": { "type": ["string", "null"] },
+                          "thinking": { "type": ["string", "null"] },
+                          "contextLimit": { "type": ["integer", "null"] }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    {
+                      "if": { "properties": { "kind": { "const": "subagentDefaults" } }, "required": ["kind"] },
+                      "then": {
+                        "properties": {
+                          "kind": { "type": "string" },
+                          "model": { "type": ["string", "null"] },
+                          "thinking": { "type": ["string", "null"] },
+                          "fallbackAgent": { "type": ["string", "null"] }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    {
+                      "if": { "properties": { "kind": { "const": "sessionDefaults" } }, "required": ["kind"] },
+                      "then": {
+                        "properties": {
+                          "kind": { "type": "string" },
+                          "model": { "type": ["string", "null"] },
+                          "thinking": { "type": ["string", "null"] }
+                        },
+                        "additionalProperties": false
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
     },
     {
       "if": { "properties": { "type": { "enum": ["agent.authLogin", "agent.authLogout"] } }, "required": ["type"] },
@@ -110,6 +187,77 @@
     {
       "if": { "properties": { "type": { "const": "workspace.gitAction" } }, "required": ["type"] },
       "then": { "properties": { "payload": { "type": "object", "required": ["action", "paths"], "properties": { "action": { "enum": ["stage", "unstage", "commit", "discard"] }, "paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "expectedStagedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "message": { "type": "string", "minLength": 1 } }, "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "workspace.listBranches" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "workspace.switchBranch" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["branch"],
+            "properties": {
+              "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+              "onDirty": { "type": "string", "enum": ["block", "stash"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["system.metrics.subscribe", "system.metrics.unsubscribe"] } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.open" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sessionId"],
+            "properties": {
+              "sessionId": { "type": "string", "minLength": 1 },
+              "question": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.prompt" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "text"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["side.abort", "side.close"] } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
     }
   ]
 }

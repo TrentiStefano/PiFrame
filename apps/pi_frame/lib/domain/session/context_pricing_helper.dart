@@ -92,10 +92,10 @@ String formatTokens(dynamic count) {
   return numVal.toInt().toString();
 }
 
-String formatContextSize(int size, int fullWindow) {
+String formatContextSize(int size, int fullWindow, {bool italian = true}) {
   final formatted = formatTokens(size);
   if (size >= fullWindow) {
-    return '$formatted (Max / Tier esteso)';
+    return italian ? '$formatted (Max / Tier esteso)' : '$formatted (Max / extended tier)';
   }
-  return '$formatted (Tier base)';
+  return italian ? '$formatted (Tier base)' : '$formatted (Base tier)';
 }

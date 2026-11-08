@@ -146,6 +146,9 @@ Followed by `result`:
 }
 ```
 
+### Error Ordering Guarantee
+When a command fails or is rejected, the daemon sends the detailed `kind: "error"` envelope (containing `code`, `message`, `hint`, and `details`) before sending the terminal `kind: "result"` envelope with `state: "failed"` or `state: "rejected"` for the same `commandId`. Because WebSocket delivery over a single connection is strictly ordered, clients observe the rich error details first, eliminating heuristic wait timers.
+
 ### Idempotency
 - `commandId` is cached for 10 minutes.
 - Re-sending an identical `commandId` returns `state: "deduplicated"` with original data without re-executing.
@@ -158,8 +161,10 @@ Workspace commands require `sessionId`; daemon derives repository root from that
 - `workspace.readFile` payload `{path}` → `{rootPath,path,content,revision,sizeBytes}`. `revision` is SHA-256 of file bytes. Only UTF-8 text files up to 1 MiB are supported; binary and larger files return explicit errors.
 - `workspace.saveFile` payload `{path,content,revision}` → `{path,revision}`. Revision is required and stale revisions are rejected; save uses an atomic same-directory replacement.
 - `workspace.gitAction` payload `{action,paths,expectedStagedPaths?,message?}` → `{status}`. `action` is `stage`, `unstage`, `commit`, or `discard`. Paths are explicit repository-relative paths. `commit` requires non-empty `message`, and both `paths` and `expectedStagedPaths` must exactly match current staged paths before commit.
+- `workspace.listBranches` payload `{}` → `{branches:[{name,isCurrent,upstream,ahead,behind,lastCommitUnix}],currentBranch,detached,headShortSha}`. Read-only command permitted in remote `view` mode. Branches are sorted with the current branch first, then by `lastCommitUnix` descending. Empty repositories return `branches: []` and retrieve `currentBranch` via `git symbolic-ref --short HEAD` when possible.
+- `workspace.switchBranch` payload `{branch,onDirty?}` → `{currentBranch,stashed,stashMessage}`. Mutating command requiring local or remote `control` mode and rejected while the session is read-only or active/streaming (`assertWorkspaceWritable`). `branch` must be 1..255 characters, non-empty, without whitespace/control characters, not leading with `-`, not `'HEAD'`, and pass `git check-ref-format --branch`. `onDirty` defaults to `'block'`. If already on the target branch, returns cleanly with `stashed: false, stashMessage: null`. If dirty and `onDirty: 'block'`, rejects with `WORKSPACE_DIRTY` and details `{changedFiles, untrackedFiles}` without touching files. If `onDirty: 'stash'`, creates an untracked-inclusive stash (`piframe: before switching to <name> (<iso time>)`) and switches; upon switch failure, restores the stash via `git stash pop` (or reports `stashRetained: true, stashMessage` in `BRANCH_SWITCH_FAILED` details if pop fails). No automatic event is broadcast; client refreshes explicitly after mutation.
 
-Repository writes (`saveFile` and every Git action) are rejected for read-only sessions or while the Pi worker is active/streaming. `workspace.refresh` keeps existing Git status fields and includes `staged` / `unstaged` flags with index/worktree status codes per path.
+Repository writes (`saveFile`, every Git action, and `switchBranch`) are rejected for read-only sessions or while the Pi worker is active/streaming. `workspace.refresh` keeps existing Git status fields and includes `staged` / `unstaged` flags with index/worktree status codes per path.
 
 ### 4.2 Pi package commands
 
@@ -171,6 +176,29 @@ These authenticated local-daemon commands operate on Pi's user-level package set
 - `pi.packages.pin` payload `{source,version}` → `{output,source}`; accepts npm package sources only and delegates to `pi install npm:<name>@<semver>`.
 
 Mutating package commands require explicit confirmation in the UI. Pi remains owner of package settings and installation directories. Package code can execute in Pi's process; removal, update and pin controls must show package identity and scope before confirmation. Project-local resources remain governed by Pi's project-trust policy and are not managed by these user-scope commands.
+
+### 4.3 System metrics commands
+
+System metrics commands allow local clients to observe real-time host resource utilization (CPU, memory, primary user volume storage, and GPU engine/memory metrics) on a 1-second cadence. Both commands are strictly local-only and rejected for remote connections with `REMOTE_FORBIDDEN`.
+
+- `system.metrics.subscribe` target `sessionId: "@daemon"`, payload `{}` → `{ intervalMs: 1000 }`. Subscribes the current WebSocket connection to live periodic metric events (`system.metrics`). Sampling is started on the first subscriber. Idempotent per connection.
+- `system.metrics.unsubscribe` payload `{}` → `{}`. Cancels metrics subscription for the calling connection. When the active subscriber set becomes empty, all periodic timers are cleared, sampling ceases, and any persistent GPU monitoring child processes are immediately terminated. Idempotent.
+
+### 4.4 Pi agent settings commands
+
+These authenticated local-daemon commands discover, inspect, and update subagent configurations, session defaults, and subagent context limits. Both commands target `sessionId: "@daemon"`, are strictly local-only, and are rejected for remote connections with `REMOTE_FORBIDDEN` (`capability: 'pi.agents.v1'`).
+
+- `pi.agents.get` payload `{cwd?}` → `{packages, agents, subagentDefaults, sessionDefaults, thinkingLevels, availableModels, warnings}`.
+- `pi.agents.update` payload `{changes: [...]}` → same shape as `pi.agents.get` (fresh). Updates subagent configurations, subagent defaults, and session defaults with Pi-compatible file locking and atomic writes. Rejects unreadable config (`AGENTS_CONFIG_UNREADABLE`), lock timeouts (`AGENTS_CONFIG_LOCKED`), uninstalled packages (`AGENTS_PACKAGE_NOT_INSTALLED`), and invalid changes (`AGENTS_VALIDATION_FAILED`).
+
+### 4.5 Side conversation commands
+
+Ephemeral, read-only side conversations allow the user to ask auxiliary questions against a snapshot of the active workspace session without altering session transcript, journals, or disk state.
+
+- `side.open` payload `{sessionId, question?}` → `{sideId, streamId}`. Opens an ephemeral read-only side conversation for the given parent session. Requires control mode when remote. At most 1 active side thread per parent session and max 4 overall.
+- `side.prompt` payload `{sideId, text}` → `{prompted: true}`. Submits a user question to an active side thread. Requires control mode when remote.
+- `side.abort` payload `{sideId}` → `{aborted: true}`. Aborts any in-flight response generation in the side thread. Permitted in view and control modes.
+- `side.close` payload `{sideId}` → `{closed: true}`. Terminates the side thread, kills worker, and cleans up temporary runtime context files. Permitted in view and control modes.
 
 ---
 
@@ -184,7 +212,42 @@ See Section 4.7 of the implementation plan for complete event catalogue:
 - `tool.started`, `tool.progress`, `tool.completed`
 - `queue.changed`, `compaction.started`, `compaction.ended`, `retry.started`, `retry.ended`
 - `ui.request`, `ui.claimed`, `ui.resolved`, `ui.notify`, `ui.status`, `ui.widget`, `ui.editorText`, `ui.title`
-- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`
+- `workspace.changed`, `worker.diagnostic`, `worker.crashed`, `journal.gap`, `session.indexChanged`, `daemon.configChanged`, `remote.statusChanged`, `system.metrics`, `side.opened`, `side.closed`
+
+### 5.1 System Metrics Event (`system.metrics`)
+
+Emitted exclusively to active subscriber connections on `sessionId: "@daemon"` with `seq: 0`. It is never written to session journals or transcript replays.
+
+```json
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "evt_01...",
+  "ts": 1726640000000,
+  "sessionId": "@daemon",
+  "seq": 0,
+  "type": "system.metrics",
+  "payload": {
+    "sampledAt": 1726640000000,
+    "cpu": { "percent": 24.5 },
+    "memory": { "usedBytes": 8589934592, "totalBytes": 17179869184, "percent": 50.0 },
+    "disk": { "usedBytes": 107374182400, "totalBytes": 536870912000, "percent": 20.0 },
+    "gpu": {
+      "percent": 32.1,
+      "memoryUsedBytes": 2147483648,
+      "memoryTotalBytes": 8589934592,
+      "source": "nvidia-smi"
+    }
+  }
+}
+```
+
+Field semantics:
+- `sampledAt`: Unix timestamp in milliseconds when the resource metrics were sampled.
+- `cpu`: CPU percentage (`0.0` - `100.0`, rounded to 1 decimal place) across all cores since the prior tick, or `null` if the first delta has not elapsed.
+- `memory`: System RAM used, total bytes, and utilization percentage (`0.0` - `100.0`, rounded to 1 decimal place). On Linux, available memory accounts for `/proc/meminfo` `MemAvailable`.
+- `disk`: Storage utilization of the filesystem volume containing `os.homedir()`. Paths are never exposed over the wire.
+- `gpu`: GPU utilization percentage and VRAM bytes. If unsupported or metrics unavailable, `percent` is `null` (displaying "n/d" on client). `source` indicates the probing mechanism (`nvidia-smi`, `typeperf`, `sysfs`, `ioreg`, or `null`).
 
 ---
 

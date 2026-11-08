@@ -90,6 +90,8 @@ export type PcpCommandType =
   | 'pi.packages.update'
   | 'pi.packages.remove'
   | 'pi.packages.pin'
+  | 'pi.agents.get'
+  | 'pi.agents.update'
   | 'daemon.getStatus'
   | 'daemon.getConfig'
   | 'daemon.setConfig'
@@ -138,6 +140,8 @@ export type PcpCommandType =
   | 'workspace.readFile'
   | 'workspace.saveFile'
   | 'workspace.gitAction'
+  | 'workspace.listBranches'
+  | 'workspace.switchBranch'
   | 'remote.getStatus'
   | 'remote.start'
   | 'remote.stop'
@@ -148,7 +152,13 @@ export type PcpCommandType =
   | 'remote.setTailscaleHostname'
   | 'remote.revokeDevice'
   | 'remote.revokeAll'
-  | 'remote.setOptions';
+  | 'remote.setOptions'
+  | 'system.metrics.subscribe'
+  | 'system.metrics.unsubscribe'
+  | 'side.open'
+  | 'side.prompt'
+  | 'side.abort'
+  | 'side.close';
 
 export interface PcpCommand<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'command';
@@ -195,6 +205,85 @@ export interface WorkspaceGitActionRequest {
   paths: string[];
   expectedStagedPaths?: string[];
   message?: string;
+}
+
+export interface WorkspaceBranchInfo {
+  name: string;
+  isCurrent: boolean;
+  upstream: string | null;
+  ahead: number | null;
+  behind: number | null;
+  lastCommitUnix: number | null;
+}
+
+export interface WorkspaceListBranchesResult {
+  branches: WorkspaceBranchInfo[];
+  currentBranch: string | null;
+  detached: boolean;
+  headShortSha: string | null;
+}
+
+export interface WorkspaceSwitchBranchPayload {
+  branch: string;
+  onDirty?: 'block' | 'stash';
+}
+
+export interface WorkspaceSwitchBranchResult {
+  currentBranch: string;
+  stashed: boolean;
+  stashMessage: string | null;
+}
+
+export interface WorkspaceDirtyDetails {
+  changedFiles: number;
+  untrackedFiles: number;
+}
+
+export interface BranchSwitchFailedDetails {
+  stderr?: string;
+  stashRetained?: boolean;
+  stashMessage?: string | null;
+}
+
+// -----------------------------------------------------------------------------
+// System Metrics
+// -----------------------------------------------------------------------------
+
+export interface SystemMetricsSubscribeResult {
+  intervalMs: number;
+}
+
+export interface SystemCpuMetrics {
+  percent: number;
+}
+
+export interface SystemMemoryMetrics {
+  usedBytes: number;
+  totalBytes: number;
+  percent: number;
+}
+
+export interface SystemDiskMetrics {
+  usedBytes: number;
+  totalBytes: number;
+  percent: number;
+}
+
+export type SystemGpuSource = 'nvidia-smi' | 'typeperf' | 'sysfs' | 'ioreg' | null;
+
+export interface SystemGpuMetrics {
+  percent: number | null;
+  memoryUsedBytes: number | null;
+  memoryTotalBytes: number | null;
+  source: SystemGpuSource;
+}
+
+export interface SystemMetricsPayload {
+  sampledAt: number;
+  cpu: SystemCpuMetrics | null;
+  memory: SystemMemoryMetrics | null;
+  disk: SystemDiskMetrics | null;
+  gpu: SystemGpuMetrics;
 }
 
 // -----------------------------------------------------------------------------
@@ -276,7 +365,10 @@ export type PcpEventType =
   | 'journal.gap'
   | 'session.indexChanged'
   | 'daemon.configChanged'
-  | 'remote.statusChanged';
+  | 'remote.statusChanged'
+  | 'system.metrics'
+  | 'side.opened'
+  | 'side.closed';
 
 export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   kind: 'event';
@@ -284,6 +376,47 @@ export interface PcpEvent<T = Record<string, unknown>> extends PcpEnvelope<T> {
   seq: number;
   type: PcpEventType;
 }
+
+export type PcpSystemMetricsEvent = PcpEvent<SystemMetricsPayload> & {
+  type: 'system.metrics';
+};
+
+export interface SideOpenPayload {
+  sessionId: string;
+  question?: string;
+}
+
+export interface SidePromptPayload {
+  sideId: string;
+  text: string;
+}
+
+export interface SideAbortPayload {
+  sideId: string;
+}
+
+export interface SideClosePayload {
+  sideId: string;
+}
+
+export interface SideOpenedPayload {
+  sideId: string;
+  parentSessionId: string;
+  model: any;
+}
+
+export interface SideClosedPayload {
+  sideId: string;
+  reason: 'user' | 'idle' | 'parentClosed' | 'error' | 'shutdown';
+}
+
+export type PcpSideOpenedEvent = PcpEvent<SideOpenedPayload> & {
+  type: 'side.opened';
+};
+
+export type PcpSideClosedEvent = PcpEvent<SideClosedPayload> & {
+  type: 'side.closed';
+};
 
 // -----------------------------------------------------------------------------
 // Snapshots
@@ -402,13 +535,22 @@ export type PcpErrorCode =
   | 'JOURNAL_GAP'
   | 'CONFIG_INVALID'
   | 'RATE_LIMITED'
-  | 'INTERNAL';
+  | 'INTERNAL'
+  | 'REMOTE_FORBIDDEN'
+  | 'BRANCH_INVALID_NAME'
+  | 'BRANCH_NOT_FOUND'
+  | 'WORKSPACE_DIRTY'
+  | 'BRANCH_SWITCH_FAILED'
+  | 'AGENTS_VALIDATION_FAILED'
+  | 'AGENTS_CONFIG_UNREADABLE'
+  | 'AGENTS_CONFIG_LOCKED'
+  | 'AGENTS_PACKAGE_NOT_INSTALLED';
 
 export interface PcpErrorPayload {
   code: PcpErrorCode;
   message: string;
   retryable?: boolean;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | Array<unknown>;
   hint?: string;
 }
 
@@ -429,6 +571,107 @@ export interface PcpPing extends PcpEnvelope<Record<string, unknown>> {
 export interface PcpPong extends PcpEnvelope<Record<string, unknown>> {
   kind: 'pong';
   type: 'heartbeat.pong';
+}
+
+// -----------------------------------------------------------------------------
+// Agent Settings (pi.agents.*)
+// -----------------------------------------------------------------------------
+
+export type PiSubagentPackageId = 'pi-subagents' | '@tintinweb/pi-subagents';
+
+export interface PiSubagentPackageInfo {
+  id: PiSubagentPackageId;
+  version: string | null;
+  installed: boolean;
+  configFile: string;
+}
+
+export interface PiAgentModelInfo {
+  effective: string | null;
+  origin: 'override' | 'frontmatter' | 'default' | 'none';
+  available: boolean | null;
+}
+
+export interface PiAgentThinkingInfo {
+  effective: string | null;
+  origin: 'override' | 'frontmatter' | 'default' | 'none';
+}
+
+export interface PiAgentContextInfo {
+  supported: boolean;
+  limit: number | null;
+  options: number[];
+  modelContextWindow: number | null;
+}
+
+export interface PiAgentInfo {
+  name: string;
+  aliases?: string[];
+  package: string | null;
+  source: 'builtin' | 'user' | 'project' | 'package';
+  description: string | null;
+  editable: boolean;
+  readOnlyReason: string | null;
+  model: PiAgentModelInfo;
+  thinking: PiAgentThinkingInfo;
+  context: PiAgentContextInfo;
+}
+
+export interface PiSubagentDefaults {
+  package: string | null;
+  model: string | null;
+  thinking: string | null;
+  modelAvailable: boolean | null;
+  fallbackAgent: string | null;
+}
+
+export interface PiSessionDefaults {
+  provider: string | null;
+  model: string | null;
+  thinking: string | null;
+  modelAvailable: boolean | null;
+}
+
+export interface PiAvailableModel {
+  id: string;
+  name: string;
+  contextWindow: number;
+  reasoning: boolean;
+  tiers: number[];
+}
+
+export interface PiAgentsGetResult {
+  packages: PiSubagentPackageInfo[];
+  agents: PiAgentInfo[];
+  subagentDefaults: PiSubagentDefaults;
+  sessionDefaults: PiSessionDefaults;
+  thinkingLevels: string[];
+  availableModels: PiAvailableModel[];
+  warnings: string[];
+}
+
+export type PiAgentChange =
+  | {
+      kind: 'agent';
+      name: string;
+      model?: string | null;
+      thinking?: string | null;
+      contextLimit?: number | null;
+    }
+  | {
+      kind: 'subagentDefaults';
+      model?: string | null;
+      thinking?: string | null;
+      fallbackAgent?: string | null;
+    }
+  | {
+      kind: 'sessionDefaults';
+      model?: string | null;
+      thinking?: string | null;
+    };
+
+export interface PiAgentsUpdatePayload {
+  changes: PiAgentChange[];
 }
 
 // -----------------------------------------------------------------------------

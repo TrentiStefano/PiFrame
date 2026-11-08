@@ -1,0 +1,13 @@
+{
+  "protocol": 1,
+  "kind": "event",
+  "id": "msg_01HZEVT00000000000000003",
+  "ts": 1726640000300,
+  "sessionId": "side_01HZSESSION0000000000001",
+  "seq": 2,
+  "type": "side.closed",
+  "payload": {
+    "sideId": "side_01HZSESSION0000000000001",
+    "reason": "user"
+  }
+}

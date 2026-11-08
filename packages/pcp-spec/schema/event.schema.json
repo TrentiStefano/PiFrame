@@ -57,9 +57,104 @@
         "journal.gap",
         "session.indexChanged",
         "daemon.configChanged",
-        "remote.statusChanged"
+        "remote.statusChanged",
+        "system.metrics",
+        "side.opened",
+        "side.closed"
       ]
     },
     "payload": { "type": "object" }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "system.metrics" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sampledAt", "cpu", "memory", "disk", "gpu"],
+            "additionalProperties": false,
+            "properties": {
+              "sampledAt": { "type": "integer" },
+              "cpu": {
+                "type": ["object", "null"],
+                "required": ["percent"],
+                "additionalProperties": false,
+                "properties": {
+                  "percent": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              },
+              "memory": {
+                "type": ["object", "null"],
+                "required": ["usedBytes", "totalBytes", "percent"],
+                "additionalProperties": false,
+                "properties": {
+                  "usedBytes": { "type": "number", "minimum": 0 },
+                  "totalBytes": { "type": "number", "minimum": 0 },
+                  "percent": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              },
+              "disk": {
+                "type": ["object", "null"],
+                "required": ["usedBytes", "totalBytes", "percent"],
+                "additionalProperties": false,
+                "properties": {
+                  "usedBytes": { "type": "number", "minimum": 0 },
+                  "totalBytes": { "type": "number", "minimum": 0 },
+                  "percent": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              },
+              "gpu": {
+                "type": "object",
+                "required": ["percent", "memoryUsedBytes", "memoryTotalBytes", "source"],
+                "additionalProperties": false,
+                "properties": {
+                  "percent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                  "memoryUsedBytes": { "type": ["number", "null"], "minimum": 0 },
+                  "memoryTotalBytes": { "type": ["number", "null"], "minimum": 0 },
+                  "source": { "type": ["string", "null"], "enum": ["nvidia-smi", "typeperf", "sysfs", "ioreg", null] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.opened" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "parentSessionId", "model"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "parentSessionId": { "type": "string", "minLength": 1 },
+              "model": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "side.closed" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["sideId", "reason"],
+            "properties": {
+              "sideId": { "type": "string", "minLength": 1 },
+              "reason": {
+                "type": "string",
+                "enum": ["user", "idle", "parentClosed", "error", "shutdown"]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
 }

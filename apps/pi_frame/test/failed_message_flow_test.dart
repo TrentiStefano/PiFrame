@@ -26,6 +26,16 @@ class _PromptClient extends PcpClient {
   @override
   void attach(String sessionId, {int? lastSeq}) {}
 
+  // Answer the defaults lookups so their timeout timers do not outlive the test.
+  @override
+  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async =>
+      {'models': <Map<String, dynamic>>[]};
+
+  @override
+  Future<Map<String, dynamic>> getAvailableThinkingLevels(
+    String sessionId,
+  ) async => {'levels': <String>[]};
+
   @override
   Future<Map<String, dynamic>> sendPrompt(
     String sessionId,

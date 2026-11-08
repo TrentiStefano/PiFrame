@@ -1,7 +1,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { checkIsGitRepo, getGitDiff, getGitStatus, getStagedPaths, runGitStrict, type GitStatusResult } from './gitClient.js';
+import type {
+  WorkspaceListBranchesResult,
+  WorkspaceSwitchBranchResult,
+} from '@piframe/pcp-ts';
+import {
+  checkIsGitRepo,
+  getGitDiff,
+  getGitStatus,
+  getStagedPaths,
+  listGitBranches,
+  runGitStrict,
+  switchGitBranch,
+  validateBranchName,
+  verifyBranchExists,
+  type GitStatusResult,
+  type GitSwitchHooks,
+} from './gitClient.js';
 
 type FileInfo = { path: string; sizeBytes: number };
 
@@ -80,10 +96,48 @@ export class WorkspaceService {
     return getGitDiff(root, safePath ? path.relative(root, safePath).split(path.sep).join('/') : undefined);
   }
 
+  async listBranches(cwd: string): Promise<WorkspaceListBranchesResult> {
+    const root = await this.resolveRepositoryRoot(cwd);
+    return listGitBranches(root);
+  }
+
+  async switchBranch(
+    cwd: string,
+    branchInput: unknown,
+    onDirtyInput?: unknown,
+    assertCanWrite?: () => void,
+    hooks?: GitSwitchHooks
+  ): Promise<WorkspaceSwitchBranchResult> {
+    const root = await this.resolveRepositoryRoot(cwd);
+    const branch = await validateBranchName(root, branchInput);
+    const onDirty = onDirtyInput === undefined ? 'block' : onDirtyInput;
+    if (onDirty !== 'block' && onDirty !== 'stash') {
+      throw workspaceError("onDirty must be either 'block' or 'stash'.", 'COMMAND_REJECTED');
+    }
+
+    return this.serialize(root, async () => {
+      assertCanWrite?.();
+      const exists = await verifyBranchExists(root, branch);
+      if (!exists) {
+        throw workspaceError(`Branch '${branch}' not found.`, 'BRANCH_NOT_FOUND');
+      }
+
+      try {
+        const result = await switchGitBranch(root, branch, onDirty, hooks);
+        return result;
+      } finally {
+        this.invalidate(root);
+      }
+      // Note: No unsolicited workspace event is broadcast by the daemon;
+      // the client Git Changes panel refreshes status explicitly after mutating operations.
+    });
+  }
+
   async listFiles(cwd: string): Promise<{ rootPath: string; files: FileInfo[]; truncated: boolean }> {
     const root = await this.resolveRepositoryRoot(cwd);
     const output = await runGitStrict(['ls-files', '--cached', '--others', '--exclude-standard', '-z'], root);
     const files: FileInfo[] = [];
+    const realParents = new Map<string, Promise<string>>();
     let truncated = false;
     const items = output.split('\0').filter(Boolean);
     const BATCH_SIZE = 64;
@@ -106,8 +160,13 @@ export class WorkspaceService {
           try {
             const entry = await fs.promises.lstat(target);
             if (!entry.isFile() || entry.isSymbolicLink()) return null;
-            const canonical = await fs.promises.realpath(target);
-            if (!inside(root, canonical)) return null;
+            const parent = path.dirname(target);
+            let canonicalParent = realParents.get(parent);
+            if (!canonicalParent) {
+              canonicalParent = fs.promises.realpath(parent);
+              realParents.set(parent, canonicalParent);
+            }
+            if (!inside(root, await canonicalParent)) return null;
             return { path: relativePath, sizeBytes: entry.size };
           } catch (error: any) {
             if (error?.code !== 'ENOENT') throw error;

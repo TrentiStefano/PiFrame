@@ -5,7 +5,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../data/platform/platform_environment.dart';
 
 import 'mcp_servers_dialog.dart';
@@ -29,63 +32,66 @@ class PiCommandItem {
   });
 }
 
-const List<PiCommandItem> kBuiltinPiCommands = [
+List<PiCommandItem> get kBuiltinPiCommands =>
+    getBuiltinPiCommands(const AppStrings(AppLanguage.it));
+
+List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
   PiCommandItem(
-    label: 'Aggiorna Pi CLI',
+    label: strings.piCmdUpdateCliLabel,
     command: 'pi update',
     args: ['update'],
-    description: "Aggiorna l'eseguibile di Pi all'ultima versione stabile disponibile.",
+    description: strings.piCmdUpdateCliDesc,
     icon: Icons.system_update_alt,
     isPrimary: true,
   ),
   PiCommandItem(
-    label: 'Aggiorna Estensioni',
+    label: strings.piCmdUpdateExtLabel,
     command: 'pi update --extensions',
     args: ['update', '--extensions'],
-    description: 'Aggiorna tutti i pacchetti ed estensioni utente installati.',
+    description: strings.piCmdUpdateExtDesc,
     icon: Icons.extension_outlined,
     isPrimary: true,
   ),
   PiCommandItem(
-    label: 'Aggiorna Catalogo Modelli',
+    label: strings.piCmdUpdateModelsLabel,
     command: 'pi update --models',
     args: ['update', '--models'],
-    description: 'Sincronizza e aggiorna il catalogo dei modelli AI supportati.',
+    description: strings.piCmdUpdateModelsDesc,
     icon: Icons.psychology_outlined,
   ),
   PiCommandItem(
-    label: 'Aggiorna Tutto',
+    label: strings.piCmdUpdateAllLabel,
     command: 'pi update --all',
     args: ['update', '--all'],
-    description: 'Aggiorna contemporaneamente Pi CLI e tutte le estensioni installate.',
+    description: strings.piCmdUpdateAllDesc,
     icon: Icons.auto_awesome,
   ),
   PiCommandItem(
-    label: 'Elenco Estensioni',
+    label: strings.piCmdListLabel,
     command: 'pi list',
     args: ['list'],
-    description: 'Visualizza tutte le estensioni e i pacchetti utente attualmente installati.',
+    description: strings.piCmdListDesc,
     icon: Icons.list_alt,
   ),
   PiCommandItem(
-    label: 'Stato Server MCP',
+    label: strings.piCmdMcpListLabel,
     command: 'pi mcp list',
     args: ['mcp', 'list'],
-    description: 'Verifica la connessione, lo stato e gli strumenti dei server MCP configurati.',
+    description: strings.piCmdMcpListDesc,
     icon: Icons.hub_outlined,
   ),
   PiCommandItem(
-    label: 'Modelli Disponibili',
+    label: strings.piCmdModelsLabel,
     command: 'pi --list-models',
     args: ['--list-models'],
-    description: 'Elenca tutti i modelli LLM disponibili per il coding assistant.',
+    description: strings.piCmdModelsDesc,
     icon: Icons.view_list_outlined,
   ),
   PiCommandItem(
-    label: 'Versione Pi CLI',
+    label: strings.piCmdVersionLabel,
     command: 'pi --version',
     args: ['--version'],
-    description: 'Controlla la versione corrente di Pi installata nel sistema.',
+    description: strings.piCmdVersionDesc,
     icon: Icons.info_outline,
   ),
 ];
@@ -93,11 +99,13 @@ const List<PiCommandItem> kBuiltinPiCommands = [
 class PiCliSection extends StatefulWidget {
   final FrameTokens tokens;
   final VoidCallback? onRecheck;
+  final AppStrings? strings;
 
   const PiCliSection({
     super.key,
     required this.tokens,
     this.onRecheck,
+    this.strings,
   });
 
   @override
@@ -105,6 +113,15 @@ class PiCliSection extends StatefulWidget {
 }
 
 class _PiCliSectionState extends State<PiCliSection> {
+  AppStrings get _strings {
+    if (widget.strings != null) return widget.strings!;
+    try {
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+    } catch (_) {
+      return const AppStrings(AppLanguage.it);
+    }
+  }
+
   final TextEditingController _customCmdController = TextEditingController();
   final ScrollController _logScrollController = ScrollController();
 
@@ -141,8 +158,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     // Shell commands run on the host only; the browser cannot spawn processes.
     if (kIsWeb) {
       setState(() {
-        _consoleOutput =
-            'I comandi Pi sono disponibili solo nell\'app desktop.';
+        _consoleOutput = _strings.piCliDesktopOnly;
         _exitCode = -1;
       });
       return;
@@ -221,7 +237,10 @@ class _PiCliSectionState extends State<PiCliSection> {
         _isExecuting = false;
         _activeProcess = null;
         _executionDuration = duration;
-        _consoleOutput += '\n[Processo completato con codice $code in ${duration?.inMilliseconds ?? 0}ms]\n';
+        _consoleOutput += _strings.piCliProcessCompleted(
+          code,
+          duration?.inMilliseconds ?? 0,
+        );
       });
       _scrollToBottom();
     } catch (e) {
@@ -230,7 +249,7 @@ class _PiCliSectionState extends State<PiCliSection> {
         _isExecuting = false;
         _activeProcess = null;
         _exitCode = -1;
-        _consoleOutput += '\nErrore durante l\'esecuzione del comando: $e\n';
+        _consoleOutput += _strings.piCliExecutionError(e);
       });
       _scrollToBottom();
     }
@@ -252,7 +271,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     Clipboard.setData(ClipboardData(text: _consoleOutput));
     FrameSnackBar.show(
       context,
-      message: 'Output del comando copiato negli appunti',
+      message: _strings.piCliOutputCopiedSnackBar,
       duration: const Duration(seconds: 2),
     );
   }
@@ -270,7 +289,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     if (_activeProcess != null) {
       _activeProcess!.kill();
       setState(() {
-        _consoleOutput += '\n[Comando interrotto dall\'utente]\n';
+        _consoleOutput += _strings.piCliCommandCancelled;
         _isExecuting = false;
         _activeProcess = null;
       });
@@ -281,6 +300,8 @@ class _PiCliSectionState extends State<PiCliSection> {
   @override
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
+    final strings = _strings;
+    final commands = getBuiltinPiCommands(strings);
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -291,7 +312,7 @@ class _PiCliSectionState extends State<PiCliSection> {
             Icon(Icons.terminal, color: tokens.accent, size: 22),
             const SizedBox(width: 10),
             Text(
-              'Interfaccia Pi CLI',
+              strings.piCliTitle,
               style: TextStyle(
                 color: tokens.textPrimary,
                 fontSize: 18,
@@ -302,7 +323,7 @@ class _PiCliSectionState extends State<PiCliSection> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Esegui comandi e aggiornamenti ufficiali di Pi Coding Agent direttamente da PiFrame.',
+          strings.piCliSubtitle,
           style: TextStyle(
             color: tokens.textMuted,
             fontSize: 13,
@@ -312,7 +333,7 @@ class _PiCliSectionState extends State<PiCliSection> {
 
         // Section: Fast Commands Grid
         Text(
-          'COMANDI RAPIDI',
+          strings.piCliFastCommands,
           style: TextStyle(
             color: tokens.displayText,
             fontSize: 11,
@@ -325,8 +346,8 @@ class _PiCliSectionState extends State<PiCliSection> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            for (final cmd in kBuiltinPiCommands)
-              _buildActionCard(tokens, cmd),
+            for (final cmd in commands)
+              _buildActionCard(tokens, cmd, strings),
           ],
         ),
 
@@ -334,7 +355,7 @@ class _PiCliSectionState extends State<PiCliSection> {
 
         // Section: Custom Command Line
         Text(
-          'COMANDO PERSONALIZZATO',
+          strings.piCliCustomCmdHeader,
           style: TextStyle(
             color: tokens.displayText,
             fontSize: 11,
@@ -371,7 +392,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                     fontFamily: tokens.monoFontFamily,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'es. update --force, auth check, mcp login <server>...',
+                    hintText: strings.piCliCustomCmdHint,
                     hintStyle: TextStyle(
                       color: tokens.textMuted,
                       fontSize: 12,
@@ -396,7 +417,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 ),
                 onPressed: _isExecuting ? null : _runCustomCommand,
                 icon: const Icon(Icons.play_arrow, size: 16),
-                label: const Text('Esegui'),
+                label: Text(strings.piCliRunBtn),
               ),
             ],
           ),
@@ -408,7 +429,7 @@ class _PiCliSectionState extends State<PiCliSection> {
         Row(
           children: [
             Text(
-              'OUTPUT CONSOLE',
+              strings.piCliConsoleOutputHeader,
               style: TextStyle(
                 color: tokens.displayText,
                 fontSize: 11,
@@ -428,7 +449,7 @@ class _PiCliSectionState extends State<PiCliSection> {
               ),
               const SizedBox(width: 6),
               Text(
-                'In esecuzione ${_currentCommand ?? ""}...',
+                strings.piCliRunningNotice(_currentCommand ?? ''),
                 style: TextStyle(color: tokens.accent, fontSize: 11),
               ),
               const Spacer(),
@@ -439,7 +460,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 ),
                 onPressed: _cancelActiveProcess,
                 icon: const Icon(Icons.stop, size: 14),
-                label: const Text('Interrompi'),
+                label: Text(strings.piCliStopBtn),
               ),
             ] else if (_exitCode != null) ...[
               Container(
@@ -454,7 +475,9 @@ class _PiCliSectionState extends State<PiCliSection> {
                   ),
                 ),
                 child: Text(
-                  _exitCode == 0 ? 'Successo (0)' : 'Codice $_exitCode',
+                  _exitCode == 0
+                      ? strings.piCliSuccessCode
+                      : strings.piCliExitCode(_exitCode!),
                   style: TextStyle(
                     color: _exitCode == 0 ? tokens.success : tokens.danger,
                     fontSize: 11,
@@ -477,7 +500,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
-                tooltip: 'Copia output',
+                tooltip: strings.piCliCopyOutputTooltip,
                 icon: const Icon(Icons.copy, size: 15),
                 onPressed: _copyConsoleOutput,
               ),
@@ -486,7 +509,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
-                tooltip: 'Cancella output',
+                tooltip: strings.piCliClearOutputTooltip,
                 icon: const Icon(Icons.clear_all, size: 16),
                 onPressed: _clearConsoleOutput,
               ),
@@ -505,7 +528,7 @@ class _PiCliSectionState extends State<PiCliSection> {
           child: _consoleOutput.isEmpty && !_isExecuting
               ? Center(
                   child: Text(
-                    'Nessun output. Seleziona un comando sopra o digita un comando personalizzato per iniziare.',
+                    strings.piCliEmptyOutput,
                     style: TextStyle(color: tokens.textMuted, fontSize: 12),
                   ),
                 )
@@ -543,7 +566,7 @@ class _PiCliSectionState extends State<PiCliSection> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'PiFrame utilizza il comando `pi` configurato nel PATH di sistema.',
+                  strings.piCliSystemPathNotice,
                   style: TextStyle(color: tokens.textMuted, fontSize: 12),
                 ),
               ),
@@ -553,7 +576,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                     visualDensity: VisualDensity.compact,
                   ),
                   icon: const Icon(Icons.refresh, size: 14),
-                  label: const Text('Ricontrolla'),
+                  label: Text(strings.piCliRecheckBtn),
                   onPressed: widget.onRecheck,
                 ),
             ],
@@ -563,7 +586,11 @@ class _PiCliSectionState extends State<PiCliSection> {
     );
   }
 
-  Widget _buildActionCard(FrameTokens tokens, PiCommandItem item) {
+  Widget _buildActionCard(
+    FrameTokens tokens,
+    PiCommandItem item,
+    AppStrings strings,
+  ) {
     final isSelected = _currentCommand == item.command;
     final isRunning = isSelected && _isExecuting;
     final isMcpCard = item.command == 'pi mcp list';
@@ -648,8 +675,12 @@ class _PiCliSectionState extends State<PiCliSection> {
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
                   ),
-                  onPressed: () => McpServersDialog.show(context, tokens),
-                  child: const Text('Gestisci', style: TextStyle(fontSize: 11)),
+                  onPressed: () => McpServersDialog.show(
+                    context,
+                    tokens,
+                    strings: strings,
+                  ),
+                  child: Text(strings.piCliManageMcpBtn, style: const TextStyle(fontSize: 11)),
                 ),
                 const SizedBox(width: 6),
               ],
@@ -685,7 +716,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                         ),
                       )
                     : const Icon(Icons.play_arrow, size: 14),
-                label: Text(isRunning ? 'In corso...' : 'Esegui'),
+                label: Text(isRunning ? strings.piCliInProgress : strings.piCliRunBtn),
               ),
             ],
           ),
@@ -707,10 +738,14 @@ class _PiCliSectionState extends State<PiCliSection> {
         key: const ValueKey('pi-cli-card-pi-mcp-list'),
         type: MaterialType.transparency,
         child: Tooltip(
-          message: 'Clicca sulla scheda per visualizzare e abilitare/disabilitare i server MCP',
+          message: strings.piCliMcpCardTooltip,
           child: InkWell(
             borderRadius: BorderRadius.circular(tokens.radiusMd),
-            onTap: () => McpServersDialog.show(context, tokens),
+            onTap: () => McpServersDialog.show(
+              context,
+              tokens,
+              strings: strings,
+            ),
             child: cardContent,
           ),
         ),

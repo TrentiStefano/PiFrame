@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
 
@@ -22,6 +24,14 @@ class SubagentItem {
   final int? timestamp;
   final bool isSteeringOpen;
   final bool isUnlinked;
+  /// Agent definition the child ran as (`general-purpose`, `Explore`, ...).
+  final String? agentType;
+  /// One distinctive line of the task the agent was given.
+  final String? prompt;
+  /// What the agent is doing now (last tool call) or its last answer line.
+  final String? activity;
+  final int? startedAt;
+  final int? updatedAt;
 
   const SubagentItem({
     required this.id,
@@ -36,6 +46,11 @@ class SubagentItem {
     this.timestamp,
     this.isSteeringOpen = false,
     this.isUnlinked = false,
+    this.agentType,
+    this.prompt,
+    this.activity,
+    this.startedAt,
+    this.updatedAt,
   });
 
   bool get isRunning => status == 'running' || status == 'steering';
@@ -71,6 +86,11 @@ class SubagentItem {
       timestamp: timestamp ?? this.timestamp,
       isSteeringOpen: isSteeringOpen ?? this.isSteeringOpen,
       isUnlinked: isUnlinked ?? this.isUnlinked,
+      agentType: agentType,
+      prompt: prompt,
+      activity: activity,
+      startedAt: startedAt,
+      updatedAt: updatedAt,
     );
   }
 }
@@ -295,7 +315,9 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _fetchingFromDaemon = true;
     try {
       // Keep one request in flight so a slow response is not discarded or duplicated.
-      final daemonSubagents = await client.getSubagents(sessionId);
+      // A daemon that never answers must not block every later refresh.
+      final daemonSubagents =
+          await client.getSubagents(sessionId).timeout(const Duration(seconds: 30));
       if (!mounted) return;
       final nextIds = daemonSubagents.map((raw) => raw['id']).toSet();
       final removedIds = _daemonSubagents
@@ -361,9 +383,16 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
         timestamp: existing?.timestamp,
         isSteeringOpen: isSteeringOpen,
         isUnlinked: raw['unlinked'] == true,
+        agentType: raw['agentType']?.toString() ?? existing?.agentType,
+        prompt: raw['prompt']?.toString() ?? existing?.prompt,
+        activity: raw['activity']?.toString() ?? existing?.activity,
+        startedAt: _epochMs(raw['startedAt']) ?? existing?.startedAt,
+        updatedAt: _epochMs(raw['updatedAt']) ?? existing?.updatedAt,
       );
     }
   }
+
+  static int? _epochMs(Object? value) => value is num && value.isFinite ? value.toInt() : null;
 
   void _readOutputFiles() {
     // Subagent output files are read from the host disk; the browser gets the
@@ -436,7 +465,8 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   SubagentItem? _parseFromTool(ToolExecutionState tool) {
     final args = tool.args;
     String id = tool.toolCallId;
-    String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? 'Subagente').toString();
+    final strings = ref.read(appStringsProvider);
+    String name = (args['subagent_type'] ?? args['name'] ?? args['type'] ?? strings.subagentDefaultName).toString();
     String? description = args['description']?.toString() ?? args['prompt']?.toString();
     String? outputFile;
 
@@ -522,12 +552,13 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _locallySteered.add(subagentId);
     _openSteeringIds.remove(subagentId);
 
+    final strings = ref.read(appStringsProvider);
     state = state.map((item) {
       if (item.id == subagentId) {
         return item.copyWith(
           status: 'steering',
           isSteeringOpen: false,
-          output: '${item.output}\n\n[Guida utente]: $trimmed',
+          output: '${item.output}\n\n${strings.subagentSteeringNote(trimmed)}',
         );
       }
       return item;
@@ -545,12 +576,13 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     _locallyStopped.add(subagentId);
     _openSteeringIds.remove(subagentId);
 
+    final strings = ref.read(appStringsProvider);
     state = state.map((item) {
       if (item.id == subagentId) {
         return item.copyWith(
           status: 'stopped',
           isSteeringOpen: false,
-          output: '${item.output}\n\n[Interrotto dall\'utente]',
+          output: '${item.output}\n\n${strings.subagentStoppedNote}',
         );
       }
       return item;

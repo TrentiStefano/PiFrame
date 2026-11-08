@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/data/transcript/step_grouping_settings.dart';
 import 'package:pi_frame/domain/session/session_reducer.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/snapshot_reducer.dart';
+import 'package:pi_frame/domain/session/transcript_grouping.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame/features/tool_timeline/tool_card.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
@@ -240,6 +242,10 @@ void main() {
           ),
           sessionStateFamily('b')
               .overrideWith((ref) => SessionStateNotifier('b', null)),
+          stepGroupingSettingsProvider.overrideWith(
+            (ref) => StepGroupingSettingsNotifier()
+              ..setMode(StepGroupingMode.off),
+          ),
         ],
       );
       addTearDown(container.dispose);

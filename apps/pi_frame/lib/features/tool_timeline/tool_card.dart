@@ -5,23 +5,157 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../transcript/task_notification_card.dart';
 
-class _ParsedToolOutput {
+class ParsedToolOutput {
   final String? summaryText;
   final String? diffText;
   final String? filename;
   final String rawText;
 
-  const _ParsedToolOutput({
+  const ParsedToolOutput({
     this.summaryText,
     this.diffText,
     this.filename,
     required this.rawText,
   });
+}
+
+typedef _ParsedToolOutput = ParsedToolOutput;
+
+final RegExp _patchRegex = RegExp(
+  r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)',
+  dotAll: true,
+);
+final RegExp _fileRegex = RegExp(
+  r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)',
+);
+
+IconData getToolIcon(String name) {
+  switch (name.toLowerCase()) {
+    case 'read':
+    case 'read_file':
+      return Icons.file_open_outlined;
+    case 'write':
+    case 'write_file':
+      return Icons.save_outlined;
+    case 'edit':
+    case 'edit_file':
+      return Icons.edit_note_outlined;
+    case 'bash':
+    case 'terminal':
+    case 'exec':
+    case 'run_command':
+    case 'sh':
+    case 'shell':
+    case 'cmd':
+    case 'powershell':
+      return Icons.terminal_outlined;
+    case 'grep':
+    case 'find':
+    case 'search':
+      return Icons.search_outlined;
+    default:
+      return Icons.build_circle_outlined;
+  }
+}
+
+Color getToolColor(String name, FrameTokens tokens) {
+  switch (name.toLowerCase()) {
+    case 'read':
+    case 'read_file':
+      return tokens.syntaxFunction;
+    case 'write':
+    case 'write_file':
+    case 'edit':
+    case 'edit_file':
+      return tokens.syntaxString;
+    case 'bash':
+    case 'terminal':
+    case 'exec':
+    case 'run_command':
+    case 'sh':
+    case 'shell':
+    case 'cmd':
+    case 'powershell':
+      return tokens.syntaxNumber;
+    case 'grep':
+    case 'find':
+    case 'search':
+      return tokens.syntaxKeyword;
+    default:
+      return tokens.accent;
+  }
+}
+
+ParsedToolOutput parseToolOutput(ToolExecutionState tool) {
+  final raw = tool.output.trim();
+  if (raw.isEmpty) {
+    return const ParsedToolOutput(rawText: '');
+  }
+
+  String? summary;
+  String? diff;
+  String? filename = tool.args['path']?.toString() ??
+      tool.args['file']?.toString() ??
+      tool.args['filePath']?.toString();
+
+  // 1. Try parsing JSON output
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, dynamic>) {
+      // Content array
+      if (decoded['content'] is List) {
+        final parts = <String>[];
+        for (final item in decoded['content']) {
+          if (item is Map && item['type'] == 'text' && item['text'] != null) {
+            parts.add(item['text'].toString());
+          }
+        }
+        if (parts.isNotEmpty) summary = parts.join('\n');
+      }
+
+      // Details map
+      if (decoded['details'] is Map) {
+        final details = decoded['details'] as Map;
+        if (details['patch'] != null &&
+            details['patch'].toString().isNotEmpty) {
+          diff = details['patch'].toString();
+        } else if (details['diff'] != null &&
+            details['diff'].toString().isNotEmpty) {
+          diff = details['diff'].toString();
+        }
+      }
+    }
+  } catch (_) {
+    // Not standard JSON - check if details/patch string pattern exists
+    final patchMatch = _patchRegex.firstMatch(raw);
+    if (patchMatch != null) {
+      diff = patchMatch.group(1);
+    }
+  }
+
+  // Direct unified diff in raw output
+  if (diff == null && (raw.contains('@@ -') || raw.startsWith('--- '))) {
+    diff = raw;
+  }
+
+  // Infer filename from diff header if needed
+  if (filename == null && diff != null) {
+    final fileMatch = _fileRegex.firstMatch(diff);
+    if (fileMatch != null) filename = fileMatch.group(1);
+  }
+
+  return ParsedToolOutput(
+    summaryText: summary,
+    diffText: diff,
+    filename: filename,
+    rawText: raw,
+  );
 }
 
 class ToolCard extends StatefulWidget {
@@ -38,14 +172,6 @@ class _ToolCardState extends State<ToolCard> {
   bool _isExpanded = false;
   bool _initializedExpansion = false;
   Timer? _liveTimer;
-
-  static final RegExp _patchRegex = RegExp(
-    r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)',
-    dotAll: true,
-  );
-  static final RegExp _fileRegex = RegExp(
-    r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)',
-  );
 
   String? _cachedOutput;
   _ParsedToolOutput? _cachedParsedOutput;
@@ -147,141 +273,24 @@ class _ToolCardState extends State<ToolCard> {
     return null;
   }
 
-  IconData _getToolIcon(String name) {
-    switch (name.toLowerCase()) {
-      case 'read':
-      case 'read_file':
-        return Icons.file_open_outlined;
-      case 'write':
-      case 'write_file':
-        return Icons.save_outlined;
-      case 'edit':
-      case 'edit_file':
-        return Icons.edit_note_outlined;
-      case 'bash':
-      case 'terminal':
-      case 'exec':
-      case 'run_command':
-      case 'sh':
-      case 'shell':
-      case 'cmd':
-      case 'powershell':
-        return Icons.terminal_outlined;
-      case 'grep':
-      case 'find':
-      case 'search':
-        return Icons.search_outlined;
-      default:
-        return Icons.build_circle_outlined;
-    }
-  }
+  IconData _getToolIcon(String name) => getToolIcon(name);
 
-  Color _getToolColor(String name, FrameTokens tokens) {
-    switch (name.toLowerCase()) {
-      case 'read':
-      case 'read_file':
-        return tokens.syntaxFunction;
-      case 'write':
-      case 'write_file':
-      case 'edit':
-      case 'edit_file':
-        return tokens.syntaxString;
-      case 'bash':
-      case 'terminal':
-      case 'exec':
-      case 'run_command':
-      case 'sh':
-      case 'shell':
-      case 'cmd':
-      case 'powershell':
-        return tokens.syntaxNumber;
-      case 'grep':
-      case 'find':
-      case 'search':
-        return tokens.syntaxKeyword;
-      default:
-        return tokens.accent;
-    }
-  }
+  Color _getToolColor(String name, FrameTokens tokens) =>
+      getToolColor(name, tokens);
 
   _ParsedToolOutput _parseOutput(ToolExecutionState tool) {
     if (_cachedParsedOutput != null && _cachedOutput == tool.output) {
       return _cachedParsedOutput!;
     }
-
-    final raw = tool.output.trim();
-    if (raw.isEmpty) {
-      _cachedOutput = tool.output;
-      _cachedParsedOutput = const _ParsedToolOutput(rawText: '');
-      return _cachedParsedOutput!;
-    }
-
-    String? summary;
-    String? diff;
-    String? filename =
-        tool.args['path']?.toString() ??
-        tool.args['file']?.toString() ??
-        tool.args['filePath']?.toString();
-
-    // 1. Try parsing JSON output
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) {
-        // Content array
-        if (decoded['content'] is List) {
-          final parts = <String>[];
-          for (final item in decoded['content']) {
-            if (item is Map && item['type'] == 'text' && item['text'] != null) {
-              parts.add(item['text'].toString());
-            }
-          }
-          if (parts.isNotEmpty) summary = parts.join('\n');
-        }
-
-        // Details map
-        if (decoded['details'] is Map) {
-          final details = decoded['details'] as Map;
-          if (details['patch'] != null &&
-              details['patch'].toString().isNotEmpty) {
-            diff = details['patch'].toString();
-          } else if (details['diff'] != null &&
-              details['diff'].toString().isNotEmpty) {
-            diff = details['diff'].toString();
-          }
-        }
-      }
-    } catch (_) {
-      // Not standard JSON - check if details/patch string pattern exists
-      final patchMatch = _patchRegex.firstMatch(raw);
-      if (patchMatch != null) {
-        diff = patchMatch.group(1);
-      }
-    }
-
-    // Direct unified diff in raw output
-    if (diff == null && (raw.contains('@@ -') || raw.startsWith('--- '))) {
-      diff = raw;
-    }
-
-    // Infer filename from diff header if needed
-    if (filename == null && diff != null) {
-      final fileMatch = _fileRegex.firstMatch(diff);
-      if (fileMatch != null) filename = fileMatch.group(1);
-    }
-
     _cachedOutput = tool.output;
-    _cachedParsedOutput = _ParsedToolOutput(
-      summaryText: summary,
-      diffText: diff,
-      filename: filename,
-      rawText: raw,
-    );
+    _cachedParsedOutput = parseToolOutput(tool);
     return _cachedParsedOutput!;
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final strings = safeTranscriptStrings(context);
     final tool = widget.tool;
     final isTerminal = _isTerminalTool(tool.toolName);
     final commandText = _getCommandText(tool);
@@ -563,8 +572,8 @@ class _ToolCardState extends State<ToolCard> {
                           const SizedBox(width: 6),
                           Text(
                             isTerminal
-                                ? 'Comando lanciato'
-                                : 'Parametri comando',
+                                ? strings.toolCardExecutedCommand
+                                : strings.toolCardCommandParams,
                             style: TextStyle(
                               color: tokens.textMuted,
                               fontSize: 10.5,
@@ -596,7 +605,7 @@ class _ToolCardState extends State<ToolCard> {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Timeout richiesto: $timeoutLabel',
+                                    strings.toolCardRequestedTimeout(timeoutLabel),
                                     style: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 9.5,
@@ -616,7 +625,7 @@ class _ToolCardState extends State<ToolCard> {
                               );
                               FrameSnackBar.show(
                                 context,
-                                message: 'Comando copiato negli appunti',
+                                message: strings.toolCardCopiedToClipboard,
                                 duration: const Duration(seconds: 1),
                               );
                             },
@@ -635,7 +644,7 @@ class _ToolCardState extends State<ToolCard> {
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
-                                    'Copia comando',
+                                    strings.toolCardCopyCommand,
                                     style: TextStyle(
                                       color: tokens.textMuted,
                                       fontSize: 10,

@@ -86,6 +86,8 @@ void main() {
       expect(formatContextSize(32768, 200000), '32k (Tier base)');
       expect(formatContextSize(200000, 200000), '200k (Max / Tier esteso)');
       expect(formatContextSize(1048576, 2000000), '1M (Tier base)');
+      expect(formatContextSize(200000, 200000, italian: false), '200k (Max / extended tier)');
+      expect(formatContextSize(32768, 200000, italian: false), '32k (Base tier)');
     });
   });
 }

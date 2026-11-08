@@ -26,9 +26,39 @@ void main() {
       expect(strings.settingsTitle, 'Impostazioni PiFrame');
       expect(strings.tabPackages, 'PACCHETTI');
       expect(strings.tabAppearance, 'ASPETTO');
+      expect(strings.tabAgents, 'AGENTI');
+      expect(strings.agentsTitle, 'Configurazione Agenti e Sottoagenti');
+      expect(strings.agentsPackagesLabel, 'Pacchetti:');
+      expect(strings.agentsContextSingleTierTooltip, 'Il modello ha un solo livello di contesto');
+      expect(strings.agentsModelUnavailableWarning, 'Non disponibile con le credenziali attuali');
+      expect(strings.agentsNotAvailableShort, 'n/d');
       expect(strings.languageSectionTitle, "Lingua dell'Applicazione");
       expect(strings.openThemeEditorBtn, 'Editor Temi / Personalizza Tema');
       expect(strings.updateNoticeTitle, 'Aggiornamenti Rilevati');
+      expect(strings.branchChipTooltip, 'Cambia ramo Git');
+      expect(strings.branchPickerTitle, 'Passa a un altro ramo');
+      expect(strings.workspaceDirtyDialogTitle, 'Modifiche non salvate');
+      expect(
+        strings.workspaceDirtyDialogMessage(2, 1),
+        'Hai 2 file modificati e 1 non tracciati. Il cambio di ramo è bloccato per proteggere le tue modifiche.',
+      );
+      expect(strings.stashAndSwitchBtn, 'Salva nello stash e cambia');
+      expect(strings.branchSwitched('feature'), 'Passato al ramo feature');
+      expect(
+        strings.branchSwitchedStashNotice('stash-1'),
+        'Le tue modifiche sono state salvate nello stash: stash-1',
+      );
+      expect(strings.branchSwitchFailedTitle, 'Cambio di ramo non riuscito');
+      expect(
+        strings.stashRetainedSafeNotice('stash-1'),
+        'Le tue modifiche sono al sicuro nello stash: stash-1',
+      );
+      expect(
+        strings.branchSwitchAgentWorking,
+        'Impossibile cambiare ramo mentre l\'agente sta lavorando',
+      );
+      expect(strings.branchNotFound, 'Ramo non trovato');
+      expect(strings.branchInvalidName, 'Nome del ramo non valido');
     });
 
     test('AppStrings provides correct English translations', () {
@@ -37,9 +67,39 @@ void main() {
       expect(strings.settingsTitle, 'PiFrame Settings');
       expect(strings.tabPackages, 'PACKAGES');
       expect(strings.tabAppearance, 'APPEARANCE');
+      expect(strings.tabAgents, 'AGENTS');
+      expect(strings.agentsTitle, 'Agent & Subagent Configuration');
+      expect(strings.agentsPackagesLabel, 'Packages:');
+      expect(strings.agentsContextSingleTierTooltip, 'Model has a single context tier');
+      expect(strings.agentsModelUnavailableWarning, 'Not available with current credentials');
+      expect(strings.agentsNotAvailableShort, 'N/A');
       expect(strings.languageSectionTitle, 'Application Language');
       expect(strings.openThemeEditorBtn, 'Theme Editor / Customize Theme');
       expect(strings.updateNoticeTitle, 'Updates Available');
+      expect(strings.branchChipTooltip, 'Switch Git branch');
+      expect(strings.branchPickerTitle, 'Switch branch');
+      expect(strings.workspaceDirtyDialogTitle, 'Uncommitted Changes');
+      expect(
+        strings.workspaceDirtyDialogMessage(2, 1),
+        'You have 2 modified and 1 untracked files. Switching branch is blocked to protect your changes.',
+      );
+      expect(strings.stashAndSwitchBtn, 'Stash changes and switch');
+      expect(strings.branchSwitched('feature'), 'Switched to feature');
+      expect(
+        strings.branchSwitchedStashNotice('stash-1'),
+        'Your changes were stashed: stash-1',
+      );
+      expect(strings.branchSwitchFailedTitle, 'Branch switch failed');
+      expect(
+        strings.stashRetainedSafeNotice('stash-1'),
+        'Your changes are safe in the stash: stash-1',
+      );
+      expect(
+        strings.branchSwitchAgentWorking,
+        'Cannot switch branch while the agent is working',
+      );
+      expect(strings.branchNotFound, 'Branch not found');
+      expect(strings.branchInvalidName, 'Invalid branch name');
     });
 
     test('AppLanguageNotifier updates state', () {

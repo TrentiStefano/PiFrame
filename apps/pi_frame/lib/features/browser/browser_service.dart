@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import 'browser_models.dart';
 
 class WebBrowserService {
@@ -75,14 +77,18 @@ class WebBrowserService {
   Future<WebContent> load(
     String rawInput, {
     SearchEngine defaultEngine = SearchEngine.duckDuckGo,
+    AppStrings? strings,
   }) async {
     final targetUrl = normalizeUrl(rawInput, defaultEngine: defaultEngine);
     if (targetUrl == 'about:home') {
-      return const WebContent(
+      return WebContent(
         url: 'about:home',
         title: 'Home',
         domain: 'about:home',
-        paragraphs: ['Benvenuto nel browser integrato di PiFrame.'],
+        paragraphs: [
+          strings?.browserDefaultGreeting ??
+              'Benvenuto nel browser integrato di PiFrame.',
+        ],
       );
     }
 
@@ -124,7 +130,10 @@ class WebBrowserService {
     final finalUri = response.request?.url ?? uri;
     final finalUrl = finalUri.toString();
     final domain = finalUri.host.isNotEmpty ? finalUri.host : finalUrl;
-    final title = _extractTitle(html) ?? (queryText != null ? 'Ricerca: $queryText' : domain);
+    final title = _extractTitle(html) ??
+        (queryText != null
+            ? (strings?.browserSearchTitle(queryText) ?? 'Ricerca: $queryText')
+            : domain);
     final description = _extractMetaDescription(html);
     final headings = _extractHeadings(html);
     final codeSnippets = _extractCodeSnippets(html);

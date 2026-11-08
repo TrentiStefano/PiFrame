@@ -11,10 +11,13 @@ import 'desktop_chrome.dart';
 import '../ui/precision.dart';
 import '../data/daemon/daemon_providers.dart';
 import '../data/daemon/pcp_client.dart';
+import '../data/language/language_settings.dart';
+import '../data/language/strings_shell.dart';
 import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
 import '../features/sessions_sidebar/session_actions.dart';
 import '../features/transcript/transcript_view.dart';
+import '../features/transcript/subagent_panel.dart';
 import '../features/transcript/chat_drop_target.dart';
 import '../features/composer/composer.dart';
 import '../features/context_panel/context_panel.dart';
@@ -33,6 +36,11 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
+import '../features/side/side_panel.dart';
+import '../features/side/side_provider.dart';
+import '../data/metrics/nerd_stats_settings.dart';
+import '../data/metrics/system_metrics_controller.dart';
+import '../features/metrics/nerd_stats_bar.dart';
 import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
 import '../data/window/window_state_service.dart';
@@ -70,6 +78,7 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   bool _sidebarCollapsed = false;
+  Widget? _chatSidecar;
   bool? _preReviewSidebarCollapsed;
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
@@ -122,6 +131,8 @@ class _AppShellState extends ConsumerState<AppShell>
       'sidebarCollapsed': _sidebarCollapsed,
     });
   }
+
+  AppStrings get strings => ref.watch(appStringsProvider);
 
   // Restores hidden panes after restart; keeps at least one pane visible and the companion valid.
   void _applyPersistedLayout() {
@@ -285,6 +296,7 @@ class _AppShellState extends ConsumerState<AppShell>
     });
 
     final tokens = context.tokens;
+    final strings = ref.watch(appStringsProvider);
     final activeId = ref.watch(activeSessionIdProvider);
     final settings = ref.watch(showSettingsProvider);
     final connection =
@@ -302,9 +314,22 @@ class _AppShellState extends ConsumerState<AppShell>
             child: Column(
               children: [
                 Expanded(
-                  child: TranscriptView(
-                    key: ValueKey('transcript_$activeId'),
-                    sessionId: activeId,
+                  child: Stack(
+                    children: [
+                      TranscriptView(
+                        key: ValueKey('transcript_$activeId'),
+                        sessionId: activeId,
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: SidePanel(
+                          key: ValueKey('side_panel_$activeId'),
+                          sessionId: activeId,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Composer(
@@ -318,12 +343,21 @@ class _AppShellState extends ConsumerState<AppShell>
     return Focus(
       autofocus: true,
       onKeyEvent: (_, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.keyK &&
-            (HardwareKeyboard.instance.isMetaPressed ||
-                HardwareKeyboard.instance.isControlPressed)) {
-          _palette();
-          return KeyEventResult.handled;
+        if (event is KeyDownEvent) {
+          final isMetaOrControl = HardwareKeyboard.instance.isMetaPressed ||
+              HardwareKeyboard.instance.isControlPressed;
+          if (event.logicalKey == LogicalKeyboardKey.keyK && isMetaOrControl) {
+            _palette();
+            return KeyEventResult.handled;
+          }
+          if (event.logicalKey == LogicalKeyboardKey.keyB &&
+              isMetaOrControl &&
+              HardwareKeyboard.instance.isShiftPressed) {
+            if (activeId != null) {
+              ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+              return KeyEventResult.handled;
+            }
+          }
         }
         return KeyEventResult.ignored;
       },
@@ -349,12 +383,12 @@ class _AppShellState extends ConsumerState<AppShell>
                           children: [
                             Expanded(
                               child: Text(
-                                'Area di lavoro',
+                                strings.workspaceTitle,
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Chiudi workspace',
+                              tooltip: strings.closeWorkspaceTooltip,
                               icon: const Icon(Icons.close),
                               onPressed: () =>
                                   _scaffoldKey.currentState?.closeEndDrawer(),
@@ -402,7 +436,7 @@ class _AppShellState extends ConsumerState<AppShell>
                         if (!showSessionRail)
                           IconButton(
                             visualDensity: VisualDensity.compact,
-                            tooltip: 'Apri sessioni',
+                            tooltip: strings.openSessionsTooltip,
                             icon: const Icon(Icons.menu, size: 17),
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openDrawer(),
@@ -433,7 +467,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      connected ? 'Pi locale' : 'Non connesso',
+                                      connected ? strings.localPi : strings.disconnected,
                                       style: TextStyle(
                                         color: tokens.textMuted,
                                         fontSize: 11,
@@ -445,6 +479,12 @@ class _AppShellState extends ConsumerState<AppShell>
                             ),
                           ),
                         ),
+                        if (ref.watch(nerdStatsSettingsProvider).enabled &&
+                            width >= (ref.watch(isWebProvider) ? 450 : 760)) ...[
+                          const SizedBox(width: 8),
+                          NerdStatsBar(width: width),
+                          const SizedBox(width: 8),
+                        ],
                         if (width > 680)
                           PressFeedback(
                             child: TextButton.icon(
@@ -458,15 +498,15 @@ class _AppShellState extends ConsumerState<AppShell>
                                 foregroundColor: tokens.textSecondary,
                               ),
                               icon: const Icon(Icons.search, size: 15),
-                              label: const Text(
-                                'Comandi',
-                                style: TextStyle(fontSize: 12),
+                              label: Text(
+                                strings.commandsButtonLabel,
+                                style: const TextStyle(fontSize: 12),
                               ),
                             ),
                           ),
                         if (width >= 900 && activeId != null && !settings)
                           PopupMenuButton<WorkspacePane>(
-                            tooltip: 'Mostra o nascondi pannelli',
+                            tooltip: strings.togglePanelsTooltip,
                             icon: const Icon(
                               Icons.view_column_outlined,
                               size: 16,
@@ -501,8 +541,8 @@ class _AppShellState extends ConsumerState<AppShell>
                           ),
                           tooltip:
                               Theme.of(context).brightness == Brightness.light
-                              ? 'Tema scuro'
-                              : 'Tema chiaro',
+                              ? strings.darkThemeTooltip
+                              : strings.lightThemeTooltip,
                           icon: Icon(
                             Theme.of(context).brightness == Brightness.light
                                 ? Icons.dark_mode_outlined
@@ -524,7 +564,7 @@ class _AppShellState extends ConsumerState<AppShell>
                             minWidth: 32,
                             minHeight: 32,
                           ),
-                          tooltip: 'Impostazioni',
+                          tooltip: strings.settingsTooltip,
                           icon: Stack(
                             clipBehavior: Clip.none,
                             children: [
@@ -562,7 +602,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               minWidth: 32,
                               minHeight: 32,
                             ),
-                            tooltip: 'Modello e azioni sessione',
+                            tooltip: strings.modelAndSessionActionsTooltip,
                             icon: const Icon(Icons.tune, size: 16),
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openEndDrawer(),
@@ -598,8 +638,8 @@ class _AppShellState extends ConsumerState<AppShell>
                           Expanded(
                             child: Text(
                               connection == DaemonConnectionState.reconnecting
-                                  ? 'Riconnessione al daemon in corso...'
-                                  : 'Daemon non raggiungibile. Le sessioni restano gestite da Pi.',
+                                  ? strings.reconnectingToDaemon
+                                  : strings.daemonUnreachableNotice,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 12,
@@ -612,7 +652,7 @@ class _AppShellState extends ConsumerState<AppShell>
                             ),
                             onPressed: () =>
                                 ref.invalidate(daemonEndpointProvider),
-                            child: const Text('Riprova'),
+                            child: Text(strings.retryAction),
                           ),
                         ],
                       ),
@@ -661,6 +701,20 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    _chatSidecar = width < 900
+        ? null
+        : AgentActivitySidecar(
+            key: ValueKey('agent_activity_$sessionId'),
+            sessionId: sessionId,
+            onOpened: () {
+              if (mounted &&
+                  _paneVisibility[WorkspacePane.git] == true &&
+                  !_collapsedPanes.contains(WorkspacePane.git) &&
+                  !ref.read(isReviewingChangesProvider)) {
+                _collapsePane(WorkspacePane.git);
+              }
+            },
+          );
     final isReviewing = ref.watch(isReviewingChangesProvider);
     final visible = _visiblePanes(chatFirst: width < 900);
     final companions = visible
@@ -794,6 +848,16 @@ class _AppShellState extends ConsumerState<AppShell>
     _persistLayout();
   }
 
+  /// Chat keeps the Agents/Workflows column as a sibling card on its right.
+  Widget _paneCard(WorkspacePane pane, Widget child) {
+    final sidecar = _chatSidecar;
+    if (pane != WorkspacePane.chat || sidecar == null) return _bentoPane(child);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [Expanded(child: _bentoPane(child)), sidecar],
+    );
+  }
+
   Widget _bentoPane(Widget child) {
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
@@ -902,7 +966,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
-                tooltip: 'Espandi pannello ${_paneLabel(pane)}',
+                tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
                 icon: Icon(expandIcon, size: 18, color: tokens.accent),
                 onPressed: () => _expandPane(pane),
               ),
@@ -951,7 +1015,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
-                tooltip: 'Espandi barra sessioni',
+                tooltip: strings.expandSessionsSidebarTooltip,
                 icon: Icon(Icons.chevron_right, size: 18, color: tokens.accent),
                 onPressed: () {
                   setState(() => _sidebarCollapsed = false);
@@ -972,7 +1036,7 @@ class _AppShellState extends ConsumerState<AppShell>
                   quarterTurns: 3,
                   child: Center(
                     child: Text(
-                      'SESSIONI',
+                      strings.sessionsRailHeader,
                       style: TextStyle(
                         color: tokens.textMuted,
                         fontSize: 10,
@@ -997,7 +1061,7 @@ class _AppShellState extends ConsumerState<AppShell>
   ) {
     if (panes.isEmpty) return const SizedBox.shrink();
     if (panes.length == 1 && _collapsedPanes.isEmpty) {
-      return _bentoPane(contents[panes.single]!);
+      return _paneCard(panes.single, contents[panes.single]!);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1022,7 +1086,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       .round()
                       .clamp(1, 100)
                       .toInt(),
-                  child: _bentoPane(contents[panes[index]]!),
+                  child: _paneCard(panes[index], contents[panes[index]]!),
                 ),
               if (index < panes.length - 1)
                 MouseRegion(
@@ -1174,7 +1238,7 @@ class _AppShellState extends ConsumerState<AppShell>
             ),
           if (showLayoutMenu)
             PopupMenuButton<WorkspacePane>(
-              tooltip: 'Mostra o nascondi pannelli',
+              tooltip: strings.togglePanelsTooltip,
               onSelected: _togglePane,
               itemBuilder: (context) => [
                 for (final pane in WorkspacePane.values)
@@ -1245,7 +1309,7 @@ class _AppShellState extends ConsumerState<AppShell>
             Icon(Icons.history, size: 16, color: tokens.accent),
             const SizedBox(width: 8),
             Text(
-              'Sessioni recenti',
+              strings.recentSessionsHeader,
               style: TextStyle(
                 color: tokens.textPrimary,
                 fontSize: 14,
@@ -1293,7 +1357,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final id = (session['id'] ?? '').toString();
     final name = (session['name'] ?? id).toString();
     final folder = _sessionFolder(session);
-    final folderDisplay = folder.isNotEmpty ? folder : 'Nessuna cartella';
+    final folderDisplay = folder.isNotEmpty ? folder : strings.noFolderDisplay;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1397,7 +1461,7 @@ class _AppShellState extends ConsumerState<AppShell>
               PiFrameMark(size: compact ? 48 : 64),
               const SizedBox(height: 32),
               Text(
-                'Nuova\nsessione.',
+                strings.newSessionHeroTitle,
                 style: TextStyle(
                   fontFamily: tokens.headingFontFamily,
                   fontSize: compact ? 56 : 84,
@@ -1411,7 +1475,7 @@ class _AppShellState extends ConsumerState<AppShell>
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Text(
-                  'Scegli una conversazione o inizia a lavorare con Pi. Il lavoro continua anche quando chiudi la finestra.',
+                  strings.welcomeDescription,
                   style: TextStyle(
                     color: tokens.textSecondary,
                     fontSize: 14.5,
@@ -1429,7 +1493,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       onPressed: connected && !_creating ? _create : null,
                       icon: const Icon(Icons.add, size: 18),
                       label: Text(
-                        _creating ? 'Creazione...' : 'Nuova sessione',
+                        _creating ? strings.creatingSession : strings.newSessionAction,
                       ),
                     ),
                   ),
@@ -1439,14 +1503,14 @@ class _AppShellState extends ConsumerState<AppShell>
                         : _palette,
                     icon: const Icon(Icons.search, size: 18),
                     label: Text(
-                      narrow ? 'Esplora sessioni' : 'Cerca nei comandi',
+                      narrow ? strings.browseSessionsAction : strings.searchCommandsAction,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 32),
               Text(
-                'Ctrl / Cmd + K · Comandi',
+                strings.commandsShortcutHint,
                 style: TextStyle(color: tokens.textMuted, fontSize: 12),
               ),
             ],

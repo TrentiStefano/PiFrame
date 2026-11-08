@@ -2,6 +2,7 @@
   "name": "@piframe/fault-proxy",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "WebSocket fault injection proxy for resilience testing",
   "scripts": {
