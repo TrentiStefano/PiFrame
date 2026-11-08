@@ -320,3 +320,16 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
 
 
 
+
+---
+
+## 12. Lingua dell'interfaccia (Italiano / English)
+
+In **Impostazioni → Aspetto → Lingua dell'applicazione** puoi scegliere **Italiano** o **English**. La scelta ora vale per tutta l'interfaccia: barra del titolo, barra Sessioni, Repository, chat e passaggi raggruppati, composer, pannello Area di lavoro e selettore del contesto, Git Changes, revisione delle modifiche, browser integrato, terminale, pannello Agenti, conversazioni laterali e Impostazioni. Restano in italiano solo alcuni messaggi di errore e di aggiornamento.
+
+- **App desktop**: la scelta è salvata in `~/.piframe/language_settings.json`. Il valore predefinito resta l'italiano.
+- **Web e telefono (accesso remoto)**: il client web non può leggere `~/.piframe`, quindi salva la scelta nel `localStorage` del browser. Se non hai mai scelto una lingua, il client web usa la lingua del browser: italiano per `it-*`, inglese per le altre lingue.
+
+## 13. Terminale integrato: output di Git allineato
+
+I processi del terminale integrato usano pipe e non una pseudo-console. Strumenti come `git` scrivono righe terminate solo con LF, che venivano mostrate "a scaletta" (ogni riga partiva dalla colonna in cui finiva la precedente). Ora PiFrame converte ogni LF isolato in CRLF prima di scrivere nel terminale, anche per lo stderr e quando un CRLF è diviso tra due blocchi di output. Comandi come `git branch` o `git log --oneline` vengono quindi mostrati allineati.

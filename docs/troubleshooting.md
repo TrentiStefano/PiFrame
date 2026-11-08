@@ -372,6 +372,11 @@ Se il problema persiste dopo il riavvio:
    - Fai clic destro sul dispositivo virtuale e seleziona **Disabilita dispositivo** (o scollega l'applicazione di mirroring dello smartphone).
 4. Avvia nuovamente PiFrame.
 
+#### Caso particolare: Nessun Monitor Attivo (monitor spento o DisplayPort in deep sleep)
+Se il monitor viene spento, o un monitor DisplayPort entra in deep sleep, Windows può restare senza un display attivo (in Gestione dispositivi i monitor risultano con stato *Unknown*, e restano solo modalità generiche a 60 Hz). In questo stato PiFrame si apre con finestra bianca anche con il rendering software di Flutter, perché il motore non riceve vsync dal display. Altre app (terminale, Electron) possono invece sembrare normali.
+1. Accendi il monitor o riattivalo, poi riavvia PiFrame.
+2. Per sessioni non presidiate (ad esempio registrazioni automatiche), disattiva lo standby del monitor (`powercfg /change monitor-timeout-ac 0`) e la funzione deep sleep del monitor.
+
 #### Soluzione 3: Assegnare la GPU Dedicata (Impostazioni Grafica Windows)
 In sistemi con grafica integrata e scheda grafica dedicata (es. AMD + NVIDIA):
 1. Apri **Impostazioni di Windows → Sistema → Schermo → Grafica**.
@@ -788,3 +793,16 @@ Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `s
 ### Risoluzione
 - La promise di avvio viene assegnata prima e azzerata con `finally` esterno solo se è ancora quella corrente. Un test di regressione esegue cinque cicli consecutivi di sottoscrizione e disiscrizione e verifica che ogni ciclo riavvii il campionamento.
 - Serve un daemon aggiornato: dopo l'aggiornamento riavvia il daemon (Impostazioni → Daemon) per caricare la correzione.
+
+---
+
+## Terminale integrato: output "a scaletta" con `git`
+
+### Sintomi
+Nel terminale integrato, l'output di comandi come `git branch`, `git log --oneline` o `npm test` appariva spostato: ogni riga iniziava nella colonna in cui finiva la riga precedente.
+
+### Causa
+Il terminale integrato avvia la shell tramite pipe, senza pseudo-console. I programmi nativi come `git` scrivono righe terminate solo con LF e l'emulatore non tornava a inizio riga.
+
+### Risoluzione
+PiFrame converte ora ogni LF isolato in CRLF prima di scrivere nel terminale (stdout e stderr), anche quando un CRLF arriva diviso in due blocchi. Aggiorna PiFrame per ricevere la correzione.
