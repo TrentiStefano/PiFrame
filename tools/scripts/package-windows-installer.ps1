@@ -71,7 +71,7 @@ if (-not $SkipBuild) {
         if ($LASTEXITCODE -ne 0) { throw "flutter build windows failed" }
 
         Write-Host "`n[3/4] Building Flutter web app (remote access assets)..." -ForegroundColor Yellow
-        flutter build web --release --no-web-resources-cdn --dart-define="PI_FRAME_VERSION=$Version"
+        flutter build web --release --no-web-resources-cdn --pwa-strategy=none --dart-define="PI_FRAME_VERSION=$Version"
         if ($LASTEXITCODE -ne 0) { throw "flutter build web failed" }
     }
     finally {

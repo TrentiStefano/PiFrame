@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { isLoopbackHost } from './origin.js';
 import { getPiFrameBaseDir } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
+import { sendStaticFile } from './staticFiles.js';
 
 export interface StaticServerOptions {
   staticDir?: string;
@@ -21,9 +22,6 @@ export function findStaticDir(customDir?: string): string | undefined {
 
   const baseDir = getPiFrameBaseDir();
   const userWebDir = path.join(baseDir, 'web');
-  if (fs.existsSync(userWebDir) && fs.existsSync(path.join(userWebDir, 'index.html'))) {
-    return userWebDir;
-  }
 
   const scriptDir = typeof __dirname !== 'undefined' ? __dirname : '';
   const candidates: string[] = [
@@ -56,11 +54,11 @@ export function findStaticDir(customDir?: string): string | undefined {
     candidates.push(userWebDir);
   }
 
-  for (const c of candidates) {
-    if (c && fs.existsSync(c) && fs.existsSync(path.join(c, 'index.html'))) {
-      return c;
-    }
-  }
+  // Several copies of the web build can coexist (a fresh build/web, the one bundled next to the
+  // executable, a synced ~/.piframe/web). Serving a stale one made phones load an old app against a
+  // new daemon, so pick the most recently built copy instead of the first one found.
+  const valid = [...new Set(candidates.filter((c) => c && fs.existsSync(path.join(c, 'index.html'))))];
+  if (valid.length > 0) return newestWebDir(valid);
 
   for (const c of candidates) {
     if (c && fs.existsSync(c)) {
@@ -69,6 +67,31 @@ export function findStaticDir(customDir?: string): string | undefined {
   }
 
   return undefined;
+}
+
+/** Build time of a web bundle: main.dart.js (rewritten by every build), else index.html. */
+function webBuildTime(dir: string): number {
+  for (const f of ['main.dart.js', 'index.html']) {
+    try {
+      return fs.statSync(path.join(dir, f)).mtimeMs;
+    } catch {
+      // try next
+    }
+  }
+  return 0;
+}
+
+export function newestWebDir(dirs: string[]): string {
+  let best = dirs[0];
+  let bestTime = webBuildTime(best);
+  for (const d of dirs.slice(1)) {
+    const t = webBuildTime(d);
+    if (t > bestTime) {
+      best = d;
+      bestTime = t;
+    }
+  }
+  return best;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -355,30 +378,25 @@ export function serveStaticFile(
     return true;
   }
 
+  const respond = (target: string, contentType: string): true => {
+    sendStaticFile(req, res, { filePath: target, contentType }).catch(() => {
+      if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' });
+      if (!res.writableEnded) res.end(JSON.stringify({ ok: false, error: 'Static file error' }));
+    });
+    return true;
+  };
+
   // Check if file exists
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
-    if (req.method === 'HEAD') {
-      res.end();
-    } else {
-      fs.createReadStream(filePath).pipe(res);
-    }
-    return true;
+    return respond(filePath, MIME_TYPES[ext] || 'application/octet-stream');
   }
 
   // SPA fallback to index.html if path has no file extension
   if (!path.extname(url.pathname)) {
     const indexPath = path.join(staticDir, 'index.html');
     if (fs.existsSync(indexPath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      if (req.method === 'HEAD') {
-        res.end();
-      } else {
-        fs.createReadStream(indexPath).pipe(res);
-      }
-      return true;
+      return respond(indexPath, 'text/html; charset=utf-8');
     }
   }
 

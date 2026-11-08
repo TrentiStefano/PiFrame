@@ -149,7 +149,7 @@ if [[ "$needs_build" -eq 1 ]]; then
   pnpm --filter @piframe/agentd run build:bundle
 
   echo "2. Building Flutter web app (for remote daemon access)..."
-  (cd apps/pi_frame && flutter build web --release --no-web-resources-cdn --dart-define="PI_FRAME_VERSION=${version}")
+  (cd apps/pi_frame && flutter build web --release --no-web-resources-cdn --pwa-strategy=none --dart-define="PI_FRAME_VERSION=${version}")
 
   echo "3. Building Flutter macOS application..."
   (cd apps/pi_frame && flutter build macos --release --dart-define="PI_FRAME_VERSION=${version}")

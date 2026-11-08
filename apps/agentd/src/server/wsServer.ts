@@ -127,7 +127,19 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
   } = opts;
 
   const manager = new ConnectionManager();
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 4 * 1024 * 1024 });
+  // permessage-deflate shrinks the JSON transcript snapshots/deltas a lot, which is what dominates
+  // load time over a phone/tunnel link. Small frames skip compression to keep CPU low.
+  const wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: 4 * 1024 * 1024,
+    perMessageDeflate: {
+      threshold: 1024,
+      concurrencyLimit: 4,
+      zlibDeflateOptions: { level: 3 },
+      serverNoContextTakeover: true,
+      clientNoContextTakeover: true
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Remote lifecycle events
