@@ -440,7 +440,8 @@ class ThemeSpec {
               ),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: tokens.accent,
-        selectionColor: tokens.accent.withValues(alpha: 0.2),
+        // 0.2 was barely visible on dark surfaces (selected text could not be told apart).
+        selectionColor: tokens.accent.withValues(alpha: 0.4),
         selectionHandleColor: tokens.accent,
       ),
       iconTheme: IconThemeData(color: tokens.textSecondary, size: 20),

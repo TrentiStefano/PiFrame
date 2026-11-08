@@ -219,12 +219,23 @@ class DaemonLocator {
           '${Platform.environment['USERPROFILE'] ?? ''}/.piframe/web',
           '${Platform.environment['HOME'] ?? ''}/.piframe/web',
         ];
+        // Several copies can coexist (fresh build/web, the one next to the executable, a synced
+        // ~/.piframe/web). Use the most recently built one: serving a stale copy made phones load an
+        // old web app against a newer daemon.
+        var newest = DateTime.fromMillisecondsSinceEpoch(0);
         for (final candidate in webCandidates) {
           if (candidate.isEmpty) continue;
           final d = Directory(candidate);
-          if (d.existsSync() && File('${d.path}/index.html').existsSync()) {
+          if (!d.existsSync() || !File('${d.path}/index.html').existsSync()) {
+            continue;
+          }
+          final marker = File('${d.path}/main.dart.js').existsSync()
+              ? File('${d.path}/main.dart.js')
+              : File('${d.path}/index.html');
+          final builtAt = marker.lastModifiedSync();
+          if (webDir == null || !Directory(webDir).existsSync() || builtAt.isAfter(newest)) {
             webDir = d.absolute.path;
-            break;
+            newest = builtAt;
           }
         }
       }

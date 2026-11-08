@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -24,6 +25,13 @@ class _ShimmerBorderState extends State<ShimmerBorder>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  /// Phone browsers (canvaskit) cannot sustain a 60fps blurred sweep + animated shadow around the
+  /// composer while the agent streams: it made the whole web UI lag. Use a static accent border.
+  bool _lite = false;
+
+  bool get _isTest =>
+      WidgetsBinding.instance.runtimeType.toString().contains('Test');
+
   @override
   void initState() {
     super.initState();
@@ -31,24 +39,28 @@ class _ShimmerBorderState extends State<ShimmerBorder>
       vsync: this,
       duration: const Duration(milliseconds: 3200),
     );
-    final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    if (widget.isActive && !isTest) {
-      _controller.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
+    _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    if (widget.isActive && !_isTest && !_lite) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      _controller.stop();
+      _controller.value = 0;
     }
   }
 
   @override
   void didUpdateWidget(ShimmerBorder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isActive != oldWidget.isActive) {
-      final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
-      if (widget.isActive && !isTest) {
-        _controller.repeat();
-      } else {
-        _controller.stop();
-        _controller.value = 0;
-      }
-    }
+    if (widget.isActive != oldWidget.isActive) _syncAnimation();
   }
 
   @override
@@ -66,6 +78,20 @@ class _ShimmerBorderState extends State<ShimmerBorder>
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
           border: Border.all(color: tokens.border, width: 1),
+        ),
+        child: widget.child,
+      );
+    }
+
+    if (_lite) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: widget.borderRadius,
+          // Thin, softened accent: a 2px bright ring looked heavy around the phone composer.
+          border: Border.all(
+            color: tokens.accent.withValues(alpha: 0.7),
+            width: math.min(widget.strokeWidth, 1.25),
+          ),
         ),
         child: widget.child,
       );

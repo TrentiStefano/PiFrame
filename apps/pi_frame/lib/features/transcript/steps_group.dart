@@ -124,6 +124,9 @@ class StepsGroup extends ConsumerStatefulWidget {
 /// it becomes a compact scrollable list.
 const double kStepListMaxHeightFraction = 0.5;
 
+/// Below this window width the steps block is minimized by default.
+const double kCompactStepsWidth = 600;
+
 class _StepsGroupState extends ConsumerState<StepsGroup> {
   Timer? _liveTimer;
 
@@ -229,6 +232,8 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       turnId: widget.block.turnId,
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
+      // Phone-sized screens: start minimized, the user opens it on demand.
+      compactDefault: MediaQuery.sizeOf(context).width < kCompactStepsWidth,
     );
 
     final fullyExpanded =
