@@ -1,528 +1,781 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PiFrame — The Native Flutter GUI for Pi-Coding Agent</title>
+  <title>PiFrame — Desktop GUI for Pi Coding Agent</title>
   
-  <meta name="description" content="PiFrame is a sleek, modern, disconnect-safe cross-platform GUI built with Flutter for the Pi-Coding agent. Featuring a 120fps Bento Triptych workspace, background daemon resilience, and zero telemetry.">
-  <meta name="keywords" content="PiFrame, Flutter, Pi-Coding Agent, AI Coding Assistant, Bento Grid, Developer Tools, Desktop GUI, Open Source">
+  <meta name="description" content="PiFrame is the desktop app for Pi Coding Agent: your Pi setup in a desktop workspace with side-by-side diffs, Git, background agents, and an agent that keeps working when you close the window.">
+  <meta name="keywords" content="PiFrame, Desktop GUI, Pi Coding Agent, Three Pane Workspace, Disconnect Safe, AI Coding Assistant, Zero Telemetry, Open Source">
   <meta name="author" content="Stefano Trenti & Community">
-  
+
+  <!-- Color Scheme and Theme Color for Light and Dark Browsers -->
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#eeede9">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161c27">
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://trentistefano.github.io/piframe/">
+
   <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://trentistefano.github.io/piframe/">
-  <meta property="og:title" content="PiFrame — The Native Flutter GUI for Pi-Coding Agent">
-  <meta property="og:description" content="Engineered for developers who demand fluid 120fps motion, native desktop speed, and zero lost agent work. Decoupled daemon architecture with Bento triptych ergonomics.">
-  <meta property="og:image" content="./assets/img/ui/clip-01-bento-workspace.preview.png">
+  <meta property="og:title" content="PiFrame — Desktop GUI for Pi Coding Agent">
+  <meta property="og:description" content="The desktop app for Pi Coding Agent: your Pi setup in a desktop workspace with side-by-side diffs, Git, and an agent that keeps working when you close the window.">
+  <meta property="og:image" content="https://trentistefano.github.io/piframe/assets/social/og-image.jpg">
   
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="PiFrame — The Native Flutter GUI for Pi-Coding Agent">
-  <meta name="twitter:description" content="Sleek, resilient cross-platform GUI built with Flutter for pi-coding-agent. Disconnect-safe, 120fps, zero telemetry.">
-  <meta name="twitter:image" content="./assets/img/ui/clip-01-bento-workspace.preview.png">
+  <meta name="twitter:title" content="PiFrame — Desktop GUI for Pi Coding Agent">
+  <meta name="twitter:description" content="The desktop app for Pi Coding Agent: your Pi setup in a desktop workspace with side-by-side diffs, Git, and an agent that keeps working when you close the window.">
+  <meta name="twitter:image" content="https://trentistefano.github.io/piframe/assets/social/og-image.jpg">
 
-  <!-- Favicons -->
-  <link rel="icon" type="image/svg+xml" href="./assets/icons/piframe-dark.svg">
-  <link rel="alternate icon" type="image/png" href="./assets/icons/piframe-dark-1024.png">
+  <!-- Favicons (Raster PNGs, zero bloated SVGs) -->
+  <link rel="icon" type="image/png" sizes="64x64" href="./assets/icons/piframe-dark-64.png">
+  <link rel="apple-touch-icon" href="./assets/icons/piframe-dark-256.png">
 
-  <!-- Preconnect Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Preload Hero LCP Poster (Lightweight WebP) -->
+  <link rel="preload" as="image" href="./assets/video/piframe-promo-poster.webp" fetchpriority="high">
 
-  <!-- Custom Stylesheet -->
+  <!-- Inline Theme Script (Runs BEFORE stylesheet to guarantee zero theme flash) -->
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('piframe-theme-pref') || 'auto';
+        var effective = saved;
+        if (saved === 'auto') {
+          effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', effective);
+        document.documentElement.setAttribute('data-theme-pref', saved);
+      } catch(e) {}
+    })();
+  </script>
+
+  <!-- Core Self-Contained Stylesheet -->
   <link rel="stylesheet" href="./css/style.css">
 </head>
-<body class="noise-bg">
-  <!-- Dynamic Ambient Glow Spots -->
-  <div class="ambient-glow glow-top" aria-hidden="true"></div>
-  <div class="ambient-glow glow-mid" aria-hidden="true"></div>
-  <div class="ambient-glow glow-bottom" aria-hidden="true"></div>
+<body class="editorial-body">
+  <!-- Accessibility Skip Link -->
+  <a href="#mainContent" class="skip-link">Skip to main content</a>
 
-  <!-- Minimal Floating Navigation Bar -->
-  <header class="navbar-wrapper">
-    <nav class="navbar" aria-label="Main Navigation">
-      <a href="#" class="brand-link" aria-label="PiFrame Homepage">
-        <div class="brand-logo-frame">
-          <img src="./assets/icons/piframe-dark.svg" alt="PiFrame Logo" class="brand-logo-img" width="26" height="26">
-        </div>
-        <span class="brand-title">PiFrame</span>
-        <span class="badge-version">v1.0.0</span>
+  <!-- TOP MINIMAL NAVIGATION -->
+  <header class="site-header" id="siteHeader">
+    <div class="header-inner">
+      <a href="#hero" class="brand">
+        <span class="brand-icon">
+          <img src="./assets/icons/piframe-dark-64.png" alt="" class="logo-light" width="28" height="28" aria-hidden="true">
+          <img src="./assets/icons/piframe-light-64.png" alt="" class="logo-dark" width="28" height="28" aria-hidden="true">
+        </span>
+        <span class="brand-name">PiFrame</span>
+        <span class="brand-pill">Open source</span>
       </a>
 
-      <div class="nav-links">
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#architecture" class="nav-link">Architecture</a>
-        <a href="#workflow" class="nav-link">Workflow</a>
-        <a href="#faq" class="nav-link">FAQ</a>
-      </div>
+      <nav class="nav-desktop" aria-label="Primary Navigation">
+        <a href="#why-piframe" class="nav-item">Why PiFrame</a>
+        <a href="#showcase" class="nav-item">Features</a>
+        <a href="#architecture" class="nav-item">Architecture</a>
+        <a href="#install" class="nav-item">Install</a>
+        <a href="#faq" class="nav-item">FAQ</a>
+      </nav>
 
-      <div class="nav-actions">
-        <!-- Theme Toggle (PiFrame Dark / Light) -->
-        <button class="btn-theme-toggle" id="themeToggleBtn" aria-label="Toggle theme between PiFrame Dark and PiFrame Light" title="Toggle theme">
-          <svg class="icon-theme icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-          <svg class="icon-theme icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="5"/>
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-          </svg>
-        </button>
+      <div class="header-actions">
+        <!-- 3-State Theme Toggle (Light / Auto / Dark) -->
+        <div class="theme-switch" role="radiogroup" aria-label="Color theme selection">
+          <button type="button" class="theme-opt" data-theme-set="light" role="radio" aria-checked="false" aria-label="Light mode" title="Light mode">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <circle cx="10" cy="10" r="4"/>
+              <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M4.93 15.07l1.41-1.41M13.66 6.34l1.41-1.41"/>
+            </svg>
+          </button>
+          <button type="button" class="theme-opt active" data-theme-set="auto" role="radio" aria-checked="true" aria-label="System theme" title="System theme">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3" y="3" width="14" height="10" rx="2"/>
+              <path d="M7 17h6M10 13v4"/>
+            </svg>
+          </button>
+          <button type="button" class="theme-opt" data-theme-set="dark" role="radio" aria-checked="false" aria-label="Dark mode" title="Dark mode">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+            </svg>
+          </button>
+        </div>
 
-        <a href="https://github.com/TrentiStefano/piframe" target="_blank" rel="noopener noreferrer" class="btn-github" id="starNavBtn">
-          <svg class="icon-github" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <a href="https://github.com/TrentiStefano/PiFrame" target="_blank" rel="noopener noreferrer" class="btn-subtle" aria-label="Inspect PiFrame repository on GitHub">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
-          <span>Star on GitHub</span>
+          <span>GitHub</span>
         </a>
 
-        <a href="#download" class="btn-primary btn-nav-cta">
+        <a href="#install" class="btn-primary" id="navDownloadBtn">
           <span>Get PiFrame</span>
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M8 2v9m0 0l-3.5-3.5M8 11l3.5-3.5M3 14h10" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </a>
 
-        <!-- Mobile Menu Toggle -->
-        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle navigation menu" aria-expanded="false">
-          <span class="bar"></span>
-          <span class="bar"></span>
+        <!-- Mobile hamburger toggle -->
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobileNav">
+          <span class="toggle-line"></span>
+          <span class="toggle-line"></span>
         </button>
       </div>
-    </nav>
+    </div>
 
-    <!-- Mobile Overlay Menu -->
-    <div class="mobile-menu" id="mobileMenu">
-      <div class="mobile-menu-inner">
-        <a href="#features" class="mobile-link">Features</a>
-        <a href="#architecture" class="mobile-link">Architecture</a>
-        <a href="#workflow" class="mobile-link">Workflow</a>
-        <a href="#faq" class="mobile-link">FAQ</a>
-        <div class="mobile-actions">
-          <button class="btn-secondary w-full" id="mobileThemeToggleBtn">
-            <span>Toggle Light / Dark Theme</span>
-          </button>
-          <a href="https://github.com/TrentiStefano/piframe" target="_blank" rel="noopener noreferrer" class="btn-github w-full">
-            Star on GitHub
-          </a>
-          <a href="#download" class="btn-primary w-full">
+    <!-- Mobile Drawer -->
+    <div class="mobile-drawer" id="mobileNav" aria-hidden="true">
+      <div class="mobile-drawer-inner">
+        <a href="#why-piframe" class="mobile-nav-link">Why PiFrame</a>
+        <a href="#showcase" class="mobile-nav-link">Features</a>
+        <a href="#architecture" class="mobile-nav-link">Architecture</a>
+        <a href="#install" class="mobile-nav-link">Installation</a>
+        <a href="#faq" class="mobile-nav-link">FAQ</a>
+        <div class="mobile-drawer-theme">
+          <span>Appearance</span>
+          <div class="theme-switch" role="radiogroup" aria-label="Color theme selection mobile">
+            <button type="button" class="theme-opt" data-theme-set="light" role="radio" aria-checked="false" aria-label="Light mode">
+              <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <circle cx="10" cy="10" r="4"/>
+                <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M4.93 15.07l1.41-1.41M13.66 6.34l1.41-1.41"/>
+              </svg>
+            </button>
+            <button type="button" class="theme-opt active" data-theme-set="auto" role="radio" aria-checked="true" aria-label="System theme">
+              <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <rect x="3" y="3" width="14" height="10" rx="2"/>
+                <path d="M7 17h6M10 13v4"/>
+              </svg>
+            </button>
+            <button type="button" class="theme-opt" data-theme-set="dark" role="radio" aria-checked="false" aria-label="Dark mode">
+              <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="mobile-cta-box">
+          <a href="#install" class="btn-primary w-full">
             Download PiFrame
+          </a>
+          <a href="https://github.com/TrentiStefano/PiFrame" target="_blank" rel="noopener noreferrer" class="btn-subtle w-full">
+            View Source on GitHub
           </a>
         </div>
       </div>
     </div>
   </header>
 
-  <main>
+  <main id="mainContent">
     <!-- HERO SECTION -->
     <section class="hero-section" id="hero">
       <div class="container hero-container">
-        
-        <!-- Release Pill -->
-        <div class="hero-pill-wrapper fade-in-up">
-          <a href="https://github.com/TrentiStefano/piframe/releases/latest" target="_blank" rel="noopener noreferrer" class="hero-pill">
-            <span class="pill-badge">Release v1.0.0</span>
-            <span class="pill-text">Disconnect-safe GUI for Pi-Coding Agent</span>
-            <span class="pill-arrow">→</span>
+        <!-- Release Pill & Real Trust Signal -->
+        <div class="hero-eyebrow">
+          <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="eyebrow-pill" target="_blank" rel="noopener noreferrer">
+            <span class="pill-dot" aria-hidden="true"></span>
+            <span class="pill-title" id="heroReleasePill">v1.3.1 · What's new</span>
+            <span class="pill-arrow" aria-hidden="true">→</span>
+          </a>
+          <a href="https://github.com/TrentiStefano/PiFrame" target="_blank" rel="noopener noreferrer" class="stars-badge-link" aria-label="GitHub repository stars badge">
+            <img src="https://img.shields.io/github/stars/TrentiStefano/PiFrame?style=flat" alt="GitHub stars badge" width="80" height="20" loading="lazy">
           </a>
         </div>
 
-        <!-- Main Headline -->
-        <h1 class="hero-title fade-in-up">
-          The Native Flutter GUI for <br class="desktop-br">
-          <span class="gradient-text">Pi-Coding Agent</span>
+        <!-- Headline & Value Proposition (Leading with GUI benefit vs TUI, no Flutter in hero/subhead) -->
+        <!--
+          Alternative Headline Pairs:
+          1.
+          H1: A visual workspace for the Pi Coding Agent
+          Subhead: Inspect diffs side by side, monitor background subagents, and keep turns running even when the window closes.
+          2.
+          H1: The resilient desktop companion for Pi Coding Agent
+          Subhead: Zero-risk drop-in GUI for your existing Pi setup. Disconnect-safe execution, local privacy, and zero telemetry.
+          3.
+          H1: Code with Pi Coding Agent on your desktop
+          Subhead: Review changes before committing, steer active turns, and let agents work in the background without terminal interruptions.
+        -->
+        <h1 class="hero-headline">
+          The desktop GUI for the <span class="highlight-ink">Pi Coding Agent</span>
         </h1>
 
-        <!-- Subheadline / Value Proposition -->
-        <p class="hero-description fade-in-up">
-          Engineered for developers who demand <strong>120fps fluid motion</strong>, native desktop speed, and <strong>zero lost agent work</strong>. Decoupled 3-tier daemon architecture with Bento triptych ergonomics and strictly zero telemetry.
+        <p class="hero-subhead">
+          Your Pi setup, packages and sessions in a desktop workspace with side-by-side diffs, Git, and an agent that keeps working when you close the window.
         </p>
 
-        <!-- Balanced & Well-Proportioned CTAs -->
-        <div class="hero-cta-group fade-in-up">
-          <a href="https://github.com/TrentiStefano/piframe/releases/latest" class="btn-primary btn-hero-cta magnetic" id="heroDownloadBtn">
-            <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <!-- Primary Action Group -->
+        <div class="hero-actions">
+          <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="btn-hero-primary" id="heroDownloadBtn">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M10 3v10m0 0l-4-4m4 4l4-4M4 17h12" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span id="detectedOsLabel">Download Latest Release</span>
+            <span id="detectedOsLabel">Windows installer (.exe) on GitHub Releases</span>
           </a>
 
-          <a href="https://github.com/TrentiStefano/piframe" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-hero-cta magnetic">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+          <a href="https://github.com/TrentiStefano/PiFrame" target="_blank" rel="noopener noreferrer" class="btn-hero-secondary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
-            <span>View on GitHub</span>
+            <span>GitHub Repository</span>
           </a>
         </div>
 
-        <!-- Terminal Quick-Command Copy -->
-        <div class="hero-code-snippet fade-in-up">
-          <div class="code-box">
-            <span class="code-prompt">$</span>
-            <code id="cliSnippet">npm install -g @earendil-works/pi-coding-agent</code>
-            <button class="btn-copy" data-copy-target="cliSnippet" aria-label="Copy installation command">
-              <svg class="icon-copy" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              <span class="copy-tooltip">Copied!</span>
-            </button>
-          </div>
-          <span class="snippet-caption">Zero configuration needed • Bundles local daemon <code>pi-agentd</code></span>
-        </div>
-
-        <!-- CENTERPIECE APPLICATION FRAME SHOWCASING THE REAL UI -->
-        <div class="centerpiece-stage fade-in-up" id="workspace">
-          <div class="window-frame tilt-element" id="heroWindowFrame">
-            <!-- Glow backlight -->
-            <div class="window-glow" aria-hidden="true"></div>
-
-            <!-- Titlebar with Real View Selectors -->
-            <div class="window-titlebar">
-              <div class="titlebar-controls">
-                <span class="traffic-dot dot-close"></span>
-                <span class="traffic-dot dot-minimize"></span>
-                <span class="traffic-dot dot-maximize"></span>
-              </div>
-
-              <!-- Interactive Tab Switcher for Real Application Views -->
-              <div class="window-tabs" role="tablist" aria-label="PiFrame Real Application Views">
-                <button class="win-tab active" role="tab" aria-selected="true" data-ui-target="ui-bento-dark">
-                  <span class="tab-indicator"></span>
-                  <span>PiFrame Dark</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-bento-light">
-                  <span class="tab-indicator"></span>
-                  <span>PiFrame Light</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-steer">
-                  <span class="tab-indicator"></span>
-                  <span>Steer Queue</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-reasoning">
-                  <span class="tab-indicator"></span>
-                  <span>Reasoning Stream</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-git">
-                  <span class="tab-indicator"></span>
-                  <span>Git Staging Desk</span>
-                </button>
-                <button class="win-tab" role="tab" aria-selected="false" data-ui-target="ui-themes">
-                  <span class="tab-indicator"></span>
-                  <span>Theme Editor</span>
-                </button>
-              </div>
-
-              <div class="titlebar-meta">
-                <div class="daemon-status-pill">
-                  <span class="status-pulse-dot"></span>
-                  <span class="daemon-text">pi-agentd: Connected (127.0.0.1)</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Window Content: Displaying the Real Flutter UI Captures -->
-            <div class="window-body real-ui-display">
-              <figure class="ui-view-wrapper active" id="ui-bento-dark">
-                <img src="./assets/img/bento-triptych-fixture-dark-wide.png" alt="Real PiFrame Bento Triptych Workspace running official PiFrame Dark theme" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">Official PiFrame Dark theme (#161c27) running natively with Flutter Impeller</span>
-                </figcaption>
-              </figure>
-
-              <figure class="ui-view-wrapper" id="ui-bento-light">
-                <img src="./assets/img/bento-triptych-fixture-wide.png" alt="Real PiFrame Bento Triptych Workspace running official PiFrame Light theme" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">Official PiFrame Light theme (#f1f3f7) with high-contrast typography and subtle boundaries</span>
-                </figcaption>
-              </figure>
-
-              <figure class="ui-view-wrapper" id="ui-steer">
-                <img src="./assets/img/ui/clip-04-steer-queue.preview.png" alt="Real PiFrame In-Flight Steer Queue: Re-order, modify, or dismiss pending steer instructions" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">In-flight steer queue: modify, prioritize, and steer agent reasoning without interrupting token generation</span>
-                </figcaption>
-              </figure>
-
-              <figure class="ui-view-wrapper" id="ui-reasoning">
-                <img src="./assets/img/ui/clip-06-reasoning-stream.preview.png" alt="Real PiFrame Reasoning Stream: Real-time token output, live cost metrics, and thinking blocks" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">High-framerate token stream with granular thinking inspection, live cost accumulation, and tool timing</span>
-                </figcaption>
-              </figure>
-
-              <figure class="ui-view-wrapper" id="ui-git">
-                <img src="./assets/img/ui/clip-08-git-staging.preview.png" alt="Real PiFrame Git Staging: Side-by-side split review, staging controls, and file diff viewer" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">Integrated Git staging desk: 50/50 split diff inspection, one-click staging, and file discard actions</span>
-                </figcaption>
-              </figure>
-
-              <figure class="ui-view-wrapper" id="ui-themes">
-                <img src="./assets/img/ui/04_theme_editor.png" alt="Real PiFrame Theme Editor: Custom token inheritance and live component preview" class="real-ui-img" loading="eager">
-                <figcaption class="ui-caption-bar">
-                  <span class="cap-tag">Actual Application UI</span>
-                  <span class="cap-text">Dedicated Theme Customizer: token inheritance, live preview cards, and custom JSON import</span>
-                </figcaption>
-              </figure>
+        <!-- HERO PROMO VIDEO (Clean Single Frame, Poster First) -->
+        <div class="hero-stage">
+          <div class="showcase-media-frame hero-media-frame" data-slug="hero-promo">
+            <video class="media-video hero-video" id="heroPromoVideo" poster="./assets/video/piframe-promo-poster.webp" preload="none" playsinline muted loop aria-label="PiFrame promo walkthrough video recorded from the real application">
+              <source data-src="./assets/video/piframe-promo.webm" type="video/webm">
+              <source data-src="./assets/video/piframe-promo.mp4" type="video/mp4">
+              <img src="./assets/video/piframe-promo-poster.webp" alt="PiFrame promo video poster" loading="lazy">
+            </video>
+            <div class="media-controls hero-controls" aria-label="Hero video controls">
+              <button class="ctrl-btn ctrl-play" aria-label="Play or pause hero promo video" title="Play / Pause">
+                <svg class="icon-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              </button>
+              <button class="ctrl-btn ctrl-mute muted" type="button" title="Mute / Unmute sound">
+                <svg class="icon-sound" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <svg class="icon-muted" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                <span class="mute-label">Unmute</span>
+              </button>
+              <span class="ctrl-caption">Real desktop run (26.5s)</span>
             </div>
           </div>
         </div>
 
-        <!-- Metric Ribbon (Authentic Data Only) -->
-        <div class="metrics-ribbon fade-in-up">
-          <div class="metric-block">
-            <span class="metric-val">120</span><span class="metric-unit">FPS</span>
-            <span class="metric-desc">Native Flutter Impeller Engine</span>
+        <!-- WHY PIFRAME INSTEAD OF THE TERMINAL? (Concrete Day-to-Day Benefits) -->
+        <div class="terminal-vs-piframe">
+          <div class="comparison-header">
+            <span class="intro-kicker">WHY PIFRAME INSTEAD OF THE TERMINAL?</span>
+            <h2 class="comparison-title">Concrete benefits for existing Pi users</h2>
           </div>
-          <div class="metric-block">
-            <span class="metric-val">0</span><span class="metric-unit">%</span>
-            <span class="metric-desc">Cloud Telemetry (Localhost Bound)</span>
-          </div>
-          <div class="metric-block">
-            <span class="metric-val">100</span><span class="metric-unit">%</span>
-            <span class="metric-desc">Native Pi CLI Session Compatibility</span>
-          </div>
-          <div class="metric-block">
-            <span class="metric-val">0</span><span class="metric-unit">s</span>
-            <span class="metric-desc">Lost Work on Window Close</span>
+          <div class="benefits-grid">
+            <div class="benefit-card">
+              <div class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+              </div>
+              <h3>Side-by-side workspace</h3>
+              <p>See repository files, streaming chat transcript, and Git diffs together without toggling terminal tabs or tmux splits.</p>
+            </div>
+            <div class="benefit-card">
+              <div class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+              </div>
+              <h3>50/50 split diff review</h3>
+              <p>Review the agent's changes side by side (or unified) with syntax highlighting, then stage and commit from the same window.</p>
+            </div>
+            <div class="benefit-card">
+              <div class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h3>Disconnect-safe execution</h3>
+              <p>Close the window mid-turn. A local background service keeps Pi running, and PiFrame catches up when you reopen it.</p>
+            </div>
+            <div class="benefit-card">
+              <div class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </div>
+              <h3>Subagent tree & phone control</h3>
+              <p>Watch background agents with their model, cost and current step, and follow or steer a session from your phone over Tailscale (opt-in).</p>
+            </div>
           </div>
         </div>
 
       </div>
     </section>
 
-    <!-- SECTION 2: BENTO GRID FEATURES (FEATURING REAL UI SCREENSHOTS) -->
-    <section class="section features-section" id="features">
+    <!-- WHY PIFRAME (4 PILLARS IN EXACT SPECIFIED ORDER) -->
+    <section class="why-section" id="why-piframe">
       <div class="container">
         
-        <div class="section-header">
-          <span class="section-tag">ENGINEERED FOR DEVELOPERS</span>
-          <h2 class="section-title">Built to eliminate friction between mind and machine</h2>
-          <p class="section-subtitle">
-            Most agent GUIs are slow Electron wrappers that freeze on large token streams. PiFrame is compiled natively with Flutter for instant, tactile feedback.
+        <div class="section-intro text-center">
+          <span class="intro-kicker">WHY PIFRAME</span>
+          <h2 class="intro-headline">Your Pi, in a desktop app</h2>
+          <p class="intro-subhead">
+            Four reasons Pi users try PiFrame, and why trying it costs nothing.
           </p>
         </div>
 
-        <!-- Bento Grid Structure with Genuine UI Visuals -->
-        <div class="bento-grid">
+        <div class="pillars-grid">
           
-          <!-- Card 1: Built with Flutter (Impeller Engine) (Large Span) -->
-          <article class="bento-card card-flutter bento-span-7 spotlight-card">
-            <div class="card-glow" aria-hidden="true"></div>
-            <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">⚡</span>
-                <span>Native Engine</span>
-              </div>
-              <h3 class="card-title">120 FPS Fluidity with Flutter Impeller</h3>
-              <p class="card-text">
-                No webview latency, no janky DOM recalculations. Powered by Flutter's modern Impeller graphics engine with custom physics, sub-10ms input response, and instant syntax-highlighted code scrolling.
-              </p>
-              
-              <!-- Real Capture Preview -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/bento-triptych-fixture-dark-wide.png" alt="PiFrame Bento Workspace real UI in PiFrame Dark" class="card-preview-img" loading="lazy">
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 2: Visual Agent Workflow & Steer Queue (Span 5) -->
-          <article class="bento-card card-workflow bento-span-5 spotlight-card">
-            <div class="card-glow" aria-hidden="true"></div>
-            <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🎯</span>
-                <span>Autonomous Flow</span>
-              </div>
-              <h3 class="card-title">Visual Steering & Live ToDo Tasks</h3>
-              <p class="card-text">
-                Steer the agent in-flight without interrupting generation. Re-order queued directions, track task milestones, and expand subagents in real time.
-              </p>
-
-              <!-- Real Steer Queue Screenshot -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-04-steer-queue.preview.png" alt="PiFrame steer queue real UI" class="card-preview-img" loading="lazy">
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 3: 3-Tier Decoupled Daemon (Disconnect-Safe) (Span 4) -->
-          <article class="bento-card card-daemon bento-span-4 spotlight-card">
-            <div class="card-glow" aria-hidden="true"></div>
-            <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🛡️</span>
-                <span>Zero Work Loss</span>
-              </div>
-              <h3 class="card-title">Disconnect-Safe Daemon</h3>
-              <p class="card-text">
-                Close your laptop lid or kill the window. The background daemon (<code>pi-agentd</code>) continues running tools, tests, and token streams, syncing monotonically when you return.
-              </p>
-
-              <!-- Real Disconnect Safe UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-11-disconnect-safe.preview.png" alt="PiFrame disconnect-safe daemon real UI" class="card-preview-img" loading="lazy">
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 4: Minimal & Distraction-Free Workspace (Span 4) -->
-          <article class="bento-card card-bento bento-span-4 spotlight-card">
-            <div class="card-glow" aria-hidden="true"></div>
-            <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">🎨</span>
-                <span>Theme System</span>
-              </div>
-              <h3 class="card-title">PiFrame Dark & Light Themes</h3>
-              <p class="card-text">
-                Precision-engineered with PiFrame Dark (<code>#161c27</code>) and PiFrame Light (<code>#f1f3f7</code>) default themes for all-day focus. Import standard VSCode JSON theme files or tweak tokens directly in the live theme editor.
-              </p>
-
-              <!-- Real Theme UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/04_theme_editor.png" alt="PiFrame custom themes editor real UI" class="card-preview-img" loading="lazy">
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 5: 100% Native Pi & Git Diff Staging (Span 4) -->
-          <article class="bento-card card-native bento-span-4 spotlight-card">
-            <div class="card-glow" aria-hidden="true"></div>
-            <div class="card-content">
-              <div class="card-badge">
-                <span class="badge-icon">📂</span>
-                <span>Review & Stage</span>
-              </div>
-              <h3 class="card-title">Git Changes Review Desk</h3>
-              <p class="card-text">
-                Dedicated 50/50 split or unified diff viewing to inspect changes before committing. One-click staging, unstaging, and rollback.
-              </p>
-
-              <!-- Real Git Staging UI -->
-              <div class="card-real-img-frame">
-                <img src="./assets/img/ui/clip-08-git-staging.preview.png" alt="PiFrame Git staging review desk real UI" class="card-preview-img" loading="lazy">
-              </div>
-            </div>
-          </article>
-
-        </div>
-
-      </div>
-    </section>
-
-    <!-- SECTION 3: ARCHITECTURE DEEP-DIVE -->
-    <section class="section arch-section" id="architecture">
-      <div class="container">
-        
-        <div class="section-header">
-          <span class="section-tag">ENGINEERING FOUNDATION</span>
-          <h2 class="section-title">The Three-Tier Decoupled Architecture</h2>
-          <p class="section-subtitle">
-            Why traditional monolithic wrappers fail, and how PiFrame separates the rendering shell from execution.
-          </p>
-        </div>
-
-        <div class="arch-diagram-wrapper">
-          <div class="arch-tiers">
-            
-            <div class="arch-tier-box">
-              <div class="tier-num">01</div>
-              <div class="tier-body">
-                <h3 class="tier-heading">Flutter Native GUI</h3>
-                <p class="tier-text">
-                  60/120fps hardware-accelerated user interface. Handles Bento triptych layout, code viewer with syntax highlighting, inline diff inspections, and direct OS hardware keyboard typing.
-                </p>
-                <div class="tier-features">
-                  <span>Impeller Renderer</span>
-                  <span>Keyboard-Centric</span>
-                  <span>Instant Tabs</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="arch-arrow">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="arrow-text">IPC / Localhost</span>
-            </div>
-
-            <div class="arch-tier-box highlight">
-              <div class="tier-num">02</div>
-              <div class="tier-body">
-                <h3 class="tier-heading">pi-agentd (Local Daemon)</h3>
-                <p class="tier-text">
-                  Independent Node.js background process strictly bound to <code>127.0.0.1</code> with cryptographically random tokens. Manages session lifecycle, streams events monotonically, and executes tool actions.
-                </p>
-                <div class="tier-features">
-                  <span>Disconnect-Safe</span>
-                  <span>Monotonic Journal</span>
-                  <span>Decision D16 (No Telemetry)</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="arch-arrow">
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="arrow-text">File System</span>
-            </div>
-
-            <div class="arch-tier-box">
-              <div class="tier-num">03</div>
-              <div class="tier-body">
-                <h3 class="tier-heading">Pi CLI & Session Store</h3>
-                <p class="tier-text">
-                  Authoritative sessions remain in <code>~/.pi/agent/sessions/</code>. You can start a run in the terminal, monitor it from PiFrame, or disconnect without affecting state.
-                </p>
-                <div class="tier-features">
-                  <span>100% CLI Parity</span>
-                  <span>Direct Model Auth</span>
-                  <span>Portable JSONL</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- SECTION 4: 3-STEP QUICK WORKFLOW -->
-    <section class="section workflow-section" id="workflow">
-      <div class="container">
-        
-        <div class="section-header">
-          <span class="section-tag">GETTING STARTED</span>
-          <h2 class="section-title">Up and running in sixty seconds</h2>
-          <p class="section-subtitle">
-            Zero complex Docker configurations, no remote dependencies. Run natively on your machine.
-          </p>
-        </div>
-
-        <div class="workflow-steps">
-          
-          <!-- Step 1 -->
-          <div class="step-card">
-            <div class="step-number">01</div>
-            <h3 class="step-title">Install Pi Coding Agent</h3>
-            <p class="step-desc">
-              PiFrame connects to the official Pi CLI engine. If you haven't installed it yet, install globally via npm:
+          <!-- Pillar 1: Drop-in for Pi users. Zero risk to try. -->
+          <article class="pillar-card">
+            <div class="pillar-numeral" aria-hidden="true">01 / PILLAR</div>
+            <h3 class="pillar-title">Drop-in for Pi users. Zero risk to try.</h3>
+            <p class="pillar-body">
+              PiFrame starts your installed <code>pi</code> and uses your existing config, providers, models, packages, skills and sessions. Nothing to migrate: sessions stay in Pi's own folder, so you can switch between the <code>pi</code> CLI and PiFrame at any time. PiFrame keeps its own data in <code>~/.piframe/</code> and changes files in <code>~/.pi/</code> only when you ask it to from the app (for example deleting a session or toggling an MCP server). Don't like it? Uninstall it: Pi is still there.
             </p>
-            <div class="step-code">
-              <code>npm install -g @earendil-works/pi-coding-agent</code>
-              <button class="btn-copy mini" data-copy="npm install -g @earendil-works/pi-coding-agent" aria-label="Copy step 1 command">
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+            <ul class="pillar-proof-list">
+              <li><span class="proof-check" aria-hidden="true">✔</span> Works with your existing Pi sessions</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Isolated data in <code>~/.piframe/</code></li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Uninstalling leaves Pi and your sessions in place</li>
+            </ul>
+          </article>
+
+          <!-- Pillar 2: Disconnect-safe. -->
+          <article class="pillar-card">
+            <div class="pillar-numeral" aria-hidden="true">02 / PILLAR</div>
+            <h3 class="pillar-title">Disconnect-safe.</h3>
+            <p class="pillar-body">
+              Pi runs inside a local background service (<code>pi-agentd</code>), not inside the window. Close the window mid-turn and the agent keeps working. Reopen PiFrame and it reconnects and catches up on what happened, using a local log of the session's events.
+            </p>
+            <ul class="pillar-proof-list">
+              <li><span class="proof-check" aria-hidden="true">✔</span> Background daemon keeps workers alive</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Session events logged locally</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Automatic catch-up on window reconnect</li>
+            </ul>
+          </article>
+
+          <!-- Pillar 3: Local & private. -->
+          <article class="pillar-card">
+            <div class="pillar-numeral" aria-hidden="true">03 / PILLAR</div>
+            <h3 class="pillar-title">Local & private.</h3>
+            <p class="pillar-body">
+              The background service listens only on <code>127.0.0.1</code> and requires a random per-install token. PiFrame has no analytics and no telemetry. Network traffic is what Pi sends to your model provider, plus the optional update check and remote access you choose to enable. <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/security.md" class="proof-link" target="_blank" rel="noopener noreferrer">Read security architecture →</a>
+            </p>
+            <ul class="pillar-proof-list">
+              <li><span class="proof-check" aria-hidden="true">✔</span> Strict loopback binding (<code>127.0.0.1</code>)</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Per-install cryptographic Bearer token</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> No analytics, no telemetry</li>
+            </ul>
+          </article>
+
+          <!-- Pillar 4: Native desktop app. -->
+          <article class="pillar-card">
+            <div class="pillar-numeral" aria-hidden="true">04 / PILLAR</div>
+            <h3 class="pillar-title">Native desktop app.</h3>
+            <p class="pillar-body">
+              A real desktop app for Windows, macOS and Linux, with installers that bundle everything PiFrame needs (Pi itself stays your own install). Repository, chat and Git live in one window, with an integrated terminal for PowerShell, bash, zsh or WSL.
+            </p>
+            <ul class="pillar-proof-list">
+              <li><span class="proof-check" aria-hidden="true">✔</span> Installers for Windows, macOS and Linux</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> Native terminal: PowerShell, bash, zsh, and WSL</li>
+              <li><span class="proof-check" aria-hidden="true">✔</span> English and Italian UI</li>
+            </ul>
+          </article>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FEATURE SHOWCASE: 4 HERO CHAPTERS + COMPACT CARD GRID + REMOTE -->
+    <section class="showcase-section" id="showcase">
+      <div class="container">
+        
+        <div class="section-intro text-center">
+          <span class="intro-kicker">FEATURE CHAPTERS</span>
+          <h2 class="intro-headline">Core capabilities in action</h2>
+          <p class="intro-subhead">
+            Every chapter references a real UI capture from the native desktop application. No simulated mockups, no HTML approximations.
+          </p>
+        </div>
+
+        <div class="chapters-container">
+
+          <!-- CHAPTER 1: 01-disconnect-safe -->
+          <article class="chapter-row" id="disconnect-safe">
+            <div class="chapter-meta">
+              <span class="chapter-index">01 / FEATURE</span>
+              <span class="chapter-tag">LOCAL DAEMON RESILIENCE</span>
+              <h3 class="chapter-title">Close the window, the agent keeps working</h3>
+              <p class="chapter-desc">
+                When you initiate a long-running turn, prompt execution runs inside the local daemon (<code>pi-agentd</code>). Closing the window or terminating the desktop shell leaves the worker process intact. Upon relaunch, the client reconnects to the stream and catches up on events from the local journal.
+              </p>
+              <div class="chapter-badges">
+                <span class="feature-chip">Local Daemon (pi-agentd)</span>
+                <span class="feature-chip">Local Event Journal</span>
+                <span class="feature-chip">Automatic Catch-Up</span>
+              </div>
+            </div>
+
+            <div class="chapter-media">
+              <div class="showcase-media-frame" data-slug="01-disconnect-safe">
+                <video class="media-video" poster="./assets/showcase/01-disconnect-safe/poster.webp" preload="none" playsinline muted loop aria-label="Disconnect-Safe daemon walkthrough: prompt in flight, close window, relaunch, live catch-up">
+                  <source data-src="./assets/showcase/01-disconnect-safe/clip.webm" type="video/webm">
+                  <source data-src="./assets/showcase/01-disconnect-safe/clip.mp4" type="video/mp4">
+                  <img src="./assets/showcase/01-disconnect-safe/poster.webp" alt="Disconnect-Safe capture poster" loading="lazy">
+                </video>
+                <div class="media-controls" aria-label="Disconnect-Safe playback controls">
+                  <button class="ctrl-btn ctrl-play" aria-label="Play or pause video" title="Play / Pause">
+                    <svg class="icon-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  </button>
+                  <span class="ctrl-caption">Disconnect-Safe Daemon (32s)</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- CHAPTER 2: 02-agents-tree -->
+          <article class="chapter-row row-reverse" id="agents-tree">
+            <div class="chapter-meta">
+              <span class="chapter-index">02 / FEATURE</span>
+              <span class="chapter-tag">MULTI-AGENT WORKFLOWS</span>
+              <h3 class="chapter-title">Live tree of background agents</h3>
+              <p class="chapter-desc">
+                Spawn nested subagents and complex workflows without losing track of your workspace. PiFrame renders an interactive live tree showing each child worker's assigned model, cumulative token cost, active task status, and real-time execution pulses along every branch.
+              </p>
+              <div class="chapter-badges">
+                <span class="feature-chip">Subagent Hierarchy Tree</span>
+                <span class="feature-chip">Per-Agent Cost Breakdown</span>
+                <span class="feature-chip">Individual Worker Steering</span>
+              </div>
+            </div>
+
+            <div class="chapter-media">
+              <div class="showcase-media-frame" data-slug="02-agents-tree">
+                <video class="media-video" poster="./assets/showcase/02-agents-tree/poster.webp" preload="none" playsinline muted loop aria-label="Live tree of background agents walkthrough">
+                  <source data-src="./assets/showcase/02-agents-tree/clip.webm" type="video/webm">
+                  <source data-src="./assets/showcase/02-agents-tree/clip.mp4" type="video/mp4">
+                  <img src="./assets/showcase/02-agents-tree/poster.webp" alt="Live agents tree capture poster" loading="lazy">
+                </video>
+                <div class="media-controls" aria-label="Agents Tree playback controls">
+                  <button class="ctrl-btn ctrl-play" aria-label="Play or pause video" title="Play / Pause">
+                    <svg class="icon-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  </button>
+                  <span class="ctrl-caption">Live Agents Tree (46s)</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- CHAPTER 3: 07-bento-workspace -->
+          <article class="chapter-row" id="workspace">
+            <div class="chapter-meta">
+              <span class="chapter-index">03 / FEATURE</span>
+              <span class="chapter-tag">WORKSPACE ERGONOMICS</span>
+              <h3 class="chapter-title">Three co-visible panes: workspace ergonomics</h3>
+              <p class="chapter-desc">
+                Context switching slows down development. PiFrame provides a balanced three-compartment layout: repository files and code viewer on the left, streaming chat transcript in the center, and Git review or live preview on the right. Smoothly resizable and keyboard collapsible.
+              </p>
+              <div class="chapter-badges">
+                <span class="feature-chip">Three Co-Visible Panes</span>
+                <span class="feature-chip">Resizable Smooth Splitters</span>
+                <span class="feature-chip">Companion Tabs</span>
+              </div>
+            </div>
+
+            <div class="chapter-media">
+              <div class="showcase-media-frame" data-slug="07-bento-workspace">
+                <video class="media-video" poster="./assets/showcase/07-bento-workspace/poster.webp" preload="none" playsinline muted loop aria-label="Three pane workspace walkthrough: file explorer, chat transcript, git review">
+                  <source data-src="./assets/showcase/07-bento-workspace/clip.webm" type="video/webm">
+                  <source data-src="./assets/showcase/07-bento-workspace/clip.mp4" type="video/mp4">
+                  <img src="./assets/showcase/07-bento-workspace/poster.webp" alt="Workspace capture poster" loading="lazy">
+                </video>
+                <div class="media-controls" aria-label="Workspace playback controls">
+                  <button class="ctrl-btn ctrl-play" aria-label="Play or pause video" title="Play / Pause">
+                    <svg class="icon-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  </button>
+                  <span class="ctrl-caption">Three-Pane Workspace</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <!-- CHAPTER 4: 08-review-diff -->
+          <article class="chapter-row row-reverse" id="review-diff">
+            <div class="chapter-meta">
+              <span class="chapter-index">04 / FEATURE</span>
+              <span class="chapter-tag">CODE INSPECTION</span>
+              <h3 class="chapter-title">Review changes with 50/50 side-by-side diff</h3>
+              <p class="chapter-desc">
+                Verify modifications with total confidence before committing. PiFrame renders synchronized side-by-side split diffs right inside the chat turn, with unified view toggle, syntax coloring, line numbers, and native rendered markdown preview for documentation files.
+              </p>
+              <div class="chapter-badges">
+                <span class="feature-chip">50/50 Side-by-Side Diff</span>
+                <span class="feature-chip">Unified Diff Toggle</span>
+                <span class="feature-chip">In-Transcript Review</span>
+              </div>
+            </div>
+
+            <div class="chapter-media">
+              <div class="showcase-media-frame" data-slug="08-review-diff">
+                <video class="media-video" poster="./assets/showcase/08-review-diff/poster.webp" preload="none" playsinline muted loop aria-label="Review changes with 50/50 side-by-side diff walkthrough">
+                  <source data-src="./assets/showcase/08-review-diff/clip.webm" type="video/webm">
+                  <source data-src="./assets/showcase/08-review-diff/clip.mp4" type="video/mp4">
+                  <img src="./assets/showcase/08-review-diff/poster.webp" alt="Review diff capture poster" loading="lazy">
+                </video>
+                <div class="media-controls" aria-label="Review Diff playback controls">
+                  <button class="ctrl-btn ctrl-play" aria-label="Play or pause video" title="Play / Pause">
+                    <svg class="icon-play" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <svg class="icon-pause" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  </button>
+                  <span class="ctrl-caption">50/50 Side-by-Side Diff</span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- COMPACT GRID OF REMAINING FEATURES (WITH ACCESSIBLE LIGHTBOX) -->
+        <div class="features-grid-header">
+          <span class="intro-kicker">MORE POWERFUL WORKBENCH TOOLS</span>
+          <h3 class="comparison-title">Interactive controls designed for developer focus</h3>
+        </div>
+
+        <div class="features-grid">
+          
+          <!-- Card 09: Git Desk -->
+          <article class="feature-card" id="git-desk">
+            <div class="card-thumb-wrapper">
+              <img src="./assets/showcase/09-git-desk/poster.webp" alt="Git desk staging and branch switch" loading="lazy" class="card-thumb" width="1280" height="720">
+              <div class="card-play-overlay">
+                <button type="button" class="card-play-btn" aria-label="Watch clip: Git desk: staging, commit & branch switch" data-clip-slug="09-git-desk" data-clip-title="Git desk: staging, commit & safe branch switch" data-clip-caption="Stage or unstage files individually, craft commits, search branches, and safely switch checkouts with automatic stash protection.">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Watch clip</span>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <span class="card-kicker">VERSION CONTROL</span>
+              <h3 class="card-heading">Git desk: staging, commit & branch switch</h3>
+              <p class="card-summary">Stage or unstage files individually, craft commits, and switch branches safely with auto-stash safeguards.</p>
+            </div>
+          </article>
+
+          <!-- Card 10: Repo Add to Chat -->
+          <article class="feature-card" id="add-to-chat">
+            <div class="card-thumb-wrapper">
+              <img src="./assets/showcase/10-repo-add-to-chat/poster.webp" alt="Repository explorer add to chat" loading="lazy" class="card-thumb" width="1280" height="720">
+              <div class="card-play-overlay">
+                <button type="button" class="card-play-btn" aria-label="Watch clip: Repository explorer add to chat" data-clip-slug="10-repo-add-to-chat" data-clip-title="Repository explorer → Add to chat" data-clip-caption="Browse project files with full-text search, highlight code line ranges, and inject precise code chips into the agent prompt composer.">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Watch clip</span>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <span class="card-kicker">CONTEXT WORKBENCH</span>
+              <h3 class="card-heading">Repository explorer → "Add to chat"</h3>
+              <p class="card-summary">Highlight line ranges in any source file and inject precise code chips directly into the prompt composer.</p>
+            </div>
+          </article>
+
+          <!-- Card 13: Model & Context Control -->
+          <article class="feature-card" id="model-context">
+            <div class="card-thumb-wrapper">
+              <img src="./assets/showcase/13-model-context/poster.webp" alt="Model thinking depth and context window control" loading="lazy" class="card-thumb" width="1280" height="720">
+              <div class="card-play-overlay">
+                <button type="button" class="card-play-btn" aria-label="Watch clip: Model & context window control" data-clip-slug="13-model-context" data-clip-title="Model, thinking depth & context window control" data-clip-caption="Switch models mid-session, select thinking budget chips, and configure context bounds to keep token consumption strictly predictable.">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Watch clip</span>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <span class="card-kicker">INFERENCE CONTROLS</span>
+              <h3 class="card-heading">Model & context window control</h3>
+              <p class="card-summary">Switch models dynamically mid-session, tune thinking depth, and set a context limit and compaction margin per session.</p>
+            </div>
+          </article>
+
+          <!-- Card 15: Composer -->
+          <article class="feature-card" id="composer">
+            <div class="card-thumb-wrapper">
+              <img src="./assets/showcase/15-composer/poster.webp" alt="Expanded prompt composer" loading="lazy" class="card-thumb" width="1280" height="720">
+              <div class="card-play-overlay">
+                <button type="button" class="card-play-btn" aria-label="Watch clip: Expanded composer, mentions and files" data-clip-slug="15-composer" data-clip-title="Expanded composer, @ mentions & attachments" data-clip-caption="Multiline prompt composer with @ file mentions, / slash autocomplete, drag-and-drop file attachments, and full-view writing mode.">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Watch clip</span>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <span class="card-kicker">PROMPT WORKBENCH</span>
+              <h3 class="card-heading">Expanded composer, @ mentions & files</h3>
+              <p class="card-summary">Rich multiline composer with <code>@</code> file mentions, <code>/</code> slash commands, and drag-and-drop file attachments.</p>
+            </div>
+          </article>
+
+          <!-- Card 17: Themes -->
+          <article class="feature-card" id="themes">
+            <div class="card-thumb-wrapper">
+              <img src="./assets/showcase/17-themes/poster.webp" alt="Themes and live token color editor" loading="lazy" class="card-thumb" width="1280" height="720">
+              <div class="card-play-overlay">
+                <button type="button" class="card-play-btn" aria-label="Watch clip: Light, dark and your own theme" data-clip-slug="17-themes" data-clip-title="Instant light/dark and live theme editor" data-clip-caption="Switch between PiFrame Dark and PiFrame Light palettes, customize color tokens live, or import standard VS Code theme JSON files.">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <span>Watch clip</span>
+                </button>
+              </div>
+            </div>
+            <div class="card-content">
+              <span class="card-kicker">VISUAL IDENTITY</span>
+              <h3 class="card-heading">Light, dark and your own theme</h3>
+              <p class="card-summary">Switch between light and dark, edit color tokens with a live preview, or import a VS Code theme.</p>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- REMOTE MOBILITY FEATURE (SETTINGS + IPHONE PAIR) -->
+        <div class="chapters-container" style="margin-top: 48px;">
+          <article class="chapter-row" id="remote">
+            <div class="chapter-meta">
+              <span class="chapter-index">05 / FEATURE</span>
+              <span class="chapter-tag">OPT-IN REMOTE MOBILITY</span>
+              <h3 class="chapter-title">Phone control via Tailscale</h3>
+              <p class="chapter-desc">
+                Leave your desk while your agent executes long tests or builds. Connect securely over your private Tailscale network with encrypted one-time pairing. The dedicated mobile web layout pairs directly with the desktop Remote settings page, enabling live token stream inspection and remote steering from your smartphone.
+              </p>
+              <div class="chapter-badges">
+                <span class="feature-chip">Tailscale WireGuard P2P</span>
+                <span class="feature-chip">Dedicated Mobile Web GUI</span>
+                <span class="feature-chip">Encrypted Pairing</span>
+              </div>
+            </div>
+
+            <div class="chapter-media">
+              <div class="showcase-media-frame remote-showcase-frame" data-slug="18-remote">
+                <div class="remote-stills-wrapper">
+                  <div class="remote-still-card desktop-still-card">
+                    <div class="still-header">
+                      <span class="still-pill">Desktop Host</span>
+                      <span class="still-meta">Remote Settings</span>
+                    </div>
+                    <picture>
+                      <source srcset="./assets/showcase/18-remote/settings.webp" type="image/webp">
+                      <img src="./assets/showcase/18-remote/settings.png" alt="PiFrame Desktop Remote Settings Page" class="remote-img" loading="lazy" width="1180" height="716">
+                    </picture>
+                  </div>
+                  <div class="remote-still-card phone-still-card">
+                    <div class="still-header">
+                      <span class="still-pill">Mobile Client</span>
+                      <span class="still-meta">Tailscale P2P</span>
+                    </div>
+                    <picture>
+                      <source srcset="./assets/showcase/18-remote/iphone.avif" type="image/avif">
+                      <source srcset="./assets/showcase/18-remote/iphone.webp" type="image/webp">
+                      <img src="./assets/showcase/18-remote/iphone-760.png" alt="PiFrame Mobile Interface in iPhone Frame" class="remote-img phone-img" loading="lazy" width="760" height="1500">
+                    </picture>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE SECTION: THREE-TIER SYSTEM DESIGN -->
+    <section class="architecture-section" id="architecture">
+      <div class="container">
+        
+        <div class="section-intro text-center">
+          <span class="intro-kicker">SYSTEM DESIGN</span>
+          <h2 class="intro-headline">Decoupled Three-Tier Architecture</h2>
+          <p class="intro-subhead">
+            Three processes, each with one job. This is what makes the window optional and keeps Pi independent.
+          </p>
+        </div>
+
+        <!-- Technical Architecture Diagram (SVG / Typographic) -->
+        <div class="arch-schematic-wrapper">
+          <div class="arch-schematic">
+            
+            <!-- Tier 1: Desktop GUI -->
+            <div class="arch-node tier-node">
+              <div class="node-badge">TIER 1 · FRONTEND</div>
+              <h3 class="node-title">PiFrame Desktop GUI</h3>
+              <p class="node-desc">
+                The desktop app, built with Flutter for Windows, macOS and Linux and drawn by Impeller, Flutter's GPU renderer.
+              </p>
+              <div class="node-tokens">
+                <code>Flutter Desktop</code>
+                <code>Impeller GPU</code>
+                <code>Integrated Terminal</code>
+              </div>
+            </div>
+
+            <!-- Connector 1 -->
+            <div class="arch-connector" aria-label="PCP Protocol connection">
+              <div class="connector-line"></div>
+              <div class="connector-badge">
+                <span class="conn-name">PCP, PiFrame's local protocol</span>
+                <span class="conn-meta">Localhost HTTP & WebSockets • Bearer Token • 127.0.0.1</span>
+              </div>
+              <div class="connector-arrows" aria-hidden="true">⮂ ⮃</div>
+            </div>
+
+            <!-- Tier 2: Daemon -->
+            <div class="arch-node tier-node highlight-daemon">
+              <div class="node-badge">TIER 2 · LOCAL DAEMON</div>
+              <h3 class="node-title">pi-agentd Daemon</h3>
+              <p class="node-desc">
+                A local background service (a "daemon") that ships with PiFrame and its own Node runtime. It starts and supervises the Pi workers and logs their events to <code>~/.piframe/</code>, so the window can close and reconnect.
+              </p>
+              <div class="node-tokens">
+                <code>Node Runtime</code>
+                <code>Local Event Journal</code>
+                <code>Session Reconnect</code>
+              </div>
+            </div>
+
+            <!-- Connector 2 -->
+            <div class="arch-connector" aria-label="Pi RPC connection">
+              <div class="connector-line"></div>
+              <div class="connector-badge">
+                <span class="conn-name">Pi RPC Stream</span>
+                <span class="conn-meta">pi --mode rpc • Bidirectional JSON over stdio</span>
+              </div>
+              <div class="connector-arrows" aria-hidden="true">⮂ ⮃</div>
+            </div>
+
+            <!-- Tier 3: Pi Coding Agent -->
+            <div class="arch-node tier-node">
+              <div class="node-badge">TIER 3 · CLI ENGINE</div>
+              <h3 class="node-title">Pi Coding Agent Engine</h3>
+              <p class="node-desc">
+                Your own Pi installation (<code>v0.85.0+</code>), run as <code>pi --mode rpc</code>. Sessions stay in Pi's folder <code>~/.pi/agent/sessions/</code>, readable by the <code>pi</code> CLI.
+              </p>
+              <div class="node-tokens">
+                <code>~/.pi/agent/sessions/</code>
+                <code>MCP Servers</code>
+                <code>Model API Providers</code>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Short cross-references (each topic is explained once, in "Why PiFrame") -->
+        <p class="arch-footnote">
+          The GUI is a Flutter desktop app; it talks to <code>pi-agentd</code> over PCP, PiFrame's local protocol (HTTP and WebSockets on <code>127.0.0.1</code> with a per-install token).
+          Privacy details: <a href="#why-piframe">Local &amp; private</a> and <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/security.md" target="_blank" rel="noopener noreferrer">docs/security.md</a>.
+          Compatibility with the <code>pi</code> CLI: <a href="#why-piframe">Drop-in for Pi users</a>.
+        </p>
+
+      </div>
+    </section>
+
+    <!-- INSTALLATION & DOWNLOAD SECTION -->
+    <section class="install-section" id="install">
+      <div class="container">
+        
+        <div class="section-intro text-center">
+          <span class="intro-kicker">GETTING STARTED</span>
+          <h2 class="intro-headline">Download PiFrame Desktop</h2>
+          <p class="intro-subhead">
+            Standalone native installers for Windows, macOS, and Linux. Bundled with <code>pi-agentd</code> and Node runtime.
+          </p>
+        </div>
+
+        <!-- 3-Step Quick Start -->
+        <div class="install-steps-grid">
+          
+          <div class="step-card">
+            <div class="step-badge">STEP 01</div>
+            <h3 class="step-title">Install Pi and set up a provider</h3>
+            <p class="step-text">
+              PiFrame needs Pi Coding Agent <code>0.85.0</code> or later on your PATH, already signed in to a model provider (for example with <code>/login</code> in Pi). Install it with npm, or with the official script from pi.dev:
+            </p>
+            <div class="step-code-box">
+              <code id="step01Snippet" tabindex="0" role="region" aria-label="Step 1 installation command">npm install -g @earendil-works/pi-coding-agent</code>
+              <button class="cli-copy-btn mini" data-copy-target="step01Snippet" aria-label="Copy step 1 installation command">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                   <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
@@ -530,31 +783,111 @@
             </div>
           </div>
 
-          <!-- Step 2 -->
           <div class="step-card">
-            <div class="step-number">02</div>
+            <div class="step-badge">STEP 02</div>
             <h3 class="step-title">Download PiFrame Desktop</h3>
-            <p class="step-desc">
-              Download the native pre-built installer for Windows (.exe), macOS (.dmg Apple Silicon / Intel), or Linux (.deb). Node.js and <code>pi-agentd</code> are pre-bundled.
+            <p class="step-text">
+              Grab the latest pre-compiled package for your operating system below. The installer bundles Node and <code>pi-agentd</code>, so there is nothing else to install.
             </p>
-            <div class="step-actions">
-              <a href="https://github.com/TrentiStefano/piframe/releases/latest" class="btn-outline">
-                <span>View Releases</span>
-                <span class="arrow">→</span>
+            <div class="step-code-box" style="background: transparent; border: none; padding: 0;">
+              <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="btn-subtle" target="_blank" rel="noopener noreferrer">
+                <span>View Releases on GitHub</span>
+                <span class="arrow" aria-hidden="true">→</span>
               </a>
             </div>
           </div>
 
-          <!-- Step 3 -->
           <div class="step-card">
-            <div class="step-number">03</div>
-            <h3 class="step-title">Code with Fluid Control</h3>
-            <p class="step-desc">
-              Launch PiFrame, select any local Git repository, prompt the agent, review live side-by-side diffs, and steer reasoning in-flight with 120fps smoothness.
+            <div class="step-badge">STEP 03</div>
+            <h3 class="step-title">Open Local Repo & Code</h3>
+            <p class="step-text">
+              Launch PiFrame, select any local Git repository, prompt the agent, review side-by-side diffs, and steer reasoning in-flight without leaving the window.
             </p>
-            <div class="step-tip">
-              <span class="tip-icon">💡</span>
-              <span>Use <strong>Ctrl+Click</strong> on file mentions in the chat transcript to jump right into code.</span>
+            <div class="step-code-box" style="background: transparent; border: none; padding: 0;">
+              <span style="font-size: 0.8rem; color: var(--ink-muted);">First-run UI can help install Pi if missing.</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Platform Download Cards (Consistent Vector SVG Icons) -->
+        <div class="platform-cards-grid">
+          
+          <!-- Windows Card -->
+          <div class="platform-card" id="cardWindows">
+            <div class="platform-header">
+              <span class="os-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                  <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.401H10.949M0 12.6h9.75V22.05L0 20.701M10.949 12.6H24V24l-13.051-1.899"/>
+                </svg>
+              </span>
+              <div class="os-info">
+                <h4 class="os-title">Windows Desktop</h4>
+                <span class="os-meta">Windows 10 / 11 (x64)</span>
+              </div>
+            </div>
+            <p class="platform-desc">
+              Native setup executable. Bundles <code>pi-agentd</code>, Node, and Microsoft Visual C++ CRT in app-local mode. Includes WSL terminal support. Unsigned installer may show a SmartScreen notice.
+            </p>
+            <div class="platform-footer">
+              <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="btn-platform-download" target="_blank" rel="noopener noreferrer">
+                <span>Windows installer (.exe) on GitHub Releases</span>
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M8 2v9m0 0l-3.5-3.5M8 11l3.5-3.5M3 14h10" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- macOS Card -->
+          <div class="platform-card" id="cardMac">
+            <div class="platform-header">
+              <span class="os-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.63 1.35-.57.65-1.07 1.72-.94 2.74 1 .08 2.03-.49 2.65-1.24z"/>
+                </svg>
+              </span>
+              <div class="os-info">
+                <h4 class="os-title">macOS</h4>
+                <span class="os-meta">Apple silicon & Intel · macOS 12+</span>
+              </div>
+            </div>
+            <p class="platform-desc">
+              Disk images (<code>.dmg</code>) for Apple silicon and Intel. Ad-hoc signed. If Gatekeeper flags quarantine on first run, right-click Open or run <code>xattr -cr /Applications/PiFrame.app</code>.
+            </p>
+            <div class="platform-footer">
+              <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="btn-platform-download" target="_blank" rel="noopener noreferrer">
+                <span>macOS disk image (.dmg) on GitHub Releases</span>
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M8 2v9m0 0l-3.5-3.5M8 11l3.5-3.5M3 14h10" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- Linux Card -->
+          <div class="platform-card" id="cardLinux">
+            <div class="platform-header">
+              <span class="os-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                  <path d="M12.002 0c-3.13 0-4.99 2.062-4.99 4.717 0 .567.086 1.155.253 1.74-1.054.492-1.82 1.488-1.82 2.72 0 1.05.556 1.935 1.373 2.441-.127.46-.2.947-.2 1.458 0 1.637.75 3.09 1.91 4.015-1.127.834-1.854 2.148-1.854 3.633 0 .47.076.924.214 1.35-.93.42-1.588 1.345-1.588 2.426 0 1.492 1.258 2.7 2.81 2.7h8.178c1.55 0 2.81-1.208 2.81-2.7 0-1.08-.658-2.006-1.588-2.426.138-.426.214-.88.214-1.35 0-1.485-.727-2.799-1.854-3.633 1.16-.925 1.91-2.378 1.91-4.015 0-.511-.073-.998-.2-1.458.817-.506 1.373-1.391 1.373-2.441 0-1.232-.766-2.228-1.82-2.72.167-.585.253-1.173.253-1.74C16.992 2.062 15.132 0 12.002 0z"/>
+                </svg>
+              </span>
+              <div class="os-info">
+                <h4 class="os-title">Linux (Debian / Ubuntu)</h4>
+                <span class="os-meta">Debian / Ubuntu · x64 · GTK 3</span>
+              </div>
+            </div>
+            <p class="platform-desc">
+              Standard Debian package (<code>.deb</code>). Adds PiFrame to the system applications menu, bundling daemon sidecar and GTK 3 dependencies.
+            </p>
+            <div class="platform-footer">
+              <a href="https://github.com/TrentiStefano/PiFrame/releases/latest" class="btn-platform-download" target="_blank" rel="noopener noreferrer">
+                <span>Linux package (.deb) on GitHub Releases</span>
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M8 2v9m0 0l-3.5-3.5M8 11l3.5-3.5M3 14h10" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
             </div>
           </div>
 
@@ -563,296 +896,223 @@
       </div>
     </section>
 
-    <!-- SECTION 5: COMPARISON TABLE -->
-    <section class="section comparison-section" id="comparison">
-      <div class="container">
+    <!-- FAQ SECTION: VERIFIED FACTUAL ANSWERS -->
+    <section class="faq-section" id="faq">
+      <div class="container container-narrow">
         
-        <div class="section-header">
-          <span class="section-tag">UNCOMPROMISING ERGONOMICS</span>
-          <h2 class="section-title">Why Developers Switch to PiFrame</h2>
+        <div class="section-intro text-center">
+          <span class="intro-kicker">QUESTIONS & CLARIFICATIONS</span>
+          <h2 class="intro-headline">Frequently Asked Questions</h2>
         </div>
 
-        <div class="table-wrapper">
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th class="col-feature">Capability</th>
-                <th class="col-piframe">PiFrame Desktop</th>
-                <th class="col-others">Generic Web Wrappers</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="feature-name">
-                  <strong>Disconnect Resilience</strong>
-                  <span>Closing the window during a run</span>
-                </td>
-                <td class="piframe-val">
-                  <span class="badge-good">✔ Zero lost work</span>
-                  <p>pi-agentd runs continuously in background</p>
-                </td>
-                <td class="others-val">
-                  <span class="badge-bad">✖ Aborts session</span>
-                  <p>Closing tab kills agent execution</p>
-                </td>
-              </tr>
-              <tr>
-                <td class="feature-name">
-                  <strong>Rendering Performance</strong>
-                  <span>High-framerate rendering under load</span>
-                </td>
-                <td class="piframe-val">
-                  <span class="badge-good">✔ 120 FPS Native</span>
-                  <p>Flutter Impeller graphics engine</p>
-                </td>
-                <td class="others-val">
-                  <span class="badge-bad">✖ Janky / Stutters</span>
-                  <p>Heavy Chromium DOM recalculations</p>
-                </td>
-              </tr>
-              <tr>
-                <td class="feature-name">
-                  <strong>Privacy & Telemetry</strong>
-                  <span>Telemetry & analytics handling</span>
-                </td>
-                <td class="piframe-val">
-                  <span class="badge-good">✔ 0% Telemetry</span>
-                  <p>Strictly bound to 127.0.0.1 (Decision D16)</p>
-                </td>
-                <td class="others-val">
-                  <span class="badge-bad">✖ Third-party tracking</span>
-                  <p>Analytics pixels and remote logging</p>
-                </td>
-              </tr>
-              <tr>
-                <td class="feature-name">
-                  <strong>CLI Parity</strong>
-                  <span>Session storage & terminal workflow</span>
-                </td>
-                <td class="piframe-val">
-                  <span class="badge-good">✔ 100% Native Pi</span>
-                  <p>Directly reads/writes ~/.pi/agent/sessions/</p>
-                </td>
-                <td class="others-val">
-                  <span class="badge-bad">✖ Proprietary Cloud</span>
-                  <p>Locked into isolated web database</p>
-                </td>
-              </tr>
-              <tr>
-                <td class="feature-name">
-                  <strong>Hardware Terminal</strong>
-                  <span>Terminal integration</span>
-                </td>
-                <td class="piframe-val">
-                  <span class="badge-good">✔ Integrated Native OS</span>
-                  <p>Direct hardware typing, PowerShell & WSL bash</p>
-                </td>
-                <td class="others-val">
-                  <span class="badge-bad">✖ Limited or absent</span>
-                  <p>Fake web console or external tool</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- SECTION 6: FAQ ACCORDION -->
-    <section class="section faq-section" id="faq">
-      <div class="container container-sm">
-        
-        <div class="section-header text-center">
-          <span class="section-tag">ANSWERS</span>
-          <h2 class="section-title">Frequently Asked Questions</h2>
-        </div>
-
-        <div class="faq-list">
+        <div class="faq-accordion">
           
           <details class="faq-item" open>
-            <summary class="faq-question">
-              <span>Does PiFrame collect telemetry or track my code?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">Does PiFrame collect telemetry or track my code?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                <strong>Strictly zero.</strong> In accordance with architectural Decision D16, PiFrame and <code>pi-agentd</code> contain zero tracking pixels, analytics SDKs, or cloud telemetry. The local daemon is bound strictly to loopback (<code>127.0.0.1</code>) and communicates only with your configured AI model provider via standard authenticated API requests.
+                <strong>No.</strong> PiFrame and <code>pi-agentd</code> contain no analytics or telemetry. Details are in <a href="#why-piframe">Local &amp; private</a>. See our <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/security.md" target="_blank" rel="noopener noreferrer">security documentation</a>.
               </p>
             </div>
           </details>
 
           <details class="faq-item">
-            <summary class="faq-question">
-              <span>How does disconnect-safety work when I close the app?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">How does disconnect-safety work when I close the app?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                PiFrame uses a decoupled three-tier architecture. When you start an agent action, the local daemon <code>pi-agentd</code> manages the session and appends every token, tool call, and terminal output to a local monotonic journal. If you quit the GUI window, restart your desktop shell, or lose connection, <code>pi-agentd</code> continues running. When you reopen PiFrame, it reads the journal sequence and synchronizes state seamlessly without duplicates or lost progress.
+                PiFrame uses a decoupled architecture. When you start an agent action, the local daemon <code>pi-agentd</code> manages the session and appends stream events to a local journal in <code>~/.piframe/</code>. If you quit the GUI window, restart your desktop shell, or lose connection, <code>pi-agentd</code> continues running. When you reopen PiFrame, it reads the journal sequence and reconciles state without duplicate actions.
               </p>
             </div>
           </details>
 
           <details class="faq-item">
-            <summary class="faq-question">
-              <span>Can I switch between the terminal Pi CLI and the PiFrame GUI?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">Do I need to change my Pi setup?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                <strong>Yes, completely seamlessly.</strong> PiFrame does not maintain a private proprietary database. All session history is stored directly in the official Pi session folder (<code>~/.pi/agent/sessions/</code>). You can launch a task in the terminal with <code>pi</code>, open PiFrame to inspect diffs visually, and return to the terminal at any time.
+                <strong>No.</strong> PiFrame is a drop-in companion. It launches your existing installed <code>pi</code> binary (<code>pi --mode rpc</code>), utilizing your existing Pi config, providers, models, extensions, skills, and sessions in <code>~/.pi/agent/sessions/</code>. No migration or reconfiguration is needed.
               </p>
             </div>
           </details>
 
           <details class="faq-item">
-            <summary class="faq-question">
-              <span>Which operating systems are supported?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">What happens if I uninstall PiFrame?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                PiFrame provides native installers for <strong>Windows 10/11 (x64)</strong>, <strong>macOS Apple Silicon (M1/M2/M3/M4)</strong>, <strong>macOS Intel (x64)</strong>, and <strong>Linux (Debian/Ubuntu x64)</strong>. It also supports Windows Subsystem for Linux (WSL) repositories directly.
+                Removing PiFrame leaves Pi and your sessions untouched. PiFrame keeps its own files in <code>~/.piframe/</code> (daemon tokens, journal cache, layout preferences), which the uninstaller leaves in place so you don't lose preferences. You can delete <code>~/.piframe/</code> manually at any time. <em>Note:</em> if you configured custom subagent context limits in Settings → Agents, reset them before uninstalling to ensure Pi settings don't reference helper files.
               </p>
             </div>
           </details>
 
           <details class="faq-item">
-            <summary class="faq-question">
-              <span>Can I use custom themes?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">Do I need an API key for PiFrame?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                Yes! PiFrame comes out-of-the-box with official <strong>PiFrame Dark</strong> (<code>#161c27</code>) and <strong>PiFrame Light</strong> (<code>#f1f3f7</code>) default palettes, crafted specifically for ergonomic developer focus. You can also import standard VSCode JSON theme files or place custom hot-reloadable JSON theme files into <code>~/.piframe/themes/</code>.
+                <strong>No separate key is needed for PiFrame.</strong> PiFrame does not ask for or store API keys. It uses whatever model providers and credentials you have already configured in the Pi CLI (via <code>pi config</code> or your environment variables).
               </p>
             </div>
           </details>
 
           <details class="faq-item">
-            <summary class="faq-question">
-              <span>Why is my Windows desktop window white or blank on launch?</span>
-              <span class="faq-icon">+</span>
+            <summary class="faq-summary">
+              <span class="faq-question">Can I switch between the terminal Pi CLI and the PiFrame GUI?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
             </summary>
-            <div class="faq-answer">
+            <div class="faq-body">
               <p>
-                On Windows desktop, Flutter utilizes the ANGLE Direct3D 11 backend. In environments with <strong>virtual display drivers</strong> (such as <code>USB Mobile Monitor</code>, <code>IddSampleDriver</code>, Spacedesk, or secondary smartphone screen mirrors) or hybrid multi-GPU configurations, the Windows Desktop Window Manager (DWM) swapchain can occasionally stall. A clean reboot of Windows resolves the DirectX context state. You can also temporarily disable the virtual display adapter in Device Manager. See <a href="https://github.com/TrentiStefano/piframe/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">docs/troubleshooting.md</a> for complete instructions.
+                <strong>Yes.</strong> Sessions stay in Pi's own folder (<code>~/.pi/agent/sessions/</code>). You can start a task with <code>pi</code> in the terminal, open it in PiFrame to review the diff, and go back to the terminal.
               </p>
             </div>
           </details>
 
-        </div>
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span class="faq-question">Which operating systems are supported?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-body">
+              <p>
+                PiFrame provides native installers for <strong>Windows 10/11 (x64)</strong>, <strong>macOS Apple silicon</strong>, <strong>macOS Intel (x64)</strong>, and <strong>Linux (Debian/Ubuntu x64)</strong>. It also supports Windows Subsystem for Linux (WSL) repositories directly.
+              </p>
+            </div>
+          </details>
 
-      </div>
-    </section>
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span class="faq-question">Can I use custom themes?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-body">
+              <p>
+                Yes. PiFrame includes <strong>PiFrame Dark</strong> (<code>#161c27</code>) and <strong>PiFrame Light</strong> (<code>#f1f3f7</code>) default palettes. You can also import standard VS Code JSON theme files or place custom hot-reloadable JSON theme files into <code>~/.piframe/themes/</code>.
+              </p>
+            </div>
+          </details>
 
-    <!-- SECTION 7: DOWNLOAD / CTA SECTION -->
-    <section class="section cta-section" id="download">
-      <div class="container">
-        
-        <div class="cta-card">
-          <div class="cta-glow" aria-hidden="true"></div>
-          
-          <div class="cta-badge">FREE & OPEN SOURCE</div>
-          <h2 class="cta-title">Upgrade your AI coding experience with PiFrame</h2>
-          <p class="cta-subtitle">
-            Download the latest release today, join our open-source community on GitHub, or inspect the source code.
-          </p>
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span class="faq-question">Why is my Windows desktop window white or blank on launch?</span>
+              <span class="faq-chevron" aria-hidden="true">+</span>
+            </summary>
+            <div class="faq-body">
+              <p>
+                On Windows desktop, Flutter utilizes the ANGLE Direct3D 11 backend. In environments with virtual display drivers (such as <code>USB Mobile Monitor</code>, <code>IddSampleDriver</code>, Spacedesk, or secondary smartphone screen mirrors) or hybrid multi-GPU configurations, the Windows Desktop Window Manager swapchain can occasionally stall. A system reboot resolves the DirectX context state. You can also temporarily disable the virtual display adapter in Device Manager. See <a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">docs/troubleshooting.md</a> for complete instructions.
+              </p>
+            </div>
+          </details>
 
-          <div class="cta-buttons">
-            <a href="https://github.com/TrentiStefano/piframe/releases/latest" class="btn-primary btn-large magnetic">
-              <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M10 3v10m0 0l-4-4m4 4l4-4M4 17h12" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span>Download Latest Release</span>
-            </a>
-
-            <a href="https://github.com/TrentiStefano/piframe" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-large magnetic">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-              </svg>
-              <span>Explore GitHub Repository</span>
-            </a>
-          </div>
-
-          <div class="cta-footer-meta">
-            <span>Licensed under MIT</span>
-            <span class="sep">•</span>
-            <span>Version 1.0.0</span>
-            <span class="sep">•</span>
-            <span>Zero Telemetry Guaranteed</span>
-          </div>
         </div>
 
       </div>
     </section>
   </main>
 
-  <!-- MINIMAL FOOTER -->
-  <footer class="footer">
+  <!-- EDITORIAL FOOTER -->
+  <footer class="site-footer">
     <div class="container footer-container">
       
-      <div class="footer-brand">
-        <div class="footer-logo">
-          <img src="./assets/icons/piframe-dark.svg" alt="PiFrame Logo" width="24" height="24">
-          <span class="footer-name">PiFrame</span>
+      <div class="footer-top">
+        <div class="footer-brand-col">
+          <div class="footer-brand-header">
+            <img src="./assets/icons/piframe-dark-64.png" alt="" class="footer-logo-img logo-light" width="26" height="26" aria-hidden="true">
+            <img src="./assets/icons/piframe-light-64.png" alt="" class="footer-logo-img logo-dark" width="26" height="26" aria-hidden="true">
+            <span class="footer-brand-name">PiFrame</span>
+          </div>
+          <p class="footer-tagline">
+            The desktop app for Pi Coding Agent. Built with Flutter. No analytics, no telemetry.
+          </p>
+          <div class="footer-badge-box">
+            <span>Engine: Flutter • Daemon: Node • Open source</span>
+          </div>
         </div>
-        <p class="footer-tagline">
-          The modern, resilient Bento GUI for pi-coding-agent.
-        </p>
-        <div class="footer-status">
-          <span class="status-pulse-dot"></span>
-          <span>Engine: Flutter 3.47+ • Daemon: Node 22+</span>
-        </div>
-      </div>
 
-      <div class="footer-links-grid">
-        <div class="footer-col">
+        <div class="footer-nav-col">
           <span class="footer-col-title">Project</span>
-          <a href="https://github.com/TrentiStefano/piframe" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
-          <a href="https://github.com/TrentiStefano/piframe/releases" target="_blank" rel="noopener noreferrer">Releases & Binaries</a>
-          <a href="https://github.com/TrentiStefano/piframe/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
-          <a href="https://github.com/TrentiStefano/piframe/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+          <ul class="footer-link-list">
+            <li><a href="https://github.com/TrentiStefano/PiFrame" target="_blank" rel="noopener noreferrer">GitHub Repository</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/releases" target="_blank" rel="noopener noreferrer">Releases & Binaries</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/issues" target="_blank" rel="noopener noreferrer">Issue Tracker</a></li>
+          </ul>
         </div>
 
-        <div class="footer-col">
-          <span class="footer-col-title">Ecosystem</span>
-          <a href="https://github.com/earendil-works/pi" target="_blank" rel="noopener noreferrer">pi-coding-agent</a>
-          <a href="https://flutter.dev" target="_blank" rel="noopener noreferrer">Flutter Framework</a>
-          <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">Model Context Protocol</a>
-          <a href="https://github.com/TrentiStefano/piframe/blob/main/DESIGN.md" target="_blank" rel="noopener noreferrer">Theme System & Design</a>
-        </div>
-
-        <div class="footer-col">
+        <div class="footer-nav-col">
           <span class="footer-col-title">Documentation</span>
-          <a href="https://github.com/TrentiStefano/piframe/blob/main/README.md" target="_blank" rel="noopener noreferrer">Architecture Overview</a>
-          <a href="https://github.com/TrentiStefano/piframe/blob/main/docs/security.md" target="_blank" rel="noopener noreferrer">Security & Privacy</a>
-          <a href="https://github.com/TrentiStefano/piframe/issues" target="_blank" rel="noopener noreferrer">Report an Issue</a>
+          <ul class="footer-link-list">
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/README.md" target="_blank" rel="noopener noreferrer">Overview (README)</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/install.md" target="_blank" rel="noopener noreferrer">Installation Guide</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/troubleshooting.md" target="_blank" rel="noopener noreferrer">Troubleshooting</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/security.md" target="_blank" rel="noopener noreferrer">Security & Privacy</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/theming.md" target="_blank" rel="noopener noreferrer">Theming Guide</a></li>
+            <li><a href="https://github.com/TrentiStefano/PiFrame/blob/main/docs/pi-compatibility.md" target="_blank" rel="noopener noreferrer">Pi Compatibility</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-nav-col">
+          <span class="footer-col-title">Ecosystem</span>
+          <ul class="footer-link-list">
+            <li><a href="https://github.com/earendil-works/pi" target="_blank" rel="noopener noreferrer">pi-coding-agent CLI</a></li>
+            <li><a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">Model Context Protocol</a></li>
+            <li><a href="https://tailscale.com" target="_blank" rel="noopener noreferrer">Tailscale Network</a></li>
+          </ul>
         </div>
       </div>
 
-    </div>
-
-    <div class="footer-bottom">
-      <div class="container footer-bottom-container">
-        <p class="copyright">
-          © 2026 Stefano Trenti & Contributors. Built with passion for open-source AI developer tooling.
-        </p>
-        <a href="#hero" class="btn-back-to-top" aria-label="Back to top">
+      <div class="footer-bottom">
+        <div class="footer-bottom-info">
+          <p class="footer-copy">
+            © 2026 Stefano Trenti &amp; contributors.
+          </p>
+          <p class="footer-music-credit">
+            Music: “Happy Beats – Business Moves Vol. 12” by Sascha Ende (<a href="https://ende.app" target="_blank" rel="noopener noreferrer">ende.app</a>), <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>
+          </p>
+        </div>
+        <a href="#hero" class="btn-top" aria-label="Back to top">
           <span>Back to top</span>
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M8 13V3m0 0L3.5 7.5M8 3l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span class="top-arrow" aria-hidden="true">↑</span>
         </a>
       </div>
+
     </div>
   </footer>
 
-  <!-- Toast Notification Container -->
-  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+  <!-- ACCESSIBLE VIDEO LIGHTBOX DIALOG -->
+  <dialog class="lightbox-dialog" id="videoLightbox" aria-labelledby="lightboxTitle" aria-modal="true">
+    <div class="lightbox-content">
+      <div class="lightbox-header">
+        <h3 class="lightbox-title" id="lightboxTitle">Feature Walkthrough</h3>
+        <button type="button" class="lightbox-close" id="lightboxCloseBtn" aria-label="Close dialog">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="lightbox-video-frame">
+        <video id="lightboxVideo" class="lightbox-video" controls playsinline preload="none">
+          <source id="lightboxSrcWebm" src="" type="video/webm">
+          <source id="lightboxSrcMp4" src="" type="video/mp4">
+        </video>
+      </div>
+      <p class="lightbox-caption" id="lightboxCaption"></p>
+    </div>
+  </dialog>
 
-  <!-- Scripts -->
+  <!-- Interactive Logic (Self-contained, zero external scripts) -->
   <script src="./js/main.js"></script>
 </body>
 </html>

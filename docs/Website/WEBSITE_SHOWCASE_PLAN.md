@@ -1,141 +1,163 @@
-# PiFrame Website & Feature Showcase Master Plan
+# PiFrame — Feature Showcase, Promo Video & Website Plan (v2)
 
-Piano strategico per l'aggiornamento del sito web ufficiale di **PiFrame** (`website/index.html`), introducendo il nuovo set di 20 funzionalità attraverso un mix ottimizzato di **Hero Video (10s)**, **clip video brevi/GIF (Recordly)** e **screenshot ad alta fedeltà dell'interfaccia Flutter reale**.
+> Stato: **Completato** (clip, promo, sito). Fase 0 — selezione: **1, 2, 7, 8, 9, 10, 13, 15, 17, 18**.
+> #18 (Remote) in forma semplificata: screenshot della pagina impostazioni Remote affiancato allo screenshot dell'app mobile in cornice iPhone.
+> Registrazione **sull'host** (nessuna VM Hyper-V disponibile) in ambiente isolato (vedi §3).
 
----
+Obiettivo: mostrare le **10 feature migliori** di PiFrame con clip reali registrate con
+[Recordly](https://github.com/webadderallorg/recordly), produrre un **video promo** con la skill
+[`brag`](https://github.com/latent-spaces/brag) e integrare tutto in `website/` fino a un livello
+degno di Awwwards.
 
-## 1. Strumenti e Installazioni Configurate
+## 1. Regole non negoziabili
 
-| Strumento | Scopo | Stato | Posizione / Riferimento |
-|---|---|---|---|
-| **VM Hyper-V Win11** | Macchina virtuale isolata Windows 11 con Pi, PiFrame (login Antigravity attivo) e punto di ripristino dedicato **`PiFrame`**. Usata per navigare la vera app e registrare video/screenshot senza interferire con la sessione di lavoro sull'host. | Operativa / Snapshot pronto | VM: `Win11`, Snapshot: `PiFrame`, Credenziali: `User` / `password`. Guida: `docs/VM_RECORDLY_SHOWCASE_GUIDE.md` |
-| **Recordly** (`webadderall/Recordly`) | Registrazione video/GIF ad alta risoluzione con auto-zoom, cursor spotlight, smooth panning ed esportazione hardware WGC a 60 FPS per le feature interattive. | Installato nel guest/host | `C:\Program Files\Recordly\resources\app.asar.unpacked\electron\native\bin\win32-x64\wgc-capture.exe` |
-| **brag** (`latent-spaces/brag`) | Skill specializzata per la regia e composizione del video di lancio **Hero (10s)**: ritmo serrato, beat-sync, visual hook e claim architetturali (120fps, zero telemetria, demone disconnesso). | Installato localmente nel repo | `.agents/skills/brag/` e `.agents/skills/brag-slim/` |
-| **FFmpeg** (v2025-04) | Conversione flussi raw, trimming frame-perfect, compressione H.264/WebM e generazione GIF a palette ottimizzata con Bayer dithering (30 FPS reali, < 500 KB). | Disponibile nel path di sistema | `ffmpeg` CLI |
-| **Hyper-V WMI Frame Capture** | Acquisizione del framebuffer a livello VMBus (`GetVirtualSystemThumbnailImage`) per catture e sequenze senza perdite di focus. | Script di sistema | `tools/test_hyperv_screen.ps1` |
+| Regola | Applicazione |
+|---|---|
+| **Solo UI reale** (AGENTS.md §1) | Ogni frame viene dall'app Flutter reale, ultima build. Niente mockup HTML/CSS/canvas dell'interfaccia. Le grafiche del promo (titoli, transizioni) sono *intorno* alle clip, mai al posto della UI. |
+| **Nessun dato personale** | Niente repo dell'utente, niente path `C:\Users\Stefano`, niente email, account, tailnet, hostname o cronologia reale. Si registra in VM con utente `demo`, repo demo dedicati e sessioni create apposta. |
+| **Metriche autentiche** (AGENTS.md §2) | Nessuna stella, download o numero utenti inventato. Claim solo verificabili nel codice (es. daemon disconnect-safe, zero telemetria D16). |
+| **Modello reale** | Le risposte dell'agente vengono da un modello vero (default configurato in Pi nella VM). Nessun transcript finto. |
+| **Ultima versione** | Build da `main_bugfix` HEAD (o ultima release) installata nella VM prima delle registrazioni. |
 
----
+## 2. Fase 0 — 20 feature candidate (scegline 10)
 
-## 2. Matrice di Presentazione delle 20 Feature
+Valutazione "wow per sviluppatori": ★ = interessante, ★★★ = memorabile/unica.
 
-Tutte le 20 feature richieste sono mappate nel formato visuale più efficace, registrate ed estratte direttamente dall'applicazione reale in esecuzione nella **macchina virtuale Hyper-V Win11** (consultare `docs/VM_RECORDLY_SHOWCASE_GUIDE.md` per le procedure operative di cattura e coordinate):
-- **Hero Video (10s via /brag)**: Panoramica dell'app completa registrata nella VM (Bento triptych, prompt streaming, diff split, terminal, light/dark).
-- **Brevi Video / GIF interattive (via Recordly WGC & FFmpeg)**: Per azioni dinamiche multi-step registrate dall'app reale (domande agente con selezione, review changes con espansione diff 50/50, drag&drop, ecc.).
-- **Screenshot Reali UI (1200+ px)**: Estratti dalla vera interfaccia Flutter per pannelli densi di impostazioni, selettori modali e controlli precisi.
-
-| # | Funzionalità | Formato Visuale Primario | Strumento di Acquisizione | Destinazione Asset (`website/assets/`) |
+| # | Feature | Perché colpisce uno sviluppatore | Clip proposta (5–8 s) | Wow |
 |---|---|---|---|---|
-| **0** | **App Full Walkthrough (Hero Video 10s)** | Video WebM/MP4 looping (10s) | `/brag` + Recordly WGC stitch (VM Win11) | `website/assets/video/hero-10s-piframe-showcase.mp4` |
-| **1** | **Agent questions to the user** (domande interattive dell'agente) | Breve Video / GIF (5.2s, 30 FPS) | VM Win11 + Recordly (dialog reale, selezione opzione 3, invio risposta) | `website/assets/img/ui/feature-01-agent-questions.gif` |
-| **2** | **Model, Thinking effort & Context size tier pickers** | Screenshot reale catturato | VM Win11 (`Composer` popover selettore modelli) | `website/assets/img/ui/feature-02-composer-pickers.png` |
-| **3** | **Work Area panel**: Custom context limit & compaction limit | Screenshot reale catturato | VM Win11 (`ContextPanel` slider limite contesto e compattazione) | `website/assets/img/ui/feature-03-workarea-context-limits.png` |
-| **4** | **File drag-and-drop & Attach button** | Breve Video / GIF (3s, 30 FPS) | VM Win11 + Recordly (`ChatDropTarget` overlay e chip) | `website/assets/img/ui/feature-04-file-drag-drop-attach.gif` |
-| **5** | **Review changes 50/50 view with diff** | Breve Video / GIF (4.8s, 30 FPS) | VM Win11 + Recordly (click riga file, espansione diff split 50/50) | `website/assets/img/ui/feature-05-review-changes-50-50-diff.gif` |
-| **6** | **Git changes pane with staging and commit** | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (click stage `+`, commit box) | `website/assets/img/ui/feature-06-git-changes-staging.gif` |
-| **7** | **Web browser integration** | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (tab browser nativo con URL e preview) | `website/assets/img/ui/feature-07-web-browser-pane.gif` |
-| **8** | **Repository pane**: search file, open & "Add to chat" lines | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (ricerca file, selezione righe, context menu) | `website/assets/img/ui/feature-08-repo-search-add-to-chat.gif` |
-| **9** | **Resizing panes, hiding session/git panes & terminal** | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (resize splitters e terminale OS) | `website/assets/img/ui/feature-09-pane-resize-and-terminal.gif` |
-| **10** | **Rename session (double click) & pin in sessions pane** | Breve Video / GIF (3s, 30 FPS) | VM Win11 + Recordly (doppio click inline, pin badge in cima) | `website/assets/img/ui/feature-10-rename-and-pin-session.gif` |
-| **11** | **Switch to light mode & hide Repo pane from checklist** | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (transizione PiFrame Light e checklist) | `website/assets/img/ui/feature-11-light-mode-pane-checklist.gif` |
-| **12** | **Update button & Update from settings** | Screenshot reale catturato | VM Win11 (`UpdatesSection` e banner release) | `website/assets/img/ui/feature-12-in-app-update-flow.png` |
-| **13** | **Theme editor in settings** | Screenshot reale ad alta fedeltà | VM Win11 (`ThemeEditorDialog` token e swatches) | `website/assets/img/ui/feature-13-theme-editor.png` |
-| **14** | **Remote connection via Tailscale & phone** | Screenshot reale con QR | VM Win11 (`RemoteSection` Tailscale connesso e QR pairing) | `website/assets/img/ui/feature-14-tailscale-remote-phone.png` |
-| **15** | **Pi CLI settings**: update Pi agent & extensions | Screenshot reale catturato | VM Win11 (`PiCliSection` comandi rapidi aggiornamento) | `website/assets/img/ui/feature-15-pi-cli-settings-update.png` |
-| **16** | **Enable/disable MCP servers** | Screenshot reale del modal | VM Win11 (`McpServersDialog` switch on/off server MCP) | `website/assets/img/ui/feature-16-mcp-servers-toggle.png` |
-| **17** | **View installed packages & pin package version** | Screenshot reale catturato | VM Win11 (`PiCliSection` pacchetti e version pinning) | `website/assets/img/ui/feature-17-packages-version-pinning.png` |
-| **18** | **Agent answer mentioning file**: click to open in OS Explorer | Breve Video / GIF (3s, 30 FPS) | VM Win11 + Recordly (click su link file nel markdown) | `website/assets/img/ui/feature-18-click-file-open-explorer.gif` |
-| **19** | **Render .md files when opening it** | Screenshot reale split / render | VM Win11 (`CodeBlock` render nativo markdown) | `website/assets/img/ui/feature-19-markdown-file-preview.png` |
-| **20** | **Generate repository instructions directly with Pi agent** | Breve Video / GIF (4s, 30 FPS) | VM Win11 + Recordly (`InstructionFileDialog` con AGENTS.md) | `website/assets/img/ui/feature-20-generate-repo-instructions.gif` |
+| **1** | **Disconnect-safe daemon** | Chiudi la finestra durante lo stream, riapri: l'agente ha continuato e la UI recupera ogni token senza buchi. Nessun'altra GUI lo fa così. | Prompt lungo → stream → chiusura app → riapertura → stream che riprende in corsa. | ★★★ |
+| **2** | **Agents & Workflows live tree** | Albero animato di subagent/workflow con stato, modello, costo, attività corrente e scintille lungo i rami. | Prompt che lancia 3 subagent → il pannello si apre → rami che si accendono e completano. | ★★★ |
+| **3** | **Steer queue in-flight** | Correggi l'agente mentre lavora: accodi, modifichi, riordini istruzioni senza fermare lo stream. | Stream attivo → digita steer → modifica in coda → l'agente lo applica. | ★★★ |
+| **4** | **Domande strutturate dell'agente** | L'agente chiede, tu scegli un'opzione in un dialog nativo invece di scrivere. | Domanda con 3 opzioni → selezione → l'agente prosegue. | ★★ |
+| **5** | **Step grouping dei turni** | Thinking e tool call collassati in un blocco "Completati N passaggi"; la risposta finale resta pulita. | Turno con molti tool → gruppo che scorre → collapse automatico → espansione. | ★★ |
+| **6** | **Side conversation `/side`** | Domanda laterale read-only (Ctrl+Shift+B) senza sporcare la sessione principale; "Inserisci nel composer". | Agente al lavoro → `/side spiega X` → risposta nel pannello → inserisci nel composer. | ★★★ |
+| **7** | **Bento workspace flessibile** | Tre aree co-visibili, splitter ridimensionabili, pannelli collassabili, companion tabs. | Resize splitter → collapse sidebar → tab File/Git/Browser/Terminal. | ★★ |
+| **8** | **Review changes 50/50 diff** | Diff side-by-side sincronizzato dentro la chat, toggle unified. | Fine turno → Review changes → click file → split 50/50. | ★★★ |
+| **9** | **Git desk: staging, commit e branch switch sicuro** | Stage per file, commit box, branch picker con ricerca e stash automatico se il tree è sporco. | Stage 2 file → commit → branch picker → switch con dialog stash. | ★★ |
+| **10** | **Repository explorer → "Add to chat"** | Ricerca file, selezione righe, aggiunta del range `L14–L28` al prompt; render nativo `.md`. | Cerca file → seleziona righe → Add to chat → chip nel composer. | ★★ |
+| **11** | **Browser Chromium integrato** | WebView2 reale nel pannello destro, multi-motore di ricerca, invio pagina all'agente. | Apri docs → "invia al composer" → prompt che la usa. | ★★ |
+| **12** | **Terminale integrato (PowerShell/WSL)** | Terminale nativo nel workspace, anche WSL. | Apri terminale → `npm test` → output reale. | ★ |
+| **13** | **Controllo modello, thinking e contesto** | Picker modello/thinking, tier contesto (272k/1M), limite custom e margine di compattazione per sessione. | Chip modello → thinking high → tier 1M → slider custom. | ★★ |
+| **14** | **Todo list live dell'agente** | Checklist che si spunta in tempo reale mentre l'agente lavora. | Piano a 5 step → spunte progressive. | ★★ |
+| **15** | **Composer potente** | `@` file mention, `/` slash (anche built-in Pi), drag & drop file/immagini, lightbox, composer espanso. | `@` → file → drag immagine → `/` menu. | ★★ |
+| **16** | **Command palette & session tree (fork/clone)** | Ctrl+K per tutto; albero della sessione con fork da un messaggio precedente. | Ctrl+K → "Session tree" → fork da un nodo. | ★★ |
+| **17** | **Theme editor + import VS Code + light/dark live** | Editor token con preview live, import tema VS Code JSON, switch light/dark istantaneo. | Switch light → editor → cambia accent → preview live. | ★★★ |
+| **18** | **Remote dal telefono (Tailscale, QR)** | Controlla l'agente dal telefono con layout mobile dedicato. | QR pairing (dati demo/oscurati) → app su telefono che riceve lo stream. | ★★★ |
+| **19** | **Pi ecosystem: MCP, pacchetti, update** | Toggle server MCP, pacchetti Pi con version pinning, update di Pi/estensioni/app dalle impostazioni. | Card MCP → toggle → Pacchetti → pin versione. | ★★ |
+| **20** | **Generatore `AGENTS.md` con Pi** | Il dialog genera le istruzioni del repo con l'agente, poi le modifichi in-app. | Apri dialog → Genera → file scritto → editor. | ★★ |
 
----
+Menzioni (utilizzabili come B-roll nel promo, non come card): animazione di avvio con assemblaggio logo, Nerd stats nella title bar, quick launch delle ultime sessioni, notifiche di sistema, costo multi-modello.
 
-## 3. Storyboard Hero Video 10 Secondi (`/brag`)
+**Selezione dell'utente:** `[1, 2, 7, 8, 9, 10, 13, 15, 17, 18]`
 
-Video ultra-dinamico, sincrono su ritmo 120-130 BPM, risoluzione 1920x1080 @ 60fps, esportato per il browser (`autoplay`, `loop`, `muted`, `playsinline`):
+## 3. Fase 1 — Ambiente di registrazione
 
-- **0.0s - 1.5s (The Hook)**:
-  - Macro zoom sul Bento Triptych in tema PiFrame Dark (#161c27).
-  - Stream di token assistente e reasoning a 120fps (zero jank).
-  - Titolo a schermo: *Fluid 120fps AI Coding Ergonomics*.
-- **1.5s - 3.5s (Interactive Agent & Steer)**:
-  - Comparsa dialog con domanda strutturata dell'agente ("agent questions to user").
-  - Modifica in-flight della coda di steer senza bloccare i token.
-- **3.5s - 5.5s (Deep Workspace & Code Control)**:
-  - Repository pane: ricerca file istantanea, click destro *"Add to chat [L14-L28]"*.
-  - Apertura split 50/50 Review Diff con evidenziazione sintattica.
-- **5.5s - 7.5s (Terminal, Web & Panes Flexibility)**:
-  - Apertura terminale integrato Powershell/WSL nel terzo compartimento.
-  - Tab switch immediato verso il Web Browser interno.
-  - Resize fluido dei divisori e scomparsa delle sidebar.
-- **7.5s - 9.0s (Light Switch & Extensibility)**:
-  - Toggle istantaneo a PiFrame Light (#f1f3f7) senza ricaricamento.
-  - Flash rapido di MCP servers attivi e Theme Editor.
-- **9.0s - 10.0s (Outro & CTA)**:
-  - Logo PiFrame iconico + *"Zero Telemetry. Disconnect-Safe. Native Flutter."*
-  - Badge: *Get PiFrame for Windows, macOS, Linux*.
+1. **Host con profilo demo isolato** (nessuna VM). PiFrame viene avviato con `USERPROFILE=C:\demo\home`: app Flutter, daemon `pi-agentd` (porta casuale, runtime separato) e Pi leggono solo `C:\demo\home\.piframe` e `C:\demo\home\.pi`. Le sessioni, i repo e le impostazioni reali dell'utente non compaiono mai.
+   - `C:\demo\home\.pi\agent`: copia di `bin` e `install` di Pi, `auth.json` solo con il provider del modello di default, `settings.json` minimale, pacchetti demo (`pi-subagents`, `rpiv-ask-user-question`, `rpiv-todo`).
+   - Registrazione **solo della finestra** PiFrame (Windows Graphics Capture di Recordly): nessuna taskbar, nessun'altra app. Recordly compone la finestra su uno sfondo neutro con padding, angoli arrotondati e ombra, come nei video del sito di Tailscale.
+2. **PiFrame ultima versione**: `pnpm build:all` + `flutter build windows --release` da HEAD di `main_bugfix`, eseguita da `apps/pi_frame/build/windows/x64/runner/Release/`.
+3. **Pi + modello**: modello di default reale (`anthropic/claude-haiku-5-5`).
+4. **Repo demo** (creati da script, mai repo dell'utente), in `C:\demo\`:
+   - `orbit-api` — piccolo servizio TypeScript con test (feature agent, diff, git, todo, subagent).
+   - `pixel-notes` — app web minimale (browser integrato, markdown, AGENTS.md).
+   - Git config locale: `user.name "PiFrame Demo"`, `user.email demo@example.invalid`.
+5. **Recordly ultima release** (Windows x64) installata nel guest; preset: sfondo gradiente scuro PiFrame, padding 6 %, angoli 14 px, ombra morbida, cursore smussato con click ring, auto-zoom attivo, 60 fps.
+6. **Tool host**: `ffmpeg` (winget `Gyan.FFmpeg`), Node 22, skill `brag` (`npx skills add latent-spaces/brag`) e una skill Awwwards (`juliobsz/skills` o equivalente) dopo verifica del contenuto.
+7. Reset dello stato demo tramite script (`tools/showcase/reset-demo.ps1`) prima di ogni clip.
 
----
+## 4. Fase 2 — Registrazione automatizzata con Recordly
 
-## 4. Architettura delle Sezioni del Sito Web (`website/index.html`)
+### Pipeline per ogni clip
 
-Il sito viene riorganizzato con una struttura narrativa e gerarchica moderna, mantenendo la palette **PiFrame Dark & Light** e la griglia Bento:
+```
+restore snapshot → seed stato (sessioni/file demo) → avvia PiFrame (finestra 1600×1000 centrata)
+ → Recordly: start recording (finestra PiFrame, cursore on)
+ → driver UI esegue lo script della clip (tempi umani, easing del mouse)
+ → Recordly: stop → editor: auto-zoom + rifinitura zoom manuali + trim
+ → export MP4 1080p60 (master) → ffmpeg: WebM/AV1 + MP4 H.264 per web, poster AVIF, GIF solo per README
+```
 
-### Sezione 1: Hero & Centerpiece Stage
-- Titolo & Badge: *Native Flutter GUI for Pi-Coding Agent*.
-- **Hero Video Player (10s)** al centro dello stage con toggle per passare ai singoli screenshot applicativi.
-- Tab bar interattiva: *10s Showcase*, *Bento Dark*, *Bento Light*, *50/50 Diff Review*, *Steer Queue*, *Theme Customizer*.
+### Driver UI
+- **Primario: Windows UI Automation** sull'albero di accessibilità che Flutter espone su Windows (`Semantics`). Script Python `pywinauto` (backend `uia`) che trova i controlli per nome: niente coordinate fragili.
+- **Fallback:** coordinate relative alla finestra (non allo schermo) con `SendInput`, movimento del mouse con easing smoothstep su 400–700 ms, digitazione a 35–60 ms per carattere con jitter.
+- Ogni script clip è in `tools/showcase/clips/<id>.py` con: precondizioni, azioni, pause "di lettura" (≥ 800 ms dopo ogni cambio di stato), postcondizioni verificate via UIA.
+- Avvio/stop di Recordly via scorciatoia globale configurata in Recordly (es. `Ctrl+Shift+F9`) inviata dal driver, così inizio e fine sono deterministici.
 
-### Sezione 2: Bento Grid 4x4 — Le 4 Aree Chiave
-1. **Agent Intelligence & Dialogue**:
-   - Domande interattive dell'agente (`feature-01`).
-   - Selettori Model, Thinking & Context Tiers nel composer (`feature-02`).
-   - Generazione guidata di istruzioni di repository `AGENTS.md` (`feature-20`).
-   - File link cliccabili con salto all'OS Explorer (`feature-18`).
-2. **Ergonomia dello Spazio di Lavoro (Bento Triptych)**:
-   - Resize dei pannelli, checklist visibilità e terminale integrato (`feature-09`).
-   - Repository explorer, fuzzy file search e "Add lines to chat" (`feature-08`).
-   - Integrazione Web Browser live (`feature-07`).
-   - Markdown viewer integrato con render nativo (`feature-19`).
-3. **Controllo del Contesto & Revisione Git**:
-   - Pannello Work Area con limiti di contesto e compaction personalizzati (`feature-03`).
-   - Revisione modifiche 50/50 side-by-side con unified diff toggle (`feature-05`).
-   - Git changes con staging a livello di file e commit box (`feature-06`).
-   - Drag-and-drop di file e pulsante attach avanzato (`feature-04`).
-4. **Sistema, Personalizzazione & Connettività**:
-   - Palette PiFrame Dark & Light e Theme Editor avanzato (`feature-11`, `feature-13`).
-   - Connessione remota via Tailscale & smartphone (`feature-14`).
-   - Gestione MCP Servers on/off (`feature-16`).
-   - Gestione pacchetti Pi, aggiornamenti ed estensioni con version pinning (`feature-15`, `feature-17`).
-   - Auto-aggiornamento da banner e impostazioni (`feature-12`).
-   - Gestione sessioni: rinomina con doppio click e pinning in cima alla lista (`feature-10`).
+### Regole di regia
+- 5–8 s per clip, una sola idea per clip, primo frame già leggibile (vale come poster).
+- Massimo 2 zoom per clip; zoom 1.6–2.0× sul punto d'azione, ritorno al wide prima della fine per il loop.
+- Loop pulito: ultimo frame ≈ primo frame (crossfade 300 ms in ffmpeg se serve).
+- Tema PiFrame Dark per tutte, salvo la clip del theme switch.
+- Le risposte del modello sono reali ma i prompt sono scelti per essere brevi e prevedibili; si registrano 2–3 take e si tiene il migliore.
 
-### Sezione 3: Deep Dive Interattivo con Schede Tabbed & Modal Preview
-- Selettore interattivo per categoria che permette allo sviluppatore di filtrare le feature e visualizzare la clip Recordly o lo screenshot ad alta risoluzione a schermo intero.
+### Output per clip (`website/assets/showcase/<nn>-<slug>/`)
+| File | Uso | Target |
+|---|---|---|
+| `master.mp4` | Sorgente per brag | 1920×1080, 60 fps, CRF 16 |
+| `clip.webm` (AV1/VP9) + `clip.mp4` (H.264) | Sito | ≤ 1.5 MB, 30–60 fps |
+| `poster.avif` + `poster.jpg` | Poster/LCP | ≤ 120 KB |
+| `clip.gif` | README GitHub | ≤ 4 MB, 960 px, 24 fps |
+| `project.recordly` | Riedizione | — |
 
-### Sezione 4: Tabella Comparativa & Architettura Decoupled
-- Comparativa prestazionale (120fps vs Electron, 0% telemetria, demone disconnesso).
+## 5. Fase 3 — Video promo con `brag`
 
----
+- Esegui `brag` sul repo con override: **usa solo le clip master registrate** come media della UI; la skill aggiunge titoli, ritmo, musica e SFX.
+- Durata 20–30 s, 1920×1080 + versione 1080×1350 per social.
+- Struttura: hook (2 s, feature più forte) → 5–6 beat sulle feature scelte (2–3 s ciascuno, una frase per beat) → claim architetturale verificabile (disconnect-safe, zero telemetria, nativo Flutter) → logo + URL release.
+- Output: `website/assets/video/piframe-promo.{webm,mp4}`, poster, sottotitoli `.vtt`; `brag-output/brag-plan.md` aggiornato.
+- Controllo: nessun frame con dati personali (verifica frame-by-frame a 2 fps).
 
-## 5. Piano Operativo di Esecuzione (Passo dopo Passo)
+## 6. Fase 4 — Sito Awwwards
 
-1. **Step 1 - Scrittura della nuova struttura HTML (`website/index.html`)**:
-   - Aggiungere il player video HTML5 per l'Hero Video (`<video>` con fallback poster, autoplay, loop, muted).
-   - Aggiungere la griglia bento arricchita con tutte le 20 feature raggruppate nei 4 cluster.
-   - Collegare gli attributi data per il filtro rapido e l'ingrandimento delle card.
-2. **Step 2 - Aggiornamento Stili CSS (`website/css/style.css`)**:
-   - Stili per il contenitore video con cornice metallica smussata (Bento aesthetics).
-   - Stili per i badge interattivi (GIF / Clip / Video tag).
-   - Ottimizzazione layout responsive (mobile, tablet, desktop wide) per visualizzazione fluida su schermi retina.
-3. **Step 3 - Integrazione Script Interattivi (`website/js/main.js`)**:
-   - Gestione del player video hero (pausa se fuori viewport con `IntersectionObserver`).
-   - Switcher avanzato per tab video/screenshot.
-   - Lightbox modal ad alta risoluzione per ispezionare le singole feature in dettaglio.
-4. **Step 4 - Generazione & Assegnazione degli Asset Visuali (Tramite VM Hyper-V)**:
-   - Utilizzare esclusivamente la macchina virtuale Hyper-V `Win11` (snapshot `PiFrame`, credenziali `User` / `password`), seguendo i passi di `docs/VM_RECORDLY_SHOWCASE_GUIDE.md`.
-   - Nessuna interferenza con l'istanza PiFrame attiva sull'host: le registrazioni avvengono dentro il guest via `wgc-capture.exe` e cattura WMI video.
-   - Posizionare i video/GIF registrati e gli screenshot in `website/assets/img/ui/` e `website/assets/video/`.
-   - Compilare il video Hero 10s tramite lo script di composizione `/brag` unendo le scene reali registrate nella VM.
-5. **Step 5 - Verifica Finale**:
-   - Test di caricamento locale e performance.
-   - Controllo contrasti sia in dark mode che light mode.
+Partenza: `website/index.html` (858 righe), `css/style.css`, `js/main.js`. Si mantiene HTML/CSS/JS statico (deploy semplice), con librerie leggere: GSAP + ScrollTrigger, Lenis.
+
+Struttura narrativa:
+1. **Hero** — titolo forte, promo in loop muto a pieno stage, CTA download (link reali alle release).
+2. **Manifesto** — 3 claim verificabili con micro-animazioni tipografiche.
+3. **10 feature** — sezione pinned con scroll-scrub: testo a sinistra, clip a destra che cambia per capitolo; su mobile diventa sequenza di card.
+4. **Architettura** — diagramma daemon/GUI/Pi (illustrazione dell'architettura, non della UI).
+5. **Temi** — before/after light/dark con clip reale.
+6. **Download / FAQ / footer**.
+
+Requisiti qualità:
+- LCP < 2.5 s, video lazy (`preload="none"` fuori viewport, play via `IntersectionObserver`), `prefers-reduced-motion` → poster statici.
+- Accessibilità: contrasto AA, controllo play/pause sui video, testi alternativi.
+- Verifica con Lighthouse (≥ 90 performance/accessibility) e screenshot a 375 / 768 / 1440 / 2560 px.
+- Iterazione con la skill Awwwards (giudizio "jury") finché design, usabilità, creatività e contenuto sono ≥ 8/10.
+
+## 7. Sequenza operativa e checkpoint
+
+| Fase | Output | Checkpoint utente |
+|---|---|---|
+| 0 Selezione | 10 feature scelte | ✅ obbligatorio |
+| 1 Ambiente | VM pronta, snapshot `PiFrame-Showcase-Ready` | — |
+| 2 Registrazione | 10 clip + poster | Revisione clip (consigliata) |
+| 3 Promo | `piframe-promo` | ✅ revisione video |
+| 4 Sito | `website/` aggiornato | ✅ revisione finale |
+| Docs | `docs/install.md` / `docs/troubleshooting.md` se servono | — |
+
+## 8. Stato finale e come rigenerare
+
+Completato:
+- **Clip reali** (Recordly 1.4.0, finestra PiFrame su sfondo neutro, UI in inglese) in `website/assets/showcase/<slug>/` (`clip.webm`, `clip.mp4`, `poster.jpg`): 01, 02, 07, 08, 09, 10, 13, 15, 17.
+- **#18 Remote**: `settings.png` (indirizzo tailnet e hostname sfocati) e `iphone.png` (UI web reale in cornice iPhone).
+- **Promo** (skill `brag` + HyperFrames, solo clip reali): `website/assets/video/piframe-promo.{mp4,webm}` e poster; master in `brag-output/`. Musica: Sascha Ende, CC BY 4.0.
+- **App**: interfaccia localizzata in inglese (prima solo Impostazioni), lingua salvata anche nel client web, output LF del terminale integrato corretto.
+
+Rigenerare:
+1. `python tools/showcase/launch.py` (reset demo, 2560x1440 al 125 %, finestra 2400x1350).
+2. `python tools/showcase/clips.py <clip>` per 02, 07, 08, 09, 10, 13, 15, 17; `python tools/showcase/clip01.py` per 01. Recordly va avviato da script (`--remote-debugging-port=9333`); l'export usa la modalità smoke-export di Recordly.
+3. `python tools/showcase/post.py` (montaggio, encode web, poster).
+4. `node brag-output/render-promo.mjs --clips-dir <cartella con master 1080p30> --skip-check`, poi `delogo` sull'angolo in basso a destra se un ad blocker locale inietta un'icona nel render.
+
+Note: la cattura di Recordly su Windows registra la regione della finestra, quindi finestre sovrapposte compaiono nel video. Il drag & drop della clip 15 parte da una finestra di Esplora file fuori dall'area registrata.
+
+## 9. Rischi
+
+| Rischio | Mitigazione |
+|---|---|
+| Flutter non espone un controllo via UIA | Fallback a coordinate relative alla finestra, ricavate da screenshot del tema fisso. |
+| Risposte del modello variabili | Prompt brevi e vincolati, più take, nessun montaggio che altera il contenuto. |
+| Feature Remote (#18) mostra dati del tailnet | Tailnet demo dedicato oppure blur di QR/indirizzi; se non sicuro, si esclude. |
+| Recordly senza CLI | Avvio/stop con scorciatoia globale; editing e export nell'app. |
+| Peso dei video | AV1/VP9 + poster, lazy load, max 1.5 MB per clip. |
