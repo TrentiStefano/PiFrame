@@ -2,6 +2,7 @@
   "name": "@piframe/codegen",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Code generator from PCP JSON Schema to TypeScript and Dart",
   "main": "generate.js",

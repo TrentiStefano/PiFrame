@@ -206,6 +206,8 @@ jobs:
           Copy-Item $nodePath (Join-Path $bundle 'node.exe') -Force
           Copy-Item 'apps/pi_frame/build/web' (Join-Path $bundle 'web') -Recurse -Force
           Copy-Item (Join-Path (Split-Path $nodePath -Parent) 'LICENSE') (Join-Path $bundle 'NODE-LICENSE.txt') -Force
+          Copy-Item 'LICENSE' (Join-Path $bundle 'LICENSE.txt') -Force
+          Copy-Item 'THIRD_PARTY_NOTICES.md' (Join-Path $bundle 'THIRD_PARTY_NOTICES.md') -Force
           if (!(Test-Path (Join-Path $bundle 'PiFrame.exe')) -or !(Test-Path (Join-Path $bundle 'pi-agentd.cjs')) -or !(Test-Path (Join-Path $bundle 'node.exe')) -or !(Test-Path (Join-Path $bundle 'NODE-LICENSE.txt')) -or !(Test-Path (Join-Path $bundle 'web/index.html'))) {
             throw 'Windows app bundle is missing app, daemon, Node runtime, or remote web assets.'
           }
@@ -225,6 +227,8 @@ jobs:
           node_bin="$(command -v node)"
           cp "$node_bin" "$app/Contents/MacOS/node"
           cp "$(dirname "$(dirname "$node_bin")")/LICENSE" "$app/Contents/Resources/NODE-LICENSE.txt"
+          cp LICENSE "$app/Contents/Resources/LICENSE.txt"
+          cp THIRD_PARTY_NOTICES.md "$app/Contents/Resources/THIRD_PARTY_NOTICES.md"
           chmod +x "$app/Contents/MacOS/node"
           rm -rf "$app/Contents/MacOS/web"
           cp -R apps/pi_frame/build/web "$app/Contents/MacOS/web"
@@ -239,6 +243,7 @@ jobs:
           test -s "$app/Contents/MacOS/pi-agentd.cjs"
           test -s "$app/Contents/MacOS/web/index.html"
           test -s "$app/Contents/Resources/NODE-LICENSE.txt"
+          test -s "$app/Contents/Resources/LICENSE.txt"
           test -s "dist/dmg/LEGGIMI - Come aprire l'app.txt"
           test -s "dist/dmg/README - How to open.txt"
           hdiutil create -volname 'PiFrame' -srcfolder dist/dmg -ov -format UDZO "dist/PiFrame-${APP_VERSION}-macos-${{ matrix.arch }}.dmg"

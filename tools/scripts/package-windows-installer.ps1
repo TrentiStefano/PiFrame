@@ -152,6 +152,10 @@ else {
     "Node.js Runtime License" | Out-File -FilePath (Join-Path $bundle 'NODE-LICENSE.txt') -Encoding utf8
 }
 
+# Copy PiFrame license and third-party notices
+Copy-Item (Join-Path $repoRoot 'LICENSE') (Join-Path $bundle 'LICENSE.txt') -Force
+Copy-Item (Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') (Join-Path $bundle 'THIRD_PARTY_NOTICES.md') -Force
+
 # Copy Flutter web assets
 $targetWeb = Join-Path $bundle 'web'
 if (Test-Path $targetWeb) {
@@ -193,7 +197,7 @@ if ($vcRedistDir -and (Test-Path $vcRedistDir)) {
 }
 
 # Verify bundle integrity
-$requiredFiles = @('PiFrame.exe', 'pi-agentd.cjs', 'node.exe', 'NODE-LICENSE.txt', 'web/index.html')
+$requiredFiles = @('PiFrame.exe', 'pi-agentd.cjs', 'node.exe', 'NODE-LICENSE.txt', 'LICENSE.txt', 'THIRD_PARTY_NOTICES.md', 'web/index.html')
 foreach ($f in $requiredFiles) {
     $fullPath = Join-Path $bundle $f
     if (!(Test-Path $fullPath)) {

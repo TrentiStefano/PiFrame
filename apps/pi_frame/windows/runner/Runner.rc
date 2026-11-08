@@ -93,7 +93,7 @@ BEGIN
             VALUE "FileDescription", "PiFrame" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "PiFrame" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.piframe. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Stefano Trenti and PiFrame contributors. MIT License." "\0"
             VALUE "OriginalFilename", "PiFrame.exe" "\0"
             VALUE "ProductName", "PiFrame" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

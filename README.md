@@ -380,4 +380,4 @@ piframe/
 
 ## 📄 License
 
-This project is open-source and available under the [MIT License](LICENSE).
+PiFrame is free and open source under the [MIT License](LICENSE). The installers also ship third-party software (the Node.js runtime and a few npm packages bundled into `pi-agentd`); their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

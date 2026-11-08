@@ -2,6 +2,7 @@
   "name": "@piframe/fake-pi",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Scriptable Pi RPC simulator for deterministic offline testing",
   "bin": {
