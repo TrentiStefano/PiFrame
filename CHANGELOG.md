@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.1](https://github.com/TrentiStefano/PiFrame/compare/v1.4.0...v1.4.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* **agentd:** reliable remote web delivery, phone uploads and boot retry ([67eb888](https://github.com/TrentiStefano/PiFrame/commit/67eb8882b6cfebf4c6568c858724ae42237c343b))
+* **ci:** run verify in a worktree outside the OS temp dir ([2cd9c7d](https://github.com/TrentiStefano/PiFrame/commit/2cd9c7d3286aade4fb233a84e49a029c3a23f69c))
+* **test:** decouple update tests from the current app version ([6bdf73b](https://github.com/TrentiStefano/PiFrame/commit/6bdf73b85370db48c265cd6bf3798e5af48d460a))
+* **transcript:** ignore nested scroll metrics in the compact step list ([4eb0b2d](https://github.com/TrentiStefano/PiFrame/commit/4eb0b2d36b49b53c68876feae27903ace52a2242))
+* **transcript:** stop compact step list jitter while thinking streams ([20776e4](https://github.com/TrentiStefano/PiFrame/commit/20776e481993ab7841ffa5eecc2d5264176b3ecb))
+* **web:** make the phone web app fast, aligned and usable on iPhone ([6fa857e](https://github.com/TrentiStefano/PiFrame/commit/6fa857e453e16b74c36fa38524b56ba0a8861c53))
+
 ## [1.4.0](https://github.com/TrentiStefano/PiFrame/compare/v1.3.1...v1.4.0) (2026-11-08)
 
 

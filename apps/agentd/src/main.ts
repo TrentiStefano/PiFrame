@@ -14,7 +14,7 @@ import { RemoteManager } from './remote/RemoteManager.js';
 import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
 import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
 
-const VERSION = '1.4.0'; // x-release-please-version
+const VERSION = '1.4.1'; // x-release-please-version
 
 async function main() {
   console.log(`[agentd] Starting PiFrame Daemon v${VERSION}...`);
