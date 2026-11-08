@@ -2,219 +2,140 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/design-evidence/icons/piframe-dark-1024.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/design-evidence/icons/piframe-light-1024.png">
-    <img src="docs/design-evidence/icons/piframe-dark-1024.png" width="132" height="132" alt="PiFrame Logo" style="border-radius: 28px; box-shadow: 0 12px 32px rgba(0,0,0,0.25);">
+    <img src="docs/design-evidence/icons/piframe-dark-1024.png" width="120" height="120" alt="PiFrame logo">
   </picture>
 </p>
 
 <h1 align="center">PiFrame</h1>
 
 <p align="center">
-  <strong>The modern, resilient Bento GUI for <a href="https://github.com/earendil-works/pi">pi-coding-agent</a>.</strong><br>
-  Engineered for developers who demand fluid 120fps motion, native desktop speed, and zero lost agent work.
+  <strong>The desktop GUI for the <a href="https://github.com/earendil-works/pi">Pi Coding Agent</a>.</strong><br>
+  Your Pi setup, packages and sessions in a desktop workspace with side-by-side diffs, Git,<br>
+  and an agent that keeps working when you close the window.
 </p>
 
 <p align="center">
-  <a href="https://github.com/TrentiStefano/piframe/releases/latest"><img src="https://img.shields.io/github/v/release/TrentiStefano/piframe?style=flat-square&color=ca9ee6" alt="Latest Release"></a>
-  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-blue?style=flat-square" alt="Supported Platforms">
-  <img src="https://img.shields.io/badge/flutter-3.47%2B-02569B?style=flat-square&logo=flutter&logoColor=white" alt="Flutter">
-  <img src="https://img.shields.io/badge/typescript-Node.js%2022%2B-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
-  <a href="docs/security.md"><img src="https://img.shields.io/badge/telemetry-strictly%20zero%20(D16)-success?style=flat-square" alt="Zero Telemetry"></a>
+  <a href="https://github.com/TrentiStefano/PiFrame/releases/latest"><img src="https://img.shields.io/github/v/release/TrentiStefano/PiFrame?style=flat-square" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square" alt="Windows, macOS and Linux">
+  <a href="docs/security.md"><img src="https://img.shields.io/badge/telemetry-none-success?style=flat-square" alt="No telemetry"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"></a>
 </p>
 
----
-
-## 🎬 A Real Run
-
-Run agents, stream token responses, search and edit repository code with syntax highlighting, steer tasks in-flight, manage Git changes, and run commands inside the integrated terminal without leaving the window:
+<p align="center">
+  <a href="https://trentistefano.github.io/PiFrame/"><strong>Website</strong></a> ·
+  <a href="https://github.com/TrentiStefano/PiFrame/releases/latest"><strong>Download</strong></a> ·
+  <a href="docs/install.md">Install guide</a> ·
+  <a href="docs/troubleshooting.md">Troubleshooting</a>
+</p>
 
 <p align="center">
-  <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">
-    <img src="docs/design-evidence/bento-triptych-fixture-dark-wide.png" alt="A real run in PiFrame: agent working, code editor with syntax highlighting and Ctrl+F, steer queue, integrated terminal, and Git changes review" width="100%" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+  <a href="https://trentistefano.github.io/PiFrame/">
+    <img src="website/assets/video/piframe-promo-poster.jpg" alt="PiFrame promo video, recorded from the real app. Open the website to watch it." width="100%">
   </a>
+  <br>
+  <sub>Recorded from the real app. <a href="https://trentistefano.github.io/PiFrame/">Watch the 26-second video on the website</a>.</sub>
 </p>
+
+---
+
+## Why PiFrame?
+
+**Drop-in for Pi users. Zero risk to try.**
+PiFrame starts your installed `pi` (`pi --mode rpc`) and uses your existing config, providers, models, packages, skills and sessions. Sessions stay in Pi's own folder (`~/.pi/agent/sessions/`), so you can switch between the `pi` CLI and PiFrame at any time. PiFrame keeps its own data in `~/.piframe/` and changes files in `~/.pi/` only when you ask it to from the app (for example deleting a session, toggling an MCP server or editing agent settings). Uninstalling PiFrame leaves Pi and your sessions in place.
+
+**Disconnect-safe.**
+Pi runs inside a local background service (`pi-agentd`), not inside the window. Close the window mid-turn and the agent keeps working. Reopen PiFrame and it reconnects and catches up, using a local log of the session's events.
+
+**Local and private.**
+The background service listens only on `127.0.0.1` and requires a random per-install token. PiFrame has no analytics and no telemetry. Network traffic is what Pi sends to your model provider, plus the optional update check and the remote access you choose to enable. See [docs/security.md](docs/security.md).
+
+**A real desktop app.**
+Installers for Windows, macOS and Linux bundle everything PiFrame needs (Pi itself stays your own install). Repository, chat and Git live in one window, with an integrated terminal for PowerShell, bash, zsh or WSL. The interface is available in English and Italian.
+
+---
+
+## Features
+
+All images are captures of the real app (demo profile and demo repository).
+
+### Close the window, the agent keeps working
+[![Disconnect-safe: close the window mid-turn and reopen it](website/assets/showcase/01-disconnect-safe/poster.jpg)](https://trentistefano.github.io/PiFrame/#disconnect-safe)
+
+### Watch every agent, live
+Background agents appear as a tree with their model, cost and current activity. Open one to read its output, steer it, or stop it.
+
+[![Background agents tree with model, cost and current step](website/assets/showcase/02-agents-tree/poster.jpg)](https://trentistefano.github.io/PiFrame/#agents-tree)
+
+### Repository, chat and Git in one window
+File tree and code viewer, the Pi chat, and Git changes side by side. Panels collapse when you need space. On Windows, the right panel also has a built-in web browser.
+
+[![Workspace with repository, chat and Git changes](website/assets/showcase/07-bento-workspace/poster.jpg)](https://trentistefano.github.io/PiFrame/#workspace)
+
+### Review the diff before you commit
+Side-by-side or unified diffs with syntax highlighting. Stage, unstage or discard files, write the commit and switch branches from the Git panel.
+
+| Review diff | Git: stage, commit, branch |
+| :---: | :---: |
+| [![Side-by-side diff review](website/assets/showcase/08-review-diff/poster.jpg)](https://trentistefano.github.io/PiFrame/#review-diff) | [![Git staging and commit](website/assets/showcase/09-git-desk/poster.jpg)](https://trentistefano.github.io/PiFrame/#showcase) |
+
+### And more
+
+| | |
+| :---: | :---: |
+| [![Add files from the repository to the chat](website/assets/showcase/10-repo-add-to-chat/poster.jpg)](https://trentistefano.github.io/PiFrame/#showcase) | [![Model, thinking level and context window](website/assets/showcase/13-model-context/poster.jpg)](https://trentistefano.github.io/PiFrame/#showcase) |
+| **Add files to the chat** from the repository tree, with `@` mentions or by drag and drop. | **Model, thinking level and context window** per session, with live context usage and cost. |
+| [![Composer with slash commands and steering](website/assets/showcase/15-composer/poster.jpg)](https://trentistefano.github.io/PiFrame/#showcase) | [![Light, dark and custom themes](website/assets/showcase/17-themes/poster.jpg)](https://trentistefano.github.io/PiFrame/#showcase) |
+| **Composer:** `/` commands, attachments, and steering messages you can edit while the agent works. | **Themes:** light, dark, a live theme editor, and VS Code theme import. |
+
+### Remote access from your phone (opt-in)
+Follow or control a session from a phone browser over Tailscale (or a temporary Cloudflare Quick Tunnel). Pair a device by scanning a one-time QR code that expires after a few minutes. Each device gets *view* or *control* rights. Remote access is off until you turn it on.
 
 <p align="center">
-  <sub>A real run: the agent streams reasoning and tokens, tool executes tests, code editor highlights syntax with in-file Ctrl+F match cycling, user modifies the steer queue in-flight, stages Git changes, uses the embedded terminal, and toggles themes. (<a href="docs/design-evidence/showcase.html">Interactive Web Demo</a> · <a href="docs/design-evidence/bento-triptych-fixture-dark-wide.png">View Full Resolution Capture</a>)</sub>
+  <img src="website/assets/showcase/18-remote/iphone-760.png" alt="PiFrame session on an iPhone" height="420">
+  <img src="website/assets/showcase/18-remote/settings.png" alt="Remote access settings with QR pairing" height="420">
 </p>
 
----
-
-## 🌟 Why PiFrame?
-
-Most AI coding assistants lock you into a monolithic web app or terminal session where closing the tab kills the task. **PiFrame** is built on a **three-tier decoupled architecture**:
-
-1. **🛡 Never Lose Agent Work (Disconnect-Safe):** Close the window, restart your desktop shell, or reload anytime. A background local daemon (`pi-agentd`) keeps the agent running, journals every stream event monotonically, and catches up seamlessly upon GUI reconnect with zero gaps or duplicate events.
-2. **📂 100% Native Pi Compatibility:** Authoritative session history remains strictly owned by Pi (`~/.pi/agent/sessions/`). Switch freely between the `pi` terminal CLI and the PiFrame GUI at any moment.
-3. **🍱 Bento Triptych Workspace:** Co-visible repository code editor, streaming chat transcript, and interactive Git Changes / Web Browser in a balanced three-compartment view inspired by modern editor ergonomics.
-4. **🔒 Local-First & Zero Telemetry (Decision D16):** Strictly bound to `127.0.0.1` with cryptographically random tokens. No third-party analytics, no tracking pixels, no outbound calls beyond your configured model provider.
-
----
-
-## ✨ Features & Functionality
-
-### 🍱 Bento Triptych Workspace & Companion Panes
-- **Three co-visible work areas:** Repository file tree & code viewer (Left), Pi chat session (Center), and Git Changes inspector / Live Web Browser (Right).
-- **Responsive adaptation:** Seamlessly adjusts from ultra-wide 1440px+ displays down to compact laptop screens and single-column mobile views.
-- **Collapsible Panes:** Easily collapse or expand side panels with instant keyboard shortcuts or one-click headers.
-- **Unified Companion Tabs:** Seamlessly toggle between File Explorer, Code Editor, Git Review Changes, Embedded Browser, and the Integrated Terminal with exclusive active-pane controls.
-
-### 🌐 Embedded Chromium Web Browser (Live In-App Browsing)
-- **Native WebView2 Engine:** Full Chromium-powered web browser embedded directly inside the right companion pane on desktop.
-- **Multi-Engine Search:** Quick search bar integrated with Google, DuckDuckGo, YouTube, pub.dev, GitHub, Wikipedia, Stack Overflow, and MDN Web Docs.
-- **Tab & History Management:** Multi-tab browsing with back/forward history, reload, home, and custom bookmark shortcuts.
-- **Chat Copilot Integration:** Send web pages, documentation snippets, and reference URLs straight to the agent composer with one click.
-
-### 💻 Integrated Terminal with Native OS Integration & WSL
-- **Direct Hardware Typing:** High-performance integrated terminal emulator embedded directly inside your workspace with hardware-level keyboard typing.
-- **Native OS Shells:** Spawns native PowerShell / cmd on Windows, zsh / bash on macOS and Linux.
-- **First-Class WSL Support:** Open repositories located inside the Windows Subsystem for Linux (WSL) and run commands directly through an integrated WSL bash terminal.
-
-### 📋 Live Agent ToDo Breakdown & Interactive Tasks
-- **Real-Time Task Checklists:** Interactive agent task list panel rendering progress in real time as the agent plans and executes multi-step work.
-- **Synchronized Checkboxes:** Watch tasks auto-check as milestones are completed, with direct status toggling and chat transition notifications.
-- **Runaway & Duplicate Prevention:** Robust parser safeguards prevent duplicate task generation or counter runaway during high-speed token streaming.
-
-### 🤖 Popdown Subagents Panel & Dedicated Monitoring
-- **Dedicated Subagent Drawer:** Monitor parallel or nested subagents spawned during complex tasks with dedicated booktab indicators.
-- **Live Output & Steering:** Expand individual subagent execution streams, supply directional steer input, and stop unresponsive subagents individually.
-- **Subsession Cost Tracking:** Real-time cost reconciliation and cumulative token accounting across all child workers.
-
-### 🎯 In-Flight Visual Steer Queue
-- **Non-Interruptive Steering:** Queue, modify, or dismiss pending steer directions while responses stream without interrupting generation.
-- **Re-Order & In-Flight Editing:** Drag or edit steer instructions before the agent begins their execution.
-- **Double-Send Safeguards:** Robust state synchronization prevents duplicate steers on agent interrupt, model switch, or resend actions.
-
-### 🔍 Git Changes Review Desk & 50/50 Split Diff
-- **50/50 Split Review Pane:** Dedicated side-by-side or unified diff viewing to inspect changes before committing.
-- **Comprehensive File Tracking:** Real-time visibility into modified (`M`), added (`A`), deleted (`D`), and untracked (`?`) files.
-- **Markdown Live Preview:** Toggle live rendered markdown previews for `.md` files right within the workspace editor.
-- **Staging & Revert Controls:** Stage, unstage, or discard changes with one click.
-
-### 🔌 MCP Server Management (Model Context Protocol)
-- **Interactive Server Cards:** Click the Model Context Protocol (MCP) badge to view all configured and active MCP tools and servers.
-- **Dynamic Server Toggles:** Enable or disable specific MCP servers with intuitive checkboxes without restarting sessions.
-
-### ⏱ Real-Time Context Usage & Multi-Model Cost Analytics
-- **Live Cost & Token Metering:** Accurate real-time session cost and token accumulation tracking mirroring CLI/TUI metrics.
-- **Multi-Model Cost Breakdown:** Detailed cost inspection dialog breaking down expenditures per model across turns and sub-sessions.
-- **Context Window Selector:** Explicitly pick model context bounds for variable-context models (e.g., Luna, Haiku) to optimize performance and billing.
-
-### ✍️ Expanded Composer, File Mentions & Drag-and-Drop
-- **Large Prompt Composer:** Toggle an enlarged input window with rich multiline textarea when composing lengthy prompts.
-- **Animated Minimization:** Smooth spring transition automatically minimizes composer input with pointer glow while the agent generates, expanding after 5 seconds or upon click.
-- **`@` File Mentions & `/` Slash Menus:** Quick-search repository files and slash commands directly in the input box.
-- **Drag & Drop Attachments:** Drag and drop images or text files directly into chat; view files with inline transcript chips and full-screen lightbox preview.
-- **Direct Workspace Navigation:** `Ctrl+Click` on file mentions in the transcript to open the file directly in the OS file explorer or internal editor.
-- **Inline Session Rename:** Double-click or press Enter on the session header to rename sessions on the fly.
-
-### 📝 AI Instruction File Generator (`AGENTS.md` / `PI.md`)
-- **Direct Instruction Editor:** View, edit, and maintain repository-specific instruction files (`AGENTS.md`, `PI.md`) from the session header or sidebar.
-- **AI-Assisted Generation:** Generate tailored project instructions using the Pi agent directly from a guided dialog.
-
-### 🚀 Quick Launch Welcome Screen & Startup Assembly Animation
-- **Landing Quick Launch:** Welcome page displaying the latest 5 active sessions with instant resume, project paths, and quick folder selection.
-- **Startup Logo Assembly:** Smooth geometric logo assembly animation on launch with subtle framing audio.
-- **Window Geometry Persistence:** Automatically saves and restores desktop window position, size, and maximized state across app restarts.
-
-### 🎨 Custom Theme Customizer & VSCode JSON Import
-- **Official Normative Palettes:** Preloaded with precision-tuned **PiFrame Dark** (`#161c27`) and **PiFrame Light** (`#f1f3f7`) themes with automatic system theme tracking.
-- **Interactive Theme Editor:** Customize base colors, surface tones, chassis borders, and accent highlights with live component preview cards.
-- **VSCode Theme Import:** Import standard VSCode JSON theme files directly into PiFrame.
-- **Custom JSON Themes:** Add hot-reloadable themes in `~/.piframe/themes/` with full token inheritance.
-- **Multi-Language Support:** Language dropdown in Appearance settings for localized user experience.
-
-### 🌐 Secure Remote Web Access (Tailscale & Cloudflare)
-- **Zero-Config Remote Web Access:** Securely access and control your desktop agent sessions from mobile browsers (iPhone, iPad, Android) or secondary laptops.
-- **Tunnels Supported:** Built-in integration for Tailscale and Cloudflare tunnels.
-- **Secure Pairing:** Connect with a 6-digit PIN or QR code with automatic credential expiration.
-- **View vs. Control Modes:** Fine-grained authorization controls to enforce read-only viewing or explicit authorization for terminal and file modifications.
-- **Mobile-Tailored UI:** Specially tuned responsive layout and touch-friendly controls for mobile browsers.
-
-### 🔔 Native OS Notifications & Auto-Update Engine
-- **Background Completion Alerts:** Receive native OS notifications and desktop snackbars when the agent finishes long runs or requests human input while unfocused.
-- **Startup Update Checker:** Real-time startup notification banner alerting when Pi CLI or PiFrame updates are available.
-- **One-Click Updates:** Launch background updates with release highlights directly from Settings.
-- **First-Run Onboarding:** Prompts to install `pi-coding-agent` on first launch if not detected on your system.
+### Other details
+- **Agent task list** that updates as the agent plans and completes steps.
+- **MCP servers:** see configured servers and their tools, and turn servers on or off.
+- **Instruction files:** view, edit, or generate `AGENTS.md` with the agent.
+- **Sessions sidebar** grouped by repository, with search and pinned sessions; a welcome screen with your recent sessions.
+- **Command palette** (`Ctrl+K` / `Cmd+K`).
+- **Desktop notifications** when a long turn finishes or the agent needs your input.
+- **Update check** for PiFrame and Pi, and first-run help to install Pi if it is missing.
+- **Window position and size** are restored on the next launch.
 
 ---
 
-## 📸 Screenshots & Visual Tour
+## Download and install
 
-### Bento Workspace & Themes
-| PiFrame Dark (Default) | PiFrame Light |
-| :---: | :---: |
-| [![PiFrame Dark](docs/design-evidence/bento-triptych-fixture-dark-wide.png)](docs/design-evidence/bento-triptych-fixture-dark-wide.png) | [![PiFrame Light](docs/design-evidence/bento-triptych-fixture-wide.png)](docs/design-evidence/bento-triptych-fixture-wide.png) |
-| *Bento Triptych workspace running official PiFrame Dark theme (`#161c27`)* | *Bento Triptych workspace running official PiFrame Light theme (`#f1f3f7`)* |
+Download the installer for your system from [**GitHub Releases**](https://github.com/TrentiStefano/PiFrame/releases/latest):
 
-### Autonomous Workflow & In-Flight Steering
-| In-Flight Steer Queue | Real-Time Reasoning & Thinking Stream |
-| :---: | :---: |
-| [![In-Flight Steer Queue](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png)](docs/design-evidence/recordly-projects/clip-04-steer-queue.preview.png) | [![Reasoning Stream](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png)](docs/design-evidence/recordly-projects/clip-06-reasoning-stream.preview.png) |
-| *Modify, prioritize, and steer agent reasoning without interrupting token generation* | *High-framerate token stream with granular thinking inspection, live cost, and tool timing* |
-
-### Code Navigation & Git Staging Desk
-| Git Changes Review Desk (50/50 Diff) | Syntax Highlighting & Code Search (Ctrl+F) |
-| :---: | :---: |
-| [![Git Changes Staging](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png)](docs/design-evidence/recordly-projects/clip-08-git-staging.preview.png) | [![Code Search & Syntax Highlighting](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png)](docs/design-evidence/recordly-projects/clip-03-code-search.preview.png) |
-| *50/50 split diff inspection, one-click staging, and file discard actions* | *Syntax-highlighted repository code viewer with in-file match cycling and line numbers* |
-
-### Session Navigation & Command Palette
-| Grouped Repository Session Tree | Command Palette (Ctrl+P / Cmd+P) |
-| :---: | :---: |
-| [![Session Tree](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png)](docs/design-evidence/recordly-projects/clip-09-session-tree.preview.png) | [![Command Palette](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png)](docs/design-evidence/recordly-projects/clip-02-command-palette.preview.png) |
-| *Session tree grouped by repository with search, pinned sessions, and status pills* | *Fast keyboard-driven command palette for workspace navigation and panel actions* |
-
-### Quick Launch & AI Instruction Generator
-| Landing Page Quick Launch | AI Instruction File Generator |
-| :---: | :---: |
-| [![Landing Quick Launch](docs/design-evidence/recordly-projects/01_landing_quick_launch.png)](docs/design-evidence/recordly-projects/01_landing_quick_launch.png) | [![Instruction Dialog](docs/design-evidence/recordly-projects/02_instruction_dialog.png)](docs/design-evidence/recordly-projects/02_instruction_dialog.png) |
-| *Welcome screen with recent 5 active sessions for instant one-click resume* | *Generate and refine repository-specific `AGENTS.md` and `PI.md` instruction files* |
-
-### Customization & Responsive Layouts
-| Theme Editor & Live Preview | Appearance Settings & Language |
-| :---: | :---: |
-| [![Theme Editor](docs/design-evidence/recordly-projects/04_theme_editor.png)](docs/design-evidence/recordly-projects/04_theme_editor.png) | [![Appearance Settings](docs/design-evidence/recordly-projects/05_appearance_settings.png)](docs/design-evidence/recordly-projects/05_appearance_settings.png) |
-| *Dedicated Theme Customizer with live component preview cards and token inheritance* | *Appearance settings with custom theme selection and application language dropdown* |
-
-| Context & Cost Analytics | Compact Responsive Layout |
-| :---: | :---: |
-| [![Context Analytics](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png)](docs/design-evidence/recordly-projects/clip-05-context-analytics.preview.png) | [![Compact Mode](docs/design-evidence/bento-triptych-fixture-compact-file.png)](docs/design-evidence/bento-triptych-fixture-compact-file.png) |
-| *Real-time context window usage, cumulative cost, and token accumulation tracking* | *Seamless responsive adaptation for smaller laptops and single-pane viewports* |
-
----
-
-## 📥 Download & Installation
-
-Download pre-built binaries from the [**GitHub Releases**](https://github.com/TrentiStefano/piframe/releases/latest) page:
-
-| Operating System | Architecture | Installer / Package | Notes |
+| System | Architecture | File | Notes |
 | :--- | :--- | :--- | :--- |
-| **Windows** | `x64` | [`PiFrame-Setup-…-windows-x64.exe`](https://github.com/TrentiStefano/piframe/releases/latest) | Bundles Node.js & `pi-agentd` |
-| **macOS** | `arm64` (Apple Silicon) | [`PiFrame-…-macos-arm64.dmg`](https://github.com/TrentiStefano/piframe/releases/latest) | Drag to `/Applications` |
-| **macOS** | `x64` (Intel) | [`PiFrame-…-macos-x64.dmg`](https://github.com/TrentiStefano/piframe/releases/latest) | Drag to `/Applications` |
-| **Linux** | `x64` (Debian / Ubuntu) | [`PiFrame-…-linux-amd64.deb`](https://github.com/TrentiStefano/piframe/releases/latest) | `sudo apt install ./PiFrame-…deb` |
+| **Windows** | x64 | `PiFrame-Setup-<version>-windows-x64.exe` | Per-user install, no admin rights |
+| **macOS** | Apple Silicon | `PiFrame-<version>-macos-arm64.dmg` | Drag to Applications; see the "How to open" note in the DMG |
+| **macOS** | Intel | `PiFrame-<version>-macos-x64.dmg` | Same as above |
+| **Linux** | x64 (Debian / Ubuntu) | `PiFrame-<version>-linux-amd64.deb` | `sudo apt install ./PiFrame-<version>-linux-amd64.deb` |
 
-> [!NOTE]
-> Installers bundle the GUI app and the runtime daemon (`pi-agentd`) with an embedded Node.js environment.  
-> You only need to ensure the official `pi` CLI is installed on your system.
+The installers include the PiFrame app, `pi-agentd` and the Node.js runtime it needs. You only need Pi itself.
 
-### Prerequisites
+### Requirements
 
-1. **Install Pi CLI** (if not already installed):
+1. **Pi Coding Agent 0.85.0 or later** on your `PATH`:
    ```bash
    npm install -g @earendil-works/pi-coding-agent
-   ```
-2. Verify `pi` is accessible from your terminal:
-   ```bash
    pi --version
    ```
+2. **A model provider** configured in Pi (for example with `/login`).
 
-### Recommended Pi Packages
+The full guide, in Italian, is in [docs/install.md](docs/install.md).
+
+### Recommended Pi packages
 
 PiFrame works without these packages. Install the packages for the agent features you want to use.
 
-#### PiFrame agent features
+#### For PiFrame agent features
 
 | Package | Feature | Install command |
 | :--- | :--- | :--- |
@@ -240,13 +161,13 @@ PiFrame uses Pi's RPC mode, so some terminal-only package interfaces are unavail
 
 ---
 
-## 🛠 Building from Source
+## Build from source
 
 ### 1. Clone & Install Dependencies
 ```bash
 # Clone the repository
-git clone https://github.com/TrentiStefano/piframe.git
-cd piframe
+git clone https://github.com/TrentiStefano/PiFrame.git
+cd PiFrame
 
 # Install monorepo dependencies
 pnpm install
@@ -268,7 +189,7 @@ $env:PI_FRAME_PI_PATH = "$PWD/tools/fake-pi/dist/index.js"; pnpm run:daemon
 PI_FRAME_PI_PATH="$PWD/tools/fake-pi/dist/index.js" pnpm run:daemon
 ```
 
-### 3. Run the Flutter App
+### 3. Run the app
 ```bash
 cd apps/pi_frame
 
@@ -281,103 +202,80 @@ flutter build web --no-web-resources-cdn
 
 ---
 
-## 🏗 Architecture & Decoupling
+## Architecture
 
 ```text
-┌───────────────────────────────────────────────────────────────┐
-│  PiFrame (Flutter Desktop & Web)                              │
-│  Windows · macOS · Linux · Web (Chrome / Edge)                │
-│  ── Presentation + Session Projection + Command Dispatcher    │
-└──────────────────────────┬────────────────────────────────────┘
-                           │  PCP/1 (PiFrame Protocol, JSON over WebSocket)
-                           │  127.0.0.1 · Bearer token · Strict Origin check
-                           ▼
-┌───────────────────────────────────────────────────────────────┐
-│  pi-agentd (TypeScript / Node.js persistent daemon)          │
-│                                                               │
-│  ConnectionManager   SessionRegistry    EventJournal (Replay) │
-│  CommandDispatcher   WorkspaceService   UiRequestBroker       │
-│  PiDiscovery         WorkerSupervisor   SnapshotBuilder       │
-│                          │                                    │
-│                          ▼  PiTransport (interface)           │
-│                     StdioPiTransport                          │
-└──────────────────────────┬────────────────────────────────────┘
-                           │  JSONL strict LF over stdin/stdout
-              ┌────────────┼────────────┬────────────┐
-              ▼            ▼            ▼            ▼
-        pi --mode rpc  pi --mode rpc  pi --mode rpc  …
-         (Session A)    (Session B)    (Session C)
-              │
-              ▼
-        ~/.pi/agent/sessions/--<path>--/<ts>_<uuid>.jsonl
-        (Source of truth of history — owned exclusively by Pi)
+PiFrame app (Flutter: Windows, macOS, Linux; web build for remote access)
+   │  PCP, PiFrame's local protocol: HTTP + WebSocket on 127.0.0.1, per-install token
+   ▼
+pi-agentd (Node.js background service)
+   │  starts and supervises one Pi worker per session, logs their events,
+   │  replays them when the window reconnects
+   ▼
+pi --mode rpc   (your own Pi install, one process per open session)
+   │
+   ▼
+~/.pi/agent/sessions/   (session history, owned by Pi)
 ```
 
-| Layer | Responsibility | Isolation Guarantee |
+| Part | Does | Does not |
 | :--- | :--- | :--- |
-| **PiFrame (Flutter)** | UI presentation, Bento triptych layout, state reduction, animations, and theme engine. | Knows **nothing** about child processes, stdio streams, or raw session files. |
-| **pi-agentd (Daemon)** | Process supervisor, monotonic event journal, session reconnect replay, Git diff client, and RPC bridge. | Knows **nothing** about Flutter widgets or layout logic. |
-| **Pi (`pi-coding-agent`)** | LLM orchestrator, model execution, tool invocation, and file system modifications. | Unaware that PiFrame exists; operates as a standard headless RPC worker. |
+| **PiFrame app** | UI, layout, themes, diff and Git views | Run Pi sessions itself (it asks `pi-agentd`) |
+| **pi-agentd** | Runs Pi workers, logs and replays session events, Git and file access for the workspace | Draw any UI |
+| **Pi** | Models, tools, file changes, session history | Know that PiFrame exists (it is a normal RPC client) |
+
+More detail: [docs/security.md](docs/security.md), [docs/pi-compatibility.md](docs/pi-compatibility.md), [docs/theming.md](docs/theming.md).
 
 ---
 
-## 🧪 Testing & Verification
-
-PiFrame enforces 100% test passing across Dart, TypeScript, and protocol specifications:
+## Tests
 
 ```bash
-# Run all unit, contract, security, and Flutter tests
+# All TypeScript, protocol and Flutter tests
 pnpm test
 
-# Run Flutter tests directly
-cd apps/pi_frame
-flutter test
+# Flutter tests only
+cd apps/pi_frame && flutter test
 
-# Run End-to-End fault injection test suites
+# End-to-end tests with fault injection
 pnpm test:e2e
 
-# Smoke test with real Pi CLI over loopback mock model
+# Smoke test against the real Pi CLI with a local mock model
 pnpm smoke:real-pi
 ```
 
 ---
 
-## 🔧 Troubleshooting & Known Issues
+## Troubleshooting
 
-Encountering an issue? Check [**docs/troubleshooting.md**](docs/troubleshooting.md) for solutions to common environment problems:
-- **Windows Blank / White Window on Startup**: Resolving ANGLE/DirectX surface presentation issues on multi-GPU or virtual display driver setups (`USB Mobile Monitor`, `IddSampleDriver`, Spacedesk).
-- **Remote Web & Smartphone Access**: Verifying pairing tokens, Tailscale / Cloudflare tunnel routing, and serving mobile-optimized web assets.
+See [docs/troubleshooting.md](docs/troubleshooting.md). Common topics:
+- **White or empty window on Windows** with virtual display drivers (USB Mobile Monitor, IddSampleDriver, Spacedesk) or several GPUs.
+- **Remote access:** pairing, Tailscale and Cloudflare tunnels, and the phone web app.
 
 ---
 
-## 📂 Repository Layout
+## Repository layout
 
 ```text
-piframe/
+PiFrame/
 ├── apps/
-│   ├── pi_frame/                 # Flutter application (Windows, macOS, Linux, Web)
-│   │   ├── lib/                  # App shell, Bento workspace, syntax highlighter, composer, browser
-│   │   ├── assets/themes/        # Bundled themes (piframe-dark, piframe-light)
-│   │   └── test/                 # 87+ widget, stress, layout, and lint tests
-│   └── agentd/                   # Persistent Node.js/TypeScript daemon
-│       ├── src/server/           # HTTP/WebSocket server, token auth, static SPA host
-│       ├── src/sessions/         # Session registry, supervisor, indexer
-│       ├── src/journal/          # Monotonic event journal, buffer, snapshot generator
-│       ├── src/workspace/        # WorkspaceService, read-only Git client
-│       └── src/ui/               # UiRequestBroker (claim/lease broker)
+│   ├── pi_frame/        # Flutter app (Windows, macOS, Linux, web)
+│   └── agentd/          # pi-agentd background service (TypeScript / Node.js)
 ├── packages/
-│   ├── pcp-spec/                 # PCP/1 protocol specification & JSON Schemas
-│   ├── pcp-ts/                   # Generated TypeScript types & validators
-│   ├── pi_frame_protocol/        # Generated Dart types & codec for Flutter
-│   └── pi_frame_theme/           # Dart theme engine with JSON inheritance & hot-reload
-├── docs/                         # Architecture, Security baseline, ADRs, Installation guides
-│   └── design-evidence/         # High-res UI fixtures, showcase videos, and icon assets
-├── tools/                        # fake-pi mock server, fault-proxy, codegen scripts
-└── test/e2e/                     # Cross-component end-to-end integration tests
+│   ├── pcp-spec/        # PCP protocol specification and JSON Schemas
+│   ├── pcp-ts/          # Generated TypeScript types and validators
+│   ├── pi_frame_protocol/  # Generated Dart types for the app
+│   └── pi_frame_theme/  # Theme engine (JSON themes with inheritance)
+├── website/             # Project website (GitHub Pages)
+├── docs/                # Install, security, theming, troubleshooting, design evidence
+├── tools/               # fake-pi, fault-proxy, codegen, packaging and showcase scripts
+└── test/e2e/            # End-to-end tests
 ```
 
 ---
 
-## 📄 License
+## License
 
 PiFrame is free and open source under the [MIT License](LICENSE). The installers also ship third-party software (the Node.js runtime and a few npm packages bundled into `pi-agentd`); their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The music in the promo video is "Happy Beats – Business Moves Vol. 12" by Sascha Ende ([ende.app](https://ende.app)), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
