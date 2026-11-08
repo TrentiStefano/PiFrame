@@ -28,7 +28,19 @@ export interface RemoteManagerEvents {
   stopped: () => void;
 }
 
+/**
+ * `tailscale status --json` and `where cloudflared` are synchronous child processes (100-500ms on
+ * Windows). They used to run on every status emission, blocking the daemon event loop and making
+ * every connected client (especially phones on the remote listener) lag. Cache them briefly.
+ */
+const EXTERNAL_INFO_TTL_MS = 15_000;
+
 export class RemoteManager extends EventEmitter {
+  private externalInfo?: {
+    at: number;
+    cloudflaredPath: string | null;
+    tailscale: ReturnType<typeof TailscaleTunnelProvider.getTailscaleInfo>;
+  };
   private config: DaemonConfig;
   private authManager: RemoteAuthManager;
   private tunnelProvider: TunnelProvider;
@@ -43,6 +55,18 @@ export class RemoteManager extends EventEmitter {
     this.authManager = authManager || new RemoteAuthManager();
     this.boundProviderChangeListener = () => this.onProviderChange();
     this.tunnelProvider = this.createProvider(this.config.remote.tunnelProvider);
+  }
+
+  private getExternalInfo() {
+    const now = Date.now();
+    if (!this.externalInfo || now - this.externalInfo.at > EXTERNAL_INFO_TTL_MS) {
+      this.externalInfo = {
+        at: now,
+        cloudflaredPath: CloudflaredTunnelProvider.findBinary(),
+        tailscale: TailscaleTunnelProvider.getTailscaleInfo()
+      };
+    }
+    return this.externalInfo;
   }
 
   public setListenerPort(port: number): void {
@@ -129,6 +153,7 @@ export class RemoteManager extends EventEmitter {
         this.tunnelProvider = this.createProvider(targetProvider);
       }
 
+      this.externalInfo = undefined;
       this.emitStatus();
 
       try {
@@ -262,18 +287,21 @@ export class RemoteManager extends EventEmitter {
 
   public async installTailscale(): Promise<{ ok: boolean; message: string }> {
     const res = await TailscaleTunnelProvider.install();
+    this.externalInfo = undefined;
     this.emitStatus();
     return res;
   }
 
   public setTailscaleHostname(name: string): { ok: boolean; domain?: string } {
     const res = TailscaleTunnelProvider.setHostname(name);
+    this.externalInfo = undefined;
     this.emitStatus();
     return res;
   }
 
   public async installCloudflared(): Promise<{ ok: boolean; path: string }> {
     const installedPath = await CloudflaredTunnelProvider.downloadAndInstall();
+    this.externalInfo = undefined;
     this.emitStatus();
     return { ok: true, path: installedPath };
   }
@@ -288,8 +316,7 @@ export class RemoteManager extends EventEmitter {
         }
       : undefined;
 
-    const cloudflaredPath = CloudflaredTunnelProvider.findBinary();
-    const tailscaleInfo = TailscaleTunnelProvider.getTailscaleInfo();
+    const { cloudflaredPath, tailscale: tailscaleInfo } = this.getExternalInfo();
 
     return {
       enabled: this.config.remote.enabled,
@@ -327,7 +354,7 @@ export class RemoteManager extends EventEmitter {
   private getTargetExpectedHost(): string | undefined {
     if (this.expectedHost) return this.expectedHost;
     if (this.config.remote.tunnelProvider === 'tailscale') {
-      const ts = TailscaleTunnelProvider.getTailscaleInfo();
+      const ts = this.getExternalInfo().tailscale;
       if (ts.domain) return ts.domain.toLowerCase();
     } else if (this.config.remote.customTunnelUrl) {
       try {

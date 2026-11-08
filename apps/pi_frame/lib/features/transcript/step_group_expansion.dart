@@ -27,13 +27,18 @@ class StepGroupExpansionState {
 
   /// Evaluates whether a group is expanded:
   /// User manual override takes precedence; otherwise expanded while running or if autoCollapse is false.
+  /// With [compactDefault] (phones) a group starts minimized even while running: the steps block is
+  /// what fills a small screen, and the user can still open it with a tap.
   bool isGroupExpanded({
     required String turnId,
     required bool isRunning,
     required bool autoCollapse,
+    bool compactDefault = false,
   }) {
     final userOverride = groupOverrides[turnId];
-    return userOverride ?? (isRunning || !autoCollapse);
+    if (userOverride != null) return userOverride;
+    if (compactDefault) return false;
+    return isRunning || !autoCollapse;
   }
 
   /// Whether a specific child step (tool details / thinking block) is expanded.
@@ -108,11 +113,13 @@ class StepGroupExpansionNotifier
     required String turnId,
     required bool isRunning,
     required bool autoCollapse,
+    bool compactDefault = false,
   }) {
     return state.isGroupExpanded(
       turnId: turnId,
       isRunning: isRunning,
       autoCollapse: autoCollapse,
+      compactDefault: compactDefault,
     );
   }
 

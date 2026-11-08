@@ -151,14 +151,14 @@ void main() {
     final client = _FakeUpdateClient();
     final launcher = _FakeInstallerLauncher();
     client.nextRelease = AppRelease(
-      tagName: 'v1.4.0',
-      name: 'PiFrame v1.4.0',
+      tagName: 'v99.0.0',
+      name: 'PiFrame v99.0.0',
       body: 'Nuova versione con supporto ad aggiornamenti automatici!',
-      htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v1.4.0',
+      htmlUrl: 'https://github.com/TrentiStefano/piframe/releases/tag/v99.0.0',
       assets: [
         const ReleaseAsset(
-          name: 'PiFrame-Setup-1.4.0-windows-x64.exe',
-          downloadUrl: 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
+          name: 'PiFrame-Setup-99.0.0-windows-x64.exe',
+          downloadUrl: 'https://github.com/TrentiStefano/piframe/releases/download/v99.0.0/PiFrame-Setup-99.0.0-windows-x64.exe',
           size: 52428800,
           contentType: 'application/octet-stream',
         ),
@@ -185,7 +185,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('check_for_updates_button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('PiFrame v1.4.0'), findsOneWidget);
+    expect(find.text('PiFrame v99.0.0'), findsOneWidget);
     expect(find.textContaining('Nuova versione con supporto ad aggiornamenti automatici!'), findsOneWidget);
     expect(find.text('Scarica aggiornamento'), findsOneWidget);
 

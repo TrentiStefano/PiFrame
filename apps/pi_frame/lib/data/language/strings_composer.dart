@@ -21,6 +21,31 @@ extension ComposerStrings on AppStrings {
       ? (isItalian ? 'Riduci' : 'Collapse')
       : (isItalian ? 'Ingrandisci' : 'Expand');
 
+  String composerUploadingAttachments(int count) => isItalian
+      ? (count == 1 ? 'Caricamento allegato…' : 'Caricamento di $count allegati…')
+      : (count == 1 ? 'Uploading attachment…' : 'Uploading $count attachments…');
+
+  String get composerUploadInProgress => isItalian
+      ? 'Attendi il termine del caricamento degli allegati.'
+      : 'Wait for the attachments to finish uploading.';
+
+  String composerUploadFailed(String name, Object error) {
+    final text = error.toString();
+    if (text.contains('control mode')) {
+      return isItalian
+          ? 'Impossibile caricare "$name": questo dispositivo è in sola lettura (modalità view).'
+          : 'Cannot upload "$name": this device is read-only (view mode).';
+    }
+    if (text.contains('Too Large') || text.contains('413')) {
+      return isItalian
+          ? '"$name" supera il limite di 50 MB.'
+          : '"$name" is larger than the 50 MB limit.';
+    }
+    return isItalian
+        ? 'Caricamento di "$name" non riuscito: $text'
+        : 'Upload of "$name" failed: $text';
+  }
+
   String get composerChangeModelTooltip =>
       isItalian ? 'Cambia modello' : 'Change model';
 

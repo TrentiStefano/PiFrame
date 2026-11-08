@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../ui/phone_corners.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -311,7 +312,8 @@ class _AppShellState extends ConsumerState<AppShell>
         : ChatDropTarget(
             key: ValueKey('chat_drop_target_$activeId'),
             sessionId: activeId,
-            child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) => Column(
               children: [
                 Expanded(
                   child: Stack(
@@ -335,8 +337,10 @@ class _AppShellState extends ConsumerState<AppShell>
                 Composer(
                   key: ValueKey('composer_$activeId'),
                   sessionId: activeId,
+                  availableHeight: constraints.maxHeight,
                 ),
               ],
+            ),
             ),
           );
 
@@ -412,6 +416,11 @@ class _AppShellState extends ConsumerState<AppShell>
             const UpdatesPeriodicWatcher(),
             const StartupUpdatesWatcher(),
             SafeArea(
+              // Rounded-corner phones: the web view reports no safe area, so leave the same margin
+              // below as at the sides; the panel's corners then follow the display curve.
+              minimum: EdgeInsets.only(
+                bottom: phoneDisplayCornerRadius(context) == null ? 0 : 6,
+              ),
               child: Column(
                 children: [
                   Container(
@@ -862,6 +871,13 @@ class _AppShellState extends ConsumerState<AppShell>
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 600;
+    final baseRadius = isMobile ? tokens.radiusMd : tokens.radiusLg;
+    // iOS concentric corners: the bottom corners follow the display curve (display radius minus
+    // the 8px the panel is inset from the screen edge).
+    final displayRadius = phoneDisplayCornerRadius(context);
+    final bottomRadius = displayRadius == null
+        ? baseRadius
+        : concentricRadius(displayRadius, 8, min: baseRadius);
     return RepaintBoundary(
       child: Padding(
         padding: isMobile
@@ -872,8 +888,11 @@ class _AppShellState extends ConsumerState<AppShell>
           decoration: BoxDecoration(
             color: tokens.surface,
             border: Border.all(color: tokens.border),
-            borderRadius: BorderRadius.circular(
-              isMobile ? tokens.radiusMd : tokens.radiusLg,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(baseRadius),
+              topRight: Radius.circular(baseRadius),
+              bottomLeft: Radius.circular(bottomRadius),
+              bottomRight: Radius.circular(bottomRadius),
             ),
           ),
           child: child,

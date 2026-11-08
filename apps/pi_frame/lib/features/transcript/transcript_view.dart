@@ -9,6 +9,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
@@ -29,67 +30,6 @@ import '../../domain/session/transcript_grouping.dart';
 import 'steps_group.dart';
 
 enum _ActiveBookTab { none, todos }
-
-class BottomAnchoredScrollController extends ScrollController {
-  BottomAnchoredScrollController({
-    super.initialScrollOffset,
-    super.keepScrollOffset,
-    super.debugLabel,
-    this.shouldAnchorToBottom,
-  });
-
-  bool Function()? shouldAnchorToBottom;
-
-  @override
-  ScrollPosition createScrollPosition(
-    ScrollPhysics physics,
-    ScrollContext context,
-    ScrollPosition? oldPosition,
-  ) {
-    return _BottomAnchoredScrollPosition(
-      physics: physics,
-      context: context,
-      oldPosition: oldPosition,
-      shouldAnchorToBottom: shouldAnchorToBottom,
-    );
-  }
-}
-
-class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
-  _BottomAnchoredScrollPosition({
-    required super.physics,
-    required super.context,
-    super.oldPosition,
-    this.shouldAnchorToBottom,
-  });
-
-  final bool Function()? shouldAnchorToBottom;
-
-  @override
-  bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
-    final oldMax = hasContentDimensions ? this.maxScrollExtent : null;
-    final isDragging = activity is DragScrollActivity;
-    final isAtBottom = !isDragging &&
-        (shouldAnchorToBottom?.call() ?? true) &&
-        oldMax != null &&
-        (oldMax - pixels).abs() <= 50;
-
-    final applied = super.applyContentDimensions(minScrollExtent, maxScrollExtent);
-
-    if (isAtBottom && maxScrollExtent != oldMax) {
-      final delta = maxScrollExtent - oldMax;
-      if (delta != 0) {
-        final newPixels = (pixels + delta).clamp(minScrollExtent, maxScrollExtent);
-        final correction = newPixels - pixels;
-        if (correction.abs() > 0.01) {
-          correctBy(correction);
-          return false;
-        }
-      }
-    }
-    return applied;
-  }
-}
 
 class _MeasureSizeRenderObject extends RenderProxyBox {
   _MeasureSizeRenderObject({required this.onSizeChange});

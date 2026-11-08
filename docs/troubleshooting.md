@@ -796,6 +796,27 @@ Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `s
 
 ---
 
+## 16. Web app sul telefono: sfondo vuoto dopo un aggiornamento, tocchi spostati, lentezza
+
+### Sintomi
+- Dopo aver aggiornato PiFrame o il daemon, la web app sul telefono (già associato) mostra solo lo sfondo vuoto finché non rifai l'associazione.
+- Il caricamento su iPhone è molto lento.
+- I tocchi vengono registrati circa 1 cm più in basso del punto toccato.
+- L'interfaccia scatta durante lo streaming delle risposte.
+
+### Cause
+- Il service worker di Flutter serviva dalla cache una versione obsoleta dell'app, incompatibile con il nuovo daemon; il cookie di associazione era un cookie di sessione e se il tunnel non partiva al boot il daemon non riprovava.
+- I file web non erano compressi e il daemon eseguiva comandi sincroni (`tailscale status`) a ogni aggiornamento di stato.
+- Lo scroll/zoom residuo del visual viewport di iOS (barra URL, tastiera, pinch) sfalsava le coordinate dei tocchi.
+- Bordo luminoso animato con blur e intro animata troppo pesanti per il canvas del browser mobile.
+
+### Risoluzione
+Aggiorna PiFrame (app e daemon): tutte le correzioni sono incluse (vedi *install.md* sezione 14). Se vedi ancora un messaggio:
+- **"Associa di nuovo il dispositivo"**: genera un nuovo QR da Impostazioni → Connessione remota.
+- **Screenshot o file dal telefono non arrivano all'agente**: serve la modalità `control` per il dispositivo (Impostazioni → Connessione remota) e il daemon aggiornato. In modalità `view` compare l'avviso che il dispositivo è in sola lettura. Il limite è 50 MB per file.
+- **Interfaccia ingrandita o tagliata mentre scrivi, pulsanti del composer spariti**: era lo zoom automatico di iOS al focus di un campo con testo sotto i 16px, combinato con un composer più alto dello spazio sopra la tastiera. Aggiorna l'app web e ricaricala (chiudi e riapri l'icona dalla Home).
+- **"Computer non raggiungibile"**: verifica che PiFrame sia aperto, la connessione remota attiva e Tailscale connesso sul telefono. Nota: la web app aggiunta alla Home di iOS ha uno storage separato da Safari, quindi va associata anche da lì.
+
 ## Terminale integrato: output "a scaletta" con `git`
 
 ### Sintomi

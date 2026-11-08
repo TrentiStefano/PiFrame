@@ -52,7 +52,9 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
     if (widget.autoStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (MediaQuery.disableAnimationsOf(context) || isTest) {
+        // The brand intro overlays the live UI for 1.4s with shaders and audio: skip it in the
+        // browser, where it only delays and janks the first interactive frame.
+        if (MediaQuery.disableAnimationsOf(context) || isTest || kIsWeb) {
           _finish();
         } else {
           _controller.forward();

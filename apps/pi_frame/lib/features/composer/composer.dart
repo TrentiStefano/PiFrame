@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,8 @@ import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import 'attachment_chips.dart';
+import 'attachment_ingest.dart';
+import '../../ui/phone_corners.dart';
 import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
 import 'copilot_file_picker.dart';
@@ -60,7 +64,12 @@ class _ComposerSizeAnimator extends ConsumerWidget {
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
 
-  const Composer({super.key, required this.sessionId});
+  /// Height the parent actually offers to the chat column (transcript + composer). When the
+  /// on-screen keyboard is open this is what is left above it: the Scaffold already removed the
+  /// keyboard inset from [MediaQuery], so it cannot be derived from the media query any more.
+  final double? availableHeight;
+
+  const Composer({super.key, required this.sessionId, this.availableHeight});
 
   @override
   ConsumerState<Composer> createState() => _ComposerState();
@@ -72,6 +81,7 @@ class _ComposerState extends ConsumerState<Composer> {
   List<Map<String, dynamic>> _availableCommands = [];
   bool _showSlashMenu = false;
   bool _isInterrupting = false;
+  int _pendingUploads = 0;
   bool _showFileMentionMenu = false;
   String _fileMentionQuery = '';
   int _fileMentionStartIndex = -1;
@@ -307,8 +317,26 @@ class _ComposerState extends ConsumerState<Composer> {
         );
   }
 
+  /// Text as of the last [_onTextChanged] pass. The controller also notifies for pure caret /
+  /// selection moves (long-press selection, spacebar trackpad on iOS); those must not redo the
+  /// slash/@-mention work, which calls setState and re-requests focus on every move.
+  String _lastObservedText = '';
+
   void _onTextChanged() {
     final text = _controller.text;
+    if (text == _lastObservedText) {
+      // Caret-only move: just close the @-mention menu once the caret left the mention.
+      if (_showFileMentionMenu) {
+        final cursor = _controller.selection.baseOffset;
+        final stillInMention =
+            cursor > 0 &&
+            cursor <= text.length &&
+            RegExp(r'@([a-zA-Z0-9_\-\./]*)$').hasMatch(text.substring(0, cursor));
+        if (!stillInMention) setState(() => _showFileMentionMenu = false);
+      }
+      return;
+    }
+    _lastObservedText = text;
     ref.read(composerDraftProvider(widget.sessionId).notifier).state = text;
     final hasText = text.trim().isNotEmpty;
     if (hasText != _hasText) {
@@ -436,12 +464,39 @@ class _ComposerState extends ConsumerState<Composer> {
     super.dispose();
   }
 
+  /// Outer corners of the composer card. On rounded-corner iPhones the bottom corners are
+  /// concentric with the panel (and so with the display): display radius - panel inset (8) -
+  /// composer margin (14).
+  BorderRadius _composerRadius(FrameTokens tokens) {
+    final base = Radius.circular(tokens.radiusLg);
+    final displayRadius = phoneDisplayCornerRadius(context);
+    if (displayRadius == null) return BorderRadius.all(base);
+    final bottom = Radius.circular(
+      concentricRadius(displayRadius, 8 + 14, min: tokens.radiusLg),
+    );
+    return BorderRadius.only(
+      topLeft: base,
+      topRight: base,
+      bottomLeft: bottom,
+      bottomRight: bottom,
+    );
+  }
+
   Future<void> _send({String? streamingBehavior}) async {
     if (_hasPendingInteractionRequest()) return;
 
     final draft = _controller.text;
     final text = draft.trim();
     final attachments = ref.read(composerAttachmentsProvider(widget.sessionId));
+
+    if (_pendingUploads > 0) {
+      // An upload is still running: sending now would drop the attachment silently.
+      FrameSnackBar.show(
+        context,
+        message: ref.read(appStringsProvider).composerUploadInProgress,
+      );
+      return;
+    }
 
     if ((text.isEmpty && attachments.isEmpty) ||
         ref.read(composerSendingProvider(widget.sessionId))) {
@@ -626,27 +681,49 @@ class _ComposerState extends ConsumerState<Composer> {
       final files = await openFiles();
       if (files.isEmpty || !mounted) return;
 
-      final attachments = <ChatAttachment>[];
-      for (var i = 0; i < files.length; i++) {
-        final f = files[i];
-        final isImg = isImageExtension(f.path);
-        attachments.add(
-          ChatAttachment(
-            id: 'att_ext_${DateTime.now().microsecondsSinceEpoch}_$i',
-            type: isImg ? AttachmentType.image : AttachmentType.externalFile,
-            name: f.name,
-            pathOrUrl: f.path,
-          ),
-        );
-      }
-
-      ref
-          .read(composerAttachmentsProvider(widget.sessionId).notifier)
-          .addAll(attachments);
-      _focusNode.requestFocus();
+      await _ingestFiles(files, idPrefix: 'att_ext');
     } catch (e) {
       debugPrint('Selezione file annullata o non riuscita: $e');
     }
+  }
+
+  /// Adds picked files to the composer. In the browser the bytes are uploaded to the daemon first
+  /// (a `blob:` URL means nothing to the agent); send is blocked until every upload has finished.
+  Future<void> _ingestFiles(
+    List<XFile> files, {
+    required String idPrefix,
+    bool forceImage = false,
+  }) async {
+    if (files.isEmpty || !mounted) return;
+    final strings = ref.read(appStringsProvider);
+    final notifier = ref.read(
+      composerAttachmentsProvider(widget.sessionId).notifier,
+    );
+    if (kIsWeb) setState(() => _pendingUploads += files.length);
+    for (var i = 0; i < files.length; i++) {
+      try {
+        final attachment = await ingestPickedFile(
+          files[i],
+          idPrefix: idPrefix,
+          index: i,
+          forceImage: forceImage,
+        );
+        if (!mounted) return;
+        notifier.add(attachment);
+      } catch (error) {
+        if (mounted) {
+          FrameSnackBar.show(
+            context,
+            message: strings.composerUploadFailed(files[i].name, error),
+          );
+        }
+      } finally {
+        if (kIsWeb && mounted) {
+          setState(() => _pendingUploads = math.max(0, _pendingUploads - 1));
+        }
+      }
+    }
+    if (mounted) _focusNode.requestFocus();
   }
 
   Future<void> _addWebLink() async {
@@ -672,23 +749,7 @@ class _ComposerState extends ConsumerState<Composer> {
       );
       if (files.isEmpty || !mounted) return;
 
-      final attachments = <ChatAttachment>[];
-      for (var i = 0; i < files.length; i++) {
-        final f = files[i];
-        attachments.add(
-          ChatAttachment(
-            id: 'att_img_${DateTime.now().microsecondsSinceEpoch}_$i',
-            type: AttachmentType.image,
-            name: f.name,
-            pathOrUrl: f.path,
-          ),
-        );
-      }
-
-      ref
-          .read(composerAttachmentsProvider(widget.sessionId).notifier)
-          .addAll(attachments);
-      _focusNode.requestFocus();
+      await _ingestFiles(files, idPrefix: 'att_img', forceImage: true);
     } catch (e) {
       debugPrint('Selezione immagini annullata o non riuscita: $e');
     }
@@ -1415,6 +1476,18 @@ class _ComposerState extends ConsumerState<Composer> {
     final attachments = ref.watch(
       composerAttachmentsProvider(widget.sessionId),
     );
+    // Keep the whole composer (text, attachments AND the button row) inside the space that is left
+    // above the on-screen keyboard. A long message used to grow past it, which clipped the toolbar
+    // and pushed the text being typed out of view.
+    final visibleHeight =
+        widget.availableHeight ??
+        (MediaQuery.sizeOf(context).height -
+            MediaQuery.viewInsetsOf(context).bottom);
+    final chromeHeight =
+        110.0 + (attachments.isNotEmpty ? 66.0 : 0.0) + (_pendingUploads > 0 ? 24.0 : 0.0);
+    final inputBudget =
+        visibleHeight * (_isInputEnlarged ? 0.85 : 0.7) - chromeHeight;
+    final maxInputLines = (inputBudget / 21).floor().clamp(2, 16);
     ref.listen<String>(composerDraftProvider(widget.sessionId), (
       previous,
       draft,
@@ -1659,7 +1732,7 @@ class _ComposerState extends ConsumerState<Composer> {
         ),
         child: ShimmerBorder(
           isActive: isShimmerActive,
-          borderRadius: BorderRadius.circular(tokens.radiusLg),
+          borderRadius: _composerRadius(tokens),
           child: _ComposerSizeAnimator(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
@@ -1691,7 +1764,7 @@ class _ComposerState extends ConsumerState<Composer> {
                     : const EdgeInsets.fromLTRB(12, 10, 12, 10),
                 decoration: BoxDecoration(
                   color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(tokens.radiusLg),
+                  borderRadius: _composerRadius(tokens),
                   border: Border.all(
                     color: shouldMinimize
                         ? tokens.agentWorking.withValues(alpha: 0.3)
@@ -1742,9 +1815,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                   ? null
                                   : _GlowPointerPainter(
                                       pointerPosition: hoverOffset,
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusLg,
-                                      ),
+                                      borderRadius: _composerRadius(tokens),
                                       glowColor: tokens.accent,
                                       borderColor: tokens.accent,
                                     ),
@@ -2169,6 +2240,34 @@ class _ComposerState extends ConsumerState<Composer> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
+                                  if (_pendingUploads > 0)
+                                    Padding(
+                                      key: const ValueKey(
+                                        'composer-upload-progress',
+                                      ),
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: Row(
+                                        children: [
+                                          const SizedBox(
+                                            width: 12,
+                                            height: 12,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            strings.composerUploadingAttachments(
+                                              _pendingUploads,
+                                            ),
+                                            style: TextStyle(
+                                              color: tokens.textSecondary,
+                                              fontSize: 11.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   if (attachments.isNotEmpty)
                                     AttachmentListBar(
                                       key: const ValueKey(
@@ -2193,16 +2292,29 @@ class _ComposerState extends ConsumerState<Composer> {
                                         cursorColor: tokens.accent,
                                         controller: _controller,
                                         focusNode: _focusNode,
-                                        maxLines: _isInputEnlarged ? 16 : 5,
-                                        minLines: _isInputEnlarged ? 8 : 2,
+                                        maxLines: math.min(
+                                          _isInputEnlarged ? 16 : 5,
+                                          maxInputLines,
+                                        ),
+                                        minLines: math.min(
+                                          _isInputEnlarged ? 8 : 2,
+                                          maxInputLines,
+                                        ),
                                         onChanged: (_) {
                                           if (mounted) setState(() {});
                                         },
+                                        // Phone browser: Flutter's text and the hidden native <textarea>
+                                        // behind it must wrap identically, otherwise iOS (long-press
+                                        // selection, spacebar trackpad) moves the caret by lines that
+                                        // do not exist on screen. 16px is also what stops iOS from
+                                        // zooming the page when the field gets focus; the 21px line
+                                        // height is unchanged.
                                         style: TextStyle(
                                           color: tokens.textPrimary,
-                                          fontSize: 14.5,
-                                          height: 1.45,
+                                          fontSize: kIsWeb && isMobile ? 16 : 14.5,
+                                          height: kIsWeb && isMobile ? 21 / 16 : 1.45,
                                         ),
+                                        cursorWidth: kIsWeb && isMobile ? 2.5 : 2.0,
                                         decoration: InputDecoration(
                                           hintText: strings.composerInputHint(isStreaming: isStreaming),
                                           hintStyle: TextStyle(
@@ -2216,14 +2328,17 @@ class _ComposerState extends ConsumerState<Composer> {
                                           contentPadding: EdgeInsets.fromLTRB(
                                             4,
                                             2,
-                                            (isLongPrompt || _isInputEnlarged)
+                                            (!isMobile &&
+                                                    (isLongPrompt ||
+                                                        _isInputEnlarged))
                                                 ? 80
                                                 : 4,
                                             6,
                                           ),
                                         ),
                                       ),
-                                      if (isLongPrompt || _isInputEnlarged)
+                                      if (!isMobile &&
+                                          (isLongPrompt || _isInputEnlarged))
                                         Positioned(
                                           top: 2,
                                           right: 2,
@@ -2350,7 +2465,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             color:
                                                                 tokens.accent,
                                                           ),
-                                                          const SizedBox(
+                                                          // Compact (phone) layout: icon only, so the chips never get cut off.
+ if (!isMobile) ...[const SizedBox(
                                                             width: 4,
                                                           ),
                                                           ConstrainedBox(
@@ -2389,7 +2505,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             size: 13,
                                                             color: tokens
                                                                 .textMuted,
-                                                          ),
+                                                          ),],
                                                         ],
                                                       ),
                                                     ),
@@ -2441,7 +2557,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             color:
                                                                 tokens.thinking,
                                                           ),
-                                                          const SizedBox(
+                                                          // Compact (phone) layout: icon only, so the chips never get cut off.
+ if (!isMobile) ...[const SizedBox(
                                                             width: 3,
                                                           ),
                                                           Text(
@@ -2466,7 +2583,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             size: 13,
                                                             color: tokens
                                                                 .textMuted,
-                                                          ),
+                                                          ),],
                                                         ],
                                                       ),
                                                     ),
@@ -2930,7 +3047,7 @@ class _ComposerState extends ConsumerState<Composer> {
     );
     return InkWell(
       key: const ValueKey('composer-minimized-bar'),
-      borderRadius: BorderRadius.circular(tokens.radiusLg),
+      borderRadius: _composerRadius(tokens),
       onTap: () {
         _expand5sTimer?.cancel();
         _expand5sTimer = null;

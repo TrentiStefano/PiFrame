@@ -1117,6 +1117,40 @@ void main() {
   });
 
   group('step_group_expansion - state & notifier', () {
+    test('compactDefault minimizes a running group on phones but a manual open still wins', () {
+      final notifier = StepGroupExpansionNotifier();
+
+      expect(
+        notifier.isGroupExpanded(
+          turnId: 'p1',
+          isRunning: true,
+          autoCollapse: true,
+          compactDefault: true,
+        ),
+        isFalse,
+      );
+      expect(
+        notifier.isGroupExpanded(
+          turnId: 'p1',
+          isRunning: true,
+          autoCollapse: false,
+          compactDefault: true,
+        ),
+        isFalse,
+      );
+
+      notifier.toggleGroup('p1', false);
+      expect(
+        notifier.isGroupExpanded(
+          turnId: 'p1',
+          isRunning: true,
+          autoCollapse: true,
+          compactDefault: true,
+        ),
+        isTrue,
+      );
+    });
+
     test('isGroupExpanded logic: manual override beats auto-collapse, auto-collapse off keeps open', () {
       final notifier = StepGroupExpansionNotifier();
 

@@ -12,6 +12,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
+import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../tool_timeline/tool_card.dart';
@@ -123,9 +124,20 @@ class StepsGroup extends ConsumerStatefulWidget {
 /// it becomes a compact scrollable list.
 const double kStepListMaxHeightFraction = 0.5;
 
+/// Below this window width the steps block is minimized by default.
+const double kCompactStepsWidth = 600;
+
 class _StepsGroupState extends ConsumerState<StepsGroup> {
   Timer? _liveTimer;
-  final ScrollController _stepsScroll = ScrollController();
+
+  /// Follows new steps and streamed text during layout, so the compact list
+  /// never paints a frame at a stale offset (that showed as jitter while a
+  /// long thinking block streamed in).
+  late final BottomAnchoredScrollController _stepsScroll =
+      BottomAnchoredScrollController(
+    shouldAnchorToBottom: () => widget.block.isRunning && _followLatest,
+    anchorTolerance: 16,
+  );
 
   /// Whether the compact list content is taller than its maximum height.
   bool _stepsOverflow = false;
@@ -133,7 +145,6 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   /// Whether the compact list should keep following new steps (running turn
   /// and the user has not scrolled away from the bottom).
   bool _followLatest = true;
-  double _lastMaxExtent = 0;
 
   @override
   void initState() {
@@ -175,6 +186,11 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   }
 
   bool _onStepsScrollMetrics(ScrollMetricsNotification notification) {
+    // Only the list's own viewport counts. Nested scrollables (the
+    // SelectableText of a streaming thinking step has one) report their own
+    // metrics on every new line; reading those toggled the overflow state
+    // and the "show all" button each frame, making the transcript jump.
+    if (notification.depth != 0) return false;
     final metrics = notification.metrics;
     final overflow = metrics.maxScrollExtent > 0.5;
     if (overflow != _stepsOverflow) {
@@ -184,21 +200,13 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
         }
       });
     }
-    // New steps grew the list: keep showing the latest one while the turn
-    // runs, unless the user scrolled up to read earlier steps.
-    final grew = metrics.maxScrollExtent > _lastMaxExtent + 0.5;
-    _lastMaxExtent = metrics.maxScrollExtent;
-    if (grew && widget.block.isRunning && _followLatest) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _stepsScroll.hasClients) {
-          _stepsScroll.jumpTo(_stepsScroll.position.maxScrollExtent);
-        }
-      });
-    }
+    // Following new steps while the turn runs is handled during layout by
+    // [BottomAnchoredScrollController].
     return false;
   }
 
   bool _onStepsScroll(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
     if (notification is ScrollUpdateNotification &&
         notification.dragDetails != null ||
         notification is UserScrollNotification) {
@@ -224,6 +232,8 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       turnId: widget.block.turnId,
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
+      // Phone-sized screens: start minimized, the user opens it on demand.
+      compactDefault: MediaQuery.sizeOf(context).width < kCompactStepsWidth,
     );
 
     final fullyExpanded =
@@ -238,7 +248,6 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     }
     if (!expanded) {
       _stepsOverflow = false;
-      _lastMaxExtent = 0;
       _followLatest = true;
     }
 

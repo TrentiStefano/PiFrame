@@ -19,13 +19,19 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="PiFrame: Modern resilient GUI for pi-coding-agent">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#161c27">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!--
+    "black" (opaque) instead of "black-translucent": with a translucent status bar the home-screen
+    web app is laid out under the status bar (~47px on iPhone 12, about 1cm) and Flutter's pointer
+    coordinates end up shifted by that amount. An opaque bar keeps the web view origin at the
+    top of the viewport so touches match what is drawn.
+  -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="PiFrame">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
@@ -36,20 +42,63 @@
   <title>PiFrame</title>
   <link rel="manifest" href="manifest.json">
   <style>
+    /*
+      The page must never scroll or zoom: Flutter computes pointer coordinates from the layout
+      viewport, so any residual page scroll / visual-viewport offset (iOS URL bar, keyboard, pinch
+      zoom) makes touches land ~1cm away from what is drawn. Pin the document in place.
+    */
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
+      position: fixed;
+      inset: 0;
+      overscroll-behavior: none;
+      touch-action: manipulation;
       background-color: #161c27;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
     }
+    #pf-splash, #pf-status {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      background: #161c27;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      transition: opacity 0.25s ease;
+    }
+    #pf-splash.pf-hide { opacity: 0; pointer-events: none; }
+    .pf-spinner {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 3px solid rgba(95, 159, 197, 0.25);
+      border-top-color: #5f9fc5;
+      animation: pf-spin 0.9s linear infinite;
+    }
+    @keyframes pf-spin { to { transform: rotate(360deg); } }
+    #pf-status h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    #pf-status p { margin: 0; max-width: 340px; font-size: 14px; line-height: 1.5; color: #94a3b8; }
+    #pf-status button {
+      padding: 10px 20px; border: 0; border-radius: 10px;
+      background: #5f9fc5; color: #0f172a; font-size: 14px; font-weight: 600;
+    }
   </style>
 </head>
 <body>
+  <div id="pf-splash"><div class="pf-spinner"></div></div>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

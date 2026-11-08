@@ -5,10 +5,15 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { timingSafeEqualStrings, parseCookies } from './auth.js';
 import { serveStaticFile } from './static.js';
+import { receiveBlob, sendBlob, getBlobsDir, pruneOldBlobs } from './blobs.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';
 import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';
+import { DEVICE_TTL_MS } from '../remote/RemoteAuthManager.js';
+
+/** Persistent cookie (a session cookie is dropped by iOS when the web app is closed). */
+const DEVICE_COOKIE_MAX_AGE_S = Math.floor(DEVICE_TTL_MS / 1000);
 
 export interface HttpServerOptions {
   config: DaemonConfig;
@@ -53,12 +58,8 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
   const isRemoteListener = opts.listener === 'remote';
   const getToken = () => (typeof opts.token === 'function' ? opts.token() : opts.token);
 
-  const blobsDir = path.join(os.homedir(), '.piframe', 'blobs');
-  if (!fs.existsSync(blobsDir)) {
-    try {
-      fs.mkdirSync(blobsDir, { recursive: true });
-    } catch {}
-  }
+  getBlobsDir();
+  pruneOldBlobs();
 
   // ---------------------------------------------------------------------------
   // Identity resolvers
@@ -176,7 +177,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-store',
-          'Set-Cookie': `pcp_device_token=${identity.tokenCandidate}; Path=/; HttpOnly; SameSite=Lax; Secure`
+          'Set-Cookie': `pcp_device_token=${identity.tokenCandidate}; Path=/; Max-Age=${DEVICE_COOKIE_MAX_AGE_S}; HttpOnly; SameSite=Lax; Secure`
         });
         res.end(JSON.stringify({
           ok: true,
@@ -216,7 +217,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
             res.writeHead(200, {
               'Content-Type': 'application/json',
               'Cache-Control': 'no-store',
-              'Set-Cookie': `pcp_device_token=${result.deviceToken}; Path=/; HttpOnly; SameSite=Lax; Secure`
+              'Set-Cookie': `pcp_device_token=${result.deviceToken}; Path=/; Max-Age=${DEVICE_COOKIE_MAX_AGE_S}; HttpOnly; SameSite=Lax; Secure`
             });
             res.end(JSON.stringify({
               ok: true,
@@ -272,59 +273,22 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
             code: 'REMOTE_FORBIDDEN',
             error: 'File uploads require control mode permission'
           }));
+          req.resume();
           return;
         }
-
-        const blobId = `blob_${crypto.randomBytes(16).toString('hex')}`;
-        const targetPath = path.join(blobsDir, blobId);
-        const writeStream = fs.createWriteStream(targetPath);
-        let totalBytes = 0;
-
-        req.on('data', (chunk: Buffer) => {
-          totalBytes += chunk.length;
-          if (totalBytes > 50 * 1024 * 1024) {
-            res.writeHead(413, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-            res.end(JSON.stringify({ ok: false, error: 'Payload Too Large (max 50MB)' }));
-            req.destroy();
-            writeStream.destroy();
-            try { fs.unlinkSync(targetPath); } catch {}
-          }
-        });
-
-        req.pipe(writeStream);
-
-        writeStream.on('finish', () => {
-          const mimeType = (req.headers['content-type'] as string) || 'application/octet-stream';
-          res.writeHead(201, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({ ok: true, blobId, size: totalBytes, mimeType }));
-        });
-
-        writeStream.on('error', (err) => {
-          res.writeHead(500, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({ ok: false, error: err.message }));
-        });
+        receiveBlob(req, res);
         return;
       }
 
       // 6. GET /api/blobs/:blobId (authenticated remote device)
-      if (req.method === 'GET' && url.pathname.startsWith('/api/blobs/')) {
+      if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname.startsWith('/api/blobs/')) {
         const identity = getRemoteDeviceIdentity(req);
         if (!identity) {
           res.writeHead(401, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
           res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
           return;
         }
-
-        const blobId = path.basename(url.pathname);
-        const blobPath = path.join(blobsDir, blobId);
-        if (!fs.existsSync(blobPath)) {
-          res.writeHead(404, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({ ok: false, error: 'Blob not found' }));
-          return;
-        }
-
-        res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
-        fs.createReadStream(blobPath).pipe(res);
+        sendBlob(req, res, url.pathname.slice('/api/blobs/'.length));
         return;
       }
 
@@ -448,56 +412,18 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
         return;
       }
-
-      const blobId = `blob_${crypto.randomBytes(16).toString('hex')}`;
-      const targetPath = path.join(blobsDir, blobId);
-      const writeStream = fs.createWriteStream(targetPath);
-      let totalBytes = 0;
-
-      req.on('data', (chunk: Buffer) => {
-        totalBytes += chunk.length;
-        if (totalBytes > 50 * 1024 * 1024) {
-          res.writeHead(413, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: false, error: 'Payload Too Large (max 50MB)' }));
-          req.destroy();
-          writeStream.destroy();
-          try { fs.unlinkSync(targetPath); } catch {}
-        }
-      });
-
-      req.pipe(writeStream);
-
-      writeStream.on('finish', () => {
-        const mimeType = (req.headers['content-type'] as string) || 'application/octet-stream';
-        res.writeHead(201, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, blobId, size: totalBytes, mimeType }));
-      });
-
-      writeStream.on('error', (err) => {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: err.message }));
-      });
+      receiveBlob(req, res);
       return;
     }
 
     // 6. GET /api/blobs/:blobId (authenticated)
-    if (req.method === 'GET' && url.pathname.startsWith('/api/blobs/')) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && url.pathname.startsWith('/api/blobs/')) {
       if (!getLocalIdentity(req)) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Unauthorized' }));
         return;
       }
-
-      const blobId = path.basename(url.pathname);
-      const blobPath = path.join(blobsDir, blobId);
-      if (!fs.existsSync(blobPath)) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Blob not found' }));
-        return;
-      }
-
-      res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
-      fs.createReadStream(blobPath).pipe(res);
+      sendBlob(req, res, url.pathname.slice('/api/blobs/'.length));
       return;
     }
 

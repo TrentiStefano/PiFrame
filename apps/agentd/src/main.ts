@@ -7,6 +7,7 @@ import { probeCapabilities } from './pi/capabilities.js';
 import { createHttpServer } from './server/httpServer.js';
 import { createWsServer } from './server/wsServer.js';
 import { findStaticDir } from './server/static.js';
+import { warmStaticCache } from './server/staticFiles.js';
 import { SessionRegistry } from './sessions/SessionRegistry.js';
 import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
@@ -100,13 +101,28 @@ async function main() {
   const actualRemotePort = remoteBoundAddr.port;
   console.log(`[agentd] Dedicated remote listener bound to 127.0.0.1:${actualRemotePort}`);
   remoteManager.setListenerPort(actualRemotePort);
+  warmStaticCache(staticDir);
 
+  let remoteStartCancelled = false;
   if (config.remote.enabled) {
     console.log('[agentd] Remote connection enabled in config. Starting tunnel...');
-    // Boot auto-start: do NOT generate ephemeral pairing secret automatically (M6)
-    remoteManager.start(undefined, { generatePairing: false }).catch((err) => {
-      console.error('[agentd] Failed to start remote tunnel:', err.message);
-    });
+    // Boot auto-start: do NOT generate ephemeral pairing secret automatically (M6).
+    // After a reboot/update Tailscale or the network may not be ready yet: retry with backoff
+    // instead of leaving the remote feature silently dead until the user toggles it by hand.
+    const startRemoteWithRetry = (attempt: number): void => {
+      // The user may have switched remote off while a retry was pending.
+      if (remoteStartCancelled || (attempt > 0 && !remoteManager.getStatus().enabled)) return;
+      remoteManager.start(undefined, { generatePairing: false }).catch((err) => {
+        if (remoteStartCancelled) return;
+        const delayMs = Math.min(5_000 * 2 ** attempt, 60_000);
+        console.error(
+          `[agentd] Failed to start remote tunnel (attempt ${attempt + 1}): ${err.message}. Retrying in ${delayMs / 1000}s.`
+        );
+        const timer = setTimeout(() => startRemoteWithRetry(attempt + 1), delayMs);
+        timer.unref?.();
+      });
+    };
+    startRemoteWithRetry(0);
   }
 
   // 5. Initialize runtime directory (~/.piframe/runtime/daemon.json, daemon.token, etc.)
@@ -182,6 +198,7 @@ async function main() {
     // 2. Stop workers gracefully
     await registry.closeAll(3000);
 
+    remoteStartCancelled = true;
     // 2b. Flush and stop remote tunnel without resetting enabled state in config
     remoteManager.flush();
     await remoteManager.stop({ persistEnabled: false }).catch(() => {});

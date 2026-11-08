@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
-import '../../domain/session/attachment_model.dart';
+import '../composer/attachment_ingest.dart';
 import '../composer/composer_attachments_provider.dart';
 
 class ChatDropTarget extends ConsumerStatefulWidget {
@@ -24,31 +24,28 @@ class ChatDropTarget extends ConsumerStatefulWidget {
 class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
   bool _isDragging = false;
 
-  void _onDragDone(DropDoneDetails detail) {
+  Future<void> _onDragDone(DropDoneDetails detail) async {
     setState(() => _isDragging = false);
 
     if (detail.files.isEmpty) return;
 
-    final newAttachments = <ChatAttachment>[];
+    final notifier = ref.read(
+      composerAttachmentsProvider(widget.sessionId).notifier,
+    );
     for (var i = 0; i < detail.files.length; i++) {
-      final f = detail.files[i];
-      final isImg = isImageExtension(f.path);
-      final filename = f.name.isNotEmpty && !f.name.contains('/') && !f.name.contains(r'\')
-          ? f.name
-          : f.path.split(RegExp(r'[/\\]')).last;
-      newAttachments.add(
-        ChatAttachment(
-          id: 'att_drop_${DateTime.now().microsecondsSinceEpoch}_$i',
-          type: isImg ? AttachmentType.image : AttachmentType.externalFile,
-          name: filename,
-          pathOrUrl: f.path,
-        ),
-      );
+      try {
+        // Uploads the bytes first when running in the browser; plain path on desktop.
+        notifier.add(
+          await ingestPickedFile(
+            detail.files[i],
+            idPrefix: 'att_drop',
+            index: i,
+          ),
+        );
+      } catch (_) {
+        // A failed drop is simply not attached (the picker path reports upload errors).
+      }
     }
-
-    ref
-        .read(composerAttachmentsProvider(widget.sessionId).notifier)
-        .addAll(newAttachments);
   }
 
   @override

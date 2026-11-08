@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -1076,14 +1077,24 @@ class _WorkingDotState extends State<_WorkingDot>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-    final isTest =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    if (!isTest) {
-      _controller.repeat(reverse: true);
-    }
     _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Phone browsers: a continuously animated blurred glow per working session repaints the list
+    // every frame and made scrolling the sessions drawer stutter. Keep a static glow there.
+    final lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
+    final isTest =
+        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (!isTest && !lite) {
+      if (!_controller.isAnimating) _controller.repeat(reverse: true);
+    } else {
+      _controller.stop();
+    }
   }
 
   @override
@@ -1094,7 +1105,8 @@ class _WorkingDotState extends State<_WorkingDot>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return RepaintBoundary(
+      child: AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         final scale = _controller.isAnimating ? _pulse.value : 1.0;
@@ -1114,6 +1126,7 @@ class _WorkingDotState extends State<_WorkingDot>
           ),
         );
       },
+      ),
     );
   }
 }

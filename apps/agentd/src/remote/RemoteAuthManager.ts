@@ -64,6 +64,7 @@ export class RemoteAuthManager {
   private ipRateLimits = new Map<string, IpRateLimit>();
   private saveTimer?: NodeJS.Timeout;
   private dirty = false;
+  private backedUp = false;
   private now: () => number;
 
   constructor(customDevicesFile?: string, clock?: () => number) {
@@ -82,13 +83,23 @@ export class RemoteAuthManager {
       const parsed = JSON.parse(fs.readFileSync(this.devicesFile, 'utf8'));
       const list: unknown[] = Array.isArray(parsed?.devices) ? parsed.devices : [];
       const now = this.now();
+      let discarded = 0;
       for (const raw of list) {
         const dev = raw as Partial<PairedDevice>;
         // Legacy (plaintext token) or malformed records are discarded: fail closed.
-        if (!dev || typeof dev.deviceId !== 'string' || typeof dev.tokenHash !== 'string') continue;
-        if (!/^[a-f0-9]{64}$/.test(dev.tokenHash)) continue;
+        if (!dev || typeof dev.deviceId !== 'string' || typeof dev.tokenHash !== 'string') {
+          discarded++;
+          continue;
+        }
+        if (!/^[a-f0-9]{64}$/.test(dev.tokenHash)) {
+          discarded++;
+          continue;
+        }
         const expiresAt = typeof dev.expiresAt === 'number' ? dev.expiresAt : 0;
-        if (expiresAt <= now) continue;
+        if (expiresAt <= now) {
+          discarded++;
+          continue;
+        }
         this.devices.set(dev.deviceId, {
           deviceId: dev.deviceId,
           tokenHash: dev.tokenHash,
@@ -101,6 +112,8 @@ export class RemoteAuthManager {
           remoteIp: dev.remoteIp ? sanitizeText(String(dev.remoteIp), 64) : undefined
         });
       }
+      // A silently dropped pairing looks like "I must pair again after every update": say why.
+      console.log(`[RemoteAuth] Loaded ${this.devices.size} paired device(s), discarded ${discarded}.`);
     } catch (err) {
       console.error('[RemoteAuth] Failed to load remote devices:', err);
     }
@@ -114,6 +127,16 @@ export class RemoteAuthManager {
     this.dirty = false;
     try {
       fs.mkdirSync(path.dirname(this.devicesFile), { recursive: true });
+      // Keep one backup of what was on disk when this process first writes, so a pairing list that
+      // ends up empty can be diagnosed and recovered instead of silently lost.
+      if (!this.backedUp && fs.existsSync(this.devicesFile)) {
+        this.backedUp = true;
+        try {
+          fs.copyFileSync(this.devicesFile, `${this.devicesFile}.bak`);
+        } catch {
+          // best effort
+        }
+      }
       const tempFile = `${this.devicesFile}.tmp.${process.pid}.${crypto.randomBytes(4).toString('hex')}`;
       const payload = JSON.stringify({ version: 2, devices: Array.from(this.devices.values()) }, null, 2);
       fs.writeFileSync(tempFile, payload, { encoding: 'utf8', mode: 0o600 });

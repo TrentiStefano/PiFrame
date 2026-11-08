@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../data/daemon/attachment_upload.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/attachment_model.dart';
@@ -573,6 +574,19 @@ Widget buildAttachmentImage(
       fit: fit,
       errorBuilder: errorBuilder,
     );
+  }
+  if (kIsWeb) {
+    // The file lives on the daemon host: preview it through the authenticated blob endpoint.
+    final blobId = blobIdFromPath(pathOrUrl);
+    if (blobId != null) {
+      return Image.network(
+        Uri.base.resolve('/api/blobs/$blobId').toString(),
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: errorBuilder,
+      );
+    }
   }
   if (!kIsWeb) {
     return Image.file(
