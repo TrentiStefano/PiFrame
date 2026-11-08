@@ -31,6 +31,24 @@
       "skillPath": "skills/ask-sonner/SKILL.md",
       "computedHash": "0168a6a129ba0a3561ccbda3a3d8d0dc0af1d556f373e315e9479e3364420dd3"
     },
+    "awwwards": {
+      "source": "juliobsz/skills",
+      "sourceType": "github",
+      "skillPath": "awwwards/SKILL.md",
+      "computedHash": "ac00f493e426dd45f6ed84aea42b0cd598849a70734c652aec046fc369107a37"
+    },
+    "brag": {
+      "source": "latent-spaces/brag",
+      "sourceType": "github",
+      "skillPath": "skills/brag/SKILL.md",
+      "computedHash": "3865fa44d0af6f8483c4e3229ae369390a21c96e3bd8485ee49b88b5bffcd833"
+    },
+    "brag-slim": {
+      "source": "latent-spaces/brag",
+      "sourceType": "github",
+      "skillPath": "skills/brag-slim/SKILL.md",
+      "computedHash": "93d340c13332e17ff4098b91176b9a4cd9f43f698fec1ff233f27d3c3497c72a"
+    },
     "break-ui": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -54,6 +72,12 @@
       "sourceType": "github",
       "skillPath": "skills/improve-animations/SKILL.md",
       "computedHash": "b913ec7ef2b1aa900060eb6e5dbdccc94b6ea631059ec3474c4b61e2ffefeeb4"
+    },
+    "jury": {
+      "source": "juliobsz/skills",
+      "sourceType": "github",
+      "skillPath": "jury/SKILL.md",
+      "computedHash": "97dd89bea10ba81118317591bf2591294b3c07b769f6a8c651601fce251c405b"
     },
     "mobile-native": {
       "source": "emilkowalski/skills",

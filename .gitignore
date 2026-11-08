@@ -149,3 +149,11 @@ Thumbs.db
 !.vscode/extensions.json
 
 .claude/
+# ==============================================================================
+# Showcase recording masters (large; regenerate with tools/showcase/post.py)
+# ==============================================================================
+website/assets/showcase/*/master.mp4
+brag-output/work/
+
+# Promo masters (web versions live in website/assets/video/)
+brag-output/*.mp4

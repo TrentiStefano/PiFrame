@@ -1,0 +1,15 @@
+import sys, time, pf
+w = pf.Win()
+w.focus()
+for cmd in sys.argv[1:]:
+    op, *a = cmd.split(':')
+    if op == 'c': w.click(float(a[0]), float(a[1]))
+    elif op == 'rc': w.click(float(a[0]), float(a[1]), right=True)
+    elif op == 'dc': w.dclick(float(a[0]), float(a[1]))
+    elif op == 'm': w.move(float(a[0]), float(a[1]))
+    elif op == 's': time.sleep(float(a[0]))
+    elif op == 't': pf.type_text(':'.join(a), cps=60)
+    elif op == 'k': pf.key(*a)
+    elif op == 'shot': print(w.shot(a[0]))
+    elif op == 'scroll': w.scroll(float(a[0]), float(a[1]), int(a[2]))
+    elif op == 'drag': w.drag(*map(float, a))

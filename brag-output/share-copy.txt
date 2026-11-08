@@ -1,0 +1,1 @@
+Built PiFrame: a desktop app for Pi Coding Agent. Your Pi setup in a desktop workspace with side-by-side diffs, Git, background agents, and an agent that keeps working when you close the window. Free and open source for Windows, macOS and Linux: https://github.com/TrentiStefano/PiFrame

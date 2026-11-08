@@ -1,0 +1,137 @@
+{
+  "name": "piframe-promo",
+  "version": "1.0.0",
+  "totalDuration": 26.5,
+  "fps": 30,
+  "theme": {
+    "backdrop": "#eeede9",
+    "darkContainer": "#161c27",
+    "accentBlue": "#5f9fc5",
+    "accentThinking": "#81b2cf",
+    "subheadColor": "#475569",
+    "borderColorLight": "rgba(0, 0, 0, 0.08)",
+    "borderColorDark": "#2e3c53"
+  },
+  "audio": {
+    "musicTrack": "happy-beats-business-moves-vol-12-by-ende-dot-app.mp3",
+    "license": "Sascha Ende, ende.app (CC BY 4.0)",
+    "musicVolume": 0.35,
+    "fadeInSeconds": 0.5,
+    "fadeOutSeconds": 1.5,
+    "sfx": {
+      "beat1": {
+        "file": "impactSoft_medium_001.ogg",
+        "folder": "impact",
+        "start": 0.1,
+        "volume": 0.65
+      },
+      "beat2": {
+        "file": "drop_001.ogg",
+        "folder": "interface",
+        "start": 4.5,
+        "volume": 0.6
+      },
+      "beat3": {
+        "file": "click_001.ogg",
+        "folder": "interface",
+        "start": 8.5,
+        "volume": 0.6
+      },
+      "beat4": {
+        "file": "drop_002.ogg",
+        "folder": "interface",
+        "start": 13.0,
+        "volume": 0.6
+      },
+      "beat5": {
+        "file": "switch_001.ogg",
+        "folder": "interface",
+        "start": 17.5,
+        "volume": 0.65
+      },
+      "beat6": {
+        "file": "impactBell_heavy_000.ogg",
+        "folder": "impact",
+        "start": 21.84,
+        "volume": 0.7
+      }
+    }
+  },
+  "beats": [
+    {
+      "id": "beat1",
+      "slug": "01-disconnect-safe",
+      "start": 0.0,
+      "duration": 4.5,
+      "clipStart": 15.0,
+      "badge": "DISCONNECT-SAFE",
+      "headline": "Close the window. It keeps working.",
+      "subhead": "The pi-agentd daemon runs the session; reopen and the work is there."
+    },
+    {
+      "id": "beat2",
+      "slug": "02-agents-tree",
+      "start": 4.5,
+      "duration": 4.0,
+      "clipStart": 18.0,
+      "badge": "AGENTS",
+      "headline": "Watch every agent, live.",
+      "subhead": "Background agents as a tree: model, cost and current activity."
+    },
+    {
+      "id": "beat3",
+      "slug": "07-bento-workspace",
+      "start": 8.5,
+      "duration": 4.5,
+      "clipStart": 6.5,
+      "badge": "WORKSPACE",
+      "headline": "Three panes. One window.",
+      "subhead": "Repository, chat and Git side by side, resizable and collapsible."
+    },
+    {
+      "id": "beat4",
+      "slug": "08-review-diff",
+      "start": 13.0,
+      "duration": 4.5,
+      "clipStart": 1.2,
+      "badge": "REVIEW",
+      "headline": "Review every change, 50/50.",
+      "subhead": "Side-by-side diffs inside the session, before you commit."
+    },
+    {
+      "id": "beat5",
+      "slug": "17-themes",
+      "start": 17.5,
+      "duration": 4.0,
+      "clipStart": 1.2,
+      "badge": "THEMES",
+      "headline": "Light, dark, or your own theme.",
+      "subhead": "Switch instantly or edit every token with a live preview."
+    },
+    {
+      "id": "beat6",
+      "slug": "outro",
+      "start": 21.5,
+      "duration": 5.0,
+      "title": "PiFrame",
+      "tagline": "The Native Desktop GUI for pi-coding-agent",
+      "features": "Disconnect-safe daemon · Zero telemetry · Native Flutter",
+      "platforms": "Windows · macOS · Linux",
+      "repo": "github.com/TrentiStefano/piframe"
+    }
+  ],
+  "encodes": {
+    "posterTimestamp": 22.5,
+    "webMp4": {
+      "crf": 22,
+      "maxrate": "2000k",
+      "bufsize": "4000k",
+      "audioBitrate": "128k"
+    },
+    "webWebm": {
+      "crf": 30,
+      "bitrate": "1400k",
+      "audioBitrate": "96k"
+    }
+  }
+}
