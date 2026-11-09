@@ -51,6 +51,39 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
     });
 
+    testWidgets('stays expanded while a steer is queued and minimizes once it is delivered', (tester) async {
+      final notifier = SessionStateNotifier('s_min_test', null)
+        ..state = const SessionState(
+          sessionId: 's_min_test',
+          cwd: '/test',
+          agentStatus: AgentStatus.working,
+          streamingTextBlocks: {0: 'Generating answer...'},
+          steeringQueue: ['please also add tests'],
+        );
+      final container = ProviderContainer(
+        overrides: [sessionStateFamily('s_min_test').overrideWith((ref) => notifier)],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: Column(children: [Expanded(child: SizedBox()), Composer(sessionId: 's_min_test')]),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(find.byKey(const ValueKey('steer-queue-item-0')), findsOneWidget);
+
+      notifier.state = notifier.state.copyWith(steeringQueue: const []);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+    });
+
     testWidgets('hides and restores unsent draft while an agent question is pending', (tester) async {
       const draft = 'Keep this unfinished message';
       final notifier = SessionStateNotifier('s_min_test', null)
