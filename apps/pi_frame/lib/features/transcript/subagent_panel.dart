@@ -332,6 +332,23 @@ class _TreeNode {
   bool get isRunning => agent?.isRunning ?? run?.isRunning ?? false;
 }
 
+/// Running items first, then settled ones; each group newest launch first.
+/// [items] arrive oldest first, so a missing launch time falls back to list order.
+List<T> _byActivityThenLaunch<T>(
+  List<T> items,
+  bool Function(T) running,
+  int? Function(T) launchedAt,
+) {
+  final indexed = [for (var i = 0; i < items.length; i++) (i: i, item: items[i])];
+  indexed.sort((a, b) {
+    final ra = running(a.item), rb = running(b.item);
+    if (ra != rb) return ra ? -1 : 1;
+    final byTime = (launchedAt(b.item) ?? 0).compareTo(launchedAt(a.item) ?? 0);
+    return byTime != 0 ? byTime : b.i.compareTo(a.i);
+  });
+  return [for (final e in indexed) e.item];
+}
+
 String _elapsed(int? from, int? to) {
   if (from == null) return '';
   final seconds = ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
@@ -418,18 +435,19 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       });
 
   List<_TreeNode> _nodes() {
-    final linked = widget.subagents.where((s) => !s.isUnlinked).toList().reversed.toList();
     final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
-    final top = <({WorkflowItem? run, SubagentItem? agent})>[
+    final top = _byActivityThenLaunch<({WorkflowItem? run, SubagentItem? agent})>([
       for (final run in widget.workflows) (run: run, agent: null),
-      for (final agent in linked) (run: null, agent: agent),
-      for (final agent in split['']!.reversed) (run: null, agent: agent),
-    ];
+      for (final agent in widget.subagents.where((s) => !s.isUnlinked)) (run: null, agent: agent),
+      for (final agent in split['']!) (run: null, agent: agent),
+    ], (i) => i.run?.isRunning ?? i.agent!.isRunning, (i) => i.run?.timestamp ?? i.agent!.startedAt ?? i.agent!.timestamp);
     final nodes = <_TreeNode>[];
     for (var i = 0; i < top.length; i++) {
       final item = top[i];
       final isLast = i == top.length - 1;
-      final children = item.run == null ? const <SubagentItem>[] : split[item.run!.id]!;
+      final children = item.run == null
+          ? const <SubagentItem>[]
+          : _byActivityThenLaunch<SubagentItem>(split[item.run!.id]!, (a) => a.isRunning, (a) => a.startedAt ?? a.timestamp);
       nodes.add(_TreeNode(
         id: item.run?.id ?? item.agent!.id,
         depth: 1,

@@ -340,6 +340,32 @@ void main() {
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
     });
 
+    testWidgets('agents list running first, then settled, each newest launch first', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subagentsFamily('sess_order').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_order', const [
+                SubagentItem(id: 'old_run', name: 'old-running', status: 'running', startedAt: 100),
+                SubagentItem(id: 'old_done', name: 'old-done', status: 'completed', startedAt: 200),
+                SubagentItem(id: 'new_done', name: 'new-done', status: 'completed', startedAt: 900),
+                SubagentItem(id: 'new_run', name: 'new-running', status: 'running', startedAt: 800),
+              ]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'sess_order')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      double y(String name) => tester.getTopLeft(find.text(name)).dy;
+      expect(y('new-running'), lessThan(y('old-running')));
+      expect(y('old-running'), lessThan(y('new-done')));
+      expect(y('new-done'), lessThan(y('old-done')));
+    });
+
     testWidgets('agent rows built while scrolling do not jitter horizontally', (tester) async {
       tester.view.physicalSize = const Size(800, 500);
       tester.view.devicePixelRatio = 1;
