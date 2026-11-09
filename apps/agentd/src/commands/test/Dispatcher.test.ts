@@ -601,3 +601,20 @@ test('Dispatcher: session.getHistory paginates historical entries backwards', as
   assert.equal(result2.payload.data.hasMore, false);
 });
 
+
+test('Dispatcher: session.create starts the Pi worker in the background so the first prompt is not stalled', async () => {
+  const repo = createGitRepo();
+  const setup = createTestSetup();
+  try {
+    const started: string[] = [];
+    (setup.registry as any).ensureWorkerForSession = async (id: string) => {
+      started.push(id);
+      throw new Error('start failures must not fail session.create');
+    };
+    const messages = await sendCommand(setup, 'session.create', undefined, { cwd: repo.root });
+    assert.equal(messages.find((m) => m.kind === 'result')?.payload.state, 'completed');
+    assert.equal(started.length, 1);
+  } finally {
+    repo.cleanup();
+  }
+});

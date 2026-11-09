@@ -768,6 +768,9 @@ export class Dispatcher {
           cwd,
           name: payload.name
         });
+        // Start Pi now: its cold start takes seconds and would otherwise stall the first prompt.
+        // A prompt that arrives meanwhile joins the same start; failures resurface on that prompt.
+        void this.registry.ensureWorkerForSession(session.id).catch(() => {});
         return { session: session.getSessionMeta() };
       }
 
