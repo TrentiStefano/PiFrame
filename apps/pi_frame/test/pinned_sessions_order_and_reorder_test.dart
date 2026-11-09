@@ -140,6 +140,15 @@ void main() {
       // session 1 is above session 2, which is above session 3
       expect(y1, lessThan(y2));
       expect(y2, lessThan(y3));
+
+      // A visible separator closes the pinned block, above the repository folders.
+      final separator = find.byKey(const ValueKey('pinned-sessions-separator'));
+      expect(separator, findsOneWidget);
+      expect(tester.getTopLeft(separator).dy, greaterThan(y3));
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('session-folder:/repo/app'))).dy,
+        greaterThan(tester.getTopLeft(separator).dy),
+      );
     });
 
     testWidgets('dragging pinned session holding with mouse reorders the pinned list and persists order', (
