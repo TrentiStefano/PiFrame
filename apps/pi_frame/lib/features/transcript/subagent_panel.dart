@@ -248,15 +248,18 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
   }
 }
 
-/// Fades and slides a row in the first time it appears.
+/// Fades and slides a row in when it is new. Rows the list builds lazily while
+/// scrolling were already known, so they appear settled (no horizontal jitter).
 class _Entrance extends StatelessWidget {
   final Widget child;
-  const _Entrance({super.key, required this.child});
+  final bool animate;
+  const _Entrance({super.key, required this.child, required this.animate});
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
+      // `begin` only matters on the first build of this row's state.
+      tween: Tween(begin: animate ? 0 : 1, end: 1),
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
@@ -398,6 +401,9 @@ class _AgentTree extends ConsumerStatefulWidget {
 
 class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
+  // Row ids already shown once; only rows missing here play the entrance.
+  final Set<String> _seenIds = <String>{};
+  bool _firstBuild = true;
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
 
@@ -466,6 +472,14 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
     ].join(' · ');
 
+    final fresh = <String>{
+      if (!_firstBuild)
+        for (final n in nodes)
+          if (!_seenIds.contains(n.id)) n.id,
+    };
+    _firstBuild = false;
+    _seenIds.addAll(nodes.map((n) => n.id));
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
       children: [
@@ -492,6 +506,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
         for (final node in nodes)
           _Entrance(
             key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
+            animate: fresh.contains(node.id),
             child: node.run != null
                 ? _workflowRow(node, strings)
                 : _agentRow(node, notifier, strings),
