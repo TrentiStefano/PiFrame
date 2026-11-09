@@ -11,7 +11,9 @@ import {
   getGitStatus,
   getStagedPaths,
   listGitBranches,
+  REMOTE_ACTIONS,
   runGitStrict,
+  runRemoteGitAction,
   switchGitBranch,
   validateBranchName,
   verifyBranchExists,
@@ -239,11 +241,12 @@ export class WorkspaceService {
 
   async gitAction(cwd: string, action: unknown, pathsInput: unknown, expectedStagedPathsInput?: unknown, message?: unknown, assertCanWrite?: () => void): Promise<{ status: GitStatusResult }> {
     const root = await this.resolveRepositoryRoot(cwd);
-    if (!['stage', 'unstage', 'commit', 'discard'].includes(String(action))) {
+    if (!['stage', 'unstage', 'commit', 'discard', 'fetch', 'pull', 'push', 'sync'].includes(String(action))) {
       throw workspaceError('Unsupported Git action.', 'WORKSPACE_GIT_ACTION_INVALID');
     }
     const actionName = String(action);
-    const paths = this.normalizePaths(pathsInput, actionName === 'commit');
+    const isRemote = REMOTE_ACTIONS.includes(actionName);
+    const paths = this.normalizePaths(pathsInput, actionName === 'commit' || isRemote);
     const safePaths = await Promise.all(paths.map(async (item) => {
       await this.resolvePath(root, item, true, true);
       return item;
@@ -251,6 +254,11 @@ export class WorkspaceService {
 
     return this.serialize(root, async () => {
       assertCanWrite?.();
+      if (isRemote) {
+        await runRemoteGitAction(root, actionName);
+        this.invalidate(root);
+        return { status: await getGitStatus(root) };
+      }
       const beforeStatus = await getGitStatus(root);
       const byPath = new Map(beforeStatus.files.map((file) => [file.path, file]));
       if (actionName !== 'commit' && safePaths.some((item) => !byPath.has(item))) {

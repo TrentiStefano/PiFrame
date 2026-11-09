@@ -1891,7 +1891,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     String? message,
     List<String>? expected,
   }) async {
-    if (_working || paths.isEmpty) return;
+    if (_working || (paths.isEmpty && !_remoteActions.contains(action))) return;
     setState(() => _working = true);
     try {
       await ref.read(pcpClientProvider)!.workspaceGitAction(widget.sessionId, {
@@ -1917,6 +1917,48 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     } finally {
       if (mounted) setState(() => _working = false);
     }
+  }
+
+  static const _remoteActions = {'fetch', 'pull', 'push', 'sync'};
+
+  Widget _remoteButton({
+    required String action,
+    required IconData icon,
+    required String label,
+    required String tooltip,
+    required bool enabled,
+    required FrameTokens tokens,
+  }) {
+    return Expanded(
+      child: Tooltip(
+        message: tooltip,
+        child: OutlinedButton(
+          key: ValueKey('git-$action-btn'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            minimumSize: const Size(0, 30),
+            visualDensity: VisualDensity.compact,
+            foregroundColor: tokens.textPrimary,
+            side: BorderSide(color: tokens.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
+          ),
+          onPressed: enabled ? () => _action(action, const []) : null,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14),
+                const SizedBox(width: 4),
+                Text(label, style: const TextStyle(fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _openBranchPicker() async {
@@ -3077,6 +3119,36 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                         ],
                       ],
                     ),
+            ),
+            if (_working)
+              LinearProgressIndicator(
+                key: const ValueKey('git-working-progress'),
+                minHeight: 2,
+                color: tokens.accent,
+                backgroundColor: tokens.surface,
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              child: Row(
+                children: [
+                  for (final (i, spec) in [
+                    ('fetch', Icons.cloud_download_outlined, strings.gitFetchLabel, strings.gitFetchTooltip),
+                    ('pull', Icons.arrow_downward, strings.gitPullLabel, strings.gitPullTooltip),
+                    ('push', Icons.arrow_upward, strings.gitPushLabel, strings.gitPushTooltip),
+                    ('sync', Icons.sync, strings.gitSyncLabel, strings.gitSyncTooltip),
+                  ].indexed) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    _remoteButton(
+                      action: spec.$1,
+                      icon: spec.$2,
+                      label: spec.$3,
+                      tooltip: spec.$4,
+                      enabled: !blocked && !_working && !_loading,
+                      tokens: tokens,
+                    ),
+                  ],
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),

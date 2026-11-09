@@ -107,6 +107,8 @@ async function executeGit(
     windowsHide: true,
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
+    // Never block the daemon on a terminal credential prompt.
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
   });
 }
 
@@ -129,6 +131,24 @@ export async function runGitStrict(args: string[], cwd: string, timeoutMs = EXEC
     error.stderr = rawStderr;
     error.details = { args, exitCode: cause?.code, signal: cause?.signal };
     throw error;
+  }
+}
+
+export const REMOTE_ACTIONS = ['fetch', 'pull', 'push', 'sync'];
+const REMOTE_TIMEOUT_MS = 120_000;
+
+/** fetch / pull (fast-forward only) / push (publishes a branch without upstream) / sync = pull then push. */
+export async function runRemoteGitAction(cwd: string, action: string): Promise<void> {
+  const git = (args: string[]) => runGitStrict(args, cwd, REMOTE_TIMEOUT_MS);
+  const hasUpstream = await runGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], cwd);
+  const pull = () => git(['pull', '--ff-only', '--no-edit']);
+  const push = () => git(hasUpstream ? ['push'] : ['push', '--set-upstream', 'origin', 'HEAD']);
+  if (action === 'fetch') await git(['fetch', '--all', '--prune']);
+  else if (action === 'pull') await pull();
+  else if (action === 'push') await push();
+  else {
+    if (hasUpstream) await pull();
+    await push();
   }
 }
 

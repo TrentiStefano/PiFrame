@@ -198,7 +198,7 @@ export interface WorkspaceSaveFileRequest {
   revision: string;
 }
 
-export type WorkspaceGitAction = 'stage' | 'unstage' | 'commit' | 'discard';
+export type WorkspaceGitAction = 'stage' | 'unstage' | 'commit' | 'discard' | 'fetch' | 'pull' | 'push' | 'sync';
 
 export interface WorkspaceGitActionRequest {
   action: WorkspaceGitAction;
