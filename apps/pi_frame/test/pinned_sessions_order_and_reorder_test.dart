@@ -36,6 +36,14 @@ void main() {
       notifier.reorderById('sess_b', 2);
       expect(notifier.state, ['sess_c', 'sess_a', 'sess_b']);
     });
+
+    test('a notifier built from a list never writes the stored pins file', () {
+      final notifier = PinnedSessionsNotifier(['sess_alpha', 'sess_beta']);
+      notifier.reorder(0, 2);
+      notifier.togglePin('sess_gamma');
+      notifier.unpin('sess_alpha');
+      expect(notifier.storageFileForTesting, isNull);
+    });
   });
 
   group('SessionsSidebar pinned sessions order stability and drag-to-reorder tests', () {
