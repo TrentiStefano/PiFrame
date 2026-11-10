@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as inspector from 'node:inspector';
 import { format } from 'node:util';
 import { getLogPath } from './runtime.js';
 
@@ -19,6 +20,31 @@ export function startEventLoopMonitor(
   }, intervalMs);
   timer.unref();
   return () => clearInterval(timer);
+}
+
+/**
+ * Dev-only: samples the CPU for `seconds` from daemon start and writes a .cpuprofile file, so a blocked
+ * event loop can be matched to the functions that ran. Off unless PIFRAME_DEV_PROFILE_SECONDS is set.
+ */
+export function startDevCpuProfile(
+  env: NodeJS.ProcessEnv,
+  file: string,
+  onDone: (file: string) => void = () => {},
+): boolean {
+  const seconds = Number(env.PIFRAME_DEV_PROFILE_SECONDS);
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  const session = new inspector.Session();
+  session.connect();
+  session.post('Profiler.enable');
+  session.post('Profiler.start');
+  setTimeout(() => {
+    session.post('Profiler.stop', (error, result) => {
+      if (!error) fs.writeFileSync(file, JSON.stringify(result.profile));
+      session.disconnect();
+      onDone(file);
+    });
+  }, seconds * 1000).unref();
+  return true;
 }
 
 let devWrite: ((level: string, message: string) => void) | null = null;

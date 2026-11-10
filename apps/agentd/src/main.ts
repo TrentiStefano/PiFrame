@@ -1,4 +1,5 @@
 import * as http from 'node:http';
+import * as path from 'node:path';
 import { acquireSingleInstanceLock } from './config/lock.js';
 import { loadConfig } from './config/config.js';
 import { generateAndSaveToken, writeRuntimeInfo, cleanupRuntimeFiles } from './config/runtime.js';
@@ -13,13 +14,17 @@ import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
 import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
 import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
-import { enableDevFileLog, reportSlowCommand } from './config/devLog.js';
+import { enableDevFileLog, reportSlowCommand, startDevCpuProfile } from './config/devLog.js';
+import { getRuntimeDir } from './config/runtime.js';
 
 const VERSION = '1.4.1'; // x-release-please-version
 
 async function main() {
   // Dev builds only (PIFRAME_DEV_LOG=1): mirror logs and loop stalls into runtime/daemon.log.
   enableDevFileLog();
+  startDevCpuProfile(process.env, path.join(getRuntimeDir(), 'cpu-profile.cpuprofile'), (file) => {
+    console.log(`[agentd] CPU profile written to ${file}`);
+  });
   console.log(`[agentd] Starting PiFrame Daemon v${VERSION}...`);
 
   // 1. Single-instance mutex lock
