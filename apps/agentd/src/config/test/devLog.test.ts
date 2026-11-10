@@ -1,0 +1,54 @@
+import test from 'node:test';
+import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { enableDevFileLog, startEventLoopMonitor } from '../devLog.js';
+
+function tempLogFile(): { dir: string; file: string } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-devlog-'));
+  return { dir, file: path.join(dir, 'daemon.log') };
+}
+
+test('event-loop monitor reports a block that is longer than the threshold', async () => {
+  const reports: number[] = [];
+  const stop = startEventLoopMonitor((ms) => reports.push(ms), { intervalMs: 20, thresholdMs: 100 });
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const until = Date.now() + 250;
+  while (Date.now() < until) { /* block the loop on purpose */ }
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  stop();
+  assert.ok(reports.some((ms) => ms >= 100), `expected a stall report, got ${JSON.stringify(reports)}`);
+});
+
+test('dev file log is off unless PIFRAME_DEV_LOG=1, so release daemons write nothing', () => {
+  const { dir, file } = tempLogFile();
+  try {
+    const stop = enableDevFileLog({}, file);
+    assert.equal(stop, null);
+    assert.equal(fs.existsSync(file), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('dev file log mirrors console output into the log file', () => {
+  const { dir, file } = tempLogFile();
+  const originalLog = console.log;
+  const originalWarn = console.warn;
+  try {
+    const stop = enableDevFileLog({ PIFRAME_DEV_LOG: '1' }, file);
+    assert.ok(stop);
+    console.log('[agentd] probe %s', 'alpha');
+    console.warn('probe warning');
+    stop();
+    const content = fs.readFileSync(file, 'utf8');
+    assert.match(content, /start --- daemon pid=\d+ ---/);
+    assert.match(content, / log \[agentd\] probe alpha/);
+    assert.match(content, / warn probe warning/);
+  } finally {
+    console.log = originalLog;
+    console.warn = originalWarn;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

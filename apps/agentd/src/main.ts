@@ -13,10 +13,13 @@ import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
 import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
 import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
+import { enableDevFileLog } from './config/devLog.js';
 
 const VERSION = '1.4.1'; // x-release-please-version
 
 async function main() {
+  // Dev builds only (PIFRAME_DEV_LOG=1): mirror logs and loop stalls into runtime/daemon.log.
+  enableDevFileLog();
   console.log(`[agentd] Starting PiFrame Daemon v${VERSION}...`);
 
   // 1. Single-instance mutex lock

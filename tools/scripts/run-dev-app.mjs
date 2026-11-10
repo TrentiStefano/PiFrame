@@ -34,7 +34,9 @@ function main(extraArgs) {
   const releaseHome = path.join(os.homedir(), '.piframe');
   const devHome = prepareDevHome({ releaseHome, devHome: path.join(os.homedir(), '.piframe-dev') });
   console.log(`[dev] PI_FRAME_HOME=${devHome}`);
-  const env = { ...process.env, PI_FRAME_HOME: devHome };
+  console.log(`[dev] daemon log: ${path.join(devHome, 'runtime', 'daemon.log')}`);
+  // The app starts the dev daemon detached, so its output is only visible through this file.
+  const env = { ...process.env, PI_FRAME_HOME: devHome, PIFRAME_DEV_LOG: '1' };
   const steps = [
     { cmd: 'pnpm', args: ['run', 'build:agentd'], cwd: repoRoot },
     { cmd: 'flutter', args: ['run', ...extraArgs], cwd: path.join(repoRoot, 'apps', 'pi_frame') },
