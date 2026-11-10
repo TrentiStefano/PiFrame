@@ -142,14 +142,22 @@ async function macPiProcesses(): Promise<PiProcessInfo[] | null> {
 }
 
 let processScan: Promise<PiProcessInfo[] | null> | null = null;
+let lastScan: { at: number; result: PiProcessInfo[] | null } | null = null;
+const SCAN_REUSE_MS = 2000;
 
 /**
- * Checks that run while a scan is in flight share it. On Windows each scan starts PowerShell and compiles a
- * helper, which costs seconds; the app opens several sessions at once on startup. A finished scan is never
- * reused, so a terminal opened later is still seen by the next check.
+ * Checks that run while a scan is in flight share it, and a scan finished less than SCAN_REUSE_MS ago is
+ * reused. On Windows each scan starts PowerShell and compiles a helper, and opening one session checks
+ * ownership up to three times in a row (open, attach, worker start).
+ * shortcut: a terminal started on the same session within SCAN_REUSE_MS of a check is missed by that check.
  */
+export function forgetLastPiProcessScanForTesting(): void {
+  lastScan = null;
+}
+
 function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
   if (processScan) return processScan;
+  if (lastScan && Date.now() - lastScan.at < SCAN_REUSE_MS) return Promise.resolve(lastScan.result);
   const result = process.platform === 'win32'
     ? windowsPiProcesses()
     : process.platform === 'darwin'
@@ -157,7 +165,9 @@ function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
       : process.platform === 'linux'
         ? linuxPiProcesses()
         : Promise.resolve(null);
-  processScan = result.finally(() => { processScan = null; });
+  processScan = result
+    .then((value) => { lastScan = { at: Date.now(), result: value }; return value; })
+    .finally(() => { processScan = null; });
   return processScan;
 }
 
