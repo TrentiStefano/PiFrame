@@ -4,7 +4,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
-import { hasInteractivePiInCwd } from '../PiTerminalDetector.js';
+import { forgetLastPiProcessScanForTesting, hasInteractivePiInCwd } from '../PiTerminalDetector.js';
+
+// Each test starts its own fake terminal, so a scan reused from the previous test would be stale.
+test.beforeEach(() => forgetLastPiProcessScanForTesting());
 
 test('detects an interactive Pi CLI process in the session project', { timeout: 15000 }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-terminal-owner-'));
@@ -52,6 +55,35 @@ test('matches explicit terminal session path exactly', { timeout: 15000 }, async
   } finally {
     child.kill();
     await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('concurrent checks share one process scan and a check after the reuse window scans again', { timeout: 30000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-terminal-shared-'));
+  const cli = path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'bundle', 'cli.js');
+  fs.mkdirSync(path.dirname(cli), { recursive: true });
+  fs.writeFileSync(cli, 'setInterval(() => {}, 1000);');
+  try {
+    const started = Date.now();
+    const results = await Promise.all(Array.from({ length: 4 }, () => hasInteractivePiInCwd(root)));
+    const sharedMs = Date.now() - started;
+    assert.deepEqual(results, [false, false, false, false]);
+
+    // A terminal opened after the reuse window must be detected.
+    const child = spawn(process.execPath, [cli], { cwd: root, stdio: 'ignore', windowsHide: true });
+    try {
+      await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
+      await new Promise((resolve) => setTimeout(resolve, 2100));
+      const single = Date.now();
+      assert.equal(await hasInteractivePiInCwd(root), null);
+      // Four shared checks must cost about one scan, not four.
+      assert.ok(sharedMs < (Date.now() - single) * 2.5, `shared=${sharedMs}ms`);
+    } finally {
+      child.kill();
+      await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+    }
+  } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

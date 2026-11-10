@@ -107,6 +107,8 @@ async function executeGit(
     windowsHide: true,
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
+    // Never block the daemon on a terminal credential prompt.
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
   });
 }
 
@@ -129,6 +131,24 @@ export async function runGitStrict(args: string[], cwd: string, timeoutMs = EXEC
     error.stderr = rawStderr;
     error.details = { args, exitCode: cause?.code, signal: cause?.signal };
     throw error;
+  }
+}
+
+export const REMOTE_ACTIONS = ['fetch', 'pull', 'push', 'sync'];
+const REMOTE_TIMEOUT_MS = 120_000;
+
+/** fetch / pull (fast-forward only) / push (publishes a branch without upstream) / sync = pull then push. */
+export async function runRemoteGitAction(cwd: string, action: string): Promise<void> {
+  const git = (args: string[]) => runGitStrict(args, cwd, REMOTE_TIMEOUT_MS);
+  const hasUpstream = await runGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], cwd);
+  const pull = () => git(['pull', '--ff-only', '--no-edit']);
+  const push = () => git(hasUpstream ? ['push'] : ['push', '--set-upstream', 'origin', 'HEAD']);
+  if (action === 'fetch') await git(['fetch', '--all', '--prune']);
+  else if (action === 'pull') await pull();
+  else if (action === 'push') await push();
+  else {
+    if (hasUpstream) await pull();
+    await push();
   }
 }
 
@@ -201,32 +221,34 @@ async function hasHead(cwd: string): Promise<boolean> {
   return (await runGit(['rev-parse', '--verify', 'HEAD'], cwd)) !== null;
 }
 
-async function getNoIndexNumstat(cwd: string, filePath: string): Promise<Numstat> {
+/**
+ * Counts the lines of an untracked file the way `git diff --no-index --numstat /dev/null <file>` does, in-process.
+ * Spawning git per file blocks the daemon's event loop on Windows, which stalls every other request.
+ */
+async function countUntrackedLines(cwd: string, filePath: string): Promise<Numstat> {
   // Unreadable entries (e.g. a directory or a file removed mid-scan) must not fail the whole status.
   try {
-    const output = await executeGit(
-      ['diff', '--no-index', '--numstat', '--', '/dev/null', filePath],
-      cwd,
-      [1]
-    );
-    return { path: filePath, ...parseNumstat(output) };
+    const content = await fs.promises.readFile(path.resolve(cwd, ...filePath.split('/')));
+    // git treats a NUL in the first 8000 bytes as binary and reports no line counts.
+    if (content.subarray(0, 8000).includes(0)) return { path: filePath, additions: 0, deletions: 0 };
+    let lines = 0;
+    for (const byte of content) {
+      if (byte === 0x0a) lines++;
+    }
+    if (content.length > 0 && content[content.length - 1] !== 0x0a) lines++;
+    return { path: filePath, additions: lines, deletions: 0 };
   } catch {
     return { path: filePath, additions: 0, deletions: 0 };
   }
 }
 
 async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Numstat[]> {
-  const existingPaths = filePaths.filter((filePath) =>
-    fs.existsSync(path.resolve(cwd, ...filePath.split('/')))
-  );
   const numstats: Numstat[] = [];
   const batchSize = 16;
-  for (let i = 0; i < existingPaths.length; i += batchSize) {
+  for (let i = 0; i < filePaths.length; i += batchSize) {
     numstats.push(
       ...await Promise.all(
-        existingPaths.slice(i, i + batchSize).map((filePath) =>
-          getNoIndexNumstat(cwd, filePath)
-        )
+        filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))
       )
     );
   }
@@ -267,16 +289,34 @@ function parseStatus(cwd: string, statusOutput: string): {
   return { changes, renameSources };
 }
 
+/**
+ * Reads the "## ..." header of `git status --porcelain -b -z`. Porcelain labels are not translated.
+ * `branch` is null when HEAD is detached; the caller then asks git for the short commit id.
+ */
+export function parseBranchHeader(output: string): { length: number; branch: string | null; unborn: boolean } | null {
+  if (!output.startsWith('## ')) return null;
+  const end = output.indexOf('\0');
+  const text = output.slice(3, end < 0 ? undefined : end);
+  const length = end < 0 ? output.length : end + 1;
+  const unbornMatch = text.match(/^(?:No commits yet on|Initial commit on) (.+)$/);
+  if (unbornMatch) return { length, branch: unbornMatch[1], unborn: true };
+  if (text.startsWith('HEAD (no branch)')) return { length, branch: null, unborn: false };
+  return { length, branch: text.split('...')[0].split(' [')[0], unborn: false };
+}
+
 export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   const { isRepo, rootPath } = await checkIsGitRepo(cwd);
   if (!isRepo || !rootPath) {
     return { isRepository: false, files: [], totalAdditions: 0, totalDeletions: 0 };
   }
 
-  const branch = await getCurrentBranch(cwd);
-  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false) ?? '';
-  const { changes } = parseStatus(cwd, statusOutput);
-  const headExists = await hasHead(cwd);
+  // `-b` adds a "## <branch>" header, which replaces two extra git processes (branch and HEAD lookups).
+  // Each git process is slow on Windows and WSL, and the status is refreshed often.
+  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false) ?? '';
+  const header = parseBranchHeader(statusOutput);
+  const { changes } = parseStatus(cwd, header ? statusOutput.slice(header.length) : statusOutput);
+  const branch = header?.branch ?? await getCurrentBranch(cwd);
+  const headExists = header ? !header.unborn : await hasHead(cwd);
   let numstats: Numstat[] = [];
   if (headExists) {
     const output = await runGitStrict(['diff', '--numstat', '-z', 'HEAD'], cwd);

@@ -14,12 +14,15 @@ test.after(() => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-function fixture(options: { streaming?: boolean } = {}) {
+function fixture(options: { streaming?: boolean; piStillBusy?: boolean } = {}) {
   const workerCalls: Array<{ command: string; arguments?: any }> = [];
   const session: any = { id: 's_reload', isStreaming: options.streaming ?? false, isCompacting: false, readOnly: false };
   const worker = {
     send: async (request: { command: string; arguments?: any }) => {
       workerCalls.push(request);
+      if (options.piStillBusy && request.command === 'prompt') {
+        throw new Error("Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message.");
+      }
       if (request.command === 'get_commands') {
         return { success: true, data: { commands: [
           { name: 'caveman', description: 'Caveman', source: 'extension' },
@@ -81,6 +84,15 @@ test('ordinary prompts still go to the model unchanged', async () => {
   const { workerCalls, run } = fixture();
   await run('agent.prompt', { text: 'please reload the config file' });
   assert.deepEqual(workerCalls.filter((call) => call.command === 'prompt').map((call) => call.arguments.message), ['please reload the config file']);
+});
+
+test('a prompt Pi rejects as already processing is queued as a follow-up instead of failing', async () => {
+  const { workerCalls, run } = fixture({ piStillBusy: true });
+  const result = await run('agent.prompt', { text: 'continua il merge' });
+  assert.equal(result.payload.state, 'completed');
+  const follow = workerCalls.filter((call) => call.command === 'follow_up');
+  assert.equal(follow.length, 1);
+  assert.equal(follow[0].arguments.message, 'continua il merge');
 });
 
 test('agent.getCommands returns every Pi built-in before extension commands', async () => {

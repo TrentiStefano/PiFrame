@@ -53,10 +53,15 @@ function getOrCreateAuthDeviceId(): string {
   }
 }
 
+const SHARED_READ_COMMANDS = new Set([
+  'workspace.refresh', 'workspace.listFiles', 'session.subagents', 'session.getStats', 'agent.getModels', 'agent.getCommands',
+]);
+
 export class Dispatcher {
   private registry: SessionRegistry;
   private connectionManager: ConnectionManager;
   private deduplicator = new CommandDeduplicator();
+  private sharedReads = new Map<string, Promise<any>>();
   private workspaceService = new WorkspaceService();
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
@@ -274,7 +279,7 @@ export class Dispatcher {
 
     // 3. Execute command
     try {
-      const data = await this.execute(conn, cmd);
+      const data = await this.executeShared(conn, cmd);
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: any) {
@@ -309,6 +314,21 @@ export class Dispatcher {
 
       this.sendResult(conn, commandId, state, undefined, payload.error);
     }
+  }
+
+  /**
+   * Identical read commands from one connection that arrive while the first is still running share its result.
+   * On startup the app asks for the same workspace status, models and subagents several times per session,
+   * and each copy spawned git or Pi requests that slowed every other command.
+   */
+  private executeShared(conn: Connection, cmd: PcpCommand): Promise<any> {
+    if (!SHARED_READ_COMMANDS.has(cmd.type) || !cmd.sessionId) return this.execute(conn, cmd);
+    const key = `${conn.id}|${cmd.type}|${cmd.sessionId}|${JSON.stringify(cmd.payload ?? {})}`;
+    const running = this.sharedReads.get(key);
+    if (running) return running;
+    const task = this.execute(conn, cmd).finally(() => this.sharedReads.delete(key));
+    this.sharedReads.set(key, task);
+    return task;
   }
 
   private sendAck(conn: Connection, commandId: string): void {
@@ -768,6 +788,9 @@ export class Dispatcher {
           cwd,
           name: payload.name
         });
+        // Start Pi now: its cold start takes seconds and would otherwise stall the first prompt.
+        // A prompt that arrives meanwhile joins the same start; failures resurface on that prompt.
+        void this.registry.ensureWorkerForSession(session.id).catch(() => {});
         return { session: session.getSessionMeta() };
       }
 
@@ -809,7 +832,7 @@ export class Dispatcher {
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
-          const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
+          const meta = this.sessionIndex.extractSessionMetadata(sessionFile, await this.sessionIndex.readSessionText(sessionFile));
           if (meta.usage && (meta.usage as any).byModel) {
             data.byModel = (meta.usage as any).byModel;
             data.models = (meta.usage as any).models;
@@ -917,11 +940,23 @@ export class Dispatcher {
           });
           return res.data;
         } else {
-          const res = await worker.send({
-            command: 'prompt',
-            arguments: { message: payload.text, images: payload.images }
-          });
-          return res.data;
+          try {
+            const res = await worker.send({
+              command: 'prompt',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          } catch (error) {
+            // The daemon can see the run as idle while Pi still owns it (between agent_end and agent_settled,
+            // or during a retry). Pi then rejects a plain prompt; queue it as a follow-up instead of failing.
+            if (!/already processing/i.test(String((error as Error)?.message ?? error))) throw error;
+            session.isStreaming = true;
+            const res = await worker.send({
+              command: 'follow_up',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          }
         }
       }
 

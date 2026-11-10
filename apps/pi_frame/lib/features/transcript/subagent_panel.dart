@@ -248,15 +248,18 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
   }
 }
 
-/// Fades and slides a row in the first time it appears.
+/// Fades and slides a row in when it is new. Rows the list builds lazily while
+/// scrolling were already known, so they appear settled (no horizontal jitter).
 class _Entrance extends StatelessWidget {
   final Widget child;
-  const _Entrance({super.key, required this.child});
+  final bool animate;
+  const _Entrance({super.key, required this.child, required this.animate});
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
+      // `begin` only matters on the first build of this row's state.
+      tween: Tween(begin: animate ? 0 : 1, end: 1),
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
@@ -329,6 +332,23 @@ class _TreeNode {
   bool get isRunning => agent?.isRunning ?? run?.isRunning ?? false;
 }
 
+/// Running items first, then settled ones; each group newest launch first.
+/// [items] arrive oldest first, so a missing launch time falls back to list order.
+List<T> _byActivityThenLaunch<T>(
+  List<T> items,
+  bool Function(T) running,
+  int? Function(T) launchedAt,
+) {
+  final indexed = [for (var i = 0; i < items.length; i++) (i: i, item: items[i])];
+  indexed.sort((a, b) {
+    final ra = running(a.item), rb = running(b.item);
+    if (ra != rb) return ra ? -1 : 1;
+    final byTime = (launchedAt(b.item) ?? 0).compareTo(launchedAt(a.item) ?? 0);
+    return byTime != 0 ? byTime : b.i.compareTo(a.i);
+  });
+  return [for (final e in indexed) e.item];
+}
+
 String _elapsed(int? from, int? to) {
   if (from == null) return '';
   final seconds = ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
@@ -398,6 +418,9 @@ class _AgentTree extends ConsumerStatefulWidget {
 
 class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
+  // Row ids already shown once; only rows missing here play the entrance.
+  final Set<String> _seenIds = <String>{};
+  bool _firstBuild = true;
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
 
@@ -412,18 +435,19 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       });
 
   List<_TreeNode> _nodes() {
-    final linked = widget.subagents.where((s) => !s.isUnlinked).toList().reversed.toList();
     final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
-    final top = <({WorkflowItem? run, SubagentItem? agent})>[
+    final top = _byActivityThenLaunch<({WorkflowItem? run, SubagentItem? agent})>([
       for (final run in widget.workflows) (run: run, agent: null),
-      for (final agent in linked) (run: null, agent: agent),
-      for (final agent in split['']!.reversed) (run: null, agent: agent),
-    ];
+      for (final agent in widget.subagents.where((s) => !s.isUnlinked)) (run: null, agent: agent),
+      for (final agent in split['']!) (run: null, agent: agent),
+    ], (i) => i.run?.isRunning ?? i.agent!.isRunning, (i) => i.run?.timestamp ?? i.agent!.startedAt ?? i.agent!.timestamp);
     final nodes = <_TreeNode>[];
     for (var i = 0; i < top.length; i++) {
       final item = top[i];
       final isLast = i == top.length - 1;
-      final children = item.run == null ? const <SubagentItem>[] : split[item.run!.id]!;
+      final children = item.run == null
+          ? const <SubagentItem>[]
+          : _byActivityThenLaunch<SubagentItem>(split[item.run!.id]!, (a) => a.isRunning, (a) => a.startedAt ?? a.timestamp);
       nodes.add(_TreeNode(
         id: item.run?.id ?? item.agent!.id,
         depth: 1,
@@ -466,6 +490,14 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
     ].join(' · ');
 
+    final fresh = <String>{
+      if (!_firstBuild)
+        for (final n in nodes)
+          if (!_seenIds.contains(n.id)) n.id,
+    };
+    _firstBuild = false;
+    _seenIds.addAll(nodes.map((n) => n.id));
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
       children: [
@@ -492,6 +524,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
         for (final node in nodes)
           _Entrance(
             key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
+            animate: fresh.contains(node.id),
             child: node.run != null
                 ? _workflowRow(node, strings)
                 : _agentRow(node, notifier, strings),

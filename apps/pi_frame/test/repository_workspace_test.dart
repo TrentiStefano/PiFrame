@@ -252,6 +252,38 @@ void main() {
     expect(client.gitActions.last['action'], 'discard');
   });
 
+  testWidgets('Git Changes bottom bar sends fetch, pull, push and sync', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final action in ['fetch', 'pull', 'push', 'sync']) {
+      await tester.tap(find.byKey(ValueKey('git-$action-btn')));
+      await tester.pumpAndSettle();
+      expect(client.gitActions.last['action'], action);
+      expect(client.gitActions.last['paths'], isEmpty);
+    }
+    expect(client.gitActions, hasLength(4));
+  });
+
   testWidgets('Composer can add a repository file to prompt context', (
     tester,
   ) async {

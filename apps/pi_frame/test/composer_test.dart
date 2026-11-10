@@ -359,14 +359,8 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 50));
 
-    // Initially minimized while answering/working
-    expect(
-      find.byKey(const ValueKey('composer-minimized-bar')),
-      findsOneWidget,
-    );
-
-    // Tap minimized bar to expand
-    await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+    // Never minimized while messages wait in the queue
+    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
     await tester.pumpAndSettle();
 
     expect(

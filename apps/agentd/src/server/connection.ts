@@ -86,10 +86,13 @@ export class Connection {
   private init(): void {
     // Handshake timeout: 5 seconds
     this.handshakeTimer = setTimeout(() => {
-      if (this.state === 'authenticating') {
-        this.authFailed = true;
-        this.close(4001, 'Handshake timeout (no hello within 5s)');
-      }
+      // Decide after pending socket reads: a blocked event loop fires timers before a waiting hello is read.
+      setImmediate(() => {
+        if (this.state === 'authenticating') {
+          this.authFailed = true;
+          this.close(4001, 'Handshake timeout (no hello within 5s)');
+        }
+      });
     }, 5000);
 
     this.ws.on('message', (data: Buffer | string) => {
@@ -284,9 +287,14 @@ export class Connection {
         payload: {}
       });
 
-      this.pongTimeout = setTimeout(() => {
-        this.close(4008, 'Heartbeat timeout: no pong received within 10s');
+      if (this.pongTimeout) clearTimeout(this.pongTimeout);
+      const timer = setTimeout(() => {
+        // Decide after pending socket reads: a blocked event loop fires timers before a waiting pong is read.
+        setImmediate(() => {
+          if (this.pongTimeout === timer) this.close(4008, 'Heartbeat timeout: no pong received within 10s');
+        });
       }, 10000);
+      this.pongTimeout = timer;
     }, 15000);
   }
 

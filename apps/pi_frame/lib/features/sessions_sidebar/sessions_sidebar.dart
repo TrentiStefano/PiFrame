@@ -626,6 +626,19 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           },
                         ),
                       ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          key: const ValueKey('pinned-sessions-separator'),
+                          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                          child: Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: tokens.borderStrong,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),

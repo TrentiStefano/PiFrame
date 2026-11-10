@@ -1675,6 +1675,8 @@ class _ComposerState extends ConsumerState<Composer> {
         !_isManuallyExpanded &&
         !hasInputtedText &&
         !hasAttachments &&
+        // A queued steer/follow-up stays visible and editable until it is delivered.
+        totalQueued == 0 &&
         pendingInteractionRequests.isEmpty;
 
     return MouseRegion(

@@ -317,6 +317,21 @@ extension WorkspaceStrings on AppStrings {
   String get unstageAllTooltip =>
       isItalian ? 'Togli tutti dallo stage' : 'Unstage all';
 
+  String get gitFetchLabel => 'Fetch';
+  String get gitPullLabel => 'Pull';
+  String get gitPushLabel => 'Push';
+  String get gitSyncLabel => 'Sync';
+  String get gitFetchTooltip =>
+      isItalian ? 'Scarica i riferimenti remoti (fetch)' : 'Fetch from remotes';
+  String get gitPullTooltip => isItalian
+      ? 'Aggiorna il ramo dal remoto (solo fast-forward)'
+      : 'Pull from remote (fast-forward only)';
+  String get gitPushTooltip =>
+      isItalian ? 'Invia i commit al remoto (push)' : 'Push commits to remote';
+  String get gitSyncTooltip => isItalian
+      ? 'Sincronizza: pull e poi push'
+      : 'Sync: pull then push';
+
   String get noStagedFiles =>
       isItalian ? 'Nessun file preparato.' : 'No staged files.';
 

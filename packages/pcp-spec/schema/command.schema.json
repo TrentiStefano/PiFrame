@@ -186,7 +186,7 @@
     },
     {
       "if": { "properties": { "type": { "const": "workspace.gitAction" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "type": "object", "required": ["action", "paths"], "properties": { "action": { "enum": ["stage", "unstage", "commit", "discard"] }, "paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "expectedStagedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "message": { "type": "string", "minLength": 1 } }, "additionalProperties": false } } }
+      "then": { "properties": { "payload": { "type": "object", "required": ["action", "paths"], "properties": { "action": { "enum": ["stage", "unstage", "commit", "discard", "fetch", "pull", "push", "sync"] }, "paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "expectedStagedPaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "message": { "type": "string", "minLength": 1 } }, "additionalProperties": false } } }
     },
     {
       "if": { "properties": { "type": { "const": "workspace.listBranches" } }, "required": ["type"] },
