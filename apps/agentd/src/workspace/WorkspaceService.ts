@@ -69,19 +69,37 @@ export class WorkspaceService {
   private statusCache = new Map<string, { result: GitStatusResult; timestamp: number }>();
   private mutationQueues = new Map<string, Promise<unknown>>();
   private readonly CACHE_TTL_MS = 1000;
+  private rootCache = new Map<string, { root: Promise<string | null>; at: number }>();
+  private readonly ROOT_TTL_MS = 10_000;
+
+  /**
+   * Repository root of `cwd` (real path), or null outside a repository. Opening a session asks for it
+   * several times in a row, and each lookup spawns git, which blocks the daemon on Windows.
+   * shortcut: a folder that becomes a repository is seen up to ROOT_TTL_MS late; invalidate on git init if needed.
+   */
+  private repositoryRoot(cwd: string): Promise<string | null> {
+    const now = Date.now();
+    const cached = this.rootCache.get(cwd);
+    if (cached && now - cached.at < this.ROOT_TTL_MS) return cached.root;
+    const root = checkIsGitRepo(cwd).then((repo) =>
+      repo.isRepo && repo.rootPath ? fs.promises.realpath(repo.rootPath) : null);
+    // A failed lookup must not be remembered.
+    root.catch(() => this.rootCache.delete(cwd));
+    this.rootCache.set(cwd, { root, at: now });
+    return root;
+  }
 
   async resolveRepositoryRoot(cwd: string): Promise<string> {
-    const repo = await checkIsGitRepo(cwd);
-    if (!repo.isRepo || !repo.rootPath) {
+    const root = await this.repositoryRoot(cwd);
+    if (!root) {
       throw workspaceError('Session working directory is not inside a Git repository.', 'WORKSPACE_NOT_REPOSITORY');
     }
-    return fs.promises.realpath(repo.rootPath);
+    return root;
   }
 
   async getStatus(cwd: string, forceRefresh = false): Promise<GitStatusResult> {
-    const repo = await checkIsGitRepo(cwd);
-    if (!repo.isRepo || !repo.rootPath) return getGitStatus(cwd);
-    const root = await fs.promises.realpath(repo.rootPath);
+    const root = await this.repositoryRoot(cwd);
+    if (!root) return getGitStatus(cwd);
     const cached = this.statusCache.get(root);
     const now = Date.now();
     if (!forceRefresh && cached && now - cached.timestamp < this.CACHE_TTL_MS) return cached.result;
@@ -91,9 +109,8 @@ export class WorkspaceService {
   }
 
   async getDiff(cwd: string, filePath?: string): Promise<string> {
-    const repo = await checkIsGitRepo(cwd);
-    if (!repo.isRepo || !repo.rootPath) return '';
-    const root = await fs.promises.realpath(repo.rootPath);
+    const root = await this.repositoryRoot(cwd);
+    if (!root) return '';
     const safePath = filePath === undefined ? undefined : await this.resolvePath(root, filePath, true);
     return getGitDiff(root, safePath ? path.relative(root, safePath).split(path.sep).join('/') : undefined);
   }
