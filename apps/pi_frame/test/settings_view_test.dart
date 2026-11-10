@@ -1034,6 +1034,9 @@ void main() {
     final switchWidget = tester.widget<SwitchListTile>(switchFinder);
     expect(switchWidget.value, isFalse);
 
+    // Built but below the 600 px test viewport: bring it on screen so the tap hits it.
+    await tester.ensureVisible(switchFinder);
+    await tester.pumpAndSettle();
     await tester.tap(switchFinder);
     await tester.pumpAndSettle();
 
