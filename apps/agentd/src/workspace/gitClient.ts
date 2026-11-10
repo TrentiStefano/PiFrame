@@ -289,16 +289,34 @@ function parseStatus(cwd: string, statusOutput: string): {
   return { changes, renameSources };
 }
 
+/**
+ * Reads the "## ..." header of `git status --porcelain -b -z`. Porcelain labels are not translated.
+ * `branch` is null when HEAD is detached; the caller then asks git for the short commit id.
+ */
+export function parseBranchHeader(output: string): { length: number; branch: string | null; unborn: boolean } | null {
+  if (!output.startsWith('## ')) return null;
+  const end = output.indexOf('\0');
+  const text = output.slice(3, end < 0 ? undefined : end);
+  const length = end < 0 ? output.length : end + 1;
+  const unbornMatch = text.match(/^(?:No commits yet on|Initial commit on) (.+)$/);
+  if (unbornMatch) return { length, branch: unbornMatch[1], unborn: true };
+  if (text.startsWith('HEAD (no branch)')) return { length, branch: null, unborn: false };
+  return { length, branch: text.split('...')[0].split(' [')[0], unborn: false };
+}
+
 export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   const { isRepo, rootPath } = await checkIsGitRepo(cwd);
   if (!isRepo || !rootPath) {
     return { isRepository: false, files: [], totalAdditions: 0, totalDeletions: 0 };
   }
 
-  const branch = await getCurrentBranch(cwd);
-  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false) ?? '';
-  const { changes } = parseStatus(cwd, statusOutput);
-  const headExists = await hasHead(cwd);
+  // `-b` adds a "## <branch>" header, which replaces two extra git processes (branch and HEAD lookups).
+  // Each git process is slow on Windows and WSL, and the status is refreshed often.
+  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false) ?? '';
+  const header = parseBranchHeader(statusOutput);
+  const { changes } = parseStatus(cwd, header ? statusOutput.slice(header.length) : statusOutput);
+  const branch = header?.branch ?? await getCurrentBranch(cwd);
+  const headExists = header ? !header.unborn : await hasHead(cwd);
   let numstats: Numstat[] = [];
   if (headExists) {
     const output = await runGitStrict(['diff', '--numstat', '-z', 'HEAD'], cwd);
