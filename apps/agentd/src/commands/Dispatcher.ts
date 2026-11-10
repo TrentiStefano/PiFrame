@@ -920,11 +920,23 @@ export class Dispatcher {
           });
           return res.data;
         } else {
-          const res = await worker.send({
-            command: 'prompt',
-            arguments: { message: payload.text, images: payload.images }
-          });
-          return res.data;
+          try {
+            const res = await worker.send({
+              command: 'prompt',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          } catch (error) {
+            // The daemon can see the run as idle while Pi still owns it (between agent_end and agent_settled,
+            // or during a retry). Pi then rejects a plain prompt; queue it as a follow-up instead of failing.
+            if (!/already processing/i.test(String((error as Error)?.message ?? error))) throw error;
+            session.isStreaming = true;
+            const res = await worker.send({
+              command: 'follow_up',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          }
         }
       }
 
