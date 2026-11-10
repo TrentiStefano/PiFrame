@@ -13,7 +13,7 @@ import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
 import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
 import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
-import { enableDevFileLog } from './config/devLog.js';
+import { enableDevFileLog, reportSlowCommand } from './config/devLog.js';
 
 const VERSION = '1.4.1'; // x-release-please-version
 
@@ -160,7 +160,12 @@ async function main() {
     },
     port: actualPort,
     onCommand: async (conn, cmd) => {
-      await dispatcher.handle(conn, cmd);
+      const started = Date.now();
+      try {
+        await dispatcher.handle(conn, cmd);
+      } finally {
+        reportSlowCommand(cmd.type, cmd.sessionId, Date.now() - started);
+      }
     },
     onAttach: async (conn, sessionId, lastSeq, commandId) => {
       if (sessionId.startsWith('side_') || dispatcher?.getSideManager().hasStream(sessionId)) {

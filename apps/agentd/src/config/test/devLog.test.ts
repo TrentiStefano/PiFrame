@@ -3,7 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { enableDevFileLog, startEventLoopMonitor } from '../devLog.js';
+import { enableDevFileLog, reportSlowCommand, startEventLoopMonitor } from '../devLog.js';
 
 function tempLogFile(): { dir: string; file: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-devlog-'));
@@ -27,6 +27,24 @@ test('dev file log is off unless PIFRAME_DEV_LOG=1, so release daemons write not
     const stop = enableDevFileLog({}, file);
     assert.equal(stop, null);
     assert.equal(fs.existsSync(file), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('slow commands are logged with their type and session only above the threshold', () => {
+  const { dir, file } = tempLogFile();
+  try {
+    const stop = enableDevFileLog({ PIFRAME_DEV_LOG: '1' }, file);
+    assert.ok(stop);
+    reportSlowCommand('session.open', 's_1', 120);
+    reportSlowCommand('session.create', undefined, 1400);
+    stop();
+    reportSlowCommand('session.list', undefined, 9000);
+    const content = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(content, /session\.open/);
+    assert.match(content, / slow command session\.create session=- took 1400ms/);
+    assert.doesNotMatch(content, /session\.list/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
