@@ -48,6 +48,12 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
   assert.ok((meta.usage as any).byModel);
   assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.040) < 0.0001, true);
   assert.strictEqual((meta.usage.tokens as any).total, 6500);
+
+  // Text read asynchronously once gives the same result as reading the file synchronously.
+  const text = await index.readSessionText(sessionFile);
+  assert.deepStrictEqual(index.extractSessionMetadata(sessionFile, text), meta);
+  assert.deepStrictEqual(index.readTranscript(sessionFile, text), index.readTranscript(sessionFile));
+  assert.strictEqual(await index.readSessionText(path.join(path.dirname(sessionFile), 'missing.jsonl')), undefined);
 });
 
 test('SessionIndex: extractSessionMetadata extracts per-model costs across multiple models', async (t) => {

@@ -832,7 +832,7 @@ export class Dispatcher {
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
-          const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
+          const meta = this.sessionIndex.extractSessionMetadata(sessionFile, await this.sessionIndex.readSessionText(sessionFile));
           if (meta.usage && (meta.usage as any).byModel) {
             data.byModel = (meta.usage as any).byModel;
             data.models = (meta.usage as any).models;

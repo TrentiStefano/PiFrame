@@ -545,9 +545,18 @@ export class SessionIndex {
     return deletedPath;
   }
 
-  public readTranscript(filePath: string): Array<Record<string, unknown>> {
+  /**
+   * Reads a session file without blocking the event loop; pass the text to readTranscript and
+   * extractSessionMetadata so a large file is read once instead of twice, synchronously.
+   */
+  public async readSessionText(filePath: string | null | undefined): Promise<string | undefined> {
+    if (!filePath) return undefined;
+    try { return await fs.promises.readFile(filePath, 'utf8'); } catch { return undefined; }
+  }
+
+  public readTranscript(filePath: string, content?: string): Array<Record<string, unknown>> {
     const entries: any[] = [];
-    for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+    for (const line of (content ?? fs.readFileSync(filePath, 'utf8')).split('\n')) {
       try {
         const entry = JSON.parse(line);
         if (entry.type !== 'session') entries.push(entry);
@@ -950,7 +959,7 @@ export class SessionIndex {
     return result;
   }
 
-  public extractSessionMetadata(filePath: string): {
+  public extractSessionMetadata(filePath: string, preloaded?: string): {
     usage?: Record<string, unknown>;
     model?: string | null;
     thinkingLevel?: string | null;
@@ -967,8 +976,8 @@ export class SessionIndex {
     const byModel: Record<string, { cost?: number; tokens: { total: number; input: number; output: number } }> = {};
 
     try {
-      if (filePath && fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf8');
+      if (preloaded !== undefined || (filePath && fs.existsSync(filePath))) {
+        const content = preloaded ?? fs.readFileSync(filePath, 'utf8');
         const lines = content.split('\n').filter(Boolean);
         for (const line of lines) {
           try {
