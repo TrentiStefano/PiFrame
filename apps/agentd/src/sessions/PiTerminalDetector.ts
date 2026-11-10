@@ -141,19 +141,33 @@ async function macPiProcesses(): Promise<PiProcessInfo[] | null> {
   }
 }
 
+let processScan: Promise<PiProcessInfo[] | null> | null = null;
+
+/**
+ * Checks that run while a scan is in flight share it. On Windows each scan starts PowerShell and compiles a
+ * helper, which costs seconds; the app opens several sessions at once on startup. A finished scan is never
+ * reused, so a terminal opened later is still seen by the next check.
+ */
+function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
+  if (processScan) return processScan;
+  const result = process.platform === 'win32'
+    ? windowsPiProcesses()
+    : process.platform === 'darwin'
+      ? macPiProcesses()
+      : process.platform === 'linux'
+        ? linuxPiProcesses()
+        : Promise.resolve(null);
+  processScan = result.finally(() => { processScan = null; });
+  return processScan;
+}
+
 /** True means this session is explicitly open. Null means Pi is open in this project, but session identity is unknown. */
 export async function hasInteractivePiInCwd(
   cwd: string,
   sessionFile?: string | null,
   sessionId?: string,
 ): Promise<boolean | null> {
-  const processes = process.platform === 'win32'
-    ? await windowsPiProcesses()
-    : process.platform === 'darwin'
-      ? await macPiProcesses()
-      : process.platform === 'linux'
-        ? await linuxPiProcesses()
-        : null;
+  const processes = await scanPiProcesses();
   if (processes === null) return null;
   let ambiguous = false;
   for (const process of processes) {
