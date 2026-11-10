@@ -31,6 +31,9 @@ class StartupUpdateBanner extends ConsumerWidget {
         '${state.outdatedPackages.length} ${strings.updateNoticePackages}: $names',
       );
     }
+    if (state.error != null) {
+      details.add(strings.packageUpdateCheckFailed(state.error!));
+    }
 
     return Positioned(
       bottom: 16,

@@ -91,7 +91,7 @@
   "allOf": [
     {
       "if": { "properties": { "type": { "const": "pi.packages.list" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "type": "object", "additionalProperties": false } } }
+      "then": { "properties": { "payload": { "type": "object", "properties": { "checkUpdates": { "type": "boolean" } }, "additionalProperties": false } } }
     },
     {
       "if": { "properties": { "type": { "enum": ["pi.packages.update", "pi.packages.remove"] } }, "required": ["type"] },

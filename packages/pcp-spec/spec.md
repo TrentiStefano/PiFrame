@@ -170,8 +170,8 @@ Repository writes (`saveFile`, every Git action, and `switchBranch`) are rejecte
 
 These authenticated local-daemon commands operate on Pi's user-level package settings and invoke the discovered Pi CLI without a shell. They do not accept a caller-supplied package directory or project scope.
 
-- `pi.packages.list` payload `{}` → `{packages:[{source,name,version,pinnedVersion}]}`.
-- `pi.packages.update` payload `{source}` → `{output}`; delegates to `pi update <source>`.
+- `pi.packages.list` payload `{checkUpdates?:boolean}` → `{packages:[{source,name,version,pinnedVersion,latestVersion?,updateError?}]}`. With `checkUpdates:true`, npm targets are resolved from each configured source (latest, range or tag), excluding exact pins and project packages. Newer targets are checked with a script-free npm install dry run, including required dependencies; unsupported platforms are reported in `updateError` and are not installable updates. Registry failures are errors, not empty results. Ordinary lists can include the last check when the installed version still matches.
+- `pi.packages.update` payload `{source}` → `{output,status,previousVersion,version}`. `status` is `updated`, `current` or `pinned`. Unpinned npm sources delegate to `pi update <source>` when a compatible newer version is available, prefer fresh npm metadata, and verify the installed manifest against the resolved target before reporting success. Exact pins are preserved; current or newer versions are not downgraded. Unsupported targets and unverified installations fail explicitly.
 - `pi.packages.remove` payload `{source}` → `{output}`; delegates to `pi remove <source>`.
 - `pi.packages.pin` payload `{source,version}` → `{output,source}`; accepts npm package sources only and delegates to `pi install npm:<name>@<semver>`.
 

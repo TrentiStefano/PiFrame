@@ -59,6 +59,20 @@ void main() {
       );
       expect(strings.branchNotFound, 'Ramo non trovato');
       expect(strings.branchInvalidName, 'Nome del ramo non valido');
+      expect(strings.updateAllPackages, 'Aggiorna tutto');
+      expect(
+        strings.updateAllPackagesMessage(2),
+        contains('2 pacchetti utente con aggiornamenti disponibili'),
+      );
+      expect(
+        strings.packageUpdateSummary(1, 2, 3),
+        contains('Già aggiornati: 2.'),
+      );
+      expect(
+        strings.packageUpdateUnavailable('1.2.0', 'Windows'),
+        contains('non compatibile'),
+      );
+      expect(strings.packageUpdateNotVerified, contains('Riavvia il daemon'));
     });
 
     test('AppStrings provides correct English translations', () {
@@ -100,6 +114,23 @@ void main() {
       );
       expect(strings.branchNotFound, 'Branch not found');
       expect(strings.branchInvalidName, 'Invalid branch name');
+      expect(strings.updateAllPackages, 'Update all');
+      expect(
+        strings.updateAllPackagesMessage(2),
+        contains('2 user packages with available updates'),
+      );
+      expect(
+        strings.packageUpdateSummary(1, 2, 3),
+        contains('Already up to date: 2.'),
+      );
+      expect(
+        strings.packageUpdateUnavailable('1.2.0', 'Windows'),
+        contains('not compatible'),
+      );
+      expect(
+        strings.packageUpdateNotVerified,
+        contains('Restart the updated daemon'),
+      );
     });
 
     test('AppLanguageNotifier updates state', () {

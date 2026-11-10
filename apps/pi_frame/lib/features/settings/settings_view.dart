@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -17,6 +18,8 @@ import '../../data/composer/composer_settings.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/transcript_grouping.dart';
+import '../../data/update/startup_updates_provider.dart';
+import '../../domain/update/semver.dart';
 import 'diagnostics.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
@@ -51,9 +54,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   String? _configStatusMessage;
   bool _isLoadingPackages = true;
   bool _isWorkingWithPackage = false;
+  double? _packageUpdateProgress;
+  String? _packageUpdateError;
   bool _isRestartingDaemon = false;
   String? _packageError;
   List<Map<String, dynamic>> _packages = [];
+  int _packageListRequest = 0;
 
   @override
   void initState() {
@@ -77,9 +83,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
 
     try {
-      final res = await client
-          .getDaemonConfig()
-          .timeout(const Duration(seconds: 4));
+      final res = await client.getDaemonConfig().timeout(
+        const Duration(seconds: 4),
+      );
       final data = res['data'] as Map<String, dynamic>? ?? res;
       final ms = (data['workerIdleTimeoutMs'] as num?)?.toInt() ?? 1800000;
       if (mounted) {
@@ -132,6 +138,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   }
 
   Future<void> _fetchPiPackages() async {
+    final request = ++_packageListRequest;
     final client = ref.read(pcpClientProvider);
     final strings = ref.read(appStringsProvider);
     if (client == null) {
@@ -149,15 +156,24 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       _packageError = null;
     });
     try {
-      final result = await client.listPiPackages();
+      final result = await client.listPiPackages(checkUpdates: true);
       final data = result['data'] as Map<String, dynamic>? ?? result;
-      final packages = (data['packages'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
-      if (mounted) setState(() => _packages = packages);
+      final rawPackages = data['packages'];
+      if (rawPackages is! List) {
+        throw const FormatException('Invalid Pi package list.');
+      }
+      final packages = rawPackages.cast<Map<String, dynamic>>().toList();
+      if (mounted && request == _packageListRequest) {
+        setState(() => _packages = packages);
+      }
     } catch (error) {
-      if (mounted) setState(() => _packageError = error.toString());
+      if (mounted && request == _packageListRequest) {
+        setState(() => _packageError = error.toString());
+      }
     } finally {
-      if (mounted) setState(() => _isLoadingPackages = false);
+      if (mounted && request == _packageListRequest) {
+        setState(() => _isLoadingPackages = false);
+      }
     }
   }
 
@@ -191,35 +207,84 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     String source,
     Future<Map<String, dynamic>> Function(PcpClient client) action, {
     required String successMessage,
+    String Function(Map<String, dynamic> result)? resultMessage,
   }) async {
+    if (!mounted) return;
     final client = ref.read(pcpClientProvider);
     if (client == null || _isWorkingWithPackage) return;
-    setState(() => _isWorkingWithPackage = true);
+    final updates = ref.read(startupUpdatesProvider.notifier);
+    final strings = ref.read(appStringsProvider);
+    setState(() {
+      _isWorkingWithPackage = true;
+      _packageUpdateError = null;
+    });
     try {
-      await action(client);
+      final result = await action(client);
+      final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
-        final strings = ref.read(appStringsProvider);
+        final message = resultMessage?.call(data) ??
+            strings.packageActionNotice(successMessage, source);
+        final needsRestart =
+            data['status'] != 'current' && data['status'] != 'pinned';
         FrameSnackBar.show(
           context,
-          message: strings.packageActionNotice(successMessage, source),
+          message:
+              '$message${needsRestart ? ' ${strings.restartPiAfterPackageUpdate}' : ''}',
         );
       }
-      await _fetchPiPackages();
     } catch (error) {
       if (mounted) {
-        final strings = ref.read(appStringsProvider);
+        setState(() => _packageUpdateError = '$source: $error');
         FrameSnackBar.show(
           context,
           message: strings.packageActionFailedNotice(error),
         );
       }
     } finally {
-      if (mounted) setState(() => _isWorkingWithPackage = false);
+      await updates.refreshPackages();
+      if (mounted) {
+        await _fetchPiPackages();
+        if (mounted) {
+          final checkError = ref.read(startupUpdatesProvider).error;
+          setState(() {
+            _isWorkingWithPackage = false;
+            if (checkError != null) {
+              _packageUpdateError = [
+                ?_packageUpdateError,
+                strings.packageUpdateCheckFailed(checkError),
+              ].join('\n');
+            }
+          });
+        }
+      }
     }
+  }
+
+  Future<Map<String, dynamic>> _updateVerifiedPackage(
+    PcpClient client,
+    String source,
+    AppStrings strings,
+  ) async {
+    final result = await client.updatePiPackage(source);
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    if (!const {'updated', 'current', 'pinned'}.contains(data['status'])) {
+      throw StateError(strings.packageUpdateNotVerified);
+    }
+    if (source.startsWith('npm:') &&
+        data['status'] != 'pinned' &&
+        SemVer.tryParse(data['version']?.toString()) == null) {
+      throw StateError(strings.packageUpdateNotVerified);
+    }
+    return data;
   }
 
   Future<void> _updatePackage(Map<String, dynamic> package) async {
     final strings = ref.read(appStringsProvider);
+    if (_isWorkingWithPackage ||
+        _isLoadingPackages ||
+        !hasAvailablePiPackageUpdate(package)) {
+      return;
+    }
     final source = package['source'].toString();
     if (!await _confirmPackageAction(
       strings.confirmPackageUpdateTitle,
@@ -228,11 +293,134 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     )) {
       return;
     }
+    final currentPackage = _packages
+        .where((item) => item['source'] == source)
+        .firstOrNull;
+    if (!mounted ||
+        _isWorkingWithPackage ||
+        _isLoadingPackages ||
+        currentPackage == null ||
+        !hasAvailablePiPackageUpdate(currentPackage)) {
+      return;
+    }
     await _performPackageAction(
       source,
-      (client) => client.updatePiPackage(source),
+      (client) =>
+          _updateVerifiedPackage(client, source, ref.read(appStringsProvider)),
       successMessage: strings.packageUpdatedSuccess,
+      resultMessage: (result) {
+        final strings = ref.read(appStringsProvider);
+        final version = result['version']?.toString();
+        switch (result['status']) {
+          case 'current':
+            return strings.packageAlreadyCurrent(source, version);
+          case 'pinned':
+            return strings.packageVersionPinned(source, version);
+          default:
+            return strings.packageVersionUpdated(
+              source,
+              result['previousVersion']?.toString(),
+              version,
+            );
+        }
+      },
     );
+  }
+
+  Future<void> _updateAllPackages() async {
+    if (_isWorkingWithPackage || _isLoadingPackages) {
+      return;
+    }
+    final strings = ref.read(appStringsProvider);
+    final sources = _packages
+        .where(hasAvailablePiPackageUpdate)
+        .map((package) => (package['source'] ?? '').toString())
+        .toSet()
+        .toList();
+    if (sources.isEmpty) return;
+    if (!await _confirmPackageAction(
+          strings.updateAllPackagesTitle,
+          strings.updateAllPackagesMessage(sources.length),
+          strings.updateAllPackages,
+        ) ||
+        !mounted) {
+      return;
+    }
+    final client = ref.read(pcpClientProvider);
+    if (client == null) {
+      FrameSnackBar.show(context, message: strings.packagesDaemonDisconnected);
+      return;
+    }
+    if (_isWorkingWithPackage || _isLoadingPackages) return;
+    final availableSources = _packages
+        .where(hasAvailablePiPackageUpdate)
+        .map((package) => package['source'].toString())
+        .toSet();
+    sources.retainWhere(availableSources.contains);
+    if (sources.isEmpty) return;
+    final updates = ref.read(startupUpdatesProvider.notifier);
+    setState(() {
+      _isWorkingWithPackage = true;
+      _packageUpdateProgress = 0;
+      _packageUpdateError = null;
+    });
+    final failures = <String>[];
+    var updated = 0;
+    var current = 0;
+    var pinned = 0;
+    try {
+      for (var index = 0; index < sources.length; index++) {
+        final source = sources[index];
+        try {
+          final result = await _updateVerifiedPackage(client, source, strings);
+          switch (result['status']) {
+            case 'current':
+              current++;
+            case 'pinned':
+              pinned++;
+            default:
+              updated++;
+          }
+        } catch (error) {
+          failures.add('$source: $error');
+        }
+        if (mounted) {
+          setState(() => _packageUpdateProgress = (index + 1) / sources.length);
+        }
+      }
+      await updates.refreshPackages();
+      if (!mounted) return;
+      await _fetchPiPackages();
+      if (!mounted) return;
+      final result = current == 0 && pinned == 0
+          ? failures.isEmpty
+                ? strings.packagesUpdated(updated)
+                : strings.packageUpdatesFailed(updated, failures.length)
+          : '${strings.packageUpdateSummary(updated, current, pinned)}'
+                '${failures.isEmpty ? '' : ' ${strings.packageUpdateFailures(failures.length)}'}';
+      final checkError = ref.read(startupUpdatesProvider).error;
+      final details = [
+        ...failures,
+        if (checkError != null) strings.packageUpdateCheckFailed(checkError),
+      ];
+      if (details.isNotEmpty) {
+        setState(() => _packageUpdateError = '$result\n${details.join('\n')}');
+      }
+      FrameSnackBar.show(
+        context,
+        message:
+            '$result${updated == 0 ? '' : ' ${strings.restartPiAfterPackageUpdate}'}',
+        duration: Duration(seconds: details.isEmpty ? 3 : 8),
+        backgroundColor: details.isEmpty ? null : context.tokens.danger,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isWorkingWithPackage = false;
+          _packageUpdateProgress = null;
+        });
+      }
+    }
   }
 
   Future<void> _removePackage(Map<String, dynamic> package) async {
@@ -321,24 +509,47 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
       );
     }
-    if (_packages.isEmpty) {
-      return Center(
-        child: Text(
-          strings.noPackagesInstalled,
-          style: TextStyle(color: tokens.textMuted),
-        ),
-      );
-    }
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(
-          strings.packagesInstalledTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final title = Text(
+              strings.packagesInstalledTitle,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            );
+            final button = FilledButton.icon(
+              key: const ValueKey('update-all-pi-packages'),
+              onPressed:
+                  _isWorkingWithPackage ||
+                      !_packages.any(hasAvailablePiPackageUpdate)
+                  ? null
+                  : _updateAllPackages,
+              icon: const Icon(Icons.system_update_alt, size: 18),
+              label: Text(
+                _packageUpdateProgress == null
+                    ? strings.updateAllPackages
+                    : strings.updatingPackages,
+              ),
+            );
+            if (constraints.maxWidth < 520) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [title, const SizedBox(height: 12), button],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: 12),
+                button,
+              ],
+            );
+          },
         ),
         const SizedBox(height: 6),
         Text(
@@ -347,9 +558,25 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         ),
         if (_isWorkingWithPackage) ...[
           const SizedBox(height: 12),
-          LinearProgressIndicator(color: tokens.accent),
+          LinearProgressIndicator(
+            color: tokens.accent,
+            value: _packageUpdateProgress,
+          ),
+        ],
+        if (_packageUpdateError != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            _packageUpdateError!,
+            key: const ValueKey('pi-package-update-error'),
+            style: TextStyle(color: tokens.danger, fontSize: 12),
+          ),
         ],
         const SizedBox(height: 16),
+        if (_packages.isEmpty)
+          Text(
+            strings.noPackagesInstalled,
+            style: TextStyle(color: tokens.textMuted),
+          ),
         for (final package in _packages) _buildPackageCard(tokens, package, strings),
       ],
     );
@@ -360,6 +587,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     final name = package['name']?.toString() ?? source;
     final version = package['version']?.toString() ?? strings.unknownVersion;
     final pin = package['pinnedVersion']?.toString();
+    final updateError = package['updateError']?.toString();
     final supportsPin = source.startsWith('npm:');
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -397,12 +625,23 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                       fontFamily: tokens.monoFontFamily,
                     ),
                   ),
+                  if (updateError != null)
+                    Text(
+                      ref
+                          .watch(appStringsProvider)
+                          .packageUpdateUnavailable(
+                            package['latestVersion']?.toString() ?? '?',
+                            updateError,
+                          ),
+                      style: TextStyle(color: tokens.danger, fontSize: 11),
+                    ),
                 ],
               ),
             ),
             IconButton(
               tooltip: strings.updatePackageTooltip(name),
-              onPressed: _isWorkingWithPackage
+              onPressed:
+                  _isWorkingWithPackage || !hasAvailablePiPackageUpdate(package)
                   ? null
                   : () => _updatePackage(package),
               icon: const Icon(Icons.system_update_alt, size: 18),
@@ -467,15 +706,22 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<DaemonConnectionState>>(
-      connectionStateProvider,
-      (prev, next) {
-        if (next.value == DaemonConnectionState.connected) {
-          _fetchDaemonConfig();
-          _fetchPiPackages();
-        }
-      },
-    );
+    ref.listen<StartupUpdateState>(startupUpdatesProvider, (previous, next) {
+      if (previous?.isChecking == true &&
+          !next.isChecking &&
+          !_isWorkingWithPackage) {
+        _fetchPiPackages();
+      }
+    });
+    ref.listen<AsyncValue<DaemonConnectionState>>(connectionStateProvider, (
+      prev,
+      next,
+    ) {
+      if (next.value == DaemonConnectionState.connected) {
+        _fetchDaemonConfig();
+        _fetchPiPackages();
+      }
+    });
 
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
@@ -571,6 +817,21 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                       strings: strings,
                       onRecheck: () {
                         ref.invalidate(daemonEndpointProvider);
+                      },
+                      onPackagesChanged: () async {
+                        await ref
+                            .read(startupUpdatesProvider.notifier)
+                            .refreshPackages();
+                        if (!mounted) return;
+                        await _fetchPiPackages();
+                        if (!mounted) return;
+                        final error = ref.read(startupUpdatesProvider).error;
+                        if (error != null) {
+                          setState(
+                            () => _packageUpdateError = strings
+                                .packageUpdateCheckFailed(error),
+                          );
+                        }
                       },
                     ),
 
@@ -752,7 +1013,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                   ? strings.restartingDaemonStatus
                                   : strings.restartDaemonBtn,
                             ),
-                            onPressed: _isRestartingDaemon ? null : _restartDaemon,
+                            onPressed: _isRestartingDaemon
+                                ? null
+                                : _restartDaemon,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -788,8 +1051,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             activeThumbColor: tokens.accent,
                             onChanged: (val) {
                               ref
-                                  .read(notificationsEnabledProvider.notifier)
-                                  .state = val;
+                                      .read(
+                                        notificationsEnabledProvider.notifier,
+                                      )
+                                      .state =
+                                  val;
                             },
                           ),
                         ),
@@ -846,7 +1112,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                               ),
                               child: DropdownButtonHideUnderline(
                                 child: DropdownButton<AppLanguage>(
-                                  key: const ValueKey('settings-language-dropdown'),
+                                  key: const ValueKey(
+                                    'settings-language-dropdown',
+                                  ),
                                   isExpanded: true,
                                   value: ref.watch(appLanguageProvider),
                                   dropdownColor: tokens.surfaceElevated,
@@ -862,7 +1130,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         children: [
                                           Text(
                                             lang.flag,
-                                            style: const TextStyle(fontSize: 16),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                            ),
                                           ),
                                           const SizedBox(width: 10),
                                           Text(lang.label),
@@ -940,9 +1210,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                     value: settings.useSystemTheme,
                                     onChanged: (val) {
                                       ref
-                                          .read(
-                                            themeSettingsProvider.notifier,
-                                          )
+                                          .read(themeSettingsProvider.notifier)
                                           .setUseSystemTheme(val);
                                     },
                                   ),
@@ -973,7 +1241,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
-                                    key: const ValueKey('settings-theme-dropdown'),
+                                    key: const ValueKey(
+                                      'settings-theme-dropdown',
+                                    ),
                                     isExpanded: true,
                                     borderRadius: BorderRadius.circular(
                                       tokens.radiusMd,
@@ -1040,11 +1310,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
                                             isExpanded: true,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                  tokens.radiusMd,
-                                                ),
-                                            value: darkThemes.any(
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusMd,
+                                            ),
+                                            value:
+                                                darkThemes.any(
                                                   (t) =>
                                                       t.id ==
                                                       settings
@@ -1078,9 +1348,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                                       themeSettingsProvider
                                                           .notifier,
                                                     )
-                                                    .setDefaultDarkTheme(
-                                                      newId,
-                                                    );
+                                                    .setDefaultDarkTheme(newId);
                                               }
                                             },
                                           ),
@@ -1120,11 +1388,11 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                         child: DropdownButtonHideUnderline(
                                           child: DropdownButton<String>(
                                             isExpanded: true,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                  tokens.radiusMd,
-                                                ),
-                                            value: lightThemes.any(
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusMd,
+                                            ),
+                                            value:
+                                                lightThemes.any(
                                                   (t) =>
                                                       t.id ==
                                                       settings
@@ -1253,8 +1521,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                       if (file == null || !context.mounted) {
                                         return;
                                       }
-                                      final content =
-                                          await file.readAsString();
+                                      final content = await file.readAsString();
                                       final importedSpec = await ref
                                           .read(
                                             activeThemeSpecProvider.notifier,
@@ -1842,63 +2109,67 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                     style: TextStyle(color: tokens.textPrimary, fontSize: 13),
                   ),
                   subtitle: termSettings.nativeApp == NativeTerminalApp.custom
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: TextEditingController(
-                                  text: termSettings.customPath,
-                                )..selection = TextSelection.collapsed(
-                                    offset: termSettings.customPath.length,
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller:
+                                      TextEditingController(
+                                          text: termSettings.customPath,
+                                        )
+                                        ..selection = TextSelection.collapsed(
+                                          offset:
+                                              termSettings.customPath.length,
+                                        ),
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize: 12,
+                                    fontFamily: tokens.monoFontFamily,
                                   ),
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 12,
-                                  fontFamily: tokens.monoFontFamily,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: _isWindowsOs
-                                      ? 'C:\\Percorso\\A\\terminal.exe'
-                                      : '/usr/bin/alacritty',
-                                  isDense: true,
-                                  border: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(tokens.radiusSm),
-                                  ),
-                                ),
-                                onSubmitted: (val) =>
-                                    notifier.setCustomPath(val.trim()),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.folder_open, size: 14),
-                              label: Text(strings.terminalBrowseBtn),
-                              onPressed: () async {
-                                final file = await openFile(
-                                  acceptedTypeGroups: [
-                                    XTypeGroup(
-                                      label: strings.terminalExecutableFilterLabel,
-                                      extensions: const ['exe', 'bat', 'cmd', 'sh'],
+                                  decoration: InputDecoration(
+                                    hintText: _isWindowsOs
+                                        ? 'C:\\Percorso\\A\\terminal.exe'
+                                        : '/usr/bin/alacritty',
+                                    isDense: true,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
                                     ),
-                                  ],
-                                );
-                                if (file != null) {
-                                  notifier.setCustomPath(file.path);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      )
-                    : null,
-              ),
-            ],
+                                  ),
+                                  onSubmitted: (val) =>
+                                      notifier.setCustomPath(val.trim()),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.folder_open, size: 14),
+                                label: Text(strings.terminalBrowseBtn),
+                                onPressed: () async {
+                                  final file = await openFile(
+                                    acceptedTypeGroups: [
+                                      XTypeGroup(
+                                        label: strings.terminalExecutableFilterLabel,
+                                        extensions: const ['exe', 'bat', 'cmd', 'sh'],
+                                      ),
+                                    ],
+                                  );
+                                  if (file != null) {
+                                    notifier.setCustomPath(file.path);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
         const SizedBox(height: 20),
 
         // Test action button

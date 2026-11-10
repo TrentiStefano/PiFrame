@@ -579,16 +579,17 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> listPiPackages() => sendCommand(
-    PcpCommand(
-      protocol: 1,
-      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-      ts: DateTime.now().millisecondsSinceEpoch,
-      commandId: newCommandId('pkgl'),
-      type: 'pi.packages.list',
-      payload: const {},
-    ),
-  );
+  Future<Map<String, dynamic>> listPiPackages({bool checkUpdates = false}) =>
+      sendCommand(
+        PcpCommand(
+          protocol: 1,
+          id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+          ts: DateTime.now().millisecondsSinceEpoch,
+          commandId: newCommandId('pkgl'),
+          type: 'pi.packages.list',
+          payload: checkUpdates ? const {'checkUpdates': true} : const {},
+        ),
+      );
 
   Future<Map<String, dynamic>> updatePiPackage(String source) => sendCommand(
     PcpCommand(

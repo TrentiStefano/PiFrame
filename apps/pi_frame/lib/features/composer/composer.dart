@@ -1052,6 +1052,7 @@ class _ComposerState extends ConsumerState<Composer> {
     final strings = ref.read(appStringsProvider);
     final sessions = await ref.read(sessionListProvider.future);
     if (!mounted) return;
+    final sessionNames = ref.read(sessionDisplayNamesProvider);
     final selectedId = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1067,7 +1068,9 @@ class _ComposerState extends ConsumerState<Composer> {
                     final session = sessions[index];
                     final id = session['id']?.toString() ?? '';
                     return ListTile(
-                      title: Text(session['name']?.toString() ?? id),
+                      title: Text(
+                        sessionNames[id] ?? session['name']?.toString() ?? id,
+                      ),
                       subtitle: Text(
                         session['cwd']?.toString() ?? '',
                         maxLines: 1,

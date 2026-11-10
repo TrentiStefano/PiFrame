@@ -2058,7 +2058,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     double? mainAgentCost,
     double subagentsCost = 0.0,
   }) {
-    final effectiveSessionName = sessionState.sessionName ?? widget.sessionId;
+    final effectiveSessionName = ref.watch(
+      sessionDisplayNameProvider(widget.sessionId),
+    );
     if (_cachedBentoHeader != null &&
         _cachedHeaderSessionName == effectiveSessionName &&
         _cachedHeaderCwd == sessionState.cwd &&
@@ -2240,8 +2242,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    sessionState.sessionName ??
-                                        widget.sessionId,
+                                    effectiveSessionName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(

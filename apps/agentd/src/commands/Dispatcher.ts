@@ -651,7 +651,7 @@ export class Dispatcher {
         if (conn.isRemote) {
           throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
         }
-        return { packages: await this.piPackages.list() };
+        return { packages: await this.piPackages.list(payload.checkUpdates === true) };
 
       case 'pi.packages.update':
         if (conn.isRemote) {

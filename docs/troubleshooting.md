@@ -21,6 +21,20 @@ flutter test test/extension_ui_card_test.dart test/extension_ui_test.dart
 
 ---
 
+## Avviso dei pacchetti ripetuto e versioni che non avanzano
+
+**Sintomo:** all'avvio ricompare l'avviso delle estensioni; dopo un aggiornamento la pagina dichiara il successo ma può mostrare ancora la versione precedente.
+
+**Cause corrette:** il controllo iniziale confrontava le dipendenze riportate da `npm outdated` con `latest`, senza seguire le sorgenti configurate in Pi o le versioni bloccate. Gli aggiornamenti erano considerati riusciti soltanto dal codice di uscita, senza verificare i manifest installati, e non ricaricavano lo stato dell'avviso. Metadati npm in cache possono inoltre lasciare una versione precedente anche quando il comando non fallisce.
+
+**Correzione:** controllo e aggiornamento usano i pacchetti utente elencati dal daemon e risolvono la versione prevista dalla sorgente npm, rispettando intervalli, tag e pin. Le richieste npm preferiscono metadati freschi; dopo l'installazione la versione effettiva deve raggiungere quella prevista, altrimenti viene mostrato un errore con versione installata e attesa. Il riepilogo distingue pacchetti aggiornati, già aggiornati e bloccati. Dopo aggiornamenti, rimozioni e pin viene ricalcolato l'avviso. Errori di rete o del package manager non vengono trasformati in «nessun aggiornamento».
+
+**Incompatibilità di piattaforma:** un errore npm `EBADPLATFORM` può riguardare una dipendenza obbligatoria, anche quando l'estensione non dichiara restrizioni. Ad esempio `@hypabolic/pi-hypa@1.2.0` richiede `@hypabolic/hypa@1.2.0`, disponibile solo su macOS e Linux. PiFrame verifica prima l'installazione con un dry run senza script, mostra il motivo nella pagina dei pacchetti e non propone quella versione come aggiornamento installabile. Su Windows la versione `0.1.15` dell'estensione può essere installata e bloccata tramite **Blocca versione**, dopo averne verificato la compatibilità. Il blocco è esplicito: PiFrame non forza versioni incompatibili e non cambia automaticamente la sorgente configurata.
+
+Per applicare questa correzione occorrono sia l'app sia il daemon aggiornati. Un daemon già attivo continua a eseguire il codice precedente: riavvialo da **Impostazioni → Daemon** solo dopo aver terminato i worker Pi. Il codice delle estensioni aggiornate viene caricato al successivo avvio di Pi; non serve cancellare pacchetti o impostazioni.
+
+---
+
 ## Sottoagenti in background mostrati come completati
 
 **Sintomo:** la card indicava subito «Completato», anche se il sottoagente era ancora in esecuzione o in coda.
