@@ -1856,12 +1856,35 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
+  Future<void>? _refreshing;
+  bool _refreshAgain = false;
+
+  /// Opening a session fires several refresh triggers in a row (cwd, idle, touched files). While one
+  /// refresh runs, further requests collapse into a single follow-up, so the result is still current.
+  Future<void> _refresh() {
+    if (_refreshing != null) {
+      _refreshAgain = true;
+      return _refreshing!;
+    }
+    return _refreshing = () async {
+      try {
+        do {
+          _refreshAgain = false;
+          await _refreshOnce();
+        } while (_refreshAgain && mounted);
+      } finally {
+        _refreshing = null;
+      }
+    }();
+  }
+
+  Future<void> _refreshOnce() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
       if (mounted) setState(() => _status = {'error': 'Daemon non connesso'});
       return;
     }
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final result = await client.refreshWorkspace(widget.sessionId);

@@ -118,7 +118,29 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
     return idx >= 0 ? normalized.substring(0, idx) : '';
   }
 
-  Future<void> refresh() async {
+  Future<void>? _refreshing;
+  bool _refreshAgain = false;
+
+  /// Requests made while a refresh runs collapse into a single follow-up, so the result is still current.
+  /// [joinRunning] callers only need loaded data (the pane opening) and share the running refresh.
+  Future<void> refresh({bool joinRunning = false}) {
+    if (_refreshing != null) {
+      if (!joinRunning) _refreshAgain = true;
+      return _refreshing!;
+    }
+    return _refreshing = () async {
+      try {
+        do {
+          _refreshAgain = false;
+          await _refreshOnce();
+        } while (_refreshAgain && mounted);
+      } finally {
+        _refreshing = null;
+      }
+    }();
+  }
+
+  Future<void> _refreshOnce() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
       final strings = ref.read(appStringsProvider);
