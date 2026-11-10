@@ -60,6 +60,24 @@ function responderFixture(): string {
   `);
 }
 
+// Every started transport is stopped after its test, even when an assertion fails: a fixture process
+// left alive keeps this test file (and the whole `node --test` run) from ever exiting.
+const startedTransports: StdioPiTransport[] = [];
+const originalStart = StdioPiTransport.prototype.start;
+StdioPiTransport.prototype.start = function (this: StdioPiTransport, ...args: Parameters<typeof originalStart>) {
+  startedTransports.push(this);
+  return originalStart.apply(this, args);
+};
+test.afterEach(async () => {
+  await Promise.all(startedTransports.splice(0).map((transport) =>
+    transport.stop({ graceMs: 500 }).catch(() => {})));
+});
+
+async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
+  const until = Date.now() + timeoutMs;
+  while (!condition() && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 20));
+}
+
 async function nextEvent(transport: StdioPiTransport, type: string): Promise<any> {
   for await (const event of transport.events()) if (event.type === type) return event;
   throw new Error(`Missing event ${type}`);
@@ -83,10 +101,15 @@ test('StdioPiTransport sends canonical flat RPC and clears both correlation queu
 test('StdioPiTransport supports per-command timeouts without sending them to Pi', async () => {
   const transport = new StdioPiTransport({ executablePath: slowResponderFixture(), commandTimeoutMs: 5 });
   await transport.start({ cwd: process.cwd() });
-  const response = await transport.send({ command: 'slow', timeoutMs: 200 });
-  assert.equal(response.success, true);
-  assert.equal(response.data.request.timeoutMs, undefined);
-  await transport.stop({ graceMs: 1000 });
+  try {
+    // Far above the 40 ms reply, so a loaded CI machine cannot fail it; the 5 ms default still would.
+    const response = await transport.send({ command: 'slow', timeoutMs: 5000 });
+    assert.equal(response.success, true);
+    assert.equal(response.data.request.timeoutMs, undefined);
+  } finally {
+    // A failed assertion must not leave the fixture process alive: it keeps the test file from exiting.
+    await transport.stop({ graceMs: 1000 });
+  }
 });
 
 test('StdioPiTransport rejects unsuccessful RPC responses', async () => {
@@ -187,7 +210,8 @@ test('StdioPiTransport treats a slow prompt acknowledgement as accepted, not as 
   const response = await transport.send({ command: 'prompt', arguments: { message: 'hello' } });
   assert.equal(response.success, true);
   assert.equal(response.data.disposition, 'pending');
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // The late acknowledgement (300 ms) must clear the pending entry; poll so a slow machine does not fail it.
+  await waitFor(() => (transport as any).pendingCommands.size === 0);
   assert.equal((transport as any).pendingCommands.size, 0);
   assert.equal((transport as any).fifoPendingCommands.length, 0);
   await transport.stop({ graceMs: 1000 });
