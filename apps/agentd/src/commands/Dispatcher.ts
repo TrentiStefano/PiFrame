@@ -53,10 +53,15 @@ function getOrCreateAuthDeviceId(): string {
   }
 }
 
+const SHARED_READ_COMMANDS = new Set([
+  'workspace.refresh', 'workspace.listFiles', 'session.subagents', 'session.getStats', 'agent.getModels', 'agent.getCommands',
+]);
+
 export class Dispatcher {
   private registry: SessionRegistry;
   private connectionManager: ConnectionManager;
   private deduplicator = new CommandDeduplicator();
+  private sharedReads = new Map<string, Promise<any>>();
   private workspaceService = new WorkspaceService();
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
@@ -274,7 +279,7 @@ export class Dispatcher {
 
     // 3. Execute command
     try {
-      const data = await this.execute(conn, cmd);
+      const data = await this.executeShared(conn, cmd);
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: any) {
@@ -309,6 +314,21 @@ export class Dispatcher {
 
       this.sendResult(conn, commandId, state, undefined, payload.error);
     }
+  }
+
+  /**
+   * Identical read commands from one connection that arrive while the first is still running share its result.
+   * On startup the app asks for the same workspace status, models and subagents several times per session,
+   * and each copy spawned git or Pi requests that slowed every other command.
+   */
+  private executeShared(conn: Connection, cmd: PcpCommand): Promise<any> {
+    if (!SHARED_READ_COMMANDS.has(cmd.type) || !cmd.sessionId) return this.execute(conn, cmd);
+    const key = `${conn.id}|${cmd.type}|${cmd.sessionId}|${JSON.stringify(cmd.payload ?? {})}`;
+    const running = this.sharedReads.get(key);
+    if (running) return running;
+    const task = this.execute(conn, cmd).finally(() => this.sharedReads.delete(key));
+    this.sharedReads.set(key, task);
+    return task;
   }
 
   private sendAck(conn: Connection, commandId: string): void {
