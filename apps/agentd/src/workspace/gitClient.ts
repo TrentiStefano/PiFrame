@@ -221,32 +221,34 @@ async function hasHead(cwd: string): Promise<boolean> {
   return (await runGit(['rev-parse', '--verify', 'HEAD'], cwd)) !== null;
 }
 
-async function getNoIndexNumstat(cwd: string, filePath: string): Promise<Numstat> {
+/**
+ * Counts the lines of an untracked file the way `git diff --no-index --numstat /dev/null <file>` does, in-process.
+ * Spawning git per file blocks the daemon's event loop on Windows, which stalls every other request.
+ */
+async function countUntrackedLines(cwd: string, filePath: string): Promise<Numstat> {
   // Unreadable entries (e.g. a directory or a file removed mid-scan) must not fail the whole status.
   try {
-    const output = await executeGit(
-      ['diff', '--no-index', '--numstat', '--', '/dev/null', filePath],
-      cwd,
-      [1]
-    );
-    return { path: filePath, ...parseNumstat(output) };
+    const content = await fs.promises.readFile(path.resolve(cwd, ...filePath.split('/')));
+    // git treats a NUL in the first 8000 bytes as binary and reports no line counts.
+    if (content.subarray(0, 8000).includes(0)) return { path: filePath, additions: 0, deletions: 0 };
+    let lines = 0;
+    for (const byte of content) {
+      if (byte === 0x0a) lines++;
+    }
+    if (content.length > 0 && content[content.length - 1] !== 0x0a) lines++;
+    return { path: filePath, additions: lines, deletions: 0 };
   } catch {
     return { path: filePath, additions: 0, deletions: 0 };
   }
 }
 
 async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Numstat[]> {
-  const existingPaths = filePaths.filter((filePath) =>
-    fs.existsSync(path.resolve(cwd, ...filePath.split('/')))
-  );
   const numstats: Numstat[] = [];
   const batchSize = 16;
-  for (let i = 0; i < existingPaths.length; i += batchSize) {
+  for (let i = 0; i < filePaths.length; i += batchSize) {
     numstats.push(
       ...await Promise.all(
-        existingPaths.slice(i, i + batchSize).map((filePath) =>
-          getNoIndexNumstat(cwd, filePath)
-        )
+        filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))
       )
     );
   }
