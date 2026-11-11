@@ -579,6 +579,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               ),
                         ),
                         IconButton(
+                          key: const ValueKey('shell-settings-button'),
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           constraints: const BoxConstraints(
@@ -1634,6 +1635,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 children: [
                   PressFeedback(
                     child: FilledButton.icon(
+                      key: const ValueKey('new-session-button'),
                       onPressed: connected && !_creating ? _create : null,
                       icon: const Icon(Icons.add, size: 18),
                       label: Text(

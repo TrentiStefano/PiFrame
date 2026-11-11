@@ -13,7 +13,12 @@ import 'data/notifications/desktop_notification_service.dart';
 import 'data/window/window_state_service.dart';
 import 'ui/startup_assemble_animation.dart';
 
-Future<void> main() async {
+Future<void> main() => runPiFrame();
+
+Future<void> runPiFrame({
+  Future<void> Function()? configureWindow,
+  Widget Function(Widget child)? rootWrapper,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   final isWindows =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -40,15 +45,20 @@ Future<void> main() async {
       );
     }
     await DesktopNotificationService.instance.initialize();
-    await WindowStateService.instance.restoreWindow();
+    if (configureWindow != null) {
+      await configureWindow();
+    } else {
+      await WindowStateService.instance.restoreWindow();
+    }
   }
+  final app = rootWrapper?.call(const PiFrameApp()) ?? const PiFrameApp();
   runApp(
     ProviderScope(
       overrides: [
         desktopChromeProvider.overrideWithValue(customDesktopChrome),
         desktopWindowLifecycleProvider.overrideWithValue(desktopWindowLifecycle),
       ],
-      child: const PiFrameApp(),
+      child: app,
     ),
   );
 }

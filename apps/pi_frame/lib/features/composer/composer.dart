@@ -909,7 +909,9 @@ class _ComposerState extends ConsumerState<Composer> {
               display.toLowerCase() == target ||
               '$provider/$id'.toLowerCase() == target;
         }).toList();
-        if (matches.isEmpty) throw StateError(strings.composerModelNotFound(args));
+        if (matches.isEmpty) {
+          throw StateError(strings.composerModelNotFound(args));
+        }
         if (matches.length > 1) {
           throw StateError(strings.composerModelAmbiguous);
         }
@@ -2444,6 +2446,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                       ),
                                       Expanded(
+                                        key: const ValueKey('composer-input'),
                                         child: TextField(
                                         key: const ValueKey(
                                           'composer-text-field',
@@ -3114,6 +3117,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                         ],
                                         Tooltip(
+                                          key: const ValueKey('composer-send'),
                                           message: strings.composerSendTooltip(
                                             sendWithEnter:
                                                 composerSettings.sendWithEnter,

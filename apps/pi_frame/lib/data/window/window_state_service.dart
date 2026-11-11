@@ -6,6 +6,8 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../app/harness_mode.dart';
+
 class WindowState {
   final double width;
   final double height;
@@ -110,6 +112,7 @@ class WindowStateService {
   }
 
   Future<void> saveState(WindowState state) async {
+    if (isHarnessMode) return;
     _currentState = state;
     final file = _getStorageFile();
     if (file != null) {
@@ -120,6 +123,7 @@ class WindowStateService {
   }
 
   void debounceRecordCurrentState() {
+    if (isHarnessMode) return;
     _saveDebounceTimer?.cancel();
     _saveDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       recordCurrentWindowState();
@@ -127,7 +131,7 @@ class WindowStateService {
   }
 
   Future<void> recordCurrentWindowState() async {
-    if (!_canUseWindowManager) return;
+    if (isHarnessMode || !_canUseWindowManager) return;
     try {
       final manager = _windowManager;
       if (await manager.isMinimized()) {
@@ -154,7 +158,7 @@ class WindowStateService {
   }
 
   Future<void> restoreWindow() async {
-    if (!_canUseWindowManager) return;
+    if (isHarnessMode || !_canUseWindowManager) return;
     try {
       final manager = _windowManager;
       final state = await loadState();

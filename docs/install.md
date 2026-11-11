@@ -72,6 +72,19 @@ Il pacchetto aggiunge PiFrame al menu applicazioni e include daemon e runtime No
 1. Il daemon `pi-agentd` include un server statico HTTP integrato per gli asset web di Flutter.
 2. Aprendo `http://127.0.0.1:<porta>/` da browser locale, il server imposta automaticamente un cookie `HttpOnly; SameSite=Strict` contenente il token di autenticazione PCP (`pcp_token`), consentendo l'accesso immediato senza configurazione manuale.
 
+### Sviluppo: harness UI desktop
+Per verificare l'interfaccia Flutter senza interferire con una sessione PiFrame dell'utente, usa l'harness desktop isolato: esegue l'app fuori schermo con **fake-pi**. È uno strumento solo per sviluppatori.
+
+Dalla radice del monorepo:
+
+```sh
+pnpm harness start
+pnpm harness shot <etichetta>
+pnpm harness stop
+```
+
+Comandi, selettori e dettagli: [tools/harness/README.md](../tools/harness/README.md).
+
 ### Build Manuale da Sorgente (Eseguibile Standalone)
 Se compili manualmente l'eseguibile desktop da sorgenti anziché utilizzare l'installer (ad es. `flutter build windows --release`):
 1. Dalla radice del monorepo, aggiorna prima il daemon: `pnpm build:agentd` (o `pnpm build:all`). La build Windows rifiuta un bundle assente o privo dell'indice rapido e della risposta da snapshot cache.
