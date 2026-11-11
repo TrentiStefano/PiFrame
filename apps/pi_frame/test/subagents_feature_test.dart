@@ -753,6 +753,60 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       );
     });
 
+    testWidgets('a code fence inside <result> does not break the notification into raw XML', (tester) async {
+      const raw = '''
+<task-notification>
+<task-id>3c52f51e-5f5f-408</task-id>
+<tool-use-id>call_UFQPNGXjbKGi/8CP254f+qQEosFC0Z3eQ==</tool-use-id>
+<output-file>C:\\Temp\\tasks\\3c52f51e-5f5f-408.output</output-file>
+<status>Wrapped up (turn limit)</status>
+<summary>Agent "Hold debug app session" steered</summary>
+<result>Startup failed. WSL reported:
+
+```text
+/mnt/c/flutter/bin/internal/shared.sh: line 5: \$'\\r': command not found
+```
+
+The app did not stay open.</result>
+<usage><total_tokens>65262</total_tokens><tool_uses>2</tool_uses><context_percent>3</context_percent><duration_ms>32199</duration_ms></usage>
+</task-notification>
+Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
+''';
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_notif_fence').overrideWith(
+              (ref) => SessionStateNotifier('sess_notif_fence', null)
+                ..state = const SessionState(
+                  sessionId: 'sess_notif_fence',
+                  cwd: 'C:/projects/app',
+                  entries: [
+                    SessionEntry(
+                      id: 'msg-notif-fence',
+                      role: 'custom',
+                      text: raw,
+                      timestamp: 1000,
+                      metadata: {'customType': 'subagent-notification'},
+                    ),
+                  ],
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: TranscriptView(sessionId: 'sess_notif_fence')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('<task-notification>'), findsNothing);
+      expect(find.textContaining('<tool-use-id>'), findsNothing);
+      expect(find.textContaining('</result>'), findsNothing);
+      expect(find.byKey(const ValueKey('task-notification-card-3c52f51e-5f5f-408')), findsOneWidget);
+    });
+
     test('SubagentsNotifier does not present an estimate as actual cost', () {
       const taskNotification = '''
 <task-notification>

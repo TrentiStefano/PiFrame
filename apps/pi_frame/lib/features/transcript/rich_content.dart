@@ -228,58 +228,36 @@ class RichContent extends StatefulWidget {
     caseSensitive: false,
   );
 
-  static void _addTextOrNotification(List<_Segment> segments, String text) {
-    int lastIdx = 0;
-    for (final m in _taskNotifRegex.allMatches(text)) {
-      if (m.start > lastIdx) {
-        final pre = text.substring(lastIdx, m.start).trim();
-        if (pre.isNotEmpty) segments.add(_TextSegment(pre));
-      }
-      final notifStr = m.group(0)!;
-      final data = TaskNotificationData.tryParse(notifStr);
-      if (data != null) {
-        segments.add(_TaskNotificationSegment(data));
-      } else {
-        segments.add(_TextSegment(notifStr));
-      }
-      lastIdx = m.end;
+  static void _addTextAndCode(List<_Segment> segments, String text) {
+    int lastIndex = 0;
+    for (final match in _fenceRegex.allMatches(text)) {
+      final textPart = text.substring(lastIndex, match.start).trim();
+      if (textPart.isNotEmpty) segments.add(_TextSegment(textPart));
+      segments.add(_CodeSegment(code: match.group(2) ?? '', language: match.group(1)));
+      lastIndex = match.end;
     }
-    if (lastIdx < text.length) {
-      final post = text.substring(lastIdx).trim();
-      if (post.isNotEmpty) segments.add(_TextSegment(post));
-    }
+    final remaining = text.substring(lastIndex).trim();
+    if (remaining.isNotEmpty) segments.add(_TextSegment(remaining));
   }
 
   static List<_Segment> _parseSegments(String raw) {
     final segments = <_Segment>[];
     final normalized = raw.contains('\r') ? raw.replaceAll('\r\n', '\n') : raw;
 
+    // Task notifications first: a ``` fence inside their <result> would otherwise split the
+    // notification and show its raw XML.
     int lastIndex = 0;
-    for (final match in _fenceRegex.allMatches(normalized)) {
-      if (match.start > lastIndex) {
-        final textPart = normalized.substring(lastIndex, match.start).trim();
-        if (textPart.isNotEmpty) {
-          _addTextOrNotification(segments, textPart);
-        }
+    for (final match in _taskNotifRegex.allMatches(normalized)) {
+      _addTextAndCode(segments, normalized.substring(lastIndex, match.start));
+      final data = TaskNotificationData.tryParse(match.group(0)!);
+      if (data != null) {
+        segments.add(_TaskNotificationSegment(data));
+      } else {
+        _addTextAndCode(segments, match.group(0)!);
       }
-
-      final lang = match.group(1);
-      final code = match.group(2) ?? '';
-      segments.add(_CodeSegment(code: code, language: lang));
       lastIndex = match.end;
     }
-
-    if (lastIndex < normalized.length) {
-      final remaining = normalized.substring(lastIndex).trim();
-      if (remaining.isNotEmpty) {
-        _addTextOrNotification(segments, remaining);
-      }
-    }
-
-    if (segments.isEmpty && normalized.isNotEmpty) {
-      _addTextOrNotification(segments, normalized);
-    }
-
+    _addTextAndCode(segments, normalized.substring(lastIndex));
     return segments;
   }
 

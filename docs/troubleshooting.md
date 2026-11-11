@@ -887,3 +887,14 @@ Fino alla risposta successiva Pi segnala i token di contesto come sconosciuti. P
 
 ### Risoluzione
 A fine compattazione PiFrame aggiorna le statistiche e mostra la stima di Pi (`estimatedTokensAfter`) finché non arriva il valore reale. Se la stima non è disponibile, mostra "post-compattazione" invece del valore vecchio.
+
+## Notifica di un sottoagente mostrata come XML grezzo
+
+### Sintomi
+Nella chat compariva una card `subagent-notification` con il testo `<task-notification>`, `<tool-use-id>`, `<status>` e così via, invece della card formattata della notifica.
+
+### Causa
+Il risultato del sottoagente conteneva un blocco di codice (```` ``` ````). La chat divideva il messaggio sui blocchi di codice prima di riconoscere la notifica, quindi la notifica veniva spezzata e mostrata come testo.
+
+### Risoluzione
+La chat riconosce ora le notifiche prima dei blocchi di codice. Il risultato, compreso il blocco di codice, appare nella card della notifica. Aggiorna PiFrame per ricevere la correzione.
