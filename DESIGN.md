@@ -14,6 +14,22 @@ DESIGN_DIRECTOR_STATE -->
 
 ---
 
+## Composer command grammar and chat-status iteration — implemented 2026-11-11, human review pending
+
+- **User request (high confidence):** Pi `/` commands must never look or travel like chat text. The user must know with certainty whether the composer holds a message or a command. `/reload` used to be posted as a user message and did not reload. The user asked for a separate, quick and fluid UI element.
+- **Interaction contract:**
+  - A command is staged as a **command chip** at the start of the composer. The text field then holds only the command's arguments, and its hint shows the argument hint and "Enter runs /name".
+  - The chip is created by choosing a command in the `/` menu (pointer, or `↑`/`↓` then `Enter`/`Tab`) or by typing `/name` followed by a space.
+  - A hand-typed `/name` that is sent becomes a chip first; the next send runs it. Text with a `/` but no chip is always a message.
+  - `Backspace` at the start of the field, or the chip's close control, removes the chip. With no arguments, `/name` returns to the field as editable text.
+  - Pi built-in and extension commands run without a chat entry. Prompt templates and skills still produce a user message, because Pi expands them into one.
+  - The command list reloads each time the `/` menu opens and keeps the last good list if a refresh fails.
+- **Busy states:** while Pi compacts inside a run, `Enter` steers instead of sending a plain prompt. The daemon waits for a running compaction to end before it forwards a message, because Pi rejects prompts during manual compaction.
+- **Chat status truth:** after a compaction the context indicator shows Pi's `estimatedTokensAfter` until Pi reports real usage, or "post-compaction" when no estimate exists. It never repeats the pre-compaction total. Switching to a different model drops the previous model's context limit.
+- **Transcript:** a subagent `<task-notification>` always renders as the task-notification card, also when its result contains a code fence. Raw notification XML must never reach the transcript.
+- **Implementation:** `apps/pi_frame/lib/features/composer/command_chip.dart`, `slash_menu.dart`, `composer.dart`; `apps/pi_frame/lib/features/transcript/rich_content.dart`; `apps/agentd/src/commands/Dispatcher.ts`. Tests: `composer_command_chip_test.dart`, `composer_test.dart`, `composer_send_key_test.dart`, `session_metrics_test.dart`, `subagents_feature_test.dart`, `SlashReload.test.ts`.
+- **Rendered evidence:** the chip and menu were inspected in temporary real Flutter widget captures (fixture commands, dark and light themes, one mid-intro frame). The captures were not kept in the repository. The user reported that they like the result in the live app; command execution in that test ran against a stale daemon. Human visual review remains pending; no approval inferred.
+
 ## Question preview iteration — human review pending
 
 - **User report and screenshot (REF-QUESTION-UI-20261105):** all layout previews appeared in one oversized question, hiding answer choices. User requested an updating preview like the Pi TUI.
@@ -110,7 +126,7 @@ For every reference, extract:
 | REF-009 | existing rendered UI screenshots | apps/pi_frame/.impeccable/review/precision/overview-light-1440.jpg; apps/pi_frame/.impeccable/review/precision/dark-1440-workspace.png; apps/pi_frame/.impeccable/review/precision/dark-390.png | Established app information architecture, actual session surface and responsive affordances; do not treat as new build output for this intake. — Principle: Session navigation, transcript and workspace controls persist across wide and compact layouts; focus remains on actual agent content. — Product need: A user should monitor and operate sessions from desktop and narrow client widths without losing essential controls. | inspected |
 | REF-008 | superseded historical visual reference | https://www.vitsoe.com/us/about/good-design; archived product images in `apps/pi_frame/.impeccable/research/round2/` | Historical D6 input only. D9 round 4 explicitly removes this design language from the active direction; do not reuse its shape, palette or composition. | anti-reference |
 | REF-007 | superseded historical visual reference | Archived `apps/pi_frame/.impeccable/research/round2/` captures and former source URLs | Historical D6 input only. D9 round 4 explicitly removes this design language from the active direction; do not reuse its visual style. | anti-reference |
-| REF-006 | user-selected spatial/layout reference | design references/VisualStudioCode-Bento-Layout.png | Three-area inspiration: chat, opened-repository files, Git Changes. Use Bento grouping and compartment hierarchy; do not copy VS Code branding or exact chrome. Palette is now independently governed by user-selected REF-010. — Principle: Keep related work surfaces visible and legible together. — Product need: Users should interact with Pi sessions while seeing repository files and changes. | inspected |
+| REF-006 | user-selected spatial/layout reference | design references/VisualStudioCode-Bento-Layout.png (file removed from the repository on 2026-11-11; the spatial principle below stays in force) | Three-area inspiration: chat, opened-repository files, Git Changes. Use Bento grouping and compartment hierarchy; do not copy VS Code branding or exact chrome. Palette is now independently governed by user-selected REF-010. — Principle: Keep related work surfaces visible and legible together. — Product need: Users should interact with Pi sessions while seeing repository files and changes. | inspected |
 | REF-005 | historical palette reference | DR10–by Matus Hatala.pdf; apps/pi_frame/.impeccable/research/palette-1.png | Historical D6 palette reference; distinguish source swatches from semantic values. Its former DR10 direction was explicitly superseded during D9 by REF-010 (PiFrame Light / Dark). — Principle retained: status colors convey actual state, never decoration. — Product need: maintain readable contrast and semantic cues in the user's latest selected palette. | inspected |
 | REF-004 | historical design records | apps/pi_frame/.impeccable/research/round2/ and `apps/pi_frame/.impeccable/surfaces/` | Historical D6 proposal and approval record only; superseded by explicit D9 rounds 2 and 4. Do not use prior surface language as current styling guidance. | inspected |
 | REF-003 | app-level design contract | apps/pi_frame/DESIGN.md | Implementation-level PiFrame Dark and PiFrame Light and whole-app surface rules, maintained under this root contract. — Principle: align Flutter components to the current user-selected palette and surface grammar. | inspected |
@@ -348,7 +364,15 @@ Reasonable inference from local coding-agent use and daemon continuity architect
 
 ## What the app does
 
-Current client provides GUI session discovery/operation, streaming transcript, prompt/steer/interrupt, workspace Git status/diff and extension UI; a local daemon preserves execution/replay across GUI disconnects. **User-requested expansion:** active-session repository files must be editable/saveable, and Git Changes must support stage/commit/discard actions alongside Pi chat. These editor and Git write capabilities are not present in current feature code reviewed.
+PiFrame is a GUI over a local daemon that runs Pi workers and preserves execution and replay across GUI disconnects. Current capabilities:
+
+- **Sessions:** repository-grouped session tree, folder-scoped creation, hidden worker sessions, clone/fork/resume, read-only protection for terminal-owned sessions.
+- **Chat:** streaming transcript with compact reasoning and tool rows, prompt/steer/follow-up/interrupt, queue editing, todo panel, subagent and workflow panel with task-notification cards, side conversations (`/side`, `/btw`), extension UI requests and questionnaires.
+- **Composer:** file and code-range context, attachments, model and thinking pickers, context-window policy, and Pi `/` commands staged as command chips.
+- **Workspace:** editable repository files with dirty-buffer protection, Git Changes with diff, per-file stage/unstage and confirmed undo, evidence-based agent/manual provenance, branch picker, integrated terminal and an in-app browser pane on desktop.
+- **Status:** Pi metrics (model, thinking, context usage, cost, extension statuses) and Pi package management in Settings.
+
+The daemon starts the WSL distro before it starts a worker in a `\\wsl.localhost` folder, so an idle WSL VM does not break sends.
 
 ## What the app does not do
 
@@ -356,7 +380,7 @@ It does not replace Pi, own Pi's session files/history, run the agent inside Flu
 
 ## Core entities / objects
 
-Pi session and branch/tree; user/assistant messages; reasoning and tool events; queued steer/follow-up prompts; active-session repository tree, editable file and dirty buffer; Git changed-file/staged state, diff and commit; model/thinking settings; daemon connection, snapshot and replay cursor; extension UI request.
+Pi session and branch/tree; user/assistant messages; reasoning and tool events; queued steer/follow-up prompts; Pi slash commands (built-in, extension, prompt template, skill); subagent task notifications; per-session context policy (limit and reserve); active-session repository tree, editable file and dirty buffer; Git changed-file/staged state, diff and commit; model/thinking settings; daemon connection, snapshot and replay cursor; extension UI request.
 
 ## User goals
 
@@ -430,7 +454,9 @@ Document:
 - pointer precision needs;
 - Gesture cancellation/interruption: keyboard actions remain immediate; inspector motion is interruptible and reduced-motion aware per approved app direction.
 
-Keyboard + pointer for session search/selection, chat composition, repository tree navigation and editing. Preserve Ctrl/Cmd+K command palette, Ctrl/Cmd+Enter send and Escape interrupt. Editor uses standard text-editing keys; ensure focus can move among chat, file tree/editor and Git Changes without trapping. Git actions show repository/branch and exact file targets; discard previews impact and requires confirmation; commit operates on reviewed staged files. Dirty buffers survive pane changes; session switch/window close offers Save / Discard / Cancel. External file changes preserve the user's buffer and offer compare/reload/retry. Windows keeps integrated drag/standard window actions; macOS native window behavior; Web follows browser keyboard/navigation conventions. Full accessibility QA remains pending.
+Keyboard + pointer for session search/selection, chat composition, repository tree navigation and editing. Preserve Ctrl/Cmd+K command palette, Ctrl/Cmd+Enter send and Escape interrupt. With **Send with Enter** on, `Enter` sends and `Shift+Enter` adds a line. While the agent works or compacts, sending steers.
+
+Composer command keys: `/` at the start of an empty line opens the command menu; `↑`/`↓` move the highlight; `Enter` or `Tab` stages the highlighted command as a chip; `Escape` closes the menu; `Backspace` at the start of the field removes the chip; `Enter` runs the staged command. Editor uses standard text-editing keys; ensure focus can move among chat, file tree/editor and Git Changes without trapping. Git actions show repository/branch and exact file targets; discard previews impact and requires confirmation; commit operates on reviewed staged files. Dirty buffers survive pane changes; session switch/window close offers Save / Discard / Cancel. External file changes preserve the user's buffer and offer compare/reload/retry. Windows keeps integrated drag/standard window actions; macOS native window behavior; Web follows browser keyboard/navigation conventions. Full accessibility QA remains pending.
 
 ## Primary output
 
@@ -648,6 +674,8 @@ Use familiar software/action icons with labels or tooltips; status meaning never
 ### Motion language
 Keep keyboard actions immediate. Use short, interruptible pane transitions and subtle pointer feedback only; preserve reduced-motion behavior. No decorative entrance loops or streaming text theatrics.
 
+Motion may confirm a mode change when the change matters for safety. The command chip is the reference case: it pops in (about 200ms, ease-out-back) with a one-shot accent glow that fades by about 520ms, so the user sees that the input became a command. The `/` menu fades and slides in (140ms), and its keyboard highlight moves in 120ms. With reduced motion these appear without animation.
+
 ### Composition / grid
 **Selected direction: Bento Triptych.** Keep session navigation distinct from three co-visible wide work areas: repository/editor, Pi chat and Git Changes. At compact/medium widths, chat is default and explicit pane switching exposes files or changes without losing state. Proportions remain a design-system refinement.
 
@@ -824,7 +852,7 @@ Use 1px subtle borders and 6/10/14px semantic radii (small/medium/large). Apply 
 Use aligned surfaces, thin 1px borders (`#2e3c53` Dark / `#d3dae4` Light) and small gaps to separate compartments; avoid heavy shadows. Reserve native elevation for menus/dialogs.
 
 ### Motion
-Existing tokens: 120ms pointer press feedback; 240ms pane movement with drawer curve. Keyboard actions stay immediate. Respect reduced motion; no decorative launch or streaming animations.
+Existing tokens: 120ms pointer press feedback and list highlight; 140ms menu entrance; 150–180ms chip insert/remove (fade, scale and width); about 520ms one-shot chip confirmation glow; 240ms pane movement with drawer curve; 280ms composer minimize/expand. Keyboard actions stay immediate. Respect reduced motion (`MediaQuery.disableAnimationsOf`); no decorative launch or streaming animations.
 
 ### Breakpoints / size classes
 Use current content-driven classes: compact <900px; medium 900–1439px; expanded ≥1440px. Compact: chat default + explicit Repository/Git Changes switcher. Medium: chat + one companion pane. Expanded: Bento Triptych visible; collapse session navigation before shrinking work panes. Revalidate exact widths with rendered layouts.
@@ -839,6 +867,10 @@ Use current content-driven classes: compact <900px; medium 900–1439px; expande
 | Pi chat/composer | Follow/send work and attach context | Streaming, settled, read-only, file/line references | Loading, empty, queued, interrupted, error | Preserve shortcuts; announce selected file/range and metadata |
 | Session metrics | Show Pi work state | Model, thinking, context usage, cost, extension settings | Loading, unavailable, stale | Text labels/units; never fabricate unavailable data |
 | Pi package manager | Inspect/update installed Pi packages | Per-package update/remove/version pin | Loading, update, error | Confirm removals; delegate lifecycle to Pi's package manager |
+| Command chip (`ComposerCommandChip`) | Show that the composer holds a Pi command, not a message | Source label: `Pi`, `estensione`/`extension`, `prompt`, `skill` | Staged, running (spinner replaces terminal icon), removed | Mono `/name`; close control with tooltip and `Backspace` equivalent; announced as `/name`; accent gradient with readable text, not a same-hue paint |
+| Slash command menu (`SlashMenu`) | Find and pick a command | Filter by name or description; argument hint; source | Hidden, open, keyboard-highlighted, empty (hidden) | Full keyboard selection; highlight uses accent bar plus tint, not color alone; highlighted row scrolls into view |
+| Task-notification card | Summarize a finished subagent task | Status, summary, tokens, tool uses, duration, expandable result, transcript path | Collapsed, expanded | Never shows raw XML; result in mono text, also when it contains code fences |
+| Context indicator | Show context use against the effective window | Session limit or model window | Known, post-compaction estimate, unknown ("post-compaction"), unavailable | Text with units; never reuse a stale pre-compaction value |
 
 ### Abstraction rule
 
@@ -851,13 +883,15 @@ Do not create generic components whose abstraction removes product meaning.
 # 08. Content & UX writing
 
 ## Voice
-`[TO DEFINE]`
+Technical and direct. Italian is the primary UI language, with English available.
 
 ## Tone
-`[TO DEFINE]`
+Calm and factual. Errors say what failed and what to do next, for example "Comando non riuscito: …" or "Attendi la fine del turno o della compattazione."
 
 ## Naming rules
-`[TO DEFINE]`
+- Pi commands always appear as `/name` in the mono font.
+- Command sources use short labels: `Pi`, `estensione`, `prompt`, `skill`.
+- Use Pi's own terms for Pi concepts: steer, follow-up, compaction, session, worker.
 
 ## Copy principles
 
@@ -919,6 +953,7 @@ Every critical screen should define applicable states.
 | Screen | Initial | Loading | Populated | Empty | Error | Success | Disabled | Offline | Overflow |
 |---|---|---|---|---|---|---|---|---|---|
 | Bento session workspace | Launch/reconnect | Snapshot/status | Chat + tree/editor + Git | No session/no repo/clean Git | Save conflict/Git failure/offline | Saved/staged/committed | Read-only session | Daemon unavailable | Long paths, large diffs, narrow pane |
+| Composer with command | Text only | Command list refreshing on `/` | Chip staged, arguments typed | No matching command (menu hidden; text stays a message) | Command failed: chip stays, snackbar with the error | Chip removed after the command runs | Attachments block Pi/extension commands; read-only session | Daemon unavailable: run fails visibly | Long argument text wraps beside the chip |
 
 ---
 
@@ -1079,6 +1114,15 @@ When the brief pins a reference, did we preserve its intended principle without 
 8. Indent and right-offset user chat messages.
 9. Streamline composer: icon-only buttons, model/thinking selectors on bottom-left, send/attach on bottom-right.
 **Impact:** Implementation verified across unit/widget tests and live Windows 11 capture `docs/design-evidence/pi-frame-live-windows.png`. Awaiting human review round 6. No approval recorded.
+
+### 2026-11-11 — Pi commands are tokens, not text
+
+**Context:** The user could not tell a typed command from a message, and `/reload` was posted as a user message instead of reloading Pi.
+**Evidence:** User request and live testing; `composer.dart` sent recognized built-ins only when the command list had loaded, and `/reload` went through the message path.
+**Decision:** Stage every Pi command as a command chip separate from the text field. Run Pi built-in and extension commands without a chat entry; send prompt templates and skills as messages. A hand-typed `/name` becomes a chip before it can run. Use short confirmation motion that respects reduced motion.
+**Why:** It removes the ambiguity between text and commands without adding a second input or mode switch. The confirmation motion signals the mode change at the moment it happens.
+**Alternatives rejected:** Coloring command text inside the field, because it is still text and can be sent as a message by accident. A separate command input, because it splits the composer and slows frequent use.
+**Impact:** New shared components: command chip and keyboard-driven slash menu. Human visual review pending; no approval recorded.
 
 ---
 

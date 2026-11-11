@@ -88,6 +88,9 @@ Keep PiFrame's existing name, mark, and bundled typography. Barlow Condensed mar
 - **Unified pane headers**: Repository, Git Changes, and Review Changes share the chat pane's subtle card top bar styling at a slimmer 38px profile.
 - **App toolbar**: Compact 42px height with subtle branding wordmark (15px) and discrete icon buttons.
 - **Composer**: Space-efficient layout with icon-only action buttons, model and thinking selectors located on the bottom-left row, and send/attach on the bottom-right.
+- **Command chip** (`features/composer/command_chip.dart`): a staged Pi `/` command sits at the start of the composer as a chip, never as text. It shows a terminal icon, the mono `/name`, a small source label (`Pi`, `estensione`, `prompt`, `skill`) and a close control. Surface: accent gradient (about 22% to 8%) with a 55% accent border and primary text, so the accent marks meaning without painting text and fill the same hue. Motion: pop-in about 200ms, one-shot accent glow that fades by about 520ms, spinner while the command runs; none of it with reduced motion.
+- **Slash menu** (`features/composer/slash_menu.dart`): rows with terminal icon, mono `/name` and argument hint, description and source. The keyboard highlight is a 2px accent bar plus a light accent tint, and the menu fades and slides in over 140ms.
+- **Task-notification card**: subagent `<task-notification>` messages always render as this card, also when the result contains a code fence; raw XML never reaches the transcript.
 - **Visual hierarchy & Color**: Colorful semantic file icons (`FileIcon`), syntax tokens, and git status counters (+added, -removed) provide clear scannability without the triple-tinted "AI-generated" look (colored fill + lighter outline + colored text).
 
 ## Interaction and adaptation
