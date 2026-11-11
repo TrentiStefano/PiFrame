@@ -1,3 +1,5 @@
+import 'dart:ui' show BoxWidthStyle;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -401,6 +403,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             padding: const EdgeInsets.all(10),
                             child: SelectableText(
                               data.result,
+                              selectionWidthStyle: BoxWidthStyle.tight,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 11.5,

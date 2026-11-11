@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -129,6 +130,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   static const int _initialVisibleCount = 35;
   static const int _pageSize = 250;
+  static const int _minVisibleUserMessages = 5;
   int _visibleCount = _initialVisibleCount;
 
   final Map<String, double> _entryHeights = {};
@@ -1474,7 +1476,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       }
     }
 
-    final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
+    var hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
+    // A turn can hold many step entries, so a count-based window may start inside it
+    // and drop the prompt. Widen the window to reach the Nth-last user message.
+    var userSeen = 0;
+    for (var i = totalEntries - 1; i >= 0; i--) {
+      if (cleanEntries[i].role == 'user' && ++userSeen == _minVisibleUserMessages) {
+        if (i < hiddenCount) {
+          hiddenCount = i;
+          _visibleCount = totalEntries - i;
+        }
+        break;
+      }
+    }
     final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0 || sessionState.hasMoreHistory;
     final visibleToolIds = {
@@ -3060,6 +3074,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               padding: const EdgeInsets.all(12),
               child: SelectableText(
                 output,
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   fontFamily: tokens.monoFontFamily,
                   fontSize: 11.5,

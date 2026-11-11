@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -666,6 +667,7 @@ class _ToolCardState extends State<ToolCard> {
                         ),
                         child: SelectableText(
                           commandText,
+                          selectionWidthStyle: BoxWidthStyle.tight,
                           style: TextStyle(
                             color: tokens.syntaxNumber,
                             fontSize: 12,
@@ -745,6 +747,7 @@ class _ToolCardState extends State<ToolCard> {
                       child: SingleChildScrollView(
                         child: SelectableText(
                           tool.output,
+                          selectionWidthStyle: BoxWidthStyle.tight,
                           style: TextStyle(
                             color: tool.isError
                                 ? tokens.agentError

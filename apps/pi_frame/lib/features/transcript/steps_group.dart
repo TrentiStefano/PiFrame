@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -706,6 +707,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               ),
               child: SelectableText(
                 step.text,
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.textSecondary,
                   fontSize: 12,
@@ -1076,6 +1078,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 _showAllInput || !isInputLong
                     ? prettyInput
                     : _truncateText(prettyInput),
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.syntaxNumber,
                   fontSize: 11,
@@ -1176,6 +1179,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 _showAllOutput || !isOutputLong
                     ? tool.output
                     : _truncateText(tool.output),
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tool.isError
                       ? tokens.agentError

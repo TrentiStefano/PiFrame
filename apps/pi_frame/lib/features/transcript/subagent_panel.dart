@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -1267,6 +1268,7 @@ class _OutputBox extends StatelessWidget {
         reverse: true,
         child: SelectableText(
           shown,
+          selectionWidthStyle: BoxWidthStyle.tight,
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: 11,
@@ -1730,6 +1732,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                               controller: _outputScrollController,
                               child: SelectableText(
                                 sub.output,
+                                selectionWidthStyle: BoxWidthStyle.tight,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
                                   fontSize: 11,
