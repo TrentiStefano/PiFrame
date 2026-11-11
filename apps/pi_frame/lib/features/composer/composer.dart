@@ -1529,7 +1529,8 @@ class _ComposerState extends ConsumerState<Composer> {
         (s) => (
           s.readOnly,
           s.readOnlyReason,
-          s.isStreaming,
+          // Compaction runs inside the agent run: the daemon rejects a plain prompt then, so steer instead.
+          s.isStreaming || s.agentStatus == AgentStatus.compacting,
           s.agentStatus,
           s.steeringQueue,
           s.followUpQueue,

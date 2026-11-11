@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
@@ -13,12 +16,22 @@ class _StatsClient extends PcpClient {
   int compactCallCount = 0;
   bool failContextSetting = false;
   List<String> sentPrompts = [];
+  int statsCalls = 0;
+  final eventsController = StreamController<PcpEvent>.broadcast();
+
+  @override
+  Stream<PcpEvent> events(String sessionId) => eventsController.stream;
 
   @override
   void attach(String sessionId, {int? lastSeq}) {}
 
   @override
-  Future<Map<String, dynamic>> getSessionStats(String sessionId) async => {
+  Future<Map<String, dynamic>> getSessionStats(String sessionId) async {
+    statsCalls++;
+    return _stats();
+  }
+
+  Map<String, dynamic> _stats() => {
     'data': {
       'tokens': {'total': 42000},
       'cost': 0.42,
@@ -29,6 +42,12 @@ class _StatsClient extends PcpClient {
       },
     },
   };
+
+  @override
+  void dispose() {
+    eventsController.close();
+    super.dispose();
+  }
 
   @override
   Future<Map<String, dynamic>> setContextWindowOverride(
@@ -73,6 +92,22 @@ class _StatsClient extends PcpClient {
 }
 
 void main() {
+  test('compaction end refreshes context usage instead of keeping the pre-compaction value', () async {
+    final client = _StatsClient(tokens: 30000, contextWindow: 200000);
+    final notifier = SessionStateNotifier('session-a', client);
+    addTearDown(() {
+      notifier.dispose();
+      client.dispose();
+    });
+    client.eventsController.add(const CompactionEndedEvent(
+      protocol: 1, id: 'e1', ts: 1, sessionId: 'session-a', seq: 1,
+      payload: {'result': {'estimatedTokensAfter': 30000}},
+    ));
+    await pumpEventQueue();
+    expect(client.statsCalls, 1);
+    expect(notifier.state.sessionStats?['contextUsage']['tokens'], 30000);
+  });
+
   test('session notifier exposes Pi cumulative stats without reshaping them when no override is set', () async {
     final client = _StatsClient(tokens: 70656, contextWindow: 128000);
     final notifier = SessionStateNotifier('session-a', client)

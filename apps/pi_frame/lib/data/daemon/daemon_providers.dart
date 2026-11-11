@@ -145,6 +145,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       state = reduceSessionState(state, event);
       if (event.type == 'usage.updated' ||
           event.type == 'run.settled' ||
+          event.type == 'compaction.ended' ||
           event.type == 'message.completed' ||
           event.type == 'turn.ended' ||
           event.type == 'tool.completed') {

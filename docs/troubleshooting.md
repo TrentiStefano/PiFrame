@@ -841,3 +841,35 @@ Il terminale integrato avvia la shell tramite pipe, senza pseudo-console. I prog
 
 ### Risoluzione
 PiFrame converte ora ogni LF isolato in CRLF prima di scrivere nel terminale (stdout e stderr), anche quando un CRLF arriva diviso in due blocchi. Aggiorna PiFrame per ricevere la correzione.
+
+## Sessioni WSL: "Invio non riuscito: spawn ...\node.exe ENOENT" dopo inattività
+
+### Sintomi
+Dopo un periodo di inattività (worker fermato dopo 30 minuti, PC in standby) l'invio in una sessione con cartella `\wsl.localhost\...` falliva con `spawn C:\...\node.exe ENOENT`, anche se `node.exe` esiste. Il riavvio del daemon dalle Impostazioni non bastava.
+
+### Causa
+La cartella `\wsl.localhost\<distro>\...` è servita dalla VM di WSL. Quando la VM è ferma e il redirector non la riavvia, Windows non riesce ad aprire la cartella di lavoro del nuovo processo e Node segnala l'errore col nome dell'eseguibile invece che della cartella.
+
+### Risoluzione
+Prima di avviare un worker in una cartella WSL non raggiungibile, il daemon avvia la distro con `wsl.exe -d <distro> --exec true` e poi esegue lo spawn. Se lo spawn fallisce ancora, l'errore indica la cartella (`(cwd: ...)`). Aggiorna PiFrame per ricevere la correzione.
+
+## Steer rifiutato durante la compattazione e limite di contesto ereditato dal modello precedente
+
+### Sintomi
+- Durante "Compacting…" un messaggio inviato con Invio falliva con `Agent is streaming. Specify streamingBehavior`.
+- Dopo il cambio modello (per esempio da Haiku a Opus) restava il limite di contesto del modello precedente e la sessione si ricompattava di continuo.
+
+### Risoluzione
+- Durante la compattazione il composer invia il messaggio come steer. Il daemon passa steer e follow-up a Pi tramite `prompt` con `streamingBehavior`: Pi lo accoda se è in esecuzione o avvia un run se ha già finito.
+- Il cambio modello azzera il limite di contesto: il nuovo modello parte dalla sua finestra completa. Il limite resta modificabile solo a turno concluso.
+
+## Contesto invariato dopo la compattazione
+
+### Sintomi
+Dopo una compattazione l'indicatore del contesto mostrava ancora il valore di prima.
+
+### Causa
+Fino alla risposta successiva Pi segnala i token di contesto come sconosciuti. PiFrame non aggiornava le statistiche a fine compattazione e mostrava i token dell'ultima risposta, misurati prima della compattazione.
+
+### Risoluzione
+A fine compattazione PiFrame aggiorna le statistiche e mostra la stima di Pi (`estimatedTokensAfter`) finché non arriva il valore reale. Se la stima non è disponibile, mostra "post-compattazione" invece del valore vecchio.

@@ -824,10 +824,11 @@ export class Dispatcher {
         const usage = state?.model?.piframeContextUsage;
         const window = session?.contextWindowOverride ?? physicalModel(state?.model)?.contextWindow;
         if (usage && typeof window === 'number' && window > 0) {
+          const tokens = usage.tokens ?? session?.postCompactionTokens ?? null;
           data.contextUsage = {
-            tokens: usage.tokens,
+            tokens,
             contextWindow: window,
-            percent: typeof usage.tokens === 'number' ? usage.tokens / window * 100 : null,
+            percent: typeof tokens === 'number' ? tokens / window * 100 : null,
           };
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
@@ -927,16 +928,12 @@ export class Dispatcher {
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
 
-        if (payload.streamingBehavior === 'steer') {
+        if (payload.streamingBehavior === 'steer' || payload.streamingBehavior === 'followUp') {
+          // Pi's prompt queues while its run is active and starts a run when idle. A bare steer/follow_up
+          // sent just as the run ends (e.g. during post-run compaction) would sit in the queue unanswered.
           const res = await worker.send({
-            command: 'steer',
-            arguments: { message: payload.text, images: payload.images }
-          });
-          return res.data;
-        } else if (payload.streamingBehavior === 'followUp') {
-          const res = await worker.send({
-            command: 'follow_up',
-            arguments: { message: payload.text, images: payload.images }
+            command: 'prompt',
+            arguments: { message: payload.text, images: payload.images, streamingBehavior: payload.streamingBehavior }
           });
           return res.data;
         } else {
@@ -1133,16 +1130,14 @@ export class Dispatcher {
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
         const selectedModel = physicalModel(res.data);
-        const nextPolicy = { ...previousPolicy };
+        const modelChanged = previousModel?.provider !== selectedModel?.provider || previousModel?.id !== selectedModel?.id;
+        // A context limit is chosen for one model: a different model starts from its own full window.
+        // Carrying it over left e.g. Opus capped at Haiku's 100k and compacting in a loop.
+        const nextPolicy = { ...previousPolicy, contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride };
         try {
-          if (nextPolicy.contextWindowOverride !== null) {
-            const maximum = selectedModel?.contextWindow;
-            if (!Number.isSafeInteger(maximum) || maximum <= 0) throw new Error('Selected model context window is unavailable.');
-            nextPolicy.contextWindowOverride = Math.min(nextPolicy.contextWindowOverride, maximum);
-          }
           Object.assign(session, nextPolicy);
           let model = selectedModel;
-          if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+          if (previousPolicy.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
             model = await applyContextPolicy(worker, session);
           }
           if (nextPolicy.contextWindowOverride !== previousPolicy.contextWindowOverride) {

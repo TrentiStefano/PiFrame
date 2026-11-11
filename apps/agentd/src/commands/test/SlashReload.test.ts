@@ -14,7 +14,7 @@ test.after(() => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-function fixture(options: { streaming?: boolean; piStillBusy?: boolean } = {}) {
+function fixture(options: { streaming?: boolean; piStillBusy?: boolean; state?: any } = {}) {
   const workerCalls: Array<{ command: string; arguments?: any }> = [];
   const session: any = { id: 's_reload', isStreaming: options.streaming ?? false, isCompacting: false, readOnly: false };
   const worker = {
@@ -30,6 +30,7 @@ function fixture(options: { streaming?: boolean; piStillBusy?: boolean } = {}) {
         ] } };
       }
       if (request.command === 'get_state') {
+        if (options.state) return { success: true, data: options.state };
         return { success: true, data: { model: { piframeContextPolicy: { limit: null, percent: 2.5 } } } };
       }
       return { success: true, data: {} };
@@ -93,6 +94,33 @@ test('a prompt Pi rejects as already processing is queued as a follow-up instead
   const follow = workerCalls.filter((call) => call.command === 'follow_up');
   assert.equal(follow.length, 1);
   assert.equal(follow[0].arguments.message, 'continua il merge');
+});
+
+test('steer and follow-up go through Pi prompt so Pi queues or starts a run itself', async () => {
+  const { workerCalls, run } = fixture({ streaming: true });
+  await run('agent.prompt', { text: 'cambia approccio', streamingBehavior: 'steer' });
+  await run('agent.prompt', { text: 'poi committa', streamingBehavior: 'followUp' });
+  assert.deepEqual(workerCalls.map((call) => [call.command, call.arguments.message, call.arguments.streamingBehavior]), [
+    ['prompt', 'cambia approccio', 'steer'],
+    ['prompt', 'poi committa', 'followUp'],
+  ]);
+});
+
+test('switching model drops the previous model context limit instead of carrying it over', async () => {
+  const { workerCalls, session, run } = fixture();
+  Object.assign(session, { model: { provider: 'anthropic', id: 'haiku', contextWindow: 100000 }, contextWindowOverride: 100000, compactionReservePercent: 2.5 });
+  const result = await run('agent.setModel', { provider: 'anthropic', modelId: 'opus' });
+  assert.equal(result.payload.state, 'completed');
+  assert.equal(session.contextWindowOverride, null);
+  const policy = workerCalls.find((call) => call.command === 'prompt')?.arguments.message;
+  assert.equal(policy, '/piframe-context-policy {"limit":null,"percent":2.5}');
+});
+
+test('session stats show the post-compaction estimate while Pi reports context tokens as unknown', async () => {
+  const { session, run } = fixture({ state: { model: { contextWindow: 200000, piframeContextUsage: { tokens: null } } } });
+  Object.assign(session, { contextWindowOverride: null, postCompactionTokens: 50000 });
+  const result = await run('session.getStats', {});
+  assert.deepEqual(result.payload.data.contextUsage, { tokens: 50000, contextWindow: 200000, percent: 25 });
 });
 
 test('agent.getCommands returns every Pi built-in before extension commands', async () => {

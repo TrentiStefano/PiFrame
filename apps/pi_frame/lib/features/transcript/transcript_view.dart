@@ -564,10 +564,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             final currentUsage =
                 currentStats?['contextUsage'] as Map? ??
                 currentSession.usage?['contextUsage'] as Map?;
-            final tokensUsed =
-                currentUsage?['tokens'] ??
-                currentSession.usage?['totalTokens'] ??
-                '—';
+            // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
+            final tokensUsed = currentUsage != null
+                ? currentUsage['tokens'] ?? '—'
+                : currentSession.usage?['totalTokens'] ?? '—';
             final maxWindow = currentSession.contextWindowOverride ?? currentUsage?['contextWindow'] ?? '—';
             final pct = (currentSession.contextWindowOverride != null && tokensUsed is num && currentSession.contextWindowOverride! > 0)
                 ? (tokensUsed.toDouble() / currentSession.contextWindowOverride! * 100.0)
@@ -1388,7 +1388,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         stats?['contextUsage'] as Map? ??
         sessionState.usage?['contextUsage'] as Map?;
     final effectiveContextWindow = sessionState.contextWindowOverride ?? contextUsage?['contextWindow'];
-    final effectiveTokens = contextUsage?['tokens'] ?? sessionState.usage?['totalTokens'];
+    // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
+    final effectiveTokens = contextUsage != null ? contextUsage['tokens'] : sessionState.usage?['totalTokens'];
     final effectivePercent = (sessionState.contextWindowOverride != null && effectiveTokens is num && sessionState.contextWindowOverride! > 0)
         ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
         : (contextUsage?['percent'] as num?);
