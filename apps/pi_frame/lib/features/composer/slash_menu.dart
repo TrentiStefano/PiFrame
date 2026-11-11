@@ -43,7 +43,9 @@ class SlashMenu extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 140),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 140),
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
         opacity: t,

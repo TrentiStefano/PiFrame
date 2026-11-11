@@ -41,6 +41,12 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
   bool _hoverRemove = false;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) _intro.value = 1;
+  }
+
+  @override
   void dispose() {
     _intro.dispose();
     super.dispose();

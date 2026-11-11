@@ -2409,10 +2409,14 @@ class _ComposerState extends ConsumerState<Composer> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                       AnimatedSize(
-                                        duration: const Duration(milliseconds: 180),
+                                        duration: MediaQuery.disableAnimationsOf(context)
+                                            ? Duration.zero
+                                            : const Duration(milliseconds: 180),
                                         curve: Curves.easeOutCubic,
                                         child: AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 150),
+                                          duration: MediaQuery.disableAnimationsOf(context)
+                                              ? Duration.zero
+                                              : const Duration(milliseconds: 150),
                                           transitionBuilder: (child, animation) => FadeTransition(
                                             opacity: animation,
                                             child: ScaleTransition(
