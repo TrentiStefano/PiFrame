@@ -234,3 +234,13 @@ test('StdioPiTransport still rejects non-prompt commands that time out', async (
   assert.equal((transport as any).pendingCommands.size, 0);
   await transport.stop({ graceMs: 1000 });
 });
+
+test('spawn failure names the unreachable cwd instead of only the executable', async () => {
+  const transport = new StdioPiTransport({ executablePath: responderFixture() });
+  const missing = path.join(os.tmpdir(), `pi-transport-missing-${process.pid}`);
+  await assert.rejects(transport.start({ cwd: missing }), (err: NodeJS.ErrnoException) => {
+    assert.equal(err.code, 'ENOENT');
+    assert.ok(err.message.includes(`(cwd: ${missing})`), err.message);
+    return true;
+  });
+});
