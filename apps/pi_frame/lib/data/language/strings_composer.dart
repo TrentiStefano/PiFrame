@@ -125,6 +125,20 @@ extension ComposerStrings on AppStrings {
       ? 'Rimuovi gli allegati prima di eseguire un comando Pi.'
       : 'Remove attachments before running a Pi command.';
 
+  String composerCommandSourceLabel(String source) => switch (source) {
+        'builtin' => 'Pi',
+        'extension' => isItalian ? 'estensione' : 'extension',
+        'skill' => 'skill',
+        _ => 'prompt',
+      };
+
+  String get composerRemoveCommandTooltip =>
+      isItalian ? 'Rimuovi comando (Backspace)' : 'Remove command (Backspace)';
+
+  String composerCommandArgsHint(String name, String argumentHint) => isItalian
+      ? '${argumentHint.isEmpty ? 'Nessun argomento richiesto' : argumentHint} · Invio esegue /$name'
+      : '${argumentHint.isEmpty ? 'No arguments needed' : argumentHint} · Enter runs /$name';
+
   String composerCommandFailed(Object error) =>
       isItalian ? 'Comando non riuscito: $error' : 'Command failed: $error';
 

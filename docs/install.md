@@ -138,6 +138,15 @@ Prima di proporre una versione npm più recente viene verificata la compatibilit
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
 
+Un comando non è mai testo:
+- Scegli un comando dal menu `/` con un clic, oppure con le frecce `↑`/`↓` e `Invio` o `Tab`. Il comando diventa un **chip** separato all'inizio del composer, con il nome, la provenienza (`Pi`, `estensione`, `prompt`, `skill`) e un'animazione d'ingresso.
+- Nel campo di testo restano solo gli argomenti. Il suggerimento mostra quali argomenti accetta il comando.
+- Se scrivi `/nome` seguito da uno spazio, il comando diventa subito un chip. Se invii `/nome` scritto a mano, il primo `Invio` lo trasforma in chip e il secondo lo esegue.
+- `Invio` esegue il comando: durante l'esecuzione il chip mostra un indicatore di avanzamento.
+- I comandi di Pi e delle estensioni (per esempio `/reload` o `/caveman full`) non creano messaggi nella chat. Prompt e skill diventano invece un normale messaggio dell'utente.
+- `Backspace` a campo vuoto, o la `×` sul chip, rimuove il comando. Senza argomenti, `/nome` torna nel campo come testo modificabile.
+- Il testo che contiene un `/` senza chip (per esempio `perché /reload fallisce?`) parte come messaggio normale.
+
 ## Invio dei messaggi con Enter (Invia con Enter)
 
 Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzione **Invia con Enter** (disattivata per impostazione predefinita):

@@ -926,6 +926,11 @@ export class Dispatcher {
           throw err;
         }
 
+        // Pi refuses prompts while a compaction runs; deliver the message once it ends instead of failing it.
+        for (const deadline = Date.now() + 10 * 60_000; session.isCompacting && Date.now() < deadline;) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+
         const worker = await this.registry.ensureWorkerForSession(sessionId);
 
         if (payload.streamingBehavior === 'steer' || payload.streamingBehavior === 'followUp') {

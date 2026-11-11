@@ -26,6 +26,7 @@ import 'composer_draft.dart';
 import 'copilot_file_picker.dart';
 import 'file_mention_menu.dart';
 import 'slash_menu.dart';
+import 'command_chip.dart';
 import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
@@ -80,6 +81,10 @@ class _ComposerState extends ConsumerState<Composer> {
   final _focusNode = FocusNode();
   List<Map<String, dynamic>> _availableCommands = [];
   bool _showSlashMenu = false;
+  int _slashSelectedIndex = 0;
+  /// Pi command staged as a chip. While set, the text field holds only its arguments.
+  Map<String, dynamic>? _activeCommand;
+  bool _commandRunning = false;
   bool _isInterrupting = false;
   int _pendingUploads = 0;
   bool _showFileMentionMenu = false;
@@ -288,7 +293,8 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _loadCommands() async {
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
     final cmds = await notifier.getCommands();
-    if (mounted) {
+    // A failed refresh returns []: keep the list we have instead of forgetting Pi's commands.
+    if (mounted && (cmds.isNotEmpty || _availableCommands.length <= 2)) {
       setState(() {
         _availableCommands = _mergeLocalCommands(cmds);
       });
@@ -344,10 +350,20 @@ class _ComposerState extends ConsumerState<Composer> {
         _hasText = hasText;
       });
     }
-    final show = text.startsWith('/') && !text.contains('\n');
-    if (show != _showSlashMenu) {
+    if (_activeCommand == null) {
+      final typed = _matchTypedCommand(text, requireArgsSeparator: true);
+      if (typed != null) {
+        _activateCommand(typed.$1, args: typed.$2);
+        return;
+      }
+    }
+    final show =
+        _activeCommand == null && text.startsWith('/') && !text.contains('\n');
+    if (show && !_showSlashMenu) unawaited(_loadCommands());
+    if (show != _showSlashMenu || _slashSelectedIndex != 0) {
       setState(() {
         _showSlashMenu = show;
+        _slashSelectedIndex = 0;
       });
     }
 
@@ -498,39 +514,16 @@ class _ComposerState extends ConsumerState<Composer> {
       return;
     }
 
-    if ((text.isEmpty && attachments.isEmpty) ||
-        ref.read(composerSendingProvider(widget.sessionId))) {
-      return;
+    if (ref.read(composerSendingProvider(widget.sessionId))) return;
+    final command = _activeCommand;
+    if (command != null) {
+      return _runActiveCommand(command, text, attachments, streamingBehavior);
     }
-    final builtin = _parsePiBuiltin(text);
-    if (builtin != null) {
-      final strings = ref.read(appStringsProvider);
-      final sending = ref.read(
-        composerSendingProvider(widget.sessionId).notifier,
-      );
-      sending.state = true;
-      try {
-        if (attachments.isNotEmpty) {
-          throw StateError(
-            strings.composerRemoveAttachmentsBeforePiCommand,
-          );
-        }
-        await _runPiBuiltin(builtin.$1, builtin.$2);
-        if (!mounted) return;
-        if (_controller.text == draft) _controller.clear();
-        final savedDraft = ref.read(
-          composerDraftProvider(widget.sessionId).notifier,
-        );
-        if (savedDraft.mounted && savedDraft.state == draft) {
-          savedDraft.state = '';
-        }
-      } catch (error) {
-        if (mounted) {
-          FrameSnackBar.show(context, message: strings.composerCommandFailed(error));
-        }
-      } finally {
-        if (sending.mounted) sending.state = false;
-      }
+    if (text.isEmpty && attachments.isEmpty) return;
+    // A typed `/name` never leaves as text: it becomes a chip, and the next Enter runs it.
+    final typed = _matchTypedCommand(text);
+    if (typed != null) {
+      _activateCommand(typed.$1, args: typed.$2);
       return;
     }
     _isManuallyExpanded = false;
@@ -788,32 +781,103 @@ class _ComposerState extends ConsumerState<Composer> {
     );
   }
 
-  void _onSelectSlashCommand(Map<String, dynamic> cmd) {
-    final name = cmd['name'] as String? ?? '';
-    _controller.text = '/$name ';
-    _controller.selection = TextSelection.fromPosition(
-      TextPosition(offset: _controller.text.length),
-    );
+  void _onSelectSlashCommand(Map<String, dynamic> cmd) => _activateCommand(cmd);
+
+  /// Stages [cmd] as a chip; the field keeps only [args].
+  void _activateCommand(Map<String, dynamic> cmd, {String args = ''}) {
     setState(() {
+      _activeCommand = cmd;
       _showSlashMenu = false;
+      _slashSelectedIndex = 0;
     });
+    _controller.value = TextEditingValue(
+      text: args,
+      selection: TextSelection.collapsed(offset: args.length),
+    );
     _focusNode.requestFocus();
   }
 
-  (String, String)? _parsePiBuiltin(String text) {
-    final match = RegExp(
-      r'^/([a-z][a-z0-9-]*)(?:\s+(.*))?$',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (match == null) return null;
-    final name = match.group(1)!.toLowerCase();
-    if (name == 'side' || name == 'btw') {
-      return (name, match.group(2)?.trim() ?? '');
+  /// Drops the chip. With no arguments typed, `/name` returns as text so the name can be edited.
+  void _removeCommand() {
+    final command = _activeCommand;
+    if (command == null || _commandRunning) return;
+    final keepArgs = _controller.text.isNotEmpty;
+    setState(() => _activeCommand = null);
+    if (!keepArgs) {
+      final text = '/${command['name']}';
+      _controller.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
     }
-    final isBuiltin = _availableCommands.any(
-      (command) => command['source'] == 'builtin' && command['name'] == name,
-    );
-    return isBuiltin ? (name, match.group(2)?.trim() ?? '') : null;
+    _focusNode.requestFocus();
+  }
+
+  /// `/name` or `/name args` where name is a known command. With [requireArgsSeparator] only a
+  /// name already followed by whitespace matches, so typing `/re` does not grab `/reload` early.
+  (Map<String, dynamic>, String)? _matchTypedCommand(
+    String text, {
+    bool requireArgsSeparator = false,
+  }) {
+    final match = RegExp(r'^/(\S+)(\s+([\s\S]*))?$').firstMatch(text);
+    if (match == null || (requireArgsSeparator && match.group(2) == null)) {
+      return null;
+    }
+    final name = match.group(1)!.toLowerCase();
+    final command = _availableCommands
+        .where((c) => (c['name'] as String? ?? '').toLowerCase() == name)
+        .firstOrNull;
+    return command == null ? null : (command, match.group(3) ?? '');
+  }
+
+  Future<void> _runActiveCommand(
+    Map<String, dynamic> command,
+    String args,
+    List<ChatAttachment> attachments,
+    String? streamingBehavior,
+  ) async {
+    final strings = ref.read(appStringsProvider);
+    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
+    final sending = ref.read(composerSendingProvider(widget.sessionId).notifier);
+    final name = command['name'] as String? ?? '';
+    final source = command['source'] as String? ?? 'prompt';
+    final line = args.isEmpty ? '/$name' : '/$name $args';
+    sending.state = true;
+    setState(() => _commandRunning = true);
+    try {
+      switch (source) {
+        case 'builtin':
+        case 'extension':
+          if (attachments.isNotEmpty) {
+            throw StateError(strings.composerRemoveAttachmentsBeforePiCommand);
+          }
+          if (source == 'builtin') {
+            await _runPiBuiltin(name, args);
+          } else {
+            await notifier.runCommand(line);
+          }
+        default:
+          // Prompt templates and skills expand into a real user message.
+          await notifier.sendPrompt(
+            attachments.isNotEmpty
+                ? '${encodeAttachmentsTag(attachments)}\n$line'
+                : line,
+            streamingBehavior: streamingBehavior,
+          );
+          ref.read(composerAttachmentsProvider(widget.sessionId).notifier).clear();
+      }
+      if (!mounted) return;
+      setState(() => _activeCommand = null);
+      _controller.clear();
+      ref.read(composerDraftProvider(widget.sessionId).notifier).state = '';
+    } catch (error) {
+      if (mounted) {
+        FrameSnackBar.show(context, message: strings.composerCommandFailed(error));
+      }
+    } finally {
+      if (sending.mounted) sending.state = false;
+      if (mounted) setState(() => _commandRunning = false);
+    }
   }
 
   Future<void> _runPiBuiltin(String name, String args) async {
@@ -875,7 +939,7 @@ class _ComposerState extends ConsumerState<Composer> {
         await notifier.compact();
         return;
       case 'reload':
-        await notifier.sendPrompt('/reload');
+        await notifier.runCommand('/reload');
         return;
       case 'login':
         if (args.isNotEmpty) {
@@ -1671,7 +1735,8 @@ class _ComposerState extends ConsumerState<Composer> {
     }
 
     final isFocused = _focusNode.hasFocus;
-    final hasInputtedText = _hasText || _controller.text.trim().isNotEmpty;
+    final hasInputtedText =
+        _hasText || _controller.text.trim().isNotEmpty || _activeCommand != null;
     final hasAttachments = attachments.isNotEmpty;
     final shouldMinimize =
         isAgentAnswering &&
@@ -1867,6 +1932,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                 key: const ValueKey('composer-slash-list'),
                                 commands: _availableCommands,
                                 filter: _controller.text,
+                                selectedIndex: _slashSelectedIndex,
                                 onSelect: _onSelectSlashCommand,
                               ),
                             ),
@@ -2124,6 +2190,54 @@ class _ComposerState extends ConsumerState<Composer> {
                             child: Focus(
                               key: const ValueKey('composer-input-focus'),
                               onKeyEvent: (node, event) {
+                                if (event is KeyDownEvent ||
+                                    event is KeyRepeatEvent) {
+                                  final slashItems = _showSlashMenu
+                                      ? SlashMenu.filtered(
+                                          _availableCommands,
+                                          _controller.text,
+                                        )
+                                      : const <Map<String, dynamic>>[];
+                                  final key = event.logicalKey;
+                                  if (slashItems.isNotEmpty) {
+                                    if (key == LogicalKeyboardKey.arrowDown ||
+                                        key == LogicalKeyboardKey.arrowUp) {
+                                      final step =
+                                          key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+                                      setState(() {
+                                        _slashSelectedIndex =
+                                            (_slashSelectedIndex + step) %
+                                            slashItems.length;
+                                      });
+                                      return KeyEventResult.handled;
+                                    }
+                                    if (event is KeyDownEvent &&
+                                        (key == LogicalKeyboardKey.tab ||
+                                            key == LogicalKeyboardKey.enter ||
+                                            key == LogicalKeyboardKey.numpadEnter) &&
+                                        !HardwareKeyboard.instance.isShiftPressed) {
+                                      _activateCommand(
+                                        slashItems[_slashSelectedIndex.clamp(
+                                          0,
+                                          slashItems.length - 1,
+                                        )],
+                                      );
+                                      return KeyEventResult.handled;
+                                    }
+                                    if (key == LogicalKeyboardKey.escape) {
+                                      setState(() => _showSlashMenu = false);
+                                      return KeyEventResult.handled;
+                                    }
+                                  }
+                                  final selection = _controller.selection;
+                                  if (_activeCommand != null &&
+                                      key == LogicalKeyboardKey.backspace &&
+                                      selection.isCollapsed &&
+                                      selection.baseOffset <= 0) {
+                                    _removeCommand();
+                                    return KeyEventResult.handled;
+                                  }
+                                }
                                 if (event is KeyDownEvent) {
                                   // File Mention keyboard navigation
                                   if (_showFileMentionMenu &&
@@ -2291,7 +2405,42 @@ class _ComposerState extends ConsumerState<Composer> {
                                     ),
                                   Stack(
                                     children: [
-                                      TextField(
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                      AnimatedSize(
+                                        duration: const Duration(milliseconds: 180),
+                                        curve: Curves.easeOutCubic,
+                                        child: AnimatedSwitcher(
+                                          duration: const Duration(milliseconds: 150),
+                                          transitionBuilder: (child, animation) => FadeTransition(
+                                            opacity: animation,
+                                            child: ScaleTransition(
+                                              scale: Tween(begin: 0.85, end: 1.0).animate(animation),
+                                              alignment: Alignment.centerLeft,
+                                              child: child,
+                                            ),
+                                          ),
+                                          child: _activeCommand == null
+                                              ? const SizedBox(key: ValueKey('no-command'))
+                                              : Padding(
+                                                  key: ValueKey('command-${_activeCommand!['name']}'),
+                                                  padding: const EdgeInsets.fromLTRB(2, 2, 4, 0),
+                                                  child: ComposerCommandChip(
+                                                    key: const ValueKey('composer-command-chip'),
+                                                    name: _activeCommand!['name'] as String? ?? '',
+                                                    sourceLabel: strings.composerCommandSourceLabel(
+                                                      _activeCommand!['source'] as String? ?? 'prompt',
+                                                    ),
+                                                    removeTooltip: strings.composerRemoveCommandTooltip,
+                                                    running: _commandRunning,
+                                                    onRemove: _removeCommand,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: TextField(
                                         key: const ValueKey(
                                           'composer-text-field',
                                         ),
@@ -2322,7 +2471,12 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                         cursorWidth: kIsWeb && isMobile ? 2.5 : 2.0,
                                         decoration: InputDecoration(
-                                          hintText: strings.composerInputHint(isStreaming: isStreaming),
+                                          hintText: _activeCommand != null
+                                              ? strings.composerCommandArgsHint(
+                                                  _activeCommand!['name'] as String? ?? '',
+                                                  _activeCommand!['argumentHint'] as String? ?? '',
+                                                )
+                                              : strings.composerInputHint(isStreaming: isStreaming),
                                           hintStyle: TextStyle(
                                             color: tokens.textMuted,
                                             fontSize: 13.5,
@@ -2342,6 +2496,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                             6,
                                           ),
                                         ),
+                                      ),
+                                      ),
+                                        ],
                                       ),
                                       if (!isMobile &&
                                           (isLongPrompt || _isInputEnlarged))

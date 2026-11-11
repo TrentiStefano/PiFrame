@@ -100,13 +100,19 @@ void main() {
     expect(container.read(showSettingsProvider), isTrue);
     expect(session.state.entries, isEmpty);
 
+    // Typed and sent, a command first becomes a chip; the second send runs it.
     await tester.enterText(find.byType(TextField), '/login');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('composer-command-chip')), findsOneWidget);
+    expect(session.loginCalls, 0);
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
     expect(session.loginCalls, 1);
     expect(session.state.entries, isEmpty);
 
-    await tester.enterText(find.byType(TextField), '/logout');
+    await tester.enterText(find.byType(TextField), '/logout ');
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.arrow_upward));
     await tester.pumpAndSettle();
     expect(session.logoutCalls, 1);

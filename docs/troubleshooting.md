@@ -863,6 +863,20 @@ Prima di avviare un worker in una cartella WSL non raggiungibile, il daemon avvi
 - Durante la compattazione il composer invia il messaggio come steer. Il daemon passa steer e follow-up a Pi tramite `prompt` con `streamingBehavior`: Pi lo accoda se è in esecuzione o avvia un run se ha già finito.
 - Il cambio modello azzera il limite di contesto: il nuovo modello parte dalla sua finestra completa. Il limite resta modificabile solo a turno concluso.
 
+## `/reload` inviato come messaggio e messaggi rifiutati durante la compattazione
+
+### Sintomi
+- `/reload` compariva nella chat come un messaggio dell'utente e non ricaricava Pi.
+- Un messaggio inviato mentre Pi compattava falliva con `Cannot submit a prompt while compaction is in progress`.
+
+### Cause
+- Il composer riconosceva un comando solo se l'elenco dei comandi era già caricato. Inoltre `/reload` veniva inviato come prompt e creava una voce in chat.
+- Pi rifiuta i prompt durante una compattazione manuale, che è anche quella avviata dal limite di contesto di PiFrame.
+
+### Risoluzione
+- I comandi sono un chip separato dal testo e vengono eseguiti senza creare messaggi. L'elenco dei comandi si ricarica a ogni apertura del menu `/`.
+- Il daemon aspetta la fine della compattazione (al massimo 10 minuti) prima di inoltrare il messaggio a Pi.
+
 ## Contesto invariato dopo la compattazione
 
 ### Sintomi

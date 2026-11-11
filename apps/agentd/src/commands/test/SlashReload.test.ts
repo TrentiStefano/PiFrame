@@ -106,6 +106,17 @@ test('steer and follow-up go through Pi prompt so Pi queues or starts a run itse
   ]);
 });
 
+test('a message sent during compaction waits for it to end instead of failing in Pi', async () => {
+  const { workerCalls, session, run } = fixture();
+  session.isCompacting = true;
+  let compactionEndedAt = 0;
+  setTimeout(() => { session.isCompacting = false; compactionEndedAt = Date.now(); }, 300);
+  const result = await run('agent.prompt', { text: 'aggiungi i test', streamingBehavior: 'steer' });
+  assert.equal(result.payload.state, 'completed');
+  assert.ok(compactionEndedAt > 0, 'prompt was forwarded before compaction ended');
+  assert.deepEqual(workerCalls.map((call) => call.arguments.message), ['aggiungi i test']);
+});
+
 test('switching model drops the previous model context limit instead of carrying it over', async () => {
   const { workerCalls, session, run } = fixture();
   Object.assign(session, { model: { provider: 'anthropic', id: 'haiku', contextWindow: 100000 }, contextWindowOverride: 100000, compactionReservePercent: 2.5 });

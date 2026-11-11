@@ -485,6 +485,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
+  /// Runs a Pi slash command. A command is not a message: no chat entry is added.
+  /// Pi runs extension commands at once even mid-run; 'steer' only stops the daemon from
+  /// rejecting the request while the agent streams.
+  Future<void> runCommand(String command) async {
+    final promptClient = client;
+    if (promptClient == null) throw StateError('Daemon non connesso');
+    await promptClient.sendPrompt(sessionId, command, streamingBehavior: 'steer');
+  }
+
   Future<Map<String, dynamic>?> interrupt() async {
     if (client == null) return null;
     final res = await client!.interruptAgent(sessionId);
