@@ -1,0 +1,228 @@
+{
+  "name": "transcript-entries",
+  "description": "Adds bash failure, compaction summary, branch summary and visible custom entry.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "bashExecution",
+          "id": "bash_fail_1",
+          "command": "npm test",
+          "output": "2 tests failed",
+          "exitCode": 1,
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "compactionSummary",
+          "id": "compact_1",
+          "summary": "Earlier messages were summarized.",
+          "tokensBefore": 48000,
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "branchSummary",
+          "id": "branch_1",
+          "summary": "Alternative implementation considered.",
+          "fromId": "entry_old",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "custom",
+          "id": "custom_1",
+          "customType": "offline-note",
+          "display": true,
+          "content": [
+            {
+              "type": "text",
+              "text": "Visible custom transcript entry."
+            }
+          ],
+          "details": {
+            "source": "fake-pi"
+          },
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Special transcript entries were added."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Special transcript entries were added."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Special transcript entries were added."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Special transcript entries were added."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "role": "bashExecution",
+      "id": "bash_fail_1",
+      "command": "npm test",
+      "output": "2 tests failed",
+      "exitCode": 1,
+      "timestamp": "{{now}}"
+    },
+    {
+      "role": "compactionSummary",
+      "id": "compact_1",
+      "summary": "Earlier messages were summarized.",
+      "tokensBefore": 48000,
+      "timestamp": "{{now}}"
+    },
+    {
+      "role": "branchSummary",
+      "id": "branch_1",
+      "summary": "Alternative implementation considered.",
+      "fromId": "entry_old",
+      "timestamp": "{{now}}"
+    },
+    {
+      "role": "custom",
+      "id": "custom_1",
+      "customType": "offline-note",
+      "display": true,
+      "content": [
+        {
+          "type": "text",
+          "text": "Visible custom transcript entry."
+        }
+      ],
+      "details": {
+        "source": "fake-pi"
+      },
+      "timestamp": "{{now}}"
+    }
+  ]
+}

@@ -83,6 +83,13 @@ pnpm harness shot <etichetta>
 pnpm harness stop
 ```
 
+Per verificare ogni funzione senza un vero Pi:
+
+- `pnpm harness start --seed` crea dati di prova isolati: repository Git con modifiche, sessioni (anche una cronologia di 150 messaggi e un sottoagente nascosto), una sessione fissata e due server MCP.
+- `pnpm harness scenario <nome>` cambia il comportamento di fake-pi per il prompt successivo, senza riavvio. `pnpm harness scenarios` elenca gli scenari, per esempio `provider-error`, `edit-files` (abilita «Rivedi modifiche»), `subagents`, `todos`, `ui-question-preview`, `session-tree`.
+- fake-pi risponde anche ai comandi `pi list/install/remove/update` e `pi mcp list`, quindi le schede Pacchetti, Agenti e MCP mostrano dati realistici.
+- `pnpm harness media --text-scale 1.4 --reduce-motion on` simula scala del testo e movimento ridotto.
+
 Comandi, selettori e dettagli: [tools/harness/README.md](../tools/harness/README.md).
 
 ### Build Manuale da Sorgente (Eseguibile Standalone)
@@ -392,3 +399,14 @@ La web app aperta dal telefono (connessione remota) è stata resa più robusta e
 - **Angoli concentrici su iPhone (linee guida iOS)**: sui telefoni con angoli arrotondati i bordi in basso seguono la curva del display come nelle app native: raggio del pannello = raggio del display − margine (8 px) e raggio del composer = raggio del pannello − margine del composer. Il raggio del display non è leggibile da una pagina web, quindi è stimato dalla larghezza (375 pt ≈ 40, 390 pt ≈ 47, 393/430 pt ≈ 55). Con la tastiera aperta o in una scheda Safari con barra degli strumenti tornano gli angoli normali.
 - **Selezione del testo e cursore su iPhone**: il testo del composer su telefono è a 16px (stessa riga da 21px) in modo che Flutter e il campo nativo nascosto vadano a capo allo stesso modo; prima, con font diversi, il cursore mosso con la barra spaziatrice o la selezione per righe finivano in punti diversi da quelli mostrati. Il colore di selezione è più visibile (opacità 0,4 invece di 0,2) e i movimenti del solo cursore non rieseguono più la logica di slash/@-menzione (setState e richiesta del focus a ogni spostamento).
 - **Riavvio del tunnel**: se all'avvio del daemon il tunnel non parte (es. Tailscale non ancora pronto) il daemon riprova con backoff fino a 60 secondi.
+
+## 15. Movimento ridotto (Riduci animazioni)
+
+Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
+
+- Con l'interruttore attivo, PiFrame non fa più muovere gli elementi: i pannelli e le righe appaiono con una dissolvenza, i loop decorativi (anello attivo del compositore, puntino delle sessioni in esecuzione, animazione dei sottoagenti) diventano statici e le animazioni di espansione sono dissolvenze brevi.
+- La preferenza è salvata in `~/.piframe/reduced_motion_settings.json` e vale per tutte le sessioni.
+- Anche l'impostazione del sistema operativo che chiede di *ridurre o rimuovere le animazioni* (macOS: Riduci movimento; Windows: Effetti di animazione disattivati) è rispettata. Le due fonti si combinano: basta una delle due per attivare la modalità ridotta.
+- Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
+
+Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.

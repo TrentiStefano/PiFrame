@@ -107,6 +107,8 @@ class AppStrings {
       isItalian ? 'Impostazioni PiFrame' : 'PiFrame Settings';
   String get backToChatTooltip =>
       isItalian ? 'Torna alla conversazione' : 'Back to conversation';
+  String get backToWorkspaceTooltip =>
+      isItalian ? 'Torna all\'area di lavoro' : 'Back to workspace';
   String get cancel => isItalian ? 'Annulla' : 'Cancel';
   String get save => isItalian ? 'Salva' : 'Save';
   String get close => isItalian ? 'Chiudi' : 'Close';
@@ -258,6 +260,15 @@ class AppStrings {
 
   String composerSteerTooltip({required bool sendWithEnter}) =>
       sendWithEnter ? composerSteerTooltipSendWithEnter : composerSteerTooltipDefault;
+
+  // Reduced motion
+  String get reducedMotionSectionTitle =>
+      isItalian ? 'Movimento ridotto' : 'Reduce motion';
+  String get reducedMotionTitle =>
+      isItalian ? 'Riduci animazioni' : 'Reduce animations';
+  String get reducedMotionSubtitle => isItalian
+      ? 'Usa dissolvenze invece di movimenti, ferma le animazioni in loop e rimuove gli effetti di scorrimento. Si applica anche quando il sistema operativo chiede di ridurre il movimento.'
+      : 'Use fades instead of movement, stop looping animations and remove slide effects. Also applies when the operating system asks to reduce motion.';
 
   // Nerd stats
   String get nerdStatsSectionTitle =>

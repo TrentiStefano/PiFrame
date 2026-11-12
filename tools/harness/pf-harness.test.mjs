@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { assertSafeHome, encodeParams, isMissingProcessError, parseSelector } from './pf-harness.mjs';
+import {
+  assertSafeHome,
+  encodeParams,
+  isMissingProcessError,
+  listScenarios,
+  parseArgs,
+  parseSelector,
+  seedHarnessHome,
+  validateScenarioName,
+} from './pf-harness.mjs';
 
 test('parseSelector handles keys, text, defaults, and matching index', () => {
   assert.deepEqual(parseSelector('key:composer-send'), { type: 'key', value: 'composer-send' });
@@ -22,6 +31,43 @@ test('isMissingProcessError recognizes taskkill exit code and localized output f
   assert.equal(isMissingProcessError({ code: 128, stderr: 'localized message' }), true);
   assert.equal(isMissingProcessError({ message: 'ERRORE: processo "29328" non trovato.' }), true);
   assert.equal(isMissingProcessError({ stderr: 'Access is denied.' }), false);
+});
+
+test('argument parsing supports harness pointer, tree, media, and seed options', () => {
+  assert.deepEqual(parseArgs(['drag', 'key:divider', '12', '-4', '--run', 'inspect']), {
+    positional: ['drag', 'key:divider', '12', '-4'],
+    options: { run: 'inspect' },
+  });
+  assert.deepEqual(parseArgs(['tree', '--limit', '80', '--depth=12', '--filter', 'notes.md']), {
+    positional: ['tree'],
+    options: { limit: '80', depth: '12', filter: 'notes.md' },
+  });
+  assert.deepEqual(parseArgs(['media', '--text-scale', '1.4', '--reduce-motion', 'on', '--brightness', 'dark', '--reset']), {
+    positional: ['media'],
+    options: { 'text-scale': '1.4', 'reduce-motion': 'on', brightness: 'dark', reset: true },
+  });
+  assert.deepEqual(parseArgs(['start', '--seed']), {
+    positional: ['start'],
+    options: { seed: true },
+  });
+});
+
+test('scenario names are validated against the fake-pi scenario catalog', () => {
+  assert.ok(listScenarios().some((scenario) => scenario.name === 'hello-world'));
+  assert.equal(validateScenarioName('hello-world'), 'hello-world');
+  assert.throws(() => validateScenarioName('../package.json'), /unknown fake-pi scenario/i);
+});
+
+test('seed rejects protected PiFrame homes before creating fixtures', async () => {
+  const userHome = path.resolve('/user/home');
+  await assert.rejects(
+    seedHarnessHome(path.join(userHome, '.piframe', 'seed'), userHome),
+    /unsafe harness home/i,
+  );
+  await assert.rejects(
+    seedHarnessHome(path.join(userHome, '.piframe-dev'), userHome),
+    /unsafe harness home/i,
+  );
 });
 
 test('encodeParams preserves strings and JSON-encodes other values', () => {

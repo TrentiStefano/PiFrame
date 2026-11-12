@@ -59,6 +59,36 @@ export function assertSafeHome(home, userHome = os.homedir()) {
   return resolved;
 }
 
+const scenarioDirectory = path.join(ROOT, 'tools', 'fake-pi', 'scenarios');
+
+export function listScenarios() {
+  const indexFile = path.join(scenarioDirectory, 'index.json');
+  if (fs.existsSync(indexFile)) {
+    const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+    if (!Array.isArray(index) || index.some((item) => typeof item?.name !== 'string')) {
+      throw new Error('Invalid fake-pi scenarios/index.json; expected an array of named scenarios');
+    }
+    return index;
+  }
+  if (!fs.existsSync(scenarioDirectory)) return [];
+  return fs.readdirSync(scenarioDirectory)
+    .filter((name) => name.endsWith('.json') && name !== 'index.json')
+    .sort()
+    .map((file) => {
+      const name = path.basename(file, '.json');
+      let details = {};
+      try { details = JSON.parse(fs.readFileSync(path.join(scenarioDirectory, file), 'utf8')); } catch { }
+      return { name, description: details.description || '', covers: details.covers || [] };
+    });
+}
+
+export function validateScenarioName(name) {
+  if (typeof name !== 'string' || !listScenarios().some((scenario) => scenario.name === name)) {
+    throw new Error(`Unknown fake-pi scenario: ${name || '(missing)'}`);
+  }
+  return name;
+}
+
 function runDir(runName) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(runName)) throw new Error(`Invalid run name: ${runName}`);
   return assertSafeHome(path.join(HARNESS_ROOT, runName));
@@ -106,14 +136,14 @@ async function killOwned(pid, home, { tree = false, daemon = false } = {}) {
   }
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const positional = [];
   const options = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg.startsWith('--')) {
       const [key, inline] = arg.slice(2).split('=', 2);
-      if (['no-daemon-build', 'real-pi', 'daemon', 'all', 'ctrl', 'shift', 'alt', 'meta'].includes(key)) options[key] = true;
+      if (['no-daemon-build', 'real-pi', 'daemon', 'all', 'seed', 'reset', 'ctrl', 'shift', 'alt', 'meta'].includes(key)) options[key] = true;
       else {
         const value = inline ?? argv[++i];
         if (value === undefined || value.startsWith('--')) throw new Error(`Missing value for --${key}`);
@@ -159,20 +189,184 @@ async function ensureBuilds(noDaemonBuild, force = false) {
   if (!fs.existsSync(fakeEntrypoint)) throw new Error(`Missing fake-pi entrypoint: ${fakeEntrypoint}`);
 }
 
+function writeScenarioControlFile(home, scenario) {
+  const safeHome = assertSafeHome(home);
+  fs.mkdirSync(safeHome, { recursive: true });
+  fs.writeFileSync(path.join(safeHome, 'fake-pi-scenario'), `${scenario}\n`, { mode: 0o600 });
+}
+
+function writeFakePiShims(home) {
+  const safeHome = assertSafeHome(home);
+  const fakeEntrypoint = path.join(ROOT, 'tools', 'fake-pi', 'dist', 'index.js');
+  const piShim = process.platform === 'win32' ? path.join(safeHome, 'pi.cmd') : path.join(safeHome, 'pi');
+  if (process.platform === 'win32') {
+    fs.writeFileSync(piShim, `@echo off\r\n"${process.execPath}" "${fakeEntrypoint}" %*\r\n`, { mode: 0o700 });
+  } else {
+    fs.writeFileSync(piShim, `#!/bin/sh\nexec "${process.execPath}" "${fakeEntrypoint}" "$@"\n`, { mode: 0o700 });
+    fs.chmodSync(piShim, 0o700);
+  }
+  const npmShim = path.join(safeHome, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  const fakeNpm = path.join(ROOT, 'tools', 'fake-pi', 'dist', 'fake-npm.js');
+  fs.mkdirSync(path.dirname(npmShim), { recursive: true });
+  fs.writeFileSync(npmShim, [
+    "const { spawnSync } = require('node:child_process');",
+    `const fakeNpm = ${JSON.stringify(fakeNpm)};`,
+    'const result = spawnSync(process.execPath, [fakeNpm, ...process.argv.slice(2)], { stdio: \'inherit\' });',
+    'if (result.error) { console.error(result.error.message); process.exit(1); }',
+    'process.exit(result.status ?? 1);',
+    '',
+  ].join('\n'), { mode: 0o600 });
+  return piShim;
+}
+
+async function runGit(repo, args) {
+  return execFileAsync('git', args, { cwd: repo, windowsHide: true, maxBuffer: 1024 * 1024 });
+}
+
+function appendExclude(repo, value) {
+  const exclude = path.join(repo, '.git', 'info', 'exclude');
+  let content = '';
+  try { content = fs.readFileSync(exclude, 'utf8'); } catch { }
+  if (!content.split(/\r?\n/).includes(value)) {
+    fs.appendFileSync(exclude, `${content && !content.endsWith('\n') ? '\n' : ''}${value}\n`);
+  }
+}
+
+async function seedGitRepo(repo, files, { dirtyWorkspace = false } = {}) {
+  fs.mkdirSync(repo, { recursive: true });
+  const hasGit = fs.existsSync(path.join(repo, '.git'));
+  if (!hasGit) await runGit(repo, ['init']);
+  await runGit(repo, ['config', 'user.name', 'PiFrame Harness']);
+  await runGit(repo, ['config', 'user.email', 'piframe-harness@example.invalid']);
+  if (!hasGit) {
+    await runGit(repo, ['checkout', '-b', 'main']);
+    for (const [relative, content] of Object.entries(files)) {
+      const target = path.join(repo, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, content);
+    }
+    await runGit(repo, ['add', ...Object.keys(files)]);
+    await runGit(repo, ['commit', '-m', 'Initial harness fixture']);
+  } else {
+    try { await runGit(repo, ['checkout', '-f', 'main']); }
+    catch { await runGit(repo, ['checkout', '-f', '-b', 'main']); }
+    const head = await runGit(repo, ['rev-parse', '--verify', 'HEAD']).then(() => true).catch(() => false);
+    if (!head) {
+      for (const [relative, content] of Object.entries(files)) {
+        const target = path.join(repo, relative);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, content);
+      }
+      await runGit(repo, ['add', ...Object.keys(files)]);
+      await runGit(repo, ['commit', '-m', 'Initial harness fixture']);
+    } else {
+      await runGit(repo, ['reset', '--hard', 'main']);
+    }
+  }
+  if (dirtyWorkspace) {
+    try { await runGit(repo, ['branch', 'feature/demo', 'main']); } catch { }
+    await runGit(repo, ['checkout', '-f', 'main']);
+    await runGit(repo, ['reset', '--hard', 'main']);
+    fs.writeFileSync(path.join(repo, 'notes.md'), `${files['notes.md']}\nStaged harness edit.\n`);
+    await runGit(repo, ['add', 'notes.md']);
+    fs.writeFileSync(path.join(repo, 'README.md'), `${files['README.md']}\nUnstaged harness edit.\n`);
+    fs.writeFileSync(path.join(repo, 'untracked-harness-file.txt'), 'Untracked harness fixture.\n');
+  }
+  fs.writeFileSync(path.join(repo, '.fake-pi-writable'), 'fake-pi may write files in this fixture.\n');
+  appendExclude(repo, '.fake-pi-writable');
+}
+
+function writeSessionFixture(sessionsDir, { id, cwd, name, parentSession, count = 3 }) {
+  const lines = [
+    JSON.stringify({ type: 'session', id, cwd, ...(parentSession ? { parentSession } : {}) }),
+    JSON.stringify({ type: 'session_info', name }),
+  ];
+  for (let index = 0; index < count; index++) {
+    lines.push(JSON.stringify({
+      type: 'message',
+      id: `${id}-message-${index + 1}`,
+      message: {
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `Harness fixture message ${index + 1} for ${name}.`,
+        timestamp: new Date(Date.now() - (count - index) * 60_000).toISOString(),
+      },
+    }));
+  }
+  fs.writeFileSync(path.join(sessionsDir, `${id}.jsonl`), `${lines.join('\n')}\n`);
+}
+
+export async function seedHarnessHome(home, userHome = os.homedir()) {
+  const safeHome = assertSafeHome(home, userHome);
+  fs.mkdirSync(safeHome, { recursive: true });
+  const fixtures = path.join(safeHome, 'fixtures');
+  const workspace = path.join(fixtures, 'workspace');
+  const secondRepo = path.join(fixtures, 'second-repo');
+  const created = [];
+  let gitAvailable = true;
+  try { await execFileAsync('git', ['--version'], { windowsHide: true }); }
+  catch { gitAvailable = false; }
+  const workspaceFiles = {
+    'README.md': '# Harness workspace\n\nSeeded PiFrame harness repository.\n',
+    'notes.md': '# Notes\n\nSeeded Git Changes fixture.\n',
+    'src/example.dart': 'void main() {\n  print("PiFrame harness fixture");\n}\n',
+  };
+  const secondRepoFiles = { 'README.md': '# Second repository\n\nSeeded fixture.\n' };
+  fs.mkdirSync(workspace, { recursive: true });
+  fs.mkdirSync(secondRepo, { recursive: true });
+  if (gitAvailable) {
+    try {
+      await seedGitRepo(workspace, workspaceFiles, { dirtyWorkspace: true });
+      await seedGitRepo(secondRepo, secondRepoFiles);
+      created.push('Git repos: fixtures/workspace (staged, unstaged, and untracked changes; feature/demo) and fixtures/second-repo');
+    } catch (error) {
+      if (/not recognized|not found|enoent/i.test(`${error.message} ${error.code || ''}`)) {
+        gitAvailable = false;
+      } else throw error;
+    }
+  }
+  if (!gitAvailable) created.push('Git fixtures skipped (git is unavailable)');
+  for (const repo of [workspace, secondRepo]) {
+    fs.writeFileSync(path.join(repo, '.fake-pi-writable'), 'fake-pi may write files in this fixture.\n');
+  }
+
+  const sessionsDir = path.join(safeHome, 'pi-agent', 'sessions');
+  fs.mkdirSync(sessionsDir, { recursive: true });
+  writeSessionFixture(sessionsDir, { id: 'harness-workspace-1', cwd: workspace, name: 'Workspace planning', count: 8 });
+  writeSessionFixture(sessionsDir, { id: 'harness-workspace-2', cwd: workspace, name: 'Workspace implementation', count: 5 });
+  writeSessionFixture(sessionsDir, { id: 'harness-long-history', cwd: workspace, name: 'Long history paging', count: 150 });
+  writeSessionFixture(sessionsDir, { id: 'harness-second-repo', cwd: secondRepo, name: 'Second repository review', count: 4 });
+  writeSessionFixture(sessionsDir, {
+    id: 'harness-worker-child', cwd: workspace, name: 'worker#fixture-child',
+    parentSession: 'harness-workspace-1', count: 6,
+  });
+  created.push('5 Pi session JSONL fixtures (including 150-message history and worker child)');
+
+  const pinsDir = path.join(safeHome, '.piframe');
+  fs.mkdirSync(pinsDir, { recursive: true });
+  fs.writeFileSync(path.join(pinsDir, 'pinned_sessions.json'), JSON.stringify(['harness-workspace-1'], null, 2));
+  created.push('.piframe/pinned_sessions.json pins harness-workspace-1');
+
+  const mcpDir = path.join(safeHome, '.pi', 'agent');
+  fs.mkdirSync(mcpDir, { recursive: true });
+  fs.writeFileSync(path.join(mcpDir, 'mcp.json'), JSON.stringify({
+    mcpServers: {
+      'harness-files': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: true },
+      'harness-search': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: false },
+    },
+  }, null, 2));
+  created.push('.pi/agent/mcp.json with two MCP server entries');
+  console.log(JSON.stringify({ ok: true, home: safeHome, gitAvailable, created }, null, 2));
+  return { ok: true, home: safeHome, gitAvailable, created };
+}
+
 function prepareHome(home, scenario, size, device, useRealPi) {
   assertSafeHome(home);
   fs.mkdirSync(path.join(home, 'runtime'), { recursive: true });
   fs.mkdirSync(path.join(home, 'pi-agent', 'sessions'), { recursive: true });
   // Deliberately write a clean config. Never copy user's ~/.piframe config or piPath.
   fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({}), { mode: 0o600 });
-  const fakeEntrypoint = path.join(ROOT, 'tools', 'fake-pi', 'dist', 'index.js');
-  const shim = process.platform === 'win32' ? path.join(home, 'pi.cmd') : path.join(home, 'pi');
-  if (process.platform === 'win32') {
-    fs.writeFileSync(shim, `@echo off\r\n"${process.execPath}" "${fakeEntrypoint}" %*\r\n`, { mode: 0o700 });
-  } else {
-    fs.writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" "${fakeEntrypoint}" "$@"\n`, { mode: 0o700 });
-    fs.chmodSync(shim, 0o700);
-  }
+  const shim = writeFakePiShims(home);
+  writeScenarioControlFile(home, scenario);
   const startedAt = new Date().toISOString();
   const state = {
     runName: path.basename(home), flutterPid: null, wsUri: null, appId: null,
@@ -201,6 +395,8 @@ function addOwned(state, pid) {
 }
 
 function startFlutter(home, state) {
+  state.piShim = writeFakePiShims(home);
+  writeScenarioControlFile(home, state.scenario || 'hello-world');
   const log = fs.createWriteStream(path.join(home, 'flutter.log'), { flags: 'a' });
   const env = {
     ...process.env,
@@ -210,6 +406,7 @@ function startFlutter(home, state) {
     PI_CODING_AGENT_SESSION_DIR: path.join(home, 'pi-agent', 'sessions'),
     PIFRAME_DEV_LOG: '1',
     FAKE_PI_SCENARIO: state.scenario || 'hello-world',
+    FAKE_PI_CONTROL_FILE: path.join(home, 'fake-pi-scenario'),
     HOME: home,
     USERPROFILE: home,
   };
@@ -427,10 +624,13 @@ async function launchSupervisor(home, state) {
 async function startCommand(options) {
   const runName = options.run || 'default';
   const home = runDir(runName);
+  writeFakePiShims(home);
   const device = options.device || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
   const size = options.size || '1280x800';
+  const scenario = validateScenarioName(options.scenario || 'hello-world');
   if (!/^\d+x\d+$/.test(size)) throw new Error(`Invalid size: ${size}`);
   if (!['windows', 'macos', 'linux'].includes(device)) throw new Error(`Unsupported desktop device: ${device}`);
+  if (options.seed) await seedHarnessHome(home);
   const previous = readState(home);
   if (previous?.controlPort) {
     try {
@@ -442,7 +642,7 @@ async function startCommand(options) {
   await refuseRunningWindowsDebug(home);
   if (options['real-pi']) console.warn('*** WARNING: --real-pi enabled. Harness may invoke a real Pi binary; its environment remains isolated to this run. ***');
   await ensureBuilds(Boolean(options['no-daemon-build']));
-  const state = prepareHome(home, options.scenario || 'hello-world', size, device, Boolean(options['real-pi']));
+  const state = prepareHome(home, scenario, size, device, Boolean(options['real-pi']));
   await launchSupervisor(home, state);
   const ready = await waitReady(home);
   console.log(JSON.stringify({ ok: true, run: runName, wsUri: ready.wsUri, home }));
@@ -469,11 +669,28 @@ function selectorParams(selector) {
 async function convenience(command, positional, options, runName) {
   const { state } = requireState(runName);
   let ext, params = {};
-  if (command === 'tap' || command === 'hover') { ext = command; params = selectorParams(positional[0]); }
+  if (command === 'tap' || command === 'hover' || command === 'longPress' || command === 'rightClick' || command === 'doubleTap') {
+    ext = command;
+    params = selectorParams(positional[0]);
+  }
+  else if (command === 'tapAt') { ext = 'tapAt'; params = { x: positional[0], y: positional[1] }; }
+  else if (command === 'drag') { ext = 'drag'; params = { ...selectorParams(positional[0]), dx: positional[1], dy: positional[2] }; }
   else if (command === 'type') { ext = 'enterText'; params = { value: positional[0] }; if (options.into) Object.assign(params, selectorParams(options.into)); }
   else if (command === 'key') { ext = 'sendKey'; params = { key: positional[0], ctrl: !!options.ctrl, shift: !!options.shift, alt: !!options.alt, meta: !!options.meta }; }
   else if (command === 'scroll') { ext = 'scroll'; params = { ...selectorParams(positional[0]), dx: 0, dy: Number(positional[1]) }; }
-  else if (command === 'tree') { ext = 'tree'; if (options.filter) params.filter = options.filter; }
+  else if (command === 'tree') {
+    ext = 'tree';
+    if (options.filter) params.filter = options.filter;
+    if (options.limit !== undefined) params.maxEntries = Number(options.limit);
+    if (options.depth !== undefined) params.maxDepth = Number(options.depth);
+  }
+  else if (command === 'media') {
+    ext = 'media';
+    if (options['text-scale'] !== undefined) params.textScale = options['text-scale'];
+    if (options['reduce-motion'] !== undefined) params.reduceMotion = options['reduce-motion'];
+    if (options.brightness !== undefined) params.brightness = options.brightness;
+    if (options.reset) params.reset = true;
+  }
   else if (command === 'state') ext = 'state';
   else if (command === 'resize') { ext = 'resize'; const [width, height] = String(positional[0] || '').split('x').map(Number); params = { width, height }; }
   else if (command === 'shot') {
@@ -487,10 +704,27 @@ async function convenience(command, positional, options, runName) {
     if (result !== undefined) console.log(JSON.stringify(result, null, 2));
     return;
   }
-  if (command === 'tap' || command === 'hover' || command === 'type' || command === 'key' || command === 'scroll') {
-    if (!positional[0]) throw new Error(`Missing argument for ${command}`);
+  if (['tap', 'hover', 'longPress', 'rightClick', 'doubleTap', 'type', 'key', 'scroll', 'drag'].includes(command) && !positional[0]) {
+    throw new Error(`Missing argument for ${command}`);
+  }
+  if (command === 'tapAt') {
+    const x = Number(positional[0]); const y = Number(positional[1]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('tapAt expects numeric x and y');
+  }
+  if (command === 'drag' && (!Number.isFinite(Number(positional[1])) || !Number.isFinite(Number(positional[2])))) {
+    throw new Error('drag expects selector dx dy with numeric offsets');
   }
   if (command === 'scroll' && !Number.isFinite(params.dy)) throw new Error('scroll dy must be a number');
+  if (command === 'tree') {
+    if (options.limit !== undefined && (!Number.isInteger(params.maxEntries) || params.maxEntries < 1)) throw new Error('--limit must be a positive integer');
+    if (options.depth !== undefined && (!Number.isInteger(params.maxDepth) || params.maxDepth < 0)) throw new Error('--depth must be a non-negative integer');
+  }
+  if (command === 'media') {
+    if (options['text-scale'] !== undefined && (!Number.isFinite(Number(options['text-scale'])) || Number(options['text-scale']) <= 0)) throw new Error('--text-scale must be a positive number');
+    if (options['reduce-motion'] !== undefined && !['on', 'off'].includes(options['reduce-motion'])) throw new Error('--reduce-motion must be on or off');
+    if (options.brightness !== undefined && !['light', 'dark'].includes(options.brightness)) throw new Error('--brightness must be light or dark');
+    if (!options.reset && Object.keys(options).every((key) => key === 'run')) throw new Error('media needs an override or --reset');
+  }
   if (command === 'resize' && (!Number.isInteger(params.width) || !Number.isInteger(params.height))) throw new Error('resize expects WxH');
   console.log(JSON.stringify(await invokeExtension(state, ext, params), null, 2));
 }
@@ -527,7 +761,7 @@ async function main(argv) {
   const { positional, options } = parseArgs(argv.slice(1));
   const runName = options.run || 'default';
   if (!command || command === 'help' || command === '--help') {
-    console.log('Usage: pnpm harness <start|call|tap|hover|type|key|scroll|tree|state|resize|shot|reload|restart|rebuild|logs|status|stop> [options]'); return;
+    console.log('Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|reload|restart|rebuild|logs|status|stop> [options]'); return;
   }
   if (command === '__supervise') {
     const home = options.home;
@@ -536,8 +770,22 @@ async function main(argv) {
     return;
   }
   if (command === 'start') return startCommand(options);
+  if (command === 'seed') return seedHarnessHome(runDir(runName));
+  if (command === 'scenarios') {
+    console.log(JSON.stringify(listScenarios(), null, 2));
+    return;
+  }
+  if (command === 'scenario') {
+    const scenario = validateScenarioName(positional[0]);
+    const { home, state } = requireState(runName);
+    writeScenarioControlFile(home, scenario);
+    state.scenario = scenario;
+    writeState(home, state);
+    console.log(JSON.stringify({ ok: true, scenario }));
+    return;
+  }
   if (command === 'call') return callCommand(positional[0], positional[1], runName);
-  if (['tap', 'hover', 'type', 'key', 'scroll', 'tree', 'state', 'resize', 'shot'].includes(command)) return convenience(command, positional, options, runName);
+  if (['tap', 'tapAt', 'rightClick', 'doubleTap', 'drag', 'longPress', 'hover', 'type', 'key', 'scroll', 'tree', 'media', 'state', 'resize', 'shot'].includes(command)) return convenience(command, positional, options, runName);
   if (['reload', 'restart'].includes(command)) {
     const { state } = requireState(runName);
     await requestControl(state, command);

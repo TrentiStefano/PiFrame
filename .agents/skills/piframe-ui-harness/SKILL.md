@@ -16,7 +16,10 @@ The user may be using their own PiFrame at the same time. The harness runs an is
 Run commands from the repository root. Start or reuse the isolated run:
 
 ```sh
-pnpm harness start [--scenario <name>] [--size <WxH>]
+pnpm harness start [--scenario <name>] [--seed] [--size <WxH>]
+pnpm harness seed
+pnpm harness scenarios
+pnpm harness scenario <name>
 ```
 
 Discover the current UI before acting:
@@ -25,9 +28,9 @@ Discover the current UI before acting:
 pnpm harness tree
 ```
 
-Use selectors from the tree: `key:<key>` or `text:<text>`; append `#N` to target a matching index, e.g. `text:New session#2`. Prefer stable `ValueKey<String>` keys. Add one to any control that lacks a stable key.
+Use selectors from the tree: `key:<key>` or `text:<text>`; append `#N` to target a matching index, e.g. `text:New session#2`. Tree entries include covered widgets and button tooltips/labels; `truncated` reports a reached cap. Prefer stable `ValueKey<String>` keys. Add one to any control that lacks a stable key.
 
-Drive the app with `pnpm harness tap <selector>`, `type <text> [--into <selector>]`, `key <name>`, `hover <selector>`, `scroll <selector> <dy>`, and `resize <WxH>`. Capture and inspect a real screenshot:
+Drive the app with `pnpm harness tap <selector>`, `tapAt <x> <y>`, `rightClick <selector>`, `doubleTap <selector>`, `longPress <selector>`, `drag <selector> <dx> <dy>`, `type <text> [--into <selector>]`, `key <name>`, `hover <selector>`, `scroll <selector> <dy>`, and `resize <WxH>`. Inspect bounded widget trees with `tree [--filter text] [--limit N] [--depth N]`. Set harness-only media with `media [--text-scale 1.5] [--reduce-motion on|off] [--brightness light|dark]` or restore defaults with `media --reset`. Capture and inspect a real screenshot:
 
 ```sh
 pnpm harness shot <descriptive-label>
@@ -41,6 +44,24 @@ Read the generated PNG. Critique the actual UI, then edit `apps/pi_frame/lib/` a
 - `pnpm harness rebuild --daemon` for `apps/agentd` changes.
 
 Run `pnpm harness stop` when done. Always stop the run, including after screenshot review.
+
+## Seed fixtures and switching scenarios
+
+`pnpm harness start --seed` or `pnpm harness seed` creates isolated fixtures below the run home: a dirty Git workspace with staged/unstaged/untracked changes and `feature/demo`, a second repo, five session JSONL files (one 150-message history and one linked `worker#…` child), a pinned session, and two MCP server configs. It is repeatable and reports when Git is unavailable. It never writes outside the safety-checked harness home.
+
+Use `pnpm harness scenarios` to discover available names. `start --scenario <name>` sets the initial scenario; `pnpm harness scenario <name>` validates and switches the control file without restart. fake-pi checks that file for every prompt, so the new scenario applies on the next prompt.
+
+Example feature → route recipes:
+
+- Git Changes / diff staging: `start --seed`, open the seeded workspace, find `notes.md` with `tree --filter notes.md`.
+- Sessions, pins, session paging, worker children: `start --seed`, open Sessions, choose `Long history paging` or `Workspace planning`.
+- MCP settings: `start --seed`, Settings → Pi CLI → Manage MCP servers.
+- Provider errors/retries/abort: `provider-error`, `provider-error-after-reply`, `retry-exhausted`, `aborted-turn`.
+- File changes, subagents, todos, status widgets: `edit-files`, `subagents`, `todos`, `ui-status-widgets`.
+- Composer/editor/question previews: `ui-input`, `ui-editor`, `ui-question-preview`.
+- Rich transcript, context, sessions, slash commands, steer queue: `rich-content`, `transcript-entries`, `context-high`, `session-tree`, `long-history`, `slash-commands`, `steer-queue`.
+
+`media --reduce-motion off` clears only the harness override; operating-system and app-level reduce-motion settings stay active. `state` reports the effective media values and active override values.
 
 ## Fake-pi scenario guide
 

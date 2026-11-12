@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -16,6 +17,7 @@ import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../data/composer/composer_settings.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
+import '../../data/motion/reduced_motion_settings.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/transcript_grouping.dart';
 import '../../data/update/startup_updates_provider.dart';
@@ -728,7 +730,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     final endpointAsync = ref.watch(daemonEndpointProvider);
     final endpoint = endpointAsync.value;
 
-    return Container(
+    final settingsContent = Container(
       color: tokens.background,
       child: Column(
         children: [
@@ -747,8 +749,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                 Row(
                   children: [
                     IconButton(
+                      key: const ValueKey('settings-back-button'),
                       icon: const Icon(Icons.arrow_back),
-                      tooltip: strings.backToChatTooltip,
+                      tooltip: strings.backToWorkspaceTooltip,
                       color: tokens.displayText,
                       onPressed: widget.onClose,
                     ),
@@ -973,7 +976,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                                           ),
                                         ],
                                         onChanged: (val) {
-                                          if (val != null) _updateTimeout(val);
+                                          if (val != null) {
+                                            _updateTimeout(val);
+                                          }
                                         },
                                       ),
                                     ),
@@ -1648,6 +1653,65 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                             ),
                             const SizedBox(height: 24),
                             Text(
+                              strings.reducedMotionSectionTitle,
+                              style: TextStyle(
+                                color: tokens.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              strings.reducedMotionSubtitle,
+                              style: TextStyle(
+                                color: tokens.textMuted,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusMd,
+                                ),
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: SwitchListTile(
+                                  key: const ValueKey(
+                                    'settings-reduced-motion-switch',
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    strings.reducedMotionTitle,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: 13,
+                                      fontFamily: tokens.uiFontFamily,
+                                    ),
+                                  ),
+                                  activeThumbColor: tokens.accent,
+                                  value: ref
+                                      .watch(reducedMotionSettingsProvider)
+                                      .enabled,
+                                  onChanged: (val) {
+                                    ref
+                                        .read(
+                                          reducedMotionSettingsProvider.notifier,
+                                        )
+                                        .setEnabled(val);
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
                               strings.nerdStatsSectionTitle,
                               style: TextStyle(
                                 color: tokens.textPrimary,
@@ -1951,6 +2015,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           ),
         ],
       ),
+    );
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
+      },
+      child: Focus(autofocus: true, child: settingsContent),
     );
   }
 

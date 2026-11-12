@@ -10,6 +10,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../app/harness_mode.dart';
+
 class HarnessInspector {
   const HarnessInspector._();
 
@@ -40,19 +42,37 @@ class HarnessInspector {
 
   static List<Map<String, Object?>> serializeTree(
     Element root, {
-    int maxDepth = 200,
+    int maxDepth = 500,
+    String? filter,
+    int maxEntries = 500,
+  }) =>
+      serializeTreeResult(
+            root,
+            maxDepth: maxDepth,
+            filter: filter,
+            maxEntries: maxEntries,
+          )['widgets']
+          as List<Map<String, Object?>>;
+
+  static Map<String, Object?> serializeTreeResult(
+    Element root, {
+    int maxDepth = 500,
     String? filter,
     int maxEntries = 500,
   }) {
     final entries = <Map<String, Object?>>[];
     final normalizedFilter = filter?.toLowerCase();
+    var truncated = false;
 
     void visit(Element element, int depth) {
-      if (entries.length >= maxEntries || depth > maxDepth) return;
+      if (entries.length >= maxEntries || depth > maxDepth) {
+        truncated = true;
+        return;
+      }
       if (_isOnstage(element)) {
         final widget = element.widget;
         final key = _stringValueKey(widget.key);
-        final text = _treeText(widget);
+        final text = _treeText(widget, element);
         final isButton = _isButton(widget);
         if (key != null || text != null || isButton || widget is TextField) {
           final searchable = '${widget.runtimeType} ${key ?? ''} ${text ?? ''}'
@@ -69,16 +89,20 @@ class HarnessInspector {
               if (text != null && text.isNotEmpty) 'text': text,
               if (rect case final rect?)
                 'rect': [rect.left, rect.top, rect.width, rect.height],
+              'covered': isCovered(element),
             });
           }
         }
       }
-      if (entries.length >= maxEntries || depth >= maxDepth) return;
+      if (depth >= maxDepth) {
+        element.visitChildElements((_) => truncated = true);
+        return;
+      }
       element.visitChildElements((child) => visit(child, depth + 1));
     }
 
     visit(root, 0);
-    return entries;
+    return {'widgets': entries, 'truncated': truncated};
   }
 
   static bool _isOnstage(Element element) {
@@ -93,16 +117,11 @@ class HarnessInspector {
     });
     if (offstage) return false;
     final renderObject = element.findRenderObject();
-    if (renderObject == null || !renderObject.attached) return false;
-    if (renderObject is RenderBox) {
-      if (!renderObject.hasSize || renderObject.size.isEmpty) return false;
-      final result = BoxHitTestResult();
-      if (!renderObject.hitTest(
-        result,
-        position: renderObject.size.center(Offset.zero),
-      )) {
-        return false;
-      }
+    if (renderObject == null) return true;
+    if (!renderObject.attached) return false;
+    if (renderObject is RenderBox &&
+        (!renderObject.hasSize || renderObject.size.isEmpty)) {
+      return false;
     }
     return true;
   }
@@ -149,10 +168,34 @@ class HarnessInspector {
     return null;
   }
 
-  static String? _treeText(Widget widget) {
+  static String? _treeText(Widget widget, Element element) {
+    final buttonText = _buttonLabel(widget, element);
+    if (buttonText != null && buttonText.isNotEmpty) return buttonText;
     final text = _textWidgetContent(widget);
     if (text == null || text.isEmpty) return null;
     return text;
+  }
+
+  static String? _buttonLabel(Widget widget, Element element) {
+    if (widget is IconButton) return widget.tooltip;
+    if (widget is! ButtonStyleButton) return null;
+    final labels = <String>[];
+    void visit(Element descendant) {
+      final child = descendant.widget;
+      if (child is Text || child is RichText) {
+        final text = _textWidgetContent(child);
+        if (text != null && text.isNotEmpty) labels.add(text);
+        return;
+      }
+      if (child is Tooltip) {
+        final text = _textWidgetContent(child);
+        if (text != null && text.isNotEmpty) labels.add(text);
+      }
+      descendant.visitChildElements(visit);
+    }
+
+    element.visitChildElements(visit);
+    return labels.isEmpty ? null : labels.join(' ');
   }
 
   static bool _isButton(Widget widget) =>
@@ -181,6 +224,104 @@ class HarnessInspector {
     return !_hitPathContains(hitTest, renderObject);
   }
 
+  static Future<void> dispatchPointer(
+    Offset position, {
+    required HarnessPointerAction kind,
+    Offset delta = Offset.zero,
+  }) async {
+    final pointer = _nextPointer++;
+    switch (kind) {
+      case HarnessPointerAction.tap:
+      case HarnessPointerAction.tapAt:
+        _sendTouchTap(pointer, position);
+      case HarnessPointerAction.doubleTap:
+        _sendTouchTap(pointer, position);
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        _sendTouchTap(_nextPointer++, position);
+      case HarnessPointerAction.longPress:
+        GestureBinding.instance.handlePointerEvent(
+          PointerDownEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.touch,
+            buttons: kPrimaryButton,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        GestureBinding.instance.handlePointerEvent(
+          PointerUpEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.touch,
+          ),
+        );
+      case HarnessPointerAction.rightClick:
+        GestureBinding.instance.handlePointerEvent(
+          PointerDownEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.mouse,
+            buttons: kSecondaryButton,
+          ),
+        );
+        GestureBinding.instance.handlePointerEvent(
+          PointerUpEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.mouse,
+          ),
+        );
+      case HarnessPointerAction.drag:
+        GestureBinding.instance.handlePointerEvent(
+          PointerDownEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.mouse,
+            buttons: kPrimaryButton,
+          ),
+        );
+        var previous = position;
+        for (var step = 1; step <= 5; step++) {
+          final next =
+              position + Offset(delta.dx * step / 5, delta.dy * step / 5);
+          GestureBinding.instance.handlePointerEvent(
+            PointerMoveEvent(
+              pointer: pointer,
+              position: next,
+              delta: next - previous,
+              kind: PointerDeviceKind.mouse,
+              buttons: kPrimaryButton,
+            ),
+          );
+          previous = next;
+        }
+        GestureBinding.instance.handlePointerEvent(
+          PointerUpEvent(
+            pointer: pointer,
+            position: previous,
+            kind: PointerDeviceKind.mouse,
+          ),
+        );
+      case HarnessPointerAction.hover:
+        GestureBinding.instance.handlePointerEvent(
+          PointerHoverEvent(
+            pointer: pointer,
+            position: position,
+            kind: PointerDeviceKind.mouse,
+          ),
+        );
+      case HarnessPointerAction.scroll:
+        GestureBinding.instance.handlePointerEvent(
+          PointerScrollEvent(
+            device: pointer,
+            position: position,
+            scrollDelta: delta,
+            kind: PointerDeviceKind.mouse,
+          ),
+        );
+    }
+  }
+
   static bool _hitPathContains(HitTestResult hitTest, RenderObject target) {
     for (final entry in hitTest.path) {
       if (entry.target is! RenderObject) continue;
@@ -192,6 +333,23 @@ class HarnessInspector {
     }
     return false;
   }
+}
+
+Map<String, Object?> _mediaState(Element? root) {
+  final media = root == null ? null : MediaQuery.maybeOf(root);
+  final overrides = harnessMediaOverrides.value;
+  return {
+    if (media != null) ...{
+      'textScale': media.textScaler.scale(1),
+      'reduceMotion': media.disableAnimations,
+      'brightness': media.platformBrightness.name,
+    },
+    'overrides': {
+      'textScale': overrides.textScale,
+      'reduceMotion': overrides.reduceMotion,
+      'brightness': overrides.brightness?.name,
+    },
+  };
 }
 
 Brightness? _findBrightness(Element root) {
@@ -273,6 +431,18 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
   developer.registerExtension('ext.piframe.tap', (method, params) async {
     return _dispatchPointer(params, kind: _PointerAction.tap);
   });
+  developer.registerExtension('ext.piframe.tapAt', (method, params) async {
+    return _dispatchPointer(params, kind: _PointerAction.tapAt);
+  });
+  developer.registerExtension('ext.piframe.rightClick', (method, params) async {
+    return _dispatchPointer(params, kind: _PointerAction.rightClick);
+  });
+  developer.registerExtension('ext.piframe.doubleTap', (method, params) async {
+    return _dispatchPointer(params, kind: _PointerAction.doubleTap);
+  });
+  developer.registerExtension('ext.piframe.drag', (method, params) async {
+    return _dispatchPointer(params, kind: _PointerAction.drag);
+  });
   developer.registerExtension('ext.piframe.longPress', (method, params) async {
     return _dispatchPointer(params, kind: _PointerAction.longPress);
   });
@@ -281,6 +451,57 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
   });
   developer.registerExtension('ext.piframe.scroll', (method, params) async {
     return _dispatchPointer(params, kind: _PointerAction.scroll);
+  });
+
+  developer.registerExtension('ext.piframe.media', (method, params) async {
+    if (!isHarnessMode) {
+      return _result({
+        'ok': false,
+        'error': 'Media overrides require harness mode',
+      });
+    }
+    final textScale = params['textScale'] == null
+        ? null
+        : double.tryParse(params['textScale']!);
+    final reduceMotion = params['reduceMotion'] == null
+        ? null
+        : switch (params['reduceMotion']) {
+            'on' => true,
+            'off' => false,
+            _ => null,
+          };
+    final brightness = switch (params['brightness']) {
+      'light' => Brightness.light,
+      'dark' => Brightness.dark,
+      null => null,
+      _ => null,
+    };
+    if (params['textScale'] != null &&
+        (textScale == null || !textScale.isFinite || textScale <= 0)) {
+      return _result({
+        'ok': false,
+        'error': 'textScale must be a positive number',
+      });
+    }
+    if (params['reduceMotion'] != null && reduceMotion == null) {
+      return _result({'ok': false, 'error': 'reduceMotion must be on or off'});
+    }
+    if (params['brightness'] != null && brightness == null) {
+      return _result({
+        'ok': false,
+        'error': 'brightness must be light or dark',
+      });
+    }
+    setHarnessMediaOverrides(
+      textScale: textScale,
+      reduceMotion: reduceMotion,
+      brightness: brightness,
+      reset: _isTrue(params['reset']),
+    );
+    return _result({
+      'ok': true,
+      'media': _mediaState(WidgetsBinding.instance.rootElement),
+    });
   });
 
   developer.registerExtension('ext.piframe.enterText', (method, params) async {
@@ -407,13 +628,15 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       if (root == null) {
         return _result({'ok': false, 'error': 'Widget tree is not ready'});
       }
-      final maxDepth = int.tryParse(params['maxDepth'] ?? '') ?? 200;
-      final entries = HarnessInspector.serializeTree(
+      final maxDepth = int.tryParse(params['maxDepth'] ?? '') ?? 500;
+      final maxEntries = int.tryParse(params['maxEntries'] ?? '') ?? 500;
+      final tree = HarnessInspector.serializeTreeResult(
         root,
         maxDepth: maxDepth.clamp(0, 500),
+        maxEntries: maxEntries.clamp(0, 5000),
         filter: params['filter'],
       );
-      return _result({'ok': true, 'widgets': entries});
+      return _result({'ok': true, ...tree});
     } catch (error) {
       return _result({'ok': false, 'error': '$error'});
     }
@@ -437,6 +660,7 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
           'devicePixelRatio': view.devicePixelRatio,
         },
         if (brightness != null) 'brightness': brightness.name,
+        'media': _mediaState(root),
         'focusedWidget': focusedWidget == null
             ? null
             : {
@@ -456,98 +680,86 @@ Future<developer.ServiceExtensionResponse> _dispatchPointer(
   required _PointerAction kind,
 }) async {
   try {
-    final selector = _selector(params);
-    if (selector == null) {
-      return _result({'ok': false, 'error': 'Pass key or text'});
-    }
     final root = WidgetsBinding.instance.rootElement;
     if (root == null) {
       return _result({'ok': false, 'error': 'Widget tree is not ready'});
     }
-    final element = HarnessInspector.findTarget(
-      root,
-      key: selector.key,
-      text: selector.text,
-      index: selector.index,
+    Element? element;
+    Offset position;
+    if (kind == _PointerAction.tapAt) {
+      final x = double.tryParse(params['x'] ?? '');
+      final y = double.tryParse(params['y'] ?? '');
+      if (x == null || y == null || !x.isFinite || !y.isFinite) {
+        return _result({
+          'ok': false,
+          'error': 'tapAt requires numeric x and y',
+        });
+      }
+      position = Offset(x, y);
+    } else {
+      final selector = _selector(params);
+      if (selector == null) {
+        return _result({'ok': false, 'error': 'Pass key or text'});
+      }
+      element = HarnessInspector.findTarget(
+        root,
+        key: selector.key,
+        text: selector.text,
+        index: selector.index,
+      );
+      if (element == null) {
+        return _result({'ok': false, 'error': 'Target not found'});
+      }
+      final renderObject = element.findRenderObject();
+      if (renderObject is! RenderBox ||
+          !renderObject.attached ||
+          !renderObject.hasSize) {
+        return _result({'ok': false, 'error': 'Target has no visible bounds'});
+      }
+      position = renderObject.localToGlobal(
+        renderObject.size.center(Offset.zero),
+      );
+    }
+    final covered = element != null && HarnessInspector.isCovered(element);
+    var delta = Offset.zero;
+    if (kind == _PointerAction.drag || kind == _PointerAction.scroll) {
+      final dx = double.tryParse(params['dx'] ?? '');
+      final dy = double.tryParse(params['dy'] ?? '');
+      if (dx == null || dy == null || !dx.isFinite || !dy.isFinite) {
+        return _result({
+          'ok': false,
+          'error': '${kind.name} requires numeric dx and dy',
+        });
+      }
+      delta = Offset(dx, dy);
+    }
+    await HarnessInspector.dispatchPointer(
+      position,
+      kind: HarnessPointerAction.values.byName(kind.name),
+      delta: delta,
     );
-    if (element == null) {
-      return _result({'ok': false, 'error': 'Target not found'});
-    }
-    final renderObject = element.findRenderObject();
-    if (renderObject is! RenderBox ||
-        !renderObject.attached ||
-        !renderObject.hasSize) {
-      return _result({'ok': false, 'error': 'Target has no visible bounds'});
-    }
-    final position = renderObject.localToGlobal(
-      renderObject.size.center(Offset.zero),
-    );
-    final pointer = _nextPointer++;
-    final covered = HarnessInspector.isCovered(element);
-    switch (kind) {
-      case _PointerAction.tap:
-        GestureBinding.instance.handlePointerEvent(
-          PointerDownEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.touch,
-            buttons: kPrimaryButton,
-          ),
-        );
-        GestureBinding.instance.handlePointerEvent(
-          PointerUpEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.touch,
-          ),
-        );
-      case _PointerAction.longPress:
-        GestureBinding.instance.handlePointerEvent(
-          PointerDownEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.touch,
-            buttons: kPrimaryButton,
-          ),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 600));
-        GestureBinding.instance.handlePointerEvent(
-          PointerUpEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.touch,
-          ),
-        );
-      case _PointerAction.hover:
-        GestureBinding.instance.handlePointerEvent(
-          PointerHoverEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.mouse,
-          ),
-        );
-      case _PointerAction.scroll:
-        final dx = double.tryParse(params['dx'] ?? '');
-        final dy = double.tryParse(params['dy'] ?? '');
-        if (dx == null || dy == null || !dx.isFinite || !dy.isFinite) {
-          return _result({
-            'ok': false,
-            'error': 'scroll requires numeric dx and dy',
-          });
-        }
-        GestureBinding.instance.handlePointerEvent(
-          PointerScrollEvent(
-            device: pointer,
-            position: position,
-            scrollDelta: Offset(dx, dy),
-            kind: PointerDeviceKind.mouse,
-          ),
-        );
-    }
     return _result({'ok': true, 'covered': covered});
   } catch (error) {
     return _result({'ok': false, 'error': '$error'});
   }
+}
+
+void _sendTouchTap(int pointer, Offset position) {
+  GestureBinding.instance.handlePointerEvent(
+    PointerDownEvent(
+      pointer: pointer,
+      position: position,
+      kind: PointerDeviceKind.touch,
+      buttons: kPrimaryButton,
+    ),
+  );
+  GestureBinding.instance.handlePointerEvent(
+    PointerUpEvent(
+      pointer: pointer,
+      position: position,
+      kind: PointerDeviceKind.touch,
+    ),
+  );
 }
 
 EditableTextState? _focusedEditableState(Element root) {
@@ -664,7 +876,27 @@ void _sendKeyData(
 developer.ServiceExtensionResponse _result(Map<String, Object?> value) =>
     developer.ServiceExtensionResponse.result(jsonEncode(value));
 
-enum _PointerAction { tap, longPress, hover, scroll }
+enum HarnessPointerAction {
+  tap,
+  tapAt,
+  rightClick,
+  doubleTap,
+  drag,
+  longPress,
+  hover,
+  scroll,
+}
+
+enum _PointerAction {
+  tap,
+  tapAt,
+  rightClick,
+  doubleTap,
+  drag,
+  longPress,
+  hover,
+  scroll,
+}
 
 class _HarnessSelector {
   const _HarnessSelector({this.key, this.text, required this.index});

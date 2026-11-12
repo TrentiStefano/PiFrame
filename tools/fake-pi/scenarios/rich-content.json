@@ -1,0 +1,125 @@
+{
+  "name": "rich-content",
+  "description": "Markdown, fenced code, links, path mention and a valid tiny PNG image block.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "# Offline review\n\nA **small** project update with `inline code`.\n\n- First item\n- Second item\n\n1. Inspect the code\n2. Run the tests\n\n| Check | Result |\n| --- | --- |\n| Build | Ready |\n\n> Keep the change focused.\n\nSee [the notes](https://example.invalid/notes) and `notes.md:3`.\n\n```dart\nclass Feature {}\n```\n\n```diff\n-Status: draft\n+Status: reviewed\n```"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "# Offline review\n\nA **small** project update with `inline code`.\n\n- First item\n- Second item\n\n1. Inspect the code\n2. Run the tests\n\n| Check | Result |\n| --- | --- |\n| Build | Ready |\n\n> Keep the change focused.\n\nSee [the notes](https://example.invalid/notes) and `notes.md:3`.\n\n```dart\nclass Feature {}\n```\n\n```diff\n-Status: draft\n+Status: reviewed\n```"
+            },
+            {
+              "type": "image",
+              "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l2sAAAAASUVORK5CYII=",
+              "mimeType": "image/png"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Here is the requested content overview."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Here is the requested content overview."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

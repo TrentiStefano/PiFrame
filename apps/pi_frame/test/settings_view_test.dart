@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame/features/settings/settings_view.dart';
@@ -1087,10 +1088,40 @@ void main() {
     final switchWidget = tester.widget<SwitchListTile>(autoCollapseFinder);
     expect(switchWidget.value, isTrue); // default is true
 
+    await tester.ensureVisible(autoCollapseFinder);
+    await tester.pumpAndSettle();
     await tester.tap(autoCollapseFinder);
     await tester.pumpAndSettle();
 
     final updatedSwitch = tester.widget<SwitchListTile>(autoCollapseFinder);
     expect(updatedSwitch.value, isFalse);
   });
+
+  testWidgets(
+    'SettingsView exposes an accessible back action and Escape closes it',
+    (tester) async {
+      var closed = false;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+            home: Scaffold(body: SettingsView(onClose: () => closed = true)),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final backButton = find.byKey(const ValueKey('settings-back-button'));
+      expect(backButton, findsOneWidget);
+      expect(
+        tester.widget<IconButton>(backButton).tooltip,
+        'Torna all\'area di lavoro',
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      expect(closed, isTrue);
+    },
+  );
 }
