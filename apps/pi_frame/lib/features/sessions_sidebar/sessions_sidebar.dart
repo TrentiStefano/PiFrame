@@ -1112,7 +1112,7 @@ class _WorkingDotState extends State<_WorkingDot>
     final lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
     final isTest =
         WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    if (!isTest && !lite) {
+    if (!isTest && !lite && !MediaQuery.disableAnimationsOf(context)) {
       if (!_controller.isAnimating) _controller.repeat(reverse: true);
     } else {
       _controller.stop();

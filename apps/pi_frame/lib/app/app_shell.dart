@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -339,9 +340,13 @@ class _AppShellState extends ConsumerState<AppShell>
                         top: 0,
                         right: 0,
                         bottom: 0,
-                        child: SidePanel(
-                          key: ValueKey('side_panel_$activeId'),
-                          sessionId: activeId,
+                        child: FrameEnter(
+                          horizontal: true,
+                          offset: 24,
+                          child: SidePanel(
+                            key: ValueKey('side_panel_$activeId'),
+                            sessionId: activeId,
+                          ),
                         ),
                       ),
                     ],
@@ -1231,7 +1236,10 @@ class _AppShellState extends ConsumerState<AppShell>
                       .round()
                       .clamp(1, 100)
                       .toInt(),
-                  child: _paneCard(panes[index], contents[panes[index]]!),
+                  child: FrameEnter(
+                    key: ValueKey('pane-enter-${panes[index]}'),
+                    child: _paneCard(panes[index], contents[panes[index]]!),
+                  ),
                 ),
               if (index < panes.length - 1)
                 MouseRegion(

@@ -475,7 +475,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
   Widget build(BuildContext context) {
     final nodes = _nodes();
     final anyRunning = nodes.any((n) => n.isRunning);
-    if (anyRunning && !_isTestBinding) {
+    if (anyRunning && !_isTestBinding && !MediaQuery.disableAnimationsOf(context)) {
       if (!_pulse.isAnimating) _pulse.repeat();
     } else if (_pulse.isAnimating) {
       _pulse.stop();

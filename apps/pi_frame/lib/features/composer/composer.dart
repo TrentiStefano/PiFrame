@@ -36,6 +36,7 @@ import '../workspace/repository_workspace.dart';
 import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../context_panel/context_window_selector.dart';
 import '../side/side_provider.dart';
 
@@ -51,11 +52,11 @@ class _ComposerSizeAnimator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // While a pane divider is dragged the composer follows it directly; AnimatedSize would
-    // tween its size and trail the divider. Minimize/expand keeps the 280 ms height tween.
+    // tween its size and trail the divider. Minimize/expand uses a 240 ms ease-out tween.
     if (ref.watch(paneDraggingProvider)) return child;
     return AnimatedSize(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeInOutCubic,
+      duration: FrameMotion.panel,
+      curve: FrameMotion.enterCurve,
       alignment: Alignment.bottomCenter,
       child: child,
     );

@@ -307,6 +307,53 @@ void main() {
     expect(_group(state.entries).whereType<StepsGroupBlock>().single.failed, isTrue);
   });
 
+  group('provider error before any reply', () {
+    const errorMessage = {
+      'id': 'a1',
+      'role': 'assistant',
+      'content': <Map>[],
+      'stopReason': 'error',
+      'errorMessage': '429 rate limit',
+    };
+
+    test('live: marks the user message failed', () {
+      var state = const SessionState(
+        sessionId: 's1',
+        cwd: '/test',
+        entries: [
+          SessionEntry(id: 'u1', role: 'user', text: 'Go', timestamp: 1000),
+        ],
+      );
+      state = reduceSessionState(
+        state,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e1',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 1,
+          payload: {'message': errorMessage},
+        ),
+      );
+      expect(state.entries, hasLength(1));
+      expect(state.entries.single.metadata?['sendError'], '429 rate limit');
+    });
+
+    test('snapshot: marks the user message failed', () {
+      final entries = parseSessionEntries([_user('Go'), errorMessage]);
+      expect(entries, hasLength(1));
+      expect(entries.single.metadata?['sendError'], '429 rate limit');
+    });
+
+    test('aborted empty message does not mark the user message failed', () {
+      final entries = parseSessionEntries([
+        _user('Go'),
+        {...errorMessage, 'stopReason': 'aborted'},
+      ]);
+      expect(entries.single.metadata?['sendError'], isNull);
+    });
+  });
+
   group('header label', () {
     Future<void> pumpHeader(WidgetTester tester, StepsGroupBlock block) {
       return tester.pumpWidget(

@@ -898,3 +898,14 @@ Il risultato del sottoagente conteneva un blocco di codice (```` ``` ````). La c
 
 ### Risoluzione
 La chat riconosce ora le notifiche prima dei blocchi di codice. Il risultato, compreso il blocco di codice, appare nella card della notifica. Aggiorna PiFrame per ricevere la correzione.
+
+## Errore del provider prima della risposta: il messaggio resta senza risposta e senza errore
+
+### Sintomi
+Dopo l'invio di un messaggio, il messaggio compare nella chat, lo stato torna a «Completato» e non arriva nessuna risposta né alcun errore. Il messaggio non è segnalato come fallito e non c'è un pulsante «Riprova».
+
+### Causa
+Quando il provider rifiuta la richiesta (per esempio limite di frequenza, autenticazione scaduta, modello non disponibile o contesto troppo lungo), Pi chiude il turno con un messaggio assistente vuoto che riporta `stopReason: error` e `errorMessage`. PiFrame registrava il motivo solo su un messaggio assistente precedente. Se non ne esisteva uno, il motivo andava perso.
+
+### Risoluzione
+Il motivo dell'errore viene ora registrato sul messaggio dell'utente, che appare con il bordo di errore, il testo «Invio non riuscito: …» e il pulsante «Riprova invio». Se la risposta è iniziata e poi si è interrotta, il testo «Risposta interrotta da un errore: …» compare sotto il messaggio assistente. Una richiesta interrotta dall'utente non viene segnalata come errore. Aggiorna PiFrame per ricevere la correzione.

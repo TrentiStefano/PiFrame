@@ -235,6 +235,8 @@ extension TranscriptStrings on AppStrings {
       isItalian ? 'Riparti da qui' : 'Restart from here';
   String transcriptSendFailed(String err) =>
       isItalian ? 'Invio non riuscito: $err' : 'Send failed: $err';
+  String transcriptTurnFailed(String err) =>
+      isItalian ? 'Risposta interrotta da un errore: $err' : 'Reply stopped by an error: $err';
   String get transcriptRetrySend => isItalian ? 'Riprova invio' : 'Retry send';
   String get transcriptAssistant => isItalian ? 'Assistente' : 'Assistant';
   String get transcriptCopyMessage =>

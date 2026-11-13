@@ -10,6 +10,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../transcript/task_notification_card.dart';
 
 class ParsedToolOutput {
@@ -540,7 +541,12 @@ class _ToolCardState extends State<ToolCard> {
             ),
 
             // Output / command body (if expanded)
-            if (canExpand && _isExpanded) ...[
+            FrameExpandable(
+              expanded: canExpand && _isExpanded,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               Divider(color: tokens.border, height: 1),
 
               // Full bash / terminal command section
@@ -762,7 +768,9 @@ class _ToolCardState extends State<ToolCard> {
                   },
                 ),
               ],
-            ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

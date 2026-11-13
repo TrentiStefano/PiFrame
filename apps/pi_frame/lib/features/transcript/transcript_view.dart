@@ -2963,6 +2963,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ],
               ),
             ),
+          if (entry.metadata?['stopReason'] == 'error' &&
+              (entry.metadata?['errorMessage']?.toString() ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _currentStrings.transcriptTurnFailed(
+                  entry.metadata!['errorMessage'].toString(),
+                ),
+                key: ValueKey('turn-error-${entry.id}'),
+                style: TextStyle(color: tokens.danger, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );

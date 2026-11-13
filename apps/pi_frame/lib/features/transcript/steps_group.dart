@@ -16,6 +16,7 @@ import '../../domain/session/transcript_grouping.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../tool_timeline/tool_card.dart';
 import 'rich_content.dart';
 import 'step_group_expansion.dart';
@@ -886,13 +887,15 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
           ),
 
           // Expanded detail: Input & Output with Show all / Show less toggle
-          if (isExpanded)
-            _ToolStepExpandedView(
+          FrameExpandable(
+            expanded: isExpanded,
+            child: _ToolStepExpandedView(
               key: ValueKey('tool_step_expanded_${step.id}'),
               step: step,
               tokens: tokens,
               strings: strings,
             ),
+          ),
         ],
       ),
     );

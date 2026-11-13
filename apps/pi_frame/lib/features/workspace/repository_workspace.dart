@@ -16,6 +16,7 @@ import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
 import '../transcript/rich_content.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../browser/browser_controller.dart';
 import '../browser/browser_models.dart';
 import '../../data/language/language_settings.dart';
@@ -2556,7 +2557,35 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     );
   }
 
+  /// Each row fades in where it appears, so a file moving between Staged and Changes is visible.
   Widget _buildGitFileRow({
+    required Map<String, dynamic> file,
+    required bool isStaged,
+    required bool hasUnstagedEdit,
+    required FrameTokens tokens,
+    required Set<String> piTouchedPaths,
+    required Set<String> manualSavedPaths,
+    required bool blocked,
+    required AppStrings strings,
+  }) {
+    return FrameEnter(
+      key: ValueKey('git-row-${isStaged ? 'staged' : 'unstaged'}-${file['path']}'),
+      offset: 4,
+      duration: FrameMotion.small,
+      child: _gitFileRowBody(
+        file: file,
+        isStaged: isStaged,
+        hasUnstagedEdit: hasUnstagedEdit,
+        tokens: tokens,
+        piTouchedPaths: piTouchedPaths,
+        manualSavedPaths: manualSavedPaths,
+        blocked: blocked,
+        strings: strings,
+      ),
+    );
+  }
+
+  Widget _gitFileRowBody({
     required Map<String, dynamic> file,
     required bool isStaged,
     required bool hasUnstagedEdit,
