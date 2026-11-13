@@ -30,8 +30,20 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 
 let daemon;
 async function startDaemon() {
+  const piAgentDir = path.join(home, 'pi-agent');
+  const sessionsDir = path.join(piAgentDir, 'sessions');
+  fs.mkdirSync(sessionsDir, { recursive: true });
   daemon = spawn('node', [`${REPO}/apps/agentd/dist/pi-agentd.cjs`], {
-    env: { ...process.env, PI_FRAME_HOME: home, PI_FRAME_WEB_DIR: `${REPO}/apps/pi_frame/build/web` }, stdio: ['ignore', 'pipe', 'pipe']
+    env: {
+      ...process.env,
+      PI_FRAME_HOME: home,
+      PI_FRAME_WEB_DIR: `${REPO}/apps/pi_frame/build/web`,
+      PI_CODING_AGENT_DIR: piAgentDir,
+      PI_CODING_AGENT_SESSION_DIR: sessionsDir,
+      HOME: home,
+      USERPROFILE: home,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
   daemon.stdout.on('data', d => process.env.PF_LOG && process.stdout.write('[d] ' + d));
   daemon.stderr.on('data', d => process.stdout.write('[d!] ' + d));
@@ -79,7 +91,17 @@ proxy.on('connect', (req, sock, head) => {
 });
 proxy.listen(PROXY_PORT);
 
-const iphone = devices['iPhone 12'];
+const deviceName = process.env.PF_E2E_DEVICE || 'iPhone 12';
+// Playwright has no iPhone 18 profile yet; its 18 Pro screen matches the 17 Pro descriptor.
+const deviceProfile = deviceName === 'iPhone 18 Pro' ? devices['iPhone 17 Pro'] : devices[deviceName];
+if (!deviceProfile) throw new Error(`Unknown Playwright device profile: ${deviceName}`);
+const fullScreenViewport = process.env.PF_E2E_FULL_SCREEN === '1';
+const iphone = {
+  ...deviceProfile,
+  viewport: fullScreenViewport ? { ...deviceProfile.screen } : { ...deviceProfile.viewport },
+  isMobile: fullScreenViewport ? false : deviceProfile.isMobile,
+};
+console.log(`Device profile: ${deviceName} (${iphone.viewport.width}x${iphone.viewport.height} CSS, DPR ${iphone.deviceScaleFactor}, ${fullScreenViewport ? 'full-screen viewport' : 'browser viewport'})`);
 const engine = process.env.ENGINE === 'chromium' ? chromium : webkit;
 const browser = await engine.launch({ proxy: { server: `http://127.0.0.1:${PROXY_PORT}` } });
 const outDir = path.resolve(process.env.PF_E2E_SHOTS || path.join(HERE, 'shots')); fs.mkdirSync(outDir, { recursive: true });
