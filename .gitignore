@@ -54,7 +54,11 @@ test-results/
 blob-report/
 .impeccable/
 **/.impeccable/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/piframe-ui-harness/
+!.agents/skills/piframe-ui-preview/
 
 # ==============================================================================
 # Flutter & Dart
