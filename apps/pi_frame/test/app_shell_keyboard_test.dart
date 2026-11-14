@@ -221,6 +221,36 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the end drawer has no shell heading and closes on Escape or a scrim tap',
+    (tester) async {
+      final container = _container();
+      addTearDown(container.dispose);
+      await pumpShell(tester, container);
+
+      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+      // The shell no longer draws its own "Area di lavoro" heading or close button.
+      expect(find.text('Area di lavoro'), findsNothing);
+      expect(find.byTooltip('Chiudi workspace'), findsNothing);
+
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+
+      // A tap on the scrim, left of the drawer, closes it.
+      await tester.tapAt(const Offset(100, 500));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Escape closes Settings', (tester) async {
     final container = _container();
     addTearDown(container.dispose);

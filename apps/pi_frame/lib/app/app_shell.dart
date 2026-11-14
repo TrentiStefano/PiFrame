@@ -889,35 +889,12 @@ class _AppShellState extends ConsumerState<AppShell>
             ? null
             : Drawer(
                 width: width < 420 ? width - 24 : 320,
+                // The panel draws its own heading. Escape and a tap on the scrim close it
+                // (plan task 6.3), so the shell adds no heading or close button here.
                 child: SafeArea(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                strings.workspaceTitle,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: strings.closeWorkspaceTooltip,
-                              icon: const Icon(Icons.close),
-                              onPressed: () =>
-                                  _scaffoldKey.currentState?.closeEndDrawer(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ContextPanel(
-                          key: ValueKey('drawer-context_$activeId'),
-                          sessionId: activeId,
-                        ),
-                      ),
-                    ],
+                  child: ContextPanel(
+                    key: ValueKey('drawer-context_$activeId'),
+                    sessionId: activeId,
                   ),
                 ),
               ),

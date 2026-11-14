@@ -339,9 +339,8 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
       await tester.pumpAndSettle();
-      if (size.width < 1280) {
-        expect(find.text('Area di lavoro'), findsOneWidget);
-      }
+      // The shell draws no heading of its own above the drawer (task 5.4 follow-up).
+      expect(find.text('Area di lavoro'), findsNothing);
       // The title bar button is labelled "Sessione" too, so check the drawer state.
       expect(
         tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
@@ -350,8 +349,12 @@ void main() {
       expect(find.textContaining('File Modificati'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-workspace');
-      await tester.tap(find.byTooltip('Chiudi workspace'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
+      expect(
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
+        isFalse,
+      );
 
       await tester.tap(find.byTooltip('Impostazioni (Ctrl / Cmd + ,)'));
       await tester.pumpAndSettle();
