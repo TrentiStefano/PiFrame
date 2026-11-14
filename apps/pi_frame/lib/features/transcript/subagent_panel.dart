@@ -26,6 +26,9 @@ const double kAgentSidecarOpenWidth = 366;
 /// chat narrower than this, the panel floats over the chat instead of squeezing it.
 const double kChatPaneMinWidth = 420;
 
+/// Largest share of the chat pane height that the overlay sheet covers.
+const double kAgentSheetMaxHeightFraction = 0.6;
+
 /// Places the Agents sidecar beside the chat pane. Wide: a sibling column.
 /// Narrow with the panel open: an overlay sheet inside the chat pane.
 class AgentSidecarLayout extends ConsumerWidget {
@@ -57,11 +60,22 @@ class AgentSidecarLayout extends ConsumerWidget {
         final floats =
             constraints.maxWidth - kAgentSidecarOpenWidth < kChatPaneMinWidth;
         if (!floats) return row();
+        // The sheet stops above the composer, which sits at the bottom of the chat,
+        // so the send controls stay reachable while the sheet is open.
         return Stack(
           fit: StackFit.expand,
           children: [
             chat,
-            Positioned(top: 0, bottom: 0, right: 0, child: sidecar),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * kAgentSheetMaxHeightFraction,
+                ),
+                child: sidecar,
+              ),
+            ),
           ],
         );
       },
