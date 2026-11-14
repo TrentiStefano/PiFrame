@@ -3,6 +3,14 @@ import '../../domain/update/update_models.dart';
 import 'language_settings.dart';
 
 extension SettingsStrings on AppStrings {
+  // Settings: MCP servers dialog
+  String get mcpOpenConfigBtn =>
+      isItalian ? 'Apri file di configurazione' : 'Open configuration file';
+  String get mcpShowToolsTooltip =>
+      isItalian ? 'Mostra strumenti' : 'Show tools';
+  String get mcpHideToolsTooltip =>
+      isItalian ? 'Nascondi strumenti' : 'Hide tools';
+
   // ---------------------------------------------------------------------------
   // Settings: Agenti
   // ---------------------------------------------------------------------------

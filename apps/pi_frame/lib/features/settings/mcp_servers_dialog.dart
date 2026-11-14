@@ -9,7 +9,12 @@ import 'package:path/path.dart' as p;
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/frame_dialog.dart';
+import '../../ui/frame_empty_state.dart';
+import '../../ui/frame_icon_action.dart';
+import '../../ui/frame_status_tag.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../transcript/rich_content.dart';
 
 class McpServerItem {
   final String name;
@@ -59,7 +64,12 @@ class McpServerItem {
   }
 }
 
-class McpServersDialog extends StatefulWidget {
+/// The MCP servers manager: a [FrameDialog] that lists the configured
+/// servers, toggles them and shows what to do when there are none.
+///
+/// Opened from the Pi CLI section through [show]. The list and its state live
+/// in [_McpServersBody], which is the dialog body.
+class McpServersDialog extends StatelessWidget {
   final FrameTokens tokens;
   final String? projectDir;
   final List<McpServerItem>? initialServers;
@@ -80,10 +90,10 @@ class McpServersDialog extends StatefulWidget {
     List<McpServerItem>? initialServers,
     AppStrings? strings,
   }) {
-    return showDialog<void>(
+    return showFrameDialog<void>(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => McpServersDialog(
+      dialog: _buildDialog(
+        context,
         tokens: tokens,
         projectDir: projectDir,
         initialServers: initialServers,
@@ -92,11 +102,71 @@ class McpServersDialog extends StatefulWidget {
     );
   }
 
+  static FrameDialog<void> _buildDialog(
+    BuildContext context, {
+    required FrameTokens tokens,
+    String? projectDir,
+    List<McpServerItem>? initialServers,
+    AppStrings? strings,
+  }) {
+    final resolved = strings ?? _stringsFor(context);
+    return FrameDialog<void>(
+      title: resolved.mcpDialogTitle,
+      body: _McpServersBody(
+        tokens: tokens,
+        projectDir: projectDir,
+        initialServers: initialServers,
+        strings: strings,
+      ),
+      // Passive close is a text button; there is no filled primary here.
+      actions: [
+        FrameDialogAction<void>(
+          label: resolved.close,
+          role: FrameDialogActionRole.cancel,
+        ),
+      ],
+    );
+  }
+
   @override
-  State<McpServersDialog> createState() => _McpServersDialogState();
+  Widget build(BuildContext context) {
+    return _buildDialog(
+      context,
+      tokens: tokens,
+      projectDir: projectDir,
+      initialServers: initialServers,
+      strings: strings,
+    );
+  }
 }
 
-class _McpServersDialogState extends State<McpServersDialog> {
+AppStrings _stringsFor(BuildContext context) {
+  try {
+    return ProviderScope.containerOf(context, listen: false)
+        .read(appStringsProvider);
+  } catch (_) {
+    return const AppStrings(AppLanguage.it);
+  }
+}
+
+class _McpServersBody extends StatefulWidget {
+  final FrameTokens tokens;
+  final String? projectDir;
+  final List<McpServerItem>? initialServers;
+  final AppStrings? strings;
+
+  const _McpServersBody({
+    required this.tokens,
+    this.projectDir,
+    this.initialServers,
+    this.strings,
+  });
+
+  @override
+  State<_McpServersBody> createState() => _McpServersBodyState();
+}
+
+class _McpServersBodyState extends State<_McpServersBody> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
@@ -358,211 +428,134 @@ class _McpServersDialogState extends State<McpServersDialog> {
     }
   }
 
+  /// Opens the folder that holds the global MCP config, with the file selected.
+  void _openConfigFile() {
+    openInOsFileExplorer(_getGlobalMcpConfigPath());
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
     final strings = _strings;
+    final text = FrameText.of(context);
     final enabledCount = _servers.where((s) => s.enabled).length;
 
-    return Dialog(
-      backgroundColor: tokens.surfaceElevated,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusLg),
-        side: BorderSide(color: tokens.borderStrong, width: 1.2),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 650),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                    child: Icon(
-                      Icons.hub_outlined,
-                      size: 20,
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.mcpDialogTitle,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          strings.mcpDialogSubtitle,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: strings.mcpRefreshListTooltip,
-                    icon: Icon(Icons.refresh, size: 18, color: tokens.textMuted),
-                    onPressed: _isLoading ? null : _loadServers,
-                  ),
-                  IconButton(
-                    tooltip: strings.close,
-                    icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Divider(color: tokens.border, height: 1),
-              const SizedBox(height: 12),
-
-              // Content Area
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: tokens.accent,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              strings.mcpLoadingServers,
-                              style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _errorMessage != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                _errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: tokens.danger, fontSize: 13),
-                              ),
-                            ),
-                          )
-                        : _servers.isEmpty
-                            ? _buildEmptyState(tokens, strings)
-                            : ListView.separated(
-                                itemCount: _servers.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                                itemBuilder: (context, index) {
-                                  final server = _servers[index];
-                                  return _buildServerCard(tokens, server, strings);
-                                },
-                              ),
-              ),
-
-              const SizedBox(height: 12),
-              Divider(color: tokens.border, height: 1),
-              const SizedBox(height: 12),
-
-              // Footer
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _servers.isEmpty
-                        ? strings.mcpZeroServers
-                        : strings.mcpActiveServersCount(enabledCount, _servers.length),
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: tokens.accent,
-                      foregroundColor: tokens.surface,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(strings.close),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(FrameTokens tokens, AppStrings strings) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Neutral icon tile, subtitle and refresh share the top row.
+        Row(
           children: [
-            Icon(Icons.dns_outlined, size: 40, color: tokens.textMuted.withValues(alpha: 0.5)),
-            const SizedBox(height: 12),
-            Text(
-              strings.mcpEmptyTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+            Container(
+              padding: const EdgeInsets.all(FrameSpace.x2),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                border: Border.all(color: tokens.border),
+              ),
+              child: Icon(
+                Icons.hub_outlined,
+                size: FrameSize.iconLg,
+                color: tokens.textSecondary,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              strings.mcpEmptySubtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 12,
-                height: 1.4,
+            const SizedBox(width: FrameSpace.x3),
+            Expanded(
+              child: Text(
+                strings.mcpDialogSubtitle,
+                style: text.body.copyWith(color: tokens.textSecondary),
               ),
+            ),
+            FrameIconAction(
+              icon: Icons.refresh,
+              tooltip: strings.mcpRefreshListTooltip,
+              onPressed: _isLoading ? null : _loadServers,
             ),
           ],
         ),
-      ),
+        const SizedBox(height: FrameSpace.x3),
+
+        // Height follows the content, with a 240 px floor.
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 240),
+          child: _buildContent(tokens, strings),
+        ),
+
+        const SizedBox(height: FrameSpace.x3),
+        Text(
+          _servers.isEmpty
+              ? strings.mcpZeroServers
+              : strings.mcpActiveServersCount(enabledCount, _servers.length),
+          style: text.label.copyWith(color: tokens.textSecondary),
+        ),
+      ],
     );
   }
 
-  Widget _buildServerCard(FrameTokens tokens, McpServerItem server, AppStrings strings) {
+  Widget _buildContent(FrameTokens tokens, AppStrings strings) {
+    final text = FrameText.of(context);
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: FrameSize.iconLg,
+              height: FrameSize.iconLg,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: tokens.accent,
+              ),
+            ),
+            const SizedBox(height: FrameSpace.x3),
+            Text(
+              strings.mcpLoadingServers,
+              style: text.body.copyWith(color: tokens.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(FrameSpace.x4),
+          child: Text(
+            _errorMessage!,
+            textAlign: TextAlign.center,
+            style: text.body.copyWith(color: tokens.danger),
+          ),
+        ),
+      );
+    }
+    if (_servers.isEmpty) {
+      return FrameEmptyState(
+        keyPrefix: 'mcp-empty',
+        icon: Icons.dns_outlined,
+        title: strings.mcpEmptyTitle,
+        message: strings.mcpEmptySubtitle,
+        actionLabel: strings.mcpOpenConfigBtn,
+        actionIcon: Icons.open_in_new,
+        onAction: _openConfigFile,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < _servers.length; i++) ...[
+          if (i > 0) const SizedBox(height: FrameSpace.x2),
+          _buildServerCard(tokens, _servers[i], strings),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildServerCard(
+      FrameTokens tokens, McpServerItem server, AppStrings strings) {
+    final text = FrameText.of(context);
     final isToggling = _togglingServers.contains(server.name);
     final isToolsExpanded = _expandedTools.contains(server.name);
-
-    final statusColor = !server.enabled
-        ? tokens.textMuted
-        : server.state == 'connected'
-            ? tokens.success
-            : server.state == 'failed'
-                ? tokens.danger
-                : tokens.accent;
 
     final statusLabel = !server.enabled
         ? strings.mcpStatusDisabled
@@ -587,18 +580,21 @@ class _McpServersDialogState extends State<McpServersDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x3,
+              vertical: FrameSpace.x2 + FrameSpace.x1 / 2,
+            ),
             child: Row(
               children: [
                 // Checkbox to enable/disable
                 SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: FrameSize.iconLg,
+                  height: FrameSize.iconLg,
                   child: isToggling
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: Center(
+                      ? Center(
+                          child: SizedBox(
+                            width: FrameSize.icon - 2,
+                            height: FrameSize.icon - 2,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: tokens.accent,
@@ -610,7 +606,8 @@ class _McpServersDialogState extends State<McpServersDialog> {
                           value: server.enabled,
                           activeColor: tokens.accent,
                           checkColor: tokens.surface,
-                          side: BorderSide(color: tokens.borderStrong, width: 1.5),
+                          side: BorderSide(
+                              color: tokens.borderStrong, width: 1.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(tokens.radiusSm),
                           ),
@@ -621,9 +618,9 @@ class _McpServersDialogState extends State<McpServersDialog> {
                           },
                         ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: FrameSpace.x2),
 
-                // Name & Badges
+                // Name & badges
                 Expanded(
                   child: Row(
                     children: [
@@ -631,52 +628,25 @@ class _McpServersDialogState extends State<McpServersDialog> {
                         child: Text(
                           server.name,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: server.enabled ? tokens.textPrimary : tokens.textMuted,
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: 13,
+                          style: text.mono.copyWith(
+                            color: server.enabled
+                                ? tokens.textPrimary
+                                : tokens.textMuted,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-
-                      // Status Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-                        ),
-                        child: Text(
-                          statusLabel,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      const SizedBox(width: FrameSpace.x2),
+                      FrameStatusTag(
+                        label: statusLabel,
+                        tone: _statusTone(server),
                       ),
-
                       if (server.scope == 'project') ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: tokens.syntaxKeyword.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            border: Border.all(
-                              color: tokens.syntaxKeyword.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            strings.mcpScopeProject,
-                            style: TextStyle(
-                              color: tokens.syntaxKeyword,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        const SizedBox(width: FrameSpace.x2),
+                        Text(
+                          strings.mcpScopeProject,
+                          style: text.caption.copyWith(
+                            color: tokens.textSecondary,
                           ),
                         ),
                       ],
@@ -684,43 +654,51 @@ class _McpServersDialogState extends State<McpServersDialog> {
                   ),
                 ),
 
-                // Tool count chip / toggle
+                // Tool count chip, expands the tool list
                 if (server.tools.isNotEmpty)
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isToolsExpanded) {
-                          _expandedTools.remove(server.name);
-                        } else {
-                          _expandedTools.add(server.name);
-                        }
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.build_outlined, size: 12, color: tokens.syntaxFunction),
-                          const SizedBox(width: 4),
-                          Text(
-                            strings.mcpToolsCount(server.tools.length),
-                            style: TextStyle(
-                              color: tokens.syntaxFunction,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                  Tooltip(
+                    message: isToolsExpanded
+                        ? strings.mcpHideToolsTooltip
+                        : strings.mcpShowToolsTooltip,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (isToolsExpanded) {
+                            _expandedTools.remove(server.name);
+                          } else {
+                            _expandedTools.add(server.name);
+                          }
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FrameSpace.x2 - 2,
+                          vertical: FrameSpace.x1,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.build_outlined,
+                                size: FrameSize.icon, color: tokens.textSecondary),
+                            const SizedBox(width: FrameSpace.x1),
+                            Text(
+                              strings.mcpToolsCount(server.tools.length),
+                              style: text.caption.copyWith(
+                                color: tokens.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            isToolsExpanded
-                                ? Icons.keyboard_arrow_up
-                                : Icons.keyboard_arrow_down,
-                            size: 14,
-                            color: tokens.textMuted,
-                          ),
-                        ],
+                            const SizedBox(width: FrameSpace.x1 / 2),
+                            Icon(
+                              isToolsExpanded
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              size: FrameSize.icon,
+                              color: tokens.textMuted,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -731,19 +709,22 @@ class _McpServersDialogState extends State<McpServersDialog> {
           // Description if present
           if (server.description != null && server.description!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(44, 0, 12, 6),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2 - 2),
               child: Text(
                 server.description!,
-                style: TextStyle(color: tokens.textSecondary, fontSize: 11, height: 1.3),
+                style: text.caption.copyWith(color: tokens.textSecondary),
               ),
             ),
 
-          // Transport snippet
+          // Transport snippet, with a copy action
           if (server.transport.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(44, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FrameSpace.x2,
+                  vertical: FrameSpace.x1,
+                ),
                 decoration: BoxDecoration(
                   color: tokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -756,52 +737,49 @@ class _McpServersDialogState extends State<McpServersDialog> {
                         server.transport,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: text.caption.copyWith(
                           color: tokens.textMuted,
-                          fontSize: 10,
                           fontFamily: tokens.monoFontFamily,
                         ),
                       ),
                     ),
-                    Tooltip(
-                      message: strings.mcpCopyCommandTooltip,
-                      child: InkWell(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: server.transport));
-                          FrameSnackBar.show(
-                            context,
-                            message: strings.mcpCommandCopiedSnackBar,
-                            duration: const Duration(seconds: 1),
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: Icon(Icons.copy_outlined, size: 12, color: tokens.textMuted),
-                        ),
-                      ),
+                    FrameIconAction(
+                      icon: Icons.copy_outlined,
+                      tooltip: strings.mcpCopyCommandTooltip,
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: server.transport));
+                        FrameSnackBar.show(
+                          context,
+                          message: strings.mcpCommandCopiedSnackBar,
+                          duration: const Duration(seconds: 1),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
             ),
 
-          // Expandable Tools list
+          // Expandable tools list
           if (isToolsExpanded && server.tools.isNotEmpty)
             Container(
-              margin: const EdgeInsets.fromLTRB(44, 0, 12, 8),
-              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
+              padding: const EdgeInsets.all(FrameSpace.x2),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                 border: Border.all(color: tokens.border),
               ),
               child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
+                spacing: FrameSpace.x2 - 2,
+                runSpacing: FrameSpace.x1,
                 children: [
                   for (final tool in server.tools)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x2 - 2,
+                        vertical: FrameSpace.x1 / 2,
+                      ),
                       decoration: BoxDecoration(
                         color: tokens.syntaxFunction.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -811,9 +789,8 @@ class _McpServersDialogState extends State<McpServersDialog> {
                       ),
                       child: Text(
                         tool,
-                        style: TextStyle(
+                        style: text.caption.copyWith(
                           color: tokens.syntaxFunction,
-                          fontSize: 10,
                           fontFamily: tokens.monoFontFamily,
                         ),
                       ),
@@ -822,17 +799,25 @@ class _McpServersDialogState extends State<McpServersDialog> {
               ),
             ),
 
-          // Error box if present
+          // Error text if present
           if (server.error != null && server.error!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(44, 0, 12, 8),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
               child: Text(
                 server.error!,
-                style: TextStyle(color: tokens.danger, fontSize: 11),
+                style: text.caption.copyWith(color: tokens.danger),
               ),
             ),
         ],
       ),
     );
+  }
+
+  /// Maps the server state onto a status tone. Only a failure is a danger.
+  FrameStatusTone _statusTone(McpServerItem server) {
+    if (!server.enabled) return FrameStatusTone.neutral;
+    if (server.state == 'connected') return FrameStatusTone.success;
+    if (server.state == 'failed') return FrameStatusTone.danger;
+    return FrameStatusTone.info;
   }
 }
