@@ -512,6 +512,9 @@ extension WorkspaceStrings on AppStrings {
   String get browserGoTooltip =>
       isItalian ? 'Vai' : 'Go';
 
+  String get browserMoreActionsTooltip =>
+      isItalian ? 'Altre azioni' : 'More actions';
+
   String browserSearchEngineTooltip(String engine) =>
       isItalian ? 'Motore di ricerca: $engine' : 'Search engine: $engine';
 
