@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Strisce di overflow in companion, todo, card e pannello Agenti a larghezze strette
+
+**Sintomo:** con la chat stretta o il pannello Agenti aperto, la barra del browser, il pannello todo, le card delle attività, l'intestazione dell'assistente e i chip del composer mostrano strisce gialle e nere (in debug) o vengono tagliati (in release). Il chip del modello finisce sotto l'icona di espansione.
+
+**Causa:** barre e intestazioni avevano larghezze fisse o elementi non flessibili. Il pannello Agenti occupava circa 360 px e lasciava alla chat troppo poco spazio.
+
+**Correzione:** un companion (Git, file o browser) più stretto di 320 px si riduce alla propria scheda laterale, invece di comprimere la barra. Il browser stretto sposta Home e segnalibri nel menu della barra. Il pannello Agenti diventa un foglio sopra la chat quando lascerebbe la chat sotto 420 px; il foglio si ferma sopra il composer, così invio e modello restano raggiungibili. Todo, card delle attività e intestazione dell'assistente usano layout flessibili e testo che va a capo. I chip del composer riducono le etichette man mano che lo spazio diminuisce.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/overflow_widths_test.dart
+```
+
+---
+
 ## Domande con anteprime troppo alte per la finestra
 
 **Causa:** il fallback RPC di `rpiv-ask-user-question` inserisce tutte le anteprime nel titolo della richiesta. PiFrame mostrava il titolo fuori dall'area scorrevole, spingendo le risposte fuori dalla finestra.
