@@ -182,8 +182,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   Future<bool> _confirmPackageAction(
     String title,
     String message,
-    String confirmation,
-  ) async {
+    String confirmation, {
+    bool destructive = false,
+  }) async {
     final strings = ref.read(appStringsProvider);
     return await showDialog<bool>(
       context: context,
@@ -192,10 +193,17 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         content: Text(message),
         actions: [
           TextButton(
+            autofocus: destructive,
             onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(strings.cancel),
           ),
           FilledButton(
+            style: destructive
+                ? FilledButton.styleFrom(
+                    backgroundColor: dialogContext.tokens.danger,
+                    foregroundColor: dialogContext.tokens.surface,
+                  )
+                : null,
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(confirmation),
           ),
@@ -432,6 +440,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       strings.confirmPackageRemoveTitle,
       strings.confirmPackageRemoveDesc(source),
       strings.actionRemove,
+      destructive: true,
     )) {
       return;
     }

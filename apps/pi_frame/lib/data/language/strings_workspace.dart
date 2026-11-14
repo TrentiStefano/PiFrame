@@ -237,14 +237,14 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Diff non disponibile.' : 'Diff unavailable.';
 
   String get discardAllChangesTitle =>
-      isItalian ? 'Annullare tutte le modifiche?' : 'Discard all changes?';
+      isItalian ? 'Scartare le modifiche a questo file?' : 'Discard changes to this file?';
 
   String get discardAllChangesWarning => isItalian
-      ? 'L’operazione rimuove modifiche staged e unstaged.'
-      : 'This operation removes staged and unstaged changes.';
+      ? 'Le modifiche staged e unstaged di questo file verranno rimosse. L’operazione non può essere annullata.'
+      : 'The staged and unstaged changes to this file will be removed. This cannot be undone.';
 
   String get discardChangesBtn =>
-      isItalian ? 'Annulla modifiche' : 'Discard changes';
+      isItalian ? 'Scarta modifiche' : 'Discard changes';
 
   String get commitStagedFilesTitle =>
       isItalian ? 'Commit dei file staged' : 'Commit staged files';

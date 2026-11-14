@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -246,10 +247,72 @@ void main() {
 
     await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
     await tester.pumpAndSettle();
-    expect(find.text('Annullare tutte le modifiche?'), findsOneWidget);
-    await tester.tap(find.text('Annulla modifiche'));
+    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+    await tester.tap(find.text('Scarta modifiche'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'discard');
+  });
+
+  testWidgets('Git discard dialog focuses Annulla and Enter does not discard', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+    expect(
+      find.text(
+        'Le modifiche staged e unstaged di questo file verranno rimosse. '
+        'L’operazione non può essere annullata.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextButton, 'Annulla'), findsOneWidget);
+    final confirm = find.widgetWithText(FilledButton, 'Scarta modifiche');
+    expect(confirm, findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(confirm)
+          .style
+          ?.backgroundColor
+          ?.resolve(<WidgetState>{}),
+      FrameTokens.light.danger,
+    );
+
+    // Cancel holds initial focus, so Enter cancels instead of discarding.
+    final focusedButton = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<TextButton>();
+    expect(focusedButton?.key, const ValueKey('discard-file-cancel-btn'));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Scartare le modifiche a questo file?'), findsNothing);
+    expect(
+      client.gitActions.where((action) => action['action'] == 'discard'),
+      isEmpty,
+    );
   });
 
   testWidgets('Git Changes bottom bar sends fetch, pull, push and sync', (

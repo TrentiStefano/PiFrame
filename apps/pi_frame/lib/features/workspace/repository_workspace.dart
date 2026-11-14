@@ -2399,6 +2399,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    strings.discardAllChangesWarning,
+                    key: const ValueKey('discard-file-warning'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
                     '$path\n${_status?['rootPath'] ?? '—'} · ${_status?['branch'] ?? '—'}',
                   ),
                   const SizedBox(height: 8),
@@ -2410,10 +2415,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    strings.discardAllChangesWarning,
-                  ),
                 ],
               ),
             );
@@ -2421,10 +2422,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         ),
         actions: [
           TextButton(
+            key: const ValueKey('discard-file-cancel-btn'),
+            autofocus: true,
             onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(strings.cancel),
           ),
           FilledButton(
+            key: const ValueKey('discard-file-confirm-btn'),
+            style: FilledButton.styleFrom(
+              backgroundColor: dialogContext.tokens.danger,
+              foregroundColor: dialogContext.tokens.surface,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(strings.discardChangesBtn),
           ),
