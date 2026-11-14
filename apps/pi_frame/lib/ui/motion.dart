@@ -125,18 +125,82 @@ class _FrameEnterState extends State<FrameEnter>
   }
 }
 
+/// Swaps [child] for a new child with a different key, using an
+/// `AnimatedSwitcher` preset.
+///
+/// The incoming child slides in from +[slide] px on x and fades in over
+/// [enterDuration]. The outgoing child slides to -[slide] px and fades out over
+/// [exitDuration], so exits are shorter than entrances. Callers must give
+/// [child] a key that changes when the content changes.
+///
+/// Under reduced motion it cross-fades over `FrameMotion.crossFade` with no
+/// travel. [animate] false swaps at once, for keyboard-initiated changes.
+class FrameSwitcher extends StatelessWidget {
+  final Widget child;
+  final double slide;
+  final Duration enterDuration;
+  final Duration exitDuration;
+  final Curve curve;
+  final bool animate;
+
+  const FrameSwitcher({
+    super.key,
+    required this.child,
+    this.slide = 8,
+    this.enterDuration = FrameMotion.dialog,
+    this.exitDuration = FrameMotion.dialogExit,
+    this.curve = FrameMotion.enterCurve,
+    this.animate = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!animate) return child;
+    final reduced = FrameMotion.reduced(context);
+    final travel = reduced ? 0.0 : slide;
+    final currentKey = child.key;
+    return AnimatedSwitcher(
+      duration: reduced ? FrameMotion.crossFade : enterDuration,
+      reverseDuration: reduced ? FrameMotion.crossFade : exitDuration,
+      switchInCurve: curve,
+      switchOutCurve: curve,
+      transitionBuilder: (widget, animation) {
+        // The incoming child runs 0 -> 1; the outgoing one runs 1 -> 0.
+        final incoming = widget.key == currentKey;
+        return FadeTransition(
+          opacity: animation,
+          child: AnimatedBuilder(
+            animation: animation,
+            child: widget,
+            builder: (context, child) {
+              final dx = incoming
+                  ? (1 - animation.value) * travel
+                  : (animation.value - 1) * travel;
+              return Transform.translate(offset: Offset(dx, 0), child: child);
+            },
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 /// Animates the height of [child] open and closed, with a fade.
 ///
-/// Children are built only after the first expansion. Collapsing shrinks the
-/// block over [FrameMotion.small] instead of removing it in one frame.
+/// Children are built only after the first expansion. Expanding uses
+/// [FrameMotion.small]; collapsing uses the shorter [FrameMotion.smallExit].
+/// [animate] false applies the state at once, for keyboard-initiated toggles.
 class FrameExpandable extends StatefulWidget {
   final bool expanded;
   final Widget child;
+  final bool animate;
 
   const FrameExpandable({
     super.key,
     required this.expanded,
     required this.child,
+    this.animate = true,
   });
 
   @override
@@ -166,9 +230,16 @@ class _FrameExpandableState extends State<FrameExpandable>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.expanded == widget.expanded) return;
     if (widget.expanded) _everExpanded = true;
+    final target = widget.expanded ? 1.0 : 0.0;
+    if (!widget.animate) {
+      _controller.value = target;
+      return;
+    }
     final reduced = FrameMotion.reduced(context);
-    _controller.duration = reduced ? FrameMotion.crossFade : FrameMotion.small;
-    _controller.animateTo(widget.expanded ? 1 : 0);
+    _controller.duration = reduced
+        ? FrameMotion.crossFade
+        : (widget.expanded ? FrameMotion.small : FrameMotion.smallExit);
+    _controller.animateTo(target);
   }
 
   @override

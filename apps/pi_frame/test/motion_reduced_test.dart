@@ -115,6 +115,140 @@ void main() {
     });
   });
 
+  group('FrameSwitcher', () {
+    Widget switcher({
+      required bool reduced,
+      required String id,
+      bool animate = true,
+    }) {
+      return _app(
+        reduced: reduced,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: FrameSwitcher(
+            animate: animate,
+            child: SizedBox(
+              key: ValueKey(id),
+              width: 100,
+              height: 20,
+              child: Text(id),
+            ),
+          ),
+        ),
+      );
+    }
+
+    double x(WidgetTester tester, String id) =>
+        tester.getTopLeft(find.byKey(ValueKey(id))).dx;
+
+    testWidgets('slides the incoming child in from +8 px in normal motion',
+        (tester) async {
+      await tester.pumpWidget(switcher(reduced: false, id: 'a'));
+      await tester.pumpWidget(switcher(reduced: false, id: 'b'));
+      await tester.pump();
+      expect(x(tester, 'b'), closeTo(8, 0.001));
+      // The outgoing child travels to -8 px while it fades out.
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(x(tester, 'a'), lessThan(0));
+
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+    });
+
+    testWidgets('cross-fades without travel under reduced motion',
+        (tester) async {
+      await tester.pumpWidget(switcher(reduced: true, id: 'a'));
+      await tester.pumpWidget(switcher(reduced: true, id: 'b'));
+      await tester.pump();
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+      expect(x(tester, 'a'), closeTo(0, 0.001));
+
+      // The cross-fade is done within FrameMotion.crossFade (120 ms).
+      await tester.pump(FrameMotion.crossFade);
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+    });
+
+    testWidgets('animate false swaps at once in normal motion',
+        (tester) async {
+      await tester.pumpWidget(
+        switcher(reduced: false, id: 'a', animate: false),
+      );
+      await tester.pumpWidget(
+        switcher(reduced: false, id: 'b', animate: false),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+    });
+
+    testWidgets('animate false swaps at once under reduced motion',
+        (tester) async {
+      await tester.pumpWidget(
+        switcher(reduced: true, id: 'a', animate: false),
+      );
+      await tester.pumpWidget(
+        switcher(reduced: true, id: 'b', animate: false),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+      expect(x(tester, 'b'), closeTo(0, 0.001));
+    });
+  });
+
+  group('FrameExpandable timings', () {
+    Widget body({
+      required bool expanded,
+      required bool reduced,
+      bool animate = true,
+    }) =>
+        _app(
+          reduced: reduced,
+          child: FrameExpandable(
+            expanded: expanded,
+            animate: animate,
+            child: const SizedBox(key: ValueKey('body'), height: 40),
+          ),
+        );
+
+    testWidgets('collapses in the shorter smallExit duration', (tester) async {
+      await tester.pumpWidget(body(expanded: true, reduced: false));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(body(expanded: false, reduced: false));
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.byKey(const ValueKey('body')), findsOneWidget);
+      await tester.pump(FrameMotion.smallExit);
+      expect(find.byKey(const ValueKey('body')), findsNothing);
+    });
+
+    testWidgets('collapses in one cross-fade under reduced motion',
+        (tester) async {
+      await tester.pumpWidget(body(expanded: true, reduced: true));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(body(expanded: false, reduced: true));
+      await tester.pump(FrameMotion.crossFade);
+      expect(find.byKey(const ValueKey('body')), findsNothing);
+    });
+
+    testWidgets('animate false applies the state at once', (tester) async {
+      await tester.pumpWidget(body(expanded: false, reduced: false));
+      await tester.pumpWidget(
+        body(expanded: true, reduced: false, animate: false),
+      );
+      await tester.pump();
+      expect(tester.getSize(find.byKey(const ValueKey('body'))).height, 40);
+
+      await tester.pumpWidget(
+        body(expanded: false, reduced: false, animate: false),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('body')), findsNothing);
+    });
+  });
+
   group('ShimmerBorder', () {
     Widget ring({required bool reduced}) => _app(
           reduced: reduced,
