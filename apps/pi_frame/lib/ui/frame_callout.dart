@@ -57,7 +57,7 @@ class _FrameCalloutState extends State<FrameCallout> {
 
   IconData get _toneIcon => switch (widget.tone) {
         FrameCalloutTone.info => Icons.info_outline,
-        FrameCalloutTone.warning => Icons.warning_amber_rounded,
+        FrameCalloutTone.warning => Icons.warning_amber_outlined,
         FrameCalloutTone.danger => Icons.error_outline,
       };
 
@@ -121,7 +121,7 @@ class _FrameCalloutState extends State<FrameCallout> {
                     onPressed: () =>
                         setState(() => _showDetails = !_showDetails),
                     icon: Icon(
-                      _showDetails ? Icons.expand_less : Icons.expand_more,
+                      _showDetails ? Icons.expand_less_outlined : Icons.expand_more_outlined,
                       size: FrameSize.icon,
                     ),
                     label: Text(widget.strings.detailsAction),

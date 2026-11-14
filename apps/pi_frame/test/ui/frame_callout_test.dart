@@ -82,7 +82,7 @@ void main() {
   testWidgets('each tone uses its own icon', (tester) async {
     final expected = {
       FrameCalloutTone.info: Icons.info_outline,
-      FrameCalloutTone.warning: Icons.warning_amber_rounded,
+      FrameCalloutTone.warning: Icons.warning_amber_outlined,
       FrameCalloutTone.danger: Icons.error_outline,
     };
     for (final entry in expected.entries) {

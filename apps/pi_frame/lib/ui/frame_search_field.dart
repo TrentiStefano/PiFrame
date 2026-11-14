@@ -130,7 +130,7 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
                     vertical: 0,
                   ),
                   prefixIcon: Icon(
-                    Icons.search,
+                    Icons.search_outlined,
                     size: FrameSize.icon,
                     color: tokens.textMuted,
                   ),
@@ -144,7 +144,7 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
                           tooltip: widget.strings.clearSearchTooltip,
                           onPressed: _clear,
                           icon: Icon(
-                            Icons.close,
+                            Icons.close_outlined,
                             size: FrameSize.icon,
                             color: tokens.textSecondary,
                           ),

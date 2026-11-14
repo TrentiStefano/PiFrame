@@ -52,10 +52,8 @@ class FrameSnackBar {
         context,
         content: Text(
           message,
-          style: TextStyle(
+          style: FrameText.of(context).body.copyWith(
             color: context.tokens.textPrimary,
-            fontSize: 12.5,
-            fontFamily: context.tokens.uiFontFamily,
           ),
         ),
         duration: duration,
