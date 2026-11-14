@@ -488,7 +488,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Expand Git Changes Pane
-    final gitHeader = find.textContaining('GIT CHANGES');
+    final gitHeader = find.textContaining('MODIFICHE GIT');
     if (gitHeader.evaluate().isNotEmpty) {
       await tester.tap(gitHeader.first);
       await tester.pump(const Duration(milliseconds: 200));

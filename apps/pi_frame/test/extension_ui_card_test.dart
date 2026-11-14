@@ -564,6 +564,14 @@ void main() {
         find.widgetWithText(ElevatedButton, 'Invia'),
       );
       expect(send.onPressed, isNotNull);
+      // No retry action here: the user answers again with Invia.
+      expect(find.byKey(const ValueKey('extension-ui-retry')), findsNothing);
+      // The raw text is only behind Dettagli.
+      await tester.tap(
+        find.byKey(const ValueKey('extension-ui-details-toggle')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('boom'), findsOneWidget);
     },
   );
 

@@ -43,8 +43,8 @@ extension ComposerStrings on AppStrings {
           : '"$name" is larger than the 50 MB limit.';
     }
     return isItalian
-        ? 'Caricamento di "$name" non riuscito: $text'
-        : 'Upload of "$name" failed: $text';
+        ? failureText(this, 'Caricamento di "$name" non riuscito', error)
+        : failureText(this, 'Upload of "$name" failed', error);
   }
 
   String get composerChangeModelTooltip =>

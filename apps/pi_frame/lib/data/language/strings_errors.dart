@@ -71,4 +71,14 @@ extension ErrorStrings on AppStrings {
       isItalian ? 'Impossibile caricare i file' : 'Could not load files';
   String get extensionErrorTitle =>
       isItalian ? 'Risposta non inviata' : 'Response not sent';
+
+  String get remoteActionFailedTitle => isItalian
+      ? 'Operazione remota non riuscita'
+      : 'Remote action failed';
+  String remoteInstallFailedTitle(String tool) => isItalian
+      ? 'Errore durante l\'installazione di $tool'
+      : 'Error installing $tool';
+  String get remoteRenameFailedTitle => isItalian
+      ? 'Errore durante la ridenominazione'
+      : 'Error during rename';
 }

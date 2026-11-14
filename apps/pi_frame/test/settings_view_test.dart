@@ -477,8 +477,10 @@ void main() {
     'single-package update failures remain visible and recheck notices',
     (tester) async {
       final client = _PackageClient()
-        ..onUpdate = (_) async =>
-            throw StateError('installed 0.1.15, expected 1.2.0');
+        ..onUpdate = (_) async => throw PcpException(
+            'installed 0.1.15, expected 1.2.0',
+            code: 'PACKAGE_UPDATE_FAILED',
+          );
       await pumpPackages(tester, client);
       await tester.tap(find.byTooltip('Aggiorna pi-caveman'));
       await tester.pumpAndSettle();
@@ -492,9 +494,8 @@ void main() {
       final error = tester
           .widget<Text>(find.byKey(const ValueKey('pi-package-update-error')))
           .data!;
-      // Raw daemon text is not shown inline; the generic title is.
-      expect(error, contains('npm:pi-caveman: Operazione non riuscita'));
-      expect(error, isNot(contains('installed 0.1.15')));
+      // The daemon's reason text is a protocol message and is shown inline.
+      expect(error, contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'));
       expect(client.updateChecks, 1);
       expect(client.listRequests, 2);
     },

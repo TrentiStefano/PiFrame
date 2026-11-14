@@ -14,7 +14,8 @@ extension WorkspaceStrings on AppStrings {
       ? '\r\n[Processo terminato con codice $code]\r\n'
       : '\r\n[Process terminated with exit code $code]\r\n';
 
-  String terminalCannotStartProcess(String executable, Object error) => isItalian
+  String terminalCannotStartProcess(String executable, Object error) =>
+      isItalian
       ? 'Impossibile avviare il processo della shell ($executable): $error\r\n'
       : 'Cannot start shell process ($executable): $error\r\n';
 
@@ -31,13 +32,11 @@ extension WorkspaceStrings on AppStrings {
       ? 'Nuovo terminale WSL ($distro)'
       : 'New WSL terminal ($distro)';
 
-  String get terminalNewPowerShellTab => isItalian
-      ? 'Nuovo terminale (PowerShell)'
-      : 'New terminal (PowerShell)';
+  String get terminalNewPowerShellTab =>
+      isItalian ? 'Nuovo terminale (PowerShell)' : 'New terminal (PowerShell)';
 
-  String get terminalInterruptTooltip => isItalian
-      ? 'Interrompi processo (Ctrl+C)'
-      : 'Stop process (Ctrl+C)';
+  String get terminalInterruptTooltip =>
+      isItalian ? 'Interrompi processo (Ctrl+C)' : 'Stop process (Ctrl+C)';
 
   String get terminalClearTooltip =>
       isItalian ? 'Pulisci schermo' : 'Clear screen';
@@ -87,8 +86,7 @@ extension WorkspaceStrings on AppStrings {
       ? '$path è cambiato su disco. Il testo locale resta intatto.'
       : '$path has changed on disk. Local text remains intact.';
 
-  String get keepChanges =>
-      isItalian ? 'Mantieni modifiche' : 'Keep changes';
+  String get keepChanges => isItalian ? 'Mantieni modifiche' : 'Keep changes';
 
   String get reloadFromDisk =>
       isItalian ? 'Ricarica disco' : 'Reload from disk';
@@ -106,8 +104,7 @@ extension WorkspaceStrings on AppStrings {
   String get noFilesAvailable =>
       isItalian ? 'Nessun file disponibile.' : 'No files available.';
 
-  String get searchFilesHint =>
-      isItalian ? 'Cerca file...' : 'Search files...';
+  String get searchFilesHint => isItalian ? 'Cerca file...' : 'Search files...';
 
   String get clearSearchTooltip =>
       isItalian ? 'Cancella ricerca' : 'Clear search';
@@ -116,41 +113,33 @@ extension WorkspaceStrings on AppStrings {
       ? 'Nessun file trovato per "$query"'
       : 'No files found for "$query"';
 
-  String addedFileToChat(String path) => isItalian
-      ? 'Aggiunto @$path alla chat'
-      : 'Added @$path to chat';
+  String addedFileToChat(String path) =>
+      isItalian ? 'Aggiunto @$path alla chat' : 'Added @$path to chat';
 
-  String get selectAFile =>
-      isItalian ? 'Seleziona un file' : 'Select a file';
+  String get selectAFile => isItalian ? 'Seleziona un file' : 'Select a file';
 
   String get backToFilesTooltip =>
       isItalian ? 'Torna ai file' : 'Back to files';
 
-  String get modifiedBadge =>
-      isItalian ? 'MODIFICATO' : 'MODIFIED';
+  String get modifiedBadge => isItalian ? 'MODIFICATO' : 'MODIFIED';
 
   String get addFileToChatTooltip =>
       isItalian ? 'Aggiungi file alla chat' : 'Add file to chat';
 
-  String get editMarkdownSourceTooltip => isItalian
-      ? 'Modifica markdown sorgente'
-      : 'Edit markdown source';
+  String get editMarkdownSourceTooltip =>
+      isItalian ? 'Modifica markdown sorgente' : 'Edit markdown source';
 
-  String get viewMarkdownPreviewTooltip => isItalian
-      ? 'Visualizza anteprima formattata'
-      : 'View formatted preview';
+  String get viewMarkdownPreviewTooltip =>
+      isItalian ? 'Visualizza anteprima formattata' : 'View formatted preview';
 
   String get searchInFileTooltip =>
       isItalian ? 'Cerca nel file (Ctrl+F)' : 'Search in file (Ctrl+F)';
 
-  String get closeFileTooltip =>
-      isItalian ? 'Chiudi file' : 'Close file';
+  String get closeFileTooltip => isItalian ? 'Chiudi file' : 'Close file';
 
-  String get readOnlyBlockedReason =>
-      isItalian ? 'Sola lettura' : 'Read-only';
+  String get readOnlyBlockedReason => isItalian ? 'Sola lettura' : 'Read-only';
 
-  String get fileContentHint =>
-      isItalian ? 'Contenuto file' : 'File content';
+  String get fileContentHint => isItalian ? 'Contenuto file' : 'File content';
 
   String savingDisabledReason(String status) => isItalian
       ? 'Salvataggio disabilitato: $status.'
@@ -162,8 +151,7 @@ extension WorkspaceStrings on AppStrings {
   String searchResultsCount(int current, int total) =>
       isItalian ? '$current di $total' : '$current of $total';
 
-  String get zeroResults =>
-      isItalian ? '0 risultati' : '0 results';
+  String get zeroResults => isItalian ? '0 risultati' : '0 results';
 
   String get previousMatchTooltip =>
       isItalian ? 'Precedente (Shift+Enter)' : 'Previous (Shift+Enter)';
@@ -177,9 +165,8 @@ extension WorkspaceStrings on AppStrings {
   String get closeFileSearchTooltip =>
       isItalian ? 'Chiudi (Esc)' : 'Close (Esc)';
 
-  String get openNativeTerminalTooltip => isItalian
-      ? 'Apri terminale nativo (OS)'
-      : 'Open native terminal (OS)';
+  String get openNativeTerminalTooltip =>
+      isItalian ? 'Apri terminale nativo (OS)' : 'Open native terminal (OS)';
 
   String get hideTerminalTooltip =>
       isItalian ? 'Nascondi terminale' : 'Hide terminal';
@@ -196,9 +183,8 @@ extension WorkspaceStrings on AppStrings {
   String get refreshFilesTooltip =>
       isItalian ? 'Aggiorna file' : 'Refresh files';
 
-  String get collapseRepoPanelTooltip => isItalian
-      ? 'Collassa pannello repository'
-      : 'Collapse Repository panel';
+  String get collapseRepoPanelTooltip =>
+      isItalian ? 'Collassa pannello repository' : 'Collapse Repository panel';
 
   String get fileListLimitedNotice => isItalian
       ? 'Elenco file limitato dal daemon.'
@@ -208,8 +194,7 @@ extension WorkspaceStrings on AppStrings {
       ? 'Daemon obsoleto: esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon solo quando nessun worker Pi è attivo.'
       : 'Daemon outdated: run `pnpm run build:agentd`, rebuild PiFrame, and restart the daemon only when no Pi workers are active.';
 
-  String get terminalBadge =>
-      isItalian ? 'TERMINALE' : 'TERMINAL';
+  String get terminalBadge => isItalian ? 'TERMINALE' : 'TERMINAL';
 
   String get expandTerminalTooltip =>
       isItalian ? 'Espandi terminale' : 'Expand terminal';
@@ -220,12 +205,35 @@ extension WorkspaceStrings on AppStrings {
   // ---------------------------------------------------------------------------
   // Git Changes Pane
   // ---------------------------------------------------------------------------
+  String get gitChangesLabel => isItalian ? 'Modifiche Git' : 'Git Changes';
+
+  String get browserPaneLabel => isItalian ? 'Browser' : 'Browser';
+
+  String get repositoryPaneLabel => 'Repository';
+
+  String get filePaneLabel => isItalian ? 'File' : 'File';
+
+  String get chatPaneLabel => isItalian ? 'Chat' : 'Chat';
+
   String gitOperationFailed(Object error) => isItalian
       ? failureText(this, 'Operazione Git non riuscita', error)
       : failureText(this, 'Git operation failed', error);
 
-  String get closeDiffTooltip =>
-      isItalian ? 'Chiudi diff' : 'Close diff';
+  String get gitBackToChanges => isItalian ? 'Modifiche' : 'Changes';
+
+  String get gitDiffPreviousFile =>
+      isItalian ? 'File precedente' : 'Previous file';
+
+  String get gitDiffNextFile => isItalian ? 'File successivo' : 'Next file';
+
+  String get gitDiffOpenWindow =>
+      isItalian ? 'Apri in finestra' : 'Open in window';
+
+  String get gitDiffLoading =>
+      isItalian ? 'Caricamento diff…' : 'Loading diff…';
+
+  /// "2/5": the file's place in the list the diff pane steps through.
+  String gitDiffPosition(int index, int total) => '$index/$total';
 
   String get noDifferencesFound =>
       isItalian ? 'Nessuna differenza trovata.' : 'No differences found.';
@@ -237,8 +245,9 @@ extension WorkspaceStrings on AppStrings {
   String get diffUnavailableShort =>
       isItalian ? 'Diff non disponibile.' : 'Diff unavailable.';
 
-  String get discardAllChangesTitle =>
-      isItalian ? 'Scartare le modifiche a questo file?' : 'Discard changes to this file?';
+  String get discardAllChangesTitle => isItalian
+      ? 'Scartare le modifiche a questo file?'
+      : 'Discard changes to this file?';
 
   String get discardAllChangesWarning => isItalian
       ? 'Le modifiche in stage e non in stage di questo file verranno rimosse. L’operazione non può essere annullata.'
@@ -247,36 +256,14 @@ extension WorkspaceStrings on AppStrings {
   String get discardChangesBtn =>
       isItalian ? 'Scarta modifiche' : 'Discard changes';
 
-  String get commitStagedFilesTitle =>
-      isItalian ? 'Commit dei file staged' : 'Commit staged files';
+  String unstageFileTooltip(String path) =>
+      isItalian ? 'Togli dallo stage $path' : 'Unstage $path';
 
-  String commitDialogDetails({
-    required String root,
-    required String branch,
-    required int count,
-    required String filesPreview,
-    required int remaining,
-  }) =>
-      isItalian
-          ? 'Repository: $root · ramo: $branch\nFile revisionati ($count): $filesPreview${remaining > 0 ? ' (+$remaining altri)' : ''}'
-          : 'Repository: $root · branch: $branch\nReviewed files ($count): $filesPreview${remaining > 0 ? ' (+$remaining more)' : ''}';
+  String stageFileTooltip(String path) =>
+      isItalian ? 'Metti in stage $path' : 'Stage $path';
 
-  String get commitMessageLabel =>
-      isItalian ? 'Messaggio commit' : 'Commit message';
-
-  String get commitAction => 'Commit';
-
-  String unstageFileTooltip(String path) => isItalian
-      ? 'Togli dallo stage $path'
-      : 'Unstage $path';
-
-  String stageFileTooltip(String path) => isItalian
-      ? 'Metti in stage $path'
-      : 'Stage $path';
-
-  String discardFileTooltip(String path) => isItalian
-      ? 'Scarta modifiche a $path'
-      : 'Discard changes to $path';
+  String discardFileTooltip(String path) =>
+      isItalian ? 'Scarta modifiche a $path' : 'Discard changes to $path';
 
   String get switchToWebBrowserTooltip =>
       isItalian ? 'Passa a Web Browser' : 'Switch to Web Browser';
@@ -302,25 +289,43 @@ extension WorkspaceStrings on AppStrings {
   String get noGitRepository =>
       isItalian ? 'Nessun repository Git.' : 'No Git repository.';
 
-  String gitFilesCount(int count) => isItalian
-      ? '$count file'
-      : '$count ${count == 1 ? "file" : "files"}';
+  String gitFilesCount(int count) =>
+      isItalian ? '$count file' : '$count ${count == 1 ? "file" : "files"}';
 
   String get workingTreeClean =>
       isItalian ? 'Working tree pulito' : 'Working tree clean';
 
+  String get gitCleanTitle => isItalian ? 'Nessuna modifica' : 'No changes';
+
+  String gitCleanMessage(String branch) => isItalian
+      ? 'Il ramo $branch non ha modifiche da rivedere.'
+      : 'Branch $branch has no changes to review.';
+
+  String get gitRefreshAction => isItalian ? 'Aggiorna' : 'Refresh';
+
+  String get gitMenuOpenDiff => isItalian ? 'Apri diff' : 'Open diff';
+
+  String get gitMenuStage => isItalian ? 'Metti in stage' : 'Stage';
+
+  String get gitMenuUnstage => isItalian ? 'Togli dallo stage' : 'Unstage';
+
+  String get gitMenuDiscard => isItalian ? 'Scarta…' : 'Discard…';
+
+  String get gitLoadingStatus =>
+      isItalian ? 'Lettura stato Git…' : 'Reading Git status…';
+
   /// Localized Git file status (raw value from the daemon, e.g. "untracked").
   String gitFileStatusLabel(String status) => switch (status) {
-        'modified' => isItalian ? 'Modificato' : 'Modified',
-        'untracked' => isItalian ? 'Non tracciato' : 'Untracked',
-        'added' => isItalian ? 'Aggiunto' : 'Added',
-        'deleted' => isItalian ? 'Eliminato' : 'Deleted',
-        'renamed' => isItalian ? 'Rinominato' : 'Renamed',
-        'copied' => isItalian ? 'Copiato' : 'Copied',
-        'typechanged' => isItalian ? 'Tipo modificato' : 'Type changed',
-        'unmerged' => isItalian ? 'In conflitto' : 'Conflict',
-        _ => status,
-      };
+    'modified' => isItalian ? 'Modificato' : 'Modified',
+    'untracked' => isItalian ? 'Non tracciato' : 'Untracked',
+    'added' => isItalian ? 'Aggiunto' : 'Added',
+    'deleted' => isItalian ? 'Eliminato' : 'Deleted',
+    'renamed' => isItalian ? 'Rinominato' : 'Renamed',
+    'copied' => isItalian ? 'Copiato' : 'Copied',
+    'typechanged' => isItalian ? 'Tipo modificato' : 'Type changed',
+    'unmerged' => isItalian ? 'In conflitto' : 'Conflict',
+    _ => status,
+  };
 
   String get gitStateStaged => isItalian ? 'in stage' : 'staged';
 
@@ -349,54 +354,71 @@ extension WorkspaceStrings on AppStrings {
       : 'Pull from remote (fast-forward only)';
   String get gitPushTooltip =>
       isItalian ? 'Invia i commit al remoto (push)' : 'Push commits to remote';
-  String get gitSyncTooltip => isItalian
-      ? 'Sincronizza: pull e poi push'
-      : 'Sync: pull then push';
+  String get gitSyncTooltip =>
+      isItalian ? 'Sincronizza: pull e poi push' : 'Sync: pull then push';
 
   String get noStagedFiles =>
       isItalian ? 'Nessun file preparato.' : 'No staged files.';
 
-  String get changesSectionTitle =>
-      isItalian ? 'Modifiche' : 'Changes';
+  String get changesSectionTitle => isItalian ? 'Modifiche' : 'Changes';
 
-  String get changesSectionUpper =>
-      isItalian ? 'MODIFICHE' : 'CHANGES';
+  String get changesSectionUpper => isItalian ? 'MODIFICHE' : 'CHANGES';
 
   String get stageAllTooltip =>
       isItalian ? 'Metti tutti in stage' : 'Stage all';
 
-  String get noUnstagedChanges => isItalian
-      ? 'Nessuna modifica non preparata.'
-      : 'No unstaged changes.';
+  String get noUnstagedChanges =>
+      isItalian ? 'Nessuna modifica non preparata.' : 'No unstaged changes.';
 
   String commitButtonLabel(int count) => 'Commit ($count)';
 
-  String get addPathToChat =>
-      isItalian ? 'Aggiungi alla chat' : 'Add to chat';
+  String get commitSubjectLabel => isItalian ? 'Oggetto' : 'Subject';
 
-  String get copyPath =>
-      isItalian ? 'Copia percorso' : 'Copy path';
+  String get commitBodyLabel =>
+      isItalian ? 'Descrizione (facoltativa)' : 'Description (optional)';
 
-  String pathCopied(String path) => isItalian
-      ? 'Percorso copiato: $path'
-      : 'Path copied: $path';
+  String get commitBodyShow =>
+      isItalian ? 'Aggiungi descrizione' : 'Add description';
+
+  String get commitBodyHide =>
+      isItalian ? 'Nascondi descrizione' : 'Hide description';
+
+  /// "42/72": the subject length against the soft guide.
+  String commitSubjectCount(int length, int guide) => '$length/$guide';
+
+  String get commitShortcutTooltip =>
+      isItalian ? 'Commit (Ctrl/Cmd+Invio)' : 'Commit (Ctrl/Cmd+Enter)';
+
+  String get commitFailedTitle =>
+      isItalian ? 'Commit non riuscito' : 'Commit failed';
+
+  /// Snackbar after a commit. [shortHash] is empty when the daemon did not
+  /// report the new HEAD.
+  String commitCreated(String shortHash) => shortHash.isEmpty
+      ? (isItalian ? 'Commit creato.' : 'Commit created.')
+      : (isItalian
+            ? 'Commit $shortHash creato.'
+            : 'Commit $shortHash created.');
+
+  String get addPathToChat => isItalian ? 'Aggiungi alla chat' : 'Add to chat';
+
+  String get copyPath => isItalian ? 'Copia percorso' : 'Copy path';
+
+  String pathCopied(String path) =>
+      isItalian ? 'Percorso copiato: $path' : 'Path copied: $path';
 
   // Git origin labels
-  String get gitOriginPiAndManual => isItalian
-      ? 'Tool Pi + salvataggio PiFrame'
-      : 'Pi tool + PiFrame save';
+  String get gitOriginPiAndManual =>
+      isItalian ? 'Tool Pi + salvataggio PiFrame' : 'Pi tool + PiFrame save';
 
-  String get gitOriginPiTool => isItalian
-      ? 'Tool Pi ha scritto il percorso'
-      : 'Pi tool wrote path';
+  String get gitOriginPiTool =>
+      isItalian ? 'Tool Pi ha scritto il percorso' : 'Pi tool wrote path';
 
-  String get gitOriginManualSave => isItalian
-      ? 'Salvato da te in PiFrame'
-      : 'Saved by you in PiFrame';
+  String get gitOriginManualSave =>
+      isItalian ? 'Salvato da te in PiFrame' : 'Saved by you in PiFrame';
 
-  String get gitOriginUndetermined => isItalian
-      ? 'Origine non determinata'
-      : 'Undetermined origin';
+  String get gitOriginUndetermined =>
+      isItalian ? 'Origine non determinata' : 'Undetermined origin';
 
   // ---------------------------------------------------------------------------
   // Session Changes Pane & Diff Viewer
@@ -408,16 +430,13 @@ extension WorkspaceStrings on AppStrings {
   String get loadingDiff =>
       isItalian ? 'Caricamento diff...' : 'Loading diff...';
 
-  String get noDiffToShow => isItalian
-      ? 'Nessuna differenza da mostrare.'
-      : 'No differences to show.';
+  String get noDiffToShow =>
+      isItalian ? 'Nessuna differenza da mostrare.' : 'No differences to show.';
 
-  String get linesExpanded =>
-      isItalian ? 'Linee espanse' : 'Lines expanded';
+  String get linesExpanded => isItalian ? 'Linee espanse' : 'Lines expanded';
 
-  String moreLines(int count) => isItalian
-      ? '+$count more lines'
-      : '+$count more lines';
+  String moreLines(int count) =>
+      isItalian ? '+$count more lines' : '+$count more lines';
 
   String get twoColumnDiffTooltip => isItalian
       ? 'Passa a visualizzazione a 2 colonne'
@@ -459,8 +478,7 @@ extension WorkspaceStrings on AppStrings {
   String browserSearchTitle(String query) =>
       isItalian ? 'Ricerca: $query' : 'Search: $query';
 
-  String get browserLoading =>
-      isItalian ? 'Caricamento...' : 'Loading...';
+  String get browserLoading => isItalian ? 'Caricamento...' : 'Loading...';
 
   String cannotOpenSystemBrowser(Object error) => isItalian
       ? failureText(this, 'Impossibile aprire il browser di sistema', error)
@@ -470,50 +488,40 @@ extension WorkspaceStrings on AppStrings {
       ? 'Link della pagina aggiunto al prompt del composer.'
       : 'Page link added to composer prompt.';
 
-  String get urlCopiedToClipboard => isItalian
-      ? 'URL copiato negli appunti.'
-      : 'URL copied to clipboard.';
+  String get urlCopiedToClipboard =>
+      isItalian ? 'URL copiato negli appunti.' : 'URL copied to clipboard.';
 
   String get openChromiumDevToolsTooltip => isItalian
       ? 'Apri DevTools di Chromium (F12)'
       : 'Open Chromium DevTools (F12)';
 
-  String get sendToChatComposerTooltip => isItalian
-      ? 'Invia al chat composer'
-      : 'Send to Chat Composer';
+  String get sendToChatComposerTooltip =>
+      isItalian ? 'Invia al chat composer' : 'Send to Chat Composer';
 
-  String get copyUrlTooltip =>
-      isItalian ? 'Copia URL' : 'Copy URL';
+  String get copyUrlTooltip => isItalian ? 'Copia URL' : 'Copy URL';
 
-  String get openInSystemBrowserTooltip => isItalian
-      ? 'Apri nel browser di sistema'
-      : 'Open in system browser';
+  String get openInSystemBrowserTooltip =>
+      isItalian ? 'Apri nel browser di sistema' : 'Open in system browser';
 
   String get collapseBrowserPanelTooltip => isItalian
       ? 'Collassa pannello Web Browser'
       : 'Collapse Web Browser panel';
 
-  String get newBrowserTab =>
-      isItalian ? 'Nuova scheda' : 'New tab';
+  String get newBrowserTab => isItalian ? 'Nuova scheda' : 'New tab';
 
-  String get browserBackTooltip =>
-      isItalian ? 'Indietro' : 'Back';
+  String get browserBackTooltip => isItalian ? 'Indietro' : 'Back';
 
-  String get browserForwardTooltip =>
-      isItalian ? 'Avanti' : 'Forward';
+  String get browserForwardTooltip => isItalian ? 'Avanti' : 'Forward';
 
-  String get browserReloadTooltip =>
-      isItalian ? 'Ricarica' : 'Reload';
+  String get browserReloadTooltip => isItalian ? 'Ricarica' : 'Reload';
 
-  String get browserHomeTooltip =>
-      isItalian ? 'Home' : 'Home';
+  String get browserHomeTooltip => isItalian ? 'Home' : 'Home';
 
   String get browserOmniboxHint => isItalian
       ? 'Cerca o inserisci URL (es. pub.dev o flutter riverpod)...'
       : 'Search or enter URL (e.g. pub.dev or flutter riverpod)...';
 
-  String get browserClearTooltip =>
-      isItalian ? 'Pulisci' : 'Clear';
+  String get browserClearTooltip => isItalian ? 'Pulisci' : 'Clear';
 
   String get removeBookmarkTooltip =>
       isItalian ? 'Rimuovi dai preferiti' : 'Remove bookmark';
@@ -521,8 +529,7 @@ extension WorkspaceStrings on AppStrings {
   String get addBookmarkTooltip =>
       isItalian ? 'Aggiungi ai preferiti' : 'Add bookmark';
 
-  String get browserGoTooltip =>
-      isItalian ? 'Vai' : 'Go';
+  String get browserGoTooltip => isItalian ? 'Vai' : 'Go';
 
   String get browserMoreActionsTooltip =>
       isItalian ? 'Altre azioni' : 'More actions';
@@ -536,33 +543,28 @@ extension WorkspaceStrings on AppStrings {
   String get unableToLoadPageTitle =>
       isItalian ? 'Impossibile caricare la pagina' : 'Unable to load page';
 
-  String get retryBtn =>
-      isItalian ? 'Riprova' : 'Retry';
+  String get retryBtn => isItalian ? 'Riprova' : 'Retry';
 
   String get openExternallyBtn =>
       isItalian ? 'Apri esternamente' : 'Open externally';
 
-  String get noMainTextDetectedTitle => isItalian
-      ? 'Nessun testo principale rilevato'
-      : 'No main text detected';
+  String get noMainTextDetectedTitle =>
+      isItalian ? 'Nessun testo principale rilevato' : 'No main text detected';
 
   String get noMainTextDetectedMessage => isItalian
       ? 'Questa pagina potrebbe richiedere JavaScript attivo o un browser completo per visualizzare il contenuto.'
       : 'This page may require JavaScript or a full browser to display content.';
 
-  String get openInSystemBrowserBtn => isItalian
-      ? 'Apri nel browser di sistema'
-      : 'Open in system browser';
+  String get openInSystemBrowserBtn =>
+      isItalian ? 'Apri nel browser di sistema' : 'Open in system browser';
 
   String browserSearchResultsCount(int count) =>
       isItalian ? 'Risultati ($count):' : 'Results ($count):';
 
-  String browserExtractedCodeCount(int count) => isItalian
-      ? 'Codice estratti ($count):'
-      : 'Extracted code ($count):';
+  String browserExtractedCodeCount(int count) =>
+      isItalian ? 'Codice estratti ($count):' : 'Extracted code ($count):';
 
-  String get copyCodeTooltip =>
-      isItalian ? 'Copia codice' : 'Copy code';
+  String get copyCodeTooltip => isItalian ? 'Copia codice' : 'Copy code';
 
   String get codeCopiedMessage =>
       isItalian ? 'Codice copiato.' : 'Code copied.';
@@ -587,6 +589,5 @@ extension WorkspaceStrings on AppStrings {
   // ---------------------------------------------------------------------------
   // Metrics (Nerd Stats)
   // ---------------------------------------------------------------------------
-  String get nerdStatsNotAvailable =>
-      isItalian ? 'n/d' : 'N/A';
+  String get nerdStatsNotAvailable => isItalian ? 'n/d' : 'N/A';
 }

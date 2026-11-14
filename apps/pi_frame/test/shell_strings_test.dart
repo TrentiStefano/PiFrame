@@ -61,9 +61,9 @@ void main() {
       expect(strings.renameSessionDialogTitle, 'Rinomina sessione');
       expect(strings.sessionNameHint, 'Nome sessione...');
       expect(strings.sessionRenamedNotice('Test'), 'Sessione rinominata in "Test"');
-      expect(strings.renameErrorNotice('Err'), 'Errore rinomina.');
+      expect(strings.renameErrorNotice('Err'), 'Errore rinomina: Err');
       expect(strings.sessionDuplicatedNotice('s_2'), 'Sessione duplicata: s_2');
-      expect(strings.duplicateErrorNotice('Err'), 'Errore duplicazione.');
+      expect(strings.duplicateErrorNotice('Err'), 'Errore duplicazione: Err');
       expect(strings.sidebarTitle, 'Sessioni');
       expect(strings.refreshSessionsTooltip, 'Aggiorna sessioni');
       expect(strings.newSessionTooltip, 'Nuova sessione');
@@ -79,7 +79,7 @@ void main() {
       expect(strings.newSessionInFolderTooltip, 'Nuova sessione in questa cartella');
       expect(strings.repoInstructionsAction, 'Istruzioni repository');
       expect(strings.removeRepoFromSidebarAction, 'Rimuovi repository dal riquadro');
-      expect(strings.sidebarErrorNotice('Err'), 'Errore.');
+      expect(strings.sidebarErrorNotice('Err'), 'Errore: Err');
       expect(strings.settingsLabel, 'Impostazioni');
       expect(strings.commandPaletteTooltip, 'Comandi (Ctrl+K)');
       expect(strings.unpinAction, 'Rimuovi dai fissati');
@@ -91,7 +91,7 @@ void main() {
       expect(strings.sessionActionsTooltip, 'Azioni sessione');
 
       // Session Actions & Dialogs
-      expect(strings.directoryNotAvailable('Err'), 'Cartella non disponibile.');
+      expect(strings.directoryNotAvailable('Err'), 'Cartella non disponibile: Err');
       expect(strings.newSessionDialogTitle, 'Nuova sessione');
       expect(strings.workingDirectoryLabel, 'Cartella di lavoro');
       expect(
@@ -100,7 +100,7 @@ void main() {
       );
       expect(strings.chooseFolderAction, 'Scegli cartella');
       expect(strings.createAction, 'Crea');
-      expect(strings.creationFailedNotice('Err'), 'Creazione non riuscita.');
+      expect(strings.creationFailedNotice('Err'), 'Creazione non riuscita: Err');
       expect(strings.deleteSessionDialogTitle, 'Elimina sessione');
       expect(
         strings.deleteSessionConfirmBody('SessA'),
@@ -109,7 +109,7 @@ void main() {
       );
       expect(strings.deleteAction, 'Elimina');
       expect(strings.sessionDeletedNotice('SessA'), 'Sessione "SessA" eliminata.');
-      expect(strings.deletionFailedNotice('Err'), 'Eliminazione non riuscita.');
+      expect(strings.deletionFailedNotice('Err'), 'Eliminazione non riuscita: Err');
       expect(strings.removeRepoDialogTitle('RepoA'), 'Rimuovi repository "RepoA"');
       expect(
         strings.repoSessionsCountNotice(1),
@@ -132,7 +132,7 @@ void main() {
       expect(strings.repoRemovedNotice('RepoA'), 'Repository "RepoA" rimosso dal riquadro.');
       expect(strings.restoreAction, 'Ripristina');
       expect(strings.allRepoSessionsDeletedNotice('RepoA'), 'Tutte le sessioni di "RepoA" sono state eliminate.');
-      expect(strings.deletionErrorNotice('Err'), 'Errore durante l\'eliminazione.');
+      expect(strings.deletionErrorNotice('Err'), 'Errore durante l\'eliminazione: Err');
       expect(strings.warningDeletionTitle, 'ATTENZIONE: Eliminazione');
       expect(
         strings.deleteRepoWarningBody(3, '/path/repo'),
@@ -144,7 +144,7 @@ void main() {
       expect(strings.deleteAllAction, 'Elimina tutto');
 
       // Instruction File Dialog
-      expect(strings.fileScanErrorNotice('Err'), 'Errore scansione file.');
+      expect(strings.fileScanErrorNotice('Err'), 'Errore scansione file: Err');
       expect(strings.unsavedChangesTitle, 'Modifiche non salvate');
       expect(
         strings.unsavedChangesDiscardBody('A.md', 'B.md'),
@@ -152,7 +152,7 @@ void main() {
       );
       expect(strings.discardChangesAction, 'Ignora modifiche');
       expect(strings.fileSavedNotice('A.md'), 'File A.md salvato con successo');
-      expect(strings.saveErrorNotice('Err'), 'Errore salvataggio.');
+      expect(strings.saveErrorNotice('Err'), 'Errore salvataggio: Err');
       expect(strings.presentOnDiskBadge, 'Presente sul disco');
       expect(strings.newFileBadge, 'File nuovo');
       expect(strings.linesAndCharsCount(10, 200), '10 righe · 200 caratteri');
@@ -164,7 +164,7 @@ void main() {
       expect(strings.createAndSaveFileAction, 'Crea e salva file');
 
       // Command Palette
-      expect(strings.actionFailedNotice('Err'), 'Azione non riuscita.');
+      expect(strings.actionFailedNotice('Err'), 'Azione non riuscita: Err');
       expect(strings.paletteNewSessionTitle, 'Crea nuova sessione');
       expect(strings.paletteNewSessionSubtitle, 'Avvia una nuova sessione Pi');
       expect(strings.paletteCompactTitle, 'Compatta contesto');
@@ -246,9 +246,9 @@ void main() {
       expect(strings.renameSessionDialogTitle, 'Rename Session');
       expect(strings.sessionNameHint, 'Session name...');
       expect(strings.sessionRenamedNotice('Test'), 'Session renamed to "Test"');
-      expect(strings.renameErrorNotice('Err'), 'Rename error.');
+      expect(strings.renameErrorNotice('Err'), 'Rename error: Err');
       expect(strings.sessionDuplicatedNotice('s_2'), 'Session duplicated: s_2');
-      expect(strings.duplicateErrorNotice('Err'), 'Duplicate error.');
+      expect(strings.duplicateErrorNotice('Err'), 'Duplicate error: Err');
       expect(strings.sidebarTitle, 'Sessions');
       expect(strings.refreshSessionsTooltip, 'Refresh sessions');
       expect(strings.newSessionTooltip, 'New Session');
@@ -264,7 +264,7 @@ void main() {
       expect(strings.newSessionInFolderTooltip, 'New session in this folder');
       expect(strings.repoInstructionsAction, 'Repository instructions');
       expect(strings.removeRepoFromSidebarAction, 'Remove repository from sidebar');
-      expect(strings.sidebarErrorNotice('Err'), 'Error.');
+      expect(strings.sidebarErrorNotice('Err'), 'Error: Err');
       expect(strings.settingsLabel, 'Settings');
       expect(strings.commandPaletteTooltip, 'Command Palette (Ctrl+K)');
       expect(strings.unpinAction, 'Unpin');

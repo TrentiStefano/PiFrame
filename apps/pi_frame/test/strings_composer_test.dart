@@ -99,17 +99,17 @@ void main() {
       );
       expect(
         strings.composerCommandFailed('err'),
-        'Comando non riuscito.',
+        'Comando non riuscito: err',
       );
-      expect(strings.composerSendFailed('err'), 'Invio non riuscito.');
+      expect(strings.composerSendFailed('err'), 'Invio non riuscito: err');
       expect(strings.composerVerifySessionTitle, 'Verifica la sessione Pi');
       expect(
         strings.composerVerifySessionContent,
         'PiFrame rileva Pi interattivo aperto in questa cartella, ma Pi non comunica quale file di sessione usa. Continua solo se questa sessione non è aperta nel terminale. Due processi sullo stesso file possono danneggiare la cronologia.',
       );
       expect(strings.composerContinueHereAction, 'Continua qui');
-      expect(strings.composerResumeFailed('err'), 'Ripresa non riuscita.');
-      expect(strings.composerActionFailed('err'), 'Azione non riuscita.');
+      expect(strings.composerResumeFailed('err'), 'Ripresa non riuscita: err');
+      expect(strings.composerActionFailed('err'), 'Azione non riuscita: err');
       expect(
         strings.composerNoFilesAvailable,
         'Nessun file disponibile nella sessione.',
@@ -117,7 +117,7 @@ void main() {
       expect(strings.composerImagesFilterLabel, 'Immagini');
       expect(
         strings.composerInterruptFailed('err'),
-        'Interruzione non riuscita.',
+        'Interruzione non riuscita: err',
       );
       expect(
         strings.composerAgentInterrupted,
@@ -179,7 +179,7 @@ void main() {
       expect(strings.composerContextSizeTitle, 'Dimensione contesto');
       expect(
         strings.composerContextSelectionFailed('err'),
-        'Selezione contesto non riuscita.',
+        'Selezione contesto non riuscita: err',
       );
       expect(
         strings.composerAttachTooltip,
@@ -200,7 +200,7 @@ void main() {
       expect(strings.composerCloneAndContinueAction, 'Duplica e continua');
       expect(
         strings.composerDuplicationFailed('err'),
-        'Duplicazione non riuscita.',
+        'Duplicazione non riuscita: err',
       );
       expect(strings.composerDaemonNotConnected, 'Daemon non connesso');
 
@@ -295,7 +295,7 @@ void main() {
       );
       expect(
         strings.contextLimitNotApplied('err'),
-        'Limite non applicato.',
+        'Limite non applicato: err',
       );
       expect(strings.contextMaxNotAvailable, 'Massimo non disponibile');
       expect(strings.contextSelectLimit, 'Seleziona limite');
@@ -308,13 +308,13 @@ void main() {
       expect(strings.contextStep50k('1M'), '100k–1M · Passo 50k');
       expect(
         strings.compactionMarginNotApplied('err'),
-        'Margine non applicato.',
+        'Margine non applicato: err',
       );
       expect(
         strings.compactionFailed('err'),
-        'Compattazione non riuscita.',
+        'Compattazione non riuscita: err',
       );
-      expect(strings.modelsNotAvailable('err'), 'Modelli non disponibili.');
+      expect(strings.modelsNotAvailable('err'), 'Modelli non disponibili: err');
 
       // Section 7: Dialogs
       expect(strings.piInstallTitle, 'Installazione Pi coding agent');
@@ -384,7 +384,7 @@ void main() {
       expect(strings.sessionTreeDialogTitle, 'Albero della sessione');
       expect(strings.sessionTreeSessionLabel('s1'), 'Sessione: s1');
       expect(strings.sessionTreeReload, 'Ricarica');
-      expect(strings.sessionTreeError('err'), 'Errore.');
+      expect(strings.sessionTreeError('err'), 'Errore: err');
       expect(
         strings.sessionTreeNoBranches,
         'Nessun ramo secondario per questa sessione.',
@@ -491,17 +491,17 @@ void main() {
       );
       expect(
         strings.composerCommandFailed('err'),
-        'Command failed.',
+        'Command failed: err',
       );
-      expect(strings.composerSendFailed('err'), 'Send failed.');
+      expect(strings.composerSendFailed('err'), 'Send failed: err');
       expect(strings.composerVerifySessionTitle, 'Verify Pi session');
       expect(
         strings.composerVerifySessionContent,
         'PiFrame detects interactive Pi running in this folder, but Pi does not report which session file it uses. Continue only if this session is not open in a terminal. Two processes accessing the same file can corrupt history.',
       );
       expect(strings.composerContinueHereAction, 'Continue here');
-      expect(strings.composerResumeFailed('err'), 'Resume failed.');
-      expect(strings.composerActionFailed('err'), 'Action failed.');
+      expect(strings.composerResumeFailed('err'), 'Resume failed: err');
+      expect(strings.composerActionFailed('err'), 'Action failed: err');
       expect(
         strings.composerNoFilesAvailable,
         'No files available in this session.',
@@ -509,7 +509,7 @@ void main() {
       expect(strings.composerImagesFilterLabel, 'Images');
       expect(
         strings.composerInterruptFailed('err'),
-        'Interrupt failed.',
+        'Interrupt failed: err',
       );
       expect(
         strings.composerAgentInterrupted,
@@ -571,7 +571,7 @@ void main() {
       expect(strings.composerContextSizeTitle, 'Context size');
       expect(
         strings.composerContextSelectionFailed('err'),
-        'Context selection failed.',
+        'Context selection failed: err',
       );
       expect(
         strings.composerAttachTooltip,
@@ -592,7 +592,7 @@ void main() {
       expect(strings.composerCloneAndContinueAction, 'Duplicate and continue');
       expect(
         strings.composerDuplicationFailed('err'),
-        'Duplication failed.',
+        'Duplication failed: err',
       );
       expect(strings.composerDaemonNotConnected, 'Daemon not connected');
 
@@ -685,7 +685,7 @@ void main() {
       );
       expect(
         strings.contextLimitNotApplied('err'),
-        'Limit not applied.',
+        'Limit not applied: err',
       );
       expect(strings.contextMaxNotAvailable, 'Max not available');
       expect(strings.contextSelectLimit, 'Select limit');
@@ -698,13 +698,13 @@ void main() {
       expect(strings.contextStep50k('1M'), '100k–1M · Step 50k');
       expect(
         strings.compactionMarginNotApplied('err'),
-        'Margin not applied.',
+        'Margin not applied: err',
       );
       expect(
         strings.compactionFailed('err'),
-        'Compaction failed.',
+        'Compaction failed: err',
       );
-      expect(strings.modelsNotAvailable('err'), 'Models not available.');
+      expect(strings.modelsNotAvailable('err'), 'Models not available: err');
 
       // Section 7: Dialogs
       expect(strings.piInstallTitle, 'Pi Coding Agent Installation');
@@ -774,7 +774,7 @@ void main() {
       expect(strings.sessionTreeDialogTitle, 'Session Tree');
       expect(strings.sessionTreeSessionLabel('s1'), 'Session: s1');
       expect(strings.sessionTreeReload, 'Reload');
-      expect(strings.sessionTreeError('err'), 'Error.');
+      expect(strings.sessionTreeError('err'), 'Error: err');
       expect(
         strings.sessionTreeNoBranches,
         'No branches found for this session.',
