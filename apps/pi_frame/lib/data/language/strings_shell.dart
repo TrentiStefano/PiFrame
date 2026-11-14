@@ -22,6 +22,14 @@ extension ShellStrings on AppStrings {
   String get settingsTooltip => isItalian ? 'Impostazioni' : 'Settings';
   String get modelAndSessionActionsTooltip =>
       isItalian ? 'Modello e azioni sessione' : 'Model and session actions';
+  String get viewGroupLabel => isItalian ? 'Vista' : 'View';
+  String get sessionDrawerLabel => isItalian ? 'Sessione' : 'Session';
+  String get sessionDrawerTooltip => isItalian
+      ? 'Modello, contesto e rami della sessione'
+      : 'Session model, context and branches';
+  String get settingsShortcutLabel => 'Ctrl / Cmd + ,';
+  String connectionIndicatorTooltip(String state) =>
+      isItalian ? '$state. Apri diagnostica' : '$state. Open diagnostics';
   String get reconnectingToDaemon =>
       isItalian ? 'Riconnessione al daemon in corso...' : 'Reconnecting to daemon...';
   String get daemonUnreachableNotice => isItalian

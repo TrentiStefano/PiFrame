@@ -337,19 +337,23 @@ void main() {
         expect(find.text('FILE'), findsOneWidget);
       }
 
-      await tester.tap(find.byIcon(Icons.tune));
+      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
       await tester.pumpAndSettle();
       if (size.width < 1280) {
         expect(find.text('Area di lavoro'), findsOneWidget);
       }
-      expect(find.text('Sessione'), findsOneWidget);
+      // The title bar button is labelled "Sessione" too, so check the drawer state.
+      expect(
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
+        isTrue,
+      );
       expect(find.textContaining('File Modificati'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-workspace');
       await tester.tap(find.byTooltip('Chiudi workspace'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Impostazioni'));
+      await tester.tap(find.byTooltip('Impostazioni (Ctrl / Cmd + ,)'));
       await tester.pumpAndSettle();
       for (final tab in [
         'PI CLI',

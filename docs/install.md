@@ -206,6 +206,15 @@ Scorciatoie non ancora presenti: `Ctrl+S` / `Cmd+S` (salvataggio nell'editor) ar
 
 **Conflitti risolti.** Il composer e i campi di testo gestiscono `Tab` e `Invio` prima della shell, quindi `Ctrl+Tab` non viene usato mentre il menu dei comandi slash è aperto. Il terminale integrato gestisce per primo `Ctrl+C`, `Ctrl+L`, `Ctrl+V` e `Tab`, che quindi restano al terminale. `Ctrl+Shift+B` mantiene il significato esistente (conversazione laterale) e non apre più la barra sessioni: quest'ultima resta su `Ctrl+B`.
 
+### Barra del titolo
+
+La barra del titolo è divisa in due gruppi separati da un filo verticale:
+
+- **Vista**: il menu per mostrare o nascondere i pannelli (da 900 px, con una sessione aperta) e il cambio di tema chiaro/scuro.
+- **Area di lavoro**: il pulsante **Sessione** (modello, contesto e rami della sessione) e **Impostazioni** (`Ctrl+,` / `Cmd+,`). Da 1100 px il pulsante Sessione mostra l'etichetta; sotto questa larghezza è solo un'icona con suggerimento.
+
+Lo stato della connessione al daemon è a sinistra accanto al marchio. Da 920 px mostra il punto e l'etichetta (*Pi locale* o *Non connesso*); sotto 920 px resta solo il punto, con suggerimento e descrizione per lo screen reader. Un clic apre **Impostazioni → Diagnostica**.
+
 ## Pannello Agenti e Workflow
 
 Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.

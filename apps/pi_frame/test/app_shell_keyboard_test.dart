@@ -201,7 +201,7 @@ void main() {
       addTearDown(container.dispose);
       await pumpShell(tester, container);
 
-      await tester.tap(find.byIcon(Icons.tune));
+      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
       await tester.pump(const Duration(milliseconds: 500));
       expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
