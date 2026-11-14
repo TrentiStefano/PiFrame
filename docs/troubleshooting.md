@@ -559,7 +559,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
-## 4. Disconnessione Continua WebSocket (Code 4009) e Accumulo Snapshot nel Giornale
+## 7. Disconnessione Continua WebSocket (Code 4009) e Accumulo Snapshot nel Giornale
 
 ### Sintomi
 - PiFrame continua a disconnettersi e riconnettersi all'infinito ("Client too slow / backpressure buffer exceeded 128MB", close code `4009`) all'apertura o all'avvio dell'applicazione con sessioni pinnate molto grandi (es. > 100 MB).
@@ -579,7 +579,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
-## 5. Scrollbar a Scatti / Saltellante al Caricamento dei Messaggi Storici
+## 8. Scrollbar a Scatti / Saltellante al Caricamento dei Messaggi Storici
 
 ### Sintomi
 - Dopo aver cliccato "Carica altri messaggi dalla cronologia", il thumb della scrollbar si muove in modo scattoso ed errato, saltando su e giù anche se l'utente continua a scorrere fluidamente nella stessa direzione.
@@ -607,7 +607,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
-## 6. Menu Modello Multipli, Messaggio "Non Consegnato" Errato, Domanda dell'Agente Bloccata
+## 9. Menu Modello Multipli, Messaggio "Non Consegnato" Errato, Domanda dell'Agente Bloccata
 
 ### Sintomi
 - Cliccando più volte sul selettore del modello mentre il menu non è ancora comparso, si aprivano più popup.
@@ -625,7 +625,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
-## 7. Vibrazione della Chat all'Espansione delle Card Attività/Subagenti e Riapertura Automatica al Cambio Sessione
+## 10. Vibrazione della Chat all'Espansione delle Card Attività/Subagenti e Riapertura Automatica al Cambio Sessione
 
 ### Sintomi
 - Espandendo o minimizzando le card di attività e sottoagenti la lista della chat "vibrava" vistosamente e si spostava su e giù.
@@ -648,7 +648,7 @@ I pacchetti Debian installati richiedono anche la dipendenza runtime `libnotify4
 
 ---
 
-## 8. Generazione Installer Windows: Errore Blocco File `node.exe` o `PiFrame.exe` (`IOException` / File in Uso)
+## 11. Generazione Installer Windows: Errore Blocco File `node.exe` o `PiFrame.exe` (`IOException` / File in Uso)
 
 ### Sintomi
 Durante lo step `[4/4] Staging runtime assets & compiling Inno Setup installer...` eseguendo `pnpm run package:windows` (o richiamando `package-windows-installer.ps1`), la procedura si interrompe con l'errore:
@@ -676,7 +676,7 @@ Su Windows, il kernel blocca la scrittura e la sovrascrittura di qualsiasi file 
 
 ---
 
-## 9. Windows: Errore all'Avvio "MSVCP140.dll was not found" su Installazioni Pulite
+## 12. Windows: Errore all'Avvio "MSVCP140.dll was not found" su Installazioni Pulite
 
 ### Sintomi
 Avviando PiFrame su un'installazione nuova/pulita di Windows 10 o Windows 11 (o all'interno di una macchina virtuale pulita), l'applicazione non si avvia e viene visualizzato il messaggio di sistema:
@@ -704,7 +704,7 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 
 ---
 
-## 10. Notifiche di Sistema Premature "Risposta completata" mentre l'Agente sta ancora lavorando
+## 13. Notifiche di Sistema Premature "Risposta completata" mentre l'Agente sta ancora lavorando
 
 ### Sintomi
 - Mentre l'applicazione non è a fuoco, il sistema operativo mostra una notifica desktop di "Risposta completata", ma cliccando sulla notifica si nota che l'agente è ancora in esecuzione (sta eseguendo tool intermedi, attendendo subagenti in background, compattando il contesto o riprovando una chiamata di rete).
@@ -722,7 +722,7 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 
 ---
 
-## 11. Riordinamento Imprevisto delle Sessioni Fissate e Supporto al Drag-and-Drop
+## 14. Riordinamento Imprevisto delle Sessioni Fissate e Supporto al Drag-and-Drop
 
 ### Sintomi
 - All'arrivo di una risposta dall'agente in una qualsiasi sessione fissata (pinned), la sessione cambiava posizione all'interno del riquadro "Fissate" saltando in cima o muovendosi in base all'orario dell'ultima risposta.
@@ -741,7 +741,7 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 
 ---
 
-## 12. Impossibile connettersi o riavviare il Daemon dopo una build Windows Release (Mancata sincronizzazione bundle e versione obsoleta)
+## 15. Impossibile connettersi o riavviare il Daemon dopo una build Windows Release (Mancata sincronizzazione bundle e versione obsoleta)
 
 ### Sintomi
 - Dopo aver buildato PiFrame per Windows (ad es. `flutter build windows --release`), l'applicazione non riesce a connettersi al daemon locale.
@@ -770,7 +770,7 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 
 ---
 
-## 13. Processi GPU orfani (`typeperf.exe`, `nvidia-smi.exe`) o timer di campionamento attivi dopo disconnessione (Nerd stats)
+## 16. Processi GPU orfani (`typeperf.exe`, `nvidia-smi.exe`) o timer di campionamento attivi dopo disconnessione (Nerd stats)
 
 ### Sintomi
 - Dopo aver abilitato le Statistiche nerd e successivamente chiuso l'app o disabilitato l'opzione, processi in background come `typeperf.exe` o `nvidia-smi.exe` rimangono attivi nella lista processi di Windows / Task Manager.
@@ -791,7 +791,7 @@ Nelle installazioni pulite di Windows (a differenza delle macchine degli svilupp
 
 ---
 
-## 14. Subagents fail to start after removing PiFrame / ERR_MODULE_NOT_FOUND subagent-context-limit.mjs
+## 17. Subagents fail to start after removing PiFrame / ERR_MODULE_NOT_FOUND subagent-context-limit.mjs
 
 ### Sintomi
 - Dopo aver rimosso o disinstallato PiFrame (o cancellato la cartella `~/.piframe`), l'avvio dei subagenti dal Pi CLI ufficiale o da altre interfacce fallisce con l'errore:
@@ -812,7 +812,7 @@ Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `s
 
 ---
 
-## 15. Statistiche nerd ferme su `n/d` dopo averle disattivate e riattivate
+## 18. Statistiche nerd ferme su `n/d` dopo averle disattivate e riattivate
 
 ### Sintomi
 - Con le Statistiche nerd attive i valori compaiono correttamente. Dopo aver disattivato e riattivato l'opzione (oppure dopo aver chiuso e riaperto l'app più volte senza riavviare il daemon), CPU, RAM, disco e GPU restano su `n/d`.
@@ -827,7 +827,7 @@ Nelle impostazioni utente di Pi (`~/.pi/agent/settings.json`), l'impostazione `s
 
 ---
 
-## 16. Web app sul telefono: sfondo vuoto dopo un aggiornamento, tocchi spostati, lentezza
+## 19. Web app sul telefono: sfondo vuoto dopo un aggiornamento, tocchi spostati, lentezza
 
 ### Sintomi
 - Dopo aver aggiornato PiFrame o il daemon, la web app sul telefono (già associato) mostra solo lo sfondo vuoto finché non rifai l'associazione.
