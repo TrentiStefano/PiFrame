@@ -454,3 +454,14 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
 
 Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
+
+## 16. Animazioni dei pannelli e notifiche (snackbar)
+
+**Pannelli.** Mostrare, nascondere o comprimere un pannello (dalla barra del titolo, menu *Vista*, o dalla scorciatoia) anima la sua larghezza. Il testo delle altre colonne non va a capo durante l'animazione: il layout è stabile e il pannello che entra sfuma nella propria posizione. Con l'interruttore *Riduci animazioni* (sezione 15) o con la preferenza di sistema attiva, il layout cambia subito e il pannello che entra sfuma soltanto, senza movimento.
+
+**Conversazione laterale.** Aprire la conversazione laterale dalla palette comandi (*Conversazione laterale*) divide l'area di chat in due; la divisione segue la stessa regola di animazione dei pannelli.
+
+**Notifiche (snackbar).**
+- I messaggi di successo compaiono in basso a destra e si chiudono da soli dopo 4 secondi. Un clic sulla card li chiude subito.
+- I messaggi di errore restano visibili finché non li chiudi con la ✕ (vengono anche annunciati agli screen reader).
+- Con *Riduci animazioni* attivo la notifica non scorre: compare con una dissolvenza.
