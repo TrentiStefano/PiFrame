@@ -616,7 +616,15 @@ class ThemeSpec {
       ),
       iconButtonTheme: IconButtonThemeData(style: _withFocusRing(tokens)),
       checkboxTheme: CheckboxThemeData(overlayColor: _focusOverlay(tokens)),
-      switchTheme: SwitchThemeData(overlayColor: _focusOverlay(tokens)),
+      switchTheme: SwitchThemeData(
+        overlayColor: _focusOverlay(tokens),
+        // Off state uses the quiet `border` token; the on state keeps the
+        // default (no outline on the filled track).
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return null;
+          return tokens.border;
+        }),
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: tokens.surface,
         surfaceTintColor: tokens.surface,

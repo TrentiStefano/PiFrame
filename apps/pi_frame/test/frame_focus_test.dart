@@ -176,6 +176,11 @@ void main() {
         expect(theme.focusColor, tokens.focusRing.withValues(alpha: 0.2));
       });
 
+      test('switch off outline is the border token, quieter than on', () {
+        final outline = theme.switchTheme.trackOutlineColor!;
+        expect(outline.resolve({}), tokens.border);
+        expect(outline.resolve({WidgetState.selected}), isNull);
+      });
     });
   }
 }
