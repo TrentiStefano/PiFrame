@@ -1555,6 +1555,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                       setState(() => _bodyOpen = !_bodyOpen),
                                   onCommit: _commit,
                                 ),
+                                const SizedBox(height: FrameSpace.x2),
                                 Row(
                                   children: [
                                     for (final (i, spec) in [

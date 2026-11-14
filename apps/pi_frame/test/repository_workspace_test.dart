@@ -867,7 +867,7 @@ void main() {
             home: const Scaffold(
               body: SizedBox(
                 width: 380,
-                height: 360,
+                height: 360 + FrameSpace.x2,
                 child: GitChangesPane(sessionId: 'session-a'),
               ),
             ),
@@ -1096,10 +1096,31 @@ void main() {
         tester.widget<Text>(counter).style?.color,
         FrameTokens.light.warning,
       );
+
+      // The counter measures the whole subject, not a prefix of it.
+      await tester.enterText(subjectField, 'x' * 80);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(counter).data, '80/72');
+      expect(
+        tester.widget<Text>(counter).style?.color,
+        FrameTokens.light.warning,
+      );
       // The soft guide does not block the commit.
       expect(tester.widget<FilledButton>(commitButton).onPressed, isNotNull);
     },
   );
+
+  testWidgets('The commit form keeps a gap above the remote buttons', (
+    tester,
+  ) async {
+    await pumpCommitPane(tester, _StagedCommitClient());
+    final toggle = find.byKey(const ValueKey('git-commit-body-toggle'));
+    final fetch = find.byKey(const ValueKey('git-fetch-btn'));
+    expect(
+      tester.getTopLeft(fetch).dy - tester.getBottomLeft(toggle).dy,
+      greaterThanOrEqualTo(FrameSpace.x2),
+    );
+  });
 
   testWidgets('Compact layout spans Commit under the four remote buttons', (
     tester,
