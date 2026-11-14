@@ -531,7 +531,7 @@ class _ToolCardState extends State<ToolCard> {
                     if (canExpand)
                       Icon(
                         _isExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
-                        size: FrameSize.iconSm,
+                        size: 15,
                         color: tokens.textMuted,
                       )
                     else
