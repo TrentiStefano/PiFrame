@@ -32,6 +32,17 @@ extension ShellStrings on AppStrings {
       isItalian ? 'Espandi pannello $pane' : 'Expand $pane panel';
   String get expandSessionsSidebarTooltip =>
       isItalian ? 'Espandi barra sessioni' : 'Expand sessions sidebar';
+  String get sessionsSidebarDividerLabel =>
+      isItalian ? 'Larghezza barra sessioni' : 'Sessions sidebar width';
+  String get sessionsSidebarDividerTooltip => isItalian
+      ? 'Trascina per ridimensionare la barra sessioni'
+      : 'Drag to resize the sessions sidebar';
+  String paneDividerLabel(String left, String right) => isItalian
+      ? 'Divisore tra $left e $right'
+      : 'Divider between $left and $right';
+  String dividerPixelValue(int pixels) =>
+      isItalian ? '$pixels pixel' : '$pixels pixels';
+  String dividerPercentValue(int percent) => '$percent %';
   String get sessionsRailHeader => isItalian ? 'SESSIONI' : 'SESSIONS';
   String get recentSessionsHeader =>
       isItalian ? 'Sessioni recenti' : 'Recent sessions';

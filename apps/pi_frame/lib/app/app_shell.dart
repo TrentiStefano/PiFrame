@@ -135,6 +135,73 @@ WorkspacePane? _paneNamed(Object? name) {
   return null;
 }
 
+/// Keyboard and screen-reader access for every resizable divider (plan task 6.7): the
+/// divider takes focus, ←/→ move it one step (the same step the Semantics actions use),
+/// and the increase/decrease actions are exposed. The caller owns the drag gestures.
+class _ResizeDividerFocus extends StatefulWidget {
+  const _ResizeDividerFocus({
+    required this.label,
+    required this.value,
+    required this.builder,
+    this.increasedValue,
+    this.decreasedValue,
+    this.onIncrease,
+    this.onDecrease,
+  });
+
+  final String label;
+  final String value;
+  final String? increasedValue;
+  final String? decreasedValue;
+  // Null when the divider cannot move further in that direction.
+  final VoidCallback? onIncrease;
+  final VoidCallback? onDecrease;
+  final Widget Function(BuildContext context, bool focused) builder;
+
+  @override
+  State<_ResizeDividerFocus> createState() => _ResizeDividerFocusState();
+}
+
+class _ResizeDividerFocusState extends State<_ResizeDividerFocus> {
+  bool _focused = false;
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+        widget.onDecrease != null) {
+      widget.onDecrease!();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+        widget.onIncrease != null) {
+      widget.onIncrease!();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      slider: true,
+      label: widget.label,
+      value: widget.value,
+      // Semantics requires both or neither: fall back to the current value.
+      increasedValue: widget.increasedValue ?? widget.value,
+      decreasedValue: widget.decreasedValue ?? widget.value,
+      onIncrease: widget.onIncrease,
+      onDecrease: widget.onDecrease,
+      child: Focus(
+        onKeyEvent: _handleKey,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        child: widget.builder(context, _focused),
+      ),
+    );
+  }
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
   @override
@@ -1231,6 +1298,22 @@ class _AppShellState extends ConsumerState<AppShell>
     _persistLayout();
   }
 
+  /// Keyboard step on the sessions divider (plan task 6.7). Same resize path as a drag.
+  void _stepSidebar(double delta, double windowWidth, {required bool inDrawer}) {
+    _resizeSidebar(delta, windowWidth, inDrawer: inDrawer);
+    _persistLayout();
+  }
+
+  /// The 1 px line drawn inside every divider. It turns accent-coloured while focused.
+  Widget _dividerLine(BuildContext context, bool focused) {
+    final tokens = context.tokens;
+    return Container(
+      width: focused ? 2 : 1,
+      height: 40,
+      color: focused ? tokens.accent : tokens.borderStrong,
+    );
+  }
+
   Widget _sessionsSidebar(double windowWidth, {bool inDrawer = false}) {
     final sidebarWidth = _effectiveSidebarWidth(
       windowWidth,
@@ -1275,24 +1358,18 @@ class _AppShellState extends ConsumerState<AppShell>
         MouseRegion(
           key: const ValueKey('sessions-sidebar-divider'),
           cursor: SystemMouseCursors.resizeLeftRight,
-          child: Semantics(
-            label: 'Larghezza barra sessioni',
-            value: '${sidebarWidth.round()} pixel',
-            increasedValue: '${increasedWidth.round()} pixel',
-            decreasedValue: '${decreasedWidth.round()} pixel',
+          child: _ResizeDividerFocus(
+            label: strings.sessionsSidebarDividerLabel,
+            value: strings.dividerPixelValue(sidebarWidth.round()),
+            increasedValue: strings.dividerPixelValue(increasedWidth.round()),
+            decreasedValue: strings.dividerPixelValue(decreasedWidth.round()),
             onIncrease: increasedWidth > sidebarWidth
-                ? () {
-                    _resizeSidebar(20, windowWidth, inDrawer: inDrawer);
-                    _persistLayout();
-                  }
+                ? () => _stepSidebar(20, windowWidth, inDrawer: inDrawer)
                 : null,
             onDecrease: decreasedWidth < sidebarWidth
-                ? () {
-                    _resizeSidebar(-20, windowWidth, inDrawer: inDrawer);
-                    _persistLayout();
-                  }
+                ? () => _stepSidebar(-20, windowWidth, inDrawer: inDrawer)
                 : null,
-            child: GestureDetector(
+            builder: (context, focused) => GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragStart: (_) =>
                   ref.read(paneDraggingProvider.notifier).state = true,
@@ -1304,15 +1381,11 @@ class _AppShellState extends ConsumerState<AppShell>
               onHorizontalDragEnd: (_) => _finishSidebarResize(),
               onHorizontalDragCancel: _finishSidebarResize,
               child: Tooltip(
-                message: 'Trascina per ridimensionare la barra sessioni',
+                message: strings.sessionsSidebarDividerTooltip,
                 child: SizedBox(
                   width: _sidebarDividerWidth,
                   child: Center(
-                    child: Container(
-                      width: 1,
-                      height: 40,
-                      color: context.tokens.borderStrong,
-                    ),
+                    child: _dividerLine(context, focused),
                   ),
                 ),
               ),
@@ -1448,32 +1521,47 @@ class _AppShellState extends ConsumerState<AppShell>
                     'pane-divider-${panes[index]}-${panes[index + 1]}',
                   ),
                   cursor: SystemMouseCursors.resizeLeftRight,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragStart: (_) =>
-                        ref.read(paneDraggingProvider.notifier).state = true,
-                    onHorizontalDragEnd: (_) {
-                      ref.read(paneDraggingProvider.notifier).state = false;
-                      _persistLayout();
-                    },
-                    onHorizontalDragCancel: () {
-                      ref.read(paneDraggingProvider.notifier).state = false;
-                      _persistLayout();
-                    },
-                    onHorizontalDragUpdate: (details) => _resizeAdjacent(
+                  child: _ResizeDividerFocus(
+                    label: strings.paneDividerLabel(
+                      _paneLabel(panes[index]),
+                      _paneLabel(panes[index + 1]),
+                    ),
+                    value: strings.dividerPercentValue(
+                      _leftSharePercent(panes[index], panes[index + 1]),
+                    ),
+                    onIncrease: () => _stepAdjacent(
                       panes[index],
                       panes[index + 1],
-                      details.delta.dx,
+                      20,
                       availableWidth,
                     ),
-                    child: SizedBox(
-                      width: dividerWidth,
-                      child: Center(
-                        child: Container(
-                          width: 1,
-                          height: 40,
-                          color: context.tokens.borderStrong,
-                        ),
+                    onDecrease: () => _stepAdjacent(
+                      panes[index],
+                      panes[index + 1],
+                      -20,
+                      availableWidth,
+                    ),
+                    builder: (context, focused) => GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: (_) =>
+                          ref.read(paneDraggingProvider.notifier).state = true,
+                      onHorizontalDragEnd: (_) {
+                        ref.read(paneDraggingProvider.notifier).state = false;
+                        _persistLayout();
+                      },
+                      onHorizontalDragCancel: () {
+                        ref.read(paneDraggingProvider.notifier).state = false;
+                        _persistLayout();
+                      },
+                      onHorizontalDragUpdate: (details) => _resizeAdjacent(
+                        panes[index],
+                        panes[index + 1],
+                        details.delta.dx,
+                        availableWidth,
+                      ),
+                      child: SizedBox(
+                        width: dividerWidth,
+                        child: Center(child: _dividerLine(context, focused)),
                       ),
                     ),
                   ),
@@ -1483,6 +1571,25 @@ class _AppShellState extends ConsumerState<AppShell>
         );
       },
     );
+  }
+
+  /// Keyboard step on a pane divider (plan task 6.7). Same path as a drag, then saved.
+  void _stepAdjacent(
+    WorkspacePane left,
+    WorkspacePane right,
+    double delta,
+    double availableWidth,
+  ) {
+    _resizeAdjacent(left, right, delta, availableWidth);
+    _persistLayout();
+  }
+
+  /// Share of the two neighbouring panes that the left one occupies, for screen readers.
+  int _leftSharePercent(WorkspacePane left, WorkspacePane right) {
+    final leftWeight = _paneWeights[left] ?? 1;
+    final total = leftWeight + (_paneWeights[right] ?? 1);
+    if (total <= 0) return 50;
+    return (leftWeight / total * 100).round();
   }
 
   void _resizeAdjacent(

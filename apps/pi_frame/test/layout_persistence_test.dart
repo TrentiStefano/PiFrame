@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/app/app_shell.dart';
@@ -385,6 +387,99 @@ group('restored pane layout (task 6.6)', () {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+});
+
+group('divider keyboard access (task 6.7)', () {
+  Finder focusTarget(Finder divider) =>
+      find.descendant(of: divider, matching: find.byType(GestureDetector)).first;
+
+  testWidgets('sessions divider moves with the arrow keys and is saved', (
+    tester,
+  ) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    final sidebar = find.byKey(const ValueKey('sessions-sidebar-pane'));
+    final divider = find.byKey(const ValueKey('sessions-sidebar-divider'));
+    Focus.of(tester.element(focusTarget(divider))).requestFocus();
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(sidebar).width, 300);
+    expect(
+      (jsonDecode(layoutFile.readAsStringSync()) as Map)['sidebarWidth'],
+      300,
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(sidebar).width, 260);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pane dividers move with the arrow keys and are saved', (
+    tester,
+  ) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    final divider = find.byKey(
+      const ValueKey('pane-divider-WorkspacePane.repository-WorkspacePane.chat'),
+    );
+    final repo = find.byKey(const ValueKey('pane-enter-WorkspacePane.repository'));
+    final before = tester.getSize(repo).width;
+    Focus.of(tester.element(focusTarget(divider))).requestFocus();
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    final wider = tester.getSize(repo).width;
+    expect(wider, greaterThan(before));
+    expect(
+      (jsonDecode(layoutFile.readAsStringSync()) as Map)['paneWeights'],
+      isA<Map>(),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(repo).width, lessThan(wider));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pane dividers expose increase and decrease to assistive tech', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    final divider = find.byKey(
+      const ValueKey('pane-divider-WorkspacePane.chat-WorkspacePane.git'),
+    );
+    final node = tester.getSemantics(
+      find.descendant(of: divider, matching: find.byType(Semantics)).first,
+    );
+    // The semantics owner the test binding dispatches actions through.
+    // ignore: deprecated_member_use
+    final owner = tester.binding.pipelineOwner.semanticsOwner!;
+    final git = find.byKey(const ValueKey('pane-enter-WorkspacePane.git'));
+    final before = tester.getSize(git).width;
+    owner.performAction(node.id, SemanticsAction.decrease);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(git).width, greaterThan(before));
+
+    owner.performAction(node.id, SemanticsAction.increase);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(git).width, closeTo(before, 2));
+    expect(tester.takeException(), isNull);
+    handle.dispose();
   });
 });
 }
