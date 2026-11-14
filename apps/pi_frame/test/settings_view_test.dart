@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame/features/settings/settings_view.dart';
+import 'package:pi_frame/ui/frame_dialog.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
@@ -175,7 +176,7 @@ void main() {
     }
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byWidgetPredicate((w) => w is FrameDialog),
         matching: find.widgetWithText(FilledButton, 'Aggiorna tutto'),
       ),
     );
@@ -251,7 +252,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byWidgetPredicate((w) => w is FrameDialog),
         matching: find.text('Annulla'),
       ),
     );
@@ -486,7 +487,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(
         find.descendant(
-          of: find.byType(AlertDialog),
+          of: find.byWidgetPredicate((w) => w is FrameDialog),
           matching: find.text('Aggiorna'),
         ),
       );
@@ -720,7 +721,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byWidgetPredicate((w) => w is FrameDialog),
         matching: find.widgetWithText(FilledButton, 'Aggiorna'),
       ),
     );
@@ -770,7 +771,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(
           find.descendant(
-            of: find.byType(AlertDialog),
+            of: find.byWidgetPredicate((w) => w is FrameDialog),
             matching: find.widgetWithText(
               FilledButton,
               bulk ? 'Aggiorna tutto' : 'Aggiorna',
@@ -1000,6 +1001,8 @@ void main() {
     await tester.tap(find.byTooltip('Blocca versione pi-caveman'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '0.1.16');
+    // The pin action reads the field through a rebuilt dialog, so let it rebuild.
+    await tester.pump();
     await tester.tap(find.text('Blocca'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Blocca versione'));

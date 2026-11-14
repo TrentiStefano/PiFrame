@@ -38,7 +38,7 @@ class PackageLoadingView extends StatelessWidget {
         Row(
           children: [
             Icon(
-              Icons.hourglass_empty,
+              Icons.hourglass_empty_outlined,
               color: tokens.textMuted,
               size: FrameSize.icon,
             ),
@@ -66,7 +66,7 @@ class PackageLoadingView extends StatelessWidget {
               minimumSize: const Size(0, FrameSize.rowForm),
             ),
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh, size: FrameSize.icon),
+            icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
             label: Text(strings.retryAction),
           ),
         ],

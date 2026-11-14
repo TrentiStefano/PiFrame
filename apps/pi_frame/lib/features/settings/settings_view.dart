@@ -15,6 +15,7 @@ import '../../domain/errors/user_facing_error.dart';
 import '../../data/update/startup_updates_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_status_tag.dart';
 import '../../ui/motion.dart';
 import 'diagnostics.dart';
@@ -142,13 +143,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           _fetchPiPackages();
           FrameSnackBar.show(context, message: strings.daemonRestartSuccess);
         } else {
-          FrameSnackBar.show(context, message: strings.daemonRestartFailed);
+          FrameSnackBar.show(context, message: strings.daemonRestartFailed, isError: true);
         }
       }
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(context, message: strings.daemonRestartError(e));
+        FrameSnackBar.show(context, message: strings.daemonRestartError(e), isError: true);
       }
     } finally {
       if (mounted) setState(() => _isRestartingDaemon = false);
@@ -222,31 +223,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     bool destructive = false,
   }) async {
     final strings = ref.read(appStringsProvider);
-    return await showDialog<bool>(
+    return await showFrameDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
+          dialog: FrameDialog<bool>(
+            title: title,
+            body: Text(message),
             actions: [
-              TextButton(
-                autofocus: destructive,
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(strings.cancel),
+              FrameDialogAction(
+                label: strings.cancel,
+                role: FrameDialogActionRole.cancel,
+                value: false,
               ),
-              FilledButton(
-                style: destructive
-                    ? FilledButton.styleFrom(
-                        backgroundColor: dialogContext.tokens.danger,
-                        foregroundColor: dialogContext.tokens.surface,
-                      )
-                    : null,
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(confirmation),
+              FrameDialogAction(
+                label: confirmation,
+                role: destructive
+                    ? FrameDialogActionRole.destructive
+                    : FrameDialogActionRole.primary,
+                value: true,
               ),
             ],
           ),
-        ) ??
-        false;
+        ) ?? false;
   }
 
   Future<void> _performPackageAction(
@@ -288,6 +285,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         FrameSnackBar.show(
           context,
           message: strings.packageActionFailedNotice(error),
+          isError: true,
         );
       }
     } finally {
@@ -462,6 +460,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             '$result${updated == 0 ? '' : ' ${strings.restartPiAfterPackageUpdate}'}',
         duration: Duration(seconds: details.isEmpty ? 3 : 8),
         backgroundColor: details.isEmpty ? null : context.tokens.danger,
+        isError: details.isNotEmpty,
       );
     } finally {
       if (mounted) {
@@ -497,12 +496,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final currentVersion =
         (package['pinnedVersion'] ?? package['version'] ?? '').toString();
     var version = currentVersion;
-    final selected = await showDialog<String>(
+    final selected = await showFrameDialogBuilder<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(strings.pinNpmVersionTitle),
-          content: TextFormField(
+        builder: (context, setDialogState) => FrameDialog<String>(
+          title: strings.pinNpmVersionTitle,
+          body: TextFormField(
             initialValue: currentVersion,
             onChanged: (value) => setDialogState(() => version = value.trim()),
             decoration: InputDecoration(
@@ -511,15 +510,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(strings.cancel),
+            FrameDialogAction(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
             ),
-            FilledButton(
-              onPressed: version.isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, version),
-              child: Text(strings.actionPin),
+            FrameDialogAction(
+              label: strings.actionPin,
+              role: FrameDialogActionRole.primary,
+              value: version,
+              enabled: version.isNotEmpty,
             ),
           ],
         ),
@@ -724,7 +723,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               children: [
                 IconButton(
                   key: const ValueKey('settings-back-button'),
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_outlined),
                   tooltip: strings.backToWorkspaceTooltip,
                   color: tokens.displayText,
                   onPressed: widget.onClose,
@@ -764,7 +763,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        width: _navWidth,
+                        // Grows with the text scale so labels do not truncate.
+                        width: _navWidth *
+                            MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
                         child: _buildVerticalNav(strings, tokens, text),
                       ),
                       Expanded(child: content),

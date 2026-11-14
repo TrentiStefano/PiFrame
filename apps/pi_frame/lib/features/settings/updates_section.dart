@@ -1,4 +1,6 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_status_tag.dart';
@@ -47,19 +49,21 @@ class UpdatesSection extends ConsumerWidget {
     String? assetName,
   ) async {
     final strings = ref.read(appStringsProvider);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFrameDialog<bool>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        title: Text(strings.confirmInstallDialogTitle),
-        content: Text(strings.confirmInstallDialogContent(assetName)),
+      dialog: FrameDialog<bool>(
+        title: strings.confirmInstallDialogTitle,
+        body: Text(strings.confirmInstallDialogContent(assetName)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text(strings.cancel),
+          FrameDialogAction(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: Text(strings.installAndRestartBtn),
+          FrameDialogAction(
+            label: strings.installAndRestartBtn,
+            role: FrameDialogActionRole.primary,
+            value: true,
           ),
         ],
       ),
@@ -95,15 +99,8 @@ class UpdatesSection extends ConsumerWidget {
                   .checkForUpdates(isManual: true);
             },
       icon: updateState.isChecking
-          ? SizedBox(
-              width: FrameSize.icon,
-              height: FrameSize.icon,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: tokens.textPrimary,
-              ),
-            )
-          : const Icon(Icons.refresh, size: FrameSize.icon),
+          ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.textPrimary)
+          : const Icon(Icons.refresh_outlined, size: FrameSize.icon),
       label: Text(
         updateState.isChecking
             ? strings.updatesChecking
@@ -313,7 +310,7 @@ class UpdatesSection extends ConsumerWidget {
               onPressed: () {
                 ref.read(updateControllerProvider.notifier).openReleasePage();
               },
-              icon: const Icon(Icons.open_in_new, size: FrameSize.icon),
+              icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
               label: Text(strings.updatesNotesOnGithub),
             ),
           ),
@@ -383,7 +380,7 @@ class UpdatesSection extends ConsumerWidget {
                   ),
                   onPressed: () =>
                       _confirmAndInstall(context, ref, asset?.name),
-                  icon: const Icon(Icons.install_desktop, size: FrameSize.icon),
+                  icon: const Icon(Icons.install_desktop_outlined, size: FrameSize.icon),
                   label: Text(strings.installAndRestartBtn),
                 ),
                 FrameStatusTag(
@@ -395,14 +392,7 @@ class UpdatesSection extends ConsumerWidget {
           ] else if (isInstalling) ...[
             Row(
               children: [
-                SizedBox(
-                  width: FrameSize.icon,
-                  height: FrameSize.icon,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: tokens.accent,
-                  ),
-                ),
+                FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent),
                 const SizedBox(width: FrameSpace.x3),
                 Text(
                   strings.updatesLaunchingInstaller,
@@ -421,7 +411,7 @@ class UpdatesSection extends ConsumerWidget {
                       .read(updateControllerProvider.notifier)
                       .downloadUpdate(assetOverride: asset);
                 },
-                icon: const Icon(Icons.download, size: FrameSize.icon),
+                icon: const Icon(Icons.download_outlined, size: FrameSize.icon),
                 label: Text(strings.updatesDownloadBtn),
               )
             else
@@ -432,7 +422,7 @@ class UpdatesSection extends ConsumerWidget {
                 onPressed: () {
                   ref.read(updateControllerProvider.notifier).openReleasePage();
                 },
-                icon: const Icon(Icons.open_in_browser, size: FrameSize.icon),
+                icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.icon),
                 label: Text(strings.updatesDownloadManuallyBtn),
               ),
           ],

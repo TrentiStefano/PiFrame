@@ -188,7 +188,7 @@ class TerminalSection extends ConsumerWidget {
                                     const SizedBox(width: FrameSpace.x2),
                                     OutlinedButton.icon(
                                       icon: const Icon(
-                                        Icons.folder_open,
+                                        Icons.folder_open_outlined,
                                         size: FrameSize.icon,
                                       ),
                                       label: Text(strings.terminalBrowseBtn),
@@ -234,7 +234,7 @@ class TerminalSection extends ConsumerWidget {
               foregroundColor: tokens.surface,
               minimumSize: const Size(0, FrameSize.rowForm),
             ),
-            icon: const Icon(Icons.open_in_new, size: FrameSize.icon),
+            icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
             label: Text(strings.terminalTestBtn),
             onPressed: () async {
               final launched = await launchNativeTerminal(
@@ -248,6 +248,7 @@ class TerminalSection extends ConsumerWidget {
                   message: launched
                       ? strings.terminalTestSuccess
                       : strings.terminalTestFailed,
+                  isError: !launched,
                 );
               }
             },

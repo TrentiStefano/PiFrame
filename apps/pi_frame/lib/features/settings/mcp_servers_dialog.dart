@@ -10,6 +10,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_icon_action.dart';
@@ -120,7 +121,7 @@ class McpServersDialog extends StatefulWidget {
       // Refresh sits in the header; the body reloads on its own state.
       headerActions: [
         FrameIconAction(
-          icon: Icons.refresh,
+          icon: Icons.refresh_outlined,
           tooltip: resolved.mcpRefreshListTooltip,
           onPressed: () => bodyKey.currentState?.reload(),
         ),
@@ -468,7 +469,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
         'Error updating server ${server.name} in ${server.sourcePath}: $e',
       );
       if (mounted) {
-        FrameSnackBar.show(context, message: _strings.mcpSaveError(e));
+        FrameSnackBar.show(context, message: _strings.mcpSaveError(e), isError: true);
       }
     } finally {
       if (mounted) {
@@ -546,14 +547,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: FrameSize.iconLg,
-              height: FrameSize.iconLg,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: tokens.accent,
-              ),
-            ),
+            FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2.2, color: tokens.accent),
             const SizedBox(height: FrameSpace.x3),
             Text(
               strings.mcpLoadingServers,
@@ -582,7 +576,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
         title: strings.mcpEmptyTitle,
         message: strings.mcpEmptySubtitle,
         actionLabel: strings.mcpOpenConfigBtn,
-        actionIcon: Icons.open_in_new,
+        actionIcon: Icons.open_in_new_outlined,
         onAction: _openConfigFile,
       );
     }
@@ -641,14 +635,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
                   height: FrameSize.iconLg,
                   child: isToggling
                       ? Center(
-                          child: SizedBox(
-                            width: FrameSize.icon - 2,
-                            height: FrameSize.icon - 2,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: tokens.accent,
-                            ),
-                          ),
+                          child: FrameActivityIndicator(size: FrameSize.icon - 2, strokeWidth: 2, color: tokens.accent),
                         )
                       : Checkbox(
                           key: ValueKey('mcp-checkbox-${server.name}'),
@@ -748,8 +735,8 @@ class _McpServersBodyState extends State<_McpServersBody> {
                             const SizedBox(width: FrameSpace.x1 / 2),
                             Icon(
                               isToolsExpanded
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
+                                  ? Icons.keyboard_arrow_up_outlined
+                                  : Icons.keyboard_arrow_down_outlined,
                               size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),

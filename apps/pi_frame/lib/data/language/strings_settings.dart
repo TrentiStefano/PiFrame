@@ -520,6 +520,8 @@ extension SettingsStrings on AppStrings {
       isItalian ? 'Visualizzazione' : 'View Only (View)';
   String get remoteSegmentControl =>
       isItalian ? 'Controllo' : 'Control (Control)';
+  String get remoteDeviceModeViewLabel => isItalian ? 'Visualizza' : 'View';
+  String get remoteDeviceModeControlLabel => isItalian ? 'Controlla' : 'Control';
   String get remoteModeViewExplanation => isItalian
       ? 'La modalità Visualizzazione consente di consultare sessioni, log e file in sola lettura, con possibilità di abortire l\'agente in caso di emergenza. Nessun prompt o modifica consentita.'
       : 'View mode allows read-only access to sessions, logs, and files, with emergency agent abort. No prompts or modifications allowed.';
@@ -661,6 +663,7 @@ extension SettingsStrings on AppStrings {
   // ---------------------------------------------------------------------------
   // Theme Editor Dialog
   // ---------------------------------------------------------------------------
+  String get themeEditorHexLabel => 'HEX (#RRGGBB)';
   String get themeEditorSuggestedColors =>
       isItalian ? 'Colori suggeriti' : 'Suggested Colors';
   String get themeEditorApplyColor => isItalian ? 'Applica' : 'Apply';

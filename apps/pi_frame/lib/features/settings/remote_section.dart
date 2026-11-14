@@ -1,5 +1,7 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_callout.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_status_tag.dart';
@@ -280,17 +282,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     if (enable && _tunnelProvider == 'tailscale' && !_tailscaleInstalled) {
       final strings = ref.read(appStringsProvider);
-      final shouldInstall = await showDialog<bool>(
+      final shouldInstall = await showFrameDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(strings.remoteTailscaleMissingDialogTitle),
-          content: Text(strings.remoteTailscaleMissingDialogContent),
+        dialog: FrameDialog<bool>(
+          title: strings.remoteTailscaleMissingDialogTitle,
+          body: Text(strings.remoteTailscaleMissingDialogContent),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
-            FilledButton.icon(
-              icon: const Icon(Icons.download, size: 18),
-              onPressed: () => Navigator.pop(ctx, true),
-              label: Text(strings.remoteInstallTailscaleBtn),
+            FrameDialogAction(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
+              value: false,
+            ),
+            FrameDialogAction(
+              label: strings.remoteInstallTailscaleBtn,
+              role: FrameDialogActionRole.primary,
+              value: true,
             ),
           ],
         ),
@@ -303,17 +309,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     if (enable && _tunnelProvider == 'cloudflared' && !_cloudflaredInstalled) {
       final strings = ref.read(appStringsProvider);
-      final shouldInstall = await showDialog<bool>(
+      final shouldInstall = await showFrameDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(strings.remoteCloudflaredMissingDialogTitle),
-          content: Text(strings.remoteCloudflaredMissingDialogContent),
+        dialog: FrameDialog<bool>(
+          title: strings.remoteCloudflaredMissingDialogTitle,
+          body: Text(strings.remoteCloudflaredMissingDialogContent),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
-            FilledButton.icon(
-              icon: const Icon(Icons.download, size: 18),
-              onPressed: () => Navigator.pop(ctx, true),
-              label: Text(strings.remoteInstallAndStartBtn),
+            FrameDialogAction(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
+              value: false,
+            ),
+            FrameDialogAction(
+              label: strings.remoteInstallAndStartBtn,
+              role: FrameDialogActionRole.primary,
+              value: true,
             ),
           ],
         ),
@@ -378,17 +388,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
   Future<void> _revokeDevice(String deviceId, String name) async {
     final strings = ref.read(appStringsProvider);
-    final confirm = await showDialog<bool>(
+    final confirm = await showFrameDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(strings.remoteRevokeDeviceDialogTitle),
-        content: Text(strings.remoteRevokeDeviceDialogContent(name)),
+      dialog: FrameDialog<bool>(
+        title: strings.remoteRevokeDeviceDialogTitle,
+        body: Text(strings.remoteRevokeDeviceDialogContent(name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(strings.remoteRevokeBtn),
+          FrameDialogAction(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
+          ),
+          FrameDialogAction(
+            label: strings.remoteRevokeBtn,
+            role: FrameDialogActionRole.destructive,
+            value: true,
           ),
         ],
       ),
@@ -408,17 +422,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
   Future<void> _revokeAllDevices() async {
     final strings = ref.read(appStringsProvider);
-    final confirm = await showDialog<bool>(
+    final confirm = await showFrameDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(strings.remoteRevokeAllDialogTitle),
-        content: Text(strings.remoteRevokeAllDialogContent),
+      dialog: FrameDialog<bool>(
+        title: strings.remoteRevokeAllDialogTitle,
+        body: Text(strings.remoteRevokeAllDialogContent),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(strings.remoteRevokeAllBtn),
+          FrameDialogAction(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
+          ),
+          FrameDialogAction(
+            label: strings.remoteRevokeAllBtn,
+            role: FrameDialogActionRole.destructive,
+            value: true,
           ),
         ],
       ),
@@ -453,17 +471,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     if (newMode == 'control') {
       final strings = ref.read(appStringsProvider);
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showFrameDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(strings.remoteControlConfirmTitle),
-          content: Text(strings.remoteControlConfirmContent(deviceName)),
+        dialog: FrameDialog<bool>(
+          title: strings.remoteControlConfirmTitle,
+          body: Text(strings.remoteControlConfirmContent(deviceName)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(strings.remoteGrantControlBtn),
+            FrameDialogAction(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
+              value: false,
+            ),
+            FrameDialogAction(
+              label: strings.remoteGrantControlBtn,
+              role: FrameDialogActionRole.destructive,
+              value: true,
             ),
           ],
         ),
@@ -503,7 +525,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         : FrameCalloutTone.info;
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
+      );
     }
 
     final isRunning = _state == 'running';
@@ -516,7 +540,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              Icons.phonelink_ring,
+              Icons.phonelink_ring_outlined,
               size: FrameSize.iconLg,
               color: tokens.accent,
             ),
@@ -654,7 +678,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           children: [
                             OutlinedButton.icon(
                               icon: const Icon(
-                                Icons.refresh,
+                                Icons.refresh_outlined,
                                 size: FrameSize.icon,
                               ),
                               label: Text(strings.remoteNewQrBtn),
@@ -662,7 +686,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                             ),
                             OutlinedButton.icon(
                               icon: const Icon(
-                                Icons.copy,
+                                Icons.copy_outlined,
                                 size: FrameSize.icon,
                               ),
                               label: Text(strings.remoteCopyPairLinkBtn),
@@ -678,7 +702,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                             ),
                             IconButton(
                               icon: const Icon(
-                                Icons.open_in_browser,
+                                Icons.open_in_browser_outlined,
                                 size: FrameSize.iconLg,
                               ),
                               tooltip: strings.remoteOpenInBrowserTooltip,
@@ -717,7 +741,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                 Row(
                   children: [
                     Icon(
-                      Icons.link,
+                      Icons.link_outlined,
                       size: FrameSize.icon,
                       color: tokens.accent,
                     ),
@@ -755,12 +779,12 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                   ButtonSegment(
                     value: 'view',
                     label: Text(strings.remoteSegmentView),
-                    icon: const Icon(Icons.visibility),
+                    icon: const Icon(Icons.visibility_outlined),
                   ),
                   ButtonSegment(
                     value: 'control',
                     label: Text(strings.remoteSegmentControl),
-                    icon: const Icon(Icons.settings_remote),
+                    icon: const Icon(Icons.settings_remote_outlined),
                   ),
                 ],
                 selected: {_defaultMode},
@@ -795,7 +819,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                   alignment: AlignmentDirectional.centerEnd,
                   child: TextButton.icon(
                     icon: Icon(
-                      Icons.delete_forever,
+                      Icons.delete_forever_outlined,
                       size: FrameSize.icon,
                       color: tokens.danger,
                     ),
@@ -854,8 +878,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                       children: [
                         Icon(
                           name.contains('iOS') || name.contains('Android')
-                              ? Icons.smartphone
-                              : Icons.devices,
+                              ? Icons.smartphone_outlined
+                              : Icons.devices_outlined,
                           color: tokens.accent,
                           size: FrameSize.iconLg,
                         ),
@@ -905,11 +929,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           items: [
                             DropdownMenuItem(
                               value: 'view',
-                              child: Text('View', style: text.label),
+                              child: Text(strings.remoteDeviceModeViewLabel, style: text.label),
                             ),
                             DropdownMenuItem(
                               value: 'control',
-                              child: Text('Control', style: text.label),
+                              child: Text(strings.remoteDeviceModeControlLabel, style: text.label),
                             ),
                           ],
                           onChanged: (newMode) {
@@ -997,15 +1021,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                     body: Text(strings.remoteTailscaleNotInstalledDesc),
                     action: OutlinedButton.icon(
                       icon: _isInstallingTailscale
-                          ? SizedBox(
-                              width: FrameSize.icon,
-                              height: FrameSize.icon,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: tokens.accent,
-                              ),
-                            )
-                          : const Icon(Icons.download, size: FrameSize.icon),
+                          ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                          : const Icon(Icons.download_outlined, size: FrameSize.icon),
                       label: Text(
                         _isInstallingTailscale
                             ? strings.remoteTailscaleInstallingBtn
@@ -1069,14 +1086,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                                   ? null
                                   : _saveTailscaleHostname,
                               child: _isSavingTailscaleHostname
-                                  ? SizedBox(
-                                      width: FrameSize.icon,
-                                      height: FrameSize.icon,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: tokens.accentContrast,
-                                      ),
-                                    )
+                                  ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
                                   : Text(strings.remoteTailscaleSaveNameBtn),
                             ),
                           ],
@@ -1138,15 +1148,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                     ),
                     action: OutlinedButton.icon(
                       icon: _isInstallingCloudflared
-                          ? SizedBox(
-                              width: FrameSize.icon,
-                              height: FrameSize.icon,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: tokens.accent,
-                              ),
-                            )
-                          : const Icon(Icons.download, size: FrameSize.icon),
+                          ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                          : const Icon(Icons.download_outlined, size: FrameSize.icon),
                       label: Text(
                         _isInstallingCloudflared
                             ? strings.remoteCloudflaredInstallingBtn

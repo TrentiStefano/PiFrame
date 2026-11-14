@@ -5,6 +5,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../data/theme/theme_providers.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_pane_header.dart';
 import '../../ui/frame_search_field.dart';
@@ -110,17 +112,13 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
 
     Color selectedColor = currentColor;
 
-    await showDialog<void>(
+    await showFrameDialogBuilder<void>(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          return AlertDialog(
-            backgroundColor: tokens.surfaceElevated,
-            title: Text(
-              title,
-              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary),
-            ),
-            content: SizedBox(
+          return FrameDialog<void>(
+            title: title,
+            body: SizedBox(
               width: 320,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -147,7 +145,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             fontSize: FrameText.fromTokens(tokens).bodyLarge.fontSize,
                           ),
                           decoration: InputDecoration(
-                            labelText: 'HEX (#RRGGBB)',
+                            labelText: strings.themeEditorHexLabel,
                             labelStyle: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
@@ -179,13 +177,13 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             hexController.text = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
                           });
                         },
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
                         child: Container(
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                             border: Border.all(
                               color: isSelected ? tokens.accent : tokens.border,
                               width: isSelected ? 2 : 1,
@@ -199,16 +197,15 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogCtx),
-                child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
+              FrameDialogAction(
+                label: strings.cancel,
+                role: FrameDialogActionRole.cancel,
               ),
-              FilledButton(
-                onPressed: () {
-                  _setColor(key, selectedColor, isSyntax: isSyntax);
-                  Navigator.pop(dialogCtx);
-                },
-                child: Text(strings.themeEditorApplyColor),
+              FrameDialogAction(
+                label: strings.themeEditorApplyColor,
+                role: FrameDialogActionRole.primary,
+                onPressed: () =>
+                    _setColor(key, selectedColor, isSyntax: isSyntax),
               ),
             ],
           );
@@ -297,7 +294,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               height: 22,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
                 border: Border.all(color: tokens.borderStrong),
               ),
             ),
@@ -316,7 +313,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.colorize, size: 14, color: tokens.textMuted),
+            Icon(Icons.colorize_outlined, size: FrameSize.icon, color: tokens.textMuted),
           ],
         ),
       ),
@@ -493,7 +490,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               // Header
               Row(
                 children: [
-                  Icon(Icons.tune_rounded, color: tokens.accent, size: 24),
+                  Icon(Icons.tune_outlined, color: tokens.accent, size: FrameSize.iconLg),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -516,7 +513,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: tokens.textMuted),
+                    icon: Icon(Icons.close_outlined, color: tokens.textMuted),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -732,8 +729,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     key: const ValueKey('theme-editor-save-btn'),
                     onPressed: _isSaving ? null : _saveAndApplyTheme,
                     icon: _isSaving
-                        ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: tokens.accentContrast, strokeWidth: 2))
-                        : const Icon(Icons.check, size: 16),
+                        ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
+                        : const Icon(Icons.check_outlined, size: FrameSize.icon),
                     label: Text(strings.saveThemeAction),
                   ),
                 ],

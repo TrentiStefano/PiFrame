@@ -10,6 +10,7 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
@@ -198,15 +199,8 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   ),
                 ),
                 icon: _isExporting
-                    ? SizedBox(
-                        width: FrameSize.icon,
-                        height: FrameSize.icon,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: tokens.accentContrast,
-                        ),
-                      )
-                    : const Icon(Icons.copy, size: FrameSize.icon),
+                    ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
+                    : const Icon(Icons.copy_outlined, size: FrameSize.icon),
                 label: Text(
                   _isExporting
                       ? strings.diagGenerating

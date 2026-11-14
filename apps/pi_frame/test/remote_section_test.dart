@@ -193,7 +193,7 @@ void main() {
 
     final icon = tester.widget<Icon>(find.descendant(
       of: find.byKey(const ValueKey('remote-tailscale-missing')),
-      matching: find.byIcon(Icons.warning_amber_rounded),
+      matching: find.byIcon(Icons.warning_amber_outlined),
     ));
     expect(icon.color, FrameTokens.dark.warning);
     expect(icon.color, isNot(FrameTokens.dark.danger));

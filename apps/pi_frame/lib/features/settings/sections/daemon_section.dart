@@ -6,6 +6,7 @@ import '../../../data/daemon/daemon_locator.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
 import '../../../data/notifications/notification_providers.dart';
+import '../../../ui/frame_activity_indicator.dart';
 import '../../../ui/frame_dialog.dart';
 import '../../../ui/frame_section.dart';
 import '../../../ui/frame_status_tag.dart';
@@ -139,15 +140,8 @@ class DaemonSection extends ConsumerWidget {
                     minimumSize: const Size(0, FrameSize.rowForm),
                   ),
                   icon: isRestartingDaemon
-                      ? SizedBox(
-                          width: FrameSize.icon,
-                          height: FrameSize.icon,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: tokens.accent,
-                          ),
-                        )
-                      : const Icon(Icons.restart_alt, size: FrameSize.icon),
+                      ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                      : const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
                   label: Text(
                     isRestartingDaemon
                         ? strings.restartingDaemonStatus
@@ -174,14 +168,7 @@ class DaemonSection extends ConsumerWidget {
           child: isLoadingConfig
               ? Align(
                   alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: FrameSize.iconLg,
-                    height: FrameSize.iconLg,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accent,
-                    ),
-                  ),
+                  child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
                 )
               : Wrap(
                   spacing: FrameSpace.x4,
