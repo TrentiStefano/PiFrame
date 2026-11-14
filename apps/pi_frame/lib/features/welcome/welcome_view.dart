@@ -22,6 +22,17 @@ const int _maxRecentSessions = 8;
 /// Rise of each entrance item on the first run.
 const double _riseOffset = FrameSpace.x3;
 
+/// Welcome headline sizes. No display role fits (`FrameText.display` is 28),
+/// so the headline keeps its own sizes, 40 on compact and 48 on wide layouts.
+const double _headlineCompactSize = 40;
+const double _headlineSize = 48;
+
+/// Mark above the headline.
+const double _markSize = 48;
+
+/// Widest line of the welcome copy and of the recent-sessions list.
+const double _contentMaxWidth = 560;
+
 /// Welcome surface shown while no session is active: start a new session or
 /// resume a recent one.
 class WelcomeView extends ConsumerStatefulWidget {
@@ -154,7 +165,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const PiFrameMark(size: 48),
+            const PiFrameMark(size: _markSize),
             const SizedBox(height: FrameSpace.x8),
             _reveal(
               0,
@@ -162,7 +173,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                 strings.welcomeTitle,
                 style: TextStyle(
                   fontFamily: tokens.headingFontFamily,
-                  fontSize: compact ? 40 : 48,
+                  fontSize: compact ? _headlineCompactSize : _headlineSize,
                   height: 1.05,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -1.0,
@@ -174,7 +185,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
             _reveal(
               1,
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
                 child: Text(
                   strings.welcomeDescription,
                   style: text.bodyLarge.copyWith(color: tokens.textSecondary),
@@ -231,13 +242,13 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Padding(
-              padding: EdgeInsets.all(compact ? FrameSpace.x6 : 48),
+              padding: EdgeInsets.all(compact ? FrameSpace.x6 : FrameSpace.x12),
               child: wide
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(flex: 5, child: startContent),
-                        const SizedBox(width: 48),
+                        const SizedBox(width: FrameSpace.x12),
                         Expanded(flex: 6, child: recentContent),
                       ],
                     )
@@ -273,7 +284,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
     final folderLabels = folderDisplayNames(groups.keys);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 560),
+      constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

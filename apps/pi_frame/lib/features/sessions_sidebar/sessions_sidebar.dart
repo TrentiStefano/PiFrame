@@ -257,19 +257,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           ),
           title: Text(
             strings.renameSessionDialogTitle,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
+            style: FrameText.of(ctx).title.copyWith(color: tokens.textPrimary),
           ),
           content: TextField(
             controller: textController,
             autofocus: true,
-            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+            style: FrameText.of(ctx).body.copyWith(color: tokens.textPrimary),
             decoration: InputDecoration(
               hintText: strings.sessionNameHint,
-              hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+              hintStyle: FrameText.of(ctx).body.copyWith(color: tokens.textMuted),
               enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: tokens.border),
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -369,6 +365,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
@@ -398,12 +395,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     strings.sidebarTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: text.heading.copyWith(
                       color: tokens.textPrimary,
-                      fontSize: 18,
-                      height: 1.1,
                       fontFamily: tokens.headingFontFamily,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -444,7 +438,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
           // Search Field
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: tokens.border, width: 1),
@@ -452,11 +446,17 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
             child: TextField(
               controller: _searchController,
-              style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+              style: text.label.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: FontWeight.w400,
+              ),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: strings.searchSessionsHint,
-                hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                hintStyle: text.label.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.w400,
+                ),
                 prefixIcon: Icon(
                   Icons.search,
                   size: 16,
@@ -484,7 +484,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 filled: true,
                 fillColor: tokens.surfaceElevated,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
+                  horizontal: FrameSpace.x2,
                   vertical: 6,
                 ),
                 border: OutlineInputBorder(
@@ -588,12 +588,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 if (filtered.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(FrameSpace.x4),
                       child: Text(
                         _searchQuery.isNotEmpty || _filterMode != 'all'
                             ? strings.noSessionsMatchFilters
                             : strings.noSessionsFound,
-                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                        style: text.label.copyWith(color: tokens.textMuted),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -680,16 +680,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       pinnedSessions.any((s) => s['isActive'] == true);
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                    padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
                     child: Row(
                       children: [
                         Icon(Icons.push_pin, size: 13, color: tokens.accent),
                         const SizedBox(width: 6),
                         Text(
                           strings.pinnedSessionsHeader(pinnedSessions.length),
-                          style: TextStyle(
+                          style: text.caption.copyWith(
                             color: tokens.textSecondary,
-                            fontSize: 10.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
                           ),
@@ -727,13 +726,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   slivers: [
                     if (showPinnedSection) ...[
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, 0),
                         sliver: SliverToBoxAdapter(
                           child: buildPinnedHeader(),
                         ),
                       ),
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
                         sliver: SliverReorderableList(
                           itemCount: pinnedSessions.length,
                           proxyDecorator: (child, index, animation) {
@@ -803,19 +802,19 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       SliverToBoxAdapter(
                         child: Padding(
                           key: const ValueKey('pinned-sessions-separator'),
-                          padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, FrameSpace.x2),
                           child: Container(
                             height: 2,
                             decoration: BoxDecoration(
                               color: tokens.borderStrong,
-                              borderRadius: BorderRadius.circular(1),
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
                             ),
                           ),
                         ),
                       ),
                     ],
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                      padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (rowContext, index) {
@@ -851,7 +850,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         visualDensity: VisualDensity.compact,
                         minLeadingWidth: 18,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: FrameSpace.x2,
                         ),
                         leading: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -868,7 +867,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                       : tokens.accent.withValues(alpha: 0.8)),
                             ),
                             if (hasWorking) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: FrameSpace.x1),
                               Container(
                                 key: ValueKey('folder-working-dot:$folder'),
                                 width: 6,
@@ -879,7 +878,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 ),
                               ),
                             ] else if (hasActive) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: FrameSpace.x1),
                               Container(
                                 width: 6,
                                 height: 6,
@@ -897,20 +896,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               : (folderNames[folder] ?? _folderName(folder)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          style: text.label.copyWith(
                             color: tokens.textPrimary,
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
                           ),
                         ),
                         subtitle: Text(
                           folder.isEmpty ? strings.unknownFolderLabel : folder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 10,
-                          ),
+                          style: text.caption.copyWith(color: tokens.textMuted),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -969,7 +964,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               PopupMenuItem(
                                 value: 'instructions',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -978,15 +973,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                       size: 14,
                                       color: tokens.textSecondary,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.repoInstructionsAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.textPrimary,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -996,7 +990,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               PopupMenuItem(
                                 value: 'new_session',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -1005,15 +999,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                       size: 14,
                                       color: tokens.accent,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.newSessionAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.textPrimary,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -1024,7 +1017,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               PopupMenuItem(
                                 value: 'remove_repo',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -1033,15 +1026,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                       size: 14,
                                       color: tokens.danger,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.removeRepoFromSidebarAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.danger,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -1137,7 +1129,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               error: (err, _) => Center(
                 child: Text(
                   strings.sidebarErrorNotice(err),
-                  style: TextStyle(color: tokens.danger, fontSize: 12),
+                  style: text.label.copyWith(color: tokens.danger),
                 ),
               ),
             ),
@@ -1145,7 +1137,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
           // Bottom utility bar: Command Palette & Settings
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: tokens.border, width: 1)),
             ),
@@ -1156,7 +1148,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.textSecondary,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
+                        horizontal: FrameSpace.x2,
                         vertical: 6,
                       ),
                       alignment: Alignment.centerLeft,
@@ -1182,7 +1174,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     ),
                     label: Text(
                       strings.settingsLabel,
-                      style: const TextStyle(fontSize: 12),
+                      style: text.label,
                     ),
                     onPressed: () {
                       ref.read(showSettingsProvider.notifier).state = true;

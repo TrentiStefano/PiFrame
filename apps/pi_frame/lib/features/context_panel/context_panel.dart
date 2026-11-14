@@ -13,6 +13,9 @@ import 'context_window_selector.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 
+/// Width of the context drawer. No layout token covers it yet.
+const double _drawerWidth = 320;
+
 class ContextPanel extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -627,7 +630,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     ]);
 
     return Container(
-      width: 320,
+      width: _drawerWidth,
       decoration: BoxDecoration(color: tokens.surface),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
