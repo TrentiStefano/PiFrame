@@ -8,6 +8,7 @@ import '../../data/daemon/attachment_upload.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/attachment_model.dart';
+import '../../ui/frame_icon_action.dart';
 
 class WebLinkInputDialog extends ConsumerStatefulWidget {
   const WebLinkInputDialog({super.key});
@@ -267,7 +268,7 @@ class ImagePreviewDialog extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: 11,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
@@ -360,16 +361,27 @@ class AttachmentChip extends ConsumerWidget {
     }
 
     if (attachment.isWebLink) {
-      return _buildWebLinkChip(context, tokens);
+      return _buildWebLinkChip(context, tokens, strings);
     }
 
-    return _buildFileChip(context, tokens);
+    return _buildFileChip(context, tokens, strings);
   }
 
-  Widget _buildFileChip(BuildContext context, FrameTokens tokens) {
+  /// Remove control: a focusable 28 px target (plan 2.6), so the chip can be cleared by keyboard.
+  Widget _removeAction(AppStrings strings) {
+    return FrameIconAction(
+      key: ValueKey('attachment-remove-${attachment.id}'),
+      icon: Icons.close,
+      tooltip: strings.composerRemoveAttachmentTooltip,
+      onPressed: onRemove,
+    );
+  }
+
+  Widget _buildFileChip(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return Container(
       key: ValueKey('attachment-file-${attachment.id}'),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      // An editable chip carries a 28 px remove target, so it takes no extra vertical padding.
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: isEditable ? 0 : 4),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -407,23 +419,15 @@ class AttachmentChip extends ConsumerWidget {
             ),
           ),
           if (isEditable) ...[
-            const SizedBox(width: 4),
-            InkWell(
-              key: ValueKey('attachment-remove-${attachment.id}'),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              onTap: onRemove,
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: Icon(Icons.close, size: 12, color: tokens.textMuted),
-              ),
-            ),
+            const SizedBox(width: 2),
+            _removeAction(strings),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens) {
+  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return InkWell(
       key: ValueKey('attachment-link-${attachment.id}'),
       borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -465,16 +469,8 @@ class AttachmentChip extends ConsumerWidget {
               ),
             ),
             if (isEditable) ...[
-              const SizedBox(width: 4),
-              InkWell(
-                key: ValueKey('attachment-remove-${attachment.id}'),
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                onTap: onRemove,
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(Icons.close, size: 12, color: tokens.textMuted),
-                ),
-              ),
+              const SizedBox(width: 2),
+              _removeAction(strings),
             ],
           ],
         ),
@@ -531,6 +527,7 @@ class AttachmentChip extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: tokens.textMuted,
+                            // Deliberately below the 11 px minimum: two lines must fit the 52 px thumbnail.
                             fontSize: 8,
                             height: 1.1,
                           ),
@@ -545,22 +542,9 @@ class AttachmentChip extends ConsumerWidget {
         ),
         if (isEditable)
           Positioned(
-            top: -4,
-            right: -4,
-            child: InkWell(
-              key: ValueKey('attachment-remove-${attachment.id}'),
-              borderRadius: BorderRadius.circular(10),
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: tokens.borderStrong, width: 1),
-                ),
-                child: Icon(Icons.close, size: 10, color: tokens.textMuted),
-              ),
-            ),
+            top: -10,
+            right: -10,
+            child: _removeAction(strings),
           ),
       ],
     );
