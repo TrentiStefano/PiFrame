@@ -7,7 +7,12 @@ import '../../data/agents/agents_config_controller.dart';
 import '../../data/agents/agents_config_model.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
+import '../../data/language/strings_settings.dart';
+import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_snack_bar.dart';
+
+// Daemon warning text for a missing subagent package (AgentsService.ts).
+const _noSubagentPackageWarning = 'No subagent package installed';
 
 String formatContextTier(int tokens, int? modelContextWindow) {
   String base;
@@ -33,7 +38,10 @@ String formatContextTier(int tokens, int? modelContextWindow) {
 }
 
 class AgentsSection extends ConsumerStatefulWidget {
-  const AgentsSection({super.key});
+  /// Opens the Pacchetti section from the empty state. Wired by SettingsView.
+  final VoidCallback? onOpenPackages;
+
+  const AgentsSection({super.key, this.onOpenPackages});
 
   @override
   ConsumerState<AgentsSection> createState() => _AgentsSectionState();
@@ -64,6 +72,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final config = state.config ?? const PiAgentsConfig();
     final installedPackages =
         config.packages.where((p) => p.installed).toList();
+    // The empty state already says that no subagent package is installed, so
+    // the daemon warning with the same fact is not repeated.
+    final visibleWarnings = installedPackages.isEmpty
+        ? config.warnings.where((w) => w != _noSubagentPackageWarning).toList()
+        : config.warnings;
 
     return Column(
       children: [
@@ -76,7 +89,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 strings.agentsTitle,
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 16,
+                  fontSize: FrameText.fromTokens(tokens).title.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -85,7 +98,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 strings.agentsSubtitle,
                 style: TextStyle(
                   color: tokens.textMuted,
-                  fontSize: 12,
+                  fontSize: FrameText.fromTokens(tokens).label.fontSize,
                 ),
               ),
               const SizedBox(height: 12),
@@ -108,7 +121,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           strings.agentsReadOnlyNotice,
                           style: TextStyle(
                             color: tokens.textPrimary,
-                            fontSize: 12,
+                            fontSize: FrameText.fromTokens(tokens).label.fontSize,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -137,7 +150,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsGlobalNote,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: 12,
+                          fontSize: FrameText.fromTokens(tokens).label.fontSize,
                         ),
                       ),
                     ),
@@ -151,8 +164,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               const SizedBox(height: 16),
 
               // Warnings
-              if (config.warnings.isNotEmpty) ...[
-                _buildWarnings(tokens, strings, config.warnings),
+              if (visibleWarnings.isNotEmpty) ...[
+                _buildWarnings(tokens, strings, visibleWarnings),
                 const SizedBox(height: 16),
               ],
 
@@ -192,7 +205,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           describeError(state.errorMessage!, strings).summary,
                           style: TextStyle(
                             color: tokens.danger,
-                            fontSize: 12,
+                            fontSize: FrameText.fromTokens(tokens).label.fontSize,
                           ),
                         ),
                       ),
@@ -217,41 +230,15 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     List<PiSubagentPackageInfo> installedPackages,
   ) {
     if (installedPackages.isEmpty) {
-      // Empty state explaining how to install (README packages) - no fake list!
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: tokens.surfaceElevated,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(color: tokens.border),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.extension_off_outlined,
-              color: tokens.textMuted,
-              size: 40,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              strings.agentsNoPackagesTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              strings.agentsNoPackagesDesc,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
+      // One empty state with the way out: the Pacchetti section installs packages.
+      return FrameEmptyState(
+        keyPrefix: 'agents-no-packages',
+        icon: Icons.extension_off_outlined,
+        title: strings.agentsNoPackagesTitle,
+        message: strings.agentsNoPackagesDesc,
+        actionLabel: strings.agentsOpenPackagesBtn,
+        actionIcon: Icons.arrow_forward,
+        onAction: widget.onOpenPackages,
       );
     }
 
@@ -270,7 +257,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             strings.agentsPackagesLabel,
             style: TextStyle(
               color: tokens.textSecondary,
-              fontSize: 12,
+              fontSize: FrameText.fromTokens(tokens).label.fontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -294,7 +281,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                     '${pkg.id}$versionText',
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 11,
+                      fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -331,7 +318,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 strings.agentsWarningsTitle,
                 style: TextStyle(
                   color: tokens.warning,
-                  fontSize: 12,
+                  fontSize: FrameText.fromTokens(tokens).label.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -343,7 +330,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               padding: const EdgeInsets.only(left: 26, bottom: 2),
               child: Text(
                 '• $w',
-                style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+                style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textSecondary),
               ),
             ),
           ),
@@ -389,14 +376,14 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             strings.agentsSessionDefaultsTitle,
             style: TextStyle(
               color: tokens.textPrimary,
-              fontSize: 13,
+              fontSize: FrameText.fromTokens(tokens).body.fontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             strings.agentsSessionDefaultsSubtitle,
-            style: TextStyle(color: tokens.textMuted, fontSize: 11),
+            style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
           ),
           const SizedBox(height: 14),
 
@@ -412,7 +399,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       strings.agentsDefaultModel,
                       style: TextStyle(
                         color: tokens.textSecondary,
-                        fontSize: 11,
+                        fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -434,7 +421,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         child: Text(
                           modelError,
                           style:
-                              TextStyle(color: tokens.danger, fontSize: 10),
+                              FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
                         ),
                       ),
                   ],
@@ -463,7 +450,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       strings.agentsThinkingLevel,
                       style: TextStyle(
                         color: tokens.textSecondary,
-                        fontSize: 11,
+                        fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -486,7 +473,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         child: Text(
                           thinkingError,
                           style:
-                              TextStyle(color: tokens.danger, fontSize: 10),
+                              FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
                         ),
                       ),
                   ],
@@ -553,14 +540,14 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             strings.agentsSubagentDefaultsTitle,
             style: TextStyle(
               color: tokens.textPrimary,
-              fontSize: 13,
+              fontSize: FrameText.fromTokens(tokens).body.fontSize,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             strings.agentsSubagentDefaultsSubtitle,
-            style: TextStyle(color: tokens.textMuted, fontSize: 11),
+            style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
           ),
           const SizedBox(height: 14),
 
@@ -576,7 +563,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsFallbackAgent,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: 11,
+                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -600,7 +587,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           child: Text(
                             fallbackError,
                             style:
-                                TextStyle(color: tokens.danger, fontSize: 10),
+                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -632,7 +619,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsDefaultModel,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: 11,
+                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -656,7 +643,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           child: Text(
                             modelError,
                             style:
-                                TextStyle(color: tokens.danger, fontSize: 10),
+                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -683,7 +670,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsThinkingLevel,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: 11,
+                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -706,7 +693,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           child: Text(
                             thinkingError,
                             style:
-                                TextStyle(color: tokens.danger, fontSize: 10),
+                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -745,14 +732,14 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           strings.agentsListTitle,
           style: TextStyle(
             color: tokens.textPrimary,
-            fontSize: 13,
+            fontSize: FrameText.fromTokens(tokens).body.fontSize,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           strings.agentsListSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 11),
+          style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
         ),
         const SizedBox(height: 12),
         ...config.agents.map((agent) {
@@ -828,7 +815,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               strings.agentsTableHeaderModel,
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 11,
+                fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -852,7 +839,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   color: modelOrigin == 'override'
                       ? tokens.accent
                       : tokens.textMuted,
-                  fontSize: 9,
+                  fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -894,7 +881,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               modelError,
-              style: TextStyle(color: tokens.danger, fontSize: 10),
+              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
             ),
           ),
       ],
@@ -907,7 +894,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           strings.agentsTableHeaderThinking,
           style: TextStyle(
             color: tokens.textSecondary,
-            fontSize: 11,
+            fontSize: FrameText.fromTokens(tokens).caption.fontSize,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -945,7 +932,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               thinkingError,
-              style: TextStyle(color: tokens.danger, fontSize: 10),
+              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
             ),
           ),
       ],
@@ -958,7 +945,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           strings.agentsTableHeaderContext,
           style: TextStyle(
             color: tokens.textSecondary,
-            fontSize: 11,
+            fontSize: FrameText.fromTokens(tokens).caption.fontSize,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -995,7 +982,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 contextError,
-                style: TextStyle(color: tokens.danger, fontSize: 10),
+                style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
               ),
             ),
         ] else ...[
@@ -1010,7 +997,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                     strings.agentsNotAvailableShort,
                     style: TextStyle(
                       color: tokens.textMuted,
-                      fontSize: 12,
+                      fontSize: FrameText.fromTokens(tokens).label.fontSize,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -1050,7 +1037,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 agent.name,
                 style: TextStyle(
                   color: isEditable ? tokens.textPrimary : tokens.textMuted,
-                  fontSize: 13,
+                  fontSize: FrameText.fromTokens(tokens).body.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1067,7 +1054,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   agent.source,
                   style: TextStyle(
                     color: tokens.textSecondary,
-                    fontSize: 10,
+                    fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1079,7 +1066,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       : 'aliases: ${agent.aliases.join(', ')}',
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 11,
+                    fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -1103,7 +1090,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           agent.readOnlyReason ?? 'read-only',
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.fromTokens(tokens).caption.fontSize,
                           ),
                         ),
                       ],
@@ -1116,7 +1103,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             const SizedBox(height: 4),
             Text(
               agent.description!,
-              style: TextStyle(color: tokens.textMuted, fontSize: 11),
+              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
             ),
           ],
           const SizedBox(height: 12),
@@ -1180,7 +1167,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: tokens.textPrimary,
-            fontSize: 12,
+            fontSize: FrameText.fromTokens(tokens).label.fontSize,
           ),
         ),
       );
@@ -1208,11 +1195,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             child: DropdownButton<String>(
               value: displayValue,
               hint: Text(
-                effectiveModel ?? '—',
+                effectiveModel ?? strings.agentsPiDefaultLabel,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: isUnavailable ? tokens.warning : tokens.textMuted,
-                  fontSize: 12,
+                  fontSize: FrameText.fromTokens(tokens).label.fontSize,
                 ),
               ),
               isExpanded: true,
@@ -1232,7 +1219,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Expanded(
                 child: Text(
                   strings.agentsModelUnavailableWarning,
-                  style: TextStyle(color: tokens.warning, fontSize: 10),
+                  style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.warning),
                 ),
               ),
             ],
@@ -1272,7 +1259,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           value: valueInItems ? effectiveVal : null,
           hint: Text(
             effectiveVal ?? '—',
-            style: TextStyle(color: tokens.textMuted, fontSize: 12),
+            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1281,7 +1268,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               value: lvl,
               child: Text(
                 ref.read(appStringsProvider).thinkingLevelLabel(lvl),
-                style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
               ),
             );
           }).toList(),
@@ -1305,7 +1292,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         value: opt,
         child: Text(
           label,
-          style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
         ),
       );
     }).toList();
@@ -1328,7 +1315,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             effectiveLimit != null
                 ? formatContextTier(effectiveLimit, modelContextWindow)
                 : '—',
-            style: TextStyle(color: tokens.textMuted, fontSize: 12),
+            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1351,7 +1338,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         value: a.name,
         child: Text(
           a.name,
-          style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
         ),
       );
     }).toList();
@@ -1371,7 +1358,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           value: valueInItems ? effectiveFallback : null,
           hint: Text(
             effectiveFallback ?? '—',
-            style: TextStyle(color: tokens.textMuted, fontSize: 12),
+            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1388,6 +1375,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     AgentsConfigState state,
     AgentsConfigController notifier,
   ) {
+    // Save and Cancel only appear once the form differs from the saved config (D-3).
+    if (!state.isDirty) return const SizedBox.shrink();
+
     final canSave = state.isDirty &&
         !state.isSaving &&
         !state.isLoading &&

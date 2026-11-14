@@ -3,6 +3,39 @@ import '../../domain/update/update_models.dart';
 import 'language_settings.dart';
 
 extension SettingsStrings on AppStrings {
+  // Settings: Editor tema preview and token search (task 8.3)
+  String get themeEditorTokenSearchHint =>
+      isItalian ? 'Cerca token' : 'Search tokens';
+  String get themeEditorPreviewPaneSubtitle =>
+      isItalian ? 'Sessione · main' : 'Session · main';
+  String get themeEditorPreviewGitFile => 'lib/app.dart';
+  String get themeEditorPreviewGitStatus =>
+      isItalian ? 'Modificato' : 'Modified';
+  String get themeEditorPreviewGitBadge =>
+      isItalian ? 'In staging' : 'Staged';
+  String get themeEditorPreviewUserTurn =>
+      isItalian ? 'Rinomina la funzione' : 'Rename the function';
+  String get themeEditorPreviewAssistantTurn => isItalian
+      ? 'Fatto: funzione rinominata in 2 file.'
+      : 'Done: renamed the function in 2 files.';
+
+  // Settings: MCP servers dialog
+  String get mcpOpenConfigBtn =>
+      isItalian ? 'Apri file di configurazione' : 'Open configuration file';
+  String get mcpShowToolsTooltip =>
+      isItalian ? 'Mostra strumenti' : 'Show tools';
+  String get mcpHideToolsTooltip =>
+      isItalian ? 'Nascondi strumenti' : 'Hide tools';
+
+  // ---------------------------------------------------------------------------
+  // Settings: Agenti
+  // ---------------------------------------------------------------------------
+  String get agentsOpenPackagesBtn =>
+      isItalian ? 'Apri Pacchetti' : 'Open Packages';
+  /// Shown in a model select that has no saved default: Pi picks its own.
+  String get agentsPiDefaultLabel =>
+      isItalian ? 'Predefinito di Pi' : 'Pi default';
+
   // ---------------------------------------------------------------------------
   // Settings View: General & Daemon & Packages
   // ---------------------------------------------------------------------------
@@ -640,7 +673,6 @@ extension SettingsStrings on AppStrings {
   String themeEditorSaveError(Object error) => isItalian
       ? failureText(this, 'Errore durante il salvataggio', error)
       : failureText(this, 'Error during saving', error);
-  String get themeEditorPreviewWorking => isItalian ? 'In corso' : 'Working';
   String get themeEditorPreviewBentoCard =>
       isItalian ? 'Scheda Bento & Superfici' : 'Bento Card & Surfaces';
   String get themeEditorPreviewBentoDesc => isItalian
