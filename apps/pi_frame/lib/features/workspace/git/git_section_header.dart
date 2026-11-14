@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 /// Collapsible section title ("Staged", "Changes") used by the Git pane list.
+/// One row high, like the file rows under it.
 class GitSectionHeader extends StatelessWidget {
   const GitSectionHeader({
     super.key,
@@ -9,7 +10,6 @@ class GitSectionHeader extends StatelessWidget {
     required this.count,
     required this.isExpanded,
     required this.onToggle,
-    required this.tokens,
     this.trailing,
   });
 
@@ -17,17 +17,18 @@ class GitSectionHeader extends StatelessWidget {
   final int count;
   final bool isExpanded;
   final VoidCallback onToggle;
-  final FrameTokens tokens;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
     return InkWell(
       onTap: onToggle,
       hoverColor: tokens.accent.withValues(alpha: 0.05),
       child: Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: FrameSize.rowList,
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
         decoration: BoxDecoration(
           color: tokens.surfaceElevated.withValues(alpha: 0.6),
           border: Border(
@@ -39,22 +40,21 @@ class GitSectionHeader extends StatelessWidget {
           children: [
             Icon(
               isExpanded ? Icons.expand_more : Icons.chevron_right,
-              size: 16,
+              size: FrameSize.icon,
               color: tokens.textMuted,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: FrameSpace.x2),
             Text(
               title.toUpperCase(),
-              style: TextStyle(
+              style: text.caption.copyWith(
                 color: tokens.displayText,
-                fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: .5,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: FrameSpace.x2),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x1),
               decoration: BoxDecoration(
                 color: tokens.surface,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -62,9 +62,8 @@ class GitSectionHeader extends StatelessWidget {
               ),
               child: Text(
                 '$count',
-                style: TextStyle(
+                style: text.caption.copyWith(
                   color: tokens.textPrimary,
-                  fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
               ),

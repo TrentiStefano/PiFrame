@@ -11,6 +11,7 @@ import '../../../domain/errors/user_facing_error.dart';
 import '../../../domain/session/agent_status.dart';
 import '../../../domain/session/session_state.dart';
 import '../../../ui/frame_error_callout.dart';
+import '../../../ui/frame_icon_action.dart';
 import '../../../ui/frame_snack_bar.dart';
 import '../branch_picker_dialog.dart';
 import '../../browser/browser_controller.dart';
@@ -25,12 +26,14 @@ import 'git_commit_form.dart';
 import 'git_diff_view.dart';
 import 'git_section_header.dart';
 
-final gitStagedExpandedProvider = StateProvider.family<bool, String>(
-  (ref, sessionId) => false,
+/// Expansion of the STAGED and CHANGES groups. Null means "not toggled yet":
+/// the default rule applies (see `build`).
+final gitStagedExpandedProvider = StateProvider.family<bool?, String>(
+  (ref, sessionId) => null,
 );
 
-final gitUnstagedExpandedProvider = StateProvider.family<bool, String>(
-  (ref, sessionId) => false,
+final gitUnstagedExpandedProvider = StateProvider.family<bool?, String>(
+  (ref, sessionId) => null,
 );
 
 Set<String> _piTouchedPaths(SessionState session) => piTouchedPaths(session);
@@ -561,7 +564,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     required Map<String, dynamic> file,
     required bool isStaged,
     required bool hasUnstagedEdit,
-    required FrameTokens tokens,
     required Set<String> piTouchedPaths,
     required Set<String> manualSavedPaths,
     required bool blocked,
@@ -575,7 +577,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       file: file,
       isStaged: isStaged,
       hasUnstagedEdit: hasUnstagedEdit,
-      tokens: tokens,
       piTouchedPaths: piTouchedPaths,
       manualSavedPaths: manualSavedPaths,
       blocked: blocked,
@@ -661,12 +662,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               f['unstaged'] == true || !staged.contains(f['path'].toString()),
         )
         .toList();
-    final isStagedExpanded = ref.watch(
-      gitStagedExpandedProvider(widget.sessionId),
-    );
-    final isUnstagedExpanded = ref.watch(
-      gitUnstagedExpandedProvider(widget.sessionId),
-    );
+    // Default rule: CHANGES opens when it has files; STAGED opens when it has
+    // files and CHANGES is empty. A toggle by the user overrides the default.
+    final isStagedExpanded =
+        ref.watch(gitStagedExpandedProvider(widget.sessionId)) ??
+        (stagedFiles.isNotEmpty && unstagedFiles.isEmpty);
+    final isUnstagedExpanded =
+        ref.watch(gitUnstagedExpandedProvider(widget.sessionId)) ??
+        unstagedFiles.isNotEmpty;
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? cwd;
     return Container(
@@ -994,7 +997,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             title: strings.stagedChangesSectionUpper,
                             count: stagedFiles.length,
                             isExpanded: isStagedExpanded,
-                            tokens: tokens,
                             onToggle: () {
                               ref
                                       .read(
@@ -1007,18 +1009,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             },
                             trailing: stagedFiles.isEmpty || blocked || _working
                                 ? null
-                                : IconButton(
+                                : FrameIconAction(
+                                    key: const ValueKey('git-unstage-all-btn'),
                                     tooltip: strings.unstageAllTooltip,
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 24,
-                                      minHeight: 24,
-                                    ),
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                      size: 14,
-                                    ),
+                                    icon: Icons.remove_circle_outline,
                                     onPressed: () => _action(
                                       'unstage',
                                       stagedFiles
@@ -1048,7 +1042,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   file: file,
                                   isStaged: true,
                                   hasUnstagedEdit: file['unstaged'] == true,
-                                  tokens: tokens,
                                   piTouchedPaths: piTouchedPaths,
                                   manualSavedPaths: repository.manualSavedPaths,
                                   blocked: blocked,
@@ -1059,7 +1052,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             title: strings.changesSectionUpper,
                             count: unstagedFiles.length,
                             isExpanded: isUnstagedExpanded,
-                            tokens: tokens,
                             onToggle: () {
                               ref
                                       .read(
@@ -1073,15 +1065,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             trailing:
                                 unstagedFiles.isEmpty || blocked || _working
                                 ? null
-                                : IconButton(
+                                : FrameIconAction(
+                                    key: const ValueKey('git-stage-all-btn'),
                                     tooltip: strings.stageAllTooltip,
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 24,
-                                      minHeight: 24,
-                                    ),
-                                    icon: const Icon(Icons.add, size: 15),
+                                    icon: Icons.add,
                                     onPressed: () => _action(
                                       'stage',
                                       unstagedFiles
@@ -1111,7 +1098,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   file: file,
                                   isStaged: false,
                                   hasUnstagedEdit: true,
-                                  tokens: tokens,
                                   piTouchedPaths: piTouchedPaths,
                                   manualSavedPaths: repository.manualSavedPaths,
                                   blocked: blocked,

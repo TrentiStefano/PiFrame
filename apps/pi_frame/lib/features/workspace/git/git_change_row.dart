@@ -4,40 +4,79 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
 import '../../../ui/code/file_icon.dart';
+import '../../../ui/frame_icon_action.dart';
+import '../../../ui/frame_list_row.dart';
 import '../../../ui/motion.dart';
 
-/// One file row of the Git pane (staged or unstaged). Tapping it opens the diff.
+/// Who touched a changed file, when PiFrame knows it.
+enum _ChangeOrigin { pi, manual, piAndManual }
+
 bool _pathSetContains(Set<String> paths, String path) =>
     paths.contains(path) ||
     paths.any((value) => value.toLowerCase() == path.toLowerCase());
 
-String _changeOriginLabel(
+_ChangeOrigin? _changeOrigin(
   String path,
   Set<String> piTouchedPaths,
-  Set<String> manualSavedPaths, [
-  AppStrings? strings,
-]) {
+  Set<String> manualSavedPaths,
+) {
   final touchedByPi = _pathSetContains(piTouchedPaths, path);
   final savedHere = _pathSetContains(manualSavedPaths, path);
-  if (touchedByPi && savedHere) {
-    return strings?.gitOriginPiAndManual ?? 'Tool Pi + salvataggio PiFrame';
-  }
-  if (touchedByPi) {
-    return strings?.gitOriginPiTool ?? 'Tool Pi ha scritto il percorso';
-  }
-  if (savedHere) {
-    return strings?.gitOriginManualSave ?? 'Salvato da te in PiFrame';
-  }
-  return strings?.gitOriginUndetermined ?? 'Origine non determinata';
+  if (touchedByPi && savedHere) return _ChangeOrigin.piAndManual;
+  if (touchedByPi) return _ChangeOrigin.pi;
+  if (savedHere) return _ChangeOrigin.manual;
+  return null;
 }
 
+String _originLabel(_ChangeOrigin origin, AppStrings strings) =>
+    switch (origin) {
+      _ChangeOrigin.piAndManual => strings.gitOriginPiAndManual,
+      _ChangeOrigin.pi => strings.gitOriginPiTool,
+      _ChangeOrigin.manual => strings.gitOriginManualSave,
+    };
+
+/// One-letter badge for a daemon file status (`modified`, `untracked`, ...).
+String _statusCode(String status) => switch (status) {
+  'modified' => 'M',
+  'added' => 'A',
+  'deleted' => 'D',
+  'renamed' => 'R',
+  'copied' => 'C',
+  'typechanged' => 'T',
+  'untracked' => 'U',
+  'unmerged' => '!',
+  _ => '?',
+};
+
+Color _statusColor(String status, FrameTokens tokens) => switch (status) {
+  'added' || 'untracked' => tokens.diffAddedFg,
+  'deleted' => tokens.diffRemovedFg,
+  'unmerged' => tokens.danger,
+  'renamed' || 'copied' => tokens.info,
+  _ => tokens.warning,
+};
+
+/// Splits a path into its file name and parent directory. [dir] is null for a
+/// file at the root.
+({String name, String? dir}) _splitPath(String path) {
+  final cut = [
+    path.lastIndexOf('/'),
+    path.lastIndexOf('\\'),
+  ].reduce((a, b) => a > b ? a : b);
+  if (cut < 0) return (name: path, dir: null);
+  final dir = path.substring(0, cut);
+  return (name: path.substring(cut + 1), dir: dir.isEmpty ? null : dir);
+}
+
+/// One file row of the Git pane (staged or unstaged), on one line: the file
+/// name in full, then its parent directory, then the status badge.
+/// Tapping it opens the diff.
 class GitChangeRow extends StatelessWidget {
   const GitChangeRow({
     super.key,
     required this.file,
     required this.isStaged,
     required this.hasUnstagedEdit,
-    required this.tokens,
     required this.piTouchedPaths,
     required this.manualSavedPaths,
     required this.blocked,
@@ -52,7 +91,6 @@ class GitChangeRow extends StatelessWidget {
   final Map<String, dynamic> file;
   final bool isStaged;
   final bool hasUnstagedEdit;
-  final FrameTokens tokens;
   final Set<String> piTouchedPaths;
   final Set<String> manualSavedPaths;
   final bool blocked;
@@ -66,81 +104,86 @@ class GitChangeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FrameEnter(
-      offset: 4,
+      offset: FrameSpace.x1,
       duration: FrameMotion.small,
-      child: _rowBody(),
+      child: _rowBody(context),
     );
   }
 
-  Widget _rowBody() {
+  Widget _rowBody(BuildContext context) {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
     final path = file['path'].toString();
+    final status = file['status']?.toString() ?? 'modified';
+    final parts = _splitPath(path);
+    final section = isStaged ? 'staged' : 'unstaged';
     final stateLabel = isStaged && hasUnstagedEdit
         ? strings.gitStateStagedAndUnstaged
         : isStaged
         ? strings.gitStateStaged
         : strings.gitStateUnstaged;
+    final origin = _changeOrigin(path, piTouchedPaths, manualSavedPaths);
+    final actionsBlocked = blocked || working;
 
-    return Material(
-      color: tokens.surface.withValues(alpha: 0),
-      child: ListTile(
-        dense: true,
-        visualDensity: VisualDensity.compact,
-        minVerticalPadding: 0,
-        contentPadding: const EdgeInsets.only(left: 16, right: 8),
-        onTap: () => onShowDiff(path),
-        leading: FileIcon(path: path, size: 16),
-        title: Text(
-          path,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 12,
-            fontFamily: tokens.uiFontFamily,
-          ),
-        ),
-        subtitle: Text(
-          '${strings.gitFileStatusLabel(file['status']?.toString() ?? 'modified')} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths, strings)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: isStaged ? tokens.accent : tokens.textMuted,
-            fontSize: 9,
-          ),
-        ),
-        trailing: SizedBox(
-          width: 88,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (isStaged)
-                IconButton(
-                  tooltip: strings.unstageFileTooltip(path),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  onPressed: blocked || working ? null : () => onUnstage(path),
-                  icon: const Icon(Icons.remove_circle_outline, size: 16),
-                )
-              else if (hasUnstagedEdit || !isStaged)
-                IconButton(
-                  tooltip: strings.stageFileTooltip(path),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  onPressed: blocked || working ? null : () => onStage(path),
-                  icon: const Icon(Icons.add, size: 17),
-                ),
-              IconButton(
-                tooltip: strings.discardFileTooltip(path),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                onPressed: blocked || working ? null : () => onDiscard(path),
-                icon: const Icon(Icons.undo, size: 16),
+    return FrameListRow(
+      name: parts.name,
+      secondary: parts.dir,
+      inlineSecondary: true,
+      onTap: () => onShowDiff(path),
+      leading: FileIcon(path: path, size: FrameSize.icon),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (origin != null) ...[
+            Tooltip(
+              message: _originLabel(origin, strings),
+              child: Icon(
+                key: ValueKey('git-origin-$section-$path'),
+                origin == _ChangeOrigin.manual
+                    ? Icons.person_outline
+                    : Icons.auto_awesome_outlined,
+                size: FrameSize.icon,
+                color: tokens.textMuted,
               ),
-            ],
+            ),
+            const SizedBox(width: FrameSpace.x2),
+          ],
+          Tooltip(
+            message: '${strings.gitFileStatusLabel(status)} · $stateLabel',
+            child: SizedBox(
+              width: FrameSize.icon,
+              child: Text(
+                _statusCode(status),
+                textAlign: TextAlign.center,
+                style: text.mono.copyWith(
+                  color: _statusColor(status, tokens),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
+      actions: [
+        FrameIconAction(
+          key: ValueKey('git-$section-toggle-$path'),
+          icon: isStaged ? Icons.remove_circle_outline : Icons.add,
+          tooltip: isStaged
+              ? strings.unstageFileTooltip(path)
+              : strings.stageFileTooltip(path),
+          onPressed: actionsBlocked
+              ? null
+              : () => isStaged ? onUnstage(path) : onStage(path),
+        ),
+        // Gap between stage and discard, so a misclick does not discard.
+        const SizedBox(width: FrameSpace.x2),
+        FrameIconAction(
+          key: ValueKey('git-$section-discard-$path'),
+          icon: Icons.undo,
+          tooltip: strings.discardFileTooltip(path),
+          onPressed: actionsBlocked ? null : () => onDiscard(path),
+        ),
+      ],
     );
   }
 }

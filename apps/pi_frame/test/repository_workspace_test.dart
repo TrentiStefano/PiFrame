@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/composer/composer_draft.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
+import 'package:pi_frame/ui/frame_list_row.dart';
 
 class _FakeWorkspaceClient extends PcpClient {
   _FakeWorkspaceClient() : super(port: 1, token: 'test');
@@ -154,6 +156,51 @@ class _ManyFilesWorkspaceClient extends _FakeWorkspaceClient {
   }
 }
 
+/// One file with a long name, for the narrow-pane row check.
+class _LongNameWorkspaceClient extends _FakeWorkspaceClient {
+  // flutter_test draws text with the Ahem font (one em per glyph), so the name
+  // is kept short enough to fit a 380 px pane under that metric.
+  static const longName = 'git_row_check.dart';
+
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async {
+    return {
+      'data': {
+        'isRepository': true,
+        'rootPath': '/repo',
+        'branch': 'main',
+        'files': [
+          {
+            'path': 'packages/pi_frame_theme/lib/src/components/$longName',
+            'status': 'modified',
+            'staged': false,
+            'unstaged': true,
+          },
+        ],
+        'totalAdditions': 1,
+        'totalDeletions': 0,
+      },
+    };
+  }
+}
+
+/// Git row actions show on hover (see FrameListRow), so move the mouse onto the
+/// action first, as a user does, and then tap it.
+Future<void> _hoverAndTap(WidgetTester tester, Finder target) async {
+  final at = tester.getCenter(target);
+  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await mouse.addPointer(location: at);
+  await mouse.moveTo(at);
+  await tester.pump();
+  await mouse.down(at);
+  await mouse.up();
+  await mouse.removePointer();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   test(
     'stale daemon workspace command shows a safe rebuild and restart hint',
@@ -262,35 +309,39 @@ void main() {
     await repository.selectFile('lib/main.dart');
     repository.edit('lib/main.dart', 'manual edit\n');
     await repository.save('lib/main.dart');
-    // Git changes starts collapsed by default: tap section header to expand
-    await tester.tap(find.text('MODIFICHE'));
+    // CHANGES opens by default when it has files.
     await tester.pumpAndSettle();
 
+    // Provenance is an icon; its tooltip carries the origin text.
     expect(
-      find.textContaining('Tool Pi + salvataggio PiFrame'),
+      find.byTooltip('Tool Pi + salvataggio PiFrame'),
       findsOneWidget,
     );
-    expect(find.text('lib/main.dart'), findsOneWidget);
+    // Name first in its own text; the directory is on the same line.
+    expect(find.text('main.dart'), findsOneWidget);
+    expect(find.text('lib'), findsOneWidget);
     expect(find.text('notes.txt'), findsOneWidget);
-    await tester.tap(find.text('lib/main.dart'));
+    await tester.tap(find.text('main.dart'));
     await tester.pumpAndSettle();
     expect(client.requestedDiff, 'lib/main.dart');
     expect(find.textContaining('diff --git a/lib/main.dart'), findsOneWidget);
     await tester.tap(find.byTooltip('Chiudi diff'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Metti in stage lib/main.dart'));
+    await _hoverAndTap(tester, find.byTooltip('Metti in stage lib/main.dart'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'stage');
 
     expect(find.byTooltip('Metti in stage notes.txt'), findsOneWidget);
-    await tester.tap(find.byTooltip('Metti in stage notes.txt'));
+    await _hoverAndTap(tester, find.byTooltip('Metti in stage notes.txt'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'stage');
     expect(client.gitActions.last['paths'], ['notes.txt']);
 
-    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
-    await tester.pumpAndSettle();
+    await _hoverAndTap(
+      tester,
+      find.byTooltip('Scarta modifiche a lib/main.dart'),
+    );
     expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
     await tester.tap(find.text('Scarta modifiche'));
     await tester.pumpAndSettle();
@@ -319,11 +370,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('MODIFICHE'));
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
-    await tester.pumpAndSettle();
+    await _hoverAndTap(
+      tester,
+      find.byTooltip('Scarta modifiche a lib/main.dart'),
+    );
 
     expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
     expect(
@@ -387,9 +438,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // CHANGES (200 files) opens by default; STAGED is opened here.
     await tester.tap(find.text('MODIFICHE IN STAGE'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('MODIFICHE'));
     await tester.pumpAndSettle();
 
     final summaryFinder = find.text('201 file');
@@ -461,6 +511,54 @@ void main() {
       expect(client.gitActions.last['paths'], isEmpty);
     }
     expect(client.gitActions, hasLength(4));
+  });
+
+  testWidgets('Git rows keep the whole file name on one line in a 380 px pane', (
+    tester,
+  ) async {
+    final client = _LongNameWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 380,
+              height: 360,
+              child: GitChangesPane(sessionId: 'session-a'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // CHANGES has files, so it is open by default.
+    final nameFinder = find.text(_LongNameWorkspaceClient.longName);
+    expect(nameFinder, findsOneWidget);
+    final nameText = tester.widget<Text>(nameFinder);
+    final natural = TextPainter(
+      text: TextSpan(text: _LongNameWorkspaceClient.longName, style: nameText.style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    addTearDown(natural.dispose);
+    // Not truncated: the laid-out name is as wide as its natural width.
+    expect(
+      tester.getSize(nameFinder).width,
+      greaterThanOrEqualTo(natural.width - 0.5),
+    );
+    // The row is one line high: 28 px.
+    final row = tester.getRect(find.byType(FrameListRow).first);
+    expect(row.height, lessThanOrEqualTo(FrameSize.rowList));
   });
 
   testWidgets('Composer can add a repository file to prompt context', (
