@@ -86,10 +86,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
           _exportSuccess = strings.diagBundleCopiedRedacted;
         });
 
-        FrameSnackBar.show(
-          context,
-          message: strings.diagBundleCopiedSnackBar,
-        );
+        FrameSnackBar.show(context, message: strings.diagBundleCopiedSnackBar);
       }
     } catch (e) {
       if (mounted) {
@@ -158,7 +155,11 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   _ => FrameStatusTone.warning,
                 },
               ),
-              _buildMetricRow(strings.diagAppVersionLabel, 'v$piFrameVersion', tokens),
+              _buildMetricRow(
+                strings.diagAppVersionLabel,
+                'v$piFrameVersion',
+                tokens,
+              ),
               _buildMetricRow(
                 strings.diagPcpProtocol,
                 'PCP/1 (JSON over WebSocket)',
@@ -232,6 +233,30 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   ],
                 ),
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: FrameSpace.x6),
+
+        // Privacy (merged from the former Privacy tab, zero telemetry).
+        FrameSection(
+          key: const ValueKey('settings-privacy-section'),
+          title: strings.privacyTitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                strings.privacyCardContent,
+                style: text.body.copyWith(color: tokens.textPrimary),
+              ),
+              const SizedBox(height: FrameSpace.x2),
+              Text(
+                strings.privacyBulletPoints,
+                style: text.caption.copyWith(
+                  color: tokens.textSecondary,
+                  height: 1.6,
+                ),
+              ),
             ],
           ),
         ),

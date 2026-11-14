@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../data/platform/platform_environment.dart';
@@ -15,6 +16,7 @@ import 'mcp_servers_dialog.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
+import '../../ui/motion.dart';
 import 'sections/settings_common.dart';
 
 class PiCommandItem {
@@ -23,7 +25,9 @@ class PiCommandItem {
   final List<String> args;
   final String description;
   final IconData icon;
-  final bool isPrimary;
+
+  /// The one command marked with the "Consigliato" tag.
+  final bool isRecommended;
 
   const PiCommandItem({
     required this.label,
@@ -31,9 +35,12 @@ class PiCommandItem {
     required this.args,
     required this.description,
     required this.icon,
-    this.isPrimary = false,
+    this.isRecommended = false,
   });
 }
+
+/// Content width at which the console moves to a right column.
+const _piCliWideBreakpoint = 880.0;
 
 List<PiCommandItem> get kBuiltinPiCommands =>
     getBuiltinPiCommands(const AppStrings(AppLanguage.it));
@@ -45,7 +52,7 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
     args: ['update'],
     description: strings.piCmdUpdateCliDesc,
     icon: Icons.system_update_alt,
-    isPrimary: true,
+    isRecommended: true,
   ),
   PiCommandItem(
     label: strings.piCmdUpdateExtLabel,
@@ -53,7 +60,6 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
     args: ['update', '--extensions'],
     description: strings.piCmdUpdateExtDesc,
     icon: Icons.extension_outlined,
-    isPrimary: true,
   ),
   PiCommandItem(
     label: strings.piCmdUpdateModelsLabel,
@@ -121,7 +127,10 @@ class _PiCliSectionState extends State<PiCliSection> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
-      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+      return ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(appStringsProvider);
     } catch (_) {
       return const AppStrings(AppLanguage.it);
     }
@@ -146,13 +155,30 @@ class _PiCliSectionState extends State<PiCliSection> {
     super.dispose();
   }
 
+  /// Keeps the output console on screen: in the narrow layout it sits below
+  /// the commands, so a running command scrolls it into view.
+  final GlobalKey _consoleKey = GlobalKey();
+
+  void _revealConsole() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _consoleKey.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(
+          target,
+          duration: FrameMotion.small,
+          curve: FrameMotion.enterCurve,
+        );
+      }
+    });
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_logScrollController.hasClients) {
         _logScrollController.animateTo(
           _logScrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
+          curve: FrameMotion.enterCurve,
         );
       }
     });
@@ -177,6 +203,7 @@ class _PiCliSectionState extends State<PiCliSection> {
       _startTime = DateTime.now();
       _executionDuration = null;
     });
+    _revealConsole();
 
     try {
       final Process process;
@@ -308,169 +335,207 @@ class _PiCliSectionState extends State<PiCliSection> {
     final text = FrameText.of(context);
     final commands = getBuiltinPiCommands(strings);
 
-    return ListView(
-      padding: const EdgeInsets.all(FrameSpace.x6),
+    final title = Row(
       children: [
-        Row(
-          children: [
-            Icon(Icons.terminal, color: tokens.accent, size: FrameSize.iconLg),
-            const SizedBox(width: FrameSpace.x3),
-            Text(
-              strings.piCliTitle,
-              style: text.title.copyWith(color: tokens.textPrimary),
-            ),
-          ],
-        ),
-        const SizedBox(height: FrameSpace.x1),
+        Icon(Icons.terminal, color: tokens.accent, size: FrameSize.iconLg),
+        const SizedBox(width: FrameSpace.x3),
         Text(
-          strings.piCliSubtitle,
-          style: text.body.copyWith(color: tokens.textMuted),
-        ),
-        const SizedBox(height: FrameSpace.x6),
-
-        FrameSection(
-          title: strings.piCliFastCommands,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final cmd in commands) _buildActionRow(tokens, cmd, strings),
-            ],
-          ),
-        ),
-        const SizedBox(height: FrameSpace.x6),
-
-        FrameSection(
-          title: strings.piCliCustomCmdHeader,
-          child: Row(
-            children: [
-              Expanded(
-                child: buildSettingsFieldBox(
-                  tokens,
-                  Row(
-                    children: [
-                      Text(
-                        'pi ',
-                        style: text.mono.copyWith(
-                          color: tokens.accent,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          key: const ValueKey('pi-cli-custom-command-field'),
-                          controller: _customCmdController,
-                          enabled: !_isExecuting,
-                          style: text.mono.copyWith(color: tokens.textPrimary),
-                          decoration: InputDecoration(
-                            hintText: strings.piCliCustomCmdHint,
-                            hintStyle: text.caption.copyWith(
-                              color: tokens.textMuted,
-                            ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          onSubmitted: (_) => _runCustomCommand(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: FrameSpace.x2),
-              SizedBox(
-                height: FrameSize.rowForm,
-                child: FilledButton.icon(
-                  key: const ValueKey('pi-cli-custom-run-btn'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tokens.accent,
-                    foregroundColor: tokens.surface,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FrameSpace.x4,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                  ),
-                  onPressed: _isExecuting ? null : _runCustomCommand,
-                  icon: const Icon(Icons.play_arrow, size: FrameSize.icon),
-                  label: Text(strings.piCliRunBtn),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: FrameSpace.x6),
-
-        FrameSection(
-          title: strings.piCliConsoleOutputHeader,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildConsoleToolbar(tokens, text, strings),
-              const SizedBox(height: FrameSpace.x2),
-              Container(
-                height: 240,
-                decoration: BoxDecoration(
-                  color: tokens.chassis,
-                  borderRadius: BorderRadius.circular(tokens.radiusMd),
-                  border: Border.all(color: tokens.borderStrong),
-                ),
-                child: _consoleOutput.isEmpty && !_isExecuting
-                    ? Center(
-                        child: Text(
-                          strings.piCliEmptyOutput,
-                          style: text.caption.copyWith(color: tokens.textMuted),
-                        ),
-                      )
-                    : Scrollbar(
-                        controller: _logScrollController,
-                        child: SingleChildScrollView(
-                          controller: _logScrollController,
-                          padding: const EdgeInsets.all(FrameSpace.x3),
-                          child: SelectableText(
-                            _consoleOutput,
-                            style: text.mono.copyWith(
-                              color: tokens.displayText,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: FrameSpace.x6),
-
-        // System verification footer: flat, no second border level.
-        Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: FrameSize.icon,
-              color: tokens.success,
-            ),
-            const SizedBox(width: FrameSpace.x3),
-            Expanded(
-              child: Text(
-                strings.piCliSystemPathNotice,
-                style: text.caption.copyWith(color: tokens.textMuted),
-              ),
-            ),
-            if (widget.onRecheck != null)
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, FrameSize.rowForm),
-                ),
-                onPressed: widget.onRecheck,
-                child: Text(strings.piCliRecheckBtn),
-              ),
-          ],
+          strings.piCliTitle,
+          style: text.title.copyWith(color: tokens.textPrimary),
         ),
       ],
     );
+
+    final commandsSection = FrameSection(
+      title: strings.piCliFastCommands,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final cmd in commands) _buildActionRow(tokens, cmd, strings),
+        ],
+      ),
+    );
+
+    final customSection = FrameSection(
+      title: strings.piCliCustomCmdHeader,
+      child: Row(
+        children: [
+          Expanded(
+            child: buildSettingsFieldBox(
+              tokens,
+              Row(
+                children: [
+                  Text(
+                    'pi ',
+                    style: text.mono.copyWith(
+                      color: tokens.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('pi-cli-custom-command-field'),
+                      controller: _customCmdController,
+                      enabled: !_isExecuting,
+                      style: text.mono.copyWith(color: tokens.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: strings.piCliCustomCmdHint,
+                        hintStyle: text.caption.copyWith(
+                          color: tokens.textMuted,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onSubmitted: (_) => _runCustomCommand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: FrameSpace.x2),
+          OutlinedButton.icon(
+            key: const ValueKey('pi-cli-custom-run-btn'),
+            style: _outlinedRunStyle(tokens),
+            onPressed: _isExecuting ? null : _runCustomCommand,
+            icon: const Icon(Icons.play_arrow, size: FrameSize.icon),
+            label: Text(strings.piCliRunBtn),
+          ),
+        ],
+      ),
+    );
+
+    final consoleSection = FrameSection(
+      key: _consoleKey,
+      title: strings.piCliConsoleOutputHeader,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildConsoleToolbar(tokens, text, strings),
+          const SizedBox(height: FrameSpace.x2),
+          Container(
+            key: const ValueKey('pi-cli-console'),
+            height: 240,
+            decoration: BoxDecoration(
+              color: tokens.chassis,
+              borderRadius: BorderRadius.circular(tokens.radiusMd),
+              border: Border.all(color: tokens.borderStrong),
+            ),
+            child: _consoleOutput.isEmpty && !_isExecuting
+                ? Center(
+                    child: Text(
+                      strings.piCliEmptyOutput,
+                      textAlign: TextAlign.center,
+                      style: text.caption.copyWith(color: tokens.textMuted),
+                    ),
+                  )
+                : Scrollbar(
+                    controller: _logScrollController,
+                    child: SingleChildScrollView(
+                      controller: _logScrollController,
+                      padding: const EdgeInsets.all(FrameSpace.x3),
+                      child: SelectableText(
+                        _consoleOutput,
+                        style: text.mono.copyWith(
+                          color: tokens.displayText,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+
+    // System verification footer: flat, no second border level.
+    final footer = Row(
+      children: [
+        Icon(
+          Icons.check_circle_outline,
+          size: FrameSize.icon,
+          color: tokens.success,
+        ),
+        const SizedBox(width: FrameSpace.x3),
+        Expanded(
+          child: Text(
+            strings.piCliSystemPathNotice,
+            style: text.caption.copyWith(color: tokens.textMuted),
+          ),
+        ),
+        if (widget.onRecheck != null)
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, FrameSize.rowForm),
+            ),
+            onPressed: widget.onRecheck,
+            child: Text(strings.piCliRecheckBtn),
+          ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _piCliWideBreakpoint) {
+          // Wide: commands on the left, the console in a right column.
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: ListView(
+                  padding: const EdgeInsets.all(FrameSpace.x6),
+                  children: [
+                    title,
+                    const SizedBox(height: FrameSpace.x6),
+                    commandsSection,
+                    const SizedBox(height: FrameSpace.x6),
+                    customSection,
+                    const SizedBox(height: FrameSpace.x6),
+                    footer,
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    0,
+                    FrameSpace.x6,
+                    FrameSpace.x6,
+                    FrameSpace.x6,
+                  ),
+                  children: [consoleSection],
+                ),
+              ),
+            ],
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(FrameSpace.x6),
+          children: [
+            title,
+            const SizedBox(height: FrameSpace.x6),
+            commandsSection,
+            const SizedBox(height: FrameSpace.x6),
+            customSection,
+            const SizedBox(height: FrameSpace.x6),
+            consoleSection,
+            const SizedBox(height: FrameSpace.x6),
+            footer,
+          ],
+        );
+      },
+    );
   }
+
+  /// One style for every "Esegui" button: outlined, neutral border.
+  ButtonStyle _outlinedRunStyle(FrameTokens tokens) => OutlinedButton.styleFrom(
+    foregroundColor: tokens.accent,
+    side: BorderSide(color: tokens.borderStrong),
+    minimumSize: const Size(0, FrameSize.hitMin),
+  );
 
   Widget _buildConsoleToolbar(
     FrameTokens tokens,
@@ -560,9 +625,23 @@ class _PiCliSectionState extends State<PiCliSection> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.label,
-                  style: text.label.copyWith(color: tokens.textPrimary),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.label,
+                        style: text.label.copyWith(color: tokens.textPrimary),
+                      ),
+                    ),
+                    if (item.isRecommended) ...[
+                      const SizedBox(width: FrameSpace.x2),
+                      FrameStatusTag(
+                        key: const ValueKey('pi-cli-recommended-tag'),
+                        label: strings.piCliRecommendedTag,
+                        tone: FrameStatusTone.info,
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   item.command,
@@ -584,25 +663,15 @@ class _PiCliSectionState extends State<PiCliSection> {
                 side: BorderSide(color: tokens.borderStrong),
                 minimumSize: const Size(0, FrameSize.hitMin),
               ),
-              onPressed: () => McpServersDialog.show(
-                context,
-                tokens,
-                strings: strings,
-              ),
+              onPressed: () =>
+                  McpServersDialog.show(context, tokens, strings: strings),
               child: Text(strings.piCliManageMcpBtn),
             ),
             const SizedBox(width: FrameSpace.x2),
           ],
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: item.isPrimary
-                  ? tokens.accent
-                  : tokens.surfaceElevated,
-              foregroundColor: item.isPrimary
-                  ? tokens.surface
-                  : tokens.textPrimary,
-              minimumSize: const Size(0, FrameSize.hitMin),
-            ),
+          OutlinedButton.icon(
+            key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
+            style: _outlinedRunStyle(tokens),
             onPressed: _isExecuting
                 ? null
                 : () => _executeCommand(item.command, item.args),
@@ -612,11 +681,13 @@ class _PiCliSectionState extends State<PiCliSection> {
                     height: FrameSize.icon,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: item.isPrimary ? tokens.surface : tokens.accent,
+                      color: tokens.accent,
                     ),
                   )
                 : const Icon(Icons.play_arrow, size: FrameSize.icon),
-            label: Text(isRunning ? strings.piCliInProgress : strings.piCliRunBtn),
+            label: Text(
+              isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
+            ),
           ),
         ],
       ),
@@ -629,11 +700,8 @@ class _PiCliSectionState extends State<PiCliSection> {
         child: Tooltip(
           message: strings.piCliMcpCardTooltip,
           child: InkWell(
-            onTap: () => McpServersDialog.show(
-              context,
-              tokens,
-              strings: strings,
-            ),
+            onTap: () =>
+                McpServersDialog.show(context, tokens, strings: strings),
             child: row,
           ),
         ),

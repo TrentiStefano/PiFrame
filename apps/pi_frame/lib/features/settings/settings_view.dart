@@ -21,7 +21,6 @@ import 'diagnostics.dart';
 import 'sections/aspetto_section.dart';
 import 'sections/daemon_section.dart';
 import 'sections/packages_section.dart';
-import 'sections/privacy_section.dart';
 import 'sections/terminal_section.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
@@ -29,6 +28,7 @@ import 'updates_section.dart';
 import 'agents_section.dart';
 import 'package_load_states.dart';
 import '../../ui/frame_snack_bar.dart';
+
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
   final int initialTabIndex;
@@ -46,10 +46,15 @@ class SettingsView extends ConsumerStatefulWidget {
 class _SettingsViewState extends ConsumerState<SettingsView> {
   /// From this width the navigation is a left column; below it, a tab row.
   static const double _wideNavBreakpoint = 900;
+
   /// Width of the left navigation column.
   static const double _navWidth = 220;
+
   /// Maximum width of the section content column.
   static const double _contentMaxWidth = 760;
+
+  /// Pi CLI is wide enough to hold the console in a right column.
+  static const double _wideContentMaxWidth = 1160;
 
   late _SettingsSection _section;
   // True when the last section change came from the keyboard or a
@@ -124,24 +129,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           ref.invalidate(daemonEndpointProvider);
           _fetchDaemonConfig();
           _fetchPiPackages();
-          FrameSnackBar.show(
-            context,
-            message: strings.daemonRestartSuccess,
-          );
+          FrameSnackBar.show(context, message: strings.daemonRestartSuccess);
         } else {
-          FrameSnackBar.show(
-            context,
-            message: strings.daemonRestartFailed,
-          );
+          FrameSnackBar.show(context, message: strings.daemonRestartFailed);
         }
       }
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.daemonRestartError(e),
-        );
+        FrameSnackBar.show(context, message: strings.daemonRestartError(e));
       }
     } finally {
       if (mounted) setState(() => _isRestartingDaemon = false);
@@ -216,30 +212,30 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }) async {
     final strings = ref.read(appStringsProvider);
     return await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            autofocus: destructive,
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(strings.cancel),
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                autofocus: destructive,
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(strings.cancel),
+              ),
+              FilledButton(
+                style: destructive
+                    ? FilledButton.styleFrom(
+                        backgroundColor: dialogContext.tokens.danger,
+                        foregroundColor: dialogContext.tokens.surface,
+                      )
+                    : null,
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(confirmation),
+              ),
+            ],
           ),
-          FilledButton(
-            style: destructive
-                ? FilledButton.styleFrom(
-                    backgroundColor: dialogContext.tokens.danger,
-                    foregroundColor: dialogContext.tokens.surface,
-                  )
-                : null,
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmation),
-          ),
-        ],
-      ),
-    ) ??
-    false;
+        ) ??
+        false;
   }
 
   Future<void> _performPackageAction(
@@ -261,7 +257,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       final result = await action(client);
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
-        final message = resultMessage?.call(data) ??
+        final message =
+            resultMessage?.call(data) ??
             strings.packageActionNotice(successMessage, source);
         final needsRestart =
             data['status'] != 'current' && data['status'] != 'pinned';
@@ -599,9 +596,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final runStatus = activeSessionId == null
         ? null
         : ref.watch(
-            sessionStateFamily(
-              activeSessionId,
-            ).select((state) => state.agentStatus),
+            sessionStateFamily(activeSessionId)
+                .select((state) => state.agentStatus),
           );
     final reduced = FrameMotion.reduced(context);
 
@@ -654,12 +650,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           isRestartingDaemon: _isRestartingDaemon,
           onRestartDaemon: _restartDaemon,
           onUpdateTimeout: _updateTimeout,
+          runActive: _isRunActive(runStatus),
         ),
         _SettingsSection.appearance => AppearanceSection(
-          tokens: tokens,
-          strings: strings,
-        ),
-        _SettingsSection.privacy => PrivacySection(
           tokens: tokens,
           strings: strings,
         ),
@@ -676,7 +669,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
     final content = Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+        constraints: BoxConstraints(
+          maxWidth: _section == _SettingsSection.piCli
+              ? _wideContentMaxWidth
+              : _contentMaxWidth,
+        ),
         child: AnimatedSwitcher(
           duration: _instantSwitch || reduced
               ? FrameMotion.instant
@@ -789,7 +786,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         _SettingsSection.appearance,
         _SettingsSection.terminal,
         _SettingsSection.updates,
-        _SettingsSection.privacy,
       ],
     ),
     (
@@ -816,7 +812,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         _SettingsSection.packages => strings.tabPackages,
         _SettingsSection.daemon => strings.tabDaemon,
         _SettingsSection.appearance => strings.tabAppearance,
-        _SettingsSection.privacy => strings.tabPrivacy,
         _SettingsSection.diagnostics => strings.tabDiagnostics,
         _SettingsSection.updates => strings.tabUpdates,
         _SettingsSection.terminal => strings.tabTerminal,
@@ -880,9 +875,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   ) {
     final fadeColor = tokens.surfaceElevated;
     final transparent = fadeColor.withValues(alpha: 0);
-    final sections = [
-      for (final group in _navGroups(strings)) ...group.$2,
-    ];
+    final sections = [for (final group in _navGroups(strings)) ...group.$2];
     return Focus(
       onKeyEvent: _handleNavKey,
       child: Stack(
@@ -950,8 +943,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     _select(
       section,
       keyboard:
-          FocusManager.instance.highlightMode ==
-          FocusHighlightMode.traditional,
+          FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
     );
   }
 
@@ -987,14 +979,21 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     };
     if (step == 0) return KeyEventResult.ignored;
     final strings = ref.read(appStringsProvider);
-    final order = [
-      for (final group in _navGroups(strings)) ...group.$2,
-    ];
+    final order = [for (final group in _navGroups(strings)) ...group.$2];
     final index = order.indexOf(_section);
     final target = (index + step).clamp(0, order.length - 1);
     _select(order[target], keyboard: true);
     return KeyEventResult.handled;
   }
+
+  /// A run counts as active from the first working state until it settles.
+  bool _isRunActive(AgentStatus? status) => switch (status) {
+    AgentStatus.working ||
+    AgentStatus.retrying ||
+    AgentStatus.compacting ||
+    AgentStatus.awaitingUser => true,
+    _ => false,
+  };
 
   FrameStatusTone _runStatusTone(AgentStatus status) => switch (status) {
     AgentStatus.idle => FrameStatusTone.neutral,
@@ -1008,13 +1007,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 }
 
 /// The settings sections. The index order is the one `initialTabIndex`
-/// uses (0 = Pi CLI), so callers that pass an index keep working.
+/// uses (0 = Pi CLI), so callers that pass an index keep working. Privacy
+/// lives in Diagnostica (task 8.3), so it has no entry of its own.
 enum _SettingsSection {
   piCli,
   packages,
   daemon,
   appearance,
-  privacy,
   diagnostics,
   updates,
   terminal,

@@ -30,6 +30,7 @@ class TerminalSection extends ConsumerWidget {
     final text = FrameText.of(context);
     final termSettings = ref.watch(terminalSettingsProvider);
     final notifier = ref.read(terminalSettingsProvider.notifier);
+    final nativeEnabled = termSettings.mode == TerminalMode.native;
     final rowTitleStyle = text.body.copyWith(
       color: tokens.textPrimary,
       fontWeight: FontWeight.w600,
@@ -86,120 +87,139 @@ class TerminalSection extends ConsumerWidget {
         ),
         const SizedBox(height: FrameSpace.x8),
         FrameSection(
+          key: const ValueKey('settings-native-app-section'),
           title: strings.terminalNativeAppHeader,
-          child: Material(
-            type: MaterialType.transparency,
-            child: RadioGroup<NativeTerminalApp>(
-              groupValue: termSettings.nativeApp,
-              onChanged: (app) {
-                if (app != null) notifier.setNativeApp(app);
-              },
-              child: Column(
-                children: [
-                  RadioListTile<NativeTerminalApp>(
-                    value: NativeTerminalApp.systemDefault,
-                    activeColor: tokens.accent,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      strings.terminalNativeAppDefault(isWindowsOs),
-                      style: rowStyle,
-                    ),
-                  ),
-                  if (isWindowsOs) ...[
-                    Divider(color: tokens.border, height: 1),
-                    RadioListTile<NativeTerminalApp>(
-                      value: NativeTerminalApp.powershell,
-                      activeColor: tokens.accent,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(strings.terminalPowershell, style: rowStyle),
-                    ),
-                    Divider(color: tokens.border, height: 1),
-                    RadioListTile<NativeTerminalApp>(
-                      value: NativeTerminalApp.cmd,
-                      activeColor: tokens.accent,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(strings.terminalCmd, style: rowStyle),
-                    ),
-                    Divider(color: tokens.border, height: 1),
-                    RadioListTile<NativeTerminalApp>(
-                      value: NativeTerminalApp.wsl,
-                      activeColor: tokens.accent,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(strings.terminalWsl, style: rowStyle),
-                    ),
-                  ],
-                  Divider(color: tokens.border, height: 1),
-                  RadioListTile<NativeTerminalApp>(
-                    value: NativeTerminalApp.custom,
-                    activeColor: tokens.accent,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(strings.terminalCustomApp, style: rowStyle),
-                    subtitle: termSettings.nativeApp == NativeTerminalApp.custom
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: FrameSpace.x2),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller:
-                                        TextEditingController(
-                                            text: termSettings.customPath,
-                                          )
-                                          ..selection = TextSelection.collapsed(
-                                            offset:
-                                                termSettings.customPath.length,
-                                          ),
-                                    style: text.mono.copyWith(
-                                      color: tokens.textPrimary,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText: isWindowsOs
-                                          ? 'C:\\Percorso\\A\\terminal.exe'
-                                          : '/usr/bin/alacritty',
-                                      isDense: true,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusSm,
+          // Progressive disclosure: the native app list is inert until
+          // "Terminale nativo" is the chosen mode.
+          child: IgnorePointer(
+            ignoring: !nativeEnabled,
+            child: Opacity(
+              opacity: nativeEnabled ? 1 : 0.5,
+              child: Material(
+                type: MaterialType.transparency,
+                child: RadioGroup<NativeTerminalApp>(
+                  groupValue: termSettings.nativeApp,
+                  onChanged: (app) {
+                    if (app != null && nativeEnabled) {
+                      notifier.setNativeApp(app);
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      RadioListTile<NativeTerminalApp>(
+                        value: NativeTerminalApp.systemDefault,
+                        activeColor: tokens.accent,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          strings.terminalNativeAppDefault(isWindowsOs),
+                          style: rowStyle,
+                        ),
+                      ),
+                      if (isWindowsOs) ...[
+                        Divider(color: tokens.border, height: 1),
+                        RadioListTile<NativeTerminalApp>(
+                          value: NativeTerminalApp.powershell,
+                          activeColor: tokens.accent,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            strings.terminalPowershell,
+                            style: rowStyle,
+                          ),
+                        ),
+                        Divider(color: tokens.border, height: 1),
+                        RadioListTile<NativeTerminalApp>(
+                          value: NativeTerminalApp.cmd,
+                          activeColor: tokens.accent,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(strings.terminalCmd, style: rowStyle),
+                        ),
+                        Divider(color: tokens.border, height: 1),
+                        RadioListTile<NativeTerminalApp>(
+                          value: NativeTerminalApp.wsl,
+                          activeColor: tokens.accent,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(strings.terminalWsl, style: rowStyle),
+                        ),
+                      ],
+                      Divider(color: tokens.border, height: 1),
+                      RadioListTile<NativeTerminalApp>(
+                        value: NativeTerminalApp.custom,
+                        activeColor: tokens.accent,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(strings.terminalCustomApp, style: rowStyle),
+                        subtitle:
+                            termSettings.nativeApp == NativeTerminalApp.custom
+                            ? Padding(
+                                padding: const EdgeInsets.only(
+                                  top: FrameSpace.x2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller:
+                                            TextEditingController(
+                                                text: termSettings.customPath,
+                                              )
+                                              ..selection =
+                                                  TextSelection.collapsed(
+                                                    offset: termSettings
+                                                        .customPath
+                                                        .length,
+                                                  ),
+                                        style: text.mono.copyWith(
+                                          color: tokens.textPrimary,
                                         ),
+                                        decoration: InputDecoration(
+                                          hintText: isWindowsOs
+                                              ? 'C:\\Percorso\\A\\terminal.exe'
+                                              : '/usr/bin/alacritty',
+                                          isDense: true,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusSm,
+                                            ),
+                                          ),
+                                        ),
+                                        onSubmitted: (val) =>
+                                            notifier.setCustomPath(val.trim()),
                                       ),
                                     ),
-                                    onSubmitted: (val) =>
-                                        notifier.setCustomPath(val.trim()),
-                                  ),
-                                ),
-                                const SizedBox(width: FrameSpace.x2),
-                                OutlinedButton.icon(
-                                  icon: const Icon(
-                                    Icons.folder_open,
-                                    size: FrameSize.icon,
-                                  ),
-                                  label: Text(strings.terminalBrowseBtn),
-                                  onPressed: () async {
-                                    final file = await openFile(
-                                      acceptedTypeGroups: [
-                                        XTypeGroup(
-                                          label: strings
-                                              .terminalExecutableFilterLabel,
-                                          extensions: const [
-                                            'exe',
-                                            'bat',
-                                            'cmd',
-                                            'sh',
+                                    const SizedBox(width: FrameSpace.x2),
+                                    OutlinedButton.icon(
+                                      icon: const Icon(
+                                        Icons.folder_open,
+                                        size: FrameSize.icon,
+                                      ),
+                                      label: Text(strings.terminalBrowseBtn),
+                                      onPressed: () async {
+                                        final file = await openFile(
+                                          acceptedTypeGroups: [
+                                            XTypeGroup(
+                                              label: strings
+                                                  .terminalExecutableFilterLabel,
+                                              extensions: const [
+                                                'exe',
+                                                'bat',
+                                                'cmd',
+                                                'sh',
+                                              ],
+                                            ),
                                           ],
-                                        ),
-                                      ],
-                                    );
-                                    if (file != null) {
-                                      notifier.setCustomPath(file.path);
-                                    }
-                                  },
+                                        );
+                                        if (file != null) {
+                                          notifier.setCustomPath(file.path);
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          )
-                        : null,
+                              )
+                            : null,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

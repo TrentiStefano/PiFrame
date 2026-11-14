@@ -319,10 +319,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Git Changes'), findsOneWidget);
       } else {
-        expect(
-          find.byKey(const ValueKey('companion-tab-git')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('companion-tab-git')), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('companion-tab-git')));
         await tester.pumpAndSettle();
         expect(find.text('GIT CHANGES'), findsOneWidget);
@@ -351,13 +348,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Impostazioni'));
       await tester.pumpAndSettle();
-      for (final tab in [
-        'Pi CLI',
-        'Daemon',
-        'Aspetto',
-        'Privacy',
-        'Diagnostica',
-      ]) {
+      for (final tab in ['Pi CLI', 'Daemon', 'Aspetto', 'Diagnostica']) {
         await tester.ensureVisible(find.text(tab).first);
         await tester.tap(find.text(tab).first);
         await tester.pumpAndSettle();

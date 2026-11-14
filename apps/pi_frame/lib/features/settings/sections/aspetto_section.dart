@@ -17,7 +17,10 @@ import '../../../ui/frame_snack_bar.dart';
 import 'settings_common.dart';
 import '../theme_editor_dialog.dart';
 
-/// Appearance tab: language, theme selection and editor, display toggles.
+/// The one "Tema" choice: follow the system, or always light or always dark.
+enum _ThemeChoice { system, light, dark }
+
+/// Appearance tab: language, theme choice and editor, display toggles.
 /// Each block is one [FrameSection]; fields sit at the form row height.
 class AppearanceSection extends ConsumerWidget {
   const AppearanceSection({
@@ -40,6 +43,68 @@ class AppearanceSection extends ConsumerWidget {
     final lightThemes = themes.where((t) => t.variant == 'light').toList();
     final fieldLabelStyle = text.label.copyWith(color: tokens.textSecondary);
 
+    final choice = settings.useSystemTheme
+        ? _ThemeChoice.system
+        : (activeTheme.variant == 'light'
+              ? _ThemeChoice.light
+              : _ThemeChoice.dark);
+
+    // Defaults fall back to the first theme of their variant when the saved
+    // id no longer exists.
+    final darkValue = darkThemes.any((t) => t.id == settings.defaultDarkThemeId)
+        ? settings.defaultDarkThemeId
+        : (darkThemes.isNotEmpty ? darkThemes.first.id : null);
+    final lightValue =
+        lightThemes.any((t) => t.id == settings.defaultLightThemeId)
+        ? settings.defaultLightThemeId
+        : (lightThemes.isNotEmpty ? lightThemes.first.id : null);
+
+    void selectChoice(_ThemeChoice next) {
+      final themeSettings = ref.read(themeSettingsProvider.notifier);
+      final themeNotifier = ref.read(activeThemeSpecProvider.notifier);
+      switch (next) {
+        case _ThemeChoice.system:
+          themeSettings.setUseSystemTheme(true);
+        case _ThemeChoice.light:
+          themeSettings.setUseSystemTheme(false);
+          if (lightValue != null) themeNotifier.setTheme(lightValue);
+        case _ThemeChoice.dark:
+          themeSettings.setUseSystemTheme(false);
+          if (darkValue != null) themeNotifier.setTheme(darkValue);
+      }
+    }
+
+    Widget themeSelect({
+      required String keyName,
+      required List<ThemeSpec> options,
+      required String? value,
+      required ValueChanged<String> onChanged,
+    }) {
+      return buildSettingsFieldBox(
+        tokens,
+        DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            key: ValueKey(keyName),
+            isExpanded: true,
+            isDense: true,
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            value: value,
+            dropdownColor: tokens.surfaceElevated,
+            style: text.body.copyWith(color: tokens.textPrimary),
+            items: options.map((t) {
+              return DropdownMenuItem<String>(
+                value: t.id,
+                child: Text(t.name, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (newId) {
+              if (newId != null) onChanged(newId);
+            },
+          ),
+        ),
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
@@ -61,10 +126,7 @@ class AppearanceSection extends ConsumerWidget {
                     value: lang,
                     child: Row(
                       children: [
-                        Text(
-                          lang.flag,
-                          style: text.bodyLarge,
-                        ),
+                        Text(lang.flag, style: text.bodyLarge),
                         const SizedBox(width: FrameSpace.x2),
                         Text(lang.label),
                       ],
@@ -82,186 +144,125 @@ class AppearanceSection extends ConsumerWidget {
         ),
         const SizedBox(height: FrameSpace.x8),
         FrameSection(
-          title: strings.appearanceTitle,
+          title: strings.themeControlTitle,
           description: strings.appearanceSubtitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.useSystemTheme,
-                          style: text.bodyLarge.copyWith(
-                            color: tokens.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: FrameSpace.x1),
-                        Text(
-                          strings.useSystemThemeSubtitle,
-                          style: text.caption.copyWith(
-                            color: tokens.textMuted,
-                          ),
-                        ),
-                      ],
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_ThemeChoice>(
+                  key: const ValueKey('settings-theme-mode-segmented'),
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                    selectedBackgroundColor: tokens.accent.withValues(
+                      alpha: 0.18,
                     ),
+                    selectedForegroundColor: tokens.textPrimary,
+                    side: BorderSide(color: tokens.borderStrong),
                   ),
-                  Switch(
-                    key: const ValueKey('settings-theme-system-switch'),
-                    value: settings.useSystemTheme,
-                    activeThumbColor: tokens.accent,
-                    onChanged: (val) {
-                      ref
-                          .read(themeSettingsProvider.notifier)
-                          .setUseSystemTheme(val);
-                    },
-                  ),
-                ],
+                  segments: [
+                    ButtonSegment(
+                      value: _ThemeChoice.system,
+                      label: Text(strings.themeModeSystem),
+                    ),
+                    ButtonSegment(
+                      value: _ThemeChoice.light,
+                      label: Text(strings.themeModeLight),
+                    ),
+                    ButtonSegment(
+                      value: _ThemeChoice.dark,
+                      label: Text(strings.themeModeDark),
+                    ),
+                  ],
+                  selected: {choice},
+                  onSelectionChanged: (selection) =>
+                      selectChoice(selection.first),
+                ),
               ),
               const SizedBox(height: FrameSpace.x4),
-              if (!settings.useSystemTheme) ...[
-                Text(strings.selectActiveTheme, style: fieldLabelStyle),
-                const SizedBox(height: FrameSpace.x1),
-                buildSettingsFieldBox(
-                  tokens,
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      key: const ValueKey('settings-theme-dropdown'),
-                      isExpanded: true,
-                      isDense: true,
-                      borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      value: activeTheme.id,
-                      dropdownColor: tokens.surfaceElevated,
-                      style: text.body.copyWith(color: tokens.textPrimary),
-                      items: themes.map((t) {
-                        return DropdownMenuItem<String>(
-                          value: t.id,
-                          child: Text(
-                            '${t.name} (${t.variant})',
-                            overflow: TextOverflow.ellipsis,
+              // Show only the selects the chosen mode needs: both for
+              // "Sistema", one for "Chiaro" or "Scuro".
+              if (choice == _ThemeChoice.system) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            strings.defaultDarkTheme,
+                            style: fieldLabelStyle,
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (newId) {
-                        if (newId != null) {
-                          ref
-                              .read(activeThemeSpecProvider.notifier)
-                              .setTheme(newId);
-                        }
-                      },
+                          const SizedBox(height: FrameSpace.x1),
+                          if (darkValue != null)
+                            themeSelect(
+                              keyName: 'settings-dark-theme-dropdown',
+                              options: darkThemes,
+                              value: darkValue,
+                              onChanged: (id) => ref
+                                  .read(themeSettingsProvider.notifier)
+                                  .setDefaultDarkTheme(id),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: FrameSpace.x4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            strings.defaultLightTheme,
+                            style: fieldLabelStyle,
+                          ),
+                          const SizedBox(height: FrameSpace.x1),
+                          if (lightValue != null)
+                            themeSelect(
+                              keyName: 'settings-light-theme-dropdown',
+                              options: lightThemes,
+                              value: lightValue,
+                              onChanged: (id) => ref
+                                  .read(themeSettingsProvider.notifier)
+                                  .setDefaultLightTheme(id),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: FrameSpace.x4),
+              ] else if (choice == _ThemeChoice.light) ...[
+                Text(strings.defaultLightTheme, style: fieldLabelStyle),
+                const SizedBox(height: FrameSpace.x1),
+                if (lightValue != null)
+                  themeSelect(
+                    keyName: 'settings-light-theme-dropdown',
+                    options: lightThemes,
+                    value: lightValue,
+                    onChanged: (id) {
+                      ref
+                          .read(themeSettingsProvider.notifier)
+                          .setDefaultLightTheme(id);
+                      ref.read(activeThemeSpecProvider.notifier).setTheme(id);
+                    },
+                  ),
+              ] else ...[
+                Text(strings.defaultDarkTheme, style: fieldLabelStyle),
+                const SizedBox(height: FrameSpace.x1),
+                if (darkValue != null)
+                  themeSelect(
+                    keyName: 'settings-dark-theme-dropdown',
+                    options: darkThemes,
+                    value: darkValue,
+                    onChanged: (id) {
+                      ref
+                          .read(themeSettingsProvider.notifier)
+                          .setDefaultDarkTheme(id);
+                      ref.read(activeThemeSpecProvider.notifier).setTheme(id);
+                    },
+                  ),
               ],
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(strings.defaultDarkTheme, style: fieldLabelStyle),
-                        const SizedBox(height: FrameSpace.x1),
-                        buildSettingsFieldBox(
-                          tokens,
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              isDense: true,
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusMd,
-                              ),
-                              value:
-                                  darkThemes.any(
-                                    (t) => t.id == settings.defaultDarkThemeId,
-                                  )
-                                  ? settings.defaultDarkThemeId
-                                  : (darkThemes.isNotEmpty
-                                        ? darkThemes.first.id
-                                        : null),
-                              dropdownColor: tokens.surfaceElevated,
-                              style: text.body.copyWith(
-                                color: tokens.textPrimary,
-                              ),
-                              items: darkThemes.map((t) {
-                                return DropdownMenuItem<String>(
-                                  value: t.id,
-                                  child: Text(
-                                    t.name,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (newId) {
-                                if (newId != null) {
-                                  ref
-                                      .read(themeSettingsProvider.notifier)
-                                      .setDefaultDarkTheme(newId);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: FrameSpace.x4),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(strings.defaultLightTheme, style: fieldLabelStyle),
-                        const SizedBox(height: FrameSpace.x1),
-                        buildSettingsFieldBox(
-                          tokens,
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              isDense: true,
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusMd,
-                              ),
-                              value:
-                                  lightThemes.any(
-                                    (t) =>
-                                        t.id == settings.defaultLightThemeId,
-                                  )
-                                  ? settings.defaultLightThemeId
-                                  : (lightThemes.isNotEmpty
-                                        ? lightThemes.first.id
-                                        : null),
-                              dropdownColor: tokens.surfaceElevated,
-                              style: text.body.copyWith(
-                                color: tokens.textPrimary,
-                              ),
-                              items: lightThemes.map((t) {
-                                return DropdownMenuItem<String>(
-                                  value: t.id,
-                                  child: Text(
-                                    t.name,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (newId) {
-                                if (newId != null) {
-                                  ref
-                                      .read(themeSettingsProvider.notifier)
-                                      .setDefaultLightTheme(newId);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: FrameSpace.x3),
               Wrap(
                 spacing: FrameSpace.x3,
@@ -350,27 +351,6 @@ class AppearanceSection extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: FrameSpace.x4),
-              buildSettingsInfoCard(tokens, [
-                buildSettingsInfoRow(
-                  tokens,
-                  strings.labelActiveTheme,
-                  '${activeTheme.name} (v${activeTheme.version})',
-                ),
-                buildSettingsInfoRow(
-                  tokens,
-                  strings.labelLayoutDensity,
-                  strings.layoutDensityDefault,
-                ),
-                buildSettingsInfoRow(
-                  tokens,
-                  strings.labelFonts,
-                  strings.fontsDetail(
-                    activeTheme.toTokens().uiFontFamily,
-                    activeTheme.toTokens().monoFontFamily,
-                  ),
-                ),
-              ]),
               if (activeTheme.diagnostics.isNotEmpty) ...[
                 const SizedBox(height: FrameSpace.x4),
                 Text(

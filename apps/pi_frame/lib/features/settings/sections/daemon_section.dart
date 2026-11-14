@@ -6,6 +6,7 @@ import '../../../data/daemon/daemon_locator.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
 import '../../../data/notifications/notification_providers.dart';
+import '../../../ui/frame_dialog.dart';
 import '../../../ui/frame_section.dart';
 import '../../../ui/frame_status_tag.dart';
 import 'settings_common.dart';
@@ -24,6 +25,7 @@ class DaemonSection extends ConsumerWidget {
     required this.isRestartingDaemon,
     required this.onRestartDaemon,
     required this.onUpdateTimeout,
+    this.runActive = false,
   });
 
   final FrameTokens tokens;
@@ -35,6 +37,44 @@ class DaemonSection extends ConsumerWidget {
   final bool isRestartingDaemon;
   final VoidCallback onRestartDaemon;
   final void Function(int minutes) onUpdateTimeout;
+
+  /// True while an agent run is in progress. A restart then asks first.
+  final bool runActive;
+
+  /// Restarts directly when idle; while a run is active, asks first because
+  /// the running session is reconnected.
+  Future<void> _requestRestart(BuildContext context) async {
+    if (!runActive) {
+      onRestartDaemon();
+      return;
+    }
+    final confirmed = await showFrameDialog<bool>(
+      context: context,
+      dialog: FrameDialog<bool>(
+        title: strings.daemonRestartConfirmTitle,
+        body: Text(
+          strings.daemonRestartConfirmBody,
+          key: const ValueKey('settings-daemon-restart-confirm-body'),
+        ),
+        actions: [
+          FrameDialogAction<bool>(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
+          ),
+          FrameDialogAction<bool>(
+            label: strings.daemonRestartConfirmAction,
+            role: FrameDialogActionRole.primary,
+            value: true,
+            key: const ValueKey('settings-daemon-restart-confirm-btn'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      onRestartDaemon();
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,7 +98,9 @@ class DaemonSection extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           strings.labelStatus,
-                          style: text.body.copyWith(color: tokens.textSecondary),
+                          style: text.body.copyWith(
+                            color: tokens.textSecondary,
+                          ),
                         ),
                       ),
                       FrameStatusTag(
@@ -111,8 +153,16 @@ class DaemonSection extends ConsumerWidget {
                         ? strings.restartingDaemonStatus
                         : strings.restartDaemonBtn,
                   ),
-                  onPressed: isRestartingDaemon ? null : onRestartDaemon,
+                  onPressed: isRestartingDaemon
+                      ? null
+                      : () => _requestRestart(context),
                 ),
+              ),
+              const SizedBox(height: FrameSpace.x2),
+              Text(
+                strings.daemonRestartConsequence,
+                key: const ValueKey('settings-daemon-restart-consequence'),
+                style: text.caption.copyWith(color: tokens.textMuted),
               ),
             ],
           ),

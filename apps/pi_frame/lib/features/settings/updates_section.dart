@@ -2,6 +2,7 @@ import '../../domain/errors/user_facing_error.dart';
 import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_status_tag.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -50,9 +51,7 @@ class UpdatesSection extends ConsumerWidget {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: Text(strings.confirmInstallDialogTitle),
-        content: Text(
-          strings.confirmInstallDialogContent(assetName),
-        ),
+        content: Text(strings.confirmInstallDialogContent(assetName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -132,7 +131,9 @@ class UpdatesSection extends ConsumerWidget {
           description: isUpToDate
               ? strings.updatesUpToDateDesc(currentVer)
               : settings.lastChecked != null
-              ? strings.updatesLastChecked(_formatDateTime(settings.lastChecked!))
+              ? strings.updatesLastChecked(
+                  _formatDateTime(settings.lastChecked!),
+                )
               : strings.updatesNoRecentCheck,
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -226,11 +227,15 @@ class UpdatesSection extends ConsumerWidget {
                             isDense: true,
                             value: settings.interval,
                             dropdownColor: tokens.surfaceElevated,
-                            style: text.body.copyWith(color: tokens.textPrimary),
+                            style: text.body.copyWith(
+                              color: tokens.textPrimary,
+                            ),
                             items: UpdateCheckInterval.values.map((interval) {
                               return DropdownMenuItem<UpdateCheckInterval>(
                                 value: interval,
-                                child: Text(strings.updateIntervalLabel(interval)),
+                                child: Text(
+                                  strings.updateIntervalLabel(interval),
+                                ),
                               );
                             }).toList(),
                             onChanged: (newInterval) {
@@ -265,7 +270,10 @@ class UpdatesSection extends ConsumerWidget {
             Expanded(
               child: Text(
                 strings.updatesPrivacySafetyNotice,
-                style: text.caption.copyWith(color: tokens.textMuted, height: 1.5),
+                style: text.caption.copyWith(
+                  color: tokens.textMuted,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
@@ -305,9 +313,7 @@ class UpdatesSection extends ConsumerWidget {
                 minimumSize: const Size(0, FrameSize.rowForm),
               ),
               onPressed: () {
-                ref
-                    .read(updateControllerProvider.notifier)
-                    .openReleasePage();
+                ref.read(updateControllerProvider.notifier).openReleasePage();
               },
               icon: const Icon(Icons.open_in_new, size: FrameSize.icon),
               label: Text(strings.updatesNotesOnGithub),
@@ -331,7 +337,10 @@ class UpdatesSection extends ConsumerWidget {
 
           if (asset != null) ...[
             Text(
-              strings.updatesInstallerFile(asset.name, _formatBytes(asset.size)),
+              strings.updatesInstallerFile(
+                asset.name,
+                _formatBytes(asset.size),
+              ),
               style: text.caption.copyWith(color: tokens.textMuted),
             ),
             const SizedBox(height: FrameSpace.x2),
@@ -374,7 +383,8 @@ class UpdatesSection extends ConsumerWidget {
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(0, FrameSize.rowForm),
                   ),
-                  onPressed: () => _confirmAndInstall(context, ref, asset?.name),
+                  onPressed: () =>
+                      _confirmAndInstall(context, ref, asset?.name),
                   icon: const Icon(Icons.install_desktop, size: FrameSize.icon),
                   label: Text(strings.installAndRestartBtn),
                 ),
@@ -422,9 +432,7 @@ class UpdatesSection extends ConsumerWidget {
                   minimumSize: const Size(0, FrameSize.rowForm),
                 ),
                 onPressed: () {
-                  ref
-                      .read(updateControllerProvider.notifier)
-                      .openReleasePage();
+                  ref.read(updateControllerProvider.notifier).openReleasePage();
                 },
                 icon: const Icon(Icons.open_in_browser, size: FrameSize.icon),
                 label: Text(strings.updatesDownloadManuallyBtn),

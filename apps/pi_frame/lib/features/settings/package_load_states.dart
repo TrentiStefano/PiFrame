@@ -83,13 +83,13 @@ class _SkeletonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: tokens.border,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: tokens.border,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+      ),
+    );
     return Padding(
       key: const ValueKey('packages-skeleton-row'),
       padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),

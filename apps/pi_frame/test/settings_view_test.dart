@@ -478,9 +478,9 @@ void main() {
     (tester) async {
       final client = _PackageClient()
         ..onUpdate = (_) async => throw PcpException(
-            'installed 0.1.15, expected 1.2.0',
-            code: 'PACKAGE_UPDATE_FAILED',
-          );
+          'installed 0.1.15, expected 1.2.0',
+          code: 'PACKAGE_UPDATE_FAILED',
+        );
       await pumpPackages(tester, client);
       await tester.tap(find.byTooltip('Aggiorna pi-caveman'));
       await tester.pumpAndSettle();
@@ -495,7 +495,10 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('pi-package-update-error')))
           .data!;
       // The daemon's reason text is a protocol message and is shown inline.
-      expect(error, contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'));
+      expect(
+        error,
+        contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'),
+      );
       expect(client.updateChecks, 1);
       expect(client.listRequests, 2);
     },
@@ -884,7 +887,10 @@ void main() {
       expect(find.text('Impossibile caricare i pacchetti'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
       expect(find.text('Dettagli'), findsOneWidget);
-      expect(find.byKey(const ValueKey('packages-load-error-details')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('packages-load-error-details')),
+        findsNothing,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey('packages-load-error-details-toggle')),
@@ -1066,9 +1072,8 @@ void main() {
 
     await tester.tap(find.text('Aspetto'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('settings-theme-dropdown')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('PiFrame Dark (dark)').last);
+    // The "Tema" control: choosing Scuro applies the default dark theme.
+    await tester.tap(find.text('Scuro'));
     await tester.pumpAndSettle();
 
     expect(
@@ -1095,7 +1100,6 @@ void main() {
         'Pacchetti',
         'Daemon',
         'Aspetto',
-        'Privacy',
         'Diagnostica',
         'Aggiornamenti',
         'Terminale',
@@ -1109,7 +1113,7 @@ void main() {
   );
 
   testWidgets(
-    'SettingsView enforces D16 Zero Remote Telemetry in Privacy tab',
+    'SettingsView enforces D16 Zero Remote Telemetry in the Diagnostica tab (Privacy merged)',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -1117,12 +1121,23 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: Scaffold(
+              // Index 4 is Diagnostica now that Privacy has no entry of its own.
               body: SettingsView(onClose: () {}, initialTabIndex: 4),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('settings-privacy-section')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(
         find.textContaining(
           'PiFrame non invia alcun dato di utilizzo a server remoti.',
@@ -1319,11 +1334,11 @@ void main() {
     testWidgets('pointer selection switches the section', (tester) async {
       await pumpSettings(tester, size: const Size(1200, 900));
 
-      await tester.tap(find.byKey(const ValueKey('settings-nav-privacy')));
+      await tester.tap(find.byKey(const ValueKey('settings-nav-terminal')));
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(const ValueKey('settings-section-privacy')),
+        find.byKey(const ValueKey('settings-section-terminal')),
         findsOneWidget,
       );
       expect(

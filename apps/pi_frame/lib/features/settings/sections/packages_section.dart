@@ -92,7 +92,10 @@ class PackagesSection extends ConsumerWidget {
                       isWorking || !packages.any(hasAvailablePiPackageUpdate)
                       ? null
                       : onUpdateAll,
-                  icon: const Icon(Icons.system_update_alt, size: FrameSize.icon),
+                  icon: const Icon(
+                    Icons.system_update_alt,
+                    size: FrameSize.icon,
+                  ),
                   label: Text(
                     updateProgress == null
                         ? strings.updateAllPackages
@@ -102,7 +105,10 @@ class PackagesSection extends ConsumerWidget {
               ),
               if (isWorking) ...[
                 const SizedBox(height: FrameSpace.x3),
-                LinearProgressIndicator(color: tokens.accent, value: updateProgress),
+                LinearProgressIndicator(
+                  color: tokens.accent,
+                  value: updateProgress,
+                ),
               ],
               if (updateErrorMessage != null) ...[
                 const SizedBox(height: FrameSpace.x3),
