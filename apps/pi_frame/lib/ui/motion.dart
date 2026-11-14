@@ -45,6 +45,18 @@ abstract final class FrameMotion {
   /// Wait after the last keystroke before a field re-validates.
   static const debounce = FrameMotionTokens.debounce;
 
+  /// Hover wait before a tooltip opens.
+  static const tooltipWait = FrameMotionTokens.tooltipWait;
+
+  /// Startup logo pulse loop: static under reduced motion.
+  static const pulseLoop = FrameMotionTokens.pulseLoop;
+
+  /// Sweep loop of the animated focus border.
+  static const shimmerLoop = FrameMotionTokens.shimmerLoop;
+
+  /// Reveal of the launch surface before it settles.
+  static const launchReveal = FrameMotionTokens.launchReveal;
+
   /// Ease-out with a fast start: most UI changes.
   static const enterCurve = FrameMotionTokens.enterCurve;
 

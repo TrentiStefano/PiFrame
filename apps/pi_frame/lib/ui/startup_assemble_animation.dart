@@ -39,7 +39,9 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
     final isTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
     _controller = AnimationController(
       vsync: this,
-      duration: isTest ? const Duration(milliseconds: 50) : const Duration(milliseconds: 1400),
+      duration: isTest
+          ? const Duration(milliseconds: 50)
+          : FrameMotionTokens.pulseLoop,
     );
 
     _controller.addListener(_onProgressChanged);

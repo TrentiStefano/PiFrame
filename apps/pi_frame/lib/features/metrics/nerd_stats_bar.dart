@@ -59,7 +59,7 @@ class NerdStatsBar extends ConsumerWidget {
 
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 300),
+      waitDuration: FrameMotionTokens.tooltipWait,
       child: Container(
         key: const ValueKey('nerd-stats-bar'),
         padding: const EdgeInsets.symmetric(
