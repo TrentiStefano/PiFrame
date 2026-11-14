@@ -5,8 +5,13 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
+import '../../ui/frame_focus.dart';
 
+// Layout constants with no matching token in FrameSpace / FrameSize.
+const _dialogMaxWidth = 540.0;
 const _rowExtent = 40.0;
+const _rowIconGap = 10.0;
+const _errorIconSize = 28.0;
 const _remoteColumnWidth = 150.0;
 const _syncColumnWidth = 64.0;
 
@@ -119,6 +124,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final query = _searchController.text.trim().toLowerCase();
 
@@ -146,7 +152,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: 540,
+            maxWidth: _dialogMaxWidth,
             maxHeight: MediaQuery.sizeOf(context).height * 0.6,
           ),
           child: Material(
@@ -165,43 +171,57 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                   // Search Header
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: FrameSpace.x4,
+                      vertical: FrameSpace.x3,
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.search, size: 20, color: tokens.textMuted),
-                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.search,
+                          size: FrameSize.iconLg,
+                          color: tokens.textMuted,
+                        ),
+                        const SizedBox(width: FrameSpace.x3),
                         Expanded(
-                          child: TextField(
-                            key: const ValueKey('branch-picker-search-field'),
-                            controller: _searchController,
-                            focusNode: _focusNode,
-                            autofocus: true,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 14,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: strings.branchPickerSearchHint,
-                              hintStyle: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                                fontFamily: tokens.uiFontFamily,
+                          // Standard keyboard focus ring; the field draws no
+                          // border of its own (see the palette search field).
+                          child: FrameFocusRing(
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            child: TextField(
+                              key: const ValueKey('branch-picker-search-field'),
+                              controller: _searchController,
+                              focusNode: _focusNode,
+                              autofocus: true,
+                              style: text.monoBody.copyWith(
+                                color: tokens.textPrimary,
                               ),
-                              border: InputBorder.none,
-                              isDense: true,
+                              decoration: InputDecoration(
+                                hintText: strings.branchPickerSearchHint,
+                                hintStyle: text.body.copyWith(
+                                  color: tokens.textMuted,
+                                ),
+                                filled: false,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: FrameSpace.x2,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                              ),
+                              onChanged: (_) {
+                                setState(() => _selectedIndex = 0);
+                              },
                             ),
-                            onChanged: (_) {
-                              setState(() => _selectedIndex = 0);
-                            },
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: FrameSpace.x2,
+                            vertical: FrameSpace.x1,
                           ),
                           decoration: BoxDecoration(
                             color: tokens.surface,
@@ -210,10 +230,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                           ),
                           child: Text(
                             'ESC',
-                            style: TextStyle(
+                            style: text.mono.copyWith(
                               color: tokens.textMuted,
-                              fontSize: 10,
-                              fontFamily: tokens.monoFontFamily,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -232,8 +250,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 SizedBox(
-                                  width: 24,
-                                  height: 24,
+                                  width: FrameSpace.x6,
+                                  height: FrameSpace.x6,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
                                     valueColor: AlwaysStoppedAnimation<Color>(
@@ -241,12 +259,11 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: FrameSpace.x3),
                                 Text(
                                   strings.branchPickerLoading,
-                                  style: TextStyle(
+                                  style: text.body.copyWith(
                                     color: tokens.textMuted,
-                                    fontSize: 13,
                                   ),
                                 ),
                               ],
@@ -256,36 +273,34 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                             ? Center(
                                 heightFactor: 1,
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(FrameSpace.x4),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
                                         Icons.error_outline,
                                         color: tokens.danger,
-                                        size: 28,
+                                        size: _errorIconSize,
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: FrameSpace.x2),
                                       Text(
                                         strings.branchPickerError,
-                                        style: TextStyle(
+                                        style: text.body.copyWith(
                                           color: tokens.textPrimary,
                                           fontWeight: FontWeight.w600,
-                                          fontSize: 13,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: FrameSpace.x1),
                                       Text(
                                         _error!,
                                         textAlign: TextAlign.center,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.caption.copyWith(
                                           color: tokens.textMuted,
-                                          fontSize: 11,
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: FrameSpace.x3),
                                       OutlinedButton(
                                         onPressed: _loadBranches,
                                         style: OutlinedButton.styleFrom(
@@ -293,9 +308,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                         ),
                                         child: Text(
                                           strings.branchPickerRetry,
-                                          style: TextStyle(
+                                          style: text.label.copyWith(
                                             color: tokens.textPrimary,
-                                            fontSize: 12,
                                           ),
                                         ),
                                       ),
@@ -307,14 +321,13 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                 ? Center(
                                     heightFactor: 1,
                                     child: Padding(
-                                      padding: const EdgeInsets.all(16),
+                                      padding: const EdgeInsets.all(FrameSpace.x4),
                                       child: Text(
-                                      strings.branchPickerNoBranches,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 13,
+                                        strings.branchPickerNoBranches,
+                                        style: text.body.copyWith(
+                                          color: tokens.textMuted,
+                                        ),
                                       ),
-                                    ),
                                     ),
                                   )
                                 : ListView.builder(
@@ -348,7 +361,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                     )
                                                   : null,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
+                                            horizontal: FrameSpace.x4,
                                           ),
                                           height: _rowExtent,
                                           child: Row(
@@ -362,12 +375,12 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                         'branch-picker-current-check',
                                                       )
                                                     : null,
-                                                size: 16,
+                                                size: FrameSize.icon,
                                                 color: isCurrent
                                                     ? tokens.accent
                                                     : tokens.textMuted,
                                               ),
-                                              const SizedBox(width: 10),
+                                              const SizedBox(width: _rowIconGap),
                                               // Branch column: flexible, takes the remaining width.
                                               Expanded(
                                                 child: Row(
@@ -378,26 +391,23 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                         maxLines: 1,
                                                         overflow:
                                                             TextOverflow.ellipsis,
-                                                        style: TextStyle(
+                                                        style: text.monoBody.copyWith(
                                                           color: isCurrent
                                                               ? tokens.accent
                                                               : tokens.textPrimary,
                                                           fontWeight: isCurrent
                                                               ? FontWeight.bold
                                                               : FontWeight.normal,
-                                                          fontSize: 13,
-                                                          fontFamily:
-                                                              tokens.monoFontFamily,
                                                         ),
                                                       ),
                                                     ),
                                                     if (isCurrent) ...[
-                                                      const SizedBox(width: 8),
+                                                      const SizedBox(width: FrameSpace.x2),
                                                       Container(
                                                         padding:
                                                             const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2,
+                                                          horizontal: FrameSpace.x2,
+                                                          vertical: FrameSpace.x1,
                                                         ),
                                                         decoration: BoxDecoration(
                                                           color: tokens.accent
@@ -411,9 +421,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                         ),
                                                         child: Text(
                                                           strings.branchPickerCurrentBranch,
-                                                          style: TextStyle(
+                                                          style: text.caption.copyWith(
                                                             color: tokens.accent,
-                                                            fontSize: 10,
                                                             fontWeight:
                                                                 FontWeight.w600,
                                                           ),
@@ -424,7 +433,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                 ),
                                               ),
                                               // Remote column: fixed width, so rows line up.
-                                              const SizedBox(width: 12),
+                                              const SizedBox(width: FrameSpace.x3),
                                               SizedBox(
                                                 key: const ValueKey(
                                                   'branch-picker-remote-column',
@@ -434,16 +443,13 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                   branch.upstream ?? '',
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
+                                                  style: text.mono.copyWith(
                                                     color: tokens.textMuted,
-                                                    fontSize: 11,
-                                                    fontFamily:
-                                                        tokens.monoFontFamily,
                                                   ),
                                                 ),
                                               ),
                                               // Ahead/behind column: fixed width, right aligned.
-                                              const SizedBox(width: 8),
+                                              const SizedBox(width: FrameSpace.x2),
                                               SizedBox(
                                                 key: const ValueKey(
                                                   'branch-picker-sync-column',
@@ -456,14 +462,11 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                       : '',
                                                   maxLines: 1,
                                                   textAlign: TextAlign.right,
-                                                  style: TextStyle(
+                                                  style: text.mono.copyWith(
                                                     color: (branch.ahead ?? 0) > 0 ||
                                                             (branch.behind ?? 0) > 0
                                                         ? tokens.accent
                                                         : tokens.textMuted,
-                                                    fontSize: 11,
-                                                    fontFamily:
-                                                        tokens.monoFontFamily,
                                                   ),
                                                 ),
                                               ),

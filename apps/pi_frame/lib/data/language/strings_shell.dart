@@ -294,19 +294,19 @@ extension ShellStrings on AppStrings {
   String get paletteCompactTitle =>
       isItalian ? 'Compatta contesto' : 'Compact context';
   String get paletteCompactSubtitle => isItalian
-      ? 'Esegui manual compaction per ridurre i token'
+      ? 'Compatta manualmente il contesto per ridurre i token'
       : 'Run manual compaction to reduce tokens';
   String get paletteClearQueueTitle =>
       isItalian ? 'Svuota coda' : 'Clear queue';
   String get paletteClearQueueSubtitle => isItalian
-      ? 'Rimuovi tutti i messaggi steer e follow-up in attesa'
+      ? 'Rimuovi tutti i messaggi di guida e follow-up in attesa'
       : 'Remove all pending steer and follow-up messages';
   String get paletteInterruptTitle =>
       isItalian ? 'Interrompi agente' : 'Interrupt agent';
   String get paletteInterruptSubtitle =>
       isItalian ? 'Ferma il modello in esecuzione' : 'Stop running model';
   String get paletteSwitchBrowserTitle =>
-      isItalian ? 'Mostra Web Browser' : 'Show Web Browser';
+      isItalian ? 'Mostra browser web' : 'Show Web Browser';
   String get paletteSwitchBrowserSubtitle => isItalian
       ? 'Apri il browser web integrato nel pannello laterale'
       : 'Open embedded web browser in side panel';

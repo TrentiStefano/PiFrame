@@ -9,6 +9,7 @@ import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../data/theme/theme_providers.dart';
+import '../../ui/frame_focus.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../sessions_sidebar/session_actions.dart';
@@ -17,8 +18,13 @@ import '../browser/browser_controller.dart';
 import '../side/side_provider.dart';
 import '../workspace/repository_workspace.dart';
 
+// Layout constants with no matching token in FrameSpace / FrameSize.
 const _rowHeight = 52.0;
-const _groupHeaderHeight = 28.0;
+const _rowIconSize = 18.0;
+const _rowIconGap = 14.0;
+const _emptyStatePadding = 20.0;
+const _groupHeaderHeight = FrameSize.rowList;
+const _dialogMaxWidth = 540.0;
 
 class PaletteAction {
   final String id;
@@ -492,6 +498,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final query = _searchController.text.trim().toLowerCase();
 
@@ -522,7 +529,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       },
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 540, maxHeight: maxHeight),
+          constraints: BoxConstraints(
+            maxWidth: _dialogMaxWidth,
+            maxHeight: maxHeight,
+          ),
           child: Material(
             color: tokens.surface,
             borderRadius: BorderRadius.circular(tokens.radiusLg),
@@ -539,35 +549,54 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                   // Search Input Header
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: FrameSpace.x4,
+                      vertical: FrameSpace.x3,
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.search, size: 20, color: tokens.textMuted),
-                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.search,
+                          size: FrameSize.iconLg,
+                          color: tokens.textMuted,
+                        ),
+                        const SizedBox(width: FrameSpace.x3),
                         Expanded(
-                          child: TextField(
-                            key: const ValueKey('command-palette-search-field'),
-                            controller: _searchController,
-                            autofocus: true,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 15,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _sessionMode
-                                  ? strings.paletteSessionSearchHint
-                                  : strings.paletteSearchHint,
-                              hintStyle: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 14,
+                          // Standard keyboard focus ring. The field draws no
+                          // border of its own, so the theme's focused input
+                          // border cannot add a second box.
+                          child: FrameFocusRing(
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            child: TextField(
+                              key: const ValueKey(
+                                'command-palette-search-field',
                               ),
-                              border: InputBorder.none,
-                              isDense: true,
+                              controller: _searchController,
+                              autofocus: true,
+                              style: text.bodyLarge.copyWith(
+                                color: tokens.textPrimary,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: _sessionMode
+                                    ? strings.paletteSessionSearchHint
+                                    : strings.paletteSearchHint,
+                                hintStyle: text.bodyLarge.copyWith(
+                                  color: tokens.textMuted,
+                                ),
+                                filled: false,
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: FrameSpace.x2,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                              ),
+                              onChanged: (_) =>
+                                  setState(() => _selectedIndex = 0),
                             ),
-                            onChanged: (_) =>
-                                setState(() => _selectedIndex = 0),
                           ),
                         ),
                         _KeyCap(label: strings.paletteEscKeyLabel),
@@ -580,15 +609,14 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                   Flexible(
                     child: _items.isEmpty
                         ? Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(_emptyStatePadding),
                             child: Center(
                               child: Text(
                                 _sessionMode
                                     ? strings.paletteNoSessionsFound
                                     : strings.paletteNoActionsFound,
-                                style: TextStyle(
+                                style: text.body.copyWith(
                                   color: tokens.textMuted,
-                                  fontSize: 13,
                                 ),
                               ),
                             ),
@@ -597,7 +625,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                             key: const ValueKey('command-palette-list'),
                             shrinkWrap: true,
                             controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: FrameSpace.x1,
+                            ),
                             itemCount: _items.length,
                             itemBuilder: (context, index) {
                               final item = _items[index];
@@ -637,14 +667,13 @@ class _GroupHeader extends StatelessWidget {
     return SizedBox(
       height: _groupHeaderHeight,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
             label.toUpperCase(),
-            style: TextStyle(
+            style: FrameText.of(context).caption.copyWith(
               color: tokens.textMuted,
-              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -669,6 +698,7 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = FrameText.of(context);
     return InkWell(
       key: ValueKey('palette-action-${action.id}'),
       onTap: onTap,
@@ -676,15 +706,15 @@ class _ActionRow extends StatelessWidget {
       child: Container(
         height: _rowHeight,
         color: isSelected ? tokens.accent.withValues(alpha: 0.1) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
         child: Row(
           children: [
             Icon(
               action.icon,
-              size: 18,
+              size: _rowIconSize,
               color: isSelected ? tokens.accent : tokens.textSecondary,
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: _rowIconGap),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -694,9 +724,8 @@ class _ActionRow extends StatelessWidget {
                     action.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: text.body.copyWith(
                       color: tokens.textPrimary,
-                      fontSize: 13,
                       fontWeight:
                           isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
@@ -705,19 +734,19 @@ class _ActionRow extends StatelessWidget {
                     action.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                    style: text.caption.copyWith(color: tokens.textMuted),
                   ),
                 ],
               ),
             ),
             if (action.keys.isNotEmpty) ...[
-              const SizedBox(width: 12),
+              const SizedBox(width: FrameSpace.x3),
               Row(
                 key: ValueKey('palette-keys-${action.id}'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   for (final key in action.keys) ...[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: FrameSpace.x1),
                     _KeyCap(label: key),
                   ],
                 ],
@@ -739,7 +768,10 @@ class _KeyCap extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: FrameSpace.x2,
+        vertical: FrameSpace.x1,
+      ),
       decoration: BoxDecoration(
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -747,10 +779,8 @@ class _KeyCap extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: FrameText.of(context).mono.copyWith(
           color: tokens.textMuted,
-          fontSize: 10,
-          fontFamily: tokens.monoFontFamily,
           fontWeight: FontWeight.bold,
         ),
       ),

@@ -121,6 +121,11 @@ void main() {
         find.descendant(of: keys, matching: find.text('B')),
         findsOneWidget,
       );
+      // Key caps use the type scale, never below the 11 px floor.
+      final capText = tester.widget<Text>(
+        find.descendant(of: keys, matching: find.text('Ctrl')),
+      );
+      expect(capText.style?.fontSize, greaterThanOrEqualTo(11));
       // The title no longer carries the shortcut.
       expect(find.text('Side conversation'), findsOneWidget);
       expect(find.textContaining('Ctrl+'), findsNothing);
