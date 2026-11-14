@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../ui/escape_layers.dart';
 import '../ui/frame_icon_action.dart';
@@ -1490,11 +1491,13 @@ class _AppShellState extends ConsumerState<AppShell>
     final bottomRadius = displayRadius == null
         ? baseRadius
         : concentricRadius(displayRadius, 8, min: baseRadius);
+    // Inset between the frame edge and its content (matches the padding below).
+    final paneInset = isMobile ? 2.0 : 3.0;
     return RepaintBoundary(
       child: Padding(
         padding: isMobile
             ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
-            : const EdgeInsets.all(3),
+            : EdgeInsets.all(paneInset),
         child: Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
@@ -1507,7 +1510,14 @@ class _AppShellState extends ConsumerState<AppShell>
               bottomRight: Radius.circular(bottomRadius),
             ),
           ),
-          child: child,
+          // Concentric: content clips at the outer radius minus the inset, so
+          // headers and fills follow the frame corner without a gap.
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+              math.max(0, baseRadius - paneInset),
+            ),
+            child: child,
+          ),
         ),
       ),
     );

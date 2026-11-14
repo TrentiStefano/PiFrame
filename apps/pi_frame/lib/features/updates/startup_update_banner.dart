@@ -131,16 +131,13 @@ class StartupUpdateBanner extends ConsumerWidget {
                   children: [title, const SizedBox(height: 2), detailText],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: FrameSpace.x2),
-          Row(
-            children: [
-              Expanded(child: openButton),
-              const SizedBox(width: FrameSpace.x1),
               dismissButton,
             ],
           ),
+          const SizedBox(height: FrameSpace.x2),
+          // Full width below the text, so the label never squeezes beside it
+          // at large text scales.
+          SizedBox(width: double.infinity, child: openButton),
         ],
       );
     } else {

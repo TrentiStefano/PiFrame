@@ -520,16 +520,26 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('all', strings.filterAll, tokens),
-                    _buildFilterChip('active', strings.filterActive, tokens),
-                    _buildFilterChip('repo', strings.filterRepo, tokens),
-                  ],
-                ),
-              ),
+              // Wrap at large text scales so no filter is cut off; scroll otherwise.
+              child: MediaQuery.textScalerOf(context).scale(1) > 1.3
+                  ? Wrap(
+                      spacing: FrameSpace.x1,
+                      children: [
+                        _buildFilterChip('all', strings.filterAll, tokens),
+                        _buildFilterChip('active', strings.filterActive, tokens),
+                        _buildFilterChip('repo', strings.filterRepo, tokens),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('all', strings.filterAll, tokens),
+                          _buildFilterChip('active', strings.filterActive, tokens),
+                          _buildFilterChip('repo', strings.filterRepo, tokens),
+                        ],
+                      ),
+                    ),
             ),
           ),
 
@@ -1522,9 +1532,14 @@ class _SessionTile extends ConsumerWidget {
         ? tokens.displayText.withValues(alpha: 0.8)
         : tokens.textMuted;
 
+    // At large text scales the trailing time squeezes the title to two or three
+    // characters, so it moves to the secondary line under the title.
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+
     final row = FrameListRow(
       key: ValueKey('session-row-$id'),
       name: title,
+      secondary: largeText ? relative : null,
       selected: isSelected,
       minHeight: _railRowMinHeight,
       leading: isWorking
@@ -1547,8 +1562,9 @@ class _SessionTile extends ConsumerWidget {
         children: [
           if (isPinned)
             Icon(Icons.push_pin, size: FrameSize.icon, color: tokens.accent),
-          if (isPinned && relative != null) const SizedBox(width: FrameSpace.x1),
-          if (relative != null)
+          if (isPinned && relative != null && !largeText)
+            const SizedBox(width: FrameSpace.x1),
+          if (relative != null && !largeText)
             Text(
               relative,
               style: text.caption.copyWith(color: metaColor),
