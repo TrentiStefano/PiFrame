@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
 import '../../ui/escape_layers.dart';
+import '../../ui/frame_focus.dart';
 import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
@@ -29,7 +31,31 @@ class SessionChangesPane extends ConsumerStatefulWidget {
   ConsumerState<SessionChangesPane> createState() => _SessionChangesPaneState();
 }
 
+/// Moves between companion tabs with ←/→ (plan task 6.1). A step of -1 or 1, wrapping.
+class _TabStepIntent extends Intent {
+  const _TabStepIntent(this.step);
+  final int step;
+}
+
 class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
+  /// One focus node per companion tab, so ←/→ can move focus with the selection.
+  final Map<WorkspacePane, FocusNode> _tabFocusNodes = {};
+
+  FocusNode _tabFocusNode(WorkspacePane tab) => _tabFocusNodes.putIfAbsent(
+    tab,
+    () => FocusNode(debugLabel: 'companion-tab-${tab.name}'),
+  );
+
+  /// Selects the tab [step] places from [tab] and moves focus to it.
+  void _stepTab(WorkspacePane tab, int step) {
+    final tabs = widget.companionTabs;
+    if (tabs == null || tabs.isEmpty) return;
+    final index = tabs.indexOf(tab);
+    final next = tabs[(index + step + tabs.length) % tabs.length];
+    widget.onSelectCompanionTab?.call(next);
+    _tabFocusNode(next).requestFocus();
+  }
+
   AppStrings _getStrings() {
     try {
       return ref.watch(appStringsProvider);
@@ -54,13 +80,18 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       },
     );
     Future.microtask(() {
-      ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true);
+      ref
+          .read(sessionChangesProvider(widget.sessionId).notifier)
+          .refresh(joinRunning: true);
     });
   }
 
   @override
   void dispose() {
     _unregisterEscape?.call();
+    for (final node in _tabFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -134,62 +165,124 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                                 cursor: isActive
                                     ? SystemMouseCursors.basic
                                     : SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  key: ValueKey('companion-tab-${tab.name}'),
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: isActive
-                                      ? null
-                                      : () => widget.onSelectCompanionTab?.call(
-                                          tab,
-                                        ),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 140),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isActive ? 10 : 7,
-                                      vertical: 3,
+                                child: Semantics(
+                                  button: true,
+                                  selected: isActive,
+                                  label: tabTitle,
+                                  excludeSemantics: true,
+                                  child: FrameFocusRing(
+                                    borderRadius: BorderRadius.circular(
+                                      tokens.radiusSm,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: isActive
-                                          ? tokens.surface
-                                          : tokens.surface.withValues(alpha: 0),
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      border: isActive
-                                          ? Border.all(
-                                              color: tokens.borderStrong,
-                                              width: 1,
-                                            )
-                                          : null,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          tabIcon,
-                                          size: isActive ? 14 : 13,
-                                          color: isActive
-                                              ? tokens.accent
-                                              : tokens.textMuted,
+                                    child: FocusableActionDetector(
+                                      focusNode: _tabFocusNode(tab),
+                                      shortcuts:
+                                          const <ShortcutActivator, Intent>{
+                                            SingleActivator(
+                                              LogicalKeyboardKey.arrowLeft,
+                                            ): _TabStepIntent(
+                                              -1,
+                                            ),
+                                            SingleActivator(
+                                              LogicalKeyboardKey.arrowRight,
+                                            ): _TabStepIntent(
+                                              1,
+                                            ),
+                                          },
+                                      actions: <Type, Action<Intent>>{
+                                        _TabStepIntent:
+                                            CallbackAction<_TabStepIntent>(
+                                              onInvoke: (intent) {
+                                                _stepTab(tab, intent.step);
+                                                return null;
+                                              },
+                                            ),
+                                        // Enter and Space select the focused tab.
+                                        ActivateIntent:
+                                            CallbackAction<ActivateIntent>(
+                                              onInvoke: (_) {
+                                                if (!isActive) {
+                                                  widget.onSelectCompanionTab
+                                                      ?.call(tab);
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                      },
+                                      child: InkWell(
+                                        // The detector above owns the focus stop.
+                                        canRequestFocus: false,
+                                        key: ValueKey(
+                                          'companion-tab-${tab.name}',
                                         ),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          isActive
-                                              ? tabTitle.toUpperCase()
-                                              : tabTitle,
-                                          style: TextStyle(
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusSm,
+                                        ),
+                                        hoverColor: tokens.surfaceElevated,
+                                        highlightColor: tokens.surfaceElevated,
+                                        splashFactory: NoSplash.splashFactory,
+                                        onTap: isActive
+                                            ? null
+                                            : () => widget.onSelectCompanionTab
+                                                  ?.call(tab),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 140,
+                                          ),
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: isActive ? 10 : 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
                                             color: isActive
-                                                ? tokens.textPrimary
-                                                : tokens.textMuted,
-                                            fontSize: isActive ? 11.5 : 11,
-                                            fontFamily: tokens.uiFontFamily,
-                                            fontWeight: isActive
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                            letterSpacing: 0.3,
+                                                ? tokens.surface
+                                                : tokens.surface.withValues(
+                                                    alpha: 0,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusSm,
+                                            ),
+                                            border: isActive
+                                                ? Border.all(
+                                                    color: tokens.borderStrong,
+                                                    width: 1,
+                                                  )
+                                                : null,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                tabIcon,
+                                                size: isActive ? 14 : 13,
+                                                color: isActive
+                                                    ? tokens.accent
+                                                    : tokens.textMuted,
+                                              ),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                isActive
+                                                    ? tabTitle.toUpperCase()
+                                                    : tabTitle,
+                                                style: TextStyle(
+                                                  color: isActive
+                                                      ? tokens.textPrimary
+                                                      : tokens.textMuted,
+                                                  fontSize: isActive
+                                                      ? 11.5
+                                                      : 11,
+                                                  fontFamily:
+                                                      tokens.uiFontFamily,
+                                                  fontWeight: isActive
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w500,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),

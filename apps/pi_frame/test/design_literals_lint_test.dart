@@ -30,7 +30,7 @@ const _baselines = <String, int>{
   'Duration(milliseconds:) numeric': 40,
   'Curves.': 21,
   'BoxShadow(': 16,
-  'GestureDetector(': 14,
+  'GestureDetector(': 13,
 };
 
 typedef _Hit = ({String file, int line});
