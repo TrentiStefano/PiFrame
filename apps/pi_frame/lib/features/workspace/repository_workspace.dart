@@ -5,23 +5,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
-import '../../domain/errors/user_facing_error.dart';
 import '../../domain/session/agent_status.dart';
 import '../composer/composer_draft.dart';
-import '../../ui/code/code_editor_controller.dart';
 import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
-import '../transcript/rich_content.dart';
-import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
 import '../../data/language/strings_errors.dart';
+import 'editor/repository_editor_pane.dart';
+import 'repository_error_callout.dart';
 import 'repository_state.dart';
 import 'workspace_pane.dart';
 import 'workspace_pane_header.dart';
 
+export 'editor/repository_file_save.dart';
 export 'git/git_changes_pane.dart';
 export 'repository_state.dart';
 export 'workspace_change_paths.dart';
@@ -32,155 +31,6 @@ final repoExpandedDirsProvider = StateProvider.family<Set<String>, String>(
 );
 
 
-Future<bool> switchSessionSafely(
-  BuildContext context,
-  WidgetRef ref,
-  String nextId,
-) async {
-  final currentId = ref.read(activeSessionIdProvider);
-  if (currentId == nextId) return true;
-  if (!context.mounted) return false;
-  if (!await resolveDirtyRepository(context, ref, currentId)) return false;
-  if (!context.mounted) return false;
-  ref.read(activeSessionIdProvider.notifier).state = nextId;
-  return true;
-}
-
-Future<bool> resolveDirtyRepository(
-  BuildContext context,
-  WidgetRef ref,
-  String? sessionId,
-) async {
-  if (sessionId == null) return true;
-  final controller = ref.read(repositoryStateProvider(sessionId).notifier);
-  if (!controller.currentState.dirty) return true;
-  final tokens = context.tokens;
-  final session = ref.read(sessionStateFamily(sessionId));
-  final strings = ref.read(appStringsProvider);
-  final writesBlocked = sessionWritesBlocked(session);
-  final canSave = !writesBlocked && ref.read(pcpClientProvider) != null;
-  final blockedReason = session.readOnly
-      ? (session.readOnlyReason ?? strings.readOnlySessionLower)
-      : writesBlocked
-      ? session.agentStatus.label
-      : strings.daemonNotConnectedLower;
-  final choice = await showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: tokens.surface,
-      title: Text(strings.unsavedChangesTitle),
-      content: Text(
-        canSave
-            ? strings.unsavedChangesContentCanSave
-            : strings.unsavedChangesContentBlocked(blockedReason),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-          child: Text(strings.cancel),
-        ),
-        if (canSave)
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(strings.discard),
-          ),
-        if (!canSave)
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(strings.discard),
-          ),
-        if (canSave)
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: Text(strings.save),
-          ),
-      ],
-    ),
-  );
-  if (!context.mounted) return false;
-  if (choice == 'discard') {
-    controller.discardDirty();
-    return true;
-  }
-  if (choice != 'save') return false;
-  try {
-    for (final entry
-        in controller.currentState.buffers.entries
-            .where((entry) => entry.value.dirty)
-            .toList()) {
-      await saveRepositoryFile(context, ref, sessionId, entry.key);
-      if (!context.mounted ||
-          controller.currentState.buffers[entry.key]?.dirty == true) {
-        return false;
-      }
-    }
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-Future<void> saveRepositoryFile(
-  BuildContext context,
-  WidgetRef ref,
-  String sessionId,
-  String path,
-) async {
-  final session = ref.read(sessionStateFamily(sessionId));
-  final strings = ref.read(appStringsProvider);
-  if (sessionWritesBlocked(session)) {
-    throw StateError(
-      session.readOnly
-          ? (session.readOnlyReason ?? strings.readOnlySessionCapital)
-          : session.agentStatus.label,
-    );
-  }
-  final controller = ref.read(repositoryStateProvider(sessionId).notifier);
-  try {
-    await controller.save(path);
-  } catch (error) {
-    final message = error.toString().toLowerCase();
-    if (!message.contains('conflict') &&
-        !message.contains('changed on disk') &&
-        !message.contains('reload before saving')) {
-      rethrow;
-    }
-    final disk = await controller.currentDisk(path);
-    if (!context.mounted) return;
-    final choice = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.fileModifiedExternallyTitle),
-        content: Text(
-          strings.fileModifiedExternallyContent(path),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'keep'),
-            child: Text(strings.keepChanges),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'reload'),
-            child: Text(strings.reloadFromDisk),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, 'overwrite'),
-            child: Text(strings.overwriteExplicitly),
-          ),
-        ],
-      ),
-    );
-    if (choice == 'reload') {
-      controller.reload(path, disk.content, disk.revision);
-    }
-    if (choice == 'overwrite') {
-      await controller.save(path, revisionOverride: disk.revision);
-    }
-    if (choice == 'keep') rethrow;
-  }
-}
 
 class RepositoryPane extends ConsumerStatefulWidget {
   const RepositoryPane({
@@ -201,18 +51,12 @@ class RepositoryPane extends ConsumerStatefulWidget {
 }
 
 class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
-  AppStrings _getStrings() {
-    try {
-      return ref.watch(appStringsProvider);
-    } catch (_) {
-      return const AppStrings(AppLanguage.it);
-    }
-  }
+  AppStrings _getStrings() => repositoryStrings(ref);
 
-  CodeEditorController? _editor;
-  String? _editorPath;
-  bool _previewMarkdown = true;
-  final _markdownScrollController = ScrollController();
+  // Keeps the editor state alive when the layout changes around it
+  // (compact/wide switch, terminal open/close).
+  final _editorKey = GlobalKey();
+
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -233,123 +77,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     });
   }
 
-  bool _showFileSearch = false;
-  final _fileSearchQueryController = TextEditingController();
-  final _fileSearchFocusNode = FocusNode();
-  final _editorFocusNode = FocusNode();
-  bool _fileSearchCaseSensitive = false;
-  int _fileSearchCurrentIndex = 0;
-  List<TextRange> _fileSearchMatches = const [];
-
-  CodeEditorController _ensureEditor(FrameTokens tokens) {
-    if (_editor == null) {
-      _editor = CodeEditorController(tokens: tokens, filePath: _editorPath);
-    } else {
-      _editor!.tokens = tokens;
-    }
-    return _editor!;
-  }
-
-  void _onFileSearchQueryChanged() {
-    _updateFileSearch();
-  }
-
-  void _openFileSearch() {
-    setState(() {
-      _showFileSearch = true;
-      if (_editor != null &&
-          _editor!.selection.isValid &&
-          !_editor!.selection.isCollapsed) {
-        final start = _editor!.selection.start;
-        final end = _editor!.selection.end;
-        if (start < end && end <= _editor!.text.length) {
-          final selectedText = _editor!.text.substring(start, end);
-          if (selectedText.isNotEmpty && !selectedText.contains('\n')) {
-            _fileSearchQueryController.text = selectedText;
-          }
-        }
-      }
-    });
-    _updateFileSearch();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _fileSearchFocusNode.requestFocus();
-        _fileSearchQueryController.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _fileSearchQueryController.text.length,
-        );
-      }
-    });
-  }
-
-  void _closeFileSearch() {
-    setState(() {
-      _showFileSearch = false;
-      _editor?.searchQuery = '';
-      _fileSearchMatches = const [];
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _editorFocusNode.requestFocus();
-    });
-  }
-
-  void _updateFileSearch() {
-    if (_editor == null) return;
-    final query = _fileSearchQueryController.text;
-    _editor!.searchQuery = query;
-    _editor!.caseSensitive = _fileSearchCaseSensitive;
-    final matches = _editor!.findMatches();
-    setState(() {
-      _fileSearchMatches = matches;
-      if (matches.isEmpty) {
-        _fileSearchCurrentIndex = 0;
-        _editor!.currentMatchIndex = 0;
-      } else {
-        if (_fileSearchCurrentIndex >= matches.length) {
-          _fileSearchCurrentIndex = 0;
-        }
-        _editor!.currentMatchIndex = _fileSearchCurrentIndex;
-        _jumpToMatch(_fileSearchCurrentIndex);
-      }
-    });
-  }
-
-  void _nextFileSearchMatch() {
-    if (_fileSearchMatches.isEmpty || _editor == null) return;
-    setState(() {
-      _fileSearchCurrentIndex =
-          (_fileSearchCurrentIndex + 1) % _fileSearchMatches.length;
-      _editor!.currentMatchIndex = _fileSearchCurrentIndex;
-      _jumpToMatch(_fileSearchCurrentIndex);
-    });
-  }
-
-  void _prevFileSearchMatch() {
-    if (_fileSearchMatches.isEmpty || _editor == null) return;
-    setState(() {
-      _fileSearchCurrentIndex =
-          (_fileSearchCurrentIndex - 1 + _fileSearchMatches.length) %
-          _fileSearchMatches.length;
-      _editor!.currentMatchIndex = _fileSearchCurrentIndex;
-      _jumpToMatch(_fileSearchCurrentIndex);
-    });
-  }
-
-  void _jumpToMatch(int index) {
-    if (_editor == null || index < 0 || index >= _fileSearchMatches.length) {
-      return;
-    }
-    final match = _fileSearchMatches[index];
-    _editor!.selection = TextSelection(
-      baseOffset: match.start,
-      extentOffset: match.end,
-    );
-  }
-
   @override
   void initState() {
     super.initState();
-    _fileSearchQueryController.addListener(_onFileSearchQueryChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref
@@ -365,15 +95,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     if (oldWidget.sessionId != widget.sessionId) {
       _cachedRawFiles = null;
       _cachedTreeNodes = const [];
-      _editorPath = null;
-      _editor?.clear();
-      _editor?.filePath = null;
       _searchController.clear();
       _searchQuery = '';
-      _showFileSearch = false;
-      _previewMarkdown = true;
-      _fileSearchQueryController.clear();
-      _fileSearchMatches = const [];
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           ref
@@ -386,13 +109,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
 
   @override
   void dispose() {
-    _fileSearchQueryController.removeListener(_onFileSearchQueryChanged);
-    _fileSearchQueryController.dispose();
-    _fileSearchFocusNode.dispose();
-    _editorFocusNode.dispose();
-    _editor?.dispose();
     _searchController.dispose();
-    _markdownScrollController.dispose();
     super.dispose();
   }
 
@@ -452,20 +169,6 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     return result;
   }
 
-  Widget _repoErrorCallout(AppStrings strings, String raw, String title) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: FrameErrorCallout(
-          keyPrefix: 'repo-files-error',
-          title: title,
-          error: describeError(raw, strings),
-          strings: strings,
-        ),
-      ),
-    );
-  }
-
   Widget _fileList(
     FrameTokens tokens,
     RepositoryState repo,
@@ -512,7 +215,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
           ),
         );
       }
-      return _repoErrorCallout(strings, error, strings.filesLoadFailed);
+      return repositoryErrorCallout(strings, error, strings.filesLoadFailed);
     }
 
     final expandedDirs = ref.watch(repoExpandedDirsProvider(widget.sessionId));
@@ -656,460 +359,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     );
   }
 
-  Widget _editorPane(
-    BuildContext context,
-    FrameTokens tokens,
-    RepositoryState repo,
-    String? path,
-    WorkspaceFileBuffer? buffer,
-    bool writeBlocked,
-    String? blockReason, {
-    required bool readOnly,
-    required bool compact,
-  }) {
-    final strings = _getStrings();
-    if (path == null) {
-      return Center(
-        child: Text(
-          strings.selectAFile,
-          style: TextStyle(color: tokens.textMuted),
-        ),
-      );
-    }
-    if (buffer == null) {
-      final error = repo.error;
-      if (error == null) {
-        return Center(
-          child: Text(
-            strings.loadingFiles,
-            style: TextStyle(color: tokens.textMuted),
-          ),
-        );
-      }
-      return _repoErrorCallout(strings, error, strings.filesLoadFailed);
-    }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-          child: Row(
-            children: [
-              if (compact)
-                IconButton(
-                  tooltip: strings.backToFilesTooltip,
-                  onPressed: () => ref
-                      .read(repositoryStateProvider(widget.sessionId).notifier)
-                      .showFileList(),
-                  icon: const Icon(Icons.arrow_back, size: 16),
-                ),
-              Expanded(
-                child: Text(
-                  path,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
-                ),
-              ),
-              if (buffer.dirty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tokens.warning.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    border: Border.all(color: tokens.border),
-                  ),
-                  child: Text(
-                    strings.modifiedBadge,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: !buffer.dirty || writeBlocked
-                    ? null
-                    : () async {
-                        if (!context.mounted) return;
-                        try {
-                          await saveRepositoryFile(
-                            context,
-                            ref,
-                            widget.sessionId,
-                            path,
-                          );
-                        } catch (error) {
-                          if (context.mounted) {
-                            FrameSnackBar.show(
-                              context,
-                              message: strings.saveFailed(error),
-                            );
-                          }
-                        }
-                      },
-                child: Text(strings.save),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: strings.addFileToChatTooltip,
-                onPressed: () {
-                  appendFileMentionToComposer(ref, widget.sessionId, path);
-                  FrameSnackBar.show(
-                    context,
-                    message: strings.addedFileToChat(path),
-                  );
-                },
-                icon: const Icon(Icons.add_comment_outlined, size: 16),
-              ),
-              if (path.toLowerCase().endsWith('.md') ||
-                  path.toLowerCase().endsWith('.markdown')) ...[
-                const SizedBox(width: 4),
-                IconButton(
-                  key: const ValueKey('repository-markdown-toggle-btn'),
-                  tooltip: _previewMarkdown
-                      ? strings.editMarkdownSourceTooltip
-                      : strings.viewMarkdownPreviewTooltip,
-                  onPressed: () {
-                    setState(() {
-                      _previewMarkdown = !_previewMarkdown;
-                    });
-                  },
-                  icon: Icon(
-                    _previewMarkdown
-                        ? Icons.edit_note_outlined
-                        : Icons.visibility_outlined,
-                    size: 18,
-                    color: _previewMarkdown ? tokens.accent : tokens.textMuted,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 4),
-              IconButton(
-                key: const ValueKey('repository-editor-search-btn'),
-                tooltip: strings.searchInFileTooltip,
-                onPressed: _openFileSearch,
-                icon: Icon(
-                  Icons.search,
-                  size: 16,
-                  color: _showFileSearch ? tokens.accent : tokens.textMuted,
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                tooltip: strings.closeFileTooltip,
-                onPressed: () => ref
-                    .read(repositoryStateProvider(widget.sessionId).notifier)
-                    .showFileList(),
-                icon: const Icon(Icons.close, size: 16),
-              ),
-            ],
-          ),
-        ),
-        if (writeBlocked)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            color: tokens.signalWarning.withValues(alpha: 0.16),
-            child: Text(
-              blockReason!,
-              style: TextStyle(color: tokens.textSecondary, fontSize: 11),
-            ),
-          ),
-        Expanded(
-          child: (path.toLowerCase().endsWith('.md') ||
-                      path.toLowerCase().endsWith('.markdown')) &&
-                  _previewMarkdown
-              ? Container(
-                  color: tokens.background,
-                  child: Scrollbar(
-                    controller: _markdownScrollController,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _markdownScrollController,
-                      primary: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      child: SelectionArea(
-                        child: RichContent(
-                          key: ValueKey('repository-md-preview-$path'),
-                          text: buffer.content,
-                          cwd: repo.rootPath,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              : Stack(
-                  children: [
-                    Focus(
-                focusNode: _editorFocusNode,
-                onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent) {
-                    final isControl =
-                        HardwareKeyboard.instance.isControlPressed ||
-                        HardwareKeyboard.instance.isMetaPressed;
-                    if (isControl &&
-                        event.logicalKey == LogicalKeyboardKey.keyF) {
-                      _openFileSearch();
-                      return KeyEventResult.handled;
-                    }
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: TextField(
-                  key: ValueKey('repository-editor-${widget.sessionId}'),
-                  controller: _editor,
-                  enabled: !readOnly,
-                  onChanged: (value) => ref
-                      .read(repositoryStateProvider(widget.sessionId).notifier)
-                      .edit(path, value),
-                  contextMenuBuilder: (context, editorState) {
-                    final selection = editorState.textEditingValue.selection;
-                    final items = List<ContextMenuButtonItem>.of(
-                      editorState.contextMenuButtonItems,
-                    );
-                    if (selection.isValid && !selection.isCollapsed) {
-                      items.add(
-                        ContextMenuButtonItem(
-                          label: strings.addPathToChat,
-                          onPressed: () {
-                            appendCodeSelectionToComposer(
-                              ref,
-                              widget.sessionId,
-                              path,
-                              editorState.textEditingValue.text,
-                              selection,
-                            );
-                            editorState.hideToolbar();
-                          },
-                        ),
-                      );
-                    }
-                    return AdaptiveTextSelectionToolbar.buttonItems(
-                      anchors: editorState.contextMenuAnchors,
-                      buttonItems: items,
-                    );
-                  },
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: TextStyle(
-                    fontFamily: tokens.monoFontFamily,
-                    fontSize: 12,
-                    color: tokens.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: tokens.background,
-                    contentPadding: const EdgeInsets.all(12),
-                    border: InputBorder.none,
-                    hintText: writeBlocked ? strings.readOnlyBlockedReason : strings.fileContentHint,
-                  ),
-                ),
-              ),
-              if (_showFileSearch)
-                Positioned(
-                  top: 8,
-                  right: 16,
-                  child: Focus(
-                    onKeyEvent: (node, event) {
-                      if (event is KeyDownEvent) {
-                        if (event.logicalKey == LogicalKeyboardKey.escape) {
-                          _closeFileSearch();
-                          return KeyEventResult.handled;
-                        } else if (event.logicalKey ==
-                                LogicalKeyboardKey.enter ||
-                            event.logicalKey ==
-                                LogicalKeyboardKey.numpadEnter) {
-                          if (HardwareKeyboard.instance.isShiftPressed) {
-                            _prevFileSearchMatch();
-                          } else {
-                            _nextFileSearchMatch();
-                          }
-                          return KeyEventResult.handled;
-                        }
-                      }
-                      return KeyEventResult.ignored;
-                    },
-                    child: Container(
-                      key: const ValueKey('repository-file-search-bar'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceElevated,
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.borderStrong),
-                        boxShadow: [
-                          BoxShadow(
-                            color: tokens.borderStrong.withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search, size: 14, color: tokens.textMuted),
-                          const SizedBox(width: 6),
-                          SizedBox(
-                            width: 170,
-                            height: 26,
-                            child: TextField(
-                              key: const ValueKey(
-                                'repository-file-search-field',
-                              ),
-                              controller: _fileSearchQueryController,
-                              focusNode: _fileSearchFocusNode,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 12,
-                              ),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                hintText: strings.searchInFileHint,
-                                hintStyle: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 12,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusSm,
-                              ),
-                            ),
-                            child: Text(
-                              _fileSearchQueryController.text.isEmpty
-                                  ? ''
-                                  : _fileSearchMatches.isEmpty
-                                  ? strings.zeroResults
-                                  : strings.searchResultsCount(
-                                      _fileSearchCurrentIndex + 1,
-                                      _fileSearchMatches.length,
-                                    ),
-                              style: TextStyle(
-                                color:
-                                    _fileSearchMatches.isEmpty &&
-                                        _fileSearchQueryController
-                                            .text
-                                            .isNotEmpty
-                                    ? tokens.danger
-                                    : tokens.textMuted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            key: const ValueKey('repository-file-search-prev'),
-                            tooltip: strings.previousMatchTooltip,
-                            icon: const Icon(Icons.keyboard_arrow_up, size: 16),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 22,
-                              minHeight: 22,
-                            ),
-                            onPressed: _fileSearchMatches.isEmpty
-                                ? null
-                                : _prevFileSearchMatch,
-                          ),
-                          IconButton(
-                            key: const ValueKey('repository-file-search-next'),
-                            tooltip: strings.nextMatchTooltip,
-                            icon: const Icon(
-                              Icons.keyboard_arrow_down,
-                              size: 16,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 22,
-                              minHeight: 22,
-                            ),
-                            onPressed: _fileSearchMatches.isEmpty
-                                ? null
-                                : _nextFileSearchMatch,
-                          ),
-                          IconButton(
-                            key: const ValueKey('repository-file-search-case'),
-                            tooltip: strings.matchCaseTooltip,
-                            icon: Text(
-                              'Aa',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: _fileSearchCaseSensitive
-                                    ? tokens.accent
-                                    : tokens.textMuted,
-                              ),
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 22,
-                              minHeight: 22,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _fileSearchCaseSensitive =
-                                    !_fileSearchCaseSensitive;
-                              });
-                              _updateFileSearch();
-                            },
-                          ),
-                          IconButton(
-                            key: const ValueKey('repository-file-search-close'),
-                            tooltip: strings.closeFileSearchTooltip,
-                            icon: const Icon(Icons.close, size: 14),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 22,
-                              minHeight: 22,
-                            ),
-                            onPressed: _closeFileSearch,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final editor = _ensureEditor(tokens);
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
     final (readOnly, readOnlyReason, agentStatus, cwd) = ref.watch(
       sessionStateFamily(widget.sessionId)
@@ -1148,25 +400,6 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     });
 
     final path = repo.selectedPath;
-    final buffer = path == null ? null : repo.buffers[path];
-    if (path != _editorPath) {
-      _editorPath = path;
-      _previewMarkdown = true;
-      editor.filePath = path;
-      editor.value = TextEditingValue(text: buffer?.content ?? '');
-      if (_showFileSearch) {
-        _updateFileSearch();
-      }
-    } else if (buffer != null && editor.text != buffer.content) {
-      editor.filePath = path;
-      editor.value = TextEditingValue(
-        text: buffer.content,
-        selection: TextSelection.collapsed(offset: buffer.content.length),
-      );
-      if (_showFileSearch) {
-        _updateFileSearch();
-      }
-    }
     final writeBlocked =
         readOnly ||
         const {
@@ -1314,16 +547,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 } else {
                   final compactFiles = constraints.maxWidth < 480;
                   if (compactFiles) {
-                    upperContent = _editorPane(
-                      context,
-                      tokens,
-                      repo,
-                      path,
-                      buffer,
-                      writeBlocked,
-                      blockReason,
-                      readOnly: readOnly,
+                    upperContent = RepositoryEditorPane(
+                      key: _editorKey,
+                      sessionId: widget.sessionId,
                       compact: true,
+                      readOnly: readOnly,
+                      writeBlocked: writeBlocked,
+                      blockReason: blockReason,
                     );
                   } else {
                     final treeWidth = (constraints.maxWidth * 0.28)
@@ -1342,16 +572,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         ),
                         VerticalDivider(width: 1, color: tokens.borderStrong),
                         Expanded(
-                          child: _editorPane(
-                            context,
-                            tokens,
-                            repo,
-                            path,
-                            buffer,
-                            writeBlocked,
-                            blockReason,
-                            readOnly: readOnly,
+                          child: RepositoryEditorPane(
+                            key: _editorKey,
+                            sessionId: widget.sessionId,
                             compact: false,
+                            readOnly: readOnly,
+                            writeBlocked: writeBlocked,
+                            blockReason: blockReason,
                           ),
                         ),
                       ],
