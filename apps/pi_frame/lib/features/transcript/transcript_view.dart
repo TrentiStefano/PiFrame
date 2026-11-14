@@ -22,6 +22,7 @@ import '../composer/composer_draft.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
+import 'entry_elapsed.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
 import 'subagents_provider.dart';
@@ -1740,14 +1741,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             final entry = visibleEntries[entryIndex];
                             int? elapsedSeconds;
                             if (entry.role != 'user') {
-                              final cleanIdx = hiddenCount + entryIndex;
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs = entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                hiddenCount + entryIndex,
+                              );
                               if (elapsedSeconds == null &&
                                   entry.toolCalls.isNotEmpty) {
                                 int totalToolMs = 0;
@@ -1839,17 +1836,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           final block = blocks[blockIndex];
                           switch (block) {
                             case EntryBlock():
-                              int? elapsedSeconds;
-                              final cleanIdx = cleanEntries
-                                  .indexWhere((e) => e.id == block.entry.id);
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs =
-                                    block.entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              final elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                cleanEntries.indexWhere(
+                                  (e) => e.id == block.entry.id,
+                                ),
+                              );
                               final firstVisibleId = _targetAnchorId ??
                                   (itemKeys.length > (hasLoadBanner ? 1 : 0)
                                       ? itemKeys[hasLoadBanner ? 1 : 0]
@@ -1945,17 +1937,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               );
 
                             case FinalTextBlock():
-                              int? elapsedSeconds;
-                              final cleanIdx = cleanEntries
-                                  .indexWhere((e) => e.id == block.entry.id);
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs =
-                                    block.entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              final elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                cleanEntries.indexWhere(
+                                  (e) => e.id == block.entry.id,
+                                ),
+                              );
                               final firstVisibleId = _targetAnchorId ??
                                   (itemKeys.length > (hasLoadBanner ? 1 : 0)
                                       ? itemKeys[hasLoadBanner ? 1 : 0]
