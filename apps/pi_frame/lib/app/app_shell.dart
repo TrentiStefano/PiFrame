@@ -109,6 +109,8 @@ class _AppShellState extends ConsumerState<AppShell>
   bool _sidebarCollapsed = false;
   Widget? _chatSidecar;
   String? _chatSidecarSessionId;
+  // Width of the last pane row, used to size a restored companion (task 1.2f).
+  double _rowWidth = 0;
   static const _defaultSidebarWidth = 280.0;
   static const _minimumSidebarWidth = 220.0;
   static const _maximumSidebarWidth = 560.0;
@@ -964,6 +966,13 @@ class _AppShellState extends ConsumerState<AppShell>
     });
   }
 
+  /// Expands a pane from its strip. A companion the layout collapsed only for being
+  /// narrower than kCompanionMinWidth is not in _collapsedPanes, so it is added first.
+  void _expandStripPane(WorkspacePane pane) {
+    _collapsedPanes.add(pane);
+    _expandPane(pane);
+  }
+
   void _expandPane(WorkspacePane pane) {
     if (!_collapsedPanes.contains(pane)) return;
     setState(() {
@@ -973,7 +982,15 @@ class _AppShellState extends ConsumerState<AppShell>
           .where((p) => p != pane && !_collapsedPanes.contains(p))
           .toList();
 
-      final restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
+      var restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
+      // Restoring must not hand the pane a share narrower than the companion
+      // minimum, or the layout would collapse it again straight away.
+      if (_rowWidth > 0) {
+        final minWeight = (kCompanionMinWidth * 100 / _rowWidth * 1.05)
+            .clamp(15.0, 60.0)
+            .toDouble();
+        if (restoreWeight < minWeight) restoreWeight = minWeight;
+      }
       _paneWeights[pane] = restoreWeight;
 
       if (openOthers.isNotEmpty) {
@@ -1028,7 +1045,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
                 icon: Icon(expandIcon, size: 18, color: tokens.accent),
-                onPressed: () => _expandPane(pane),
+                onPressed: () => _expandStripPane(pane),
               ),
               const SizedBox(height: 6),
               Icon(iconData, size: 15, color: tokens.textMuted),
@@ -1250,6 +1267,7 @@ class _AppShellState extends ConsumerState<AppShell>
       builder: (context, constraints) {
         const dividerWidth = 8.0;
         const collapsedWidth = 40.0;
+        _rowWidth = constraints.maxWidth;
         final openWidth =
             constraints.maxWidth - dividerWidth * (panes.length - 1);
         final stateCollapsed = panes
