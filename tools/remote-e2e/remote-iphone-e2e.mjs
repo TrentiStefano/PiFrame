@@ -128,7 +128,19 @@ try {
     await page.waitForSelector('#pf-status', { timeout: 15000 }).catch(() => {});
     const txt = await page.locator('#pf-status').innerText().catch(() => '');
     check('A. unpaired phone shows re-pair message (no blank page)', /Associa di nuovo/.test(txt), JSON.stringify(txt.slice(0, 60)));
-    await page.screenshot({ path: `${outDir}/A-unpaired.png` }); await ctx.close(); }
+    const helpBtn = page.locator('#pf-pair-help');
+    const helpLabel = await helpBtn.innerText().catch(() => '');
+    check('A1. unpaired screen has one primary pairing action', helpLabel === 'Come associare il dispositivo', JSON.stringify(helpLabel));
+    // load() resolves with the faces it loaded; an undeclared family resolves to [] (not a pass by default).
+    const loadedFaces = await page.evaluate(() => document.fonts.load('600 14px SchibstedGrotesk').then(r => r.length, () => 0));
+    const btnFamily = await helpBtn.evaluate(el => getComputedStyle(el).fontFamily).catch(() => '');
+    check('A2. unpaired screen uses the bundled font (no serif fallback)', loadedFaces >= 1 && /SchibstedGrotesk/.test(btnFamily), `faces=${loadedFaces} button=${btnFamily.slice(0, 40)}`);
+    await page.screenshot({ path: `${outDir}/A-unpaired.png` });
+    await helpBtn.click();
+    const steps = await page.locator('#pf-pair-steps li').count();
+    const stepsVisible = await page.locator('#pf-pair-steps').isVisible().catch(() => false);
+    check('A3. the action reveals three pairing steps', steps === 3 && stepsVisible, `steps=${steps} visible=${stepsVisible}`);
+    await page.screenshot({ path: `${outDir}/A-unpaired-steps.png` }); await ctx.close(); }
 
   // B. pair + load
   const pairRes = await generatePairing(d);
@@ -204,11 +216,21 @@ try {
   // G. network drops after the shell loaded -> offline panel (not a blank page)
   d = await startDaemon();
   const g = await newCtx();
-  await g.page.route('**/api/session-bootstrap', r => r.abort());
+  let bootstrapHits = 0;
+  await g.page.route('**/api/session-bootstrap', r => { bootstrapHits++; r.abort(); });
   await g.page.goto(`https://${HOST}/`, { waitUntil: 'load' }).catch(() => {});
   await g.page.waitForSelector('#pf-status', { timeout: 20000 }).catch(() => {});
   check('G. unreachable computer shows offline message', /non raggiungibile/.test(await g.page.locator('#pf-status').innerText().catch(() => '')));
+  const countdown = await g.page.locator('#pf-retry-countdown').innerText().catch(() => '');
+  const spinners = await g.page.locator('#pf-status .pf-spinner').count();
+  check('G1. offline screen shows the 5 s countdown and no spinner', countdown === 'Nuovo tentativo tra 5 s' && spinners === 0, JSON.stringify(countdown));
+  check('G2. offline screen has the "Riprova ora" action', (await g.page.locator('#pf-retry-now').innerText().catch(() => '')) === 'Riprova ora');
   await g.page.screenshot({ path: `${outDir}/G-offline.png` });
+  await g.page.waitForTimeout(6500);
+  check('G3. the offline screen retries automatically after 5 s', bootstrapHits >= 2, `attempts=${bootstrapHits}`);
+  await g.page.locator('#pf-retry-now').click();
+  await g.page.waitForTimeout(400);
+  check('G4. "Riprova ora" retries at once', bootstrapHits >= 3, `attempts=${bootstrapHits}`);
 } catch (e) { console.log('HARNESS ERROR', e); results.push({ name: 'harness', ok: false }); }
 finally {
   await browser.close().catch(() => {}); try { daemon.kill('SIGKILL'); } catch {}
