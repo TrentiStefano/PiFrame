@@ -8,11 +8,16 @@ import 'frame_middle_ellipsis.dart';
 /// optional [subtitle] such as a path (mono, truncated in the middle),
 /// trailing [actions] and an optional [tabs] strip below.
 ///
+/// [titleWidget] replaces the [title] text when given, for a title that has
+/// its own gestures or controls (such as a double-tap rename). [title] is
+/// still required, so the pane keeps a plain-text label without it.
+///
 /// The header row is at least `FrameSize.paneHeader` tall. It is flat, with
 /// no card or elevation. It has no interactive state of its own: the actions
 /// carry their own focus, hover and disabled states.
 class FramePaneHeader extends StatelessWidget {
   final String title;
+  final Widget? titleWidget;
   final String? subtitle;
   final List<Widget> actions;
   final Widget? tabs;
@@ -20,6 +25,7 @@ class FramePaneHeader extends StatelessWidget {
   const FramePaneHeader({
     super.key,
     required this.title,
+    this.titleWidget,
     this.subtitle,
     this.actions = const [],
     this.tabs,
@@ -51,12 +57,14 @@ class FramePaneHeader extends StatelessWidget {
                     children: [
                       Semantics(
                         header: true,
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: titleStyle,
-                        ),
+                        child:
+                            titleWidget ??
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: titleStyle,
+                            ),
                       ),
                       if (subtitle != null)
                         FrameMiddleEllipsis(

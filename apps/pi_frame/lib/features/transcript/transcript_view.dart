@@ -11,7 +11,7 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
-import '../../ui/frame_middle_ellipsis.dart';
+import '../../ui/frame_pane_header.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 import '../../domain/session/agent_status.dart';
@@ -1897,27 +1897,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderStrings = _currentStrings;
     _cachedHeaderExtStatuses = extensionStatuses;
 
-    // Flat pane header (plan 4.5): title, cwd and status on one line, metric
-    // chips right-aligned. No inner card, no elevation.
+    // Flat pane header (plan 4.5), built on the shared FramePaneHeader: the
+    // session name (double-tap to rename) and cwd on the left, the agent
+    // status and metric chips on the right. No inner card, no elevation.
     _cachedBentoHeader = LayoutBuilder(
-      builder: (context, box) => Container(
-      constraints: const BoxConstraints(minHeight: FrameSize.paneHeader),
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? FrameSpace.x2 : FrameSpace.x3,
-      ),
-      alignment: Alignment.centerLeft,
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-          Flexible(
-            flex: 3,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                    if (_isRenaming)
+      builder: (context, box) {
+        final Widget titleWidget;
+        if (_isRenaming) {
+          titleWidget = 
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
                         child: Row(
@@ -2029,8 +2016,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                           ],
                         ),
-                      )
-                    else
+                      );
+        } else {
+          titleWidget = 
                       GestureDetector(
                         key: const ValueKey('session-name-title'),
                         behavior: HitTestBehavior.opaque,
@@ -2071,93 +2059,80 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                           ),
                         ),
-                      ),
-              ],
-            ),
-          ),
-          const SizedBox(width: FrameSpace.x2),
-          Flexible(
-            flex: 2,
-            child: FrameMiddleEllipsis(
-              text: sessionState.cwd.isNotEmpty
-                  ? sessionState.cwd
-                  : _currentStrings.transcriptNoFolderOpened,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 11,
-                fontFamily: tokens.monoFontFamily,
-              ),
-            ),
-          ),
-              ],
-            ),
-          ),
-          const SizedBox(width: FrameSpace.x2),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              reverse: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Status scrolls with the chips, so it can never overflow
-                  // the title row at narrow widths.
-                  AgentStatusBadge(
-                    status: sessionState.agentStatus,
-                    onDisplay: false,
-                  ),
-                  const SizedBox(width: FrameSpace.x2),
-                  // Opens the context drawer, where usage and compaction live.
-                  _metricChip(
-                    tokens,
-                    _currentStrings.transcriptContext,
-                    contextLabel,
-                    key: const ValueKey('session-header-context-chip'),
-                    leadingIcon: Icons.pie_chart_outline,
-                    iconColor: contextIconColor,
-                    onTap: (ctx) => Scaffold.maybeOf(ctx)?.openEndDrawer(),
-                  ),
-                  const SizedBox(width: FrameSpace.x2 - 2),
-                  _metricChip(
-                    tokens,
-                    _currentStrings.transcriptCost,
-                    cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
-                    key: const ValueKey('session-header-cost-chip'),
-                    leadingIcon: Icons.monetization_on_outlined,
-                    iconColor: tokens.syntaxString,
-                    valueColor: tokens.syntaxString,
-                    trailingIcon: Icons.arrow_drop_down,
-                    onTap: (ctx) => _showCostBreakdownDialog(
-                      ctx,
-                      mainAgentCost,
-                      sessionState,
+                      );
+        }
+        return FramePaneHeader(
+          title: effectiveSessionName,
+          titleWidget: titleWidget,
+          subtitle: sessionState.cwd.isNotEmpty
+              ? sessionState.cwd
+              : _currentStrings.transcriptNoFolderOpened,
+          actions: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Status scrolls with the chips, so it can never overflow
+                    // the title row at narrow widths.
+                    AgentStatusBadge(
+                      status: sessionState.agentStatus,
+                      onDisplay: false,
                     ),
-                  ),
-                  for (final status in extensionStatuses) ...[
+                    const SizedBox(width: FrameSpace.x2),
+                    // Opens the context drawer, where usage and compaction live.
+                    _metricChip(
+                      tokens,
+                      _currentStrings.transcriptContext,
+                      contextLabel,
+                      key: const ValueKey('session-header-context-chip'),
+                      leadingIcon: Icons.pie_chart_outline,
+                      iconColor: contextIconColor,
+                      onTap: (ctx) => Scaffold.maybeOf(ctx)?.openEndDrawer(),
+                    ),
                     const SizedBox(width: FrameSpace.x2 - 2),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 200),
-                      child: Tooltip(
-                        message:
-                            '${status.key}: ${_cleanStatusValue(status.value)}',
-                        child: _metricChip(
-                          tokens,
-                          status.key,
-                          _cleanStatusValue(status.value),
-                          leadingIcon: Icons.extension_outlined,
-                          iconColor: tokens.syntaxKeyword,
+                    _metricChip(
+                      tokens,
+                      _currentStrings.transcriptCost,
+                      cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
+                      key: const ValueKey('session-header-cost-chip'),
+                      leadingIcon: Icons.monetization_on_outlined,
+                      iconColor: tokens.syntaxString,
+                      valueColor: tokens.syntaxString,
+                      trailingIcon: Icons.arrow_drop_down,
+                      onTap: (ctx) => _showCostBreakdownDialog(
+                        ctx,
+                        mainAgentCost,
+                        sessionState,
+                      ),
+                    ),
+                    for (final status in extensionStatuses) ...[
+                      const SizedBox(width: FrameSpace.x2 - 2),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 200),
+                        child: Tooltip(
+                          message:
+                              '${status.key}: ${_cleanStatusValue(status.value)}',
+                          child: _metricChip(
+                            tokens,
+                            status.key,
+                            _cleanStatusValue(status.value),
+                            leadingIcon: Icons.extension_outlined,
+                            iconColor: tokens.syntaxKeyword,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-      ),
+          ],
+        );
+      },
     );
     return _cachedBentoHeader!;
   }
