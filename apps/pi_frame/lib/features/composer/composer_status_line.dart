@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/motion.dart';
 
 /// Status line above the composer field while Pi is answering (plan 4.3).
@@ -140,7 +141,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
                     size: FrameSize.icon - FrameSpace.x1,
                     color: tokens.agentWorking,
                   )
-                : CircularProgressIndicator(
+                : FrameActivityIndicator(size: FrameSize.icon - FrameSpace.x1, 
                     strokeWidth: 1.5,
                     color: tokens.agentWorking,
                   ),

@@ -8,6 +8,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
@@ -507,7 +508,7 @@ class _ToolCardState extends State<ToolCard> {
                           child: SizedBox(
                             width: 12,
                             height: 12,
-                            child: CircularProgressIndicator(
+                            child: FrameActivityIndicator(size: 12, 
                               strokeWidth: 1.5,
                               color: tokens.agentWorking,
                             ),

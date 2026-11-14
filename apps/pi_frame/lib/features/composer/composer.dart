@@ -20,6 +20,7 @@ import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import 'attachment_chips.dart';
 import 'attachment_ingest.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/phone_corners.dart';
 import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
@@ -2291,10 +2292,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Row(
                                     children: [
-                                      const SizedBox(
+                                      SizedBox(
                                         width: 12,
                                         height: 12,
-                                        child: CircularProgressIndicator(
+                                        child: FrameActivityIndicator(size: 12, color: Theme.of(context).colorScheme.primary, 
                                           strokeWidth: 2,
                                         ),
                                       ),
@@ -2769,7 +2770,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                               SizedBox(
                                                                 width: 12,
                                                                 height: 12,
-                                                                child: CircularProgressIndicator(
+                                                                child: FrameActivityIndicator(size: 12, 
                                                                   strokeWidth:
                                                                       1.5,
                                                                   color: tokens
@@ -2855,7 +2856,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               width: 16,
                                               height: 16,
                                               child:
-                                                  CircularProgressIndicator(
+                                                  FrameActivityIndicator(size: 16, 
                                                     strokeWidth: 2,
                                                     color: tokens.danger,
                                                   ),
@@ -3043,7 +3044,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   width: 14,
                                                   height: 14,
                                                   child:
-                                                      CircularProgressIndicator(
+                                                      FrameActivityIndicator(size: 14, 
                                                         strokeWidth: 2,
                                                         color: tokens
                                                             .accentContrast,

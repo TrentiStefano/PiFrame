@@ -10,6 +10,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_pane_header.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -2316,7 +2317,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   SizedBox(
                     width: FrameSize.icon - 2,
                     height: FrameSize.icon - 2,
-                    child: CircularProgressIndicator(
+                    child: FrameActivityIndicator(size: FrameSize.icon - 2, 
                       color: tokens.agentWorking,
                       strokeWidth: 2,
                     ),

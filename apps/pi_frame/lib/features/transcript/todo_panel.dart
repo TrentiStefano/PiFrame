@@ -4,6 +4,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../ui/frame_activity_indicator.dart';
 import 'todo_provider.dart';
 
 class TodoPopDown extends ConsumerStatefulWidget {
@@ -527,7 +528,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
             SizedBox(
               width: 7,
               height: 7,
-              child: CircularProgressIndicator(
+              child: FrameActivityIndicator(size: 7, 
                 strokeWidth: 1.2,
                 color: tokens.agentWorking,
               ),

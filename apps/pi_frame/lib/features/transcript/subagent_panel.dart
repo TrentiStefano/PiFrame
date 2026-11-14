@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/motion.dart';
 
 import '../../data/language/language_settings.dart';
@@ -182,7 +183,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   const SizedBox(height: 6),
                   Icon(Icons.hub_outlined, size: 15, color: tokens.syntaxFunction),
                   const SizedBox(height: 6),
-                  _StatusDot(running: running > 0),
+                  SubagentStatusDot(running: running > 0),
                   const SizedBox(height: 12),
                   Expanded(
                     child: RotatedBox(
@@ -285,7 +286,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
               ],
               if (runningCount > 0) ...[
                 const SizedBox(width: 8),
-                _StatusDot(running: true),
+                SubagentStatusDot(running: true),
                 const SizedBox(width: 4),
                 Text(
                   strings.subagentsRunningCount(runningCount),
@@ -341,9 +342,9 @@ class _Entrance extends StatelessWidget {
   }
 }
 
-class _StatusDot extends StatelessWidget {
+class SubagentStatusDot extends StatelessWidget {
   final bool running;
-  const _StatusDot({required this.running});
+  const SubagentStatusDot({required this.running});
 
   @override
   Widget build(BuildContext context) {
@@ -358,11 +359,11 @@ class _StatusDot extends StatelessWidget {
     return SizedBox(
       width: 9,
       height: 9,
-      child: CircularProgressIndicator(
+      child: FrameActivityIndicator(size: 9, 
         strokeWidth: 1.6,
         // A spinning indicator never settles; keep widget tests deterministic.
         value: _isTestBinding ? 0.75 : null,
-        valueColor: AlwaysStoppedAnimation(tokens.syntaxKeyword),
+        color: tokens.syntaxKeyword,
       ),
     );
   }

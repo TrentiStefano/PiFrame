@@ -13,6 +13,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -446,7 +447,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       statusIcon = SizedBox(
         width: 14,
         height: 14,
-        child: CircularProgressIndicator(
+        child: FrameActivityIndicator(size: 14, 
           strokeWidth: 2,
           color: tokens.agentWorking,
         ),
@@ -657,7 +658,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 10,
                         height: 10,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(size: 10, 
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),
@@ -853,7 +854,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(size: 12, 
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),
