@@ -272,6 +272,16 @@ extension TranscriptStrings on AppStrings {
       isItalian ? '$tokens token iniziali' : '$tokens initial tokens';
   String get transcriptCustomTypeDefault =>
       isItalian ? 'Estensione' : 'Extension';
+  // Load older messages banner (transcript_view)
+  String transcriptLoadOlderLocal(int hidden) => isItalian
+      ? 'Carica messaggi precedenti ($hidden non mostrati)'
+      : 'Load earlier messages ($hidden not shown)';
+  String get transcriptLoadOlderRemote => isItalian
+      ? 'Carica altri messaggi dalla cronologia'
+      : 'Load more from history';
+  String transcriptLoadOlderRemoteLeft(int remaining) => isItalian
+      ? 'Carica altri messaggi dalla cronologia ($remaining rimanenti)'
+      : 'Load more from history ($remaining left)';
 }
 
 /// Resolves [AppStrings] safely, falling back to Italian if no [ProviderScope] exists.

@@ -344,7 +344,7 @@ class _Entrance extends StatelessWidget {
 
 class SubagentStatusDot extends StatelessWidget {
   final bool running;
-  const SubagentStatusDot({required this.running});
+  const SubagentStatusDot({super.key, required this.running});
 
   @override
   Widget build(BuildContext context) {

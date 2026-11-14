@@ -1408,10 +1408,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                       )
                                   : null;
                           final label = isLocalHidden
-                              ? 'Carica messaggi precedenti ($hiddenCount non mostrati)'
+                              ? _currentStrings.transcriptLoadOlderLocal(
+                                  hiddenCount,
+                                )
                               : (remainingRemote != null && remainingRemote > 0
-                                  ? 'Carica altri messaggi dalla cronologia ($remainingRemote rimanenti)'
-                                  : 'Carica altri messaggi dalla cronologia');
+                                  ? _currentStrings.transcriptLoadOlderRemoteLeft(
+                                      remainingRemote,
+                                    )
+                                  : _currentStrings.transcriptLoadOlderRemote);
 
                           return _MeasureSize(
                             onSizeChange: (s) => _entryHeights['banner'] = s.height,
