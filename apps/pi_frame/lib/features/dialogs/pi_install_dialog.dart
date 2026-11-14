@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_dialog.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../data/pi_install/pi_install_service.dart';
@@ -23,10 +24,9 @@ class PiInstallDialog extends ConsumerStatefulWidget {
     BuildContext context, {
     PiInstallService? customService,
   }) {
-    return showDialog<bool>(
+    return showFrameDialogBuilder<bool>(
       context: context,
       barrierDismissible: false,
-      barrierColor: context.tokens.overlay,
       builder: (_) => PiInstallDialog(customService: customService),
     );
   }

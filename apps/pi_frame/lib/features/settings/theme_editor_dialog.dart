@@ -19,7 +19,7 @@ class ThemeEditorDialog extends ConsumerStatefulWidget {
   const ThemeEditorDialog({super.key, this.initialTheme});
 
   static Future<void> show(BuildContext context, {ThemeSpec? initialTheme}) {
-    return showDialog<void>(
+    return showFrameDialogBuilder<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => ThemeEditorDialog(initialTheme: initialTheme),
