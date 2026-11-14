@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
 
+import 'theme_motion.dart';
+import 'theme_text.dart';
 import 'theme_tokens.dart';
+
+/// Derives an `inputBorder` for themes that do not set one: start from
+/// `borderStrong` and move toward `textPrimary` until the outline reaches 3:1
+/// against the surface.
+Color _deriveInputBorder(Color surface, Color borderStrong, Color textPrimary) {
+  for (var step = 0; step <= 20; step++) {
+    final candidate = Color.lerp(borderStrong, textPrimary, step / 20)!;
+    if (frameContrastRatio(candidate, surface) >= 3.0) return candidate;
+  }
+  return textPrimary;
+}
 
 Color? parseHexColor(
   dynamic hex, {
@@ -265,6 +278,17 @@ class ThemeSpec {
       return fallback;
     }
 
+    final surfaceColor =
+        parseHexColor(rawColors['surface'], fallback: baseTokens.surface)!;
+    final borderStrongColor = parseHexColor(
+      rawColors['borderStrong'],
+      fallback: baseTokens.borderStrong,
+    )!;
+    final textPrimaryColor = parseHexColor(
+      rawColors['textPrimary'],
+      fallback: baseTokens.textPrimary,
+    )!;
+
     final uiFont = rawTypography['uiFontFamily'] is String
         ? rawTypography['uiFontFamily'] as String
         : baseTokens.uiFontFamily;
@@ -290,6 +314,14 @@ class ThemeSpec {
       accent: c('accent', baseTokens.accent),
       accentContrast: c('accentContrast', baseTokens.accentContrast),
       focusRing: c('focusRing', baseTokens.focusRing),
+      inputBorder: c(
+        'inputBorder',
+        _deriveInputBorder(
+          surfaceColor,
+          borderStrongColor,
+          textPrimaryColor,
+        ),
+      ),
       success: c('success', baseTokens.success),
       warning: c('warning', baseTokens.warning),
       danger: c('danger', baseTokens.danger),
@@ -332,10 +364,16 @@ class ThemeSpec {
       signalWarning: c('signalWarning', baseTokens.signalWarning),
       signalDanger: c('signalDanger', baseTokens.signalDanger),
       pressDuration: Duration(
-        milliseconds: numVal(rawMotion['fast'], 120).clamp(0, 300).round(),
+        milliseconds: numVal(
+          rawMotion['fast'],
+          FrameMotionTokens.micro.inMilliseconds.toDouble(),
+        ).clamp(0, 300).round(),
       ),
       panelDuration: Duration(
-        milliseconds: numVal(rawMotion['normal'], 240).clamp(0, 300).round(),
+        milliseconds: numVal(
+          rawMotion['normal'],
+          FrameMotionTokens.panel.inMilliseconds.toDouble(),
+        ).clamp(0, 300).round(),
       ),
     );
   }
@@ -579,11 +617,11 @@ class ThemeSpec {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
-          borderSide: BorderSide(color: tokens.border),
+          borderSide: BorderSide(color: tokens.inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
-          borderSide: BorderSide(color: tokens.border),
+          borderSide: BorderSide(color: tokens.inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -609,7 +647,7 @@ class ThemeSpec {
         thickness: WidgetStateProperty.all(6),
         radius: Radius.circular(tokens.radiusSm),
       ),
-      extensions: [tokens],
+      extensions: [tokens, FrameText.fromTokens(tokens)],
     );
   }
 }

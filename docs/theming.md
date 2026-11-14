@@ -37,3 +37,24 @@ Tutti i token non specificati (colori di sfondo, superfici, font, spaziature, si
 ## Validazione ed Editor Support
 
 Specificando `$schema: "https://pi-frame.dev/theme.schema.json"`, editor come VS Code o IDE basati su LSP offrono autocompletamento, validazione della sintassi e suggerimenti per ogni proprietà del tema.
+
+## Token di colore: `inputBorder` e `focusRing`
+
+- `inputBorder` è il contorno di campi di testo, composer e campi di ricerca. Deve avere almeno **3:1** di contrasto rispetto a `surface` (contrasto non testuale WCAG). Il contorno `border` resta per i compartimenti.
+- `focusRing` deve avere anch'esso almeno **3:1** rispetto a `surface`.
+- I temi ufficiali `piframe-dark` e `piframe-light` dichiarano `inputBorder` esplicitamente (`#627699` su scuro, `#7d8aa0` su chiaro). I test in `apps/pi_frame/test/design_tokens_test.dart` verificano entrambi i contrasti.
+- Un tema che non dichiara `inputBorder` lo ricava automaticamente: parte da `borderStrong` e si avvicina a `textPrimary` finché raggiunge 3:1 su `surface`.
+
+## Token di spaziatura, dimensione, tipografia e movimento
+
+Questi valori non dipendono dal tema e sono costanti Dart nel pacchetto `pi_frame_theme`.
+
+| Token | Valori | Accesso |
+|---|---|---|
+| Spaziatura | `x1`=4, `x2`=8, `x3`=12, `x4`=16, `x6`=24, `x8`=32 | `FrameSpace.x4` |
+| Dimensioni | `rowList`=28, `rowForm`=40, `hitMin`=28, `icon`=16, `iconLg`=20, `paneHeader`=40 | `FrameSize.rowList` |
+| Tipografia | `caption` 11/16, `label` 12/16 (w500), `body` 13/20, `bodyLarge` 14/20, `title` 16/22 (w600), `heading` 20/26 (w600), `display` 28/32 (w600), `mono` 12/18, `monoBody` 13/20 | `FrameText.of(context).label` |
+| Movimento | `instant`=0, `micro`=120, `smallExit`=120, `small`=160, `panel`=240, `panelExit`=180, `dialog`=180, `dialogExit`=120, `firstRun`=300, `stagger`=100 ms | `FrameMotion.panel` (app) o `FrameMotionTokens.panel` (tema) |
+
+- **Tipografia:** i ruoli UI usano `uiFontFamily` (Schibsted Grotesk), i ruoli `mono` usano `monoFontFamily` (Source Code Pro). Barlow Condensed (`headingFontFamily`) è riservato a marchio e intestazioni di pannello e non compare in questi ruoli. La dimensione minima è 11 px. `FrameText` è registrato come `ThemeExtension` in ogni `ThemeData` costruito dal tema.
+- **Movimento:** `FrameMotionTokens` è l'unica fonte. `FrameTokens.pressDuration`, `panelDuration`, `enterCurve` e `panelCurve` leggono le stesse costanti di `FrameMotion`, quindi non possono divergere.
