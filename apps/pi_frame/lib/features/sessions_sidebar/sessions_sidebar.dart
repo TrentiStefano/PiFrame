@@ -1029,6 +1029,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   onPressed: () {
                     CommandPalette.show(
                       context,
+                      ref: ref,
                       onOpenSettings: () {
                         ref.read(showSettingsProvider.notifier).state = true;
                       },

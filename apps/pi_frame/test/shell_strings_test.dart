@@ -171,7 +171,7 @@ void main() {
       expect(strings.paletteCompactSubtitle, 'Esegui manual compaction per ridurre i token');
       expect(strings.paletteClearQueueTitle, 'Svuota coda');
       expect(strings.paletteClearQueueSubtitle, 'Rimuovi tutti i messaggi steer e follow-up in attesa');
-      expect(strings.paletteInterruptTitle, 'Interrompi agente (Esc)');
+      expect(strings.paletteInterruptTitle, 'Interrompi agente');
       expect(strings.paletteInterruptSubtitle, 'Ferma il modello in esecuzione');
       expect(strings.paletteSwitchBrowserTitle, 'Mostra Web Browser');
       expect(strings.paletteSwitchBrowserSubtitle, 'Apri il browser web integrato nel pannello laterale');
