@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/motion.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
 import 'subagents_provider.dart';
@@ -328,7 +330,7 @@ class _Entrance extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       // `begin` only matters on the first build of this row's state.
       tween: Tween(begin: animate ? 0 : 1, end: 1),
-      duration: const Duration(milliseconds: 240),
+      duration: FrameMotion.panel,
       curve: Curves.easeOutCubic,
       builder: (context, t, child) => Opacity(
         opacity: t,

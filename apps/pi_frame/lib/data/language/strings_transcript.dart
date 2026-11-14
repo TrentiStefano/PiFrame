@@ -18,6 +18,17 @@ extension TranscriptStrings on AppStrings {
   String get toolCardCopyCommand =>
       isItalian ? 'Copia comando' : 'Copy command';
 
+  // Empty chat (plan 4.6)
+  String get emptyChatTitle =>
+      isItalian ? 'Inizia una conversazione' : 'Start a conversation';
+  String get emptyChatHintCommands =>
+      isItalian ? '/ per i comandi' : '/ for commands';
+  String get emptyChatHintAttach =>
+      isItalian ? '@ per allegare un file' : '@ to attach a file';
+  String get emptyChatHintPalette => isItalian
+      ? 'Ctrl/Cmd+K per la palette comandi'
+      : 'Ctrl/Cmd+K for the command palette';
+
   // Chat drop target
   String get dropTargetTitle =>
       isItalian ? 'Rilascia i file qui per allegarli' : 'Drop files here to attach';

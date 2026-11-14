@@ -11,6 +11,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
+import '../../ui/frame_focus.dart';
 import 'task_notification_card.dart';
 
 Future<void> _openUrl(String url) async {
@@ -840,26 +841,35 @@ class RichContent extends StatefulWidget {
                   'CTRL+clic per aprire in Esplora file',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: openFile,
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 3),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
+                // Focusable link (plan 6.1): reachable by Tab, activated by
+                // Enter or Space, announced as a link.
+                child: Semantics(
+                  link: true,
+                  label: displayText,
+                  child: FrameFocusRing(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: tokens.accent.withValues(alpha: 0.5),
+                      onTap: openFile,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(
+                            color: tokens.accent.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.insert_drive_file_outlined,
+                          size: 11,
+                          color: tokens.accent,
+                        ),
                       ),
-                    ),
-                    child: Icon(
-                      Icons.insert_drive_file_outlined,
-                      size: 11,
-                      color: tokens.accent,
                     ),
                   ),
                 ),

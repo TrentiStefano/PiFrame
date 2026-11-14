@@ -2,6 +2,8 @@ import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
+import '../../ui/motion.dart';
 import '../../data/language/strings_transcript.dart';
 
 class ThinkingBlock extends StatefulWidget {
@@ -158,7 +160,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             : AnimatedSize(
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
-                    : const Duration(milliseconds: 160),
+                    : FrameMotion.small,
                 curve: Curves.easeOutCubic,
                 alignment: Alignment.topCenter,
                 child: content,
