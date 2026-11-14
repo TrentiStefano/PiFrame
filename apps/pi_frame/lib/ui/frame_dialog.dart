@@ -31,6 +31,9 @@ class FrameDialogAction<T> {
 /// Confirmation or form dialog: a [title] in the heading role, a scrollable
 /// [body] and right-aligned [actions].
 ///
+/// [headerActions] are small icon buttons (for example `FrameIconAction`)
+/// shown at the end of the title row, such as refresh or copy.
+///
 /// When any action is [FrameDialogActionRole.destructive], the cancel action
 /// gets the initial focus, so Enter does not run the destructive action.
 /// Height fits the content up to 80 % of the window, then the body scrolls.
@@ -47,6 +50,7 @@ class FrameDialog<T> extends StatelessWidget {
   final Widget body;
   final List<FrameDialogAction<T>> actions;
   final double maxWidth;
+  final List<Widget> headerActions;
 
   const FrameDialog({
     super.key,
@@ -54,6 +58,7 @@ class FrameDialog<T> extends StatelessWidget {
     required this.body,
     this.actions = const [],
     this.maxWidth = defaultMaxWidth,
+    this.headerActions = const [],
   });
 
   @override
@@ -80,12 +85,22 @@ class FrameDialog<T> extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  style: text.heading.copyWith(color: tokens.textPrimary),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        style: text.heading.copyWith(color: tokens.textPrimary),
+                      ),
+                    ),
+                  ),
+                  for (final action in headerActions) ...[
+                    const SizedBox(width: FrameSpace.x2),
+                    action,
+                  ],
+                ],
               ),
               const SizedBox(height: FrameSpace.x3),
               Flexible(
@@ -99,20 +114,24 @@ class FrameDialog<T> extends StatelessWidget {
               ),
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: FrameSpace.x6),
-                Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: FrameSpace.x2,
-                  runSpacing: FrameSpace.x2,
-                  children: [
-                    for (final action in actions)
-                      _buildAction(
-                        context,
-                        action,
-                        autofocus:
-                            hasDestructive &&
-                            action.role == FrameDialogActionRole.cancel,
-                      ),
-                  ],
+                // Align expands to the full width so the Wrap's end alignment
+                // applies even when there is a single action.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: FrameSpace.x2,
+                    runSpacing: FrameSpace.x2,
+                    children: [
+                      for (final action in actions)
+                        _buildAction(
+                          context,
+                          action,
+                          autofocus: hasDestructive &&
+                              action.role == FrameDialogActionRole.cancel,
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ],

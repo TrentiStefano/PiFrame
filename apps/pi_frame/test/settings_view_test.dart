@@ -478,9 +478,9 @@ void main() {
     (tester) async {
       final client = _PackageClient()
         ..onUpdate = (_) async => throw PcpException(
-            'installed 0.1.15, expected 1.2.0',
-            code: 'PACKAGE_UPDATE_FAILED',
-          );
+          'installed 0.1.15, expected 1.2.0',
+          code: 'PACKAGE_UPDATE_FAILED',
+        );
       await pumpPackages(tester, client);
       await tester.tap(find.byTooltip('Aggiorna pi-caveman'));
       await tester.pumpAndSettle();
@@ -495,7 +495,10 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('pi-package-update-error')))
           .data!;
       // The daemon's reason text is a protocol message and is shown inline.
-      expect(error, contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'));
+      expect(
+        error,
+        contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'),
+      );
       expect(client.updateChecks, 1);
       expect(client.listRequests, 2);
     },
@@ -884,15 +887,18 @@ void main() {
       expect(find.text('Impossibile caricare i pacchetti'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
       expect(find.text('Dettagli'), findsOneWidget);
-      expect(find.byKey(const ValueKey('packages-load-details')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('packages-load-error-details')),
+        findsNothing,
+      );
 
       await tester.tap(
-        find.byKey(const ValueKey('packages-load-details-toggle')),
+        find.byKey(const ValueKey('packages-load-error-details-toggle')),
       );
       await tester.pumpAndSettle();
 
       final details = tester.widget<SelectableText>(
-        find.byKey(const ValueKey('packages-load-details')),
+        find.byKey(const ValueKey('packages-load-error-details')),
       );
       expect(details.data, contains('boom-42'));
     });
@@ -986,7 +992,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('PACCHETTI'));
+    await tester.tap(find.text('Pacchetti'));
     await tester.pumpAndSettle();
 
     expect(find.text('pi-caveman'), findsOneWidget);
@@ -1064,11 +1070,10 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('ASPETTO'));
+    await tester.tap(find.text('Aspetto'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('settings-theme-dropdown')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('PiFrame Dark (dark)').last);
+    // The "Tema" control: choosing Scuro applies the default dark theme.
+    await tester.tap(find.text('Scuro'));
     await tester.pumpAndSettle();
 
     expect(
@@ -1091,16 +1096,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       for (final tab in [
-        'PI CLI',
-        'PACCHETTI',
-        'DAEMON',
-        'ASPETTO',
-        'PRIVACY',
-        'DIAGNOSTICA',
-        'AGGIORNAMENTI',
-        'TERMINALE',
-        'ACCESSO REMOTO',
-        'AGENTI',
+        'Pi CLI',
+        'Pacchetti',
+        'Daemon',
+        'Aspetto',
+        'Diagnostica',
+        'Aggiornamenti',
+        'Terminale',
+        'Accesso remoto',
+        'Agenti',
       ]) {
         await tester.ensureVisible(find.text(tab).first);
         expect(find.text(tab), findsOneWidget);
@@ -1109,7 +1113,7 @@ void main() {
   );
 
   testWidgets(
-    'SettingsView enforces D16 Zero Remote Telemetry in Privacy tab',
+    'SettingsView enforces D16 Zero Remote Telemetry in the Diagnostica tab (Privacy merged)',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -1117,12 +1121,23 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: Scaffold(
+              // Index 4 is Diagnostica now that Privacy has no entry of its own.
               body: SettingsView(onClose: () {}, initialTabIndex: 4),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('settings-privacy-section')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
       expect(
         find.textContaining(
           'PiFrame non invia alcun dato di utilizzo a server remoti.',
@@ -1262,4 +1277,105 @@ void main() {
       expect(closed, isTrue);
     },
   );
+
+  group('Settings navigation (task 8.1)', () {
+    Future<void> pumpSettings(
+      WidgetTester tester, {
+      required Size size,
+      int initialTabIndex = 0,
+    }) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+            home: Scaffold(
+              body: SettingsView(
+                onClose: () {},
+                initialTabIndex: initialTabIndex,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('wide layout shows grouped left navigation', (tester) async {
+      await pumpSettings(tester, size: const Size(1200, 900));
+
+      expect(find.text('Generale'), findsOneWidget);
+      expect(find.text('Sistema'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-nav-appearance')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('settings-nav-remote')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-section-piCli')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('narrow layout uses a single section tab row', (tester) async {
+      await pumpSettings(tester, size: const Size(800, 900));
+
+      expect(find.text('Generale'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('settings-nav-packages')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('pointer selection switches the section', (tester) async {
+      await pumpSettings(tester, size: const Size(1200, 900));
+
+      await tester.tap(find.byKey(const ValueKey('settings-nav-terminal')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('settings-section-terminal')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings-section-piCli')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('arrow keys move the selection in display order', (
+      tester,
+    ) async {
+      await pumpSettings(
+        tester,
+        size: const Size(1200, 900),
+        initialTabIndex: 3, // Aspetto, first in the General group
+      );
+      tester
+          .widget<InkWell>(
+            find.byKey(const ValueKey('settings-nav-appearance')),
+          )
+          .focusNode!
+          .requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('settings-section-terminal')),
+        findsOneWidget,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('settings-section-appearance')),
+        findsOneWidget,
+      );
+    });
+  });
 }

@@ -568,7 +568,7 @@ void main() {
       expect(find.byKey(const ValueKey('extension-ui-retry')), findsNothing);
       // The raw text is only behind Dettagli.
       await tester.tap(
-        find.byKey(const ValueKey('extension-ui-details-toggle')),
+        find.byKey(const ValueKey('extension-ui-error-details-toggle')),
       );
       await tester.pumpAndSettle();
       expect(find.textContaining('boom'), findsOneWidget);

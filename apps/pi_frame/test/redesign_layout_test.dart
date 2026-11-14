@@ -319,10 +319,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Modifiche Git'), findsOneWidget);
       } else {
-        expect(
-          find.byKey(const ValueKey('companion-tab-git')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('companion-tab-git')), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('companion-tab-git')));
         await tester.pumpAndSettle();
         expect(find.text('MODIFICHE GIT'), findsOneWidget);
@@ -358,18 +355,12 @@ void main() {
 
       await tester.tap(find.byTooltip('Impostazioni (Ctrl / Cmd + ,)'));
       await tester.pumpAndSettle();
-      for (final tab in [
-        'PI CLI',
-        'DAEMON',
-        'ASPETTO',
-        'PRIVACY',
-        'DIAGNOSTICA',
-      ]) {
+      for (final tab in ['Pi CLI', 'Daemon', 'Aspetto', 'Diagnostica']) {
         await tester.ensureVisible(find.text(tab).first);
         await tester.tap(find.text(tab).first);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$tab at ${size.width}');
-        if (tab == 'ASPETTO' || tab == 'DIAGNOSTICA') {
+        if (tab == 'Aspetto' || tab == 'Diagnostica') {
           await capture(tester, boundaryKey, '$name-$tab');
         }
       }

@@ -1,5 +1,8 @@
 import '../../domain/errors/user_facing_error.dart';
 import '../../ui/frame_error_callout.dart';
+import '../../ui/frame_section.dart';
+import '../../ui/frame_status_tag.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -9,7 +12,11 @@ import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../data/update/update_providers.dart';
 import '../../domain/update/update_models.dart';
+import 'sections/settings_common.dart';
 
+/// Aggiornamenti tab: installed version and check, release details, the
+/// periodic check preference and the privacy note. Each block is one
+/// [FrameSection]; status uses [FrameStatusTag].
 class UpdatesSection extends ConsumerWidget {
   const UpdatesSection({super.key});
 
@@ -44,9 +51,7 @@ class UpdatesSection extends ConsumerWidget {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: Text(strings.confirmInstallDialogTitle),
-        content: Text(
-          strings.confirmInstallDialogContent(assetName),
-        ),
+        content: Text(strings.confirmInstallDialogContent(assetName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -68,219 +73,92 @@ class UpdatesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final updateState = ref.watch(updateControllerProvider);
     final settings = ref.watch(updateSettingsProvider);
     final currentVer = updateState.currentVersion ?? piFrameVersion;
+    final isUpToDate = updateState.status == UpdateStatus.upToDate;
+    final isUpdateAvailable =
+        updateState.status == UpdateStatus.updateAvailable;
+
+    final checkButton = FilledButton.icon(
+      key: const ValueKey('check_for_updates_button'),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, FrameSize.rowForm),
+      ),
+      onPressed: updateState.isChecking || updateState.isDownloading
+          ? null
+          : () {
+              ref
+                  .read(updateControllerProvider.notifier)
+                  .checkForUpdates(isManual: true);
+            },
+      icon: updateState.isChecking
+          ? SizedBox(
+              width: FrameSize.icon,
+              height: FrameSize.icon,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: tokens.textPrimary,
+              ),
+            )
+          : const Icon(Icons.refresh, size: FrameSize.icon),
+      label: Text(
+        updateState.isChecking
+            ? strings.updatesChecking
+            : strings.updatesCheckBtn,
+      ),
+    );
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        // Title & Description
         Text(
           strings.updatesTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: text.title.copyWith(color: tokens.textPrimary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: FrameSpace.x1),
         Text(
           strings.updatesSubtitle,
-          style: TextStyle(
-            color: tokens.textMuted,
-            fontSize: 12,
+          style: text.body.copyWith(color: tokens.textMuted),
+        ),
+        const SizedBox(height: FrameSpace.x4),
+
+        // 1. Installed version and the check action.
+        FrameSection(
+          title: strings.updatesInstalledVersion(currentVer),
+          description: isUpToDate
+              ? strings.updatesUpToDateDesc(currentVer)
+              : settings.lastChecked != null
+              ? strings.updatesLastChecked(
+                  _formatDateTime(settings.lastChecked!),
+                )
+              : strings.updatesNoRecentCheck,
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: FrameSpace.x3,
+            runSpacing: FrameSpace.x2,
+            children: [
+              if (isUpdateAvailable)
+                FrameStatusTag(
+                  key: const ValueKey('updates-available-tag'),
+                  label: strings.updatesNewVersionBadge,
+                  tone: FrameStatusTone.info,
+                ),
+              if (isUpToDate)
+                FrameStatusTag(
+                  key: const ValueKey('updates-up-to-date-tag'),
+                  label: strings.updatesUpToDateTitle,
+                  tone: FrameStatusTone.success,
+                ),
+              checkButton,
+            ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: FrameSpace.x8),
 
-        // 1. Current Version & Check Action Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 600;
-              final checkButton = FilledButton.icon(
-                key: const ValueKey('check_for_updates_button'),
-                onPressed: updateState.isChecking || updateState.isDownloading
-                    ? null
-                    : () {
-                        ref
-                            .read(updateControllerProvider.notifier)
-                            .checkForUpdates(isManual: true);
-                      },
-                icon: updateState.isChecking
-                    ? SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: tokens.textPrimary,
-                        ),
-                      )
-                    : const Icon(Icons.refresh, size: 16),
-                label: Text(
-                  updateState.isChecking
-                      ? strings.updatesChecking
-                      : strings.updatesCheckBtn,
-                ),
-              );
-
-              final infoColumn = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        strings.updatesInstalledVersion(currentVer),
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      if (updateState.status == UpdateStatus.updateAvailable)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tokens.accent.withValues(alpha: 0.15),
-                            borderRadius:
-                                BorderRadius.circular(tokens.radiusSm),
-                            border: Border.all(
-                              color: tokens.accent.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            strings.updatesNewVersionBadge,
-                            style: TextStyle(
-                              color: tokens.accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    settings.lastChecked != null
-                        ? strings.updatesLastChecked(_formatDateTime(settings.lastChecked!))
-                        : strings.updatesNoRecentCheck,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              );
-
-              final iconBox = Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: tokens.surface,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.border),
-                ),
-                child: Icon(
-                  Icons.system_update_outlined,
-                  color: tokens.accent,
-                  size: 22,
-                ),
-              );
-
-              if (isNarrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        iconBox,
-                        const SizedBox(width: 14),
-                        Expanded(child: infoColumn),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(width: double.infinity, child: checkButton),
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  iconBox,
-                  const SizedBox(width: 14),
-                  Expanded(child: infoColumn),
-                  const SizedBox(width: 12),
-                  checkButton,
-                ],
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // 2. Status Result Card
-        if (updateState.status == UpdateStatus.upToDate) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.circular(tokens.radiusMd),
-              border: Border.all(
-                color: tokens.success.withValues(alpha: 0.4),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: tokens.success,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        strings.updatesUpToDateTitle,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        strings.updatesUpToDateDesc(currentVer),
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ] else if (updateState.status == UpdateStatus.error) ...[
+        if (updateState.status == UpdateStatus.error) ...[
           FrameErrorCallout(
             keyPrefix: 'updates',
             title: strings.updatesCheckErrorTitle,
@@ -293,60 +171,31 @@ class UpdatesSection extends ConsumerWidget {
                 .read(updateControllerProvider.notifier)
                 .checkForUpdates(isManual: true),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: FrameSpace.x8),
         ] else if (updateState.hasUpdate &&
             updateState.latestRelease != null) ...[
-          // Update Available Card
-          _buildReleaseCard(context, ref, tokens, updateState, strings),
-          const SizedBox(height: 16),
+          _buildReleaseSection(context, ref, tokens, updateState, strings),
+          const SizedBox(height: FrameSpace.x8),
         ],
 
-        // 3. Preferences Card (Periodic Opt-in Check)
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        // 2. Periodic check preference.
+        FrameSection(
+          title: strings.updatesAutoScheduleTitle,
+          description: strings.updatesAutoScheduleSubtitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                strings.updatesAutoScheduleTitle,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                strings.updatesAutoScheduleSubtitle,
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 12),
               Material(
                 type: MaterialType.transparency,
                 child: SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     strings.updatesAutoCheckSwitchTitle,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: text.body.copyWith(color: tokens.textPrimary),
                   ),
                   subtitle: Text(
                     strings.updatesAutoCheckSwitchSubtitle,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 11,
-                    ),
+                    style: text.caption.copyWith(color: tokens.textMuted),
                   ),
                   value: settings.autoCheckEnabled,
                   activeThumbColor: tokens.accent,
@@ -358,49 +207,45 @@ class UpdatesSection extends ConsumerWidget {
                 ),
               ),
               if (settings.autoCheckEnabled) ...[
-                const Divider(height: 24),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 16,
-                  runSpacing: 8,
+                const SizedBox(height: FrameSpace.x2),
+                Row(
                   children: [
-                    Text(
-                      strings.updatesCheckFrequencyLabel,
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        strings.updatesCheckFrequencyLabel,
+                        style: text.label.copyWith(color: tokens.textSecondary),
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: tokens.surface,
-                        borderRadius:
-                            BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.border),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<UpdateCheckInterval>(
-                          value: settings.interval,
-                          dropdownColor: tokens.surfaceElevated,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 13,
+                    SizedBox(
+                      width: 200,
+                      child: buildSettingsFieldBox(
+                        tokens,
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<UpdateCheckInterval>(
+                            key: const ValueKey('updates-interval-dropdown'),
+                            isExpanded: true,
+                            isDense: true,
+                            value: settings.interval,
+                            dropdownColor: tokens.surfaceElevated,
+                            style: text.body.copyWith(
+                              color: tokens.textPrimary,
+                            ),
+                            items: UpdateCheckInterval.values.map((interval) {
+                              return DropdownMenuItem<UpdateCheckInterval>(
+                                value: interval,
+                                child: Text(
+                                  strings.updateIntervalLabel(interval),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (newInterval) {
+                              if (newInterval != null) {
+                                ref
+                                    .read(updateSettingsProvider.notifier)
+                                    .setInterval(newInterval);
+                              }
+                            },
                           ),
-                          items: UpdateCheckInterval.values.map((interval) {
-                            return DropdownMenuItem<UpdateCheckInterval>(
-                              value: interval,
-                              child: Text(strings.updateIntervalLabel(interval)),
-                            );
-                          }).toList(),
-                          onChanged: (newInterval) {
-                            if (newInterval != null) {
-                              ref
-                                  .read(updateSettingsProvider.notifier)
-                                  .setInterval(newInterval);
-                            }
-                          },
                         ),
                       ),
                     ),
@@ -410,196 +255,140 @@ class UpdatesSection extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: FrameSpace.x6),
 
-        const SizedBox(height: 16),
-
-        // 4. Privacy & Safety Notice Card (Zero-telemetry & user consent)
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.security_outlined,
-                size: 20,
-                color: tokens.accent,
+        // 3. Privacy and safety note: flat, no card.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.security_outlined,
+              size: FrameSize.iconLg,
+              color: tokens.accent,
+            ),
+            const SizedBox(width: FrameSpace.x3),
+            Expanded(
+              child: Text(
+                strings.updatesPrivacySafetyNotice,
+                // caption already carries the 16 px line height of the role.
+                style: text.caption.copyWith(color: tokens.textMuted),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  strings.updatesPrivacySafetyNotice,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 11,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildReleaseCard(
+  Widget _buildReleaseSection(
     BuildContext context,
     WidgetRef ref,
     FrameTokens tokens,
     UpdateState state,
     AppStrings strings,
   ) {
+    final text = FrameText.of(context);
     final release = state.latestRelease!;
     final asset = state.selectedAsset ?? release.findPlatformAsset();
     final isDownloading = state.status == UpdateStatus.downloading;
     final isReady = state.status == UpdateStatus.readyToInstall;
     final isInstalling = state.status == UpdateStatus.installing;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(color: tokens.accent.withValues(alpha: 0.5)),
-      ),
+    return FrameSection(
+      title: release.name.isNotEmpty
+          ? release.name
+          : 'PiFrame ${release.tagName}',
+      description: release.publishedAt != null
+          ? strings.updatesPublishedAt(_formatDateTime(release.publishedAt!))
+          : release.tagName,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      release.name.isNotEmpty
-                          ? release.name
-                          : 'PiFrame ${release.tagName}',
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      release.publishedAt != null
-                          ? strings.updatesPublishedAt(_formatDateTime(release.publishedAt!))
-                          : release.tagName,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, FrameSize.rowForm),
               ),
-              OutlinedButton.icon(
-                onPressed: () {
-                  ref
-                      .read(updateControllerProvider.notifier)
-                      .openReleasePage();
-                },
-                icon: const Icon(Icons.open_in_new, size: 14),
-                label: Text(strings.updatesNotesOnGithub),
-              ),
-            ],
+              onPressed: () {
+                ref.read(updateControllerProvider.notifier).openReleasePage();
+              },
+              icon: const Icon(Icons.open_in_new, size: FrameSize.icon),
+              label: Text(strings.updatesNotesOnGithub),
+            ),
           ),
 
           if (release.body.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
+            const SizedBox(height: FrameSpace.x3),
+            ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 180),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: tokens.surface,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(color: tokens.border),
-              ),
               child: SingleChildScrollView(
                 child: Text(
                   release.body,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontFamily: tokens.monoFontFamily,
-                    height: 1.4,
-                  ),
+                  style: text.mono.copyWith(color: tokens.textSecondary),
                 ),
               ),
             ),
           ],
 
-          const SizedBox(height: 16),
+          const SizedBox(height: FrameSpace.x3),
 
           if (asset != null) ...[
             Text(
-              strings.updatesInstallerFile(asset.name, _formatBytes(asset.size)),
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 11,
+              strings.updatesInstallerFile(
+                asset.name,
+                _formatBytes(asset.size),
               ),
+              style: text.caption.copyWith(color: tokens.textMuted),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: FrameSpace.x2),
           ],
 
           if (isDownloading) ...[
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            LinearProgressIndicator(
+              value: state.downloadProgress > 0 ? state.downloadProgress : null,
+              color: tokens.accent,
+              backgroundColor: tokens.border,
+            ),
+            const SizedBox(height: FrameSpace.x2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                LinearProgressIndicator(
-                  value: state.downloadProgress > 0 ? state.downloadProgress : null,
-                  color: tokens.accent,
-                  backgroundColor: tokens.border,
+                Text(
+                  '${_formatBytes(state.downloadedBytes)} / ${_formatBytes(state.totalBytes)} (${(state.downloadProgress * 100).toStringAsFixed(0)}%)',
+                  style: text.mono.copyWith(color: tokens.textMuted),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_formatBytes(state.downloadedBytes)} / ${_formatBytes(state.totalBytes)} (${(state.downloadProgress * 100).toStringAsFixed(0)}%)',
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ref
-                            .read(updateControllerProvider.notifier)
-                            .cancelDownload();
-                      },
-                      child: Text(
-                        strings.cancel,
-                        style: TextStyle(color: tokens.danger, fontSize: 12),
-                      ),
-                    ),
-                  ],
+                TextButton(
+                  onPressed: () {
+                    ref
+                        .read(updateControllerProvider.notifier)
+                        .cancelDownload();
+                  },
+                  child: Text(
+                    strings.cancel,
+                    style: text.caption.copyWith(color: tokens.danger),
+                  ),
                 ),
               ],
             ),
           ] else if (isReady) ...[
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: FrameSpace.x3,
+              runSpacing: FrameSpace.x2,
               children: [
                 FilledButton.icon(
-                  onPressed: () => _confirmAndInstall(context, ref, asset?.name),
-                  icon: const Icon(Icons.install_desktop, size: 16),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                  ),
+                  onPressed: () =>
+                      _confirmAndInstall(context, ref, asset?.name),
+                  icon: const Icon(Icons.install_desktop, size: FrameSize.icon),
                   label: Text(strings.installAndRestartBtn),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  strings.updatesReadyToInstall,
-                  style: TextStyle(
-                    color: tokens.success,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                FrameStatusTag(
+                  label: strings.updatesReadyToInstall,
+                  tone: FrameStatusTone.success,
                 ),
               ],
             ),
@@ -607,48 +396,45 @@ class UpdatesSection extends ConsumerWidget {
             Row(
               children: [
                 SizedBox(
-                  width: 16,
-                  height: 16,
+                  width: FrameSize.icon,
+                  height: FrameSize.icon,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: tokens.accent,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: FrameSpace.x3),
                 Text(
                   strings.updatesLaunchingInstaller,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                  ),
+                  style: text.body.copyWith(color: tokens.textPrimary),
                 ),
               ],
             ),
           ] else ...[
-            Row(
-              children: [
-                if (asset != null)
-                  FilledButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(updateControllerProvider.notifier)
-                          .downloadUpdate(assetOverride: asset);
-                    },
-                    icon: const Icon(Icons.download, size: 16),
-                    label: Text(strings.updatesDownloadBtn),
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      ref
-                          .read(updateControllerProvider.notifier)
-                          .openReleasePage();
-                    },
-                    icon: const Icon(Icons.open_in_browser, size: 16),
-                    label: Text(strings.updatesDownloadManuallyBtn),
-                  ),
-              ],
-            ),
+            if (asset != null)
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, FrameSize.rowForm),
+                ),
+                onPressed: () {
+                  ref
+                      .read(updateControllerProvider.notifier)
+                      .downloadUpdate(assetOverride: asset);
+                },
+                icon: const Icon(Icons.download, size: FrameSize.icon),
+                label: Text(strings.updatesDownloadBtn),
+              )
+            else
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, FrameSize.rowForm),
+                ),
+                onPressed: () {
+                  ref.read(updateControllerProvider.notifier).openReleasePage();
+                },
+                icon: const Icon(Icons.open_in_browser, size: FrameSize.icon),
+                label: Text(strings.updatesDownloadManuallyBtn),
+              ),
           ],
         ],
       ),

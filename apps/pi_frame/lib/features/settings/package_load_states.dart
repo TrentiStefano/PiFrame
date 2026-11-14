@@ -30,35 +30,43 @@ class PackageLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = FrameText.of(context);
     return ListView(
       key: const ValueKey('packages-loading'),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
         Row(
           children: [
-            Icon(Icons.hourglass_empty, color: tokens.textMuted, size: 16),
-            const SizedBox(width: 8),
+            Icon(
+              Icons.hourglass_empty,
+              color: tokens.textMuted,
+              size: FrameSize.icon,
+            ),
+            const SizedBox(width: FrameSpace.x2),
             Text(
               strings.packagesLoading,
               key: const ValueKey('packages-loading-label'),
-              style: TextStyle(color: tokens.textMuted, fontSize: 13),
+              style: text.body.copyWith(color: tokens.textMuted),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: FrameSpace.x4),
         for (var i = 0; i < _skeletonRowCount; i++) const _SkeletonRow(),
         if (slow) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: FrameSpace.x2),
           Text(
             strings.packagesLoadingSlow,
             key: const ValueKey('packages-loading-slow'),
-            style: TextStyle(color: tokens.textSecondary, fontSize: 13),
+            style: text.body.copyWith(color: tokens.textSecondary),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: FrameSpace.x2),
           OutlinedButton.icon(
             key: const ValueKey('packages-load-retry'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, FrameSize.rowForm),
+            ),
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: FrameSize.icon),
             label: Text(strings.retryAction),
           ),
         ],
@@ -67,6 +75,7 @@ class PackageLoadingView extends StatelessWidget {
   }
 }
 
+/// One placeholder row: two bars, no border, same rhythm as a list row.
 class _SkeletonRow extends StatelessWidget {
   const _SkeletonRow();
 
@@ -74,41 +83,36 @@ class _SkeletonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     Widget bar(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: tokens.border,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
-        );
-    return Container(
-      key: const ValueKey('packages-skeleton-row'),
-      margin: const EdgeInsets.only(bottom: 8),
-      height: 56,
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        color: tokens.border,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          bar(18, 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                bar(180, 12),
-                const SizedBox(height: 6),
-                bar(260, 8),
-              ],
+    );
+    return Padding(
+      key: const ValueKey('packages-skeleton-row'),
+      padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
+      child: SizedBox(
+        height: FrameSize.rowList,
+        child: Row(
+          children: [
+            bar(FrameSize.icon, FrameSize.icon),
+            const SizedBox(width: FrameSpace.x3),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  bar(180, 12),
+                  const SizedBox(height: FrameSpace.x1 + 2),
+                  bar(260, 8),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-

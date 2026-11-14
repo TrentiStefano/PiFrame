@@ -1,8 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,55 +8,37 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_locator.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
-import '../../data/terminal/terminal_settings.dart';
-import '../../data/theme/theme_providers.dart';
-import '../../data/notifications/notification_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
-import '../../data/composer/composer_settings.dart';
-import '../../data/metrics/nerd_stats_settings.dart';
-import '../../data/motion/reduced_motion_settings.dart';
-import '../../data/transcript/step_grouping_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../domain/errors/user_facing_error.dart';
-import '../../domain/session/transcript_grouping.dart';
 import '../../data/update/startup_updates_provider.dart';
+import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';
+import '../../ui/frame_status_tag.dart';
+import '../../ui/motion.dart';
 import 'diagnostics.dart';
+import 'sections/aspetto_section.dart';
+import 'sections/daemon_section.dart';
+import 'sections/packages_section.dart';
+import 'sections/terminal_section.dart';
 import 'pi_cli_section.dart';
 import 'remote_section.dart';
 import 'updates_section.dart';
-import 'theme_editor_dialog.dart';
 import 'agents_section.dart';
 import 'package_load_states.dart';
-import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_snack_bar.dart';
 
-/// `dart:io` Platform throws `UnsupportedError` on the web build, so every OS
-/// branch in settings goes through this web-safe helper.
-bool get _isWindowsOs => !kIsWeb && Platform.isWindows;
-
-/// Stable ids for [SettingsView.initialSection]. Callers name a section by id, so
-/// reordering or removing tabs only changes [_sectionTabs].
+/// Stable id for [SettingsView.initialSection] that opens Diagnostica (the
+/// title-bar connection dot uses it). Callers name a section by id, so the
+/// index order of [_SettingsSection] can change without breaking them.
 const kSettingsSectionDiagnostics = 'diagnostics';
-
-const _sectionTabs = <String, int>{
-  'pi-cli': 0,
-  'packages': 1,
-  'daemon': 2,
-  'appearance': 3,
-  'privacy': 4,
-  kSettingsSectionDiagnostics: 5,
-  'updates': 6,
-  'terminal': 7,
-  'remote': 8,
-  'agents': 9,
-};
 
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
   final int initialTabIndex;
 
-  /// Opens on this section (an id from [_sectionTabs]) instead of [initialTabIndex].
+  /// Opens on this section id instead of [initialTabIndex] when it is known.
   final String? initialSection;
 
   const SettingsView({
@@ -73,9 +52,30 @@ class SettingsView extends ConsumerStatefulWidget {
   ConsumerState<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsViewState extends ConsumerState<SettingsView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  /// From this width the navigation is a left column; below it, a tab row.
+  static const double _wideNavBreakpoint = 900;
+
+  /// Width of the left navigation column.
+  static const double _navWidth = 220;
+
+  /// Maximum width of the section content column.
+  static const double _contentMaxWidth = 760;
+
+  /// Pi CLI is wide enough to hold the console in a right column.
+  static const double _wideContentMaxWidth = 1160;
+
+  late _SettingsSection _section;
+  // True when the last section change came from the keyboard or a
+  // reduced-motion setting: the content then switches without a cross-fade.
+  bool _instantSwitch = false;
+  final Map<_SettingsSection, FocusNode> _navFocus = {
+    for (final section in _SettingsSection.values)
+      section: FocusNode(debugLabel: 'settings-nav-${section.name}'),
+  };
+  final Map<_SettingsSection, GlobalKey> _navItemKeys = {
+    for (final section in _SettingsSection.values) section: GlobalKey(),
+  };
   int _workerIdleTimeoutMinutes = 30;
   bool _isLoadingConfig = true;
   String? _configStatusMessage;
@@ -93,12 +93,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 10,
-      vsync: this,
-      initialIndex:
-          _sectionTabs[widget.initialSection] ?? widget.initialTabIndex,
-    );
+    _section = widget.initialSection == kSettingsSectionDiagnostics
+        ? _SettingsSection.diagnostics
+        : _SettingsSection.fromIndex(widget.initialTabIndex);
     _fetchDaemonConfig();
     _fetchPiPackages();
   }
@@ -143,24 +140,15 @@ class _SettingsViewState extends ConsumerState<SettingsView>
           ref.invalidate(daemonEndpointProvider);
           _fetchDaemonConfig();
           _fetchPiPackages();
-          FrameSnackBar.show(
-            context,
-            message: strings.daemonRestartSuccess,
-          );
+          FrameSnackBar.show(context, message: strings.daemonRestartSuccess);
         } else {
-          FrameSnackBar.show(
-            context,
-            message: strings.daemonRestartFailed,
-          );
+          FrameSnackBar.show(context, message: strings.daemonRestartFailed);
         }
       }
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.daemonRestartError(e),
-        );
+        FrameSnackBar.show(context, message: strings.daemonRestartError(e));
       }
     } finally {
       if (mounted) setState(() => _isRestartingDaemon = false);
@@ -235,30 +223,30 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   }) async {
     final strings = ref.read(appStringsProvider);
     return await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            autofocus: destructive,
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(strings.cancel),
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                autofocus: destructive,
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(strings.cancel),
+              ),
+              FilledButton(
+                style: destructive
+                    ? FilledButton.styleFrom(
+                        backgroundColor: dialogContext.tokens.danger,
+                        foregroundColor: dialogContext.tokens.surface,
+                      )
+                    : null,
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(confirmation),
+              ),
+            ],
           ),
-          FilledButton(
-            style: destructive
-                ? FilledButton.styleFrom(
-                    backgroundColor: dialogContext.tokens.danger,
-                    foregroundColor: dialogContext.tokens.surface,
-                  )
-                : null,
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmation),
-          ),
-        ],
-      ),
-    ) ??
-    false;
+        ) ??
+        false;
   }
 
   Future<void> _performPackageAction(
@@ -280,7 +268,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       final result = await action(client);
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
-        final message = resultMessage?.call(data) ??
+        final message =
+            resultMessage?.call(data) ??
             strings.packageActionNotice(successMessage, source);
         final needsRestart =
             data['status'] != 'current' && data['status'] != 'pinned';
@@ -551,187 +540,6 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     );
   }
 
-  Widget _packageList(FrameTokens tokens, AppStrings strings) {
-    if (_isLoadingPackages) {
-      return PackageLoadingView(
-        tokens: tokens,
-        strings: strings,
-        slow: _packageLoadSlow,
-        onRetry: _fetchPiPackages,
-      );
-    }
-    if (_packageError != null) {
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          FrameErrorCallout(
-            keyPrefix: 'packages-load',
-            title: strings.packagesLoadFailed,
-            error: describeError(_packageError!, strings),
-            strings: strings,
-            onRetry: _fetchPiPackages,
-          ),
-        ],
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final title = Text(
-              strings.packagesInstalledTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            );
-            final button = FilledButton.icon(
-              key: const ValueKey('update-all-pi-packages'),
-              onPressed:
-                  _isWorkingWithPackage ||
-                      !_packages.any(hasAvailablePiPackageUpdate)
-                  ? null
-                  : _updateAllPackages,
-              icon: const Icon(Icons.system_update_alt, size: 18),
-              label: Text(
-                _packageUpdateProgress == null
-                    ? strings.updateAllPackages
-                    : strings.updatingPackages,
-              ),
-            );
-            if (constraints.maxWidth < 520) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [title, const SizedBox(height: 12), button],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: title),
-                const SizedBox(width: 12),
-                button,
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 6),
-        Text(
-          strings.packagesInstalledSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12),
-        ),
-        if (_isWorkingWithPackage) ...[
-          const SizedBox(height: 12),
-          LinearProgressIndicator(
-            color: tokens.accent,
-            value: _packageUpdateProgress,
-          ),
-        ],
-        if (_packageUpdateError != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            _packageUpdateError!,
-            key: const ValueKey('pi-package-update-error'),
-            style: TextStyle(color: tokens.danger, fontSize: 12),
-          ),
-        ],
-        const SizedBox(height: 16),
-        if (_packages.isEmpty)
-          Text(
-            strings.noPackagesInstalled,
-            style: TextStyle(color: tokens.textMuted),
-          ),
-        for (final package in _packages) _buildPackageCard(tokens, package, strings),
-      ],
-    );
-  }
-
-  Widget _buildPackageCard(FrameTokens tokens, Map<String, dynamic> package, AppStrings strings) {
-    final source = package['source']?.toString() ?? '';
-    final name = package['name']?.toString() ?? source;
-    final version = package['version']?.toString() ?? strings.unknownVersion;
-    final pin = package['pinnedVersion']?.toString();
-    final updateError = package['updateError']?.toString();
-    final supportsPin = source.startsWith('npm:');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.extension_outlined, color: tokens.accent, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '$version${pin == null ? '' : ' · pinned $pin'} · $source',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 10,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
-                  ),
-                  if (updateError != null)
-                    Text(
-                      ref
-                          .watch(appStringsProvider)
-                          .packageUpdateUnavailable(
-                            package['latestVersion']?.toString() ?? '?',
-                            updateError,
-                          ),
-                      style: TextStyle(color: tokens.danger, fontSize: 11),
-                    ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: strings.updatePackageTooltip(name),
-              onPressed:
-                  _isWorkingWithPackage || !hasAvailablePiPackageUpdate(package)
-                  ? null
-                  : () => _updatePackage(package),
-              icon: const Icon(Icons.system_update_alt, size: 18),
-            ),
-            if (supportsPin)
-              IconButton(
-                tooltip: strings.pinPackageTooltip(name),
-                onPressed: _isWorkingWithPackage
-                    ? null
-                    : () => _pinPackage(package),
-                icon: const Icon(Icons.push_pin_outlined, size: 18),
-              ),
-            IconButton(
-              tooltip: strings.removePackageTooltip(name),
-              onPressed: _isWorkingWithPackage
-                  ? null
-                  : () => _removePackage(package),
-              icon: Icon(Icons.delete_outline, size: 18, color: tokens.danger),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _updateTimeout(int newMinutes) async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
@@ -766,7 +574,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   @override
   void dispose() {
     _cancelPackageLoadTimer();
-    _tabController.dispose();
+    for (final node in _navFocus.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -790,1291 +600,185 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     });
 
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
-    final endpointAsync = ref.watch(daemonEndpointProvider);
-    final endpoint = endpointAsync.value;
+    final endpoint = ref.watch(daemonEndpointProvider).value;
+    final activeSessionId = ref.watch(activeSessionIdProvider);
+    final runStatus = activeSessionId == null
+        ? null
+        : ref.watch(
+            sessionStateFamily(activeSessionId)
+                .select((state) => state.agentStatus),
+          );
+    final reduced = FrameMotion.reduced(context);
+
+    Widget sectionBody(_SettingsSection section) {
+      return switch (section) {
+        _SettingsSection.piCli => PiCliSection(
+          tokens: tokens,
+          strings: strings,
+          onRecheck: () {
+            ref.invalidate(daemonEndpointProvider);
+          },
+          onPackagesChanged: () async {
+            await ref.read(startupUpdatesProvider.notifier).refreshPackages();
+            if (!mounted) return;
+            await _fetchPiPackages();
+            if (!mounted) return;
+            final error = ref.read(startupUpdatesProvider).error;
+            if (error != null) {
+              setState(
+                () => _packageUpdateError = strings.packageUpdateCheckFailed(
+                  error,
+                ),
+              );
+            }
+          },
+        ),
+        _SettingsSection.packages => PackagesSection(
+          tokens: tokens,
+          strings: strings,
+          isLoading: _isLoadingPackages,
+          slow: _packageLoadSlow,
+          loadError: _packageError,
+          packages: _packages,
+          isWorking: _isWorkingWithPackage,
+          updateProgress: _packageUpdateProgress,
+          updateErrorMessage: _packageUpdateError,
+          onRetry: _fetchPiPackages,
+          onUpdateAll: _updateAllPackages,
+          onUpdatePackage: _updatePackage,
+          onPinPackage: _pinPackage,
+          onRemovePackage: _removePackage,
+        ),
+        _SettingsSection.daemon => DaemonSection(
+          tokens: tokens,
+          strings: strings,
+          endpoint: endpoint,
+          isLoadingConfig: _isLoadingConfig,
+          workerIdleTimeoutMinutes: _workerIdleTimeoutMinutes,
+          configStatusMessage: _configStatusMessage,
+          isRestartingDaemon: _isRestartingDaemon,
+          onRestartDaemon: _restartDaemon,
+          onUpdateTimeout: _updateTimeout,
+          runActive: _isRunActive(runStatus),
+        ),
+        _SettingsSection.appearance => AppearanceSection(
+          tokens: tokens,
+          strings: strings,
+        ),
+        _SettingsSection.diagnostics => const DiagnosticsSection(),
+        _SettingsSection.updates => const UpdatesSection(),
+        _SettingsSection.terminal => TerminalSection(
+          tokens: tokens,
+          strings: strings,
+        ),
+        _SettingsSection.remote => const RemoteSection(),
+        _SettingsSection.agents => AgentsSection(
+          onOpenPackages: () =>
+              setState(() => _section = _SettingsSection.packages),
+        ),
+      };
+    }
+
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: _section == _SettingsSection.piCli
+              ? _wideContentMaxWidth
+              : _contentMaxWidth,
+        ),
+        child: AnimatedSwitcher(
+          duration: _instantSwitch || reduced
+              ? FrameMotion.instant
+              : FrameMotion.crossFade,
+          child: KeyedSubtree(
+            key: ValueKey('settings-section-${_section.name}'),
+            child: sectionBody(_section),
+          ),
+        ),
+      ),
+    );
 
     final settingsContent = Container(
       color: tokens.background,
       child: Column(
         children: [
-          // Top Navigation Header
           Container(
-            margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: const EdgeInsets.fromLTRB(
+              FrameSpace.x2,
+              FrameSpace.x2,
+              FrameSpace.x2,
+              FrameSpace.x1,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x4,
+              vertical: FrameSpace.x2,
+            ),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
               borderRadius: BorderRadius.circular(tokens.radiusLg),
               border: Border.all(color: tokens.border),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      key: const ValueKey('settings-back-button'),
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: strings.backToWorkspaceTooltip,
+                IconButton(
+                  key: const ValueKey('settings-back-button'),
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: strings.backToWorkspaceTooltip,
+                  color: tokens.displayText,
+                  onPressed: widget.onClose,
+                ),
+                const SizedBox(width: FrameSpace.x2),
+                Expanded(
+                  child: Text(
+                    strings.settingsTitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.display.copyWith(
                       color: tokens.displayText,
-                      onPressed: widget.onClose,
+                      fontFamily: tokens.headingFontFamily,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        strings.settingsTitle,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: tokens.displayText,
-                          fontSize: 28,
-                          height: 1,
-                          fontFamily: tokens.headingFontFamily,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  ),
+                ),
+                if (runStatus != null) ...[
+                  const SizedBox(width: FrameSpace.x2),
+                  Flexible(
+                    child: Tooltip(
+                      message: strings.settingsRunStatusTooltip,
+                      child: FrameStatusTag(
+                        key: const ValueKey('settings-run-status'),
+                        label: strings.agentStatusLabel(runStatus),
+                        tone: _runStatusTone(runStatus),
                       ),
                     ),
-                  ],
-                ),
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  indicatorColor: tokens.accent,
-                  labelColor: tokens.displayText,
-                  unselectedLabelColor: tokens.displayText.withValues(
-                    alpha: 0.72,
                   ),
-                  labelStyle: TextStyle(
-                    fontFamily: tokens.uiFontFamily,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.7,
-                  ),
-                  tabs: [
-                    Tab(text: strings.tabPiCli),
-                    Tab(text: strings.tabPackages),
-                    Tab(text: strings.tabDaemon),
-                    Tab(text: strings.tabAppearance),
-                    Tab(text: strings.tabPrivacy),
-                    Tab(text: strings.tabDiagnostics),
-                    Tab(text: strings.tabUpdates),
-                    Tab(text: strings.tabTerminal),
-                    Tab(text: strings.tabRemote),
-                    Tab(text: strings.tabAgents),
-                  ],
-                ),
+                ],
               ],
             ),
           ),
-
-          // Tab views
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 960),
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: const NeverScrollableScrollPhysics(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= _wideNavBreakpoint) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: _navWidth,
+                        child: _buildVerticalNav(strings, tokens, text),
+                      ),
+                      Expanded(child: content),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // -------------------------------------------------------------
-                    // Tab 1: Pi CLI
-                    // -------------------------------------------------------------
-                    PiCliSection(
-                      tokens: tokens,
-                      strings: strings,
-                      onRecheck: () {
-                        ref.invalidate(daemonEndpointProvider);
-                      },
-                      onPackagesChanged: () async {
-                        await ref
-                            .read(startupUpdatesProvider.notifier)
-                            .refreshPackages();
-                        if (!mounted) return;
-                        await _fetchPiPackages();
-                        if (!mounted) return;
-                        final error = ref.read(startupUpdatesProvider).error;
-                        if (error != null) {
-                          setState(
-                            () => _packageUpdateError = strings
-                                .packageUpdateCheckFailed(error),
-                          );
-                        }
-                      },
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 2: Pacchetti Pi
-                    // -------------------------------------------------------------
-                    _packageList(tokens, strings),
-
-                    // -------------------------------------------------------------
-                    // Tab 3: Daemon
-                    // -------------------------------------------------------------
-                    ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        Text(
-                          strings.daemonStatusTitle,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          strings.daemonStatusSubtitle,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildInfoCard(tokens, [
-                          _buildInfoRow(
-                            tokens,
-                            strings.labelHttpWsPort,
-                            endpoint != null
-                                ? '127.0.0.1:${endpoint.port}'
-                                : strings.labelConnecting,
-                          ),
-                          _buildInfoRow(
-                            tokens,
-                            strings.labelStatus,
-                            endpoint == null
-                                ? strings.labelNotConnected
-                                : strings.labelEndpointDetected,
-                          ),
-                          _buildInfoRow(
-                            tokens,
-                            strings.labelProtocol,
-                            strings.protocolPcp1,
-                          ),
-                        ]),
-                        const SizedBox(height: 24),
-                        Text(
-                          strings.workerIdleTimeoutTitle,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          strings.workerIdleTimeoutSubtitle,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _isLoadingConfig
-                            ? Align(
-                                alignment: Alignment.centerLeft,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.accent,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : Wrap(
-                                spacing: 16,
-                                runSpacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: tokens.surfaceElevated,
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusMd,
-                                      ),
-                                      border: Border.all(color: tokens.border),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusMd,
-                                        ),
-                                        value: _workerIdleTimeoutMinutes,
-                                        dropdownColor: tokens.surfaceElevated,
-                                        style: TextStyle(
-                                          color: tokens.textPrimary,
-                                          fontSize: 14,
-                                        ),
-                                        items: [
-                                          DropdownMenuItem(
-                                            value: 0,
-                                            child: Text(strings.timeoutNever),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 5,
-                                            child: Text(strings.timeout5Min),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 15,
-                                            child: Text(strings.timeout15Min),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 30,
-                                            child: Text(strings.timeout30Min),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 60,
-                                            child: Text(strings.timeout1Hour),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 120,
-                                            child: Text(strings.timeout2Hours),
-                                          ),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            _updateTimeout(val);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  if (_configStatusMessage != null)
-                                    Text(
-                                      _configStatusMessage!,
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                        const SizedBox(height: 24),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: tokens.surfaceElevated,
-                              foregroundColor: tokens.textPrimary,
-                            ),
-                            icon: _isRestartingDaemon
-                                ? SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.accent,
-                                    ),
-                                  )
-                                : const Icon(Icons.restart_alt, size: 16),
-                            label: Text(
-                              _isRestartingDaemon
-                                  ? strings.restartingDaemonStatus
-                                  : strings.restartDaemonBtn,
-                            ),
-                            onPressed: _isRestartingDaemon
-                                ? null
-                                : _restartDaemon,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          strings.notificationsSectionTitle,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          strings.notificationsSectionSubtitle,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Material(
-                          type: MaterialType.transparency,
-                          child: SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              strings.notificationsSwitchTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 13,
-                              ),
-                            ),
-                            value: ref.watch(notificationsEnabledProvider),
-                            activeThumbColor: tokens.accent,
-                            onChanged: (val) {
-                              ref
-                                      .read(
-                                        notificationsEnabledProvider.notifier,
-                                      )
-                                      .state =
-                                  val;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 4: Aspetto
-                    // -------------------------------------------------------------
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final activeTheme = ref.watch(activeThemeSpecProvider);
-                        final settings = ref.watch(themeSettingsProvider);
-                        final repo = ref.watch(themeRepositoryProvider);
-                        final themes = repo.availableThemes;
-                        final darkThemes = themes
-                            .where((t) => t.variant == 'dark')
-                            .toList();
-                        final lightThemes = themes
-                            .where((t) => t.variant == 'light')
-                            .toList();
-
-                        return ListView(
-                          padding: const EdgeInsets.all(24),
-                          children: [
-                            Text(
-                              strings.languageSectionTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.languageSectionSubtitle,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusMd,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<AppLanguage>(
-                                  key: const ValueKey(
-                                    'settings-language-dropdown',
-                                  ),
-                                  isExpanded: true,
-                                  value: ref.watch(appLanguageProvider),
-                                  dropdownColor: tokens.surfaceElevated,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 13,
-                                    fontFamily: tokens.uiFontFamily,
-                                  ),
-                                  items: AppLanguage.values.map((lang) {
-                                    return DropdownMenuItem<AppLanguage>(
-                                      value: lang,
-                                      child: Row(
-                                        children: [
-                                          Text(
-                                            lang.flag,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(lang.label),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (newLang) {
-                                    if (newLang != null) {
-                                      ref
-                                          .read(appLanguageProvider.notifier)
-                                          .setLanguage(newLang);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              strings.appearanceTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.appearanceSubtitle,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusMd,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          strings.useSystemTheme,
-                                          style: TextStyle(
-                                            color: tokens.textPrimary,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          strings.useSystemThemeSubtitle,
-                                          style: TextStyle(
-                                            color: tokens.textMuted,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Switch(
-                                    key: const ValueKey(
-                                      'settings-theme-system-switch',
-                                    ),
-                                    value: settings.useSystemTheme,
-                                    onChanged: (val) {
-                                      ref
-                                          .read(themeSettingsProvider.notifier)
-                                          .setUseSystemTheme(val);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            if (!settings.useSystemTheme) ...[
-                              Text(
-                                strings.selectActiveTheme,
-                                style: TextStyle(
-                                  color: tokens.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tokens.surfaceElevated,
-                                  borderRadius: BorderRadius.circular(
-                                    tokens.radiusMd,
-                                  ),
-                                  border: Border.all(color: tokens.border),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    key: const ValueKey(
-                                      'settings-theme-dropdown',
-                                    ),
-                                    isExpanded: true,
-                                    borderRadius: BorderRadius.circular(
-                                      tokens.radiusMd,
-                                    ),
-                                    value: activeTheme.id,
-                                    dropdownColor: tokens.surfaceElevated,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontFamily: tokens.uiFontFamily,
-                                    ),
-                                    items: themes.map((t) {
-                                      return DropdownMenuItem<String>(
-                                        value: t.id,
-                                        child: Text(
-                                          '${t.name} (${t.variant})',
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (newId) {
-                                      if (newId != null) {
-                                        ref
-                                            .read(
-                                              activeThemeSpecProvider.notifier,
-                                            )
-                                            .setTheme(newId);
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        strings.defaultDarkTheme,
-                                        style: TextStyle(
-                                          color: tokens.textSecondary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: tokens.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusMd,
-                                          ),
-                                          border: Border.all(
-                                            color: tokens.border,
-                                          ),
-                                        ),
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            isExpanded: true,
-                                            borderRadius: BorderRadius.circular(
-                                              tokens.radiusMd,
-                                            ),
-                                            value:
-                                                darkThemes.any(
-                                                  (t) =>
-                                                      t.id ==
-                                                      settings
-                                                          .defaultDarkThemeId,
-                                                )
-                                                ? settings.defaultDarkThemeId
-                                                : (darkThemes.isNotEmpty
-                                                      ? darkThemes.first.id
-                                                      : null),
-                                            dropdownColor:
-                                                tokens.surfaceElevated,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: 13,
-                                              fontFamily: tokens.uiFontFamily,
-                                            ),
-                                            items: darkThemes.map((t) {
-                                              return DropdownMenuItem<String>(
-                                                value: t.id,
-                                                child: Text(
-                                                  t.name,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              );
-                                            }).toList(),
-                                            onChanged: (newId) {
-                                              if (newId != null) {
-                                                ref
-                                                    .read(
-                                                      themeSettingsProvider
-                                                          .notifier,
-                                                    )
-                                                    .setDefaultDarkTheme(newId);
-                                              }
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        strings.defaultLightTheme,
-                                        style: TextStyle(
-                                          color: tokens.textSecondary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: tokens.surfaceElevated,
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusMd,
-                                          ),
-                                          border: Border.all(
-                                            color: tokens.border,
-                                          ),
-                                        ),
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            isExpanded: true,
-                                            borderRadius: BorderRadius.circular(
-                                              tokens.radiusMd,
-                                            ),
-                                            value:
-                                                lightThemes.any(
-                                                  (t) =>
-                                                      t.id ==
-                                                      settings
-                                                          .defaultLightThemeId,
-                                                )
-                                                ? settings.defaultLightThemeId
-                                                : (lightThemes.isNotEmpty
-                                                      ? lightThemes.first.id
-                                                      : null),
-                                            dropdownColor:
-                                                tokens.surfaceElevated,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: 13,
-                                              fontFamily: tokens.uiFontFamily,
-                                            ),
-                                            items: lightThemes.map((t) {
-                                              return DropdownMenuItem<String>(
-                                                value: t.id,
-                                                child: Text(
-                                                  t.name,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              );
-                                            }).toList(),
-                                            onChanged: (newId) {
-                                              if (newId != null) {
-                                                ref
-                                                    .read(
-                                                      themeSettingsProvider
-                                                          .notifier,
-                                                    )
-                                                    .setDefaultLightTheme(
-                                                      newId,
-                                                    );
-                                              }
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  key: const ValueKey(
-                                    'settings-open-theme-editor-btn',
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: tokens.accent),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                    ),
-                                  ),
-                                  icon: Icon(
-                                    Icons.palette_outlined,
-                                    size: 16,
-                                    color: tokens.accent,
-                                  ),
-                                  label: Text(
-                                    strings.openThemeEditorBtn,
-                                    style: TextStyle(
-                                      color: tokens.accent,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    ThemeEditorDialog.show(context);
-                                  },
-                                ),
-                                OutlinedButton.icon(
-                                  key: const ValueKey(
-                                    'settings-import-theme-btn',
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: tokens.borderStrong,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                    ),
-                                  ),
-                                  icon: Icon(
-                                    Icons.file_upload_outlined,
-                                    size: 16,
-                                    color: tokens.accent,
-                                  ),
-                                  label: Text(
-                                    strings.importThemeBtn,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      final file = await openFile(
-                                        acceptedTypeGroups: [
-                                          XTypeGroup(
-                                            label: strings.themeJsonFilterLabel,
-                                            extensions: const ['json'],
-                                          ),
-                                        ],
-                                      );
-                                      if (file == null || !context.mounted) {
-                                        return;
-                                      }
-                                      final content = await file.readAsString();
-                                      final importedSpec = await ref
-                                          .read(
-                                            activeThemeSpecProvider.notifier,
-                                          )
-                                          .importThemeFromJson(content);
-                                      if (context.mounted) {
-                                        FrameSnackBar.show(
-                                          context,
-                                          message: strings.themeImportSuccess(importedSpec.name),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        FrameSnackBar.show(
-                                          context,
-                                          message: strings.themeImportError(e),
-                                        );
-                                      }
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            _buildInfoCard(tokens, [
-                              _buildInfoRow(
-                                tokens,
-                                strings.labelActiveTheme,
-                                '${activeTheme.name} (v${activeTheme.version})',
-                              ),
-                              _buildInfoRow(
-                                tokens,
-                                strings.labelLayoutDensity,
-                                strings.layoutDensityDefault,
-                              ),
-                              _buildInfoRow(
-                                tokens,
-                                strings.labelFonts,
-                                strings.fontsDetail(
-                                  activeTheme.toTokens().uiFontFamily,
-                                  activeTheme.toTokens().monoFontFamily,
-                                ),
-                              ),
-                            ]),
-                            if (activeTheme.diagnostics.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              Text(
-                                strings.themeDiagnosticsHeader,
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ...activeTheme.diagnostics.map(
-                                (d) => Text(
-                                  '• $d',
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 24),
-                            Text(
-                              strings.composerSectionTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.sendWithEnterSubtitle,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusMd,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: SwitchListTile(
-                                  key: const ValueKey(
-                                    'settings-composer-send-with-enter-switch',
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    strings.sendWithEnterTitle,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontFamily: tokens.uiFontFamily,
-                                    ),
-                                  ),
-                                  activeThumbColor: tokens.accent,
-                                  value: ref
-                                      .watch(composerSettingsProvider)
-                                      .sendWithEnter,
-                                  onChanged: (val) {
-                                    ref
-                                        .read(
-                                          composerSettingsProvider.notifier,
-                                        )
-                                        .setSendWithEnter(val);
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              strings.reducedMotionSectionTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.reducedMotionSubtitle,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusMd,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: SwitchListTile(
-                                  key: const ValueKey(
-                                    'settings-reduced-motion-switch',
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    strings.reducedMotionTitle,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontFamily: tokens.uiFontFamily,
-                                    ),
-                                  ),
-                                  activeThumbColor: tokens.accent,
-                                  value: ref
-                                      .watch(reducedMotionSettingsProvider)
-                                      .enabled,
-                                  onChanged: (val) {
-                                    ref
-                                        .read(
-                                          reducedMotionSettingsProvider.notifier,
-                                        )
-                                        .setEnabled(val);
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              strings.nerdStatsSectionTitle,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.nerdStatsSubtitle,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusMd,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: SwitchListTile(
-                                  key: const ValueKey(
-                                    'settings-nerd-stats-switch',
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    strings.nerdStatsTitle,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontFamily: tokens.uiFontFamily,
-                                    ),
-                                  ),
-                                  activeThumbColor: tokens.accent,
-                                  value: ref
-                                      .watch(nerdStatsSettingsProvider)
-                                      .enabled,
-                                  onChanged: (val) {
-                                    ref
-                                        .read(
-                                          nerdStatsSettingsProvider.notifier,
-                                        )
-                                        .setEnabled(val);
-                                  },
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Builder(
-                              builder: (context) {
-                                final stepGroupingSettings =
-                                    ref.watch(stepGroupingSettingsProvider);
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      strings.stepGroupingSectionTitle,
-                                      style: TextStyle(
-                                        color: tokens.textPrimary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      strings.stepGroupingModeDescription(
-                                        stepGroupingSettings.mode,
-                                      ),
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: tokens.surfaceElevated,
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusMd,
-                                        ),
-                                        border: Border.all(color: tokens.border),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<StepGroupingMode>(
-                                          key: const ValueKey(
-                                            'settings-step-grouping-mode-dropdown',
-                                          ),
-                                          isExpanded: true,
-                                          value: stepGroupingSettings.mode,
-                                          dropdownColor: tokens.surfaceElevated,
-                                          style: TextStyle(
-                                            color: tokens.textPrimary,
-                                            fontSize: 13,
-                                            fontFamily: tokens.uiFontFamily,
-                                          ),
-                                          items: StepGroupingMode.values.map((mode) {
-                                            return DropdownMenuItem<StepGroupingMode>(
-                                              value: mode,
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Text(
-                                                    strings.stepGroupingModeLabel(
-                                                      mode,
-                                                    ),
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    strings
-                                                        .stepGroupingModeDescription(
-                                                      mode,
-                                                    ),
-                                                    style: TextStyle(
-                                                      color: tokens.textMuted,
-                                                      fontSize: 11,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }).toList(),
-                                          onChanged: (newMode) {
-                                            if (newMode != null) {
-                                              ref
-                                                  .read(
-                                                    stepGroupingSettingsProvider
-                                                        .notifier,
-                                                  )
-                                                  .setMode(newMode);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: tokens.surfaceElevated,
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusMd,
-                                        ),
-                                        border: Border.all(color: tokens.border),
-                                      ),
-                                      child: Material(
-                                        type: MaterialType.transparency,
-                                        child: SwitchListTile(
-                                          key: const ValueKey(
-                                            'settings-step-grouping-auto-collapse-switch',
-                                          ),
-                                          contentPadding: EdgeInsets.zero,
-                                          title: Text(
-                                            strings.stepGroupingAutoCollapseTitle,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: 13,
-                                              fontFamily: tokens.uiFontFamily,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            strings
-                                                .stepGroupingAutoCollapseSubtitle,
-                                            style: TextStyle(
-                                              color: tokens.textMuted,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          activeThumbColor: tokens.accent,
-                                          value: stepGroupingSettings.autoCollapse,
-                                          onChanged: (val) {
-                                            ref
-                                                .read(
-                                                  stepGroupingSettingsProvider
-                                                      .notifier,
-                                                )
-                                                .setAutoCollapse(val);
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 5: Privacy (D16 — Zero Telemetry)
-                    // -------------------------------------------------------------
-                    ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.shield_outlined,
-                              size: 24,
-                              color: tokens.textPrimary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                strings.privacyTitle,
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: tokens.surfaceElevated,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
-                            border: Border.all(color: tokens.border),
-                          ),
-                          child: Text(
-                            strings.privacyCardContent,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 14,
-                              height: 1.6,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          strings.privacyBulletPoints,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 12,
-                            height: 1.8,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 6: Diagnostica Locale & Export Bundle (D16)
-                    // -------------------------------------------------------------
-                    const DiagnosticsSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 7: Aggiornamenti Ufficiali GitHub
-                    // -------------------------------------------------------------
-                    const UpdatesSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 8: Terminale & Ambiente di Esecuzione
-                    // -------------------------------------------------------------
-                    _buildTerminalSettingsTab(tokens, strings),
-
-                    // -------------------------------------------------------------
-                    // Tab 9: Accesso Remoto Sicuro
-                    // -------------------------------------------------------------
-                    const RemoteSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 10: Agenti & Sottoagenti
-                    // -------------------------------------------------------------
-                    const AgentsSection(),
+                    _buildHorizontalNav(strings, tokens, text),
+                    Expanded(child: content),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -2088,299 +792,372 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     );
   }
 
-  Widget _buildTerminalSettingsTab(FrameTokens tokens, AppStrings strings) {
-    final termSettings = ref.watch(terminalSettingsProvider);
-    final notifier = ref.read(terminalSettingsProvider.notifier);
-
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Text(
-          strings.terminalTabTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          strings.terminalTabSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12),
-        ),
-        const SizedBox(height: 20),
-
-        // Section 1: Modalità di esecuzione
-        Text(
-          strings.terminalPreferredModeHeader,
-          style: TextStyle(
-            color: tokens.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border),
-          ),
-          child: RadioGroup<TerminalMode>(
-            groupValue: termSettings.mode,
-            onChanged: (mode) {
-              if (mode != null) notifier.setMode(mode);
-            },
-            child: Column(
-              children: [
-                RadioListTile<TerminalMode>(
-                  value: TerminalMode.integrated,
-                  activeColor: tokens.accent,
-                  title: Text(
-                    strings.terminalIntegratedTitle,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    strings.terminalIntegratedSubtitle,
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                  ),
-                ),
-                Divider(color: tokens.border, height: 1),
-                RadioListTile<TerminalMode>(
-                  value: TerminalMode.native,
-                  activeColor: tokens.accent,
-                  title: Text(
-                    strings.terminalNativeTitle,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    strings.terminalNativeSubtitle,
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Section 2: Scelta applicazione terminale nativo
-        Text(
-          strings.terminalNativeAppHeader,
-          style: TextStyle(
-            color: tokens.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.6,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border),
-          ),
-          child: RadioGroup<NativeTerminalApp>(
-            groupValue: termSettings.nativeApp,
-            onChanged: (app) {
-              if (app != null) notifier.setNativeApp(app);
-            },
-            child: Column(
-              children: [
-                RadioListTile<NativeTerminalApp>(
-                  value: NativeTerminalApp.systemDefault,
-                  activeColor: tokens.accent,
-                  title: Text(
-                    strings.terminalNativeAppDefault(_isWindowsOs),
-                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                  ),
-                ),
-                if (_isWindowsOs) ...[
-                  Divider(color: tokens.border, height: 1),
-                  RadioListTile<NativeTerminalApp>(
-                    value: NativeTerminalApp.powershell,
-                    activeColor: tokens.accent,
-                    title: Text(
-                      strings.terminalPowershell,
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                    ),
-                  ),
-                  Divider(color: tokens.border, height: 1),
-                  RadioListTile<NativeTerminalApp>(
-                    value: NativeTerminalApp.cmd,
-                    activeColor: tokens.accent,
-                    title: Text(
-                      strings.terminalCmd,
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                    ),
-                  ),
-                  Divider(color: tokens.border, height: 1),
-                  RadioListTile<NativeTerminalApp>(
-                    value: NativeTerminalApp.wsl,
-                    activeColor: tokens.accent,
-                    title: Text(
-                      strings.terminalWsl,
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                    ),
-                  ),
-                ],
-                Divider(color: tokens.border, height: 1),
-                RadioListTile<NativeTerminalApp>(
-                  value: NativeTerminalApp.custom,
-                  activeColor: tokens.accent,
-                  title: Text(
-                    strings.terminalCustomApp,
-                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                  ),
-                  subtitle: termSettings.nativeApp == NativeTerminalApp.custom
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller:
-                                      TextEditingController(
-                                          text: termSettings.customPath,
-                                        )
-                                        ..selection = TextSelection.collapsed(
-                                          offset:
-                                              termSettings.customPath.length,
-                                        ),
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: 12,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: _isWindowsOs
-                                        ? 'C:\\Percorso\\A\\terminal.exe'
-                                        : '/usr/bin/alacritty',
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                    ),
-                                  ),
-                                  onSubmitted: (val) =>
-                                      notifier.setCustomPath(val.trim()),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.folder_open, size: 14),
-                                label: Text(strings.terminalBrowseBtn),
-                                onPressed: () async {
-                                  final file = await openFile(
-                                    acceptedTypeGroups: [
-                                      XTypeGroup(
-                                        label: strings.terminalExecutableFilterLabel,
-                                        extensions: const ['exe', 'bat', 'cmd', 'sh'],
-                                      ),
-                                    ],
-                                  );
-                                  if (file != null) {
-                                    notifier.setCustomPath(file.path);
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                      : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Test action button
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.accent,
-              foregroundColor: tokens.surface,
-            ),
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: Text(strings.terminalTestBtn),
-            onPressed: () async {
-              final launched = await launchNativeTerminal(
-                cwd: Directory.current.path,
-                nativeApp: termSettings.nativeApp,
-                customPath: termSettings.customPath,
-              );
-              if (mounted) {
-                FrameSnackBar.show(
-                  context,
-                  message: launched
-                      ? strings.terminalTestSuccess
-                      : strings.terminalTestFailed,
-                );
-              }
-            },
-          ),
-        ),
+  /// Settings sections grouped for the navigation, in display order.
+  List<(String, List<_SettingsSection>)> _navGroups(AppStrings strings) => [
+    (
+      strings.settingsNavGeneral,
+      const [
+        _SettingsSection.appearance,
+        _SettingsSection.terminal,
+        _SettingsSection.updates,
       ],
-    );
-  }
+    ),
+    (
+      strings.settingsNavPi,
+      const [
+        _SettingsSection.piCli,
+        _SettingsSection.packages,
+        _SettingsSection.agents,
+      ],
+    ),
+    (
+      strings.settingsNavSystem,
+      const [
+        _SettingsSection.daemon,
+        _SettingsSection.diagnostics,
+        _SettingsSection.remote,
+      ],
+    ),
+  ];
 
-  Widget _buildInfoCard(FrameTokens tokens, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(color: tokens.border),
+  String _sectionLabel(_SettingsSection section, AppStrings strings) =>
+      switch (section) {
+        _SettingsSection.piCli => strings.tabPiCli,
+        _SettingsSection.packages => strings.tabPackages,
+        _SettingsSection.daemon => strings.tabDaemon,
+        _SettingsSection.appearance => strings.tabAppearance,
+        _SettingsSection.diagnostics => strings.tabDiagnostics,
+        _SettingsSection.updates => strings.tabUpdates,
+        _SettingsSection.terminal => strings.tabTerminal,
+        _SettingsSection.remote => strings.tabRemote,
+        _SettingsSection.agents => strings.tabAgents,
+      };
+
+  Widget _buildVerticalNav(
+    AppStrings strings,
+    FrameTokens tokens,
+    FrameText text,
+  ) {
+    return Focus(
+      onKeyEvent: _handleNavKey,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          FrameSpace.x2,
+          FrameSpace.x2,
+          FrameSpace.x2,
+          FrameSpace.x4,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (label, sections) in _navGroups(strings)) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  FrameSpace.x2,
+                  FrameSpace.x3,
+                  FrameSpace.x2,
+                  FrameSpace.x1,
+                ),
+                child: Text(
+                  label,
+                  style: text.caption.copyWith(color: tokens.textMuted),
+                ),
+              ),
+              for (final section in sections)
+                _SettingsNavItem(
+                  label: _sectionLabel(section, strings),
+                  name: section.name,
+                  selected: section == _section,
+                  vertical: true,
+                  focusNode: _navFocus[section]!,
+                  itemKey: _navItemKeys[section]!,
+                  onTap: () => _selectFromPointerOrKeyboard(section),
+                ),
+            ],
+          ],
+        ),
       ),
-      child: Column(children: children),
     );
   }
 
-  Widget _buildInfoRow(FrameTokens tokens, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final labelWidget = Text(
-            label,
-            style: TextStyle(color: tokens.textSecondary, fontSize: 13),
-          );
-          final valueWidget = Text(
-            value,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+  /// Narrow layout: one horizontal row of section tabs that scrolls, with
+  /// fade edges that show there is more to reach.
+  Widget _buildHorizontalNav(
+    AppStrings strings,
+    FrameTokens tokens,
+    FrameText text,
+  ) {
+    final fadeColor = tokens.surfaceElevated;
+    final transparent = fadeColor.withValues(alpha: 0);
+    final sections = [for (final group in _navGroups(strings)) ...group.$2];
+    return Focus(
+      onKeyEvent: _handleNavKey,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x4,
+              vertical: FrameSpace.x2,
+            ),
+            child: Row(
+              children: [
+                for (final section in sections)
+                  Padding(
+                    padding: const EdgeInsets.only(right: FrameSpace.x1),
+                    child: _SettingsNavItem(
+                      label: _sectionLabel(section, strings),
+                      name: section.name,
+                      selected: section == _section,
+                      vertical: false,
+                      focusNode: _navFocus[section]!,
+                      itemKey: _navItemKeys[section]!,
+                      onTap: () => _selectFromPointerOrKeyboard(section),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: FrameSpace.x4,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [fadeColor, transparent]),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: FrameSpace.x6,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [fadeColor, transparent],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectFromPointerOrKeyboard(_SettingsSection section) {
+    _select(
+      section,
+      keyboard:
+          FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
+    );
+  }
+
+  void _select(_SettingsSection section, {required bool keyboard}) {
+    if (section == _section) return;
+    setState(() {
+      _section = section;
+      _instantSwitch = keyboard;
+    });
+    if (!keyboard) return;
+    // Keyboard moves follow the selection: focus and scroll the new item in.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _navFocus[section]?.requestFocus();
+      final itemContext = _navItemKeys[section]?.currentContext;
+      if (itemContext != null) {
+        Scrollable.ensureVisible(
+          itemContext,
+          alignment: 0.5,
+          duration: FrameMotion.instant,
+        );
+      }
+    });
+  }
+
+  /// Up and down move the selection through the sections in display order.
+  KeyEventResult _handleNavKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final step = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowDown => 1,
+      LogicalKeyboardKey.arrowUp => -1,
+      _ => 0,
+    };
+    if (step == 0) return KeyEventResult.ignored;
+    final strings = ref.read(appStringsProvider);
+    final order = [for (final group in _navGroups(strings)) ...group.$2];
+    final index = order.indexOf(_section);
+    final target = (index + step).clamp(0, order.length - 1);
+    _select(order[target], keyboard: true);
+    return KeyEventResult.handled;
+  }
+
+  /// A run counts as active from the first working state until it settles.
+  bool _isRunActive(AgentStatus? status) => switch (status) {
+    AgentStatus.working ||
+    AgentStatus.retrying ||
+    AgentStatus.compacting ||
+    AgentStatus.awaitingUser => true,
+    _ => false,
+  };
+
+  FrameStatusTone _runStatusTone(AgentStatus status) => switch (status) {
+    AgentStatus.idle => FrameStatusTone.neutral,
+    AgentStatus.settled => FrameStatusTone.success,
+    AgentStatus.working ||
+    AgentStatus.retrying ||
+    AgentStatus.compacting => FrameStatusTone.info,
+    AgentStatus.awaitingUser => FrameStatusTone.warning,
+    AgentStatus.error || AgentStatus.workerError => FrameStatusTone.danger,
+  };
+}
+
+/// The settings sections. The index order is the one `initialTabIndex`
+/// uses (0 = Pi CLI), so callers that pass an index keep working. Privacy
+/// lives in Diagnostica (task 8.3), so it has no entry of its own.
+enum _SettingsSection {
+  piCli,
+  packages,
+  daemon,
+  appearance,
+  diagnostics,
+  updates,
+  terminal,
+  remote,
+  agents;
+
+  static _SettingsSection fromIndex(int index) {
+    final clamped = index.clamp(0, values.length - 1);
+    return values[clamped];
+  }
+}
+
+/// One navigation entry: a label, a selection bar and a rounded hover shape.
+/// Vertical items sit in the left column; horizontal items form the narrow
+/// tab row and mark the selection with an underline.
+class _SettingsNavItem extends StatefulWidget {
+  const _SettingsNavItem({
+    required this.label,
+    required this.name,
+    required this.selected,
+    required this.vertical,
+    required this.focusNode,
+    required this.itemKey,
+    required this.onTap,
+  });
+
+  final String label;
+  final String name;
+  final bool selected;
+  final bool vertical;
+  final FocusNode focusNode;
+  final GlobalKey itemKey;
+  final VoidCallback onTap;
+
+  @override
+  State<_SettingsNavItem> createState() => _SettingsNavItemState();
+}
+
+class _SettingsNavItemState extends State<_SettingsNavItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
+    final transparent = tokens.surface.withValues(alpha: 0);
+    final background = widget.selected
+        ? tokens.surfaceElevated
+        : _hovered
+        ? tokens.surface
+        : transparent;
+    final labelStyle = (widget.vertical ? text.body : text.label).copyWith(
+      color: widget.selected ? tokens.textPrimary : tokens.textSecondary,
+      fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
+    );
+    final indicator = widget.selected ? tokens.accent : transparent;
+
+    final label = Text(
+      widget.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: labelStyle,
+    );
+
+    final body = widget.vertical
+        ? Row(
+            children: [
+              // Accent selection bar on the leading edge.
+              AnimatedContainer(
+                duration: FrameMotion.micro,
+                width: FrameSpace.x1 / 2,
+                height: FrameSpace.x4,
+                decoration: BoxDecoration(
+                  color: indicator,
+                  borderRadius: BorderRadius.circular(tokens.radiusPill),
+                ),
+              ),
+              const SizedBox(width: FrameSpace.x2),
+              Expanded(child: label),
+            ],
+          )
+        : IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                label,
+                const SizedBox(height: FrameSpace.x1),
+                // Accent selection bar underneath.
+                AnimatedContainer(
+                  duration: FrameMotion.micro,
+                  height: FrameSpace.x1 / 2,
+                  decoration: BoxDecoration(
+                    color: indicator,
+                    borderRadius: BorderRadius.circular(tokens.radiusPill),
+                  ),
+                ),
+              ],
             ),
           );
-          if (constraints.maxWidth < 520) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [labelWidget, const SizedBox(height: 4), valueWidget],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: labelWidget),
-              const SizedBox(width: 24),
-              Expanded(flex: 2, child: valueWidget),
-            ],
-          );
-        },
+
+    return Semantics(
+      button: true,
+      selected: widget.selected,
+      label: widget.label,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: InkWell(
+          key: ValueKey('settings-nav-${widget.name}'),
+          focusNode: widget.focusNode,
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          hoverColor: transparent,
+          highlightColor: tokens.surfaceElevated,
+          child: AnimatedContainer(
+            key: widget.itemKey,
+            duration: FrameMotion.micro,
+            constraints: const BoxConstraints(minHeight: FrameSize.rowList),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x2,
+              vertical: FrameSpace.x1,
+            ),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
+            child: body,
+          ),
+        ),
       ),
     );
   }

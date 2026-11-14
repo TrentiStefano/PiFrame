@@ -24,16 +24,16 @@ void main() {
       const strings = AppStrings(AppLanguage.it);
       expect(strings.isItalian, isTrue);
       expect(strings.settingsTitle, 'Impostazioni PiFrame');
-      expect(strings.tabPackages, 'PACCHETTI');
-      expect(strings.tabAppearance, 'ASPETTO');
-      expect(strings.tabAgents, 'AGENTI');
+      expect(strings.tabPackages, 'Pacchetti');
+      expect(strings.tabAppearance, 'Aspetto');
+      expect(strings.tabAgents, 'Agenti');
       expect(strings.agentsTitle, 'Configurazione agenti e sottoagenti');
       expect(strings.agentsPackagesLabel, 'Pacchetti:');
       expect(strings.agentsContextSingleTierTooltip, 'Il modello ha un solo livello di contesto');
       expect(strings.agentsModelUnavailableWarning, 'Non disponibile con le credenziali attuali');
       expect(strings.agentsNotAvailableShort, 'n/d');
-      expect(strings.languageSectionTitle, "Lingua dell'Applicazione");
-      expect(strings.openThemeEditorBtn, 'Editor temi / Personalizza tema');
+      expect(strings.languageSectionTitle, "Lingua dell'applicazione");
+      expect(strings.openThemeEditorBtn, 'Editor temi');
       expect(strings.updateNoticeTitle, 'Aggiornamenti rilevati');
       expect(strings.branchChipTooltip, 'Cambia ramo Git');
       expect(strings.branchPickerTitle, 'Passa a un altro ramo');
@@ -79,16 +79,16 @@ void main() {
       const strings = AppStrings(AppLanguage.en);
       expect(strings.isItalian, isFalse);
       expect(strings.settingsTitle, 'PiFrame Settings');
-      expect(strings.tabPackages, 'PACKAGES');
-      expect(strings.tabAppearance, 'APPEARANCE');
-      expect(strings.tabAgents, 'AGENTS');
+      expect(strings.tabPackages, 'Packages');
+      expect(strings.tabAppearance, 'Appearance');
+      expect(strings.tabAgents, 'Agents');
       expect(strings.agentsTitle, 'Agent & Subagent Configuration');
       expect(strings.agentsPackagesLabel, 'Packages:');
       expect(strings.agentsContextSingleTierTooltip, 'Model has a single context tier');
       expect(strings.agentsModelUnavailableWarning, 'Not available with current credentials');
       expect(strings.agentsNotAvailableShort, 'N/A');
       expect(strings.languageSectionTitle, 'Application Language');
-      expect(strings.openThemeEditorBtn, 'Theme Editor / Customize Theme');
+      expect(strings.openThemeEditorBtn, 'Theme Editor');
       expect(strings.updateNoticeTitle, 'Updates Available');
       expect(strings.branchChipTooltip, 'Switch Git branch');
       expect(strings.branchPickerTitle, 'Switch branch');
@@ -185,9 +185,9 @@ void main() {
 
     // Verify initial Italian texts
     expect(find.text('Impostazioni PiFrame'), findsOneWidget);
-    expect(find.text('PACCHETTI'), findsOneWidget);
-    expect(find.text('ASPETTO'), findsOneWidget);
-    expect(find.text("Lingua dell'Applicazione"), findsOneWidget);
+    expect(find.text('Pacchetti'), findsOneWidget);
+    expect(find.text('Aspetto'), findsOneWidget);
+    expect(find.text("Lingua dell'applicazione"), findsOneWidget);
 
     // Find and tap the language dropdown
     final dropdownFinder = find.byKey(
@@ -204,8 +204,8 @@ void main() {
 
     // Verify that the UI switched to English
     expect(find.text('PiFrame Settings'), findsOneWidget);
-    expect(find.text('PACKAGES'), findsOneWidget);
-    expect(find.text('APPEARANCE'), findsOneWidget);
+    expect(find.text('Packages'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Application Language'), findsOneWidget);
   });
 }

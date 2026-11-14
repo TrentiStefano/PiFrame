@@ -231,7 +231,7 @@ Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della 
 
 ## Statistiche nerd (Nerd stats) e monitoraggio delle risorse
 
-Nelle **Impostazioni** (sezione **Aspetto → Statistiche nerd**, IT: *Statistiche nerd*, EN: *Nerd stats*) è disponibile l'opzione per abilitare la telemetria di sistema in tempo reale nella barra del titolo dell'applicazione (disattivata per impostazione predefinita):
+Nelle **Impostazioni** (sezione **Aspetto → Statistiche tecniche**, IT: *Statistiche tecniche*, EN: *Technical stats*; in passato *Statistiche nerd*) è disponibile l'opzione per abilitare la telemetria di sistema in tempo reale nella barra del titolo dell'applicazione (disattivata per impostazione predefinita):
 - **Disattivato (default)**: la barra del titolo non mostra metriche hardware né contatori di frame; nessun comando di sottoscrizione viene inviato al daemon.
 - **Attivo**: mostra un riquadro compatto a caratteri monospace nella barra superiore nel formato:
   `CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS`
@@ -483,3 +483,15 @@ Aprendo un file dal pannello **Repository** si apre l'editor di codice, in font 
 - **Menu della cartella**: clic destro su una cartella nel pannello Repository per *Nuova sessione qui*, *Aggiungi cartella alla chat* (inserisce `@cartella` nel composer) e *Copia percorso*. Sulle righe dei file compare anche il pulsante *Aggiungi alla chat* al passaggio del mouse o al focus.
 
 Le scorciatoie `Ctrl/Cmd+G` e `Ctrl/Cmd+S` funzionano quando il cursore è nell'editor.
+
+## Navigazione delle Impostazioni
+
+Su finestre di almeno 900 px le **Impostazioni** mostrano una colonna di navigazione a sinistra con tre gruppi: **Generale** (Aspetto, Terminale, Aggiornamenti), **Pi** (Pi CLI, Pacchetti, Agenti) e **Sistema** (Daemon, Diagnostica, Accesso remoto; la privacy è in Diagnostica). Su finestre più strette la navigazione diventa una riga di schede scorrevole. Le frecce ↑/↓ spostano la selezione tra le sezioni, Esc chiude le Impostazioni, e l'intestazione mostra lo stato della sessione attiva (per esempio *In esecuzione*) anche quando sei in Impostazioni.
+
+### Modifiche alle Impostazioni (Fase 8)
+
+- **Aspetto → Tema**: un solo controllo con tre scelte, **Sistema**, **Chiaro** e **Scuro**. Con *Sistema* compaiono entrambi i selettori *Tema scuro predefinito* e *Tema chiaro predefinito*; con *Chiaro* o *Scuro* compare solo quello della modalità scelta. Il blocco informativo che ripeteva il tema attivo è stato rimosso. *Statistiche nerd* ora si chiama **Statistiche tecniche** (EN: *Technical stats*).
+- **Privacy** non è più una voce di navigazione: il testo sulla privacy e la nota zero telemetria sono nella sezione **Diagnostica**.
+- **Terminale**: la lista delle applicazioni del terminale nativo è disattivata finché non scegli *Terminale nativo OS*.
+- **Daemon → Riavvia daemon**: sotto il pulsante è scritto che *le sessioni in corso verranno riconnesse*. Se un agente è in esecuzione, PiFrame chiede conferma prima di riavviare.
+- **Pi CLI**: il comando consigliato (`pi update`) è marcato con *Consigliato*; tutti i pulsanti *Esegui* sono contorni. Su finestre larghe l'output del comando è in una colonna a destra; su finestre strette, quando avvii un comando, l'output viene portato in vista.

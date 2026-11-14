@@ -115,16 +115,23 @@ class AppStrings {
   String get close => isItalian ? 'Chiudi' : 'Close';
 
   // Tabs
-  String get tabPiCli => 'PI CLI';
-  String get tabPackages => isItalian ? 'PACCHETTI' : 'PACKAGES';
-  String get tabDaemon => 'DAEMON';
-  String get tabAppearance => isItalian ? 'ASPETTO' : 'APPEARANCE';
-  String get tabPrivacy => 'PRIVACY';
-  String get tabDiagnostics => isItalian ? 'DIAGNOSTICA' : 'DIAGNOSTICS';
-  String get tabUpdates => isItalian ? 'AGGIORNAMENTI' : 'UPDATES';
-  String get tabTerminal => isItalian ? 'TERMINALE' : 'TERMINAL';
-  String get tabRemote => isItalian ? 'ACCESSO REMOTO' : 'REMOTE ACCESS';
-  String get tabAgents => isItalian ? 'AGENTI' : 'AGENTS';
+  String get tabPiCli => 'Pi CLI';
+  String get tabPackages => isItalian ? 'Pacchetti' : 'Packages';
+  String get tabDaemon => 'Daemon';
+  String get tabAppearance => isItalian ? 'Aspetto' : 'Appearance';
+  String get tabDiagnostics => isItalian ? 'Diagnostica' : 'Diagnostics';
+  String get tabUpdates => isItalian ? 'Aggiornamenti' : 'Updates';
+  String get tabTerminal => isItalian ? 'Terminale' : 'Terminal';
+  String get tabRemote => isItalian ? 'Accesso remoto' : 'Remote access';
+  String get tabAgents => isItalian ? 'Agenti' : 'Agents';
+
+  // Settings navigation groups (task 8.1)
+  String get settingsNavGeneral => isItalian ? 'Generale' : 'General';
+  String get settingsNavPi => 'Pi';
+  String get settingsNavSystem => isItalian ? 'Sistema' : 'System';
+  String get settingsRunStatusTooltip => isItalian
+      ? 'Stato della sessione attiva'
+      : 'Active session status';
 
   String get updateAllPackages => isItalian ? 'Aggiorna tutto' : 'Update all';
   String get updatingPackages => isItalian ? 'Aggiornamento...' : 'Updating...';
@@ -178,7 +185,7 @@ class AppStrings {
       ? 'PiFrame supporta temi personalizzati definiti via file JSON in ~/.piframe/themes/.'
       : 'PiFrame supports custom themes defined via JSON files in ~/.piframe/themes/.';
   String get languageSectionTitle =>
-      isItalian ? 'Lingua dell\'Applicazione' : 'Application Language';
+      isItalian ? 'Lingua dell\'applicazione' : 'Application Language';
   String get languageSectionSubtitle => isItalian
       ? 'Seleziona la lingua per l\'interfaccia grafica e i messaggi dell\'applicazione.'
       : 'Select the language for the graphical interface and application messages.';
@@ -196,9 +203,7 @@ class AppStrings {
   String get importThemeBtn => isItalian
       ? 'Importa tema JSON (VSCode / PiFrame)'
       : 'Import JSON Theme (VSCode / PiFrame)';
-  String get openThemeEditorBtn => isItalian
-      ? 'Editor temi / Personalizza tema'
-      : 'Theme Editor / Customize Theme';
+  String get openThemeEditorBtn => isItalian ? 'Editor temi' : 'Theme Editor';
 
   // Theme Editor
   String get themeEditorTitle =>
@@ -273,9 +278,9 @@ class AppStrings {
 
   // Nerd stats
   String get nerdStatsSectionTitle =>
-      isItalian ? 'Statistiche nerd' : 'Nerd stats';
+      isItalian ? 'Statistiche tecniche' : 'Technical stats';
   String get nerdStatsTitle =>
-      isItalian ? 'Statistiche nerd' : 'Nerd stats';
+      isItalian ? 'Statistiche tecniche' : 'Technical stats';
   String get nerdStatsSubtitle => isItalian
       ? 'Mostra le statistiche di sistema (CPU, RAM, disco, GPU) e i frame al secondo (FPS) in tempo reale nella barra del titolo.'
       : 'Show real-time system metrics (CPU, RAM, disk, GPU) and frames per second (FPS) in the title bar.';
