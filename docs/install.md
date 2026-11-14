@@ -185,6 +185,8 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Ctrl+,` / `Cmd+,` | Apri Impostazioni | Shell (nuova in Fase 6) |
 | `Ctrl+B` / `Cmd+B` | Mostra o nascondi la barra sessioni; con finestra stretta apre o chiude il cassetto sessioni | Shell (nuova in Fase 6) |
 | `Ctrl+Tab` | Torna alla sessione attiva precedente (se ancora presente) | Shell (nuova in Fase 6) |
+| `F6` / `Shift+F6` | Sposta il focus al pannello successivo o precedente (barra del titolo, sessioni, repository, chat, pannello companion) | Shell (nuovo in Fase 6) |
+| `Ctrl+1` … `Ctrl+4` / `Cmd+1` … `Cmd+4` | Sposta il focus su sessioni, repository, chat (composer) e pannello companion | Shell (nuovo in Fase 6) |
 | `Ctrl+K` / `Cmd+K` | Apri la Command Palette | Shell |
 | `Ctrl+Shift+B` / `Cmd+Shift+B` | Apri o chiudi la conversazione laterale della sessione | Shell |
 | `←` / `→` con il focus su un divisore | Sposta il divisore di 20 px (barra sessioni e divisori tra i pannelli); il divisore riceve il focus con `Tab` | Divisori (nuovo in Fase 6) |
@@ -194,6 +196,7 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
 | `↑` / `↓` | Scorre i comandi slash, i file menzionati e i suggerimenti | Composer, selettore file, Command Palette, selettore branch |
 | `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
+| `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell (nuovo in Fase 6) |
 | `Esc` | Chiude il selettore branch, annulla la rinomina della sessione, chiude Impostazioni | Vari |
 | `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia nel pannello della conversazione laterale (secondo *Invia con Enter*) | Pannello laterale |
 | `Ctrl+C`, `Ctrl+L`, `Ctrl+V` | Interrompe, pulisce lo schermo, incolla nel terminale | Terminale integrato |

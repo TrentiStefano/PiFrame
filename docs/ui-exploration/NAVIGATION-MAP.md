@@ -131,6 +131,8 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 
 ## Dialogs, menus, and interaction states
 
+Keyboard focus order (plan task 6.2): Tab goes title bar, sessions, repository, chat transcript, composer, companion pane, and back. F6 and Shift+F6 move between panes; Ctrl/Cmd+1 to 4 focus sessions, repository, chat (composer) and companion.
+
 Captured representative overlays:
 
 - New session / working directory: [03-new-session-dialog.png](03-new-session-dialog.png), [04-new-session-dialog-wide.png](04-new-session-dialog-wide.png) (busy/disabled Create state; see caveats above).

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
+import 'focus_regions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -253,6 +254,10 @@ class _AppShellState extends ConsumerState<AppShell>
   bool? _preReviewSidebarCollapsed;
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
+  // Focus regions in Tab order (plan task 6.2). Each key is attached once per build.
+  final Map<FocusRegion, GlobalKey> _regionKeys = {
+    for (final region in FocusRegion.values) region: GlobalKey(),
+  };
 
   void _enterReviewMode() {
     _preReviewSidebarCollapsed ??= _sidebarCollapsed;
@@ -505,6 +510,38 @@ class _AppShellState extends ConsumerState<AppShell>
     super.dispose();
   }
 
+  /// Focuses the first focusable control of [region] in reading order. Returns false
+  /// when the region has nothing to focus (for example, no session is open).
+  bool _focusRegion(FocusRegion region) {
+    for (final part in region.paneRegions) {
+      final nodes = focusableNodesIn(_regionKeys[part]!);
+      if (nodes.isEmpty) continue;
+      nodes.first.requestFocus();
+      return true;
+    }
+    return false;
+  }
+
+  /// F6 and Shift+F6: move focus to the next or previous pane (plan task 6.2).
+  void _cyclePane({required bool backwards}) {
+    final primary = FocusManager.instance.primaryFocus;
+    final panes = FocusRegion.panes;
+    final current = panes.indexWhere(
+      (pane) => pane.paneRegions.any(
+        (part) => focusIsWithin(_regionKeys[part]!, primary),
+      ),
+    );
+    final step = backwards ? -1 : 1;
+    var index = current < 0
+        ? (backwards ? panes.length - 1 : 0)
+        : (current + step + panes.length) % panes.length;
+    // Skip panes with nothing to focus (a closed companion, for example).
+    for (var attempt = 0; attempt < panes.length; attempt++) {
+      if (_focusRegion(panes[index])) return;
+      index = (index + step + panes.length) % panes.length;
+    }
+  }
+
   void _palette() => CommandPalette.show(
     context,
     ref: ref,
@@ -529,6 +566,22 @@ class _AppShellState extends ConsumerState<AppShell>
     final shift = hardware.isShiftPressed;
     final alt = hardware.isAltPressed;
     final key = event.logicalKey;
+
+    // F6 / Shift+F6 move between panes (plan task 6.2).
+    if (key == LogicalKeyboardKey.f6 && !commandKey && !alt) {
+      _cyclePane(backwards: shift);
+      return KeyEventResult.handled;
+    }
+    // Ctrl/Cmd+1…4 focus sessions, repository, chat and companion (plan task 6.2).
+    if (commandKey && !shift && !alt) {
+      final number = _pressedDigit(key);
+      final region = number == null ? null : FocusRegion.numbered[number];
+      if (region != null) {
+        return _focusRegion(region)
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
+      }
+    }
 
     if (key == LogicalKeyboardKey.keyK && commandKey) {
       _palette();
@@ -578,6 +631,15 @@ class _AppShellState extends ConsumerState<AppShell>
     }
   }
 
+  /// The digit 1…4 of a top-row digit key, or null for any other key.
+  int? _pressedDigit(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.digit1) return 1;
+    if (key == LogicalKeyboardKey.digit2) return 2;
+    if (key == LogicalKeyboardKey.digit3) return 3;
+    if (key == LogicalKeyboardKey.digit4) return 4;
+    return null;
+  }
+
   /// Switches back to the session that was active before the current one, if it still exists.
   void _switchToPreviousSession() {
     final target = _previousSessionId;
@@ -623,6 +685,9 @@ class _AppShellState extends ConsumerState<AppShell>
               builder: (context, constraints) => Column(
               children: [
                 Expanded(
+                  child: FocusRegionMarker(
+                  region: FocusRegion.transcript,
+                  regionKey: _regionKeys[FocusRegion.transcript]!,
                   child: Stack(
                     children: [
                       TranscriptView(
@@ -644,19 +709,28 @@ class _AppShellState extends ConsumerState<AppShell>
                       ),
                     ],
                   ),
+                  ),
                 ),
-                Composer(
-                  key: ValueKey('composer_$activeId'),
-                  sessionId: activeId,
-                  availableHeight: constraints.maxHeight,
+                FocusRegionMarker(
+                  region: FocusRegion.composer,
+                  regionKey: _regionKeys[FocusRegion.composer]!,
+                  child: Composer(
+                    key: ValueKey('composer_$activeId'),
+                    sessionId: activeId,
+                    availableHeight: constraints.maxHeight,
+                  ),
                 ),
               ],
             ),
             ),
           );
 
-    return Focus(
+    return FocusTraversalGroup(
+    policy: OrderedTraversalPolicy(),
+    child: Focus(
       autofocus: true,
+      // Only receives keys when nothing inside has focus; it is not a Tab stop.
+      skipTraversal: true,
       onKeyEvent: (_, event) => _handleShortcut(event, activeId),
       child: Scaffold(
         key: _scaffoldKey,
@@ -715,7 +789,10 @@ class _AppShellState extends ConsumerState<AppShell>
               ),
               child: Column(
                 children: [
-                  Container(
+                  FocusRegionMarker(
+                  region: FocusRegion.titleBar,
+                  regionKey: _regionKeys[FocusRegion.titleBar]!,
+                  child: Container(
                     height: 42,
                     margin: EdgeInsets.fromLTRB(
                       width < 600 ? 12 : 8,
@@ -926,6 +1003,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       ],
                     ),
                   ),
+                  ),
                   if (!connected)
                     Container(
                       color: tokens.signalWarning.withValues(alpha: 0.16),
@@ -974,9 +1052,13 @@ class _AppShellState extends ConsumerState<AppShell>
                         : Row(
                             children: [
                               if (showSessionRail)
-                                _sidebarCollapsed
-                                    ? _collapsedSidebarStrip(tokens)
-                                    : _sessionsSidebar(width),
+                                FocusRegionMarker(
+                                  region: FocusRegion.sessions,
+                                  regionKey: _regionKeys[FocusRegion.sessions]!,
+                                  child: _sidebarCollapsed
+                                      ? _collapsedSidebarStrip(tokens)
+                                      : _sessionsSidebar(width),
+                                ),
                               Expanded(
                                 child: activeId == null
                                     ? RepaintBoundary(child: workArea())
@@ -991,6 +1073,7 @@ class _AppShellState extends ConsumerState<AppShell>
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -1065,6 +1148,16 @@ class _AppShellState extends ConsumerState<AppShell>
                       _selectCompanionPane(pane),
                 )),
     };
+    // Tab order by region (plan task 6.2). The chat pane's transcript and composer are
+    // marked inside workArea().
+    panes[WorkspacePane.repository] = _regionMarker(
+      FocusRegion.repository,
+      panes[WorkspacePane.repository]!,
+    );
+    panes[WorkspacePane.git] = _regionMarker(
+      FocusRegion.companion,
+      panes[WorkspacePane.git]!,
+    );
 
     if (width < 900) {
       final selected = visible.contains(_compactPane)
@@ -1143,6 +1236,13 @@ class _AppShellState extends ConsumerState<AppShell>
     _persistLayout();
   }
 
+  /// Marks [child] as [region] for Tab order and F6 (see [FocusRegionMarker]).
+  Widget _regionMarker(FocusRegion region, Widget child) => FocusRegionMarker(
+    region: region,
+    regionKey: _regionKeys[region]!,
+    child: child,
+  );
+
   /// Chat keeps the Agents/Workflows column as a sibling card on its right.
   Widget _paneCard(WorkspacePane pane, Widget child) {
     final sidecar = _chatSidecar;
@@ -1153,7 +1253,11 @@ class _AppShellState extends ConsumerState<AppShell>
     return AgentSidecarLayout(
       sessionId: sessionId,
       chat: _bentoPane(child),
-      sidecar: sidecar,
+      // The sidecar belongs to the chat pane for Tab order, after the transcript.
+      sidecar: FocusTraversalOrder(
+        order: NumericFocusOrder(FocusRegion.transcript.index.toDouble()),
+        child: sidecar,
+      ),
     );
   }
 
@@ -1579,7 +1683,9 @@ class _AppShellState extends ConsumerState<AppShell>
                   ),
                 ),
               if (index < panes.length - 1)
-                MouseRegion(
+                FocusTraversalOrder(
+                order: NumericFocusOrder(_dividerFocusOrder(panes[index])),
+                child: MouseRegion(
                   key: ValueKey(
                     'pane-divider-${panes[index]}-${panes[index + 1]}',
                   ),
@@ -1629,12 +1735,21 @@ class _AppShellState extends ConsumerState<AppShell>
                     ),
                   ),
                 ),
+                ),
             ],
           ],
         );
       },
     );
   }
+
+  /// Tab order of the divider after the pane [left] (plan task 6.2): it follows the
+  /// region that ends at the divider, so it sits between two panes, not after all of them.
+  double _dividerFocusOrder(WorkspacePane left) => switch (left) {
+    WorkspacePane.repository => FocusRegion.repository.index + 0.5,
+    WorkspacePane.chat => FocusRegion.composer.index + 0.5,
+    WorkspacePane.git => FocusRegion.companion.index + 0.5,
+  };
 
   /// Keyboard step on a pane divider (plan task 6.7). Same path as a drag, then saved.
   void _stepAdjacent(
