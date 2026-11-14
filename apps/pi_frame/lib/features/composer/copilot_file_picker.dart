@@ -189,18 +189,11 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       children: [
                         Text(
                           strings.copilotAddContextTitle,
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
                         ),
                         Text(
                           strings.copilotAddContextSubtitle,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 11,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ),
@@ -219,10 +212,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 autofocus: true,
-                style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                 decoration: InputDecoration(
                   hintText: strings.copilotSearchHint,
-                  hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+                  hintStyle: FrameText.of(context).body.copyWith(color: tokens.textMuted),
                   prefixIcon: Icon(Icons.search, size: 18, color: tokens.textMuted),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -251,7 +244,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 children: [
                   Text(
                     strings.copilotFilesFound(_filteredFiles.length),
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                   ),
                   Flexible(
                     child: Text(
@@ -259,11 +252,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
+                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                     ),
                   ),
                 ],
@@ -276,7 +265,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                     ? Center(
                         child: Text(
                           strings.copilotNoFilesMatch,
-                          style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                          style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
                         ),
                       )
                     : Container(
@@ -297,11 +286,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                               return Center(
                                 child: Text(
                                   strings.copilotLoadingMore(_renderedLimit, _filteredFiles.length),
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: 11,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
+                                  style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                                 ),
                               );
                             }
@@ -332,22 +317,13 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         path,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: isSelected ? tokens.accent : tokens.textPrimary,
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          fontFamily: tokens.monoFontFamily,
-                                        ),
+                                        style: FrameText.of(context).label.copyWith(color: isSelected ? tokens.accent : tokens.textPrimary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
                                       _formatBytes(file['sizeBytes']),
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11,
-                                        fontFamily: tokens.monoFontFamily,
-                                      ),
+                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                                     ),
                                     const SizedBox(width: 8),
                                     // Action buttons
@@ -362,7 +338,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         ),
                                       ),
                                       onPressed: () => _selectFile(path, CopilotFileActionType.mention),
-                                      child: Text(strings.copilotLinkAtAction, style: const TextStyle(fontSize: 11)),
+                                      child: Text(strings.copilotLinkAtAction, style: FrameText.of(context).caption),
                                     ),
                                   ],
                                 ),

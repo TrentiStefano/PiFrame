@@ -127,12 +127,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
               const SizedBox(width: 5),
               Text(
                 '/${widget.name}',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontFamily: tokens.monoFontFamily,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                ),
+                style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 6),
               Container(
@@ -143,12 +138,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                 ),
                 child: Text(
                   widget.sourceLabel,
-                  style: TextStyle(
-                    color: tokens.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.w600, letterSpacing: 0.3),
                 ),
               ),
               const SizedBox(width: 2),

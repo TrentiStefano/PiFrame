@@ -101,12 +101,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                   const SizedBox(width: 10),
                   Text(
                     strings.attAddWebLinkTitle,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: tokens.headingFontFamily,
-                    ),
+                    style: FrameText.of(context).title.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.headingFontFamily),
                   ),
                 ],
               ),
@@ -115,11 +110,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 key: const ValueKey('weblink-dialog-url-field'),
                 controller: _urlController,
                 autofocus: true,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.monoFontFamily,
-                ),
+                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
                 decoration: InputDecoration(
                   labelText: 'URL',
                   hintText: 'https://example.com/docs',
@@ -137,7 +128,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
               TextField(
                 key: const ValueKey('weblink-dialog-name-field'),
                 controller: _nameController,
-                style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                 decoration: InputDecoration(
                   labelText: strings.attTitleOptional,
                   hintText: strings.attTitleHint,
@@ -256,21 +247,13 @@ class ImagePreviewDialog extends ConsumerWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             pathOrUrl,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 11,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ],
                       ),
@@ -299,7 +282,7 @@ class ImagePreviewDialog extends ConsumerWidget {
                         child: buildAttachmentImage(
                           pathOrUrl,
                           fit: BoxFit.contain,
-                          errorBuilder: (ctx, err, stack) => _buildError(tokens, strings),
+                          errorBuilder: (ctx, err, stack) => _buildError(context, tokens, strings),
                         ),
                       ),
                     ),
@@ -313,7 +296,11 @@ class ImagePreviewDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(FrameTokens tokens, AppStrings strings) {
+  Widget _buildError(
+    BuildContext context,
+    FrameTokens tokens,
+    AppStrings strings,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -321,7 +308,7 @@ class ImagePreviewDialog extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           strings.attImageLoadError,
-          style: TextStyle(color: tokens.textSecondary, fontSize: 13),
+          style: FrameText.of(context).body.copyWith(color: tokens.textSecondary),
         ),
       ],
     );
@@ -409,12 +396,7 @@ class AttachmentChip extends ConsumerWidget {
                 attachment.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: tokens.monoFontFamily,
-                ),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500, fontFamily: tokens.monoFontFamily),
               ),
             ),
           ),
@@ -459,12 +441,7 @@ class AttachmentChip extends ConsumerWidget {
                   attachment.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.syntaxKeyword,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    decoration: isEditable ? null : TextDecoration.underline,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.syntaxKeyword, fontWeight: FontWeight.w600, decoration: isEditable ? null : TextDecoration.underline),
                 ),
               ),
             ),

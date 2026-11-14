@@ -188,11 +188,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Text(
                 strings.steerEditDialogTitle(index),
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -204,14 +200,14 @@ class _ComposerState extends ConsumerState<Composer> {
               children: [
                 Text(
                   strings.steerEditDialogDesc,
-                  style: TextStyle(color: tokens.textSecondary, fontSize: 12),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   key: const ValueKey('edit-steer-dialog-field'),
                   controller: textController,
                   maxLines: 4,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                  style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: tokens.background,
@@ -1280,20 +1276,16 @@ class _ComposerState extends ConsumerState<Composer> {
                   children: [
                     Text(
                       name,
-                      style: TextStyle(
-                        color: isCurrent ? tokens.accent : tokens.textPrimary,
-                        fontSize: 12,
-                        fontWeight: isCurrent
+                      style: FrameText.of(context).label.copyWith(color: isCurrent ? tokens.accent : tokens.textPrimary, fontWeight: isCurrent
                             ? FontWeight.bold
-                            : FontWeight.w500,
-                      ),
+                            : FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (m['provider'] != null)
                       Text(
                         m['provider'].toString(),
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                       ),
                   ],
                 ),
@@ -1362,11 +1354,7 @@ class _ComposerState extends ConsumerState<Composer> {
               Expanded(
                 child: Text(
                   ref.read(appStringsProvider).thinkingLevelLabel(lvl),
-                  style: TextStyle(
-                    color: isCurrent ? tokens.thinking : tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                  ),
+                  style: FrameText.of(context).label.copyWith(color: isCurrent ? tokens.thinking : tokens.textPrimary, fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500),
                 ),
               ),
               if (isCurrent)
@@ -1474,7 +1462,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   strings.composerAttachFromRepo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1499,7 +1487,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   strings.composerAttachExternalFile,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1520,7 +1508,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   strings.composerAttachWebLink,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1541,7 +1529,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   strings.composerAttachImage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1885,10 +1873,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                   Expanded(
                                     child: Text(
                                       strings.composerQueuedSummary(totalQueued, steeringQueue.length, followUpQueue.length),
-                                      style: TextStyle(
-                                        color: tokens.textSecondary,
-                                        fontSize: 12,
-                                      ),
+                                      style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
                                     ),
                                   ),
                                   if (steeringQueue.isNotEmpty)
@@ -1926,10 +1911,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                     ),
                                     label: Text(
                                       strings.composerClearQueueAction,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11,
-                                      ),
+                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                                     ),
                                     onPressed: () => _runAction(
                                       sessionNotifier.clearQueue,
@@ -1984,11 +1966,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                           child: Text(
                                             'STEER #${i + 1}',
-                                            style: TextStyle(
-                                              color: tokens.accent,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                            style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -1997,12 +1975,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                             steeringQueue[i],
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: 12,
-                                              fontFamily:
-                                                  tokens.monoFontFamily,
-                                            ),
+                                            style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontFamily:
+                                                  tokens.monoFontFamily),
                                           ),
                                         ),
                                         IconButton(
@@ -2074,11 +2048,7 @@ class _ComposerState extends ConsumerState<Composer> {
                               Expanded(
                                 child: Text(
                                   strings.composerWorkerCrashBanner,
-                                  style: TextStyle(
-                                    color: tokens.danger,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: FrameText.of(context).label.copyWith(color: tokens.danger, fontWeight: FontWeight.w500),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -2095,10 +2065,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                 icon: const Icon(Icons.refresh, size: 14),
                                 label: Text(
                                   strings.composerRecoverSessionAction,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 onPressed: () => _runAction(
                                   sessionNotifier.recoverSession,
@@ -2308,10 +2275,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         strings.composerUploadingAttachments(
                                           _pendingUploads,
                                         ),
-                                        style: TextStyle(
-                                          color: tokens.textSecondary,
-                                          fontSize: 11.5,
-                                        ),
+                                        style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -2413,10 +2377,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               isStreaming: isStreaming,
                                               sendWithEnter: composerSettings.sendWithEnter,
                                             ),
-                                      hintStyle: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 13.5,
-                                      ),
+                                      hintStyle: FrameText.of(context).body.copyWith(color: tokens.textMuted),
                                       filled: false,
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
@@ -2492,15 +2453,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 const SizedBox(width: 3),
                                                 Text(
                                                   strings.composerEnlargeLabel(_isInputEnlarged),
-                                                  style: TextStyle(
-                                                    color: _isInputEnlarged
+                                                  style: FrameText.of(context).caption.copyWith(color: _isInputEnlarged
                                                         ? tokens.accent
                                                         : tokens
-                                                              .textSecondary,
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.w600,
-                                                  ),
+                                                              .textSecondary, fontWeight:
+                                                        FontWeight.w600),
                                                 ),
                                               ],
                                             ),
@@ -2617,14 +2574,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                 overflow:
                                                                     TextOverflow
                                                                         .ellipsis,
-                                                                style: TextStyle(
-                                                                  color: tokens
-                                                                      .textSecondary,
-                                                                  fontSize: 11,
-                                                                  fontWeight:
+                                                                style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                      .textSecondary, fontWeight:
                                                                       FontWeight
-                                                                          .w500,
-                                                                ),
+                                                                          .w500),
                                                               ),
                                                             ),
                                                             const SizedBox(
@@ -2700,14 +2653,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                     'medium',
                                                               ),
                                                               maxLines: 1,
-                                                              style: TextStyle(
-                                                                color: tokens
-                                                                    .textSecondary,
-                                                                fontSize: 11,
-                                                                fontWeight:
+                                                              style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                    .textSecondary, fontWeight:
                                                                     FontWeight
-                                                                        .w500,
-                                                              ),
+                                                                        .w500),
                                                             ),
                                                           ],
                                                           if (!compact) ...[
@@ -2797,14 +2746,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                   effectiveContextWindow,
                                                                 ),
                                                                 maxLines: 1,
-                                                                style: TextStyle(
-                                                                  color: tokens
-                                                                      .accent,
-                                                                  fontSize: 11,
-                                                                  fontWeight:
+                                                                style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                      .accent, fontWeight:
                                                                       FontWeight
-                                                                          .w600,
-                                                                ),
+                                                                          .w600),
                                                               ),
                                                             ],
                                                             if (!compact) ...[
@@ -2915,13 +2860,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   'Steer',
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                             ],
@@ -2969,13 +2911,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   'Follow-up',
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                             ],
@@ -3066,13 +3005,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   strings.composerSendLabel,
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                               if (isSending)

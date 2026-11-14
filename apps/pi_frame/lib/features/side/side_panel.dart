@@ -122,18 +122,11 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         ),
         title: Text(
           strings.sideCloseConfirmTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: FrameText.of(context).title.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
         ),
         content: Text(
           strings.sideCloseConfirmContent,
-          style: TextStyle(
-            color: tokens.textSecondary,
-            fontSize: 13,
-          ),
+          style: FrameText.of(context).body.copyWith(color: tokens.textSecondary),
         ),
         actions: [
           TextButton(
@@ -273,12 +266,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                     const SizedBox(width: 5),
                     Text(
                       strings.sideReadOnlyBadge,
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
+                      style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
                     ),
                   ],
                 ),
@@ -300,11 +288,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                     ),
                     child: Text(
                       sideThread.model!,
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 10,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
+                      style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary, fontFamily: tokens.monoFontFamily),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -347,11 +331,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
           const SizedBox(height: 4),
           Text(
             strings.sideNotPartOfMain,
-            style: TextStyle(
-              color: tokens.textMuted,
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
-            ),
+            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
           ),
         ],
       ),
@@ -408,10 +388,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
           Expanded(
             child: Text(
               noticeText,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 12,
-              ),
+              style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
             ),
           ),
         ],
@@ -450,19 +427,12 @@ class _SidePanelState extends ConsumerState<SidePanel> {
               const SizedBox(height: 8),
               Text(
                 strings.sideConversationTitle,
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: FrameText.of(context).body.copyWith(color: tokens.textMuted, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 4),
               Text(
                 strings.sideNotPartOfMain,
-                style: TextStyle(
-                  color: tokens.textMuted.withValues(alpha: 0.7),
-                  fontSize: 11,
-                ),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted.withValues(alpha: 0.7)),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -524,10 +494,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 const SizedBox(width: 8),
                 Text(
                   strings.sideOpening,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
                 ),
               ],
             ),
@@ -549,11 +516,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         ),
         child: Text(
           entry.text,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 13,
-            height: 1.4,
-          ),
+          style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, height: 1.4),
         ),
       ),
     );
@@ -623,11 +586,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   ),
                   label: Text(
                     strings.sideInsertIntoComposer,
-                    style: TextStyle(
-                      color: tokens.accent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.w500),
                   ),
                   onPressed: () {
                     appendComposerContext(ref, widget.sessionId, entry.text);
@@ -702,16 +661,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   focusNode: _focusNode,
                   maxLines: 4,
                   minLines: 1,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                  ),
+                  style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                   decoration: InputDecoration(
                     hintText: strings.sideMiniComposerHint,
-                    hintStyle: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 12,
-                    ),
+                    hintStyle: FrameText.of(context).label.copyWith(color: tokens.textMuted),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 8,

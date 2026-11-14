@@ -571,11 +571,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isSelected ? tokens.displayText : tokens.textMuted,
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                ),
+                style: FrameText.of(context).caption.copyWith(color: isSelected ? tokens.displayText : tokens.textMuted, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400),
               ),
             ),
           ],
@@ -642,14 +638,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             tab.title.isEmpty ? strings.newBrowserTab : tab.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight:
-                                  isActive ? FontWeight.w600 : FontWeight.w400,
-                              color: isActive
+                            style: FrameText.of(context).caption.copyWith(fontWeight:
+                                  isActive ? FontWeight.w600 : FontWeight.w400, color: isActive
                                   ? tokens.textPrimary
-                                  : tokens.textMuted,
-                            ),
+                                  : tokens.textMuted),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -801,20 +793,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           key: const ValueKey('browser-omnibox-input'),
                           controller: _urlController,
                           focusNode: _urlFocusNode,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: tokens.textPrimary,
-                            fontFamily: tokens.monoFontFamily,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
                           decoration: InputDecoration(
                             isDense: true,
                             contentPadding:
                                 const EdgeInsets.symmetric(vertical: 7),
                             hintText: strings.browserOmniboxHint,
-                            hintStyle: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 11,
-                            ),
+                            hintStyle: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                             border: InputBorder.none,
                           ),
                           onSubmitted: (_) => _submitUrl(),
@@ -888,7 +873,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           const SizedBox(width: 8),
                           Text(
                             engine.label,
-                            style: const TextStyle(fontSize: 12),
+                            style: FrameText.of(context).label,
                           ),
                         ],
                       ),
@@ -1026,7 +1011,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
+              style: FrameText.of(context).label,
             ),
           ),
         ],
@@ -1079,16 +1064,12 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             const SizedBox(height: 12),
             Text(
               strings.browserLoadingInProgress,
-              style: TextStyle(color: tokens.textMuted, fontSize: 12),
+              style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
             ),
             const SizedBox(height: 4),
             Text(
               activeTab.url,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 10,
-                fontFamily: tokens.monoFontFamily,
-              ),
+              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
             ),
           ],
         ),
@@ -1113,13 +1094,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: 12),
               Text(
                 strings.unableToLoadPageTitle,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
                 describeError(activeTab.errorMessage!, strings).summary,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -1166,13 +1147,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: 12),
               Text(
                 strings.noMainTextDetectedTitle,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
                 strings.noMainTextDetectedMessage,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -1219,11 +1200,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             ),
                             child: Text(
                               content.domain,
-                              style: TextStyle(
-                                color: tokens.accent,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1232,11 +1209,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                               content.url,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: 10,
-                                fontFamily: tokens.monoFontFamily,
-                              ),
+                              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                             ),
                           ),
                         ],
@@ -1244,20 +1217,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       const SizedBox(height: 6),
                       Text(
                         content.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: FrameText.of(context).title.copyWith(fontWeight: FontWeight.bold),
                       ),
                       if (content.description != null &&
                           content.description!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           content.description!,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 11.5,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ],
@@ -1282,11 +1249,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           if (content.isSearch) ...[
             Text(
               strings.browserSearchResultsCount(content.searchResults.length),
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             for (int i = 0; i < content.searchResults.length; i++)
@@ -1303,11 +1266,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   padding: const EdgeInsets.only(top: 12, bottom: 4),
                   child: Text(
                     heading,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: tokens.textPrimary,
-                    ),
+                    style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold, color: tokens.textPrimary),
                   ),
                 ),
             ],
@@ -1318,33 +1277,21 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     p,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.5,
-                      color: tokens.textPrimary,
-                    ),
+                    style: FrameText.of(context).label.copyWith(height: 1.5, color: tokens.textPrimary),
                   ),
                 ),
             ] else if (content.rawText.isNotEmpty) ...[
               const SizedBox(height: 8),
               SelectableText(
                 content.rawText,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: tokens.textPrimary,
-                ),
+                style: FrameText.of(context).label.copyWith(height: 1.5, color: tokens.textPrimary),
               ),
             ],
             if (content.codeSnippets.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 strings.browserExtractedCodeCount(content.codeSnippets.length),
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               for (final code in content.codeSnippets)
@@ -1362,11 +1309,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       Expanded(
                         child: SelectableText(
                           code,
-                          style: TextStyle(
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: 11,
-                            color: tokens.textPrimary,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(fontFamily: tokens.monoFontFamily, color: tokens.textPrimary),
                         ),
                       ),
                       IconButton(
@@ -1392,11 +1335,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: 16),
               Text(
                 strings.browserPageLinksCount(content.links.length),
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -1414,10 +1353,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         link.text,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: tokens.accent,
-                        ),
+                        style: FrameText.of(context).caption.copyWith(color: tokens.accent),
                       ),
                       onPressed: () => _navigateTo(link.url),
                     ),
@@ -1456,11 +1392,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 ),
                 child: Text(
                   result.domain,
-                  style: TextStyle(
-                    color: tokens.accent,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1469,11 +1401,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   result.url,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 10,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                 ),
               ),
             ],
@@ -1484,18 +1412,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             onTap: () => _navigateTo(result.url),
             child: Text(
               result.title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: tokens.accent,
-              ),
+              style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold, color: tokens.accent),
             ),
           ),
           if (result.snippet.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               result.snippet,
-              style: TextStyle(fontSize: 11.5, color: tokens.textPrimary),
+              style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary),
             ),
           ],
         ],
@@ -1520,15 +1444,15 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: 20),
               Icon(Icons.travel_explore, size: 48, color: tokens.accent),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'PiFrame Web Browser',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: FrameText.of(context).heading.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
                 strings.browserHomeSubtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: 24),
 
@@ -1563,11 +1487,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   strings.quickBookmarksHeader,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: tokens.textMuted,
-                  ),
+                  style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold, color: tokens.textMuted),
                 ),
               ),
               const SizedBox(height: 8),
@@ -1596,7 +1516,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         size: 14,
                         color: tokens.accent,
                       ),
-                      label: Text(bm.title, style: const TextStyle(fontSize: 11)),
+                      label: Text(bm.title, style: FrameText.of(context).caption),
                     ),
                 ],
               ),
@@ -1607,11 +1527,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     strings.recentSearchesHeader,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: tokens.textMuted,
-                    ),
+                    style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold, color: tokens.textMuted),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1625,7 +1541,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         backgroundColor: tokens.surfaceElevated,
                         side: BorderSide(color: tokens.border, width: 0.5),
                         avatar: Icon(Icons.history, size: 12, color: tokens.textMuted),
-                        label: Text(query, style: const TextStyle(fontSize: 11)),
+                        label: Text(query, style: FrameText.of(context).caption),
                         onPressed: () => _navigateTo(query),
                       ),
                   ],

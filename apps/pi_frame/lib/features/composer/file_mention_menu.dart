@@ -92,20 +92,12 @@ class FileMentionMenu extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     appStrings.mentionLinkFileHeader,
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
                   ),
                   const Spacer(),
                   Text(
                     appStrings.mentionTabEnterComplete,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 11,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
+                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                   ),
                 ],
               ),
@@ -148,12 +140,7 @@ class FileMentionMenu extends StatelessWidget {
                               children: [
                                 Text(
                                   fileName,
-                                  style: TextStyle(
-                                    color: isSelected ? tokens.accent : tokens.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
+                                  style: FrameText.of(context).label.copyWith(color: isSelected ? tokens.accent : tokens.textPrimary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
                                 ),
                                 if (parentDir.isNotEmpty) ...[
                                   const SizedBox(width: 6),
@@ -162,10 +149,7 @@ class FileMentionMenu extends StatelessWidget {
                                       parentDir,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11,
-                                      ),
+                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                                     ),
                                   ),
                                 ],
@@ -175,11 +159,7 @@ class FileMentionMenu extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             _formatBytes(file['sizeBytes']),
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 11,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ],
                       ),

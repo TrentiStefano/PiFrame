@@ -131,22 +131,14 @@ class SlashMenu extends StatelessWidget {
                         ),
                         child: Text(
                           '/$name${argumentHint.isEmpty ? '' : ' $argumentHint'}',
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: 12,
-                          ),
+                          style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.monoFontFamily),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           desc,
-                          style: TextStyle(
-                            color: tokens.textSecondary,
-                            fontSize: 12,
-                          ),
+                          style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -154,11 +146,7 @@ class SlashMenu extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         sourceLabel(source),
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),
