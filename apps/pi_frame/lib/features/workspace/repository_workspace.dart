@@ -201,7 +201,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             const SizedBox(height: 8),
             Text(
               strings.loadingFiles,
-              style: TextStyle(color: tokens.textMuted, fontSize: 11),
+              style: FrameText.of(context).caption.copyWith(
+                color: tokens.textMuted,
+              ),
             ),
           ],
         ),
@@ -649,7 +651,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               padding: const EdgeInsets.all(8),
               child: Text(
                 strings.fileListLimitedNotice,
-                style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                style: FrameText.of(context).caption.copyWith(
+                  color: tokens.textMuted,
+                ),
               ),
             ),
         ],
@@ -676,9 +680,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             const SizedBox(width: 6),
             Text(
               strings.terminalBadge,
-              style: TextStyle(
+              style: FrameText.of(context).caption.copyWith(
                 color: tokens.displayText,
-                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
