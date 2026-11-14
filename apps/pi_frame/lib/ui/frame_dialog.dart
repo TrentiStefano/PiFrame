@@ -16,6 +16,9 @@ class FrameDialogAction<T> {
   final T? value;
   final VoidCallback? onPressed;
 
+  /// When false the button is shown disabled and does nothing when tapped.
+  final bool enabled;
+
   /// Defaults to `ValueKey('frame-dialog-<role>')` when omitted.
   final ValueKey<String>? key;
 
@@ -24,6 +27,7 @@ class FrameDialogAction<T> {
     required this.role,
     this.value,
     this.onPressed,
+    this.enabled = true,
     this.key,
   });
 }
@@ -154,18 +158,20 @@ class FrameDialog<T> extends StatelessWidget {
       Navigator.of(context).pop(action.value);
     }
 
+    final onPressed = action.enabled ? press : null;
+
     switch (action.role) {
       case FrameDialogActionRole.cancel:
         return TextButton(
           key: key,
           autofocus: autofocus,
-          onPressed: press,
+          onPressed: onPressed,
           child: Text(action.label),
         );
       case FrameDialogActionRole.primary:
         return FilledButton(
           key: key,
-          onPressed: press,
+          onPressed: onPressed,
           child: Text(action.label),
         );
       case FrameDialogActionRole.destructive:
@@ -175,7 +181,7 @@ class FrameDialog<T> extends StatelessWidget {
             backgroundColor: tokens.danger,
             foregroundColor: tokens.surface,
           ),
-          onPressed: press,
+          onPressed: onPressed,
           child: Text(action.label),
         );
     }
@@ -193,6 +199,19 @@ Future<T?> showFrameDialog<T>({
   required BuildContext context,
   required FrameDialog<T> dialog,
   bool instant = false,
+}) => showFrameDialogBuilder<T>(
+  context: context,
+  builder: (_) => dialog,
+  instant: instant,
+);
+
+/// Like [showFrameDialog], for a dialog whose content is stateful: [builder]
+/// builds the [FrameDialog] inside the route, so its own `setState` can change
+/// the body and the actions (for example to disable the confirm button).
+Future<T?> showFrameDialogBuilder<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool instant = false,
 }) {
   final reduced = FrameMotion.reduced(context);
   final tokens = context.tokens;
@@ -209,7 +228,8 @@ Future<T?> showFrameDialog<T>({
       barrierColor: tokens.overlay,
       transitionDuration: enterDuration,
       reverseDuration: exitDuration,
-      pageBuilder: (routeContext, animation, secondaryAnimation) => dialog,
+      pageBuilder: (routeContext, animation, secondaryAnimation) =>
+          builder(routeContext),
       transitionBuilder: (routeContext, animation, secondaryAnimation, child) {
         if (instant) return child;
         final curved = CurvedAnimation(

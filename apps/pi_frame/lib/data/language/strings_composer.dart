@@ -585,6 +585,25 @@ extension ComposerStrings on AppStrings {
   String get sessionTreeDialogTitle =>
       isItalian ? 'Albero della sessione' : 'Session Tree';
 
+  String get sessionTreeIdLabel => isItalian ? 'ID sessione' : 'Session ID';
+
+  String get sessionTreeCopyIdTooltip => isItalian ? 'Copia ID sessione' : 'Copy session ID';
+
+  String get sessionTreeEmptyAction => isItalian ? 'Ricarica' : 'Reload';
+
+  String get sessionTreeLoadFailed =>
+      isItalian ? 'Impossibile caricare l\'albero' : 'Could not load the tree';
+
+  // --- Context drawer headings ---
+  String contextDrawerHeading(String title) =>
+      isItalian ? 'Sessione · $title' : 'Session · $title';
+
+  String get contextModelSection => isItalian ? 'Modello' : 'Model';
+
+  String get contextContextSection => isItalian ? 'Contesto' : 'Context';
+
+  String get contextBranchesSection => isItalian ? 'Rami' : 'Branches';
+
   String sessionTreeSessionLabel(String id) =>
       isItalian ? 'Sessione: $id' : 'Session: $id';
 

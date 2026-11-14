@@ -42,6 +42,9 @@ abstract final class FrameMotion {
   /// Cross-fade used in place of movement under reduced motion (≤150ms).
   static const crossFade = FrameMotionTokens.crossFade;
 
+  /// Wait after the last keystroke before a field re-validates.
+  static const debounce = FrameMotionTokens.debounce;
+
   /// Ease-out with a fast start: most UI changes.
   static const enterCurve = FrameMotionTokens.enterCurve;
 

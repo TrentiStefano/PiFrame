@@ -338,6 +338,8 @@ void main() {
       await tester.pumpAndSettle();
       // The shell draws no heading of its own above the drawer (task 5.4 follow-up).
       expect(find.text('Area di lavoro'), findsNothing);
+      // The drawer has its own "Sessione · <session title>" heading.
+      expect(find.textContaining('Sessione · '), findsOneWidget);
       // The title bar button is labelled "Sessione" too, so check the drawer state.
       expect(
         tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
@@ -410,7 +412,7 @@ void main() {
       container.read(showSettingsProvider.notifier).state = false;
       container.read(activeSessionIdProvider.notifier).state = null;
       await tester.pumpAndSettle();
-      expect(find.text('Nuova\nsessione.'), findsOneWidget);
+      expect(find.text('Riprendi il lavoro'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-empty');
       await tester.pumpWidget(const SizedBox());

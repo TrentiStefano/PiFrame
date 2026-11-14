@@ -11,6 +11,10 @@ import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'context_window_selector.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
+
+/// Width of the context drawer. No layout token covers it yet.
+const double _drawerWidth = 320;
 
 class ContextPanel extends ConsumerStatefulWidget {
   final String sessionId;
@@ -166,6 +170,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       final usage = res['usage'] as Map?;
       final cost = usage?['cost'] is Map ? '\$${usage!['cost']['total']}' : '';
 
+      await _closeDrawer();
+      if (!mounted) return;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -224,10 +230,57 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     }
   }
 
+  /// Closes the drawer this panel is shown in, if it is open, and waits for its
+  /// exit so a dialog launched from the panel does not stack on top of it.
+  Future<void> _closeDrawer() async {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold == null || !scaffold.isEndDrawerOpen) return;
+    scaffold.closeEndDrawer();
+    await Future<void>.delayed(FrameMotion.panelExit);
+  }
+
+  Future<void> _openTree() async {
+    await _closeDrawer();
+    if (!mounted) return;
+    await SessionTreeDialog.show(context, sessionId: widget.sessionId);
+  }
+
+  Widget _section(BuildContext context, String title, List<Widget> children) {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          style: text.label.copyWith(color: tokens.textSecondary),
+        ),
+        const SizedBox(height: FrameSpace.x2),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _fieldBox(BuildContext context, Widget child) {
+    final tokens = context.tokens;
+    return Container(
+      constraints: const BoxConstraints(minHeight: FrameSize.rowForm),
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(color: tokens.border),
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
+    final title = ref.watch(sessionDisplayNameProvider(widget.sessionId));
     final currentModel = ref.watch(
       sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
     );
@@ -300,387 +353,318 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final effectivePercent = effectiveWindow > 0 && totalTokens != null
         ? (totalTokens / effectiveWindow * 100.0)
         : percent;
+    final sessionLocked = readOnly || sessionBusy || policySaving;
+
+    final modelSection = _section(context, strings.contextModelSection, [
+      _isLoadingParams
+          ? SizedBox(
+              height: FrameSize.rowForm,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: tokens.accent,
+                ),
+              ),
+            )
+          : _models.isEmpty
+          ? Text(
+              currentModel == null
+                  ? strings.noModelEnabled
+                  : strings.modelListNotAvailable(currentModel),
+              style: text.caption.copyWith(color: tokens.textMuted),
+            )
+          : _fieldBox(
+              context,
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  borderRadius: BorderRadius.circular(tokens.radiusMd),
+                  dropdownColor: tokens.surfaceElevated,
+                  key: const ValueKey('context-model-dropdown'),
+                  value: _modelDropdownValue(
+                    currentModel,
+                    currentModelProvider,
+                    currentModelId,
+                  ),
+                  style: text.body.copyWith(color: tokens.textPrimary),
+                  items: _models.map((model) {
+                    final name =
+                        model['name'] as String? ?? model['id'] as String;
+                    final provider = model['provider']?.toString();
+                    final duplicateName = _models.where(
+                      (other) =>
+                          (other['name'] ?? other['id']) == name,
+                    ).length > 1;
+                    return DropdownMenuItem<String>(
+                      value: _modelOptionValue(model),
+                      child: Text(
+                        duplicateName && provider != null
+                            ? '$name · $provider'
+                            : name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: sessionLocked
+                      ? null
+                      : (newModel) {
+                          if (newModel != null) {
+                            final modelObj = _models.firstWhere(
+                              (model) =>
+                                  _modelOptionValue(model) == newModel,
+                              orElse: () => const <String, dynamic>{},
+                            );
+                            if (modelObj.isEmpty) return;
+                            final provider =
+                                modelObj['provider']?.toString() ?? '';
+                            final modelId =
+                                modelObj['id']?.toString() ?? newModel;
+                            _runAction(
+                              () => sessionNotifier.setModel(
+                                provider,
+                                modelId,
+                              ),
+                            );
+                          }
+                        },
+                ),
+              ),
+            ),
+      const SizedBox(height: FrameSpace.x4),
+      Text(
+        strings.thinkingLevelHeader,
+        style: text.caption.copyWith(color: tokens.textSecondary),
+      ),
+      const SizedBox(height: FrameSpace.x1),
+      _fieldBox(
+        context,
+        DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            isExpanded: true,
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            dropdownColor: tokens.surfaceElevated,
+            value: _thinkingLevels.contains(currentThinking)
+                ? currentThinking
+                : (_thinkingLevels.isNotEmpty
+                      ? _thinkingLevels.first
+                      : 'off'),
+            style: text.body.copyWith(color: tokens.textPrimary),
+            items: _thinkingLevels.map((lvl) {
+              return DropdownMenuItem<String>(
+                value: lvl,
+                child: Text(ref.read(appStringsProvider).thinkingLevelLabel(lvl)),
+              );
+            }).toList(),
+            onChanged: sessionLocked
+                ? null
+                : (newLevel) {
+                    if (newLevel != null) {
+                      _runAction(
+                        () => sessionNotifier.setThinkingLevel(newLevel),
+                      );
+                    }
+                  },
+          ),
+        ),
+      ),
+    ]);
+
+    final contextSection = _section(context, strings.contextContextSection, [
+      Text(
+        strings.contextSizeHeader,
+        style: text.caption.copyWith(color: tokens.textSecondary),
+      ),
+      const SizedBox(height: FrameSpace.x1),
+      ContextWindowSelector(
+        sessionId: widget.sessionId,
+        model: activeModelMap,
+        readOnly: readOnly,
+      ),
+      const SizedBox(height: FrameSpace.x3),
+      Text(
+        strings.compactionMarginHeader,
+        style: text.caption.copyWith(color: tokens.textSecondary),
+      ),
+      Slider(
+        key: const ValueKey('context-panel-compaction-reserve-slider'),
+        activeColor: tokens.accent,
+        thumbColor: tokens.accent,
+        inactiveColor: tokens.border,
+        min: 0.5,
+        max: 25,
+        divisions: 49,
+        value: reserveValue,
+        label: '${reserveValue.toStringAsFixed(1)}%',
+        semanticFormatterCallback: (value) => '${value.toStringAsFixed(1)}%',
+        onChanged: readOnly || sessionBusy || _savingReserve || policySaving
+            ? null
+            : (value) => setState(() => _reserveDraft = value),
+        onChangeEnd: readOnly || sessionBusy || _savingReserve || policySaving
+            ? null
+            : _saveReserve,
+      ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            strings.compactionMarginStep,
+            style: text.caption.copyWith(color: tokens.textMuted),
+          ),
+          Text(
+            '${reserveValue.toStringAsFixed(1)}%',
+            style: text.caption.copyWith(color: tokens.textMuted),
+          ),
+        ],
+      ),
+      if (reservePercent < 0.5 || reservePercent > 25)
+        Text(
+          strings.compactionMarginOutOfRange(reservePercent.toStringAsFixed(1)),
+          style: text.caption.copyWith(color: tokens.warning),
+        ),
+      const SizedBox(height: FrameSpace.x1),
+      Text(
+        !autoCompaction
+            ? strings.autoCompactionDisabled
+            : effectiveWindow > 0
+                ? strings.compactionThresholdInfo(formatTokens(compactionThreshold.floor()), reservePercent.toStringAsFixed(1))
+                : strings.compactionMarginUnused,
+        style: text.caption.copyWith(color: tokens.textMuted),
+      ),
+      const SizedBox(height: FrameSpace.x3),
+      Text(
+        strings.contextUsageHeader,
+        style: text.caption.copyWith(color: tokens.textSecondary),
+      ),
+      const SizedBox(height: FrameSpace.x2),
+      if (effectivePercent != null)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          child: LinearProgressIndicator(
+            value: (effectivePercent / 100.0).clamp(0.0, 1.0),
+            backgroundColor: tokens.background,
+            valueColor: AlwaysStoppedAnimation<Color>(
+              effectivePercent > 80
+                  ? tokens.danger
+                  : (effectivePercent > 60
+                        ? tokens.warning
+                        : tokens.success),
+            ),
+            minHeight: FrameSpace.x2,
+          ),
+        ),
+      const SizedBox(height: FrameSpace.x1),
+      // With a percentage shown, the token count is only added when known,
+      // so the text never says data is missing next to a value.
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (totalTokens != null)
+            Text(
+              strings.contextTokensUsage(totalTokens, formatTokens(effectiveWindow)),
+              style: text.caption.copyWith(color: tokens.textMuted),
+            )
+          else if (effectivePercent == null)
+            Text(
+              strings.dataNotAvailable,
+              style: text.caption.copyWith(color: tokens.textMuted),
+            )
+          else
+            const SizedBox.shrink(),
+          if (effectivePercent != null)
+            Text(
+              '${effectivePercent.toStringAsFixed(1)} %',
+              style: text.caption.copyWith(
+                color: tokens.textMuted,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: FrameSpace.x3),
+      // The one primary action of this section.
+      FilledButton.icon(
+        key: const ValueKey('context-compact-action'),
+        style: FilledButton.styleFrom(
+          backgroundColor: tokens.accent,
+          foregroundColor: tokens.surface,
+        ),
+        icon: _isCompacting
+            ? SizedBox(
+                width: FrameSize.icon,
+                height: FrameSize.icon,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: tokens.surface,
+                ),
+              )
+            : const Icon(Icons.compress, size: FrameSize.icon),
+        label: Text(
+          _isCompacting ? strings.compactingLabel : strings.compactContextAction,
+        ),
+        onPressed: _isCompacting || readOnly ? null : _triggerCompaction,
+      ),
+    ]);
+
+    final branchesSection = _section(context, strings.contextBranchesSection, [
+      OutlinedButton.icon(
+        key: const ValueKey('context-duplicate-action'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: tokens.textSecondary,
+          side: BorderSide(color: tokens.border),
+        ),
+        icon: Icon(Icons.content_copy, size: FrameSize.icon, color: tokens.textSecondary),
+        label: Text(strings.duplicateBranchAction),
+        onPressed: _cloneSession,
+      ),
+      const SizedBox(height: FrameSpace.x2),
+      OutlinedButton.icon(
+        key: const ValueKey('context-tree-action'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: tokens.textSecondary,
+          side: BorderSide(color: tokens.border),
+        ),
+        icon: Icon(Icons.account_tree_outlined, size: FrameSize.icon, color: tokens.textSecondary),
+        label: Text(strings.branchTreeAction),
+        onPressed: _openTree,
+      ),
+    ]);
 
     return Container(
-      width: 320,
+      width: _drawerWidth,
       decoration: BoxDecoration(color: tokens.surface),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // The single heading of the panel: the session title.
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x4,
+              vertical: FrameSpace.x3,
+            ),
             decoration: BoxDecoration(
               color: tokens.displaySurface,
               border: Border(bottom: BorderSide(color: tokens.border)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    strings.sessionHeader,
-                    style: TextStyle(
-                      color: tokens.displayText,
-                      fontSize: 24,
-                      height: 1,
-                      fontFamily: tokens.headingFontFamily,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
+            child: Semantics(
+              header: true,
+              child: Text(
+                strings.contextDrawerHeading(title),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: text.heading.copyWith(color: tokens.displayText),
+              ),
             ),
           ),
-
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(FrameSpace.x4),
               children: [
-                // Session settings; repository and Git status live in Git Changes.
-                // 1. Modello Attivo
-                Text(
-                  strings.modelHeader,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _isLoadingParams
-                    ? SizedBox(
-                        height: 36,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: tokens.accent,
-                          ),
-                        ),
-                      )
-                    : _models.isEmpty
-                    ? Text(
-                        currentModel == null
-                            ? strings.noModelEnabled
-                            : strings.modelListNotAvailable(currentModel),
-                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceElevated,
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: tokens.border, width: 1),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusMd,
-                            ),
-                            dropdownColor: tokens.surfaceElevated,
-                            key: const ValueKey('context-model-dropdown'),
-                            value: _modelDropdownValue(
-                              currentModel,
-                              currentModelProvider,
-                              currentModelId,
-                            ),
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 13,
-                              fontFamily: tokens.uiFontFamily,
-                            ),
-                            items: _models.map((model) {
-                              final name =
-                                  model['name'] as String? ?? model['id'] as String;
-                              final provider = model['provider']?.toString();
-                              final duplicateName = _models.where(
-                                (other) =>
-                                    (other['name'] ?? other['id']) == name,
-                              ).length > 1;
-                              return DropdownMenuItem<String>(
-                                value: _modelOptionValue(model),
-                                child: Text(
-                                  duplicateName && provider != null
-                                      ? '$name · $provider'
-                                      : name,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: readOnly || sessionBusy || policySaving
-                                ? null
-                                : (newModel) {
-                                    if (newModel != null) {
-                                      final modelObj = _models.firstWhere(
-                                        (model) =>
-                                            _modelOptionValue(model) == newModel,
-                                        orElse: () => const <String, dynamic>{},
-                                      );
-                                      if (modelObj.isEmpty) return;
-                                      final provider =
-                                          modelObj['provider']?.toString() ??
-                                          '';
-                                      final modelId =
-                                          modelObj['id']?.toString() ??
-                                          newModel;
-                                      _runAction(
-                                        () => sessionNotifier.setModel(
-                                          provider,
-                                          modelId,
-                                        ),
-                                      );
-                                    }
-                                  },
-                          ),
-                        ),
-                      ),
-                const SizedBox(height: 16),
-
-                // 2. Livello Reasoning / Thinking
-                Text(
-                  strings.thinkingLevelHeader,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: tokens.surfaceElevated,
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    border: Border.all(color: tokens.border, width: 1),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      dropdownColor: tokens.surfaceElevated,
-                      value: _thinkingLevels.contains(currentThinking)
-                          ? currentThinking
-                          : (_thinkingLevels.isNotEmpty
-                                ? _thinkingLevels.first
-                                : 'off'),
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 13,
-                        fontFamily: tokens.uiFontFamily,
-                      ),
-                      items: _thinkingLevels.map((lvl) {
-                        return DropdownMenuItem<String>(
-                          value: lvl,
-                          child: Text(ref.read(appStringsProvider).thinkingLevelLabel(lvl)),
-                        );
-                      }).toList(),
-                      onChanged: readOnly || sessionBusy || policySaving
-                          ? null
-                          : (newLevel) {
-                              if (newLevel != null) {
-                                _runAction(
-                                  () => sessionNotifier.setThinkingLevel(
-                                    newLevel,
-                                  ),
-                                );
-                              }
-                            },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                Text(
-                  strings.contextSizeHeader,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                ContextWindowSelector(
-                  sessionId: widget.sessionId,
-                  model: activeModelMap,
-                  readOnly: readOnly,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  strings.compactionMarginHeader,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Slider(
-                  key: const ValueKey('context-panel-compaction-reserve-slider'),
-                  activeColor: tokens.accent,
-                  thumbColor: tokens.accent,
-                  inactiveColor: tokens.border,
-                  min: 0.5,
-                  max: 25,
-                  divisions: 49,
-                  value: reserveValue,
-                  label: '${reserveValue.toStringAsFixed(1)}%',
-                  semanticFormatterCallback: (value) => '${value.toStringAsFixed(1)}%',
-                  onChanged: readOnly || sessionBusy || _savingReserve || policySaving
-                      ? null
-                      : (value) => setState(() => _reserveDraft = value),
-                  onChangeEnd: readOnly || sessionBusy || _savingReserve || policySaving
-                      ? null
-                      : _saveReserve,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(strings.compactionMarginStep, style: TextStyle(color: tokens.textMuted, fontSize: 10)),
-                    Text('${reserveValue.toStringAsFixed(1)}%',
-                      style: TextStyle(color: tokens.textMuted, fontSize: 11)),
-                  ],
-                ),
-                if (reservePercent < 0.5 || reservePercent > 25)
-                  Text(strings.compactionMarginOutOfRange(reservePercent.toStringAsFixed(1)),
-                    style: TextStyle(color: tokens.warning, fontSize: 10)),
-                const SizedBox(height: 4),
-                Text(
-                  !autoCompaction
-                      ? strings.autoCompactionDisabled
-                      : effectiveWindow > 0
-                          ? strings.compactionThresholdInfo(formatTokens(compactionThreshold.floor()), reservePercent.toStringAsFixed(1))
-                          : strings.compactionMarginUnused,
-                  style: TextStyle(color: tokens.textMuted, fontSize: 10),
-                ),
-                const SizedBox(height: 16),
-
-                // 4. Finestra di Contesto
-                Text(
-                  strings.contextUsageHeader,
-                  style: TextStyle(
-                    color: tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (effectivePercent != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: LinearProgressIndicator(
-                      value: (effectivePercent / 100.0).clamp(0.0, 1.0),
-                      backgroundColor: tokens.background,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        effectivePercent > 80
-                            ? tokens.danger
-                            : (effectivePercent > 60
-                                  ? tokens.warning
-                                  : tokens.success),
-                      ),
-                      minHeight: 8,
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      totalTokens == null
-                          ? strings.dataNotAvailable
-                          : strings.contextTokensUsage(totalTokens, formatTokens(effectiveWindow)),
-                      style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                    ),
-                    if (effectivePercent != null)
-                      Text(
-                        '${effectivePercent.toStringAsFixed(1)} %',
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // 5. Actions (Compaction, Duplicate Branch)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: tokens.surfaceElevated,
-                    foregroundColor: tokens.textPrimary,
-                    side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                  ),
-                  icon: _isCompacting
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: tokens.accent,
-                          ),
-                        )
-                      : Icon(Icons.compress, size: 16, color: tokens.accent),
-                  label: Text(
-                    _isCompacting ? strings.compactingLabel : strings.compactContextAction,
-                  ),
-                  onPressed: _isCompacting || readOnly
-                      ? null
-                      : _triggerCompaction,
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: tokens.textSecondary,
-                    side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.content_copy,
-                    size: 15,
-                    color: tokens.textSecondary,
-                  ),
-                  label: Text(strings.duplicateBranchAction),
-                  onPressed: _cloneSession,
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: tokens.textSecondary,
-                    side: BorderSide(color: tokens.border),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.account_tree_outlined,
-                    size: 15,
-                    color: tokens.textSecondary,
-                  ),
-                  label: Text(strings.branchTreeAction),
-                  onPressed: () => SessionTreeDialog.show(
-                    context,
-                    sessionId: widget.sessionId,
-                  ),
-                ),
+                modelSection,
+                const SizedBox(height: FrameSpace.x6),
+                contextSection,
+                const SizedBox(height: FrameSpace.x6),
+                branchesSection,
               ],
             ),
           ),

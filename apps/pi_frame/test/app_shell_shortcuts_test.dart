@@ -97,7 +97,8 @@ void main() {
 
     await press(tester, LogicalKeyboardKey.keyN);
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    // The chooser is the new-session FrameDialog (a Dialog), not an AlertDialog.
+    expect(find.byType(Dialog), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -112,7 +113,7 @@ void main() {
       modifier: LogicalKeyboardKey.metaLeft,
     );
 
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(Dialog), findsOneWidget);
   });
 
   testWidgets('Ctrl+, opens settings', (tester) async {

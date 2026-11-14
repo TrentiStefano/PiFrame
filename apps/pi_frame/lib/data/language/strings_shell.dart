@@ -3,6 +3,13 @@ import '../../domain/session/agent_status.dart';
 import 'language_settings.dart';
 
 extension ShellStrings on AppStrings {
+  // Sessions rail: provisional titles and relative times
+  String get sessionUntitledTitle => isItalian ? 'Nuova sessione' : 'New session';
+  String get relativeJustNow => isItalian ? 'ora' : 'now';
+  String relativeMinutesAgo(int n) => isItalian ? '$n min fa' : '$n min ago';
+  String relativeHoursAgo(int n) => isItalian ? '$n h fa' : '$n h ago';
+  String relativeDaysAgo(int n) => isItalian ? '$n g fa' : '$n d ago';
+
   // Desktop Chrome Caption Buttons
   String get captionMinimize => isItalian ? 'Riduci a icona' : 'Minimize';
   String get captionRestore => isItalian ? 'Ripristina finestra' : 'Restore window';
@@ -55,8 +62,8 @@ extension ShellStrings on AppStrings {
   String get recentSessionsHeader =>
       isItalian ? 'Sessioni recenti' : 'Recent sessions';
   String get noFolderDisplay => isItalian ? 'Nessuna cartella' : 'No folder';
-  String get newSessionHeroTitle =>
-      isItalian ? 'Nuova\nsessione.' : 'New\nsession.';
+  String get welcomeTitle =>
+      isItalian ? 'Riprendi il lavoro' : 'Resume your work';
   String get welcomeDescription => isItalian
       ? 'Scegli una conversazione o inizia a lavorare con Pi. Il lavoro continua anche quando chiudi la finestra.'
       : 'Choose a conversation or start working with Pi. Work continues even when you close the window.';
@@ -64,8 +71,6 @@ extension ShellStrings on AppStrings {
   String get newSessionAction => isItalian ? 'Nuova sessione' : 'New session';
   String get browseSessionsAction =>
       isItalian ? 'Esplora sessioni' : 'Browse sessions';
-  String get searchCommandsAction =>
-      isItalian ? 'Cerca nei comandi' : 'Search commands';
   String get commandsShortcutHint =>
       isItalian ? 'Ctrl / Cmd + K · Comandi' : 'Ctrl / Cmd + K · Commands';
 
@@ -137,6 +142,19 @@ extension ShellStrings on AppStrings {
       : 'In the browser, enter a local path reachable by the daemon.';
   String get chooseFolderAction =>
       isItalian ? 'Scegli cartella' : 'Choose folder';
+  String get folderPathPlaceholder =>
+      isItalian ? 'Percorso della cartella…' : 'Folder path…';
+  String get folderNotFoundNotice =>
+      isItalian ? 'Cartella non trovata' : 'Folder not found';
+  String get folderFoundNotice =>
+      isItalian ? 'Cartella trovata' : 'Folder found';
+  String gitRepoDetectedNotice(String branch) => isItalian
+      ? 'Repository Git rilevato · $branch'
+      : 'Git repository detected · $branch';
+  String get gitRepoDetectedPlainNotice =>
+      isItalian ? 'Repository Git rilevato' : 'Git repository detected';
+  String get recentFoldersHeader =>
+      isItalian ? 'Cartelle recenti' : 'Recent folders';
   String get createAction => isItalian ? 'Crea' : 'Create';
   String creationFailedNotice(Object e) =>
       isItalian ? failureText(this, 'Creazione non riuscita', e) : failureText(this, 'Creation failed', e);

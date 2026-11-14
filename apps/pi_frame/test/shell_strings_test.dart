@@ -45,7 +45,7 @@ void main() {
       expect(strings.sessionsRailHeader, 'SESSIONI');
       expect(strings.recentSessionsHeader, 'Sessioni recenti');
       expect(strings.noFolderDisplay, 'Nessuna cartella');
-      expect(strings.newSessionHeroTitle, 'Nuova\nsessione.');
+      expect(strings.welcomeTitle, 'Riprendi il lavoro');
       expect(
         strings.welcomeDescription,
         'Scegli una conversazione o inizia a lavorare con Pi. Il lavoro continua anche quando chiudi la finestra.',
@@ -53,7 +53,8 @@ void main() {
       expect(strings.creatingSession, 'Creazione...');
       expect(strings.newSessionAction, 'Nuova sessione');
       expect(strings.browseSessionsAction, 'Esplora sessioni');
-      expect(strings.searchCommandsAction, 'Cerca nei comandi');
+      expect(strings.folderNotFoundNotice, 'Cartella non trovata');
+      expect(strings.gitRepoDetectedNotice('main'), 'Repository Git rilevato · main');
       expect(strings.commandsShortcutHint, 'Ctrl / Cmd + K · Comandi');
 
       // Sessions Sidebar
@@ -230,7 +231,7 @@ void main() {
       expect(strings.sessionsRailHeader, 'SESSIONS');
       expect(strings.recentSessionsHeader, 'Recent sessions');
       expect(strings.noFolderDisplay, 'No folder');
-      expect(strings.newSessionHeroTitle, 'New\nsession.');
+      expect(strings.welcomeTitle, 'Resume your work');
       expect(
         strings.welcomeDescription,
         'Choose a conversation or start working with Pi. Work continues even when you close the window.',
@@ -238,7 +239,8 @@ void main() {
       expect(strings.creatingSession, 'Creating...');
       expect(strings.newSessionAction, 'New session');
       expect(strings.browseSessionsAction, 'Browse sessions');
-      expect(strings.searchCommandsAction, 'Search commands');
+      expect(strings.folderNotFoundNotice, 'Folder not found');
+      expect(strings.gitRepoDetectedNotice('main'), 'Git repository detected · main');
       expect(strings.commandsShortcutHint, 'Ctrl / Cmd + K · Commands');
 
       // Sessions Sidebar

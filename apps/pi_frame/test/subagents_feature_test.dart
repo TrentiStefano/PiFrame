@@ -103,10 +103,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Folder 'app' exists. Tap to expand it and reveal sessions.
+      // Folder 'app' exists and, holding the active session, is expanded by default.
       expect(find.text('app'), findsOneWidget);
-      await tester.tap(find.text('app'));
-      await tester.pumpAndSettle();
 
       // Main session should appear in the pane
       expect(find.text('Main User Session'), findsOneWidget);

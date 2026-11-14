@@ -81,6 +81,21 @@ void main() {
     expect(taller >= FrameSize.rowList, isTrue);
   });
 
+  testWidgets('minHeight lets a dense row go below rowList', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        FrameListRow(
+          key: _rowKey,
+          name: 'session',
+          minHeight: 32,
+          onTap: () {},
+        ),
+      ),
+    );
+    final height = tester.getSize(find.byKey(_rowKey)).height;
+    expect(height, 32);
+  });
+
   testWidgets('actions stay in the tree, hidden until hover or focus', (
     tester,
   ) async {

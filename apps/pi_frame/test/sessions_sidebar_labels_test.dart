@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,14 +46,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('v1 / PiFrame'), findsNWidgets(2));
+    // v1 is expanded by default (its session is the most recent): folder row,
+    // the session under it and the pinned copy. v2 stays collapsed: folder + pin.
+    expect(find.text('v1 / PiFrame'), findsNWidgets(3));
     expect(find.text('v2 / PiFrame'), findsNWidgets(2));
 
     await tester.tap(
       find.byKey(const ValueKey(r'session-folder:C:\versions\v1\PiFrame')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('v1 / PiFrame'), findsNWidgets(3));
+    expect(find.text('v1 / PiFrame'), findsNWidgets(2));
 
     await tester.enterText(find.byType(TextField), 'one');
     await tester.pumpAndSettle();
@@ -60,7 +63,11 @@ void main() {
     expect(find.text('v2 / PiFrame'), findsNothing);
     expect(find.text('PiFrame'), findsNothing);
 
-    await tester.tap(find.byTooltip('Azioni sessione'));
+    // The row's menu button is revealed on hover only; right-click opens the same menu.
+    await tester.tap(
+      find.byKey(const ValueKey('session-row-one')),
+      buttons: kSecondaryMouseButton,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rinomina'));
     await tester.pumpAndSettle();

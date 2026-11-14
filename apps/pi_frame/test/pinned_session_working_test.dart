@@ -59,7 +59,9 @@ void main() {
 
     // Pinned section should exist
     expect(find.text('FISSATE (1)'), findsOneWidget);
-    expect(find.text('Core Engine Pinned'), findsOneWidget);
+    // Shown in the pinned section, and again under its repository, which is the
+    // active one and therefore expanded by default.
+    expect(find.text('Core Engine Pinned'), findsNWidgets(2));
 
     // Initial non-working state: ShimmerBorder isActive is false
     final initialShimmers = tester.widgetList<ShimmerBorder>(find.byType(ShimmerBorder));

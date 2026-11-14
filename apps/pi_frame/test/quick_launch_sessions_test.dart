@@ -57,8 +57,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('v1 / PiFrame'), findsOneWidget);
-    expect(find.text('v2 / PiFrame'), findsNothing);
+    // Once as the repository group header, once as the disambiguated session name.
+    expect(find.text('v1 / PiFrame'), findsNWidgets(2));
+    // The second repository is labelled from all sessions too, and is listed now.
+    expect(find.text('v2 / PiFrame'), findsNWidgets(2));
     expect(find.text('PiFrame'), findsNothing);
   });
 
@@ -142,7 +144,9 @@ void main() {
 
     // Verify recent sessions title is present
     expect(find.text('Sessioni recenti'), findsOneWidget);
-    expect(find.text('Avvio rapido'), findsOneWidget);
+    // The welcome surface is a resume list now; it no longer has a Quick Launch heading.
+    expect(find.text('Avvio rapido'), findsNothing);
+    expect(find.text('Quick Launch'), findsNothing);
 
     // Verify the top 5 sessions are rendered
     expect(find.text('Refactor Core Engine'), findsOneWidget);
@@ -154,8 +158,8 @@ void main() {
     // Subagent/worker must be excluded
     expect(find.text('worker#1 subagent'), findsNothing);
 
-    // 6th session must be excluded (only latest 5)
-    expect(find.text('Older Session'), findsNothing);
+    // The welcome lists up to eight recent sessions, so the sixth is shown too
+    expect(find.text('Older Session'), findsOneWidget);
 
     // Tap on session-2 tile to switch to it
     final session2Tile = find.byKey(const ValueKey('quick-launch-session-session-2'));
