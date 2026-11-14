@@ -158,20 +158,18 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                 maximum == null
                     ? strings.contextMaxNotAvailable
                     : strings.contextSelectLimit,
-                style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
               ),
               borderRadius: BorderRadius.circular(tokens.radiusMd),
               dropdownColor: tokens.surfaceElevated,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 13,
-                fontFamily: tokens.uiFontFamily,
-              ),
+              style: FrameText.of(context).body.copyWith(color: tokens.textPrimary,
+                
+                fontFamily: tokens.uiFontFamily),
               items: [
                 DropdownMenuItem<Object>(
                   value: _custom,
                   enabled: sliderEnabled,
-                  child: const Text('Custom'),
+                  child: Text(strings.contextWindowCustomOption),
                 ),
                 ...presets.map(
                   (size) => DropdownMenuItem<Object>(
@@ -207,16 +205,14 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
           const SizedBox(height: 6),
           Text(
             strings.contextMaxWindow,
-            style: TextStyle(
-              color: tokens.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: FrameText.of(context).label.copyWith(color: tokens.textSecondary,
+              
+              fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
             strings.contextTokensExact(formatTokens(sliderValue.round()), sliderValue.round()),
-            style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+            style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary),
           ),
           Slider(
             key: const ValueKey('context-window-custom-slider'),
@@ -240,7 +236,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
           ),
           Text(
             strings.contextStep50k(formatTokens(sliderMaximum)),
-            style: TextStyle(color: tokens.textMuted, fontSize: 10),
+            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
           ),
         ],
       ],

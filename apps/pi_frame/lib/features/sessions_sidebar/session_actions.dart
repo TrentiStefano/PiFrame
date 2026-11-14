@@ -71,6 +71,7 @@ Future<void> createSession(
       FrameSnackBar.show(
         context,
         message: ref.read(appStringsProvider).creationFailedNotice(error),
+        isError: true,
       );
     }
   }
@@ -90,7 +91,7 @@ Future<void> deleteSessionWithConfirmation(
       return AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.delete_outline, color: tokens.danger, size: 22),
+            Icon(Icons.delete_outline, color: tokens.danger, size: FrameSize.iconLg),
             const SizedBox(width: 8),
             Expanded(child: Text(strings.deleteSessionDialogTitle)),
           ],
@@ -141,6 +142,7 @@ Future<void> deleteSessionWithConfirmation(
       FrameSnackBar.show(
         context,
         message: strings.deletionFailedNotice(error),
+        isError: true,
       );
     }
   }
@@ -162,7 +164,7 @@ Future<void> removeRepoWithConfirmation(
       return AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.folder_delete_outlined, size: 22),
+            const Icon(Icons.folder_delete_outlined, size: FrameSize.iconLg),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -178,18 +180,18 @@ Future<void> removeRepoWithConfirmation(
           children: [
             Text(
               strings.repoSessionsCountNotice(folderSessions.length),
-              style: const TextStyle(fontSize: 13),
+              style: FrameText.of(context).body,
             ),
             const SizedBox(height: 16),
             InkWell(
               key: const ValueKey('hide-repo-only-btn'),
               onTap: () => Navigator.pop(ctx, 'hide'),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: tokens.border),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                 ),
                 child: Row(
                   children: [
@@ -201,12 +203,12 @@ Future<void> removeRepoWithConfirmation(
                         children: [
                           Text(
                             strings.removeOnlyFromViewTitle,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             strings.removeOnlyFromViewSubtitle,
-                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                           ),
                         ],
                       ),
@@ -219,12 +221,12 @@ Future<void> removeRepoWithConfirmation(
             InkWell(
               key: const ValueKey('delete-all-repo-sessions-btn'),
               onTap: () => Navigator.pop(ctx, 'delete_all'),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: tokens.danger.withValues(alpha: 0.3)),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                 ),
                 child: Row(
                   children: [
@@ -236,12 +238,12 @@ Future<void> removeRepoWithConfirmation(
                         children: [
                           Text(
                             strings.deleteAllRepoSessionsTitle,
-                            style: TextStyle(fontWeight: FontWeight.bold, color: tokens.danger, fontSize: 13),
+                            style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold, color: tokens.danger),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             strings.deleteAllRepoSessionsSubtitle,
-                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                           ),
                         ],
                       ),
@@ -328,6 +330,7 @@ Future<void> removeRepoWithConfirmation(
         FrameSnackBar.show(
           context,
           message: strings.deletionErrorNotice(error),
+          isError: true,
         );
       }
     }
@@ -368,7 +371,7 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: tokens.danger, size: 24),
+          Icon(Icons.warning_amber_outlined, color: tokens.danger, size: FrameSize.iconLg),
           const SizedBox(width: 8),
           Expanded(child: Text(strings.warningDeletionTitle)),
         ],
@@ -379,7 +382,7 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
         children: [
           Text(
             strings.deleteRepoWarningBody(widget.sessionsCount, widget.folder),
-            style: const TextStyle(fontSize: 13),
+            style: FrameText.of(context).body,
           ),
           const SizedBox(height: 14),
           TextField(

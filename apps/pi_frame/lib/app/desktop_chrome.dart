@@ -117,7 +117,7 @@ class _DesktopCaptionButtonsState
             overlayColor: close ? tokens.signalDanger : tokens.textPrimary,
           ),
           onPressed: action,
-          child: Icon(icon, size: 14),
+          child: Icon(icon, size: FrameSize.icon),
         ),
       ),
     );

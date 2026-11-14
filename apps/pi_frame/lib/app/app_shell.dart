@@ -956,7 +956,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             tooltip: strings.openSessionsTooltip,
-                            icon: const Icon(Icons.menu, size: 17),
+                            icon: const Icon(Icons.menu, size: FrameSize.icon),
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openDrawer(),
                           ),
@@ -1010,10 +1010,10 @@ class _AppShellState extends ConsumerState<AppShell>
                                 ),
                                 foregroundColor: tokens.textSecondary,
                               ),
-                              icon: const Icon(Icons.search, size: 15),
+                              icon: const Icon(Icons.search, size: FrameSize.icon),
                               label: Text(
                                 strings.commandsButtonLabel,
-                                style: const TextStyle(fontSize: 12),
+                                style: FrameText.of(context).label,
                               ),
                             ),
                           ),
@@ -1030,7 +1030,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                   tooltip: strings.togglePanelsTooltip,
                                   icon: const Icon(
                                     Icons.view_column_outlined,
-                                    size: 16,
+                                    size: FrameSize.icon,
                                   ),
                                   padding: EdgeInsets.zero,
                                   onSelected: _togglePane,
@@ -1109,7 +1109,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                               ?.openEndDrawer(),
                                           icon: const Icon(
                                             Icons.insights_outlined,
-                                            size: 16,
+                                            size: FrameSize.icon,
                                           ),
                                           label: Text(
                                             strings.sessionDrawerLabel,
@@ -1193,17 +1193,14 @@ class _AppShellState extends ConsumerState<AppShell>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.link_off, size: 17, color: tokens.warning),
+                          Icon(Icons.link_off, size: FrameSize.icon, color: tokens.warning),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               connection == DaemonConnectionState.reconnecting
                                   ? strings.reconnectingToDaemon
                                   : strings.daemonUnreachableNotice,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 12,
-                              ),
+                              style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                             ),
                           ),
                           TextButton(
@@ -1620,11 +1617,11 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
-                icon: Icon(expandIcon, size: 18, color: tokens.accent),
+                icon: Icon(expandIcon, size: FrameSize.iconLg, color: tokens.accent),
                 onPressed: () => _expandStripPane(pane),
               ),
               const SizedBox(height: 6),
-              Icon(iconData, size: 15, color: tokens.textMuted),
+              Icon(iconData, size: FrameSize.icon, color: tokens.textMuted),
               const SizedBox(height: 12),
               Expanded(
                 child: RotatedBox(
@@ -1632,12 +1629,10 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       label,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 10,
+                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
+                        
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
+                        letterSpacing: 1.0),
                     ),
                   ),
                 ),
@@ -1805,7 +1800,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandSessionsSidebarTooltip,
-                icon: Icon(Icons.chevron_right, size: 18, color: tokens.accent),
+                icon: Icon(Icons.chevron_right, size: FrameSize.iconLg, color: tokens.accent),
                 onPressed: () {
                   setState(() => _sidebarCollapsed = false);
                   _persistLayout();
@@ -1816,7 +1811,7 @@ class _AppShellState extends ConsumerState<AppShell>
               const SizedBox(height: 12),
               Icon(
                 Icons.chat_bubble_outline,
-                size: 15,
+                size: FrameSize.icon,
                 color: tokens.textMuted,
               ),
               const SizedBox(height: 12),
@@ -1826,12 +1821,10 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       strings.sessionsRailHeader,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 10,
+                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
+                        
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
+                        letterSpacing: 1.0),
                     ),
                   ),
                 ),

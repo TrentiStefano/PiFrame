@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../workspace/repository_workspace.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_snack_bar.dart';
 
 class InstructionFileDialog extends ConsumerStatefulWidget {
@@ -194,15 +195,13 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
             ),
             title: Text(
               strings.unsavedChangesTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
+              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary,
+                
+                fontWeight: FontWeight.bold),
             ),
             content: Text(
               strings.unsavedChangesDiscardBody(_selectedFile, fileName),
-              style: TextStyle(color: tokens.textSecondary, fontSize: 13),
+              style: FrameText.of(context).body.copyWith(color: tokens.textSecondary),
             ),
             actions: [
               TextButton(
@@ -520,7 +519,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     ),
                     child: Icon(
                       Icons.integration_instructions_outlined,
-                      size: 18,
+                      size: FrameSize.iconLg,
                       color: tokens.accent,
                     ),
                   ),
@@ -533,12 +532,10 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           children: [
                             Text(
                               strings.repoInstructionsAction,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 16,
+                              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary,
+                                
                                 fontWeight: FontWeight.bold,
-                                fontFamily: tokens.headingFontFamily,
-                              ),
+                                fontFamily: tokens.headingFontFamily),
                             ),
                             const SizedBox(width: 8),
                             Flexible(
@@ -556,11 +553,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                   _folderName(widget.folder),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary,
+                                    
+                                    fontWeight: FontWeight.w600),
                                 ),
                               ),
                             ),
@@ -571,17 +566,15 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           widget.folder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
+                            
+                            fontFamily: tokens.monoFontFamily),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
+                    icon: Icon(Icons.close, size: FrameSize.iconLg, color: tokens.textMuted),
                     tooltip: strings.close,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -618,12 +611,12 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                 color: tokens.danger.withValues(alpha: 0.15),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, size: 16, color: tokens.danger),
+                    Icon(Icons.error_outline, size: FrameSize.icon, color: tokens.danger),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: TextStyle(color: tokens.danger, fontSize: 12),
+                        style: FrameText.of(context).label.copyWith(color: tokens.danger),
                       ),
                     ),
                   ],
@@ -643,7 +636,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                 children: [
                   Icon(
                     Icons.file_present_outlined,
-                    size: 14,
+                    size: FrameSize.icon,
                     color: tokens.accent,
                   ),
                   const SizedBox(width: 6),
@@ -652,12 +645,10 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                       _selectedFile,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 12,
+                      style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
+                        
                         fontFamily: tokens.monoFontFamily,
-                        fontWeight: FontWeight.w600,
-                      ),
+                        fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -674,21 +665,17 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     ),
                     child: Text(
                       exists ? strings.presentOnDiskBadge : strings.newFileBadge,
-                      style: TextStyle(
-                        color: exists ? tokens.agentSettled : tokens.syntaxFunction,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: FrameText.of(context).caption.copyWith(color: exists ? tokens.agentSettled : tokens.syntaxFunction,
+                        
+                        fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     strings.linesAndCharsCount(lineCount, charCount),
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 11,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
+                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
+                      
+                      fontFamily: tokens.monoFontFamily),
                   ),
                 ],
               ),
@@ -701,7 +688,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                       child: SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(size: FrameSize.iconLg,
                           strokeWidth: 2,
                           color: tokens.accent,
                         ),
@@ -721,20 +708,15 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           expands: true,
                           keyboardType: TextInputType.multiline,
                           onChanged: (_) => setState(() {}),
-                          style: TextStyle(
-                            color: tokens.textPrimary,
-                            fontSize: 12.5,
+                          style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
+                            
                             fontFamily: tokens.monoFontFamily,
-                            height: 1.45,
-                          ),
+                            height: 1.45),
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: strings.enterInstructionsHint,
-                            hintStyle: TextStyle(
-                              color: tokens.textMuted,
-                              fontFamily: tokens.monoFontFamily,
-                              fontSize: 12.5,
-                            ),
+                            hintStyle: FrameText.of(context).label.copyWith(color: tokens.textMuted,
+                              fontFamily: tokens.monoFontFamily),
                           ),
                         ),
                       ),
@@ -771,11 +753,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                   strings.unsavedChangesTitle,
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
-                                  style: TextStyle(
-                                    color: tokens.syntaxNumber,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: FrameText.of(context).caption.copyWith(color: tokens.syntaxNumber,
+                                    
+                                    fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],
@@ -786,7 +766,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                 children: [
                                   Icon(
                                     Icons.check_circle_outline,
-                                    size: 13,
+                                    size: FrameSize.icon,
                                     color: tokens.agentSettled,
                                   ),
                                   const SizedBox(width: 4),
@@ -795,10 +775,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                       strings.syncedWithDiskStatus,
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11.5,
-                                      ),
+                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                                     ),
                                   ),
                                 ],
@@ -831,19 +808,17 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                         ? SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(
+                            child: FrameActivityIndicator(size: FrameSize.icon,
                               strokeWidth: 2,
                               color: tokens.accent,
                             ),
                           )
-                        : Icon(Icons.auto_awesome, size: 16, color: tokens.accent),
+                        : Icon(Icons.auto_awesome, size: FrameSize.icon, color: tokens.accent),
                     label: Text(
                       _generating ? strings.generatingStatus : strings.generateWithPiAction,
-                      style: TextStyle(
-                        color: tokens.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: FrameText.of(context).label.copyWith(color: tokens.accent,
+                        
+                        fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -867,18 +842,15 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                         ? SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(
+                            child: FrameActivityIndicator(size: FrameSize.icon,
                               strokeWidth: 2,
                               color: tokens.accentContrast,
                             ),
                           )
-                        : const Icon(Icons.save_outlined, size: 16),
+                        : const Icon(Icons.save_outlined, size: FrameSize.icon),
                     label: Text(
                       exists ? strings.saveChangesAction : strings.createAndSaveFileAction,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -928,25 +900,21 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
             const SizedBox(width: 6),
             Text(
               fileName,
-              style: TextStyle(
-                color: isSelected
+              style: FrameText.of(context).caption.copyWith(color: isSelected
                     ? tokens.textPrimary
                     : exists
                     ? tokens.textSecondary
                     : tokens.textMuted,
-                fontSize: 11.5,
+                
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontFamily: tokens.monoFontFamily,
-              ),
+                fontFamily: tokens.monoFontFamily),
             ),
             const SizedBox(width: 5),
             Text(
               exists ? '' : '+',
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
+              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
+                
+                fontWeight: FontWeight.bold),
             ),
           ],
         ),

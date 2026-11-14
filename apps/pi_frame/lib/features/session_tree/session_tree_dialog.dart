@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_icon_action.dart';
@@ -150,10 +151,10 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
 
   Widget _buildBody(FrameTokens tokens, FrameText text, AppStrings strings) {
     if (_loading) {
-      return const SizedBox(
+      return SizedBox(
         height: _minBodyHeight,
         child: Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
         ),
       );
     }
