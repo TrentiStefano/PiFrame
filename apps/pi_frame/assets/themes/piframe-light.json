@@ -19,6 +19,7 @@
     "overlay": "#0f172a66",
     "border": "#d3dae4",
     "borderStrong": "#a3afc1",
+    "inputBorder": "#7d8aa0",
     "textPrimary": "#0f172a",
     "textSecondary": "#3d4a5c",
     "textMuted": "#566376",
