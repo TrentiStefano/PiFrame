@@ -7,6 +7,7 @@ import '../../../data/language/strings_settings.dart';
 import '../../../data/update/startup_updates_provider.dart';
 import '../../../domain/errors/user_facing_error.dart';
 import '../../../ui/frame_error_callout.dart';
+import '../../../ui/frame_linear_progress.dart';
 import '../../../ui/frame_list_row.dart';
 import '../../../ui/frame_section.dart';
 import '../package_load_states.dart';
@@ -105,7 +106,7 @@ class PackagesSection extends ConsumerWidget {
               ),
               if (isWorking) ...[
                 const SizedBox(height: FrameSpace.x3),
-                LinearProgressIndicator(
+                FrameLinearProgress(
                   color: tokens.accent,
                   value: updateProgress,
                 ),

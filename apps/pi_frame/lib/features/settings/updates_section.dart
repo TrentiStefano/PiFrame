@@ -2,6 +2,7 @@ import '../../domain/errors/user_facing_error.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_error_callout.dart';
+import '../../ui/frame_linear_progress.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_status_tag.dart';
 
@@ -342,7 +343,7 @@ class UpdatesSection extends ConsumerWidget {
           ],
 
           if (isDownloading) ...[
-            LinearProgressIndicator(
+            FrameLinearProgress(
               value: state.downloadProgress > 0 ? state.downloadProgress : null,
               color: tokens.accent,
               backgroundColor: tokens.border,
