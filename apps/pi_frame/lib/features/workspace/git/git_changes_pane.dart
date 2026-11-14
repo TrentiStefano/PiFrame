@@ -304,6 +304,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           FrameSnackBar.show(
             context,
             message: strings.gitOperationFailed(error),
+            isError: true,
           );
         }
       }
@@ -447,11 +448,19 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           );
           return;
         } else if (error.code == 'BRANCH_NOT_FOUND') {
-          FrameSnackBar.show(context, message: strings.branchNotFound);
+          FrameSnackBar.show(
+            context,
+            message: strings.branchNotFound,
+            isError: true,
+          );
           await _refresh();
           return;
         } else if (error.code == 'BRANCH_INVALID_NAME') {
-          FrameSnackBar.show(context, message: strings.branchInvalidName);
+          FrameSnackBar.show(
+            context,
+            message: strings.branchInvalidName,
+            isError: true,
+          );
           await _refresh();
           return;
         }
@@ -463,12 +472,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           msg.toLowerCase().contains('active')) {
         FrameSnackBar.show(context, message: strings.branchSwitchAgentWorking);
       } else if (msg.contains('BRANCH_NOT_FOUND')) {
-        FrameSnackBar.show(context, message: strings.branchNotFound);
+        FrameSnackBar.show(
+          context,
+          message: strings.branchNotFound,
+          isError: true,
+        );
         await _refresh();
       } else {
         FrameSnackBar.show(
           context,
           message: failureText(strings, strings.branchSwitchFailedTitle, error),
+          isError: true,
         );
       }
     } finally {

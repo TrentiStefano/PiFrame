@@ -261,7 +261,7 @@ class _DiffBlockState extends State<DiffBlock> {
                     'HUNK',
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 9.5,
+                      fontSize: 11,
                       fontFamily: tokens.monoFontFamily,
                       fontWeight: FontWeight.bold,
                     ),

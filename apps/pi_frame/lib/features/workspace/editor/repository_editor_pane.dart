@@ -202,7 +202,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
       await saveRepositoryFile(context, ref, widget.sessionId, path);
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: strings.saveFailed(error));
+        FrameSnackBar.show(context, message: strings.saveFailed(error), isError: true);
       }
     }
   }
@@ -271,7 +271,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
     WidgetsBinding.instance.addPostFrameCallback((_) => input.dispose());
     if (confirmed != true || !mounted) return;
     if (requested == null || requested < 1 || requested > lineCount) {
-      FrameSnackBar.show(context, message: strings.invalidLineNumber);
+      FrameSnackBar.show(context, message: strings.invalidLineNumber, isError: true);
       return;
     }
     _jumpToLine(editor, requested - 1);

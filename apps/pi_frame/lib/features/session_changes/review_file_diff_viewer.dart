@@ -6,6 +6,7 @@ import '../../data/language/strings_workspace.dart';
 import '../../ui/code/syntax_highlighter.dart';
 import 'diff_parser.dart';
 import 'session_changes_provider.dart';
+import '../../ui/frame_activity_indicator.dart';
 
 class ReviewFileDiffViewer extends ConsumerStatefulWidget {
   final SessionChangedFile file;
@@ -57,10 +58,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: tokens.accent,
-              ),
+              child: FrameActivityIndicator(size: 14, color: tokens.accent),
             ),
             const SizedBox(width: 8),
             Text(
