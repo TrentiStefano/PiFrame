@@ -6,6 +6,7 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
 import '../../ui/frame_middle_ellipsis.dart';
+import '../composer/composer_focus_provider.dart';
 
 /// Empty chat (plan 4.6): shown in place of the transcript while a session has
 /// no messages. It names the working folder and branch and gives three
@@ -27,7 +28,12 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadBranch());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Start the new chat with the cursor in the composer.
+      ref.read(composerFocusRequestProvider(widget.sessionId).notifier).state++;
+      _loadBranch();
+    });
   }
 
   Future<void> _loadBranch() async {
