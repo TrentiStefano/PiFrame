@@ -349,6 +349,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final connected = connection == DaemonConnectionState.connected;
     final width = MediaQuery.sizeOf(context).width;
     final showSessionRail = width >= 1560;
+    final bannerInRail = showSessionRail && !_sidebarCollapsed && !settings;
     final nativeChrome = ref.watch(desktopChromeProvider);
     Widget workArea() => activeId == null
         ? _welcome(tokens, !showSessionRail, connected)
@@ -713,6 +714,9 @@ class _AppShellState extends ConsumerState<AppShell>
                         ],
                       ),
                     ),
+                  // Full-width notice under the title bar when the sessions
+                  // rail is not showing; the rail hosts it otherwise.
+                  if (!bannerInRail) const StartupUpdateBanner(),
                   Expanded(
                     child: settings
                         ? SettingsView(
@@ -739,8 +743,6 @@ class _AppShellState extends ConsumerState<AppShell>
                 ],
               ),
             ),
-            // Below the 42 px title bar (inside the safe area, with its top margin and a gap).
-            StartupUpdateBanner(top: MediaQuery.paddingOf(context).top + 56),
           ],
         ),
       ),
@@ -1130,16 +1132,23 @@ class _AppShellState extends ConsumerState<AppShell>
     final sidebar = SizedBox(
       key: const ValueKey('sessions-sidebar-pane'),
       width: sidebarWidth,
-      child: SessionsSidebar(
-        onSessionSelected: inDrawer
-            ? () => _scaffoldKey.currentState?.closeDrawer()
-            : null,
-        onCollapse: inDrawer
-            ? null
-            : () {
-                setState(() => _sidebarCollapsed = true);
-                _persistLayout();
-              },
+      child: Column(
+        children: [
+          if (!inDrawer) const StartupUpdateBanner(inRail: true),
+          Expanded(
+            child: SessionsSidebar(
+              onSessionSelected: inDrawer
+                  ? () => _scaffoldKey.currentState?.closeDrawer()
+                  : null,
+              onCollapse: inDrawer
+                  ? null
+                  : () {
+                      setState(() => _sidebarCollapsed = true);
+                      _persistLayout();
+                    },
+            ),
+          ),
+        ],
       ),
     );
     return Row(
