@@ -78,6 +78,9 @@ Set<WorkspacePane> narrowCompanionPanes({
 /// Minimum width of the chat pane when the layout is restored (plan task 6.6).
 const double kChatMinWidth = 420;
 
+/// Window width from which the sessions rail is docked beside the panes.
+const double kSessionRailMinWidth = 1560;
+
 /// Clamps restored pane weights so that every open companion is at least
 /// [kCompanionMinWidth] wide and the chat pane at least [kChatMinWidth]. Pinned panes
 /// keep their minimum share; the other open panes share what is left, in proportion.
@@ -236,6 +239,8 @@ class _AppShellState extends ConsumerState<AppShell>
   bool _sidebarCollapsed = false;
   // Set when weights are restored; they are clamped on the first pane row with a known width.
   bool _pendingWeightClamp = false;
+  // The session that was active before the current one (Ctrl+Tab target).
+  String? _previousSessionId;
   Widget? _chatSidecar;
   String? _chatSidecarSessionId;
   // Width of the last pane row, used to size a restored companion (task 1.2f).
@@ -511,6 +516,76 @@ class _AppShellState extends ConsumerState<AppShell>
     if (mounted) setState(() => _creating = false);
   }
 
+  /// Shell-level keyboard shortcuts (plan task 6.4). The composer, the editor and the
+  /// integrated terminal handle their own keys first, so this only sees keys they leave
+  /// unhandled. Ctrl/Cmd+S is not here: editor save belongs to Phase 9.
+  KeyEventResult _handleShortcut(KeyEvent event, String? activeId) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final hardware = HardwareKeyboard.instance;
+    final commandKey = hardware.isMetaPressed || hardware.isControlPressed;
+    final shift = hardware.isShiftPressed;
+    final alt = hardware.isAltPressed;
+    final key = event.logicalKey;
+
+    if (key == LogicalKeyboardKey.keyK && commandKey) {
+      _palette();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyB && commandKey && shift) {
+      if (activeId != null) {
+        ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+        return KeyEventResult.handled;
+      }
+    }
+    // Ctrl+Tab is the only one that is Ctrl-only; Cmd+Tab belongs to the OS.
+    if (key == LogicalKeyboardKey.tab && hardware.isControlPressed && !shift && !alt) {
+      _switchToPreviousSession();
+      return KeyEventResult.handled;
+    }
+    if (!commandKey || shift || alt) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.keyN) {
+      unawaited(_create());
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.comma) {
+      ref.read(showSettingsProvider.notifier).state = true;
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyB) {
+      _toggleSessionsRail();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// Shows or hides the sessions rail when it is docked; otherwise opens or closes the drawer.
+  void _toggleSessionsRail() {
+    final docked = MediaQuery.sizeOf(context).width >= kSessionRailMinWidth;
+    if (docked) {
+      setState(() => _sidebarCollapsed = !_sidebarCollapsed);
+      _persistLayout();
+      return;
+    }
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold == null) return;
+    if (scaffold.isDrawerOpen) {
+      scaffold.closeDrawer();
+    } else {
+      scaffold.openDrawer();
+    }
+  }
+
+  /// Switches back to the session that was active before the current one, if it still exists.
+  void _switchToPreviousSession() {
+    final target = _previousSessionId;
+    if (target == null || target == ref.read(activeSessionIdProvider)) return;
+    final listed = ref.read(sessionListProvider).value;
+    if (listed != null && !listed.any((session) => session['id'] == target)) {
+      return;
+    }
+    ref.read(activeSessionIdProvider.notifier).state = target;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<bool>(isReviewingChangesProvider, (prev, next) {
@@ -519,6 +594,9 @@ class _AppShellState extends ConsumerState<AppShell>
       } else {
         _exitReviewMode();
       }
+    });
+    ref.listen<String?>(activeSessionIdProvider, (prev, next) {
+      if (prev != null && next != null && prev != next) _previousSessionId = prev;
     });
 
     final tokens = context.tokens;
@@ -530,7 +608,7 @@ class _AppShellState extends ConsumerState<AppShell>
         DaemonConnectionState.disconnected;
     final connected = connection == DaemonConnectionState.connected;
     final width = MediaQuery.sizeOf(context).width;
-    final showSessionRail = width >= 1560;
+    final showSessionRail = width >= kSessionRailMinWidth;
     final bannerInRail = showSessionRail && !_sidebarCollapsed && !settings;
     final nativeChrome = ref.watch(desktopChromeProvider);
     Widget workArea() => activeId == null
@@ -576,25 +654,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
     return Focus(
       autofocus: true,
-      onKeyEvent: (_, event) {
-        if (event is KeyDownEvent) {
-          final isMetaOrControl = HardwareKeyboard.instance.isMetaPressed ||
-              HardwareKeyboard.instance.isControlPressed;
-          if (event.logicalKey == LogicalKeyboardKey.keyK && isMetaOrControl) {
-            _palette();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.keyB &&
-              isMetaOrControl &&
-              HardwareKeyboard.instance.isShiftPressed) {
-            if (activeId != null) {
-              ref.read(sideThreadFamily(activeId).notifier).togglePanel();
-              return KeyEventResult.handled;
-            }
-          }
-        }
-        return KeyEventResult.ignored;
-      },
+      onKeyEvent: (_, event) => _handleShortcut(event, activeId),
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: tokens.background,

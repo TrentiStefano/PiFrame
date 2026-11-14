@@ -175,6 +175,34 @@ Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzio
 - Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
 - Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
 
+## Scorciatoie da tastiera
+
+Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di shell (righe "Shell") valgono quando nessun campo di testo, composer, editor o terminale le gestisce per primo.
+
+| Scorciatoia | Azione | Dove |
+|---|---|---|
+| `Ctrl+N` / `Cmd+N` | Nuova sessione (apre la scelta della cartella) | Shell (nuova in Fase 6) |
+| `Ctrl+,` / `Cmd+,` | Apri Impostazioni | Shell (nuova in Fase 6) |
+| `Ctrl+B` / `Cmd+B` | Mostra o nascondi la barra sessioni; con finestra stretta apre o chiude il cassetto sessioni | Shell (nuova in Fase 6) |
+| `Ctrl+Tab` | Torna alla sessione attiva precedente (se ancora presente) | Shell (nuova in Fase 6) |
+| `Ctrl+K` / `Cmd+K` | Apri la Command Palette | Shell |
+| `Ctrl+Shift+B` / `Cmd+Shift+B` | Apri o chiudi la conversazione laterale della sessione | Shell |
+| `←` / `→` con il focus su un divisore | Sposta il divisore di 20 px (barra sessioni e divisori tra i pannelli); il divisore riceve il focus con `Tab` | Divisori (nuovo in Fase 6) |
+| `Ctrl+F` / `Cmd+F` | Cerca file nell'editor del pannello repository | Pannello repository |
+| `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia il messaggio; dipende dall'opzione *Invia con Enter* (vedi sopra) | Composer |
+| `Shift+Invio` | Nuova riga nel composer (con *Invia con Enter* attivo) | Composer |
+| `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
+| `↑` / `↓` | Scorre i comandi slash, i file menzionati e i suggerimenti | Composer, selettore file, Command Palette, selettore branch |
+| `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
+| `Esc` | Chiude il selettore branch, annulla la rinomina della sessione, chiude Impostazioni | Vari |
+| `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia nel pannello della conversazione laterale (secondo *Invia con Enter*) | Pannello laterale |
+| `Ctrl+C`, `Ctrl+L`, `Ctrl+V` | Interrompe, pulisce lo schermo, incolla nel terminale | Terminale integrato |
+| Frecce, `Tab`, `Invio`, `Backspace` | Inviati alla shell del terminale integrato | Terminale integrato |
+
+Scorciatoie non ancora presenti: `Ctrl+S` / `Cmd+S` (salvataggio nell'editor) arriverà con la Fase 9.
+
+**Conflitti risolti.** Il composer e i campi di testo gestiscono `Tab` e `Invio` prima della shell, quindi `Ctrl+Tab` non viene usato mentre il menu dei comandi slash è aperto. Il terminale integrato gestisce per primo `Ctrl+C`, `Ctrl+L`, `Ctrl+V` e `Tab`, che quindi restano al terminale. `Ctrl+Shift+B` mantiene il significato esistente (conversazione laterale) e non apre più la barra sessioni: quest'ultima resta su `Ctrl+B`.
+
 ## Pannello Agenti e Workflow
 
 Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
