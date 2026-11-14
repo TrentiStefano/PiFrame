@@ -290,7 +290,10 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell>
-    with WindowListener, WidgetsBindingObserver {
+    with
+        WindowListener,
+        WidgetsBindingObserver,
+        SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _closingWindow = false;
   late final bool _handlesNativeClose;
@@ -312,6 +315,25 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   final Set<WorkspacePane> _collapsedPanes = {};
+  // Pane width transition (task 7.3). Show, hide, collapse and expand from the
+  // title bar or strips animate the slot widths from the last displayed layout
+  // to the new one. Divider drags, keyboard toggles and palette toggles set
+  // no animation. Under reduced motion the layout is final at once and the
+  // entering pane cross-fades over _kReducedPaneFade.
+  late final AnimationController _paneTransition = AnimationController(
+    vsync: this,
+  )..addStatusListener(_onPaneTransitionStatus);
+  // Slot widths shown in the last pane row, and the snapshot taken when a
+  // transition starts. Both keyed by pane.
+  Map<WorkspacePane, double> _slotPx = {};
+  Map<WorkspacePane, double> _slotFromPx = {};
+  // Panes hidden from the title bar that still hold a slot while they shrink,
+  // mapped to their index in the previous row.
+  final Map<WorkspacePane, int> _exitingPanes = {};
+  List<WorkspacePane> _rowOrder = const [];
+  bool _paneAnimating = false;
+  // Reduced-motion cross-fade of an entering pane, at its final layout (task 7.3).
+  static const _kReducedPaneFade = Duration(milliseconds: 150);
   final Map<WorkspacePane, double> _savedPaneWeights = {
     WorkspacePane.repository: 32,
     WorkspacePane.chat: 44,
@@ -586,6 +608,7 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _paneTransition.dispose();
     if (_hasWindowListener) {
       windowManager.removeListener(this);
     }
@@ -658,7 +681,8 @@ class _AppShellState extends ConsumerState<AppShell>
     ref: ref,
     onOpenSettings: () => ref.read(showSettingsProvider.notifier).state = true,
     isPaneVisible: (pane) => _paneVisibility[pane] == true,
-    onTogglePane: _togglePane,
+    // Opened from the keyboard: the toggle is instant.
+    onTogglePane: (pane) => _togglePane(pane, animate: false),
   );
   Future<void> _create() async {
     if (_creating) return;
@@ -1387,14 +1411,48 @@ class _AppShellState extends ConsumerState<AppShell>
     };
   }
 
-  void _togglePane(WorkspacePane pane) {
+  bool get _reducedMotion => FrameMotion.reduced(context);
+
+  /// Starts a pane width transition from the layout on screen. Call it before
+  /// the state change: the next build interpolates from [_slotPx] to the new
+  /// layout over the `panel` (show) or `panelExit` (hide) token.
+  void _beginPaneTransition({required bool animate, required bool showing}) {
+    if (!animate) {
+      _paneTransition.stop();
+      _paneAnimating = false;
+      _exitingPanes.clear();
+      return;
+    }
+    _slotFromPx = Map.of(_slotPx);
+    _paneAnimating = true;
+    _paneTransition.duration = _reducedMotion
+        ? _kReducedPaneFade
+        : (showing ? FrameMotion.panel : FrameMotion.panelExit);
+    _paneTransition.forward(from: 0);
+  }
+
+  void _onPaneTransitionStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) return;
+    setState(() {
+      _paneAnimating = false;
+      _exitingPanes.clear();
+    });
+  }
+
+  void _togglePane(WorkspacePane pane, {bool animate = true}) {
     final visible = _visiblePanes();
     if (_paneVisibility[pane] == true && visible.length <= 1) return;
+    final nowVisible = !(_paneVisibility[pane] ?? false);
+    _beginPaneTransition(animate: animate, showing: nowVisible);
+    final rowIndex = _rowOrder.indexOf(pane);
+    if (animate && !nowVisible && rowIndex >= 0 && !_reducedMotion) {
+      _exitingPanes[pane] = rowIndex;
+    }
     setState(() {
-      final nowVisible = !(_paneVisibility[pane] ?? false);
       _paneVisibility[pane] = nowVisible;
       if (nowVisible) {
         _collapsedPanes.remove(pane);
+        _exitingPanes.remove(pane);
       }
       final remaining = _visiblePanes();
       if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
@@ -1467,13 +1525,14 @@ class _AppShellState extends ConsumerState<AppShell>
     );
   }
 
-  void _collapsePane(WorkspacePane pane) {
+  void _collapsePane(WorkspacePane pane, {bool animate = true}) {
     final visible = _visiblePanes();
     final openPanes = visible
         .where((p) => !_collapsedPanes.contains(p))
         .toList();
     if (openPanes.length <= 1) return; // Always keep at least one pane open
 
+    _beginPaneTransition(animate: animate, showing: false);
     setState(() {
       _savedPaneWeights[pane] = _paneWeights[pane] ?? 30;
       _collapsedPanes.add(pane);
@@ -1497,8 +1556,9 @@ class _AppShellState extends ConsumerState<AppShell>
     _expandPane(pane);
   }
 
-  void _expandPane(WorkspacePane pane) {
+  void _expandPane(WorkspacePane pane, {bool animate = true}) {
     if (!_collapsedPanes.contains(pane)) return;
+    _beginPaneTransition(animate: animate, showing: true);
     setState(() {
       _collapsedPanes.remove(pane);
       final visible = _visiblePanes();
@@ -1798,120 +1858,246 @@ class _AppShellState extends ConsumerState<AppShell>
     Map<WorkspacePane, Widget> contents,
   ) {
     if (panes.isEmpty) return const SizedBox.shrink();
-    if (panes.length == 1 && _collapsedPanes.isEmpty) {
+    if (panes.length == 1 &&
+        _collapsedPanes.isEmpty &&
+        _exitingPanes.isEmpty) {
       return _paneCard(panes.single, contents[panes.single]!);
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const dividerWidth = 8.0;
-        const collapsedWidth = 40.0;
-        _rowWidth = constraints.maxWidth;
-        final openWidth =
-            constraints.maxWidth - dividerWidth * (panes.length - 1);
-        final stateCollapsed = panes
-            .where((p) => _collapsedPanes.contains(p))
-            .length;
-        if (_pendingWeightClamp && openWidth > 0) {
-          _pendingWeightClamp = false;
-          _paneWeights.addAll(
-            clampRestoredPaneWeights(
-              panes: panes,
-              collapsed: _collapsedPanes,
-              weights: _paneWeights,
-              availableWidth: openWidth - collapsedWidth * stateCollapsed,
-            ),
+    final rowPanes = _withExitingPanes(panes);
+    // Every slot is a fixed width in pixels. The row is rebuilt on each frame of
+    // a pane transition, so widths interpolate from the last layout on screen.
+    return AnimatedBuilder(
+      animation: _paneTransition,
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          const dividerWidth = 8.0;
+          const collapsedWidth = 40.0;
+          _rowWidth = constraints.maxWidth;
+          final openWidth =
+              constraints.maxWidth - dividerWidth * (rowPanes.length - 1);
+          final stateCollapsed = panes
+              .where((p) => _collapsedPanes.contains(p))
+              .length;
+          if (_pendingWeightClamp && openWidth > 0) {
+            _pendingWeightClamp = false;
+            _paneWeights.addAll(
+              clampRestoredPaneWeights(
+                panes: panes,
+                collapsed: _collapsedPanes,
+                weights: _paneWeights,
+                availableWidth: openWidth - collapsedWidth * stateCollapsed,
+              ),
+            );
+          }
+          // A companion narrower than kCompanionMinWidth collapses to its tab.
+          final narrow = narrowCompanionPanes(
+            panes: panes,
+            collapsed: _collapsedPanes,
+            weights: {
+              for (final p in panes)
+                p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt(),
+            },
+            availableWidth: openWidth - collapsedWidth * stateCollapsed,
           );
-        }
-        // A companion narrower than kCompanionMinWidth collapses to its tab.
-        final narrow = narrowCompanionPanes(
-          panes: panes,
-          collapsed: _collapsedPanes,
-          weights: {
-            for (final p in panes)
-              p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt(),
-          },
-          availableWidth: openWidth - collapsedWidth * stateCollapsed,
-        );
-        bool isCollapsed(WorkspacePane p) =>
-            _collapsedPanes.contains(p) || narrow.contains(p);
-        final collapsedCount = panes.where(isCollapsed).length;
-        final availableWidth =
-            openWidth - (collapsedWidth * collapsedCount);
+          bool isCollapsed(WorkspacePane p) =>
+              _collapsedPanes.contains(p) || narrow.contains(p);
+          final collapsedCount = panes.where(isCollapsed).length;
+          final availableWidth = openWidth - (collapsedWidth * collapsedCount);
+          int flexOf(WorkspacePane p) =>
+              (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt();
+          final openFlex = panes
+              .where((p) => !isCollapsed(p))
+              .fold<int>(0, (sum, p) => sum + flexOf(p));
+          final targets = <WorkspacePane, double>{
+            for (final p in rowPanes)
+              p: !panes.contains(p)
+                  ? 0.0
+                  : isCollapsed(p)
+                  ? collapsedWidth
+                  : (openFlex > 0
+                        ? availableWidth * flexOf(p) / openFlex
+                        : 0.0),
+          };
+          final shown = _displayedWidths(rowPanes, targets, openWidth);
+          _slotPx = shown;
+          _rowOrder = rowPanes;
 
-        return Row(
-          children: [
-            for (var index = 0; index < panes.length; index++) ...[
-              if (isCollapsed(panes[index]))
-                _collapsedPaneStrip(panes[index])
-              else
-                Expanded(
-                  flex: (_paneWeights[panes[index]] ?? 1)
-                      .round()
-                      .clamp(1, 100)
-                      .toInt(),
-                  child: FrameEnter(
-                    key: ValueKey('pane-enter-${panes[index]}'),
-                    child: _paneCard(panes[index], contents[panes[index]]!),
-                  ),
+          final children = <Widget>[];
+          for (var index = 0; index < rowPanes.length; index++) {
+            final pane = rowPanes[index];
+            final Widget body;
+            if (!panes.contains(pane)) {
+              body = const SizedBox.shrink(); // hidden, still shrinking
+            } else if (isCollapsed(pane)) {
+              body = _collapsedPaneStrip(pane);
+            } else {
+              body = Opacity(
+                opacity: _entryAlpha(pane, targets[pane]!),
+                child: FrameEnter(
+                  key: ValueKey('pane-enter-$pane'),
+                  child: _paneCard(pane, contents[pane]!),
                 ),
-              if (index < panes.length - 1)
-                FocusTraversalOrder(
-                order: NumericFocusOrder(_dividerFocusOrder(panes[index])),
-                child: MouseRegion(
-                  key: ValueKey(
-                    'pane-divider-${panes[index]}-${panes[index + 1]}',
-                  ),
-                  cursor: SystemMouseCursors.resizeLeftRight,
-                  child: _ResizeDividerFocus(
-                    label: strings.paneDividerLabel(
-                      _paneLabel(panes[index]),
-                      _paneLabel(panes[index + 1]),
-                    ),
-                    value: strings.dividerPercentValue(
-                      _leftSharePercent(panes[index], panes[index + 1]),
-                    ),
-                    onIncrease: () => _stepAdjacent(
-                      panes[index],
-                      panes[index + 1],
-                      20,
-                      availableWidth,
-                    ),
-                    onDecrease: () => _stepAdjacent(
-                      panes[index],
-                      panes[index + 1],
-                      -20,
-                      availableWidth,
-                    ),
-                    builder: (context, focused) => GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onHorizontalDragStart: (_) =>
-                          ref.read(paneDraggingProvider.notifier).state = true,
-                      onHorizontalDragEnd: (_) {
-                        ref.read(paneDraggingProvider.notifier).state = false;
-                        _persistLayout();
-                      },
-                      onHorizontalDragCancel: () {
-                        ref.read(paneDraggingProvider.notifier).state = false;
-                        _persistLayout();
-                      },
-                      onHorizontalDragUpdate: (details) => _resizeAdjacent(
-                        panes[index],
-                        panes[index + 1],
-                        details.delta.dx,
-                        availableWidth,
-                      ),
-                      child: SizedBox(
-                        width: dividerWidth,
-                        child: Center(child: _dividerLine(context, focused)),
-                      ),
-                    ),
-                  ),
-                ),
-                ),
-            ],
-          ],
-        );
-      },
+              );
+            }
+            children.add(
+              _paneSlot(
+                width: shown[pane]!,
+                layoutWidth: targets[pane]!,
+                child: body,
+              ),
+            );
+            if (index < rowPanes.length - 1) {
+              children.add(
+                _paneDivider(pane, rowPanes[index + 1], availableWidth),
+              );
+            }
+          }
+          return Row(children: children);
+        },
+      ),
+    );
+  }
+
+  /// The visible panes plus any hidden pane still shrinking, at its old index.
+  List<WorkspacePane> _withExitingPanes(List<WorkspacePane> panes) {
+    final rows = List<WorkspacePane>.of(panes);
+    final exiting = _exitingPanes.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+    for (final entry in exiting) {
+      if (rows.contains(entry.key)) continue;
+      rows.insert(
+        entry.value > rows.length ? rows.length : entry.value,
+        entry.key,
+      );
+    }
+    return rows;
+  }
+
+  /// Slot widths in pixels for this frame. Animating, each slot moves from its
+  /// width in the layout on screen to its target. The starting widths are
+  /// scaled to the row, so the total never changes during the transition.
+  Map<WorkspacePane, double> _displayedWidths(
+    List<WorkspacePane> rowPanes,
+    Map<WorkspacePane, double> targets,
+    double rowWidth,
+  ) {
+    final raw = <WorkspacePane, double>{};
+    if (!_paneAnimating || _reducedMotion) {
+      raw.addAll(targets);
+    } else {
+      final eased = FrameMotion.panelCurve.transform(_paneTransition.value);
+      var fromTotal = 0.0;
+      for (final p in rowPanes) {
+        fromTotal += _slotFromPx[p] ?? 0;
+      }
+      final scale = fromTotal > 0 ? rowWidth / fromTotal : 1.0;
+      for (final p in rowPanes) {
+        final from = (_slotFromPx[p] ?? 0) * scale;
+        raw[p] = from + (targets[p]! - from) * eased;
+      }
+    }
+    return _snapToRow(raw, rowPanes, rowWidth);
+  }
+
+  /// Rounds slot widths down to a thousandth of a pixel and keeps a margin
+  /// under [rowWidth], so the row never overflows on floating-point rounding.
+  Map<WorkspacePane, double> _snapToRow(
+    Map<WorkspacePane, double> raw,
+    List<WorkspacePane> rowPanes,
+    double rowWidth,
+  ) {
+    final out = <WorkspacePane, double>{};
+    for (final p in rowPanes) {
+      final v = raw[p] ?? 0;
+      out[p] = (v > 0 ? (v * 1000).floorToDouble() / 1000 : 0.0);
+    }
+    final total = out.values.fold<double>(0, (sum, v) => sum + v);
+    final excess = total - (rowWidth - 0.001);
+    if (excess > 0 && out.isNotEmpty) {
+      final largest =
+          out.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final reduced = out[largest]! - excess;
+      out[largest] = reduced > 0 ? reduced : 0.0;
+    }
+    return out;
+  }
+
+  /// Opacity of an entering pane's content. Under motion it appears after 60 %
+  /// of the travel. Under reduced motion it cross-fades over the whole duration
+  /// at the final layout. Panes that are not entering stay opaque.
+  double _entryAlpha(WorkspacePane pane, double target) {
+    if (!_paneAnimating) return 1;
+    final from = _slotFromPx[pane] ?? 0;
+    if (from >= target - 0.5) return 1;
+    final t = _paneTransition.value;
+    if (_reducedMotion) return t;
+    return ((t - 0.6) / 0.4).clamp(0.0, 1.0);
+  }
+
+  /// One pane slot. [width] is the animated slot width, and [layoutWidth] the
+  /// final width the child is laid out at, so its content does not reflow while
+  /// the slot clips it.
+  Widget _paneSlot({
+    required double width,
+    required double layoutWidth,
+    required Widget child,
+  }) {
+    return SizedBox(
+      width: width,
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: layoutWidth,
+          maxWidth: layoutWidth,
+          child: RepaintBoundary(
+            child: SizedBox(width: layoutWidth, child: child),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paneDivider(
+    WorkspacePane left,
+    WorkspacePane right,
+    double availableWidth,
+  ) {
+    const dividerWidth = 8.0;
+    return FocusTraversalOrder(
+      order: NumericFocusOrder(_dividerFocusOrder(left)),
+      child: MouseRegion(
+        key: ValueKey('pane-divider-$left-$right'),
+        cursor: SystemMouseCursors.resizeLeftRight,
+        child: _ResizeDividerFocus(
+          label: strings.paneDividerLabel(_paneLabel(left), _paneLabel(right)),
+          value: strings.dividerPercentValue(_leftSharePercent(left, right)),
+          onIncrease: () => _stepAdjacent(left, right, 20, availableWidth),
+          onDecrease: () => _stepAdjacent(left, right, -20, availableWidth),
+          builder: (context, focused) => GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) =>
+                ref.read(paneDraggingProvider.notifier).state = true,
+            onHorizontalDragEnd: (_) {
+              ref.read(paneDraggingProvider.notifier).state = false;
+              _persistLayout();
+            },
+            onHorizontalDragCancel: () {
+              ref.read(paneDraggingProvider.notifier).state = false;
+              _persistLayout();
+            },
+            onHorizontalDragUpdate: (details) => _resizeAdjacent(
+              left,
+              right,
+              details.delta.dx,
+              availableWidth,
+            ),
+            child: SizedBox(
+              width: dividerWidth,
+              child: Center(child: _dividerLine(context, focused)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1948,15 +2134,16 @@ class _AppShellState extends ConsumerState<AppShell>
     double delta,
     double availableWidth,
   ) {
+    // Divider drags and keyboard steps are instant: no pane width transition.
     if (_collapsedPanes.contains(left)) {
       if (delta > 6) {
-        _expandPane(left);
+        _expandPane(left, animate: false);
       }
       return;
     }
     if (_collapsedPanes.contains(right)) {
       if (delta < -6) {
-        _expandPane(right);
+        _expandPane(right, animate: false);
       }
       return;
     }
@@ -1974,11 +2161,11 @@ class _AppShellState extends ConsumerState<AppShell>
         .length;
     if (openCount > 1) {
       if (candidateLeft < minimum) {
-        _collapsePane(left);
+        _collapsePane(left, animate: false);
         return;
       }
       if (total - candidateLeft < minimum) {
-        _collapsePane(right);
+        _collapsePane(right, animate: false);
         return;
       }
     }

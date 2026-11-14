@@ -265,6 +265,86 @@ void main() {
       },
     );
   }
+
+  // Pane transitions (task 7.3). The entering pane is laid out at its final
+  // width inside a clipped slot, so its width does not change while the slot
+  // grows; reduced motion keeps the final layout and cross-fades the content.
+  for (final reduced in [false, true]) {
+    testWidgets(
+      'expanding a collapsed pane keeps its final width during the transition '
+      '(reduced: $reduced)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final container = ProviderContainer(
+          overrides: [
+            desktopWindowLifecycleProvider.overrideWithValue(false),
+            desktopChromeProvider.overrideWithValue(false),
+            activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+            connectionStateProvider.overrideWith(
+              (ref) => Stream.value(DaemonConnectionState.connected),
+            ),
+            sessionStateFamily('session_1').overrideWith(
+              (ref) => SessionStateNotifier(
+                'session_1',
+                null,
+              )..state = const SessionState(
+                sessionId: 'session_1',
+                cwd: 'C:/repo',
+              ),
+            ),
+            repositoryStateProvider(
+              'session_1',
+            ).overrideWith((ref) => RepositoryController('session_1', () => null)),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  disableAnimations: reduced,
+                ),
+                child: child!,
+              ),
+              home: const AppShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final card = find.byKey(
+          const ValueKey('pane-enter-WorkspacePane.repository'),
+        );
+        await tester.tap(find.byTooltip('Collassa pannello repository'));
+        await tester.pumpAndSettle();
+        expect(card, findsNothing);
+
+        await tester.tap(find.byTooltip('Espandi pannello Repository'));
+        await tester.pump(const Duration(milliseconds: 60));
+        final midWidth = tester.getSize(card).width;
+        final midSlot = tester.getSize(find.ancestor(
+          of: card,
+          matching: find.byType(ClipRect),
+        ).first).width;
+
+        await tester.pumpAndSettle();
+        final finalWidth = tester.getSize(card).width;
+        expect(finalWidth, greaterThan(200));
+        // No reflow: the card keeps its final width during the transition.
+        expect(midWidth, closeTo(finalWidth, 0.5));
+        if (!reduced) {
+          // The slot itself is still growing at 60 ms.
+          expect(midSlot, lessThan(finalWidth));
+        }
+      },
+    );
+  }
 }
 
 class _FixedSubagents extends SubagentsNotifier {
