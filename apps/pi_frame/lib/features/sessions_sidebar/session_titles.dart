@@ -45,9 +45,10 @@ String truncateProvisionalTitle(
 ///
 /// Order: a chosen name (rename or Pi title) first, then the first user prompt
 /// truncated to about 60 characters, then the untitled label when there is no
-/// prompt yet. [lastPreview] is used only for sessions that have messages but
-/// whose first prompt is not loaded; it is the last message, so it is a
-/// stopgap until the daemon lists the first prompt.
+/// prompt yet. [prompt] is the first prompt from the loaded session state.
+/// [listedPrompt] is the first prompt the daemon lists for sessions that are
+/// not loaded; it is used when [prompt] is missing. [lastPreview] is the last
+/// message and is the final stopgap for sessions with no prompt at all.
 String sessionRailTitle({
   required String id,
   required String? name,
@@ -56,6 +57,7 @@ String sessionRailTitle({
   required int? messageCount,
   required String? lastPreview,
   required AppStrings strings,
+  String? listedPrompt,
 }) {
   if (hasChosenSessionName(name, id)) {
     // Qualified by repository when another session has the same name.
@@ -64,6 +66,8 @@ String sessionRailTitle({
   }
   final first = prompt?.trim() ?? '';
   if (first.isNotEmpty) return truncateProvisionalTitle(first);
+  final listed = listedPrompt?.trim() ?? '';
+  if (listed.isNotEmpty) return truncateProvisionalTitle(listed);
   if (messageCount == 0) return strings.sessionUntitledTitle;
   final preview = lastPreview?.trim() ?? '';
   if (preview.isNotEmpty) return truncateProvisionalTitle(preview);

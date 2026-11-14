@@ -1512,6 +1512,7 @@ class _SessionTile extends ConsumerWidget {
       prompt: prompt,
       messageCount: (session['messageCount'] as num?)?.toInt(),
       lastPreview: session['lastMessagePreview'] as String?,
+      listedPrompt: session['firstUserPrompt'] as String?,
       strings: strings,
     );
     final folder = _sessionFolder(session);

@@ -87,6 +87,54 @@ void main() {
       );
     });
 
+    test('an unloaded session takes the first prompt the daemon lists', () {
+      expect(
+        sessionRailTitle(
+          id: 'sess_1',
+          name: 'Session 14:05:09',
+          qualifiedName: null,
+          prompt: null,
+          listedPrompt: 'Fix the login redirect loop',
+          messageCount: 6,
+          lastPreview: 'Done, the redirect is fixed',
+          strings: it,
+        ),
+        'Fix the login redirect loop',
+      );
+    });
+
+    test('a loaded prompt wins over the listed one', () {
+      expect(
+        sessionRailTitle(
+          id: 'sess_1',
+          name: 'Session 14:05:09',
+          qualifiedName: null,
+          prompt: 'Loaded prompt',
+          listedPrompt: 'Listed prompt',
+          messageCount: 2,
+          lastPreview: null,
+          strings: it,
+        ),
+        'Loaded prompt',
+      );
+    });
+
+    test('a long listed prompt is cut like a loaded one', () {
+      final listed = 'word ' * 30;
+      final title = sessionRailTitle(
+        id: 'sess_1',
+        name: null,
+        qualifiedName: null,
+        prompt: null,
+        listedPrompt: listed,
+        messageCount: 2,
+        lastPreview: null,
+        strings: it,
+      );
+      expect(title.length, provisionalTitleMaxLength);
+      expect(title.endsWith('…'), isTrue);
+    });
+
     test('without a loaded prompt, the last message preview is the stopgap', () {
       expect(
         title(messageCount: 4, lastPreview: 'Fixing stream buffer overflow'),

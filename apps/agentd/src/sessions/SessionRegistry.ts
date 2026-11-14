@@ -13,7 +13,7 @@ import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js'
 
 const SESSION_SUMMARY_FIELDS: (keyof SessionSummary)[] = [
   'id', 'name', 'cwd', 'gitRoot', 'sessionFile', 'createdAt', 'lastActivityAt',
-  'sizeBytes', 'messageCount', 'lastMessagePreview', 'isActive', 'parentSession',
+  'sizeBytes', 'messageCount', 'lastMessagePreview', 'firstUserPrompt', 'isActive', 'parentSession',
   'isSubsession', 'isProvisional'
 ];
 

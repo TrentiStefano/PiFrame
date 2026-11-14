@@ -20,6 +20,15 @@ function messageText(message: any): string {
   return text;
 }
 
+/** Longest first prompt carried in a session summary, in characters. */
+export const FIRST_PROMPT_MAX_LENGTH = 120;
+
+/** The prompt text when [message] is a user message, else an empty string. */
+function firstPromptOf(message: any): string {
+  if (message?.role !== 'user') return '';
+  return messageText(message).replace(/\s+/g, ' ').trim().slice(0, FIRST_PROMPT_MAX_LENGTH);
+}
+
 function parseCost(value: unknown): number | undefined {
   const raw = typeof value === 'object' && value !== null
     ? (value as any).total ?? (value as any).amount
@@ -38,6 +47,8 @@ export interface SessionSummary {
   sizeBytes: number;
   messageCount?: number;
   lastMessagePreview?: string;
+  /** Text of the first user prompt, cut to FIRST_PROMPT_MAX_LENGTH. Empty when there is none. */
+  firstUserPrompt?: string;
   isActive: boolean;
   parentSession?: string;
   isSubsession?: boolean;
@@ -99,7 +110,9 @@ export class SessionIndex {
         const raw = fs.readFileSync(this.cachePath, 'utf8');
         const list = JSON.parse(raw);
         for (const item of list) {
-          if (item.id && item.mtime && item.summary) {
+          // Entries written before firstUserPrompt existed are dropped so the
+          // next scan reads them once and fills the field in.
+          if (item.id && item.mtime && item.summary && 'firstUserPrompt' in item.summary) {
             this.cache.set(item.id, item);
           }
         }
@@ -588,7 +601,8 @@ export class SessionIndex {
     name: string | undefined,
     parentSession: string | undefined,
     messageCount?: number,
-    lastMessagePreview?: string
+    lastMessagePreview?: string,
+    firstUserPrompt = ''
   ): SessionSummary | null {
     if (isTemporarySessionCwd(cwd) && !parentSession) return null;
     const isSubagentNameOrId =
@@ -597,7 +611,7 @@ export class SessionIndex {
     const summary: SessionSummary = {
       id: sessionId, name, cwd, gitRoot: null, sessionFile: filePath,
       createdAt: stat.birthtimeMs || stat.mtimeMs, lastActivityAt: stat.mtimeMs,
-      sizeBytes: stat.size, lastMessagePreview, isActive: false, parentSession,
+      sizeBytes: stat.size, lastMessagePreview, firstUserPrompt, isActive: false, parentSession,
       isSubsession: Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd))),
     };
     if (messageCount !== undefined) summary.messageCount = messageCount;
@@ -612,6 +626,7 @@ export class SessionIndex {
     let name: string | undefined = sessionId;
     let messageCount = 0;
     let lastMessagePreview: string | undefined;
+    let firstUserPrompt = '';
     let parentSession: string | undefined;
     let firstLine = true;
     let readFailed = false;
@@ -649,12 +664,13 @@ export class SessionIndex {
             messageCount++;
             const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
+            if (!firstUserPrompt) firstUserPrompt = firstPromptOf(message);
           }
         } catch {}
       }
     } catch { readFailed = true; }
     if (readFailed) return null;
-    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview);
+    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview, firstUserPrompt);
   }
 
   private async parseSessionFileFast(filePath: string, stat: fs.Stats, _dirName: string): Promise<SessionSummary | null> {
@@ -719,8 +735,33 @@ export class SessionIndex {
         if (cached) name = cached.summary.name;
       }
     } finally { await fd.close(); }
+    const firstUserPrompt = await this.readFirstUserPrompt(filePath);
     const freshStat = await fs.promises.stat(filePath);
-    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview);
+    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview, firstUserPrompt);
+  }
+
+  /** The first user prompt in a session file. Reading stops at the first match. */
+  private async readFirstUserPrompt(filePath: string): Promise<string> {
+    const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
+    const lines = readline.createInterface({ input: stream, crlfDelay: Infinity });
+    try {
+      for await (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.type === 'message' || entry.role) {
+            const prompt = firstPromptOf(entry.message || entry);
+            if (prompt) return prompt;
+          }
+        } catch { /* Skip malformed lines, as the other parsers do. */ }
+      }
+      return '';
+    } catch {
+      return '';
+    } finally {
+      lines.close();
+      stream.destroy();
+    }
   }
 
   public async getSubagents(parentSessionId: string, parentSessionFile?: string | null): Promise<Array<{
