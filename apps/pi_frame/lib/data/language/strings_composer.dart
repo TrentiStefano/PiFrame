@@ -325,6 +325,10 @@ extension ComposerStrings on AppStrings {
       ? 'Impossibile caricare l\'immagine'
       : 'Unable to load image';
 
+  String get attImageInvalid => isItalian
+      ? 'Immagine non valida'
+      : 'Invalid image';
+
   String attClickToExpand(String name) => isItalian
       ? '$name (Clicca per ingrandire)'
       : '$name (Click to expand)';

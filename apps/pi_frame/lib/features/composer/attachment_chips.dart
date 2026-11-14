@@ -512,10 +512,31 @@ class AttachmentChip extends ConsumerWidget {
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, stack) => Icon(
-                    Icons.image_not_supported_outlined,
-                    size: 22,
-                    color: tokens.textMuted,
+                  errorBuilder: (ctx, err, stack) => Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      key: ValueKey('attachment-image-invalid-${attachment.id}'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 18,
+                          color: tokens.textMuted,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          strings.attImageInvalid,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: 8,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
