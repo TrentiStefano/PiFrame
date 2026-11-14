@@ -15,6 +15,35 @@ Color _deriveInputBorder(Color surface, Color borderStrong, Color textPrimary) {
   return textPrimary;
 }
 
+/// Keyboard focus overlay: a `focusRing` wash that stays distinct from the
+/// hover wash the widget already uses. Falls back to [base] for other states.
+WidgetStateProperty<Color?> _focusOverlay(
+  FrameTokens tokens, [
+  WidgetStateProperty<Color?>? base,
+]) {
+  return WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.focused)) {
+      return tokens.focusRing.withValues(alpha: 0.2);
+    }
+    return base?.resolve(states);
+  });
+}
+
+/// Focus styling for Material buttons: a 2 px `focusRing` side while focused,
+/// plus the focus overlay above. Hover and pressed keep the base style.
+ButtonStyle _withFocusRing(FrameTokens tokens, [ButtonStyle? base]) {
+  final style = base ?? const ButtonStyle();
+  return style.copyWith(
+    overlayColor: _focusOverlay(tokens, style.overlayColor),
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return BorderSide(color: tokens.focusRing, width: 2);
+      }
+      return style.side?.resolve(states);
+    }),
+  );
+}
+
 Color? parseHexColor(
   dynamic hex, {
   Color? fallback,
@@ -400,6 +429,8 @@ class ThemeSpec {
       scaffoldBackgroundColor: tokens.background,
       fontFamily: tokens.uiFontFamily,
       dividerColor: tokens.border,
+      // Focus for InkWell-based controls (ListTile, menu items, etc.).
+      focusColor: tokens.focusRing.withValues(alpha: 0.2),
       cardColor: tokens.surface,
       useMaterial3: true,
       splashFactory: NoSplash.splashFactory,
@@ -546,33 +577,53 @@ class ThemeSpec {
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: tokens.accent,
-          foregroundColor: tokens.accentContrast,
-          minimumSize: const Size(40, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
+        style: _withFocusRing(
+          tokens,
+          FilledButton.styleFrom(
+            backgroundColor: tokens.accent,
+            foregroundColor: tokens.accentContrast,
+            minimumSize: const Size(40, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: tokens.textPrimary,
-          side: BorderSide(color: tokens.borderStrong),
-          minimumSize: const Size(40, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
+        style: _withFocusRing(
+          tokens,
+          OutlinedButton.styleFrom(
+            foregroundColor: tokens.textPrimary,
+            side: BorderSide(color: tokens.borderStrong),
+            minimumSize: const Size(40, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: tokens.textPrimary,
-          minimumSize: const Size(40, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
+        style: _withFocusRing(
+          tokens,
+          TextButton.styleFrom(
+            foregroundColor: tokens.textPrimary,
+            minimumSize: const Size(40, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
           ),
         ),
+      ),
+      iconButtonTheme: IconButtonThemeData(style: _withFocusRing(tokens)),
+      checkboxTheme: CheckboxThemeData(overlayColor: _focusOverlay(tokens)),
+      switchTheme: SwitchThemeData(
+        overlayColor: _focusOverlay(tokens),
+        // Off state uses the quiet `border` token; the on state keeps the
+        // default (no outline on the filled track).
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return null;
+          return tokens.border;
+        }),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: tokens.surface,
@@ -586,6 +637,7 @@ class ThemeSpec {
         labelColor: tokens.accent,
         unselectedLabelColor: tokens.textSecondary,
         indicatorColor: tokens.accent,
+        overlayColor: _focusOverlay(tokens),
         dividerColor: tokens.border,
         labelStyle: TextStyle(
           fontFamily: tokens.uiFontFamily,
