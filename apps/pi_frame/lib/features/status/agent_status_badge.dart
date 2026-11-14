@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../domain/session/agent_status.dart';
+import '../../ui/motion.dart';
 
 class AgentStatusBadge extends StatelessWidget {
   final AgentStatus status;
@@ -69,14 +70,11 @@ class AgentStatusBadge extends StatelessWidget {
                 border: Border.all(color: tokens.borderStrong, width: 1),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: FrameSpace.x2),
             Text(
               label,
-              style: TextStyle(
-                color: tokens.displayText,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+              style: FrameText.of(context).label
+                  .copyWith(color: tokens.displayText),
             ),
           ],
         ),
@@ -85,10 +83,10 @@ class AgentStatusBadge extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
+        duration: FrameMotion.reduced(context)
+            ? FrameMotion.instant
+            : FrameMotion.micro,
+        curve: FrameMotion.enterCurve,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: Color.alphaBlend(
@@ -110,12 +108,11 @@ class AgentStatusBadge extends StatelessWidget {
                 border: Border.all(color: tokens.borderStrong, width: 1),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: FrameSpace.x2),
             Text(
               label,
-              style: TextStyle(
+              style: FrameText.of(context).label.copyWith(
                 color: tokens.textPrimary,
-                fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
