@@ -14,16 +14,24 @@ void main() {
         'Cosa vuoi realizzare? Digita / per i comandi.',
       );
       expect(
-        strings.composerHintStreaming,
-        'Aggiungi istruzioni o prepara il prossimo turno...',
+        strings.composerHintStreamingEnter,
+        'Invio per indirizzare · Shift+Invio per una nuova riga',
       );
       expect(
-        strings.composerInputHint(isStreaming: false),
+        strings.composerHintStreamingCtrlEnter,
+        'Ctrl+Invio per indirizzare l\'agente',
+      );
+      expect(
+        strings.composerInputHint(isStreaming: false, sendWithEnter: true),
         'Cosa vuoi realizzare? Digita / per i comandi.',
       );
       expect(
-        strings.composerInputHint(isStreaming: true),
-        'Aggiungi istruzioni o prepara il prossimo turno...',
+        strings.composerInputHint(isStreaming: true, sendWithEnter: true),
+        'Invio per indirizzare · Shift+Invio per una nuova riga',
+      );
+      expect(
+        strings.composerInputHint(isStreaming: true, sendWithEnter: false),
+        'Ctrl+Invio per indirizzare l\'agente',
       );
       expect(strings.composerEnlargeTooltip(true), 'Riduci area di testo');
       expect(strings.composerEnlargeTooltip(false), 'Ingrandisci area di testo');
@@ -48,8 +56,8 @@ void main() {
       );
       expect(strings.composerSendLabel, 'Invia');
       expect(
-        strings.composerAgentAnsweringMinimized,
-        'L\'agente sta rispondendo... Passa il mouse o clicca per scrivere',
+        strings.composerAgentAnswering,
+        'L\'agente sta rispondendo…',
       );
       expect(strings.composerStopAction, 'Interrompi');
 
@@ -406,16 +414,24 @@ void main() {
         'What do you want to build? Type / for commands.',
       );
       expect(
-        strings.composerHintStreaming,
-        'Add instructions or queue the next turn...',
+        strings.composerHintStreamingEnter,
+        'Enter to steer · Shift+Enter for a new line',
       );
       expect(
-        strings.composerInputHint(isStreaming: false),
+        strings.composerHintStreamingCtrlEnter,
+        'Ctrl+Enter to steer the agent',
+      );
+      expect(
+        strings.composerInputHint(isStreaming: false, sendWithEnter: true),
         'What do you want to build? Type / for commands.',
       );
       expect(
-        strings.composerInputHint(isStreaming: true),
-        'Add instructions or queue the next turn...',
+        strings.composerInputHint(isStreaming: true, sendWithEnter: true),
+        'Enter to steer · Shift+Enter for a new line',
+      );
+      expect(
+        strings.composerInputHint(isStreaming: true, sendWithEnter: false),
+        'Ctrl+Enter to steer the agent',
       );
       expect(strings.composerEnlargeTooltip(true), 'Collapse text area');
       expect(strings.composerEnlargeTooltip(false), 'Expand text area');
@@ -440,8 +456,8 @@ void main() {
       );
       expect(strings.composerSendLabel, 'Send');
       expect(
-        strings.composerAgentAnsweringMinimized,
-        'Agent is responding... Hover or click to type',
+        strings.composerAgentAnswering,
+        'Agent is responding…',
       );
       expect(strings.composerStopAction, 'Stop');
 

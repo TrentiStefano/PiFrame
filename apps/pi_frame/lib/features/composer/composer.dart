@@ -1,7 +1,6 @@
 import '../../domain/errors/user_facing_error.dart';
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -28,6 +27,8 @@ import 'copilot_file_picker.dart';
 import 'file_mention_menu.dart';
 import 'slash_menu.dart';
 import 'command_chip.dart';
+import 'composer_focus_provider.dart';
+import 'composer_status_line.dart';
 import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
@@ -102,12 +103,6 @@ class _ComposerState extends ConsumerState<Composer> {
   int _fileMentionSelectedIndex = 0;
   List<Map<String, dynamic>> _matchingMentionFiles = [];
   bool _queueExpanded = true;
-  bool _isManuallyExpanded = false;
-  bool _isPointerOver = false;
-  Timer? _hoverGraceTimer;
-  Timer? _expand5sTimer;
-  final ValueNotifier<Offset?> _minimizedHoverOffsetNotifier =
-      ValueNotifier<Offset?>(null);
   bool _hasText = false;
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
@@ -479,9 +474,6 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
-    _hoverGraceTimer?.cancel();
-    _expand5sTimer?.cancel();
-    _minimizedHoverOffsetNotifier.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -535,7 +527,6 @@ class _ComposerState extends ConsumerState<Composer> {
       _activateCommand(typed.$1, args: typed.$2);
       return;
     }
-    _isManuallyExpanded = false;
     final savedDraft = ref.read(
       composerDraftProvider(widget.sessionId).notifier,
     );
@@ -1568,6 +1559,12 @@ class _ComposerState extends ConsumerState<Composer> {
     final inputBudget =
         visibleHeight * (_isInputEnlarged ? 0.85 : 0.7) - chromeHeight;
     final maxInputLines = (inputBudget / 21).floor().clamp(2, 16);
+    ref.listen<int>(composerFocusRequestProvider(widget.sessionId), (
+      previous,
+      request,
+    ) {
+      if (request != previous) _focusNode.requestFocus();
+    });
     ref.listen<String>(composerDraftProvider(widget.sessionId), (
       previous,
       draft,
@@ -1601,6 +1598,7 @@ class _ComposerState extends ConsumerState<Composer> {
       currentModelId,
       currentThinkingLevel,
       contextOverride,
+      runStartedAt,
     ) = ref.watch(
       sessionStateFamily(widget.sessionId).select(
         (s) => (
@@ -1621,6 +1619,7 @@ class _ComposerState extends ConsumerState<Composer> {
           s.currentModelId,
           s.currentThinkingLevel,
           s.contextWindowOverride,
+          s.runStartedAt,
         ),
       ),
     );
@@ -1746,1258 +1745,693 @@ class _ComposerState extends ConsumerState<Composer> {
         agentStatus == AgentStatus.working ||
         activeToolCallsNotEmpty;
 
-    if (!isAgentAnswering && _isManuallyExpanded) {
-      _isManuallyExpanded = false;
-    }
-
-    final isFocused = _focusNode.hasFocus;
-    final hasInputtedText =
-        _hasText || _controller.text.trim().isNotEmpty || _activeCommand != null;
-    final hasAttachments = attachments.isNotEmpty;
-    final shouldMinimize =
-        isAgentAnswering &&
-        !isFocused &&
-        !_isManuallyExpanded &&
-        !hasInputtedText &&
-        !hasAttachments &&
-        // A queued steer/follow-up stays visible and editable until it is delivered.
-        totalQueued == 0 &&
-        pendingInteractionRequests.isEmpty;
-
-    return MouseRegion(
-      key: const ValueKey('composer-mouse-region'),
-      onEnter: (event) {
-        _isPointerOver = true;
-        _hoverGraceTimer?.cancel();
-        _hoverGraceTimer = null;
-        if (shouldMinimize) {
-          _expand5sTimer?.cancel();
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
-            if (mounted && _isPointerOver) {
-              setState(() {
-                _isManuallyExpanded = true;
-                _minimizedHoverOffsetNotifier.value = null;
-              });
-            }
-          });
-        }
-      },
-      onHover: (event) {
-        if (shouldMinimize && _expand5sTimer == null && _isPointerOver) {
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
-            if (mounted && _isPointerOver) {
-              setState(() {
-                _isManuallyExpanded = true;
-                _minimizedHoverOffsetNotifier.value = null;
-              });
-            }
-          });
-        }
-      },
-      onExit: (_) {
-        _isPointerOver = false;
-        _minimizedHoverOffsetNotifier.value = null;
-        _expand5sTimer?.cancel();
-        _expand5sTimer = null;
-        if (_isManuallyExpanded) {
-          _hoverGraceTimer?.cancel();
-          _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
-            if (mounted && !_isPointerOver) {
-              setState(() => _isManuallyExpanded = false);
-            }
-          });
-        }
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeInOutCubic,
-        margin: EdgeInsets.fromLTRB(
-          horizontalMargin,
-          4,
-          horizontalMargin,
-          bottomMargin,
-        ),
-        child: ShimmerBorder(
-          isActive: isShimmerActive,
-          borderRadius: _composerRadius(tokens),
-          child: _ComposerSizeAnimator(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              switchInCurve: Curves.easeInOutCubic,
-              switchOutCurve: Curves.easeInOutCubic,
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  alignment: Alignment.bottomCenter,
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    ...previousChildren.map(
-                      (child) => Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: child,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOutCubic,
+      margin: EdgeInsets.fromLTRB(
+        horizontalMargin,
+        4,
+        horizontalMargin,
+        bottomMargin,
+      ),
+      child: ShimmerBorder(
+        isActive: isShimmerActive,
+        borderRadius: _composerRadius(tokens),
+        child: _ComposerSizeAnimator(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              color: tokens.surfaceElevated,
+              borderRadius: _composerRadius(tokens),
+            ),
+            child: pendingInteractionRequests.isNotEmpty
+                ? Padding(
+                    key: const ValueKey('composer-extension-ui-card'),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: ExtensionUiDialog(
+                      key: ValueKey(
+                        'ext_ui_${pendingInteractionRequests.last['requestId']}',
                       ),
-                    ),
-                    ?currentChild,
-                  ],
-                );
-              },
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: Container(
-                key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
-                padding: shouldMinimize
-                    ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
-                    : const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: _composerRadius(tokens),
-                  border: Border.all(
-                    color: shouldMinimize
-                        ? tokens.agentWorking.withValues(alpha: 0.3)
-                        : tokens.surfaceElevated.withValues(alpha: 0),
-                    width: 1,
-                  ),
-                ),
-                child: pendingInteractionRequests.isNotEmpty
-                    ? Padding(
-                        key: const ValueKey('composer-extension-ui-card'),
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: ExtensionUiDialog(
-                          key: ValueKey(
-                            'ext_ui_${pendingInteractionRequests.last['requestId']}',
+                      sessionId: widget.sessionId,
+                      request: pendingInteractionRequests.last,
+                      isCard: true,
+                      onDismissed: () {
+                        if (!mounted) return;
+                        setState(
+                          () => _dismissedUiRequestIds.add(
+                            pendingInteractionRequests.last['requestId']
+                                .toString(),
                           ),
-                          sessionId: widget.sessionId,
-                          request: pendingInteractionRequests.last,
-                          isCard: true,
-                          onDismissed: () {
-                            if (!mounted) return;
-                            setState(
-                              () => _dismissedUiRequestIds.add(
-                                pendingInteractionRequests.last['requestId']
-                                    .toString(),
-                              ),
-                            );
-                          },
+                        );
+                      },
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Status line while Pi answers. The field below stays visible and usable.
+                      ComposerRunStatusLine(
+                        active: isAgentAnswering,
+                        startedAt: runStartedAt,
+                        label: strings.composerAgentAnswering,
+                        interruptLabel: strings.composerStopAction,
+                        onInterrupt: _isInterrupting ? null : _interrupt,
+                      ),
+                      // File Mention overlay if active
+                      if (_showFileMentionMenu &&
+                          _matchingMentionFiles.isNotEmpty)
+                        Padding(
+                          key: const ValueKey('composer-file-mention-menu'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          child: FileMentionMenu(
+                            key: const ValueKey(
+                              'composer-file-mention-list',
+                            ),
+                            files: _matchingMentionFiles,
+                            query: _fileMentionQuery,
+                            selectedIndex: _fileMentionSelectedIndex,
+                            onSelect: _completeFileMention,
+                            strings: strings,
+                          ),
                         ),
-                      )
-                    : shouldMinimize
-                    ? MouseRegion(
-                        onEnter: (event) {
-                          _minimizedHoverOffsetNotifier.value =
-                              event.localPosition;
-                        },
-                        onHover: (event) {
-                          _minimizedHoverOffsetNotifier.value =
-                              event.localPosition;
-                        },
-                        onExit: (_) {
-                          _minimizedHoverOffsetNotifier.value = null;
-                        },
-                        child: ValueListenableBuilder<Offset?>(
-                          valueListenable: _minimizedHoverOffsetNotifier,
-                          builder: (context, hoverOffset, childWidget) {
-                            return CustomPaint(
-                              painter: hoverOffset == null
-                                  ? null
-                                  : _GlowPointerPainter(
-                                      pointerPosition: hoverOffset,
-                                      borderRadius: _composerRadius(tokens),
-                                      glowColor: tokens.accent,
-                                      borderColor: tokens.accent,
-                                    ),
-                              child: childWidget,
-                            );
-                          },
-                          child: _buildMinimizedBar(tokens, strings, isStreaming),
+
+                      // Slash Menu overlay if active
+                      if (_showSlashMenu && _availableCommands.isNotEmpty)
+                        Padding(
+                          key: const ValueKey('composer-slash-menu'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          child: SlashMenu(
+                            key: const ValueKey('composer-slash-list'),
+                            commands: _availableCommands,
+                            filter: _controller.text,
+                            selectedIndex: _slashSelectedIndex,
+                            onSelect: _onSelectSlashCommand,
+                            sourceLabel: strings.composerCommandSourceLabel,
+                          ),
                         ),
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // File Mention overlay if active
-                          if (_showFileMentionMenu &&
-                              _matchingMentionFiles.isNotEmpty)
-                            Padding(
-                              key: const ValueKey('composer-file-mention-menu'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: FileMentionMenu(
-                                key: const ValueKey(
-                                  'composer-file-mention-list',
-                                ),
-                                files: _matchingMentionFiles,
-                                query: _fileMentionQuery,
-                                selectedIndex: _fileMentionSelectedIndex,
-                                onSelect: _completeFileMention,
-                                strings: strings,
-                              ),
-                            ),
 
-                          // Slash Menu overlay if active
-                          if (_showSlashMenu && _availableCommands.isNotEmpty)
-                            Padding(
-                              key: const ValueKey('composer-slash-menu'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: SlashMenu(
-                                key: const ValueKey('composer-slash-list'),
-                                commands: _availableCommands,
-                                filter: _controller.text,
-                                selectedIndex: _slashSelectedIndex,
-                                onSelect: _onSelectSlashCommand,
-                                sourceLabel: strings.composerCommandSourceLabel,
-                              ),
-                            ),
-
-                          // Pending Queue bar (if any queue exists)
-                          if (totalQueued > 0)
-                            Container(
-                              key: const ValueKey('composer-queue-bar'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              color: tokens.surfaceElevated,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.queue,
-                                        size: 16,
-                                        color: tokens.accent,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          strings.composerQueuedSummary(totalQueued, steeringQueue.length, followUpQueue.length),
-                                          style: TextStyle(
-                                            color: tokens.textSecondary,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      if (steeringQueue.isNotEmpty)
-                                        IconButton(
-                                          key: const ValueKey(
-                                            'composer-queue-toggle-expand',
-                                          ),
-                                          tooltip: strings.composerToggleQueueTooltip(_queueExpanded),
-                                          icon: Icon(
-                                            _queueExpanded
-                                                ? Icons.keyboard_arrow_up
-                                                : Icons.keyboard_arrow_down,
-                                            size: 16,
-                                            color: tokens.textSecondary,
-                                          ),
-                                          onPressed: () => setState(
-                                            () => _queueExpanded =
-                                                !_queueExpanded,
-                                          ),
-                                        ),
-                                      TextButton.icon(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        icon: Icon(
-                                          Icons.clear_all,
-                                          size: 14,
-                                          color: tokens.textMuted,
-                                        ),
-                                        label: Text(
-                                          strings.composerClearQueueAction,
-                                          style: TextStyle(
-                                            color: tokens.textMuted,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                        onPressed: () => _runAction(
-                                          sessionNotifier.clearQueue,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (_queueExpanded &&
-                                      steeringQueue.isNotEmpty) ...[
-                                    const SizedBox(height: 6),
-                                    for (
-                                      var i = 0;
-                                      i < steeringQueue.length;
-                                      i++
-                                    )
-                                      Container(
-                                        key: ValueKey('steer-queue-item-$i'),
-                                        margin: const EdgeInsets.only(
-                                          bottom: 4,
-                                        ),
-                                        padding: const EdgeInsets.fromLTRB(
-                                          8,
-                                          4,
-                                          6,
-                                          4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: tokens.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusSm,
-                                          ),
-                                          border: Border.all(
-                                            color: tokens.border,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 5,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: tokens.accent.withValues(
-                                                  alpha: 0.15,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                              ),
-                                              child: Text(
-                                                'STEER #${i + 1}',
-                                                style: TextStyle(
-                                                  color: tokens.accent,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                steeringQueue[i],
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: tokens.textPrimary,
-                                                  fontSize: 12,
-                                                  fontFamily:
-                                                      tokens.monoFontFamily,
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              key: ValueKey(
-                                                'edit-steer-btn-$i',
-                                              ),
-                                              tooltip: strings.composerEditSteerTooltip,
-                                              icon: Icon(
-                                                Icons.edit_outlined,
-                                                size: 14,
-                                                color: tokens.accent,
-                                              ),
-                                              constraints: const BoxConstraints(
-                                                minWidth: 26,
-                                                minHeight: 26,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () =>
-                                                  _showEditSteerDialog(
-                                                    context,
-                                                    i,
-                                                    steeringQueue[i],
-                                                  ),
-                                            ),
-                                            IconButton(
-                                              key: ValueKey(
-                                                'delete-steer-btn-$i',
-                                              ),
-                                              tooltip: strings.composerDeleteFromQueueTooltip,
-                                              icon: Icon(
-                                                Icons.close,
-                                                size: 14,
-                                                color: tokens.textMuted,
-                                              ),
-                                              constraints: const BoxConstraints(
-                                                minWidth: 26,
-                                                minHeight: 26,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () => sessionNotifier
-                                                  .removeSteerMessage(i),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ],
-                              ),
-                            ),
-
-                          // Worker Crash Recovery Banner
-                          if (isError)
-                            Container(
-                              key: const ValueKey('composer-crash-banner'),
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              color: tokens.danger.withValues(alpha: 0.15),
-                              child: Row(
+                      // Pending Queue bar (if any queue exists)
+                      if (totalQueued > 0)
+                        Container(
+                          key: const ValueKey('composer-queue-bar'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          color: tokens.surfaceElevated,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
                                 children: [
                                   Icon(
-                                    Icons.warning_amber_rounded,
-                                    size: 18,
-                                    color: tokens.danger,
+                                    Icons.queue,
+                                    size: 16,
+                                    color: tokens.accent,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      strings.composerWorkerCrashBanner,
+                                      strings.composerQueuedSummary(totalQueued, steeringQueue.length, followUpQueue.length),
                                       style: TextStyle(
-                                        color: tokens.danger,
+                                        color: tokens.textSecondary,
                                         fontSize: 12,
-                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: tokens.accent,
-                                      foregroundColor: tokens.accentContrast,
+                                  if (steeringQueue.isNotEmpty)
+                                    IconButton(
+                                      key: const ValueKey(
+                                        'composer-queue-toggle-expand',
+                                      ),
+                                      tooltip: strings.composerToggleQueueTooltip(_queueExpanded),
+                                      icon: Icon(
+                                        _queueExpanded
+                                            ? Icons.keyboard_arrow_up
+                                            : Icons.keyboard_arrow_down,
+                                        size: 16,
+                                        color: tokens.textSecondary,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _queueExpanded =
+                                            !_queueExpanded,
+                                      ),
+                                    ),
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
                                       minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
-                                    icon: const Icon(Icons.refresh, size: 14),
+                                    icon: Icon(
+                                      Icons.clear_all,
+                                      size: 14,
+                                      color: tokens.textMuted,
+                                    ),
                                     label: Text(
-                                      strings.composerRecoverSessionAction,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
+                                      strings.composerClearQueueAction,
+                                      style: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 11,
                                       ),
                                     ),
                                     onPressed: () => _runAction(
-                                      sessionNotifier.recoverSession,
+                                      sessionNotifier.clearQueue,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                              if (_queueExpanded &&
+                                  steeringQueue.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                for (
+                                  var i = 0;
+                                  i < steeringQueue.length;
+                                  i++
+                                )
+                                  Container(
+                                    key: ValueKey('steer-queue-item-$i'),
+                                    margin: const EdgeInsets.only(
+                                      bottom: 4,
+                                    ),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      8,
+                                      4,
+                                      6,
+                                      4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: tokens.surface,
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                      border: Border.all(
+                                        color: tokens.border,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 5,
+                                                vertical: 2,
+                                              ),
+                                          decoration: BoxDecoration(
+                                            color: tokens.accent.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                  tokens.radiusSm,
+                                                ),
+                                          ),
+                                          child: Text(
+                                            'STEER #${i + 1}',
+                                            style: TextStyle(
+                                              color: tokens.accent,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            steeringQueue[i],
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: tokens.textPrimary,
+                                              fontSize: 12,
+                                              fontFamily:
+                                                  tokens.monoFontFamily,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          key: ValueKey(
+                                            'edit-steer-btn-$i',
+                                          ),
+                                          tooltip: strings.composerEditSteerTooltip,
+                                          icon: Icon(
+                                            Icons.edit_outlined,
+                                            size: 14,
+                                            color: tokens.accent,
+                                          ),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 26,
+                                            minHeight: 26,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () =>
+                                              _showEditSteerDialog(
+                                                context,
+                                                i,
+                                                steeringQueue[i],
+                                              ),
+                                        ),
+                                        IconButton(
+                                          key: ValueKey(
+                                            'delete-steer-btn-$i',
+                                          ),
+                                          tooltip: strings.composerDeleteFromQueueTooltip,
+                                          icon: Icon(
+                                            Icons.close,
+                                            size: 14,
+                                            color: tokens.textMuted,
+                                          ),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 26,
+                                            minHeight: 26,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () => sessionNotifier
+                                              .removeSteerMessage(i),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ),
 
-                          // Input area
-                          Padding(
-                            key: const ValueKey('composer-input-area'),
-                            padding: const EdgeInsets.all(4),
-                            child: Focus(
-                              key: const ValueKey('composer-input-focus'),
-                              onKeyEvent: (node, event) {
-                                if (event is KeyDownEvent ||
-                                    event is KeyRepeatEvent) {
-                                  final slashItems = _showSlashMenu
-                                      ? SlashMenu.filtered(
-                                          _availableCommands,
-                                          _controller.text,
-                                        )
-                                      : const <Map<String, dynamic>>[];
-                                  final key = event.logicalKey;
-                                  if (slashItems.isNotEmpty) {
-                                    if (key == LogicalKeyboardKey.arrowDown ||
-                                        key == LogicalKeyboardKey.arrowUp) {
-                                      final step =
-                                          key == LogicalKeyboardKey.arrowDown ? 1 : -1;
-                                      setState(() {
-                                        _slashSelectedIndex =
-                                            (_slashSelectedIndex + step) %
-                                            slashItems.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event is KeyDownEvent &&
-                                        (key == LogicalKeyboardKey.tab ||
-                                            key == LogicalKeyboardKey.enter ||
-                                            key == LogicalKeyboardKey.numpadEnter) &&
-                                        !HardwareKeyboard.instance.isShiftPressed) {
-                                      _activateCommand(
-                                        slashItems[_slashSelectedIndex.clamp(
-                                          0,
-                                          slashItems.length - 1,
-                                        )],
-                                      );
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (key == LogicalKeyboardKey.escape) {
-                                      setState(() => _showSlashMenu = false);
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-                                  final selection = _controller.selection;
-                                  if (_activeCommand != null &&
-                                      key == LogicalKeyboardKey.backspace &&
-                                      selection.isCollapsed &&
-                                      selection.baseOffset <= 0) {
-                                    _removeCommand();
-                                    return KeyEventResult.handled;
-                                  }
+                      // Worker Crash Recovery Banner
+                      if (isError)
+                        Container(
+                          key: const ValueKey('composer-crash-banner'),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          color: tokens.danger.withValues(alpha: 0.15),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 18,
+                                color: tokens.danger,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  strings.composerWorkerCrashBanner,
+                                  style: TextStyle(
+                                    color: tokens.danger,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: tokens.accent,
+                                  foregroundColor: tokens.accentContrast,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  minimumSize: Size.zero,
+                                ),
+                                icon: const Icon(Icons.refresh, size: 14),
+                                label: Text(
+                                  strings.composerRecoverSessionAction,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: () => _runAction(
+                                  sessionNotifier.recoverSession,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Input area
+                      Padding(
+                        key: const ValueKey('composer-input-area'),
+                        padding: const EdgeInsets.all(4),
+                        child: Focus(
+                          key: const ValueKey('composer-input-focus'),
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent ||
+                                event is KeyRepeatEvent) {
+                              final slashItems = _showSlashMenu
+                                  ? SlashMenu.filtered(
+                                      _availableCommands,
+                                      _controller.text,
+                                    )
+                                  : const <Map<String, dynamic>>[];
+                              final key = event.logicalKey;
+                              if (slashItems.isNotEmpty) {
+                                if (key == LogicalKeyboardKey.arrowDown ||
+                                    key == LogicalKeyboardKey.arrowUp) {
+                                  final step =
+                                      key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+                                  setState(() {
+                                    _slashSelectedIndex =
+                                        (_slashSelectedIndex + step) %
+                                        slashItems.length;
+                                  });
+                                  return KeyEventResult.handled;
                                 }
-                                if (event is KeyDownEvent) {
-                                  // File Mention keyboard navigation
-                                  if (_showFileMentionMenu &&
-                                      _matchingMentionFiles.isNotEmpty) {
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.arrowDown) {
-                                      setState(() {
-                                        _fileMentionSelectedIndex =
-                                            (_fileMentionSelectedIndex + 1) %
-                                            _matchingMentionFiles.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.arrowUp) {
-                                      setState(() {
-                                        _fileMentionSelectedIndex =
-                                            (_fileMentionSelectedIndex -
-                                                1 +
-                                                _matchingMentionFiles.length) %
-                                            _matchingMentionFiles.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                            LogicalKeyboardKey.tab ||
-                                        event.logicalKey ==
-                                            LogicalKeyboardKey.enter ||
-                                        event.logicalKey ==
-                                            LogicalKeyboardKey.numpadEnter) {
-                                      final chosen =
-                                          _matchingMentionFiles[_fileMentionSelectedIndex]['path']
-                                              ?.toString() ??
-                                          '';
-                                      if (chosen.isNotEmpty) {
-                                        _completeFileMention(chosen);
-                                      }
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.escape) {
-                                      setState(
-                                        () => _showFileMentionMenu = false,
-                                      );
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-
-                                  if (event.logicalKey ==
-                                      LogicalKeyboardKey.escape) {
-                                    if (isStreaming) {
-                                      _interrupt();
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
+                                if (event is KeyDownEvent &&
+                                    (key == LogicalKeyboardKey.tab ||
+                                        key == LogicalKeyboardKey.enter ||
+                                        key == LogicalKeyboardKey.numpadEnter) &&
+                                    !HardwareKeyboard.instance.isShiftPressed) {
+                                  _activateCommand(
+                                    slashItems[_slashSelectedIndex.clamp(
+                                      0,
+                                      slashItems.length - 1,
+                                    )],
+                                  );
+                                  return KeyEventResult.handled;
                                 }
-
-                                final isEnter =
+                                if (key == LogicalKeyboardKey.escape) {
+                                  setState(() => _showSlashMenu = false);
+                                  return KeyEventResult.handled;
+                                }
+                              }
+                              final selection = _controller.selection;
+                              if (_activeCommand != null &&
+                                  key == LogicalKeyboardKey.backspace &&
+                                  selection.isCollapsed &&
+                                  selection.baseOffset <= 0) {
+                                _removeCommand();
+                                return KeyEventResult.handled;
+                              }
+                            }
+                            if (event is KeyDownEvent) {
+                              // File Mention keyboard navigation
+                              if (_showFileMentionMenu &&
+                                  _matchingMentionFiles.isNotEmpty) {
+                                if (event.logicalKey ==
+                                    LogicalKeyboardKey.arrowDown) {
+                                  setState(() {
+                                    _fileMentionSelectedIndex =
+                                        (_fileMentionSelectedIndex + 1) %
+                                        _matchingMentionFiles.length;
+                                  });
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey ==
+                                    LogicalKeyboardKey.arrowUp) {
+                                  setState(() {
+                                    _fileMentionSelectedIndex =
+                                        (_fileMentionSelectedIndex -
+                                            1 +
+                                            _matchingMentionFiles.length) %
+                                        _matchingMentionFiles.length;
+                                  });
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey ==
+                                        LogicalKeyboardKey.tab ||
                                     event.logicalKey ==
                                         LogicalKeyboardKey.enter ||
                                     event.logicalKey ==
-                                        LogicalKeyboardKey.numpadEnter;
-
-                                if (isEnter &&
-                                    (event is KeyDownEvent ||
-                                        event is KeyRepeatEvent)) {
-                                  // b. IME composition active -> never send
-                                  if (_controller.value.composing.isValid) {
-                                    return KeyEventResult.ignored;
+                                        LogicalKeyboardKey.numpadEnter) {
+                                  final chosen =
+                                      _matchingMentionFiles[_fileMentionSelectedIndex]['path']
+                                          ?.toString() ??
+                                      '';
+                                  if (chosen.isNotEmpty) {
+                                    _completeFileMention(chosen);
                                   }
+                                  return KeyEventResult.handled;
+                                }
+                                if (event.logicalKey ==
+                                    LogicalKeyboardKey.escape) {
+                                  setState(
+                                    () => _showFileMentionMenu = false,
+                                  );
+                                  return KeyEventResult.handled;
+                                }
+                              }
 
-                                  final isShift =
-                                      HardwareKeyboard.instance.isShiftPressed;
-                                  final isCtrl =
-                                      HardwareKeyboard.instance.isControlPressed;
-                                  final isMeta =
-                                      HardwareKeyboard.instance.isMetaPressed;
-                                  final isAlt =
-                                      HardwareKeyboard.instance.isAltPressed;
-                                  final sendWithEnter =
-                                      composerSettings.sendWithEnter;
+                              if (event.logicalKey ==
+                                  LogicalKeyboardKey.escape) {
+                                if (isStreaming) {
+                                  _interrupt();
+                                  return KeyEventResult.handled;
+                                }
+                              }
+                            }
 
-                                  void triggerSend() {
-                                    if (isStreaming) {
-                                      _send(streamingBehavior: 'steer');
-                                    } else {
-                                      _send();
-                                    }
+                            final isEnter =
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.enter ||
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.numpadEnter;
+
+                            if (isEnter &&
+                                (event is KeyDownEvent ||
+                                    event is KeyRepeatEvent)) {
+                              // b. IME composition active -> never send
+                              if (_controller.value.composing.isValid) {
+                                return KeyEventResult.ignored;
+                              }
+
+                              final isShift =
+                                  HardwareKeyboard.instance.isShiftPressed;
+                              final isCtrl =
+                                  HardwareKeyboard.instance.isControlPressed;
+                              final isMeta =
+                                  HardwareKeyboard.instance.isMetaPressed;
+                              final isAlt =
+                                  HardwareKeyboard.instance.isAltPressed;
+                              final sendWithEnter =
+                                  composerSettings.sendWithEnter;
+
+                              void triggerSend() {
+                                if (isStreaming) {
+                                  _send(streamingBehavior: 'steer');
+                                } else {
+                                  _send();
+                                }
+                              }
+
+                              if (sendWithEnter) {
+                                // ON mode:
+                                // Shift+Enter -> newline (manual insertion kept: multiline TextField does not insert \n on Shift+Enter)
+                                if (isShift) {
+                                  _insertNewlineAtSelection();
+                                  return KeyEventResult.handled;
+                                }
+                                // Ctrl/Cmd+Enter or plain Enter sends
+                                if (isCtrl || isMeta || !isAlt) {
+                                  if (event is KeyDownEvent) {
+                                    triggerSend();
                                   }
-
-                                  if (sendWithEnter) {
-                                    // ON mode:
-                                    // Shift+Enter -> newline (manual insertion kept: multiline TextField does not insert \n on Shift+Enter)
-                                    if (isShift) {
-                                      _insertNewlineAtSelection();
-                                      return KeyEventResult.handled;
-                                    }
-                                    // Ctrl/Cmd+Enter or plain Enter sends
-                                    if (isCtrl || isMeta || !isAlt) {
-                                      if (event is KeyDownEvent) {
-                                        triggerSend();
-                                      }
-                                      return KeyEventResult.handled;
-                                    }
-                                  } else {
-                                    // OFF mode:
-                                    // Ctrl/Cmd+Enter sends; everything else returns KeyEventResult.ignored
-                                    // so TextField inserts newlines natively (restore original behavior; numpadEnter included).
-                                    if (isCtrl || isMeta) {
-                                      if (event is KeyDownEvent) {
-                                        triggerSend();
-                                      }
-                                      return KeyEventResult.handled;
-                                    }
-                                    return KeyEventResult.ignored;
+                                  return KeyEventResult.handled;
+                                }
+                              } else {
+                                // OFF mode:
+                                // Ctrl/Cmd+Enter sends; everything else returns KeyEventResult.ignored
+                                // so TextField inserts newlines natively (restore original behavior; numpadEnter included).
+                                if (isCtrl || isMeta) {
+                                  if (event is KeyDownEvent) {
+                                    triggerSend();
                                   }
+                                  return KeyEventResult.handled;
                                 }
                                 return KeyEventResult.ignored;
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (_pendingUploads > 0)
-                                    Padding(
-                                      key: const ValueKey(
-                                        'composer-upload-progress',
-                                      ),
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        children: [
-                                          const SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            strings.composerUploadingAttachments(
-                                              _pendingUploads,
-                                            ),
-                                            style: TextStyle(
-                                              color: tokens.textSecondary,
-                                              fontSize: 11.5,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (attachments.isNotEmpty)
-                                    AttachmentListBar(
-                                      key: const ValueKey(
-                                        'composer-attachments-bar',
-                                      ),
-                                      attachments: attachments,
-                                      isEditable: true,
-                                      onRemove: (a) => ref
-                                          .read(
-                                            composerAttachmentsProvider(
-                                              widget.sessionId,
-                                            ).notifier,
-                                          )
-                                          .remove(a.id),
-                                    ),
-                                  Stack(
+                              }
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_pendingUploads > 0)
+                                Padding(
+                                  key: const ValueKey(
+                                    'composer-upload-progress',
+                                  ),
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
                                     children: [
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                      AnimatedSize(
-                                        duration: MediaQuery.disableAnimationsOf(context)
-                                            ? Duration.zero
-                                            : const Duration(milliseconds: 180),
-                                        curve: Curves.easeOutCubic,
-                                        child: AnimatedSwitcher(
-                                          duration: MediaQuery.disableAnimationsOf(context)
-                                              ? Duration.zero
-                                              : const Duration(milliseconds: 150),
-                                          transitionBuilder: (child, animation) => FadeTransition(
-                                            opacity: animation,
-                                            child: ScaleTransition(
-                                              scale: Tween(begin: 0.85, end: 1.0).animate(animation),
-                                              alignment: Alignment.centerLeft,
-                                              child: child,
-                                            ),
-                                          ),
-                                          child: _activeCommand == null
-                                              ? const SizedBox(key: ValueKey('no-command'))
-                                              : Padding(
-                                                  key: ValueKey('command-${_activeCommand!['name']}'),
-                                                  padding: const EdgeInsets.fromLTRB(2, 2, 4, 0),
-                                                  child: ComposerCommandChip(
-                                                    key: const ValueKey('composer-command-chip'),
-                                                    name: _activeCommand!['name'] as String? ?? '',
-                                                    sourceLabel: strings.composerCommandSourceLabel(
-                                                      _activeCommand!['source'] as String? ?? 'prompt',
-                                                    ),
-                                                    removeTooltip: strings.composerRemoveCommandTooltip,
-                                                    running: _commandRunning,
-                                                    onRemove: _removeCommand,
-                                                  ),
-                                                ),
+                                      const SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
                                         ),
                                       ),
-                                      Expanded(
-                                        key: const ValueKey('composer-input'),
-                                        child: TextField(
-                                        key: const ValueKey(
-                                          'composer-text-field',
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        strings.composerUploadingAttachments(
+                                          _pendingUploads,
                                         ),
-                                        cursorColor: tokens.accent,
-                                        controller: _controller,
-                                        focusNode: _focusNode,
-                                        maxLines: math.min(
-                                          _isInputEnlarged ? 16 : 5,
-                                          maxInputLines,
-                                        ),
-                                        minLines: math.min(
-                                          _isInputEnlarged ? 8 : 2,
-                                          maxInputLines,
-                                        ),
-                                        onChanged: (_) {
-                                          if (mounted) setState(() {});
-                                        },
-                                        // Phone browser: Flutter's text and the hidden native <textarea>
-                                        // behind it must wrap identically, otherwise iOS (long-press
-                                        // selection, spacebar trackpad) moves the caret by lines that
-                                        // do not exist on screen. 16px is also what stops iOS from
-                                        // zooming the page when the field gets focus; the 21px line
-                                        // height is unchanged.
                                         style: TextStyle(
-                                          color: tokens.textPrimary,
-                                          fontSize: kIsWeb && isMobile ? 16 : 14.5,
-                                          height: kIsWeb && isMobile ? 21 / 16 : 1.45,
-                                        ),
-                                        cursorWidth: kIsWeb && isMobile ? 2.5 : 2.0,
-                                        decoration: InputDecoration(
-                                          hintText: _activeCommand != null
-                                              ? strings.composerCommandArgsHint(
-                                                  _activeCommand!['name'] as String? ?? '',
-                                                  _activeCommand!['argumentHint'] as String? ?? '',
-                                                )
-                                              : strings.composerInputHint(isStreaming: isStreaming),
-                                          hintStyle: TextStyle(
-                                            color: tokens.textMuted,
-                                            fontSize: 13.5,
-                                          ),
-                                          filled: false,
-                                          border: InputBorder.none,
-                                          enabledBorder: InputBorder.none,
-                                          focusedBorder: InputBorder.none,
-                                          contentPadding: EdgeInsets.fromLTRB(
-                                            4,
-                                            2,
-                                            (!isMobile &&
-                                                    (isLongPrompt ||
-                                                        _isInputEnlarged))
-                                                ? 80
-                                                : 4,
-                                            6,
-                                          ),
+                                          color: tokens.textSecondary,
+                                          fontSize: 11.5,
                                         ),
                                       ),
-                                      ),
-                                        ],
-                                      ),
-                                      if (!isMobile &&
-                                          (isLongPrompt || _isInputEnlarged))
-                                        Positioned(
-                                          top: 2,
-                                          right: 2,
-                                          child: Tooltip(
-                                            message: strings.composerEnlargeTooltip(_isInputEnlarged),
-                                            child: InkWell(
-                                              key: const ValueKey(
-                                                'composer-enlarge-prompt-btn',
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    tokens.radiusSm,
-                                                  ),
-                                              onTap: () => setState(
-                                                () => _isInputEnlarged =
-                                                    !_isInputEnlarged,
-                                              ),
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 3,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: tokens.surfaceElevated,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                  border: Border.all(
-                                                    color: _isInputEnlarged
-                                                        ? tokens.accent
-                                                        : tokens.border,
-                                                    width: 1,
-                                                  ),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      _isInputEnlarged
-                                                          ? Icons
-                                                                .close_fullscreen
-                                                          : Icons.open_in_full,
-                                                      size: 11,
-                                                      color: _isInputEnlarged
-                                                          ? tokens.accent
-                                                          : tokens
-                                                                .textSecondary,
-                                                    ),
-                                                    const SizedBox(width: 3),
-                                                    Text(
-                                                      strings.composerEnlargeLabel(_isInputEnlarged),
-                                                      style: TextStyle(
-                                                        color: _isInputEnlarged
-                                                            ? tokens.accent
-                                                            : tokens
-                                                                  .textSecondary,
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
+                                ),
+                              if (attachments.isNotEmpty)
+                                AttachmentListBar(
+                                  key: const ValueKey(
+                                    'composer-attachments-bar',
+                                  ),
+                                  attachments: attachments,
+                                  isEditable: true,
+                                  onRemove: (a) => ref
+                                      .read(
+                                        composerAttachmentsProvider(
+                                          widget.sessionId,
+                                        ).notifier,
+                                      )
+                                      .remove(a.id),
+                                ),
+                              Stack(
+                                children: [
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        // Chip labels step down as the row narrows: the model name
-                                        // truncates first, then labels drop to icon + tooltip.
-                                        child: LayoutBuilder(
-                                          builder: (context, chipBox) =>
-                                              SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Builder(
-                                                builder: (chipCtx) => Tooltip(
-                                                  message: strings.composerChangeModelTooltip,
-                                                  child: InkWell(
-                                                    key: const ValueKey(
-                                                      'composer-model-picker-btn',
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                    onTap: () => _guardPicker(
-                                                      () => _showModelPicker(
-                                                        chipCtx,
-                                                      ),
-                                                    ),
-                                                    child: Container(
-                                                      height: 26,
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 7,
-                                                            vertical: 3,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: tokens
-                                                            .surfaceElevated,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              tokens.radiusSm,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: tokens.border,
-                                                        ),
-                                                      ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons
-                                                                .smart_toy_outlined,
-                                                            size: 13,
-                                                            color:
-                                                                tokens.accent,
-                                                          ),
-                                                          // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
-                                                            width: 4,
-                                                          ),
-                                                          ConstrainedBox(
-                                                            constraints: BoxConstraints(
-                                                              maxWidth:
-                                                                  chipBox.maxWidth <
-                                                                      kComposerChipNameFullWidth
-                                                                  ? kComposerChipNameNarrowWidth
-                                                                  : MediaQuery.sizeOf(
-                                                                        context,
-                                                                      ).width <
-                                                                      500
-                                                                  ? 80
-                                                                  : 130,
-                                                            ),
-                                                            child: Text(
-                                                              currentModel ??
-                                                                  strings.composerModelDefaultLabel,
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              style: TextStyle(
-                                                                color: tokens
-                                                                    .textSecondary,
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 2,
-                                                          ),
-                                                          Icon(
-                                                            Icons
-                                                                .keyboard_arrow_down,
-                                                            size: 13,
-                                                            color: tokens
-                                                                .textMuted,
-                                                          ),],
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Builder(
-                                                builder: (chipCtx) => Tooltip(
-                                                  message: strings.composerThinkingLevelTooltip,
-                                                  child: InkWell(
-                                                    key: const ValueKey(
-                                                      'composer-thinking-picker-btn',
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                    onTap: () => _guardPicker(
-                                                      () => _showThinkingPicker(
-                                                        chipCtx,
-                                                      ),
-                                                    ),
-                                                    child: Container(
-                                                      height: 26,
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 6,
-                                                            vertical: 3,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: tokens
-                                                            .surfaceElevated,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              tokens.radiusSm,
-                                                            ),
-                                                        border: Border.all(
-                                                          color: tokens.border,
-                                                        ),
-                                                      ),
-                                                      child: Row(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          Icon(
-                                                            Icons.bolt_outlined,
-                                                            size: 13,
-                                                            color:
-                                                                tokens.thinking,
-                                                          ),
-                                                          // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
-                                                            width: 3,
-                                                          ),
-                                                          Text(
-                                                            strings.thinkingLevelLabel(currentThinkingLevel ?? 'medium'),
-                                                            style: TextStyle(
-                                                              color: tokens
-                                                                  .textSecondary,
-                                                              fontSize: 10.5,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 2,
-                                                          ),
-                                                          Icon(
-                                                            Icons
-                                                                .keyboard_arrow_down,
-                                                            size: 13,
-                                                            color: tokens
-                                                                .textMuted,
-                                                          ),],
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              if (isVariablePricing) ...[
-                                                const SizedBox(width: 4),
-                                                Builder(
-                                                  builder: (chipCtx) => Tooltip(
-                                                    message: strings.composerVariablePricingContextTooltip,
-                                                    child: InkWell(
-                                                      key: const ValueKey(
-                                                        'composer-context-size-picker-btn',
-                                                      ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            tokens.radiusSm,
-                                                          ),
-                                                      onTap:
-                                                          _showContextSizePicker,
-                                                      child: Container(
-                                                        height: 26,
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 7,
-                                                              vertical: 3,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color: tokens
-                                                              .surfaceElevated,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                tokens.radiusSm,
-                                                              ),
-                                                          border: Border.all(
-                                                            color: tokens.accent
-                                                                .withValues(
-                                                                  alpha: 0.35,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                        child: Row(
-                                                          mainAxisSize:
-                                                              MainAxisSize.min,
-                                                          children: [
-                                                            if (_isContextPickerLoading)
-                                                              SizedBox(
-                                                                width: 12,
-                                                                height: 12,
-                                                                child: CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      1.5,
-                                                                  color: tokens
-                                                                      .accent,
-                                                                ),
-                                                              )
-                                                            else
-                                                              Icon(
-                                                                Icons.tune,
-                                                                size: 12,
-                                                                color: tokens
-                                                                    .accent,
-                                                              ),
-                                                            const SizedBox(
-                                                              width: 3,
-                                                            ),
-                                                            Text(
-                                                              formatTokens(
-                                                                effectiveContextWindow,
-                                                              ),
-                                                              style: TextStyle(
-                                                                color: tokens
-                                                                    .accent,
-                                                                fontSize: 10.5,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                              width: 2,
-                                                            ),
-                                                            Icon(
-                                                              Icons
-                                                                  .keyboard_arrow_down,
-                                                              size: 12,
-                                                              color: tokens
-                                                                  .textMuted,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
+                                  AnimatedSize(
+                                    duration: MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 180),
+                                    curve: Curves.easeOutCubic,
+                                    child: AnimatedSwitcher(
+                                      duration: MediaQuery.disableAnimationsOf(context)
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 150),
+                                      transitionBuilder: (child, animation) => FadeTransition(
+                                        opacity: animation,
+                                        child: ScaleTransition(
+                                          scale: Tween(begin: 0.85, end: 1.0).animate(animation),
+                                          alignment: Alignment.centerLeft,
+                                          child: child,
                                         ),
                                       ),
-                                      Tooltip(
+                                      child: _activeCommand == null
+                                          ? const SizedBox(key: ValueKey('no-command'))
+                                          : Padding(
+                                              key: ValueKey('command-${_activeCommand!['name']}'),
+                                              padding: const EdgeInsets.fromLTRB(2, 2, 4, 0),
+                                              child: ComposerCommandChip(
+                                                key: const ValueKey('composer-command-chip'),
+                                                name: _activeCommand!['name'] as String? ?? '',
+                                                sourceLabel: strings.composerCommandSourceLabel(
+                                                  _activeCommand!['source'] as String? ?? 'prompt',
+                                                ),
+                                                removeTooltip: strings.composerRemoveCommandTooltip,
+                                                running: _commandRunning,
+                                                onRemove: _removeCommand,
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    key: const ValueKey('composer-input'),
+                                    child: TextField(
+                                    key: const ValueKey(
+                                      'composer-text-field',
+                                    ),
+                                    cursorColor: tokens.accent,
+                                    controller: _controller,
+                                    focusNode: _focusNode,
+                                    maxLines: math.min(
+                                      _isInputEnlarged ? 16 : 5,
+                                      maxInputLines,
+                                    ),
+                                    minLines: math.min(
+                                      _isInputEnlarged ? 8 : 2,
+                                      maxInputLines,
+                                    ),
+                                    onChanged: (_) {
+                                      if (mounted) setState(() {});
+                                    },
+                                    // Phone browser: Flutter's text and the hidden native <textarea>
+                                    // behind it must wrap identically, otherwise iOS (long-press
+                                    // selection, spacebar trackpad) moves the caret by lines that
+                                    // do not exist on screen. 16px is also what stops iOS from
+                                    // zooming the page when the field gets focus; the 21px line
+                                    // height is unchanged.
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: kIsWeb && isMobile ? 16 : 14.5,
+                                      height: kIsWeb && isMobile ? 21 / 16 : 1.45,
+                                    ),
+                                    cursorWidth: kIsWeb && isMobile ? 2.5 : 2.0,
+                                    decoration: InputDecoration(
+                                      hintText: _activeCommand != null
+                                          ? strings.composerCommandArgsHint(
+                                              _activeCommand!['name'] as String? ?? '',
+                                              _activeCommand!['argumentHint'] as String? ?? '',
+                                            )
+                                          : strings.composerInputHint(
+                                              isStreaming: isStreaming,
+                                              sendWithEnter: composerSettings.sendWithEnter,
+                                            ),
+                                      hintStyle: TextStyle(
+                                        color: tokens.textMuted,
+                                        fontSize: 13.5,
+                                      ),
+                                      filled: false,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: EdgeInsets.fromLTRB(
+                                        4,
+                                        2,
+                                        (!isMobile &&
+                                                (isLongPrompt ||
+                                                    _isInputEnlarged))
+                                            ? 80
+                                            : 4,
+                                        6,
+                                      ),
+                                    ),
+                                  ),
+                                  ),
+                                    ],
+                                  ),
+                                  if (!isMobile &&
+                                      (isLongPrompt || _isInputEnlarged))
+                                    Positioned(
+                                      top: 2,
+                                      right: 2,
+                                      child: Tooltip(
                                         message: strings.composerEnlargeTooltip(_isInputEnlarged),
-                                        child: IconButton(
+                                        child: InkWell(
                                           key: const ValueKey(
-                                            'composer-enlarge-toggle-btn',
+                                            'composer-enlarge-prompt-btn',
                                           ),
-                                          icon: Icon(
-                                            _isInputEnlarged
-                                                ? Icons.close_fullscreen
-                                                : Icons.open_in_full,
-                                            size: 15,
-                                            color:
-                                                (_isInputEnlarged ||
-                                                    isLongPrompt)
-                                                ? tokens.accent
-                                                : tokens.textMuted,
-                                          ),
-                                          visualDensity: VisualDensity.compact,
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(
-                                            minWidth: 28,
-                                            minHeight: 28,
-                                          ),
-                                          onPressed: () => setState(
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                tokens.radiusSm,
+                                              ),
+                                          onTap: () => setState(
                                             () => _isInputEnlarged =
                                                 !_isInputEnlarged,
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      _buildAttachButton(tokens, strings),
-                                      const SizedBox(width: 4),
-                                      if (isStreaming ||
-                                          agentStatus == AgentStatus.working ||
-                                          activeToolCallsNotEmpty) ...[
-                                        IconButton(
-                                          icon: _isInterrupting
-                                              ? SizedBox(
-                                                  width: 16,
-                                                  height: 16,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color: tokens.danger,
-                                                      ),
-                                                )
-                                              : Icon(
-                                                  Icons.stop_circle_outlined,
-                                                  color: tokens.signalDanger,
-                                                  size: 19,
+                                          child: Container(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 3,
                                                 ),
-                                          tooltip: strings.composerStopEscTooltip,
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(
-                                            minWidth: 28,
-                                            minHeight: 28,
-                                          ),
-                                          onPressed: _isInterrupting
-                                              ? null
-                                              : _interrupt,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Tooltip(
-                                          message: strings.composerSteerTooltip(
-                                            sendWithEnter:
-                                                composerSettings.sendWithEnter,
-                                          ),
-                                          child: Container(
-                                            width: 28,
-                                            height: 28,
-                                            decoration: BoxDecoration(
-                                              color: tokens.accent,
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    tokens.radiusSm,
-                                                  ),
-                                            ),
-                                            child: IconButton(
-                                              key: const ValueKey(
-                                                'composer-steer-btn',
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              icon: Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.bolt,
-                                                    size: 16,
-                                                    color:
-                                                        tokens.accentContrast,
-                                                  ),
-                                                  SizedBox(
-                                                    width: 0,
-                                                    height: 0,
-                                                    child: Text(
-                                                      'Steer',
-                                                      style: TextStyle(
-                                                        fontSize: 0,
-                                                        color: tokens.background
-                                                            .withValues(
-                                                              alpha: 0,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              onPressed: isSending
-                                                  ? null
-                                                  : () => _send(
-                                                      streamingBehavior:
-                                                          'steer',
-                                                    ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Tooltip(
-                                          message: strings.composerFollowUpTooltip,
-                                          child: Container(
-                                            width: 28,
-                                            height: 28,
                                             decoration: BoxDecoration(
                                               color: tokens.surfaceElevated,
                                               borderRadius:
@@ -3005,381 +2439,680 @@ class _ComposerState extends ConsumerState<Composer> {
                                                     tokens.radiusSm,
                                                   ),
                                               border: Border.all(
-                                                color: tokens.border,
+                                                color: _isInputEnlarged
+                                                    ? tokens.accent
+                                                    : tokens.border,
+                                                width: 1,
                                               ),
                                             ),
-                                            child: IconButton(
-                                              key: const ValueKey(
-                                                'composer-followup-btn',
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              icon: Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.more_time,
-                                                    size: 15,
-                                                    color: tokens.textPrimary,
+                                            child: Row(
+                                              mainAxisSize:
+                                                  MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  _isInputEnlarged
+                                                      ? Icons
+                                                            .close_fullscreen
+                                                      : Icons.open_in_full,
+                                                  size: 11,
+                                                  color: _isInputEnlarged
+                                                      ? tokens.accent
+                                                      : tokens
+                                                            .textSecondary,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  strings.composerEnlargeLabel(_isInputEnlarged),
+                                                  style: TextStyle(
+                                                    color: _isInputEnlarged
+                                                        ? tokens.accent
+                                                        : tokens
+                                                              .textSecondary,
+                                                    fontSize: 10,
+                                                    fontWeight:
+                                                        FontWeight.w600,
                                                   ),
-                                                  SizedBox(
-                                                    width: 0,
-                                                    height: 0,
-                                                    child: Text(
-                                                      'Follow-up',
-                                                      style: TextStyle(
-                                                        fontSize: 0,
-                                                        color: tokens.background
-                                                            .withValues(
-                                                              alpha: 0,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              onPressed: isSending
-                                                  ? null
-                                                  : () => _send(
-                                                      streamingBehavior:
-                                                          'followUp',
-                                                    ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
-                                      ] else ...[
-                                        if (ref.watch(
-                                          sessionHasModifiedFilesProvider(
-                                            widget.sessionId,
-                                          ),
-                                        )) ...[
-                                          Tooltip(
-                                            message: strings.composerReviewChangesTooltip(
-                                              ref.watch(isReviewingChangesProvider),
-                                            ),
-                                            child: Container(
-                                              width: 28,
-                                              height: 28,
-                                              margin: const EdgeInsets.only(
-                                                right: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    ref.watch(
-                                                      isReviewingChangesProvider,
-                                                    )
-                                                    ? tokens.accent.withValues(
-                                                        alpha: 0.15,
-                                                      )
-                                                    : tokens.surfaceElevated,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    // Chip labels step down as the row narrows: the model name
+                                    // truncates first, then labels drop to icon + tooltip.
+                                    child: LayoutBuilder(
+                                      builder: (context, chipBox) =>
+                                          SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Builder(
+                                            builder: (chipCtx) => Tooltip(
+                                              message: strings.composerChangeModelTooltip,
+                                              child: InkWell(
+                                                key: const ValueKey(
+                                                  'composer-model-picker-btn',
+                                                ),
                                                 borderRadius:
                                                     BorderRadius.circular(
                                                       tokens.radiusSm,
                                                     ),
-                                                border: Border.all(
+                                                onTap: () => _guardPicker(
+                                                  () => _showModelPicker(
+                                                    chipCtx,
+                                                  ),
+                                                ),
+                                                child: Container(
+                                                  height: 26,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 7,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: tokens
+                                                        .surfaceElevated,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: tokens.border,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons
+                                                            .smart_toy_outlined,
+                                                        size: 13,
+                                                        color:
+                                                            tokens.accent,
+                                                      ),
+                                                      // Compact (phone) layout: icon only, so the chips never get cut off.
+ if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
+                                                        width: 4,
+                                                      ),
+                                                      ConstrainedBox(
+                                                        constraints: BoxConstraints(
+                                                          maxWidth:
+                                                              chipBox.maxWidth <
+                                                                  kComposerChipNameFullWidth
+                                                              ? kComposerChipNameNarrowWidth
+                                                              : MediaQuery.sizeOf(
+                                                                    context,
+                                                                  ).width <
+                                                                  500
+                                                              ? 80
+                                                              : 130,
+                                                        ),
+                                                        child: Text(
+                                                          currentModel ??
+                                                              strings.composerModelDefaultLabel,
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                          style: TextStyle(
+                                                            color: tokens
+                                                                .textSecondary,
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w500,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        width: 2,
+                                                      ),
+                                                      Icon(
+                                                        Icons
+                                                            .keyboard_arrow_down,
+                                                        size: 13,
+                                                        color: tokens
+                                                            .textMuted,
+                                                      ),],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Builder(
+                                            builder: (chipCtx) => Tooltip(
+                                              message: strings.composerThinkingLevelTooltip,
+                                              child: InkWell(
+                                                key: const ValueKey(
+                                                  'composer-thinking-picker-btn',
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      tokens.radiusSm,
+                                                    ),
+                                                onTap: () => _guardPicker(
+                                                  () => _showThinkingPicker(
+                                                    chipCtx,
+                                                  ),
+                                                ),
+                                                child: Container(
+                                                  height: 26,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: tokens
+                                                        .surfaceElevated,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: tokens.border,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.bolt_outlined,
+                                                        size: 13,
+                                                        color:
+                                                            tokens.thinking,
+                                                      ),
+                                                      // Compact (phone) layout: icon only, so the chips never get cut off.
+ if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
+                                                        width: 3,
+                                                      ),
+                                                      Text(
+                                                        strings.thinkingLevelLabel(currentThinkingLevel ?? 'medium'),
+                                                        style: TextStyle(
+                                                          color: tokens
+                                                              .textSecondary,
+                                                          fontSize: 10.5,
+                                                          fontWeight:
+                                                              FontWeight
+                                                                  .w500,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        width: 2,
+                                                      ),
+                                                      Icon(
+                                                        Icons
+                                                            .keyboard_arrow_down,
+                                                        size: 13,
+                                                        color: tokens
+                                                            .textMuted,
+                                                      ),],
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (isVariablePricing) ...[
+                                            const SizedBox(width: 4),
+                                            Builder(
+                                              builder: (chipCtx) => Tooltip(
+                                                message: strings.composerVariablePricingContextTooltip,
+                                                child: InkWell(
+                                                  key: const ValueKey(
+                                                    'composer-context-size-picker-btn',
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        tokens.radiusSm,
+                                                      ),
+                                                  onTap:
+                                                      _showContextSizePicker,
+                                                  child: Container(
+                                                    height: 26,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                          vertical: 3,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: tokens
+                                                          .surfaceElevated,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            tokens.radiusSm,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: tokens.accent
+                                                            .withValues(
+                                                              alpha: 0.35,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        if (_isContextPickerLoading)
+                                                          SizedBox(
+                                                            width: 12,
+                                                            height: 12,
+                                                            child: CircularProgressIndicator(
+                                                              strokeWidth:
+                                                                  1.5,
+                                                              color: tokens
+                                                                  .accent,
+                                                            ),
+                                                          )
+                                                        else
+                                                          Icon(
+                                                            Icons.tune,
+                                                            size: 12,
+                                                            color: tokens
+                                                                .accent,
+                                                          ),
+                                                        const SizedBox(
+                                                          width: 3,
+                                                        ),
+                                                        Text(
+                                                          formatTokens(
+                                                            effectiveContextWindow,
+                                                          ),
+                                                          style: TextStyle(
+                                                            color: tokens
+                                                                .accent,
+                                                            fontSize: 10.5,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 2,
+                                                        ),
+                                                        Icon(
+                                                          Icons
+                                                              .keyboard_arrow_down,
+                                                          size: 12,
+                                                          color: tokens
+                                                              .textMuted,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    ),
+                                  ),
+                                  Tooltip(
+                                    message: strings.composerEnlargeTooltip(_isInputEnlarged),
+                                    child: IconButton(
+                                      key: const ValueKey(
+                                        'composer-enlarge-toggle-btn',
+                                      ),
+                                      icon: Icon(
+                                        _isInputEnlarged
+                                            ? Icons.close_fullscreen
+                                            : Icons.open_in_full,
+                                        size: 15,
+                                        color:
+                                            (_isInputEnlarged ||
+                                                isLongPrompt)
+                                            ? tokens.accent
+                                            : tokens.textMuted,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 28,
+                                        minHeight: 28,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _isInputEnlarged =
+                                            !_isInputEnlarged,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _buildAttachButton(tokens, strings),
+                                  const SizedBox(width: 4),
+                                  if (isStreaming ||
+                                      agentStatus == AgentStatus.working ||
+                                      activeToolCallsNotEmpty) ...[
+                                    IconButton(
+                                      icon: _isInterrupting
+                                          ? SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: tokens.danger,
+                                                  ),
+                                            )
+                                          : Icon(
+                                              Icons.stop_circle_outlined,
+                                              color: tokens.signalDanger,
+                                              size: 19,
+                                            ),
+                                      tooltip: strings.composerStopEscTooltip,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 28,
+                                        minHeight: 28,
+                                      ),
+                                      onPressed: _isInterrupting
+                                          ? null
+                                          : _interrupt,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Tooltip(
+                                      message: strings.composerSteerTooltip(
+                                        sendWithEnter:
+                                            composerSettings.sendWithEnter,
+                                      ),
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: tokens.accent,
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                tokens.radiusSm,
+                                              ),
+                                        ),
+                                        child: IconButton(
+                                          key: const ValueKey(
+                                            'composer-steer-btn',
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          icon: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.bolt,
+                                                size: 16,
+                                                color:
+                                                    tokens.accentContrast,
+                                              ),
+                                              SizedBox(
+                                                width: 0,
+                                                height: 0,
+                                                child: Text(
+                                                  'Steer',
+                                                  style: TextStyle(
+                                                    fontSize: 0,
+                                                    color: tokens.background
+                                                        .withValues(
+                                                          alpha: 0,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onPressed: isSending
+                                              ? null
+                                              : () => _send(
+                                                  streamingBehavior:
+                                                      'steer',
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Tooltip(
+                                      message: strings.composerFollowUpTooltip,
+                                      child: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: tokens.surfaceElevated,
+                                          borderRadius:
+                                              BorderRadius.circular(
+                                                tokens.radiusSm,
+                                              ),
+                                          border: Border.all(
+                                            color: tokens.border,
+                                          ),
+                                        ),
+                                        child: IconButton(
+                                          key: const ValueKey(
+                                            'composer-followup-btn',
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          icon: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.more_time,
+                                                size: 15,
+                                                color: tokens.textPrimary,
+                                              ),
+                                              SizedBox(
+                                                width: 0,
+                                                height: 0,
+                                                child: Text(
+                                                  'Follow-up',
+                                                  style: TextStyle(
+                                                    fontSize: 0,
+                                                    color: tokens.background
+                                                        .withValues(
+                                                          alpha: 0,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onPressed: isSending
+                                              ? null
+                                              : () => _send(
+                                                  streamingBehavior:
+                                                      'followUp',
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    if (ref.watch(
+                                      sessionHasModifiedFilesProvider(
+                                        widget.sessionId,
+                                      ),
+                                    )) ...[
+                                      Tooltip(
+                                        message: strings.composerReviewChangesTooltip(
+                                          ref.watch(isReviewingChangesProvider),
+                                        ),
+                                        child: Container(
+                                          width: 28,
+                                          height: 28,
+                                          margin: const EdgeInsets.only(
+                                            right: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                ref.watch(
+                                                  isReviewingChangesProvider,
+                                                )
+                                                ? tokens.accent.withValues(
+                                                    alpha: 0.15,
+                                                  )
+                                                : tokens.surfaceElevated,
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                  tokens.radiusSm,
+                                                ),
+                                            border: Border.all(
+                                              color:
+                                                  ref.watch(
+                                                    isReviewingChangesProvider,
+                                                  )
+                                                  ? tokens.accent
+                                                  : tokens.border,
+                                            ),
+                                          ),
+                                          child: IconButton(
+                                            key: const ValueKey(
+                                              'review-changes-btn',
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                            icon: Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                Icon(
+                                                  ref.watch(
+                                                        isReviewingChangesProvider,
+                                                      )
+                                                      ? Icons.rate_review
+                                                      : Icons
+                                                            .rate_review_outlined,
+                                                  size: 15,
                                                   color:
                                                       ref.watch(
                                                         isReviewingChangesProvider,
                                                       )
                                                       ? tokens.accent
-                                                      : tokens.border,
+                                                      : tokens
+                                                            .textSecondary,
                                                 ),
-                                              ),
-                                              child: IconButton(
-                                                key: const ValueKey(
-                                                  'review-changes-btn',
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                                icon: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      ref.watch(
-                                                            isReviewingChangesProvider,
-                                                          )
-                                                          ? Icons.rate_review
-                                                          : Icons
-                                                                .rate_review_outlined,
-                                                      size: 15,
-                                                      color:
-                                                          ref.watch(
-                                                            isReviewingChangesProvider,
-                                                          )
-                                                          ? tokens.accent
-                                                          : tokens
-                                                                .textSecondary,
-                                                    ),
-                                                    SizedBox(
-                                                      width: 0,
-                                                      height: 0,
-                                                      child: Text(
-                                                        'Review changes',
-                                                        style: TextStyle(
-                                                          fontSize: 0,
-                                                          color: tokens
-                                                              .background
-                                                              .withValues(
-                                                                alpha: 0,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                onPressed: () {
-                                                  ref
-                                                      .read(
-                                                        isReviewingChangesProvider
-                                                            .notifier,
-                                                      )
-                                                      .update((v) => !v);
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        Tooltip(
-                                          key: const ValueKey('composer-send'),
-                                          message: strings.composerSendTooltip(
-                                            sendWithEnter:
-                                                composerSettings.sendWithEnter,
-                                          ),
-                                          child: PressFeedback(
-                                            child: FilledButton(
-                                              key: const ValueKey(
-                                                'composer-send-btn',
-                                              ),
-                                              style: FilledButton.styleFrom(
-                                                backgroundColor: tokens.accent,
-                                                foregroundColor:
-                                                    tokens.accentContrast,
-                                                padding: EdgeInsets.zero,
-                                                minimumSize: const Size(28, 28),
-                                                tapTargetSize:
-                                                    MaterialTapTargetSize
-                                                        .shrinkWrap,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                ),
-                                              ),
-                                              onPressed: isSending
-                                                  ? null
-                                                  : () => _send(),
-                                              child: Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  if (isSending)
-                                                    SizedBox(
-                                                      width: 14,
-                                                      height: 14,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: tokens
-                                                                .accentContrast,
+                                                SizedBox(
+                                                  width: 0,
+                                                  height: 0,
+                                                  child: Text(
+                                                    'Review changes',
+                                                    style: TextStyle(
+                                                      fontSize: 0,
+                                                      color: tokens
+                                                          .background
+                                                          .withValues(
+                                                            alpha: 0,
                                                           ),
-                                                    )
-                                                  else
-                                                    Icon(
-                                                      Icons.arrow_upward,
-                                                      size: 16,
-                                                      color:
-                                                          tokens.accentContrast,
-                                                    ),
-                                                  SizedBox(
-                                                    width: 0,
-                                                    height: 0,
-                                                    child: Text(
-                                                      strings.composerSendLabel,
-                                                      style: TextStyle(
-                                                        fontSize: 0,
-                                                        color: tokens.background
-                                                            .withValues(
-                                                              alpha: 0,
-                                                            ),
-                                                      ),
                                                     ),
                                                   ),
-                                                  if (isSending)
-                                                    const SizedBox(
-                                                      width: 0,
-                                                      height: 0,
-                                                      child: Icon(
-                                                        Icons.arrow_upward,
-                                                        size: 0,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
+                                            onPressed: () {
+                                              ref
+                                                  .read(
+                                                    isReviewingChangesProvider
+                                                        .notifier,
+                                                  )
+                                                  .update((v) => !v);
+                                            },
                                           ),
                                         ),
-                                      ],
+                                      ),
                                     ],
-                                  ),
+                                    Tooltip(
+                                      key: const ValueKey('composer-send'),
+                                      message: strings.composerSendTooltip(
+                                        sendWithEnter:
+                                            composerSettings.sendWithEnter,
+                                      ),
+                                      child: PressFeedback(
+                                        child: FilledButton(
+                                          key: const ValueKey(
+                                            'composer-send-btn',
+                                          ),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: tokens.accent,
+                                            foregroundColor:
+                                                tokens.accentContrast,
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: const Size(28, 28),
+                                            tapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    tokens.radiusSm,
+                                                  ),
+                                            ),
+                                          ),
+                                          onPressed: isSending
+                                              ? null
+                                              : () => _send(),
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              if (isSending)
+                                                SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: tokens
+                                                            .accentContrast,
+                                                      ),
+                                                )
+                                              else
+                                                Icon(
+                                                  Icons.arrow_upward,
+                                                  size: 16,
+                                                  color:
+                                                      tokens.accentContrast,
+                                                ),
+                                              SizedBox(
+                                                width: 0,
+                                                height: 0,
+                                                child: Text(
+                                                  strings.composerSendLabel,
+                                                  style: TextStyle(
+                                                    fontSize: 0,
+                                                    color: tokens.background
+                                                        .withValues(
+                                                          alpha: 0,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isSending)
+                                                const SizedBox(
+                                                  width: 0,
+                                                  height: 0,
+                                                  child: Icon(
+                                                    Icons.arrow_upward,
+                                                    size: 0,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMinimizedBar(FrameTokens tokens, AppStrings strings, bool isStreaming) {
-    final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
-      'Test',
-    );
-    return InkWell(
-      key: const ValueKey('composer-minimized-bar'),
-      borderRadius: _composerRadius(tokens),
-      onTap: () {
-        _expand5sTimer?.cancel();
-        _expand5sTimer = null;
-        _minimizedHoverOffsetNotifier.value = null;
-        setState(() => _isManuallyExpanded = true);
-        _focusNode.requestFocus();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: isTest
-                  ? Icon(Icons.sync, size: 12, color: tokens.agentWorking)
-                  : CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: tokens.agentWorking,
-                    ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                strings.composerAgentAnsweringMinimized,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textSecondary,
-                  fontSize: 12,
-                  fontFamily: tokens.uiFontFamily,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            if (isStreaming) ...[
-              const SizedBox(width: 8),
-              InkWell(
-                key: const ValueKey('composer-minimized-interrupt'),
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                onTap: _interrupt,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.stop_circle_outlined,
-                        size: 13,
-                        color: tokens.signalDanger,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        strings.composerStopAction,
-                        style: TextStyle(
-                          color: tokens.signalDanger,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ],
-            const SizedBox(width: 8),
-            Icon(Icons.unfold_more, size: 16, color: tokens.textMuted),
-          ],
+          ),
         ),
       ),
     );
-  }
-}
-
-class _GlowPointerPainter extends CustomPainter {
-  final Offset? pointerPosition;
-  final BorderRadius borderRadius;
-  final Color glowColor;
-  final Color borderColor;
-  static const double radius = 120.0;
-
-  const _GlowPointerPainter({
-    required this.pointerPosition,
-    required this.borderRadius,
-    required this.glowColor,
-    required this.borderColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pos = pointerPosition;
-    if (pos == null) return;
-
-    final rect = Offset.zero & size;
-    final rrect = borderRadius.toRRect(rect);
-
-    // 1. Subtle inner ambient glow following pointer, clipped to card
-    canvas.save();
-    canvas.clipRRect(rrect);
-
-    final glowPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        pos,
-        radius,
-        [
-          glowColor.withValues(alpha: 0.22),
-          glowColor.withValues(alpha: 0.08),
-          glowColor.withValues(alpha: 0.0),
-        ],
-        const [0.0, 0.45, 1.0],
-      );
-
-    canvas.drawRect(rect, glowPaint);
-    canvas.restore();
-
-    // 2. Glowing border highlight following pointer
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..shader = ui.Gradient.radial(
-        pos,
-        radius,
-        [
-          borderColor.withValues(alpha: 0.85),
-          glowColor.withValues(alpha: 0.4),
-          glowColor.withValues(alpha: 0.0),
-        ],
-        const [0.0, 0.5, 1.0],
-      );
-
-    canvas.drawRRect(rrect, borderPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _GlowPointerPainter oldDelegate) {
-    return oldDelegate.pointerPosition != pointerPosition ||
-        oldDelegate.glowColor != glowColor ||
-        oldDelegate.borderColor != borderColor;
   }
 }
