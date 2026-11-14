@@ -1988,6 +1988,10 @@ class _AppShellState extends ConsumerState<AppShell>
     final isBrowser = ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final strings = ref.watch(appStringsProvider);
+    // The run status rides on the Chat tab as a dot (task 10.3).
+    final activeId = ref.watch(activeSessionIdProvider);
+    final running = activeId != null &&
+        ref.watch(sessionStateFamily(activeId)).isStreaming;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => strings.companionChatTab,
       WorkspacePane.repository => strings.companionFileTab,
@@ -2011,30 +2015,57 @@ class _AppShellState extends ConsumerState<AppShell>
                 child: Semantics(
                   button: true,
                   selected: pane == selected,
+                  label: pane == WorkspacePane.chat && running
+                      ? '${label(pane)}, ${strings.companionChatRunningLabel}'
+                      : null,
                   child: TextButton(
                     style: TextButton.styleFrom(
                       minimumSize: const Size(0, 36),
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       foregroundColor: pane == selected
-                          ? tokens.displayText
+                          ? tokens.accent
                           : tokens.textPrimary,
-                      backgroundColor: pane == selected
-                          ? tokens.displaySurface
-                          : tokens.chassis,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        side: BorderSide(
-                          color: pane == selected
-                              ? tokens.borderStrong
-                              : tokens.border,
-                        ),
-                      ),
+                      backgroundColor: Colors.transparent,
+                      shape: const RoundedRectangleBorder(),
                     ),
                     onPressed: () => onSelected(pane),
-                    child: Text(
-                      label(pane),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Container(
+                      // Selected tab: accent text and a 2 px accent underline.
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: pane == selected
+                                ? tokens.accent
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              label(pane),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (pane == WorkspacePane.chat && running) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              key: const ValueKey('compact-chat-run-dot'),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: tokens.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

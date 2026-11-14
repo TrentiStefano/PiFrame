@@ -442,6 +442,9 @@ extension WorkspaceStrings on AppStrings {
   String get companionReviewTab =>
       isItalian ? 'Rivedi modifiche' : 'Review Changes';
   String get companionChatTab => 'Chat';
+  /// Accessible label for the run dot on the Chat tab while the agent works.
+  String get companionChatRunningLabel =>
+      isItalian ? 'Agente al lavoro' : 'Agent running';
   String get companionWebBrowserTab => 'Web Browser';
   String get companionQuickLaunchBadge =>
       isItalian ? 'Avvio rapido' : 'Quick Launch';
