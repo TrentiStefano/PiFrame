@@ -560,9 +560,11 @@ void main() {
       editorState,
     ) as AdaptiveTextSelectionToolbar;
     menu.buttonItems!
-        // The menu entry now names the selected line range (plan 9.1).
+        // The menu entry names the file and the selected line range (plan
+        // 9.1). The label uses the file name so it fits the toolbar; the chat
+        // draft below still gets the full path.
         .singleWhere(
-          (item) => item.label == 'Aggiungi alla chat (lib/main.dart:L1)',
+          (item) => item.label == 'Aggiungi alla chat (main.dart:L1)',
         )
         .onPressed!
         .call();
