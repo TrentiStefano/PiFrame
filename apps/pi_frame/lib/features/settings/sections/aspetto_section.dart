@@ -11,12 +11,14 @@ import '../../../data/theme/theme_providers.dart';
 import '../../../data/transcript/step_grouping_settings.dart';
 import '../../../data/composer/composer_settings.dart';
 import '../../../domain/session/transcript_grouping.dart';
+import '../../../ui/frame_section.dart';
 import '../../../ui/frame_snack_bar.dart';
 
 import 'settings_common.dart';
 import '../theme_editor_dialog.dart';
 
 /// Appearance tab: language, theme selection and editor, display toggles.
+/// Each block is one [FrameSection]; fields sit at the form row height.
 class AppearanceSection extends ConsumerWidget {
   const AppearanceSection({
     super.key,
@@ -29,453 +31,367 @@ class AppearanceSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final text = FrameText.of(context);
     final activeTheme = ref.watch(activeThemeSpecProvider);
     final settings = ref.watch(themeSettingsProvider);
     final repo = ref.watch(themeRepositoryProvider);
     final themes = repo.availableThemes;
     final darkThemes = themes.where((t) => t.variant == 'dark').toList();
     final lightThemes = themes.where((t) => t.variant == 'light').toList();
+    final fieldLabelStyle = text.label.copyWith(color: tokens.textSecondary);
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        Text(
-          strings.languageSectionTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          strings.languageSectionSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<AppLanguage>(
-              key: const ValueKey('settings-language-dropdown'),
-              isExpanded: true,
-              value: ref.watch(appLanguageProvider),
-              dropdownColor: tokens.surfaceElevated,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 13,
-                fontFamily: tokens.uiFontFamily,
-              ),
-              items: AppLanguage.values.map((lang) {
-                return DropdownMenuItem<AppLanguage>(
-                  value: lang,
-                  child: Row(
-                    children: [
-                      Text(lang.flag, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 10),
-                      Text(lang.label),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (newLang) {
-                if (newLang != null) {
-                  ref.read(appLanguageProvider.notifier).setLanguage(newLang);
-                }
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          strings.appearanceTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          strings.appearanceSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      strings.useSystemTheme,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      strings.useSystemThemeSubtitle,
-                      style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                key: const ValueKey('settings-theme-system-switch'),
-                value: settings.useSystemTheme,
-                onChanged: (val) {
-                  ref
-                      .read(themeSettingsProvider.notifier)
-                      .setUseSystemTheme(val);
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (!settings.useSystemTheme) ...[
-          Text(
-            strings.selectActiveTheme,
-            style: TextStyle(
-              color: tokens.textSecondary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.circular(tokens.radiusMd),
-              border: Border.all(color: tokens.border),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                key: const ValueKey('settings-theme-dropdown'),
+        FrameSection(
+          title: strings.languageSectionTitle,
+          description: strings.languageSectionSubtitle,
+          child: buildSettingsFieldBox(
+            tokens,
+            DropdownButtonHideUnderline(
+              child: DropdownButton<AppLanguage>(
+                key: const ValueKey('settings-language-dropdown'),
                 isExpanded: true,
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                value: activeTheme.id,
+                isDense: true,
+                value: ref.watch(appLanguageProvider),
                 dropdownColor: tokens.surfaceElevated,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.uiFontFamily,
-                ),
-                items: themes.map((t) {
-                  return DropdownMenuItem<String>(
-                    value: t.id,
-                    child: Text(
-                      '${t.name} (${t.variant})',
-                      overflow: TextOverflow.ellipsis,
+                style: text.body.copyWith(color: tokens.textPrimary),
+                items: AppLanguage.values.map((lang) {
+                  return DropdownMenuItem<AppLanguage>(
+                    value: lang,
+                    child: Row(
+                      children: [
+                        Text(
+                          lang.flag,
+                          style: text.bodyLarge,
+                        ),
+                        const SizedBox(width: FrameSpace.x2),
+                        Text(lang.label),
+                      ],
                     ),
                   );
                 }).toList(),
-                onChanged: (newId) {
-                  if (newId != null) {
-                    ref.read(activeThemeSpecProvider.notifier).setTheme(newId);
+                onChanged: (newLang) {
+                  if (newLang != null) {
+                    ref.read(appLanguageProvider.notifier).setLanguage(newLang);
                   }
                 },
               ),
             ),
           ),
-          const SizedBox(height: 16),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.appearanceTitle,
+          description: strings.appearanceSubtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    strings.defaultDarkTheme,
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          strings.useSystemTheme,
+                          style: text.bodyLarge.copyWith(
+                            color: tokens.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: FrameSpace.x1),
+                        Text(
+                          strings.useSystemThemeSubtitle,
+                          style: text.caption.copyWith(
+                            color: tokens.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
+                  Switch(
+                    key: const ValueKey('settings-theme-system-switch'),
+                    value: settings.useSystemTheme,
+                    activeThumbColor: tokens.accent,
+                    onChanged: (val) {
+                      ref
+                          .read(themeSettingsProvider.notifier)
+                          .setUseSystemTheme(val);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: FrameSpace.x4),
+              if (!settings.useSystemTheme) ...[
+                Text(strings.selectActiveTheme, style: fieldLabelStyle),
+                const SizedBox(height: FrameSpace.x1),
+                buildSettingsFieldBox(
+                  tokens,
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      key: const ValueKey('settings-theme-dropdown'),
+                      isExpanded: true,
+                      isDense: true,
                       borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      border: Border.all(color: tokens.border),
+                      value: activeTheme.id,
+                      dropdownColor: tokens.surfaceElevated,
+                      style: text.body.copyWith(color: tokens.textPrimary),
+                      items: themes.map((t) {
+                        return DropdownMenuItem<String>(
+                          value: t.id,
+                          child: Text(
+                            '${t.name} (${t.variant})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newId) {
+                        if (newId != null) {
+                          ref
+                              .read(activeThemeSpecProvider.notifier)
+                              .setTheme(newId);
+                        }
+                      },
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        borderRadius: BorderRadius.circular(tokens.radiusMd),
-                        value:
-                            darkThemes.any(
-                              (t) => t.id == settings.defaultDarkThemeId,
-                            )
-                            ? settings.defaultDarkThemeId
-                            : (darkThemes.isNotEmpty
-                                  ? darkThemes.first.id
-                                  : null),
-                        dropdownColor: tokens.surfaceElevated,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
-                          fontFamily: tokens.uiFontFamily,
-                        ),
-                        items: darkThemes.map((t) {
-                          return DropdownMenuItem<String>(
-                            value: t.id,
-                            child: Text(
-                              t.name,
-                              overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: FrameSpace.x4),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(strings.defaultDarkTheme, style: fieldLabelStyle),
+                        const SizedBox(height: FrameSpace.x1),
+                        buildSettingsFieldBox(
+                          tokens,
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              isDense: true,
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusMd,
+                              ),
+                              value:
+                                  darkThemes.any(
+                                    (t) => t.id == settings.defaultDarkThemeId,
+                                  )
+                                  ? settings.defaultDarkThemeId
+                                  : (darkThemes.isNotEmpty
+                                        ? darkThemes.first.id
+                                        : null),
+                              dropdownColor: tokens.surfaceElevated,
+                              style: text.body.copyWith(
+                                color: tokens.textPrimary,
+                              ),
+                              items: darkThemes.map((t) {
+                                return DropdownMenuItem<String>(
+                                  value: t.id,
+                                  child: Text(
+                                    t.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (newId) {
+                                if (newId != null) {
+                                  ref
+                                      .read(themeSettingsProvider.notifier)
+                                      .setDefaultDarkTheme(newId);
+                                }
+                              },
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (newId) {
-                          if (newId != null) {
-                            ref
-                                .read(themeSettingsProvider.notifier)
-                                .setDefaultDarkTheme(newId);
-                          }
-                        },
-                      ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: FrameSpace.x4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(strings.defaultLightTheme, style: fieldLabelStyle),
+                        const SizedBox(height: FrameSpace.x1),
+                        buildSettingsFieldBox(
+                          tokens,
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              isDense: true,
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusMd,
+                              ),
+                              value:
+                                  lightThemes.any(
+                                    (t) =>
+                                        t.id == settings.defaultLightThemeId,
+                                  )
+                                  ? settings.defaultLightThemeId
+                                  : (lightThemes.isNotEmpty
+                                        ? lightThemes.first.id
+                                        : null),
+                              dropdownColor: tokens.surfaceElevated,
+                              style: text.body.copyWith(
+                                color: tokens.textPrimary,
+                              ),
+                              items: lightThemes.map((t) {
+                                return DropdownMenuItem<String>(
+                                  value: t.id,
+                                  child: Text(
+                                    t.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (newId) {
+                                if (newId != null) {
+                                  ref
+                                      .read(themeSettingsProvider.notifier)
+                                      .setDefaultLightTheme(newId);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: FrameSpace.x3),
+              Wrap(
+                spacing: FrameSpace.x3,
+                runSpacing: FrameSpace.x2,
                 children: [
-                  Text(
-                    strings.defaultLightTheme,
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      border: Border.all(color: tokens.border),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        borderRadius: BorderRadius.circular(tokens.radiusMd),
-                        value:
-                            lightThemes.any(
-                              (t) => t.id == settings.defaultLightThemeId,
-                            )
-                            ? settings.defaultLightThemeId
-                            : (lightThemes.isNotEmpty
-                                  ? lightThemes.first.id
-                                  : null),
-                        dropdownColor: tokens.surfaceElevated,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
-                          fontFamily: tokens.uiFontFamily,
-                        ),
-                        items: lightThemes.map((t) {
-                          return DropdownMenuItem<String>(
-                            value: t.id,
-                            child: Text(
-                              t.name,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (newId) {
-                          if (newId != null) {
-                            ref
-                                .read(themeSettingsProvider.notifier)
-                                .setDefaultLightTheme(newId);
-                          }
-                        },
+                  OutlinedButton.icon(
+                    key: const ValueKey('settings-open-theme-editor-btn'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: tokens.accent),
+                      minimumSize: const Size(0, FrameSize.rowForm),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
                       ),
                     ),
+                    icon: Icon(
+                      Icons.palette_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
+                    label: Text(
+                      strings.openThemeEditorBtn,
+                      style: text.label.copyWith(color: tokens.accent),
+                    ),
+                    onPressed: () {
+                      ThemeEditorDialog.show(context);
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('settings-import-theme-btn'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: tokens.borderStrong),
+                      minimumSize: const Size(0, FrameSize.rowForm),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.file_upload_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
+                    label: Text(
+                      strings.importThemeBtn,
+                      style: text.label.copyWith(color: tokens.textPrimary),
+                    ),
+                    onPressed: () async {
+                      try {
+                        final file = await openFile(
+                          acceptedTypeGroups: [
+                            XTypeGroup(
+                              label: strings.themeJsonFilterLabel,
+                              extensions: const ['json'],
+                            ),
+                          ],
+                        );
+                        if (file == null || !context.mounted) {
+                          return;
+                        }
+                        final content = await file.readAsString();
+                        final importedSpec = await ref
+                            .read(activeThemeSpecProvider.notifier)
+                            .importThemeFromJson(content);
+                        if (context.mounted) {
+                          FrameSnackBar.show(
+                            context,
+                            message: strings.themeImportSuccess(
+                              importedSpec.name,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          FrameSnackBar.show(
+                            context,
+                            message: strings.themeImportError(e),
+                          );
+                        }
+                      }
+                    },
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              key: const ValueKey('settings-open-theme-editor-btn'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: tokens.accent),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+              const SizedBox(height: FrameSpace.x4),
+              buildSettingsInfoCard(tokens, [
+                buildSettingsInfoRow(
+                  tokens,
+                  strings.labelActiveTheme,
+                  '${activeTheme.name} (v${activeTheme.version})',
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                buildSettingsInfoRow(
+                  tokens,
+                  strings.labelLayoutDensity,
+                  strings.layoutDensityDefault,
                 ),
-              ),
-              icon: Icon(
-                Icons.palette_outlined,
-                size: 16,
-                color: tokens.accent,
-              ),
-              label: Text(
-                strings.openThemeEditorBtn,
-                style: TextStyle(
-                  color: tokens.accent,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+                buildSettingsInfoRow(
+                  tokens,
+                  strings.labelFonts,
+                  strings.fontsDetail(
+                    activeTheme.toTokens().uiFontFamily,
+                    activeTheme.toTokens().monoFontFamily,
+                  ),
                 ),
-              ),
-              onPressed: () {
-                ThemeEditorDialog.show(context);
-              },
-            ),
-            OutlinedButton.icon(
-              key: const ValueKey('settings-import-theme-btn'),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: tokens.borderStrong),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+              ]),
+              if (activeTheme.diagnostics.isNotEmpty) ...[
+                const SizedBox(height: FrameSpace.x4),
+                Text(
+                  strings.themeDiagnosticsHeader,
+                  style: text.label.copyWith(color: tokens.textPrimary),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                const SizedBox(height: FrameSpace.x1),
+                ...activeTheme.diagnostics.map(
+                  (d) => Text(
+                    '• $d',
+                    style: text.caption.copyWith(color: tokens.textMuted),
+                  ),
                 ),
-              ),
-              icon: Icon(
-                Icons.file_upload_outlined,
-                size: 16,
-                color: tokens.accent,
-              ),
-              label: Text(
-                strings.importThemeBtn,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onPressed: () async {
-                try {
-                  final file = await openFile(
-                    acceptedTypeGroups: [
-                      XTypeGroup(
-                        label: strings.themeJsonFilterLabel,
-                        extensions: const ['json'],
-                      ),
-                    ],
-                  );
-                  if (file == null || !context.mounted) {
-                    return;
-                  }
-                  final content = await file.readAsString();
-                  final importedSpec = await ref
-                      .read(activeThemeSpecProvider.notifier)
-                      .importThemeFromJson(content);
-                  if (context.mounted) {
-                    FrameSnackBar.show(
-                      context,
-                      message: strings.themeImportSuccess(importedSpec.name),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    FrameSnackBar.show(
-                      context,
-                      message: strings.themeImportError(e),
-                    );
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        buildSettingsInfoCard(tokens, [
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelActiveTheme,
-            '${activeTheme.name} (v${activeTheme.version})',
-          ),
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelLayoutDensity,
-            strings.layoutDensityDefault,
-          ),
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelFonts,
-            strings.fontsDetail(
-              activeTheme.toTokens().uiFontFamily,
-              activeTheme.toTokens().monoFontFamily,
-            ),
-          ),
-        ]),
-        if (activeTheme.diagnostics.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            strings.themeDiagnosticsHeader,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          ...activeTheme.diagnostics.map(
-            (d) => Text(
-              '• $d',
-              style: TextStyle(color: tokens.textMuted, fontSize: 11),
-            ),
-          ),
-        ],
-        const SizedBox(height: 24),
-        Text(
-          strings.composerSectionTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+              ],
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          strings.sendWithEnterSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.composerSectionTitle,
+          description: strings.sendWithEnterSubtitle,
           child: Material(
             type: MaterialType.transparency,
             child: SwitchListTile(
@@ -483,11 +399,7 @@ class AppearanceSection extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(
                 strings.sendWithEnterTitle,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.uiFontFamily,
-                ),
+                style: text.body.copyWith(color: tokens.textPrimary),
               ),
               activeThumbColor: tokens.accent,
               value: ref.watch(composerSettingsProvider).sendWithEnter,
@@ -499,28 +411,10 @@ class AppearanceSection extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          strings.reducedMotionSectionTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          strings.reducedMotionSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.reducedMotionSectionTitle,
+          description: strings.reducedMotionSubtitle,
           child: Material(
             type: MaterialType.transparency,
             child: SwitchListTile(
@@ -528,11 +422,7 @@ class AppearanceSection extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(
                 strings.reducedMotionTitle,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.uiFontFamily,
-                ),
+                style: text.body.copyWith(color: tokens.textPrimary),
               ),
               activeThumbColor: tokens.accent,
               value: ref.watch(reducedMotionSettingsProvider).enabled,
@@ -544,28 +434,10 @@ class AppearanceSection extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        Text(
-          strings.nerdStatsSectionTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          strings.nerdStatsSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.nerdStatsSectionTitle,
+          description: strings.nerdStatsSubtitle,
           child: Material(
             type: MaterialType.transparency,
             child: SwitchListTile(
@@ -573,11 +445,7 @@ class AppearanceSection extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               title: Text(
                 strings.nerdStatsTitle,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.uiFontFamily,
-                ),
+                style: text.body.copyWith(color: tokens.textPrimary),
               ),
               activeThumbColor: tokens.accent,
               value: ref.watch(nerdStatsSettingsProvider).enabled,
@@ -587,102 +455,83 @@ class AppearanceSection extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: FrameSpace.x8),
         Builder(
           builder: (context) {
             final stepGroupingSettings = ref.watch(
               stepGroupingSettingsProvider,
             );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  strings.stepGroupingSectionTitle,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  strings.stepGroupingModeDescription(
-                    stepGroupingSettings.mode,
-                  ),
-                  style: TextStyle(color: tokens.textMuted, fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tokens.surfaceElevated,
-                    borderRadius: BorderRadius.circular(tokens.radiusMd),
-                    border: Border.all(color: tokens.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<StepGroupingMode>(
-                      key: const ValueKey(
-                        'settings-step-grouping-mode-dropdown',
-                      ),
-                      isExpanded: true,
-                      value: stepGroupingSettings.mode,
-                      dropdownColor: tokens.surfaceElevated,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 13,
-                        fontFamily: tokens.uiFontFamily,
-                      ),
-                      items: StepGroupingMode.values.map((mode) {
-                        return DropdownMenuItem<StepGroupingMode>(
-                          value: mode,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
+            return FrameSection(
+              title: strings.stepGroupingSectionTitle,
+              description: strings.stepGroupingModeDescription(
+                stepGroupingSettings.mode,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  buildSettingsFieldBox(
+                    tokens,
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<StepGroupingMode>(
+                        key: const ValueKey(
+                          'settings-step-grouping-mode-dropdown',
+                        ),
+                        isExpanded: true,
+                        isDense: true,
+                        value: stepGroupingSettings.mode,
+                        dropdownColor: tokens.surfaceElevated,
+                        style: text.body.copyWith(color: tokens.textPrimary),
+                        // The closed field is one line tall; the menu keeps
+                        // the two-line label and description.
+                        selectedItemBuilder: (context) => [
+                          for (final mode in StepGroupingMode.values)
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
                                 strings.stepGroupingModeLabel(mode),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                strings.stepGroupingModeDescription(mode),
-                                style: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 11,
+                                style: text.body.copyWith(
+                                  color: tokens.textPrimary,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (newMode) {
-                        if (newMode != null) {
-                          ref
-                              .read(stepGroupingSettingsProvider.notifier)
-                              .setMode(newMode);
-                        }
-                      },
+                            ),
+                        ],
+                        items: StepGroupingMode.values.map((mode) {
+                          return DropdownMenuItem<StepGroupingMode>(
+                            value: mode,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  strings.stepGroupingModeLabel(mode),
+                                  style: text.label,
+                                ),
+                                Text(
+                                  strings.stepGroupingModeDescription(mode),
+                                  style: text.caption.copyWith(
+                                    color: tokens.textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (newMode) {
+                          if (newMode != null) {
+                            ref
+                                .read(stepGroupingSettingsProvider.notifier)
+                                .setMode(newMode);
+                          }
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tokens.surfaceElevated,
-                    borderRadius: BorderRadius.circular(tokens.radiusMd),
-                    border: Border.all(color: tokens.border),
-                  ),
-                  child: Material(
+                  const SizedBox(height: FrameSpace.x2),
+                  Material(
                     type: MaterialType.transparency,
                     child: SwitchListTile(
                       key: const ValueKey(
@@ -691,15 +540,11 @@ class AppearanceSection extends ConsumerWidget {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         strings.stepGroupingAutoCollapseTitle,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 13,
-                          fontFamily: tokens.uiFontFamily,
-                        ),
+                        style: text.body.copyWith(color: tokens.textPrimary),
                       ),
                       subtitle: Text(
                         strings.stepGroupingAutoCollapseSubtitle,
-                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                        style: text.caption.copyWith(color: tokens.textMuted),
                       ),
                       activeThumbColor: tokens.accent,
                       value: stepGroupingSettings.autoCollapse,
@@ -710,8 +555,8 @@ class AppearanceSection extends ConsumerWidget {
                       },
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         ),

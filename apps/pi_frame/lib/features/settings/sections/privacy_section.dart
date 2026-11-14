@@ -3,6 +3,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
+import '../../../ui/frame_section.dart';
 
 /// Privacy tab (D16, zero telemetry).
 class PrivacySection extends StatelessWidget {
@@ -17,46 +18,21 @@ class PrivacySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final text = FrameText.of(context);
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        Row(
-          children: [
-            Icon(Icons.shield_outlined, size: 24, color: tokens.textPrimary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                strings.privacyTitle,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border),
-          ),
+        FrameSection(
+          title: strings.privacyTitle,
           child: Text(
             strings.privacyCardContent,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 14,
-              height: 1.6,
-            ),
+            style: text.bodyLarge.copyWith(color: tokens.textPrimary),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: FrameSpace.x4),
         Text(
           strings.privacyBulletPoints,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12, height: 1.8),
+          style: text.caption.copyWith(color: tokens.textMuted, height: 1.8),
         ),
       ],
     );

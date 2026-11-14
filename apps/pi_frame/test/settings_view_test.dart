@@ -884,15 +884,15 @@ void main() {
       expect(find.text('Impossibile caricare i pacchetti'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
       expect(find.text('Dettagli'), findsOneWidget);
-      expect(find.byKey(const ValueKey('packages-load-details')), findsNothing);
+      expect(find.byKey(const ValueKey('packages-load-error-details')), findsNothing);
 
       await tester.tap(
-        find.byKey(const ValueKey('packages-load-details-toggle')),
+        find.byKey(const ValueKey('packages-load-error-details-toggle')),
       );
       await tester.pumpAndSettle();
 
       final details = tester.widget<SelectableText>(
-        find.byKey(const ValueKey('packages-load-details')),
+        find.byKey(const ValueKey('packages-load-error-details')),
       );
       expect(details.data, contains('boom-42'));
     });

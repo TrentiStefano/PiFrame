@@ -83,7 +83,7 @@ void main() {
     expect(find.byKey(const ValueKey('remote-error')), findsOneWidget);
     expect(find.text('Operazione remota non riuscita'), findsOneWidget);
     expect(find.textContaining('remote-boom-7'), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('remote-details-toggle')));
+    await tester.tap(find.byKey(const ValueKey('remote-error-details-toggle')));
     await tester.pumpAndSettle();
     expect(find.textContaining('remote-boom-7'), findsOneWidget);
   });

@@ -6,9 +6,12 @@ import '../../../data/daemon/daemon_locator.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
 import '../../../data/notifications/notification_providers.dart';
+import '../../../ui/frame_section.dart';
+import '../../../ui/frame_status_tag.dart';
 import 'settings_common.dart';
 
 /// Daemon tab: connection status, restart action, idle timeout, notifications.
+/// The daemon status uses the same tag vocabulary as Diagnostica.
 class DaemonSection extends ConsumerWidget {
   const DaemonSection({
     super.key,
@@ -35,196 +38,182 @@ class DaemonSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final text = FrameText.of(context);
     final endpoint = this.endpoint;
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        Text(
-          strings.daemonStatusTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          strings.daemonStatusSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 16),
-        buildSettingsInfoCard(tokens, [
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelHttpWsPort,
-            endpoint != null
-                ? '127.0.0.1:${endpoint.port}'
-                : strings.labelConnecting,
-          ),
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelStatus,
-            endpoint == null
-                ? strings.labelNotConnected
-                : strings.labelEndpointDetected,
-          ),
-          buildSettingsInfoRow(
-            tokens,
-            strings.labelProtocol,
-            strings.protocolPcp1,
-          ),
-        ]),
-        const SizedBox(height: 24),
-        Text(
-          strings.workerIdleTimeoutTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          strings.workerIdleTimeoutSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12),
-        ),
-        const SizedBox(height: 12),
-        isLoadingConfig
-            ? Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accent,
+        FrameSection(
+          title: strings.daemonStatusTitle,
+          description: strings.daemonStatusSubtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              buildSettingsInfoCard(tokens, [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        strings.labelStatus,
+                        style: text.body.copyWith(color: tokens.textSecondary),
+                      ),
                     ),
-                  ),
+                    FrameStatusTag(
+                      key: const ValueKey('settings-daemon-status'),
+                      label: endpoint == null
+                          ? strings.labelNotConnected
+                          : strings.labelEndpointDetected,
+                      tone: endpoint == null
+                          ? FrameStatusTone.danger
+                          : FrameStatusTone.success,
+                    ),
+                  ],
                 ),
-              )
-            : Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
-                      borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      border: Border.all(color: tokens.border),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        borderRadius: BorderRadius.circular(tokens.radiusMd),
-                        value: workerIdleTimeoutMinutes,
-                        dropdownColor: tokens.surfaceElevated,
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 14,
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 0,
-                            child: Text(strings.timeoutNever),
-                          ),
-                          DropdownMenuItem(
-                            value: 5,
-                            child: Text(strings.timeout5Min),
-                          ),
-                          DropdownMenuItem(
-                            value: 15,
-                            child: Text(strings.timeout15Min),
-                          ),
-                          DropdownMenuItem(
-                            value: 30,
-                            child: Text(strings.timeout30Min),
-                          ),
-                          DropdownMenuItem(
-                            value: 60,
-                            child: Text(strings.timeout1Hour),
-                          ),
-                          DropdownMenuItem(
-                            value: 120,
-                            child: Text(strings.timeout2Hours),
-                          ),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            onUpdateTimeout(val);
-                          }
-                        },
-                      ),
-                    ),
+                buildSettingsInfoRow(
+                  tokens,
+                  strings.labelHttpWsPort,
+                  endpoint != null
+                      ? '127.0.0.1:${endpoint.port}'
+                      : strings.labelConnecting,
+                ),
+                buildSettingsInfoRow(
+                  tokens,
+                  strings.labelProtocol,
+                  strings.protocolPcp1,
+                ),
+              ]),
+              const SizedBox(height: FrameSpace.x4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('settings-restart-daemon-btn'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: tokens.textPrimary,
+                    side: BorderSide(color: tokens.borderStrong),
+                    minimumSize: const Size(0, FrameSize.rowForm),
                   ),
-                  const SizedBox(width: 16),
-                  if (configStatusMessage != null)
-                    Text(
-                      configStatusMessage!,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                ],
+                  icon: isRestartingDaemon
+                      ? SizedBox(
+                          width: FrameSize.icon,
+                          height: FrameSize.icon,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tokens.accent,
+                          ),
+                        )
+                      : const Icon(Icons.restart_alt, size: FrameSize.icon),
+                  label: Text(
+                    isRestartingDaemon
+                        ? strings.restartingDaemonStatus
+                        : strings.restartDaemonBtn,
+                  ),
+                  onPressed: isRestartingDaemon ? null : onRestartDaemon,
+                ),
               ),
-        const SizedBox(height: 24),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: tokens.surfaceElevated,
-              foregroundColor: tokens.textPrimary,
-            ),
-            icon: isRestartingDaemon
-                ? SizedBox(
-                    width: 14,
-                    height: 14,
+            ],
+          ),
+        ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.workerIdleTimeoutTitle,
+          description: strings.workerIdleTimeoutSubtitle,
+          child: isLoadingConfig
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: FrameSize.iconLg,
+                    height: FrameSize.iconLg,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: tokens.accent,
                     ),
-                  )
-                : const Icon(Icons.restart_alt, size: 16),
-            label: Text(
-              isRestartingDaemon
-                  ? strings.restartingDaemonStatus
-                  : strings.restartDaemonBtn,
+                  ),
+                )
+              : Wrap(
+                  spacing: FrameSpace.x4,
+                  runSpacing: FrameSpace.x2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 200,
+                      child: buildSettingsFieldBox(
+                        tokens,
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            key: const ValueKey(
+                              'settings-idle-timeout-dropdown',
+                            ),
+                            isExpanded: true,
+                            isDense: true,
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusMd,
+                            ),
+                            value: workerIdleTimeoutMinutes,
+                            dropdownColor: tokens.surfaceElevated,
+                            style: text.body.copyWith(
+                              color: tokens.textPrimary,
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: 0,
+                                child: Text(strings.timeoutNever),
+                              ),
+                              DropdownMenuItem(
+                                value: 5,
+                                child: Text(strings.timeout5Min),
+                              ),
+                              DropdownMenuItem(
+                                value: 15,
+                                child: Text(strings.timeout15Min),
+                              ),
+                              DropdownMenuItem(
+                                value: 30,
+                                child: Text(strings.timeout30Min),
+                              ),
+                              DropdownMenuItem(
+                                value: 60,
+                                child: Text(strings.timeout1Hour),
+                              ),
+                              DropdownMenuItem(
+                                value: 120,
+                                child: Text(strings.timeout2Hours),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                onUpdateTimeout(val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (configStatusMessage != null)
+                      Text(
+                        configStatusMessage!,
+                        style: text.label.copyWith(color: tokens.textPrimary),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.notificationsSectionTitle,
+          description: strings.notificationsSectionSubtitle,
+          child: Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                strings.notificationsSwitchTitle,
+                style: text.body.copyWith(color: tokens.textPrimary),
+              ),
+              value: ref.watch(notificationsEnabledProvider),
+              activeThumbColor: tokens.accent,
+              onChanged: (val) {
+                ref.read(notificationsEnabledProvider.notifier).state = val;
+              },
             ),
-            onPressed: isRestartingDaemon ? null : onRestartDaemon,
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          strings.notificationsSectionTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          strings.notificationsSectionSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12),
-        ),
-        const SizedBox(height: 12),
-        Material(
-          type: MaterialType.transparency,
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              strings.notificationsSwitchTitle,
-              style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-            ),
-            value: ref.watch(notificationsEnabledProvider),
-            activeThumbColor: tokens.accent,
-            onChanged: (val) {
-              ref.read(notificationsEnabledProvider.notifier).state = val;
-            },
           ),
         ),
       ],

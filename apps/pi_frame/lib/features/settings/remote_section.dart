@@ -1,5 +1,6 @@
 import '../../domain/errors/user_facing_error.dart';
 import '../../ui/frame_error_callout.dart';
+import '../../ui/frame_status_tag.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1239,43 +1240,18 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     );
   }
 
+  /// Remote status uses the shared [FrameStatusTag] vocabulary.
   Widget _buildStatusBadge(ColorScheme colorScheme, FrameTokens tokens, AppStrings strings) {
-    Color bg;
-    Color fg;
-    String label;
-
-    switch (_state) {
-      case 'running':
-        bg = tokens.success.withValues(alpha: 0.2);
-        fg = tokens.success;
-        label = strings.remoteStatusActive;
-        break;
-      case 'starting':
-        bg = tokens.warning.withValues(alpha: 0.2);
-        fg = tokens.warning;
-        label = strings.remoteStatusStarting;
-        break;
-      case 'error':
-        bg = tokens.danger.withValues(alpha: 0.2);
-        fg = tokens.danger;
-        label = strings.remoteStatusError;
-        break;
-      default:
-        bg = tokens.textMuted.withValues(alpha: 0.1);
-        fg = tokens.textMuted;
-        label = strings.remoteStatusDisabled;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
-      ),
+    final (label, tone) = switch (_state) {
+      'running' => (strings.remoteStatusActive, FrameStatusTone.success),
+      'starting' => (strings.remoteStatusStarting, FrameStatusTone.warning),
+      'error' => (strings.remoteStatusError, FrameStatusTone.danger),
+      _ => (strings.remoteStatusDisabled, FrameStatusTone.neutral),
+    };
+    return FrameStatusTag(
+      key: const ValueKey('remote-status-tag'),
+      label: label,
+      tone: tone,
     );
   }
 }

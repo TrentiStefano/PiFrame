@@ -10,7 +10,9 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/frame_status_tag.dart';
 
 /// Tests may label synthetic diagnostic fixtures without changing runtime UI.
 final diagnosticsFixtureLabelProvider = Provider<String?>((ref) => null);
@@ -162,33 +164,21 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         const SizedBox(height: 20),
 
         // System state card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        FrameSection(
+          title: strings.diagRuntimeStateHeader,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                strings.diagRuntimeStateHeader,
-                style: TextStyle(
-                  color: tokens.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 12),
               _buildMetricRow(
                 strings.diagDaemonConnection,
                 strings.daemonConnectionStateLabel(connState.name),
                 tokens,
-                color: connState == DaemonConnectionState.connected
-                    ? tokens.agentSettled
-                    : tokens.warning,
+                // Same daemon vocabulary as the Daemon tab.
+                tone: switch (connState) {
+                  DaemonConnectionState.connected => FrameStatusTone.success,
+                  DaemonConnectionState.disconnected => FrameStatusTone.danger,
+                  _ => FrameStatusTone.warning,
+                },
               ),
               _buildMetricRow(strings.diagAppVersionLabel, 'v$piFrameVersion', tokens),
               _buildMetricRow(
@@ -205,7 +195,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                 strings.diagRemoteTelemetry,
                 strings.diagTelemetryDisabled,
                 tokens,
-                color: tokens.agentSettled,
+                tone: FrameStatusTone.success,
               ),
             ],
           ),
@@ -214,46 +204,12 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         const SizedBox(height: 24),
 
         // Export Diagnostic Bundle
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
+        FrameSection(
+          title: strings.diagExportBundleTitle,
+          description: strings.diagExportBundleDesc,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.bug_report_outlined,
-                    color: tokens.accent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      strings.diagExportBundleTitle,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                strings.diagExportBundleDesc,
-                style: TextStyle(
-                  color: tokens.textSecondary,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: tokens.accent,
@@ -320,7 +276,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
     String label,
     String value,
     FrameTokens tokens, {
-    Color? color,
+    FrameStatusTone? tone,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -338,20 +294,9 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
               fontWeight: FontWeight.w600,
             ),
           );
-          final valueWidget = color == null
+          final valueWidget = tone == null
               ? valueText
-              : Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    border: Border.all(color: tokens.border),
-                  ),
-                  child: valueText,
-                );
+              : FrameStatusTag(label: value, tone: tone);
           if (constraints.maxWidth < 520) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),

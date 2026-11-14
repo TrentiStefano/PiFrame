@@ -47,13 +47,13 @@ void main() {
     expect(find.text('Daemon non raggiungibile'), findsOneWidget);
     expect(find.text('Verifica che il daemon sia in esecuzione.'), findsOneWidget);
     expect(find.text('Dettagli'), findsOneWidget);
-    expect(find.byKey(const ValueKey('test-callout-details')), findsNothing);
+    expect(find.byKey(const ValueKey('test-callout-error-details')), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('test-callout-details-toggle')));
+    await tester.tap(find.byKey(const ValueKey('test-callout-error-details-toggle')));
     await tester.pumpAndSettle();
 
     final details = tester.widget<SelectableText>(
-      find.byKey(const ValueKey('test-callout-details')),
+      find.byKey(const ValueKey('test-callout-error-details')),
     );
     expect(details.data, 'socket closed by peer boom-7');
   });
