@@ -556,4 +556,33 @@ void main() {
     expect(find.text('Fake Pi Model'), findsWidgets);
     expect(find.text('Fake Fast Model'), findsWidgets);
   });
+
+  testWidgets('no packages: Apri Pacchetti calls onOpenPackages', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    var opened = 0;
+    final client = _MockAgentsClient(config: const PiAgentsConfig());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          pcpClientProvider.overrideWithValue(client),
+          appStringsProvider.overrideWithValue(AppStrings(AppLanguage.it)),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: Scaffold(
+            body: AgentsSection(onOpenPackages: () => opened++),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apri Pacchetti'));
+    await tester.pumpAndSettle();
+    expect(opened, 1);
+  });
 }
