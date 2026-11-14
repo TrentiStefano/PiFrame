@@ -6,6 +6,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'package:pi_frame/features/browser/browser_controller.dart';
 import 'package:pi_frame/features/browser/web_browser_pane.dart';
+import 'package:pi_frame/features/transcript/todo_panel.dart';
+import 'package:pi_frame/features/transcript/todo_provider.dart';
 
 /// Narrow widths that every companion/transcript widget must survive without
 /// a RenderFlex overflow (audit P1-4, R1, R2; plan task 1.2).
@@ -35,6 +37,7 @@ Widget _themed({required Widget child, List<Override> overrides = const []}) {
 }
 
 void main() {
+  _todoTests();
   group('Browser companion fits narrow widths (task 1.2a)', () {
     for (final width in kNarrowWidths) {
       testWidgets('toolbar and header do not overflow at ${width.toInt()} px',
@@ -117,5 +120,57 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+  });
+}
+
+class _FixedTodoNotifier extends TodoNotifier {
+  _FixedTodoNotifier(super.ref, super.sessionId, List<TodoItem> initial) {
+    state = initial;
+  }
+}
+
+void _todoTests() {
+  group('Todo panel fits narrow widths (task 1.2b)', () {
+    for (final width in kNarrowWidths) {
+      testWidgets('header and task rows do not overflow at ${width.toInt()} px',
+          (tester) async {
+        const sessionId = 'overflow-todo';
+        final tasks = [
+          const TodoItem(
+            id: 1,
+            subject: 'Refactor the transcript header and the assistant card layout',
+            status: 'completed',
+          ),
+          const TodoItem(
+            id: 2,
+            subject: 'Write widget tests for the narrow sidecar layout',
+            status: 'in_progress',
+            description: 'A very long description that wraps across lines.',
+          ),
+          const TodoItem(id: 3, subject: 'Pending task'),
+        ];
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              todosFamily(sessionId).overrideWith(
+                (ref) => _FixedTodoNotifier(ref, sessionId, tasks),
+              ),
+            ],
+            child: MaterialApp(
+              theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+              home: Scaffold(
+                body: SizedBox(
+                  width: width,
+                  child: const TodoPopDown(sessionId: sessionId),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
