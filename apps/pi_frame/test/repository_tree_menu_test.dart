@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
@@ -64,6 +65,27 @@ void main() {
     expect(find.byKey(const ValueKey('tree-menu-chat-folder')), findsOneWidget);
     expect(find.text('Aggiungi cartella alla chat'), findsOneWidget);
     expect(find.byKey(const ValueKey('tree-menu-chat')), findsNothing);
+  });
+
+  testWidgets('Shift+F10 on a focused tree row opens that row menu', (
+    tester,
+  ) async {
+    await _pump(tester);
+    // Focus the folder row's own focus node, then press Shift+F10 instead of
+    // right-clicking. The folder menu offers the folder actions.
+    final observer = Focus.of(tester.element(find.text('src')));
+    (observer.canRequestFocus
+            ? observer
+            : observer.descendants.firstWhere((n) => n.canRequestFocus))
+        .requestFocus();
+    await tester.pumpAndSettle();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('tree-menu-session')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tree-menu-copy')), findsOneWidget);
   });
 
   testWidgets('add-to-chat on a file row is revealed on hover', (tester) async {

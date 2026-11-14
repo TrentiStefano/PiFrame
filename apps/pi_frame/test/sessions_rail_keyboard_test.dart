@@ -96,4 +96,43 @@ void main() {
 
     expect(find.byType(AlertDialog), findsOneWidget);
   });
+
+  testWidgets('Shift+F10 on the cursor session opens its context menu', (
+    tester,
+  ) async {
+    await _pumpRail(tester);
+
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('session-folder:/repos/alpha')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('session-folder:/repos/alpha')));
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    // The session menu is open: its items are the session actions.
+    expect(find.byType(PopupMenuItem<String>), findsWidgets);
+  });
+
+  testWidgets('Shift+F10 on the cursor folder opens its context menu', (
+    tester,
+  ) async {
+    await _pumpRail(tester);
+
+    // The folder row is the cursor after a click on it.
+    await tester.tap(find.byKey(const ValueKey('session-folder:/repos/alpha')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuItem<String>), findsWidgets);
+  });
 }

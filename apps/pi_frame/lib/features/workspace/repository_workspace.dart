@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../app/row_context_menu.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import '../composer/composer_draft.dart';
@@ -889,7 +890,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     );
   }
 
-  void _showMenu(Offset position, AppStrings strings) {
+  void _showMenu(Rect anchor, AppStrings strings) {
     final node = widget.row.node;
     final tokens = widget.tokens;
     final items = <PopupMenuEntry<String>>[
@@ -913,12 +914,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     ];
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: menuPositionFor(context, anchor),
       items: items,
     ).then((choice) {
       if (!mounted || choice == null) return;
@@ -961,7 +957,8 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),
           child: Focus(
-            // Observes focus only; the InkWell and the action take it.
+            // Observes focus only; the InkWell and the action take it. Shift+F10
+            // and the Menu key open this row's context menu.
             canRequestFocus: false,
             skipTraversal: true,
             onFocusChange: (hasFocus) {
@@ -969,14 +966,21 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
                 setState(() => _focusWithin = hasFocus);
               }
             },
+            onKeyEvent: (node, event) {
+              if (!isContextMenuKey(event)) return KeyEventResult.ignored;
+              _showMenu(rowAnchorRect(context), strings);
+              return KeyEventResult.handled;
+            },
             child: Material(
               color: widget.selected
                   ? tokens.surfaceElevated
                   : tokens.surface.withValues(alpha: 0),
               child: InkWell(
                 onTap: widget.onTap,
-                onSecondaryTapUp: (details) =>
-                    _showMenu(details.globalPosition, strings),
+                onSecondaryTapUp: (details) => _showMenu(
+                  pointerAnchorRect(details.globalPosition),
+                  strings,
+                ),
                 hoverColor: tokens.accent.withValues(alpha: 0.08),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../app/row_context_menu.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';
@@ -125,6 +126,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   String? _defaultFolder;
   // Keyboard position in the rail, as a row key ('folder:<f>' or 'session:<id>').
   String? _cursorKey;
+  // Context menus of the rows, opened by Shift+F10 or the Menu key on the cursor.
+  final RowMenuRegistry _rowMenus = RowMenuRegistry();
+  final Map<String, GlobalKey> _folderRowKeys = {};
   List<_RailRow> _railRows = const [];
   String? _railActiveId;
 
@@ -182,6 +186,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
     void moveTo(int i) {
       setState(() => _cursorKey = _rowKey(rows[i]));
+    }
+
+    if (isContextMenuKey(event)) {
+      _rowMenus.openFor(_rowKey(current));
+      return KeyEventResult.handled;
     }
 
     if (key == LogicalKeyboardKey.arrowDown) {
@@ -778,6 +787,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 qualifiedName: sessionNames[id],
                                 isPinnedSection: true,
                                 isSelected: isSelected,
+                                onMenuOpener: (open) =>
+                                    _rowMenus.register('session:$id', open),
                                 isCursor: _railFocus.hasFocus &&
                                     _cursorKey == 'session:$id',
                                 onTap: () {
@@ -945,10 +956,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       // The ListTile above keeps keyboard focus and primary taps;
                       // this InkWell only adds the right-click menu, so it is not a
                       // second Tab stop.
-                      folderTile = InkWell(
-                        canRequestFocus: false,
-                        onSecondaryTapDown: (details) async {
-                          final pos = details.globalPosition;
+                      Future<void> openFolderMenu(Rect anchor) async {
                           final action = await showMenu<String>(
                             context: context,
                             color: tokens.surfaceElevated,
@@ -956,12 +964,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               borderRadius: BorderRadius.circular(tokens.radiusSm),
                               side: BorderSide(color: tokens.border),
                             ),
-                            position: RelativeRect.fromLTRB(
-                              pos.dx,
-                              pos.dy,
-                              pos.dx + 1,
-                              pos.dy + 1,
-                            ),
+                            position: menuPositionFor(context, anchor),
                             items: [
                               PopupMenuItem(
                                 value: 'instructions',
@@ -1062,7 +1065,23 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               folderSessions: folderSessions,
                             );
                           }
-                        },
+                      }
+
+                      final folderRowKey = _folderRowKeys.putIfAbsent(
+                        folder,
+                        GlobalKey.new,
+                      );
+                      _rowMenus.register('folder:$folder', () {
+                        final rowContext = folderRowKey.currentContext;
+                        if (rowContext == null) return;
+                        openFolderMenu(rowAnchorRect(rowContext));
+                      });
+                      folderTile = InkWell(
+                        key: folderRowKey,
+                        canRequestFocus: false,
+                        onSecondaryTapDown: (details) => openFolderMenu(
+                          pointerAnchorRect(details.globalPosition),
+                        ),
                         child: folderTile,
                       );
 
@@ -1093,6 +1112,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         qualifiedName: sessionNames[id],
                         isPinnedSection: false,
                         isSelected: isSelected,
+                        onMenuOpener: (open) =>
+                            _rowMenus.register('session:$id', open),
                         isCursor:
                             _railFocus.hasFocus && _cursorKey == 'session:$id',
                         onTap: () {
@@ -1349,6 +1370,8 @@ class _SessionTile extends ConsumerWidget {
   final void Function(String id, String name) onDelete;
   // The session name qualified by repository when names collide, from sessionDisplayNames.
   final String? qualifiedName;
+  // Hands the rail the opener of this row's context menu (Shift+F10 on the cursor).
+  final void Function(VoidCallback open)? onMenuOpener;
 
   /// Inset of a session under its repository row: 20 px, so it reads as a child.
   static const double _nestedIndent = 20;
@@ -1366,6 +1389,7 @@ class _SessionTile extends ConsumerWidget {
     required this.onClone,
     required this.onDelete,
     this.qualifiedName,
+    this.onMenuOpener,
   });
 
   /// Session actions only. Repository actions live on the repository row.
@@ -1467,7 +1491,7 @@ class _SessionTile extends ConsumerWidget {
 
   Future<void> _showContextMenu(
     BuildContext context,
-    Offset position,
+    Rect anchor,
     FrameTokens tokens,
     AppStrings strings,
     String id,
@@ -1480,12 +1504,7 @@ class _SessionTile extends ConsumerWidget {
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         side: BorderSide(color: tokens.border),
       ),
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: menuPositionFor(context, anchor),
       items: _buildMenuItems(context, tokens, strings),
     );
     if (action != null) _handleAction(action, id, name);
@@ -1592,13 +1611,25 @@ class _SessionTile extends ConsumerWidget {
       onTap: onTap,
       onSecondaryTap: (position) => _showContextMenu(
         context,
-        position,
+        pointerAnchorRect(position),
         tokens,
         strings,
         id,
         chosenName,
       ),
     );
+
+    onMenuOpener?.call(() {
+      if (!context.mounted) return;
+      _showContextMenu(
+        context,
+        rowAnchorRect(context),
+        tokens,
+        strings,
+        id,
+        chosenName,
+      );
+    });
 
     Widget content = DecoratedBox(
       decoration: BoxDecoration(

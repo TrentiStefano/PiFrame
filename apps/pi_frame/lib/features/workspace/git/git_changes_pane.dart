@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../../app/row_context_menu.dart';
 import '../../../data/daemon/daemon_providers.dart';
 import '../../../data/daemon/pcp_client.dart';
 import '../../../data/language/language_settings.dart';
@@ -114,6 +115,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
 
   /// Keyboard cursor: the key of the focused entry, or null for the first one.
   String? _cursorKey;
+
+  /// Row menus by entry key, opened by Shift+F10 or the Menu key on the cursor.
+  final RowMenuRegistry _rowMenus = RowMenuRegistry();
+  final Map<String, GlobalKey> _gitRowKeys = {};
 
   /// The file open in the pane's diff view, or null while the Git list shows.
   String? _diffPath;
@@ -753,29 +758,43 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }) {
     final path = file['path'].toString();
     final section = isStaged ? 'staged' : 'unstaged';
-    final row = GitChangeRow(
-      file: file,
-      isStaged: isStaged,
-      hasUnstagedEdit: hasUnstagedEdit,
-      piTouchedPaths: piTouchedPaths,
-      manualSavedPaths: manualSavedPaths,
-      blocked: blocked,
-      working: _working,
-      strings: strings,
-      selected: selected,
-      onShowDiff: (_) {
-        _selectRow('r:$section:$path');
-        _openDiff(path);
-      },
-      onContextMenu: (position) => _showRowMenu(
-        position,
+    final rowKey = _gitRowKeys.putIfAbsent('r:$section:$path', GlobalKey.new);
+    _rowMenus.register('r:$section:$path', () {
+      final rowContext = rowKey.currentContext;
+      if (rowContext == null) return;
+      _showRowMenu(
+        rowAnchorRect(rowContext),
         path: path,
         isStaged: isStaged,
         blocked: blocked,
+      );
+    });
+    final row = KeyedSubtree(
+      key: rowKey,
+      child: GitChangeRow(
+        file: file,
+        isStaged: isStaged,
+        hasUnstagedEdit: hasUnstagedEdit,
+        piTouchedPaths: piTouchedPaths,
+        manualSavedPaths: manualSavedPaths,
+        blocked: blocked,
+        working: _working,
+        strings: strings,
+        selected: selected,
+        onShowDiff: (_) {
+          _selectRow('r:$section:$path');
+          _openDiff(path);
+        },
+        onContextMenu: (position) => _showRowMenu(
+          pointerAnchorRect(position),
+          path: path,
+          isStaged: isStaged,
+          blocked: blocked,
+        ),
+        onStage: (path) => _action('stage', [path]),
+        onUnstage: (path) => _action('unstage', [path]),
+        onDiscard: (path) => _discardFile(path),
       ),
-      onStage: (path) => _action('stage', [path]),
-      onUnstage: (path) => _action('unstage', [path]),
-      onDiscard: (path) => _discardFile(path),
     );
     if (leaving) {
       return ExcludeSemantics(
@@ -895,7 +914,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final entry = entries[index];
     final key = event.logicalKey;
     final writesOff = blocked || _working;
-    if (key == LogicalKeyboardKey.arrowDown) {
+    if (isContextMenuKey(event)) {
+      _rowMenus.openFor(entry.key);
+    } else if (key == LogicalKeyboardKey.arrowDown) {
       _moveCursor(index + 1, entries);
     } else if (key == LogicalKeyboardKey.arrowUp) {
       _moveCursor(index - 1, entries);
@@ -924,7 +945,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   /// stage or unstage, discard, copy path, and add to the chat (the same path
   /// the editor uses).
   Future<void> _showRowMenu(
-    Offset position, {
+    Rect anchor, {
     required String path,
     required bool isStaged,
     required bool blocked,
@@ -950,12 +971,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     );
     final choice = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
+      position: menuPositionFor(context, anchor),
       items: [
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-open-diff'),

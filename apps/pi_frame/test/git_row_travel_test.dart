@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -150,5 +151,35 @@ void main() {
     );
     expect(arriveOpacity.opacity, 1);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('Shift+F10 on the cursor Git row opens its row menu', (
+    tester,
+  ) async {
+    await pumpPane(tester);
+    // The list is the one Tab stop: give it focus, then move the cursor from
+    // the Staged header (empty) down past the Changes header onto notes.txt.
+    tester
+        .widget<Focus>(
+          find.byWidgetPredicate(
+            (w) => w is Focus && w.focusNode?.debugLabel == 'git-list',
+          ),
+        )
+        .focusNode!
+        .requestFocus();
+    await tester.pump();
+    for (var i = 0; i < 3; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(find.byType(PopupMenuItem<String>), findsNothing);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuItem<String>), findsWidgets);
   });
 }
