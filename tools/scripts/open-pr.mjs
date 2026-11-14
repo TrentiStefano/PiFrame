@@ -15,14 +15,11 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildPrCreateArgs, splitArgs } from './pr-args.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const IS_WIN = process.platform === 'win32';
-const VERIFY_FLAGS = new Set(['--release', '--e2e', '--force', '--no-merge', '--verbose', '--keep']);
-
-const argv = process.argv.slice(2);
-const verifyArgs = argv.filter((a) => VERIFY_FLAGS.has(a));
-const ghArgs = argv.filter((a) => !VERIFY_FLAGS.has(a));
+// No shell anywhere: on Windows a shell re-splits arguments that contain spaces (e.g. --title "fix(ui): ...").
+const { verifyArgs, ghArgs } = splitArgs(process.argv.slice(2));
 
 function fail(message) {
   console.error(`\n✖ ${message}`);
@@ -30,7 +27,7 @@ function fail(message) {
 }
 
 function out(cmd, cmdArgs) {
-  return execFileSync(cmd, cmdArgs, { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: IS_WIN && cmd === 'gh' }).trim();
+  return execFileSync(cmd, cmdArgs, { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
 // 1. Preconditions that do not need the (slow) verification.
@@ -74,11 +71,6 @@ if (existing) {
   process.exit(0);
 }
 
-const hasContent = ghArgs.includes('--title') || ghArgs.includes('--body') || ghArgs.includes('--fill') || ghArgs.includes('--body-file');
-const create = spawnSync('gh', ['pr', 'create', '--base', 'main', ...(hasContent ? [] : ['--fill']), ...ghArgs], {
-  cwd: REPO,
-  stdio: 'inherit',
-  shell: IS_WIN
-});
+const create = spawnSync('gh', buildPrCreateArgs(ghArgs), { cwd: REPO, stdio: 'inherit' });
 if (create.status !== 0) fail('gh pr create failed.');
 console.log('\n✔ Pull request opened from a verified branch.');

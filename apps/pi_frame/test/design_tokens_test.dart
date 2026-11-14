@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pi_frame/ui/motion.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
@@ -74,6 +75,16 @@ void main() {
           );
         }
 
+        expect(
+          contrast(tokens.inputBorder, tokens.surface),
+          greaterThanOrEqualTo(3.0),
+          reason: 'inputBorder must be a 3:1 non-text boundary on surface.',
+        );
+        expect(
+          contrast(tokens.focusRing, tokens.surface),
+          greaterThanOrEqualTo(3.0),
+        );
+
         final source = jsonDecode(
           File('../../themes/piframe-$variant.json').readAsStringSync(),
         );
@@ -88,4 +99,87 @@ void main() {
       },
     );
   }
+
+  test('spacing and size scales are fixed constants', () {
+    expect(
+      [FrameSpace.x1, FrameSpace.x2, FrameSpace.x3, FrameSpace.x4, FrameSpace.x6, FrameSpace.x8],
+      [4, 8, 12, 16, 24, 32],
+    );
+    expect(FrameSize.rowList, 28);
+    expect(FrameSize.rowForm, 40);
+    expect(FrameSize.hitMin, 28);
+    expect(FrameSize.icon, 16);
+    expect(FrameSize.iconLg, 20);
+    expect(FrameSize.paneHeader, 40);
+  });
+
+  test('FrameMotion and FrameTokens read the same motion constants', () {
+    expect(FrameMotion.micro, FrameTokens.dark.pressDuration);
+    expect(FrameMotion.micro, FrameTokens.light.pressDuration);
+    expect(FrameMotion.panel, FrameTokens.dark.panelDuration);
+    expect(FrameMotion.panel, FrameTokens.light.panelDuration);
+    expect(FrameMotion.enterCurve, FrameTokens.dark.enterCurve);
+    expect(FrameMotion.panelCurve, FrameTokens.dark.panelCurve);
+    expect(FrameMotion.instant, Duration.zero);
+    expect(FrameMotion.smallExit, const Duration(milliseconds: 120));
+    expect(FrameMotion.panelExit, const Duration(milliseconds: 180));
+    expect(FrameMotion.dialog, const Duration(milliseconds: 180));
+    expect(FrameMotion.dialogExit, const Duration(milliseconds: 120));
+    expect(FrameMotion.firstRun, const Duration(milliseconds: 300));
+    expect(FrameMotion.stagger, const Duration(milliseconds: 100));
+  });
+
+  testWidgets('FrameText roles come from the theme fonts with an 11 px floor', (tester) async {
+    final spec = ThemeSpec.fromJson(
+      jsonDecode(File('assets/themes/piframe-dark.json').readAsStringSync()),
+    );
+    late FrameText text;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: spec.toThemeData(),
+        home: Builder(
+          builder: (context) {
+            text = FrameText.of(context);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    for (final style in [
+      text.caption,
+      text.label,
+      text.body,
+      text.bodyLarge,
+      text.title,
+      text.heading,
+      text.display,
+      text.mono,
+      text.monoBody,
+    ]) {
+      expect(style.fontSize, greaterThanOrEqualTo(11));
+    }
+    expect(text.caption.fontSize, 11);
+    expect(text.caption.height! * text.caption.fontSize!, closeTo(16, 0.01));
+    expect(text.body.height! * text.body.fontSize!, closeTo(20, 0.01));
+    expect(text.display.height! * text.display.fontSize!, closeTo(32, 0.01));
+    expect(text.caption.fontFamily, 'SchibstedGrotesk');
+    expect(text.label.fontFamily, 'SchibstedGrotesk');
+    expect(text.mono.fontFamily, 'SourceCodePro');
+    expect(text.monoBody.fontFamily, 'SourceCodePro');
+  });
+
+  test('themes without an inputBorder derive one with 3:1 contrast', () {
+    final legacy = ThemeSpec(
+      id: 'legacy-dark',
+      name: 'Legacy Dark',
+      variant: 'dark',
+      rawColors: {
+        'surface': '#181825',
+        'borderStrong': '#585b70',
+        'textPrimary': '#cdd6f4',
+      },
+    ).toTokens();
+    expect(frameContrastRatio(legacy.inputBorder, legacy.surface), greaterThanOrEqualTo(3.0));
+  });
 }
