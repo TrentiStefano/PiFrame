@@ -131,6 +131,8 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 
 ## Dialogs, menus, and interaction states
 
+Escape rule (plan task 6.3): one shell-level handler closes the topmost layer, in this order: menu or popover, dialog, drawer (sessions or context), in-pane diff, Review mode, Settings. Menus and dialogs take focus when they open and close themselves first. Escape interrupts the agent only when no layer is open and the composer has focus during a run. Layers register with `escapeLayersProvider` (`lib/ui/escape_layers.dart`); the in-pane diff (Phase 3) should register as `EscapeLayer.diff`.
+
 Keyboard focus order (plan task 6.2): Tab goes title bar, sessions, repository, chat transcript, composer, companion pane, and back. F6 and Shift+F6 move between panes; Ctrl/Cmd+1 to 4 focus sessions, repository, chat (composer) and companion.
 
 Captured representative overlays:

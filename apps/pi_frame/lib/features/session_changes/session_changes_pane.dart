@@ -4,6 +4,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../ui/escape_layers.dart';
 import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
@@ -37,12 +38,30 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     }
   }
 
+  // Escape closes Review mode while the pane is open (plan task 6.3).
+  VoidCallback? _unregisterEscape;
+
   @override
   void initState() {
     super.initState();
+    _unregisterEscape = ref.read(escapeLayersProvider).register(
+      EscapeLayer.review,
+      () {
+        final onClose = widget.onClose;
+        if (onClose == null) return false;
+        onClose();
+        return true;
+      },
+    );
     Future.microtask(() {
       ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _unregisterEscape?.call();
+    super.dispose();
   }
 
   void _toggleFileExpansion(String path) {

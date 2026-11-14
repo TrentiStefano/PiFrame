@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../ui/escape_layers.dart';
 import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
 import 'focus_regions.dart';
@@ -258,6 +259,8 @@ class _AppShellState extends ConsumerState<AppShell>
   final Map<FocusRegion, GlobalKey> _regionKeys = {
     for (final region in FocusRegion.values) region: GlobalKey(),
   };
+  // Escape layers this shell registered (drawers, settings), removed when they close.
+  final Map<String, VoidCallback> _escapeHandles = {};
 
   void _enterReviewMode() {
     _preReviewSidebarCollapsed ??= _sidebarCollapsed;
@@ -507,7 +510,26 @@ class _AppShellState extends ConsumerState<AppShell>
     if (_hasWindowListener) {
       windowManager.removeListener(this);
     }
+    for (final unregister in _escapeHandles.values) {
+      unregister();
+    }
+    _escapeHandles.clear();
     super.dispose();
+  }
+
+  /// Registers or removes one of the shell's own Escape layers (plan task 6.3). [tag]
+  /// names the layer; a new registration replaces the old one.
+  void _setEscapeLayer(
+    String tag,
+    EscapeLayer layer,
+    bool open,
+    bool Function() close,
+  ) {
+    _escapeHandles.remove(tag)?.call();
+    if (!open) return;
+    _escapeHandles[tag] = ref
+        .read(escapeLayersProvider)
+        .register(layer, close);
   }
 
   /// Focuses the first focusable control of [region] in reading order. Returns false
@@ -567,6 +589,14 @@ class _AppShellState extends ConsumerState<AppShell>
     final alt = hardware.isAltPressed;
     final key = event.logicalKey;
 
+    // Escape closes the topmost layer (plan task 6.3). Layers that take focus, such as
+    // menus and dialogs, close themselves before the key reaches the shell. The composer
+    // interrupts a run on Escape only when no layer is open.
+    if (key == LogicalKeyboardKey.escape) {
+      return ref.read(escapeLayersProvider).closeTopmost()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
     // F6 / Shift+F6 move between panes (plan task 6.2).
     if (key == LogicalKeyboardKey.f6 && !commandKey && !alt) {
       _cyclePane(backwards: shift);
@@ -663,6 +693,13 @@ class _AppShellState extends ConsumerState<AppShell>
     ref.listen<String?>(activeSessionIdProvider, (prev, next) {
       if (prev != null && next != null && prev != next) _previousSessionId = prev;
     });
+    ref.listen<bool>(showSettingsProvider, (prev, next) {
+      _setEscapeLayer('settings', EscapeLayer.settings, next, () {
+        final wasOpen = ref.read(showSettingsProvider);
+        ref.read(showSettingsProvider.notifier).state = false;
+        return wasOpen;
+      });
+    });
 
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
@@ -735,6 +772,26 @@ class _AppShellState extends ConsumerState<AppShell>
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: tokens.background,
+        onDrawerChanged: (open) => _setEscapeLayer(
+          'drawer',
+          EscapeLayer.drawer,
+          open,
+          () {
+            final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeDrawer();
+            return wasOpen;
+          },
+        ),
+        onEndDrawerChanged: (open) => _setEscapeLayer(
+          'endDrawer',
+          EscapeLayer.drawer,
+          open,
+          () {
+            final wasOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeEndDrawer();
+            return wasOpen;
+          },
+        ),
         drawer: Drawer(
           width: _effectiveSidebarWidth(width, inDrawer: true) +
               _sidebarDividerWidth,

@@ -21,6 +21,7 @@ import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import 'attachment_chips.dart';
 import 'attachment_ingest.dart';
+import '../../ui/escape_layers.dart';
 import '../../ui/phone_corners.dart';
 import 'composer_attachments_provider.dart';
 import 'composer_draft.dart';
@@ -2305,7 +2306,10 @@ class _ComposerState extends ConsumerState<Composer> {
 
                                   if (event.logicalKey ==
                                       LogicalKeyboardKey.escape) {
-                                    if (isStreaming) {
+                                    // With a layer open (drawer, Review mode...), Escape
+                                    // goes to the shell, which closes that layer first.
+                                    if (isStreaming &&
+                                        !ref.read(escapeLayersProvider).isOpen) {
                                       _interrupt();
                                       return KeyEventResult.handled;
                                     }

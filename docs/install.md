@@ -196,8 +196,8 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
 | `↑` / `↓` | Scorre i comandi slash, i file menzionati e i suggerimenti | Composer, selettore file, Command Palette, selettore branch |
 | `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
+| `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme, nuovo in Fase 6) |
 | `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell (nuovo in Fase 6) |
-| `Esc` | Chiude il selettore branch, annulla la rinomina della sessione, chiude Impostazioni | Vari |
 | `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia nel pannello della conversazione laterale (secondo *Invia con Enter*) | Pannello laterale |
 | `Ctrl+C`, `Ctrl+L`, `Ctrl+V` | Interrompe, pulisce lo schermo, incolla nel terminale | Terminale integrato |
 | Frecce, `Tab`, `Invio`, `Backspace` | Inviati alla shell del terminale integrato | Terminale integrato |

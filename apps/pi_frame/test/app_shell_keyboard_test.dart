@@ -10,6 +10,7 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/layout/layout_store.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/features/session_changes/session_changes_provider.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 
 ProviderContainer _container() => ProviderContainer(
@@ -112,6 +113,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
+  ScaffoldState scaffold(WidgetTester tester) =>
+      tester.state<ScaffoldState>(find.byType(Scaffold).first);
+
   testWidgets('Tab from the composer visits the regions in order', (
     tester,
   ) async {
@@ -189,4 +193,45 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'Escape closes the end drawer, then Review mode, then does nothing',
+    (tester) async {
+      final container = _container();
+      addTearDown(container.dispose);
+      await pumpShell(tester, container);
+
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+
+      container.read(isReviewingChangesProvider.notifier).state = true;
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // The end drawer is the higher layer: it closes first, Review mode stays open.
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isFalse);
+      expect(container.read(isReviewingChangesProvider), isTrue);
+
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(container.read(isReviewingChangesProvider), isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Escape closes Settings', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    container.read(showSettingsProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(container.read(showSettingsProvider), isFalse);
+    expect(tester.takeException(), isNull);
+  });
 }
