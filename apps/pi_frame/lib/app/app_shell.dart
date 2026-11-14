@@ -2025,7 +2025,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       foregroundColor: pane == selected
                           ? tokens.accent
                           : tokens.textPrimary,
-                      backgroundColor: Colors.transparent,
+                      backgroundColor: tokens.chassis,
                       shape: const RoundedRectangleBorder(),
                     ),
                     onPressed: () => onSelected(pane),
@@ -2036,7 +2036,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           bottom: BorderSide(
                             color: pane == selected
                                 ? tokens.accent
-                                : Colors.transparent,
+                                : tokens.chassis,
                             width: 2,
                           ),
                         ),
