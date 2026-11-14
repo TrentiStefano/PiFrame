@@ -517,6 +517,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.textContaining('\$0.0200'));
     await tester.tap(find.textContaining('\$0.0200'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
@@ -863,6 +864,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(container.read(subagentsFamily('costs')).single.cost, 0.0175);
     expect(find.text('\$0.0175'), findsWidgets);
+
+    await tester.ensureVisible(find.textContaining('\$0.0200'));
 
     await tester.tap(find.textContaining('\$0.0200'));
     await tester.pump(const Duration(milliseconds: 300));

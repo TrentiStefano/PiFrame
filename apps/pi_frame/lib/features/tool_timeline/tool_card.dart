@@ -361,7 +361,7 @@ class _ToolCardState extends State<ToolCard> {
                   children: [
                     Icon(
                       _getToolIcon(tool.toolName),
-                      size: FrameSize.icon,
+                      size: 14,
                       color: tool.isError
                           ? tokens.agentError
                           : tool.isRunning
@@ -518,20 +518,20 @@ class _ToolCardState extends State<ToolCard> {
                     else if (tool.isError)
                       Icon(
                         Icons.error_outline,
-                        size: FrameSize.icon,
+                        size: 14,
                         color: tokens.agentError,
                       )
                     else
                       Icon(
                         Icons.check_circle_outline,
-                        size: FrameSize.icon,
+                        size: 14,
                         color: tokens.agentSettled,
                       ),
                     const SizedBox(width: 4),
                     if (canExpand)
                       Icon(
                         _isExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
-                        size: FrameSize.icon,
+                        size: 15,
                         color: tokens.textMuted,
                       )
                     else

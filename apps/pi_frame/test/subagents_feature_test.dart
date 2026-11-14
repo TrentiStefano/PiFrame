@@ -625,6 +625,7 @@ void main() {
       expect(find.textContaining('\$0.0325'), findsNothing);
 
       // Tap on Cost metric chip to open Level 0 breakdown popup
+      await tester.ensureVisible(find.textContaining('\$0.0200'));
       await tester.tap(find.textContaining('\$0.0200'));
       await tester.pumpAndSettle();
 

@@ -71,7 +71,9 @@ void main() {
     // Verify header cost display
     expect(find.textContaining('\$79.2230'), findsOneWidget);
 
-    // Tap Cost chip to open breakdown dialog
+    // Tap Cost chip to open breakdown dialog. The chips scroll horizontally
+    // (clipped, starting after the status pill), so scroll it into view first.
+    await tester.ensureVisible(find.textContaining('\$79.2230'));
     await tester.tap(find.textContaining('\$79.2230'));
     await tester.pumpAndSettle();
 
@@ -169,7 +171,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Tap Cost chip
+    // Tap Cost chip (scrolled into view: the chips scroll horizontally)
+    await tester.ensureVisible(find.textContaining('\$0.0400'));
     await tester.tap(find.textContaining('\$0.0400'));
     await tester.pumpAndSettle();
 

@@ -70,14 +70,14 @@ void main() {
       await tester.pump();
       final reasoningIcon = find.descendant(
         of: find.byType(ThinkingBlock),
-        matching: find.byIcon(Icons.expand_more),
+        matching: find.byIcon(Icons.expand_more_outlined),
       );
       final reasoningX = tester.getCenter(reasoningIcon).dx;
       for (final id in ['short', 'long', 'running']) {
         final card = find.byKey(ValueKey(id));
         final icon = find.descendant(
           of: card,
-          matching: find.byIcon(Icons.expand_more),
+          matching: find.byIcon(Icons.expand_more_outlined),
         );
         expect(tester.getCenter(icon).dx, closeTo(reasoningX, 0.01));
       }
@@ -105,7 +105,7 @@ void main() {
       await tester.pump();
       final expandedIcon = find.descendant(
         of: find.byKey(const ValueKey('short')),
-        matching: find.byIcon(Icons.expand_less),
+        matching: find.byIcon(Icons.expand_less_outlined),
       );
       expect(tester.getCenter(expandedIcon).dx, closeTo(reasoningX, 0.01));
       await tester.tap(find.text('read'));
@@ -179,7 +179,7 @@ void main() {
     // Collapsed by default: header shows toolName and command preview
     expect(find.text('bash'), findsOneWidget);
     expect(find.text('git status'), findsOneWidget);
-    expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    expect(find.byIcon(Icons.expand_more_outlined), findsOneWidget);
     // Body is NOT expanded
     expect(find.byKey(const ValueKey('tool-card-expanded-command')), findsNothing);
 
@@ -187,7 +187,7 @@ void main() {
     await tester.tap(find.byType(TextButton));
     await tester.pump();
 
-    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    expect(find.byIcon(Icons.expand_less_outlined), findsOneWidget);
     expect(find.byKey(const ValueKey('tool-card-expanded-command')), findsOneWidget);
   });
 

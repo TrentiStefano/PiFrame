@@ -940,3 +940,17 @@ PiFrame traduce gli errori tecnici interni (daemon non raggiungibile, Git non in
 ### Risoluzione
 
 Messaggi del provider e del daemon sono visibili nella chat e nelle schermate. Per gli errori interni, apri il riquadro dell'errore e premi **Dettagli**: il testo tecnico originale è selezionabile e si può copiare nella segnalazione. Se l'errore è recuperabile, **Riprova** ripete l'operazione. Se il suggerimento indica un daemon obsoleto, esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon quando nessun worker Pi è attivo.
+
+## Intestazione di sessione: stato e chip sovrapposti
+
+### Sintomi
+
+A larghezza 1584 px la pillola di stato («In esecuzione» o «Completato») copriva l'inizio del chip di contesto («Contesto»), che risultava nascosto.
+
+### Causa
+
+I chip di contesto, costo ed estensioni stavano in una vista a scorrimento orizzontale invertita: con poco spazio, il primo chip finiva sotto la pillola di stato.
+
+### Risoluzione
+
+La riga dell'intestazione è ora sequenziale: titolo e cartella, poi la pillola di stato, poi i chip. I chip partono subito dopo la pillola e scorrono in orizzontale quando lo spazio non basta. A larghezze strette il chip di costo può quindi restare fuori dalla vista finché non si scorre. Il test `transcript_header_layout_test` verifica che pillola e chip non si sovrappongano a 480, 800, 1200 e 1584 px.

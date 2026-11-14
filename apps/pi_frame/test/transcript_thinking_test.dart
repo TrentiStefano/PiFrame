@@ -58,7 +58,7 @@ void main() {
     expect(find.text('Ragionamento'), findsOneWidget);
     // Initially collapsed: SelectableText body should not be rendered
     expect(find.byType(SelectableText), findsNothing);
-    expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    expect(find.byIcon(Icons.expand_more_outlined), findsOneWidget);
 
     // Tap the thinking block header to expand
     await tester.tap(find.text('Ragionamento'));
@@ -66,7 +66,7 @@ void main() {
 
     // Now SelectableText body should be visible with thinking details
     expect(find.byType(SelectableText), findsOneWidget);
-    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    expect(find.byIcon(Icons.expand_less_outlined), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(SelectableText),
@@ -97,7 +97,7 @@ void main() {
 
     // Crucial check: thinking block of entry_asst_1 MUST REMAIN EXPANDED!
     expect(find.byType(SelectableText), findsOneWidget);
-    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    expect(find.byIcon(Icons.expand_less_outlined), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(SelectableText),
@@ -112,6 +112,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SelectableText), findsNothing);
-    expect(find.byIcon(Icons.expand_more), findsOneWidget);
+    expect(find.byIcon(Icons.expand_more_outlined), findsOneWidget);
   });
 }

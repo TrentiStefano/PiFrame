@@ -196,6 +196,9 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
 | `↑` / `↓` | Scorre i comandi slash, i file menzionati e i suggerimenti | Composer, selettore file, Command Palette, selettore branch |
 | `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
+| `Shift+F10` / tasto Menu | Apre il menu contestuale della riga con il focus (o del cursore) nella lista sessioni, nella lista Git e nell'albero file | Sessioni, Git, Repository |
+| `F2` / `Invio` sul titolo della sessione | Rinomina la sessione (come il doppio clic sul titolo) | Intestazione sessione |
+| `Invio` sul messaggio non inviato | Riporta il testo e gli allegati nel composer (come il doppio clic) | Chat |
 | `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme, nuovo in Fase 6) |
 | `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell (nuovo in Fase 6) |
 | `←` / `→` | Sulle schede del pannello companion (File, Review Changes, Chat): seleziona la scheda precedente o successiva; `Invio` o `Spazio` seleziona la scheda con il focus | Pannello companion |
