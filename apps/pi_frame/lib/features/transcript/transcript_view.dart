@@ -2874,24 +2874,30 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 14,
-                            color: tokens.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _currentStrings.transcriptAssistant,
-                            style: TextStyle(
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.smart_toy_outlined,
+                              size: 14,
                               color: tokens.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                _currentStrings.transcriptAssistant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
