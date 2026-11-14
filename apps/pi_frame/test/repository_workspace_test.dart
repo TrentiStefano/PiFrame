@@ -376,8 +376,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(client.requestedDiff, 'lib/main.dart');
     expect(find.textContaining('diff --git a/lib/main.dart'), findsOneWidget);
-    await tester.tap(find.byTooltip('Chiudi diff'));
+    // The diff replaces the list in the pane: the Git list is gone until back.
+    expect(find.byKey(const ValueKey('git-list')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('git-diff-back-btn')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('git-list')), findsOneWidget);
 
     await _hoverAndTap(tester, find.byTooltip('Metti in stage lib/main.dart'));
     await tester.pumpAndSettle();
@@ -397,6 +400,122 @@ void main() {
     await tester.tap(find.text('Scarta modifiche'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'discard');
+  });
+
+  testWidgets('Git diff stays in the pane and reviews files by keyboard', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    String position() => tester
+        .widget<Text>(find.byKey(const ValueKey('git-diff-position')))
+        .data!;
+
+    // Opening a row shows its diff in the pane, not in a dialog.
+    await tester.tap(find.text('main.dart'));
+    await tester.pumpAndSettle();
+    expect(client.requestedDiff, 'lib/main.dart');
+    expect(find.byType(Dialog), findsNothing);
+    expect(position(), '1/2');
+
+    // Alt+Down moves to the next file; the list is not rebuilt in between.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+    expect(client.requestedDiff, 'notes.txt');
+    expect(position(), '2/2');
+
+    // At the last file Alt+Down does nothing.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pumpAndSettle();
+    expect(position(), '2/2');
+
+    // Escape goes back to the list, and the cursor stays on the file shown.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('git-list')), findsOneWidget);
+    expect(find.byKey(const ValueKey('git-pane-diff')), findsNothing);
+
+    // Enter on the focused list opens the file under the cursor again.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(client.requestedDiff, 'notes.txt');
+    expect(position(), '2/2');
+  });
+
+  testWidgets('Git diff pane buttons step files and keep the window dialog', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('main.dart'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<IconButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('git-diff-prev-btn')),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.byKey(const ValueKey('git-diff-next-btn')));
+    await tester.pumpAndSettle();
+    expect(client.requestedDiff, 'notes.txt');
+
+    await tester.tap(find.byKey(const ValueKey('git-diff-window-btn')));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('Chiudi'), findsOneWidget);
+    await tester.tap(find.text('Chiudi'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byKey(const ValueKey('git-diff-position')), findsOneWidget);
   });
 
   testWidgets('Git discard dialog focuses Annulla and Enter does not discard', (
@@ -725,7 +844,10 @@ void main() {
   double rowActionOpacity(WidgetTester tester, String key) {
     final opacity = tester.widget<Opacity>(
       find
-          .ancestor(of: find.byKey(ValueKey(key)), matching: find.byType(Opacity))
+          .ancestor(
+            of: find.byKey(ValueKey(key)),
+            matching: find.byType(Opacity),
+          )
           .first,
     );
     return opacity.opacity;
@@ -800,23 +922,24 @@ void main() {
     );
   });
 
-  testWidgets('Git row actions stay visible on a touch platform at desktop width', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    // The override must be cleared inside the test body: flutter_test checks
-    // the foundation debug variables before tearDown callbacks run.
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    try {
-      await pumpGitRows(tester);
-      expect(rowActionOpacity(tester, unstagedToggleKey), 1);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+  testWidgets(
+    'Git row actions stay visible on a touch platform at desktop width',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      // The override must be cleared inside the test body: flutter_test checks
+      // the foundation debug variables before tearDown callbacks run.
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        await pumpGitRows(tester);
+        expect(rowActionOpacity(tester, unstagedToggleKey), 1);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   testWidgets('Git clean tree shows an empty state with a refresh action', (
     tester,

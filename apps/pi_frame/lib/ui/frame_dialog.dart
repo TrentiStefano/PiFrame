@@ -40,17 +40,20 @@ class FrameDialog<T> extends StatelessWidget {
   /// Largest share of the window height the dialog may use.
   static const double maxHeightFraction = 0.8;
 
-  static const double _maxWidth = 480;
+  /// Default width cap. Wide content, such as a diff, passes its own [maxWidth].
+  static const double defaultMaxWidth = 480;
 
   final String title;
   final Widget body;
   final List<FrameDialogAction<T>> actions;
+  final double maxWidth;
 
   const FrameDialog({
     super.key,
     required this.title,
     required this.body,
     this.actions = const [],
+    this.maxWidth = defaultMaxWidth,
   });
 
   @override
@@ -60,8 +63,7 @@ class FrameDialog<T> extends StatelessWidget {
     final hasDestructive = actions.any(
       (a) => a.role == FrameDialogActionRole.destructive,
     );
-    final maxHeight =
-        MediaQuery.sizeOf(context).height * maxHeightFraction;
+    final maxHeight = MediaQuery.sizeOf(context).height * maxHeightFraction;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(FrameSpace.x6),
@@ -71,10 +73,7 @@ class FrameDialog<T> extends StatelessWidget {
         side: BorderSide(color: tokens.border),
       ),
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: _maxWidth,
-          maxHeight: maxHeight,
-        ),
+        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: Padding(
           padding: const EdgeInsets.all(FrameSpace.x6),
           child: Column(
@@ -93,9 +92,7 @@ class FrameDialog<T> extends StatelessWidget {
                 fit: FlexFit.loose,
                 child: SingleChildScrollView(
                   child: DefaultTextStyle.merge(
-                    style: text.bodyLarge.copyWith(
-                      color: tokens.textSecondary,
-                    ),
+                    style: text.bodyLarge.copyWith(color: tokens.textSecondary),
                     child: body,
                   ),
                 ),
@@ -111,7 +108,8 @@ class FrameDialog<T> extends StatelessWidget {
                       _buildAction(
                         context,
                         action,
-                        autofocus: hasDestructive &&
+                        autofocus:
+                            hasDestructive &&
                             action.role == FrameDialogActionRole.cancel,
                       ),
                   ],
@@ -130,8 +128,7 @@ class FrameDialog<T> extends StatelessWidget {
     required bool autofocus,
   }) {
     final tokens = context.tokens;
-    final key = action.key ??
-        ValueKey('frame-dialog-${action.role.name}');
+    final key = action.key ?? ValueKey('frame-dialog-${action.role.name}');
 
     void press() {
       action.onPressed?.call();

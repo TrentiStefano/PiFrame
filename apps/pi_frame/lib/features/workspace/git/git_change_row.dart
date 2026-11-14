@@ -59,7 +59,7 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
 
 /// Splits a path into its file name and parent directory. [dir] is null for a
 /// file at the root.
-({String name, String? dir}) _splitPath(String path) {
+({String name, String? dir}) splitGitPath(String path) {
   final cut = [
     path.lastIndexOf('/'),
     path.lastIndexOf('\\'),
@@ -135,7 +135,7 @@ class GitChangeRow extends StatelessWidget {
     final text = FrameText.of(context);
     final path = file['path'].toString();
     final status = file['status']?.toString() ?? 'modified';
-    final parts = _splitPath(path);
+    final parts = splitGitPath(path);
     final section = isStaged ? 'staged' : 'unstaged';
     final stateLabel = isStaged && hasUnstagedEdit
         ? strings.gitStateStagedAndUnstaged

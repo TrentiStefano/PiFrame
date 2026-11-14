@@ -60,6 +60,7 @@ class FrameEnter extends StatefulWidget {
   final Widget child;
   final double offset;
   final Duration duration;
+
   /// Slide from the right edge instead of from below (side panels, drawers).
   final bool horizontal;
 
@@ -194,6 +195,98 @@ class _FrameExpandableState extends State<FrameExpandable>
           ),
         );
       },
+    );
+  }
+}
+
+/// Swaps its [child] for a new one with a fade and an optional horizontal
+/// slide. The preset behind list ↔ detail swaps (the Git diff in the companion
+/// pane) and any later content swap that should read as one change.
+///
+/// The incoming child fades in and slides from [slide] px to the right; the
+/// outgoing child fades out and slides [slide] px to the left. Pass a negative
+/// [slide] to reverse the direction, for example when going back. Exits use
+/// [exitDuration], which is shorter than [enterDuration]. Under reduced motion
+/// the swap is a cross-fade of [FrameMotion.crossFade] with no movement.
+///
+/// [animate] false swaps at once. Use it for keyboard-driven changes, which
+/// the plan keeps instant.
+///
+/// Every child needs a key: the switcher tells the incoming and the outgoing
+/// child apart by it.
+class FrameSwitcher extends StatelessWidget {
+  final Widget child;
+  final double slide;
+  final bool animate;
+  final Duration enterDuration;
+  final Duration exitDuration;
+  final Curve curve;
+
+  const FrameSwitcher({
+    super.key,
+    required this.child,
+    this.slide = 0,
+    this.animate = true,
+    this.enterDuration = FrameMotion.dialog,
+    this.exitDuration = FrameMotion.dialogExit,
+    this.curve = FrameMotion.enterCurve,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    assert(child.key != null, 'FrameSwitcher children need a key');
+    final reduced = FrameMotion.reduced(context);
+    final Duration enter;
+    final Duration exit;
+    if (!animate) {
+      enter = Duration.zero;
+      exit = Duration.zero;
+    } else if (reduced) {
+      enter = FrameMotion.crossFade;
+      exit = FrameMotion.crossFade;
+    } else {
+      enter = enterDuration;
+      exit = exitDuration;
+    }
+    final travel = reduced ? 0.0 : slide;
+    final currentKey = child.key;
+
+    return AnimatedSwitcher(
+      duration: enter,
+      reverseDuration: exit,
+      switchInCurve: curve,
+      switchOutCurve: curve,
+      // The default stack centres children at their own size. Fill the space
+      // instead, so a scrolling child keeps its full height.
+      layoutBuilder: (current, previous) => Stack(
+        fit: StackFit.expand,
+        children: [...previous, ?current],
+      ),
+      transitionBuilder: (widget, animation) {
+        if (travel == 0) {
+          return FadeTransition(opacity: animation, child: widget);
+        }
+        // Incoming runs 0 → 1 and settles from +travel. Outgoing runs 1 → 0
+        // and ends at -travel, so it leaves the other way. Pixels, not the
+        // fractional offsets SlideTransition takes.
+        final incoming = widget.key == currentKey;
+        final start = incoming ? travel : -travel;
+        return FadeTransition(
+          opacity: animation,
+          child: AnimatedBuilder(
+            animation: animation,
+            child: widget,
+            builder: (context, child) => Transform.translate(
+              offset: Offset(
+                Tween<double>(begin: start, end: 0).evaluate(animation),
+                0,
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

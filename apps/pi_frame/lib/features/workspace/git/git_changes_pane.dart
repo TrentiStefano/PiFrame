@@ -15,6 +15,7 @@ import '../../../ui/frame_empty_state.dart';
 import '../../../ui/frame_error_callout.dart';
 import '../../../ui/frame_icon_action.dart';
 import '../../../ui/frame_snack_bar.dart';
+import '../../../ui/motion.dart';
 import '../branch_picker_dialog.dart';
 import '../../browser/browser_controller.dart';
 import '../../browser/browser_models.dart';
@@ -107,6 +108,15 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   /// Keyboard cursor: the key of the focused entry, or null for the first one.
   String? _cursorKey;
 
+  /// The file open in the pane's diff view, or null while the Git list shows.
+  String? _diffPath;
+
+  /// Horizontal travel of the list ↔ diff swap: +8 px to open, -8 px to go back.
+  double _paneSlide = 0;
+
+  /// Bumped on each status refresh, so the open diff reloads after a stage.
+  int _statusRevision = 0;
+
   @override
   void initState() {
     super.initState();
@@ -163,9 +173,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     try {
       final result = await client.refreshWorkspace(widget.sessionId);
       if (mounted) {
-        setState(
-          () => _status = (result['data'] as Map<String, dynamic>?) ?? result,
-        );
+        setState(() {
+          _status = (result['data'] as Map<String, dynamic>?) ?? result;
+          _statusRevision++;
+        });
       }
     } catch (e) {
       if (mounted) setState(() => _status = {'error': e.toString()});
@@ -587,7 +598,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       status: _status,
     );
     if (!mounted) return;
-    if (confirmed == true) await _action('discard', [path]);
+    if (confirmed != true) return;
+    await _action('discard', [path]);
+    // A discarded file leaves the list, so the diff of it has nothing left to show.
+    if (mounted && _diffPath == path && !_files.any((f) => f['path'] == path)) {
+      _closeDiff();
+    }
   }
 
   Future<void> _commit() async {
@@ -646,13 +662,37 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     );
   }
 
+  /// Opens the diff of [path] in the pane, in place of the Git list. Chat stays
+  /// visible above it.
   void _openDiff(String path) {
-    showGitDiffDialog(
-      context: context,
-      ref: ref,
-      sessionId: widget.sessionId,
-      path: path,
+    setState(() {
+      _diffPath = path;
+      _paneSlide = FrameSpace.x2;
+    });
+  }
+
+  /// Moves the open diff to [path] (Alt+arrow or the pane's next and previous
+  /// buttons). The list cursor follows, so Escape lands on the same row.
+  void _showDiffPath(String path) {
+    final unstaged = _files.any(
+      (f) =>
+          f['path'] == path && (f['unstaged'] == true || f['staged'] != true),
     );
+    setState(() {
+      _diffPath = path;
+      _cursorKey = 'r:${unstaged ? 'unstaged' : 'staged'}:$path';
+    });
+  }
+
+  /// Back from the diff to the Git list, with keyboard focus returned to it.
+  void _closeDiff() {
+    setState(() {
+      _diffPath = null;
+      _paneSlide = -FrameSpace.x2;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _listFocus.requestFocus();
+    });
   }
 
   /// Moves the cursor to [key] and takes keyboard focus for the list.
@@ -1018,6 +1058,30 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ]),
     ];
 
+    // Files the diff pane steps through: staged first, then unstaged, as listed.
+    final unstagedPaths = {for (final f in unstagedFiles) f['path'].toString()};
+    final diffTargets = <GitDiffTarget>[];
+    for (final f in [...stagedFiles, ...unstagedFiles]) {
+      final path = f['path'].toString();
+      if (diffTargets.any((t) => t.path == path)) continue;
+      diffTargets.add(
+        GitDiffTarget(path: path, stagedOnly: !unstagedPaths.contains(path)),
+      );
+    }
+    final diffOpen =
+        _diffPath != null && diffTargets.any((t) => t.path == _diffPath);
+    if (_diffPath != null && !diffOpen) {
+      // The file left the list (committed or changed elsewhere): show the list again.
+      final stalePath = _diffPath;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            _diffPath == stalePath &&
+            !_files.any((f) => f['path'] == stalePath)) {
+          setState(() => _diffPath = null);
+        }
+      });
+    }
+
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
       child: Column(
@@ -1134,300 +1198,366 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    root,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 10,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
-                  ),
-                ),
-                if (repo ||
-                    _status?['branch'] != null ||
-                    _status?['detached'] == true) ...[
-                  const SizedBox(width: 6),
-                  Builder(
-                    builder: (context) {
-                      final branchDisabled = blocked || _working || _loading;
-                      final chipTooltip = (blocked && !readOnly)
-                          ? strings.branchSwitchAgentWorking
-                          : strings.branchChipTooltip;
-                      return Tooltip(
-                        message: chipTooltip,
-                        child: InkWell(
-                          key: const ValueKey('git-branch-chip'),
-                          onTap: branchDisabled ? null : _openBranchPicker,
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusSm,
-                              ),
-                              border: Border.all(color: tokens.border),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.fork_right,
-                                  size: 13,
-                                  color: branchDisabled
-                                      ? tokens.textMuted
-                                      : tokens.accent,
-                                ),
-                                const SizedBox(width: 4),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 160,
+          Expanded(
+            child: FrameSwitcher(
+              slide: _paneSlide,
+              child: diffOpen
+                  ? GitDiffPane(
+                      key: const ValueKey('git-pane-diff'),
+                      sessionId: widget.sessionId,
+                      targets: diffTargets,
+                      path: _diffPath!,
+                      revision: _statusRevision,
+                      writesOff: blocked || _working,
+                      onBack: _closeDiff,
+                      onOpenPath: _showDiffPath,
+                      onStageToggle: (target) => _action(
+                        target.stagedOnly ? 'unstage' : 'stage',
+                        [target.path],
+                      ),
+                      onDiscard: _discardFile,
+                    )
+                  : Column(
+                      key: const ValueKey('git-pane-list'),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  root,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 10,
+                                    fontFamily: tokens.monoFontFamily,
                                   ),
-                                  child: Text(
-                                    _status?['detached'] == true
-                                        ? (_status?['headShortSha']
-                                                  ?.toString() ??
-                                              'detached')
-                                        : (_status?['branch']?.toString() ??
-                                              '—'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: branchDisabled
-                                          ? tokens.textMuted
-                                          : tokens.textPrimary,
-                                      fontSize: 11,
-                                      fontFamily: tokens.monoFontFamily,
-                                      fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (repo ||
+                                  _status?['branch'] != null ||
+                                  _status?['detached'] == true) ...[
+                                const SizedBox(width: 6),
+                                Builder(
+                                  builder: (context) {
+                                    final branchDisabled =
+                                        blocked || _working || _loading;
+                                    final chipTooltip = (blocked && !readOnly)
+                                        ? strings.branchSwitchAgentWorking
+                                        : strings.branchChipTooltip;
+                                    return Tooltip(
+                                      message: chipTooltip,
+                                      child: InkWell(
+                                        key: const ValueKey('git-branch-chip'),
+                                        onTap: branchDisabled
+                                            ? null
+                                            : _openBranchPicker,
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusSm,
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: tokens.surface,
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusSm,
+                                            ),
+                                            border: Border.all(
+                                              color: tokens.border,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.fork_right,
+                                                size: 13,
+                                                color: branchDisabled
+                                                    ? tokens.textMuted
+                                                    : tokens.accent,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      maxWidth: 160,
+                                                    ),
+                                                child: Text(
+                                                  _status?['detached'] == true
+                                                      ? (_status?['headShortSha']
+                                                                ?.toString() ??
+                                                            'detached')
+                                                      : (_status?['branch']
+                                                                ?.toString() ??
+                                                            '—'),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: branchDisabled
+                                                        ? tokens.textMuted
+                                                        : tokens.textPrimary,
+                                                    fontSize: 11,
+                                                    fontFamily:
+                                                        tokens.monoFontFamily,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (!repo)
+                          Builder(
+                            builder: (context) {
+                              final rawError = _status?['error']?.toString();
+                              final isAttaching =
+                                  (rawError != null &&
+                                      (rawError.contains('not found') ||
+                                          rawError.contains(
+                                            'Session not found',
+                                          ))) ||
+                                  (_status == null && cwd.isEmpty);
+
+                              if (_loading || isAttaching) {
+                                // Skeleton rows in the place of the file rows, so the
+                                // list does not jump when the status arrives.
+                                return Expanded(
+                                  child: GitLoadingRows(
+                                    key: const ValueKey('git-loading'),
+                                    label: strings.gitLoadingStatus,
+                                  ),
+                                );
+                              }
+
+                              if (rawError == null) {
+                                return Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      strings.noGitRepository,
+                                      style: text.body.copyWith(
+                                        color: tokens.textMuted,
+                                      ),
                                     ),
+                                  ),
+                                );
+                              }
+                              return Expanded(
+                                child: Center(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.all(12),
+                                    child: FrameErrorCallout(
+                                      keyPrefix: 'git-status-error',
+                                      title: strings.gitStatusLoadFailed,
+                                      error: describeError(rawError, strings),
+                                      strings: strings,
+                                      onRetry: _refresh,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        else ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Wrap(
+                              spacing: 4,
+                              children: [
+                                Text(
+                                  strings.gitFilesCount(files.length),
+                                  style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                Text(
+                                  '+${_status?['totalAdditions'] ?? 0}',
+                                  style: TextStyle(
+                                    color: tokens.diffAddedFg,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                Text(
+                                  '-${_status?['totalDeletions'] ?? 0}',
+                                  style: TextStyle(
+                                    color: tokens.diffRemovedFg,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (!repo)
-            Builder(
-              builder: (context) {
-                final rawError = _status?['error']?.toString();
-                final isAttaching =
-                    (rawError != null &&
-                        (rawError.contains('not found') ||
-                            rawError.contains('Session not found'))) ||
-                    (_status == null && cwd.isEmpty);
-
-                if (_loading || isAttaching) {
-                  // Skeleton rows in the place of the file rows, so the
-                  // list does not jump when the status arrives.
-                  return Expanded(
-                    child: GitLoadingRows(
-                      key: const ValueKey('git-loading'),
-                      label: strings.gitLoadingStatus,
-                    ),
-                  );
-                }
-
-                if (rawError == null) {
-                  return Expanded(
-                    child: Center(
-                      child: Text(
-                        strings.noGitRepository,
-                        style: text.body.copyWith(color: tokens.textMuted),
-                      ),
-                    ),
-                  );
-                }
-                return Expanded(
-                  child: Center(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(12),
-                      child: FrameErrorCallout(
-                        keyPrefix: 'git-status-error',
-                        title: strings.gitStatusLoadFailed,
-                        error: describeError(rawError, strings),
-                        strings: strings,
-                        onRetry: _refresh,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            )
-          else ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(
-                spacing: 4,
-                children: [
-                  Text(
-                    strings.gitFilesCount(files.length),
-                    style: TextStyle(color: tokens.textSecondary, fontSize: 11),
-                  ),
-                  Text(
-                    '+${_status?['totalAdditions'] ?? 0}',
-                    style: TextStyle(color: tokens.diffAddedFg, fontSize: 11),
-                  ),
-                  Text(
-                    '-${_status?['totalDeletions'] ?? 0}',
-                    style: TextStyle(color: tokens.diffRemovedFg, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ClipRect(
-                // The summary line stays outside the scroll view. The clip
-                // keeps scrolled group headers from painting over it.
-                child: files.isEmpty
-                    ? FrameEmptyState(
-                        keyPrefix: 'git-empty',
-                        icon: Icons.check_circle_outline,
-                        title: strings.gitCleanTitle,
-                        message: strings.gitCleanMessage(
-                          _status?['branch']?.toString() ?? '—',
-                        ),
-                        actionLabel: strings.gitRefreshAction,
-                        actionIcon: Icons.refresh,
-                        onAction: _loading ? null : () => _refresh(),
-                      )
-                    : Focus(
-                        focusNode: _listFocus,
-                        onFocusChange: (_) => setState(() {}),
-                        onKeyEvent: (node, event) =>
-                            _onListKey(event, listEntries, blocked),
-                        child: ListView.builder(
-                          key: const ValueKey('git-list'),
-                          controller: _listScroll,
-                          itemExtent: FrameSize.rowList,
-                          itemCount: listEntries.length,
-                          itemBuilder: (context, index) {
-                            final entry = listEntries[index];
-                            return entry.render(
-                              _listFocus.hasFocus &&
-                                  entry.key == _activeKey(listEntries),
-                            );
-                          },
-                        ),
-                      ),
-              ),
-            ),
-            if (_working)
-              LinearProgressIndicator(
-                key: const ValueKey('git-working-progress'),
-                minHeight: 2,
-                color: tokens.accent,
-                backgroundColor: tokens.surface,
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Always reserved, so the list above does not move when a run
-                  // starts or ends. Shows the reason writes are paused.
-                  SizedBox(
-                    height: FrameSize.icon,
-                    child: blocked
-                        ? Row(
-                            key: const ValueKey('git-writes-disabled'),
-                            children: [
-                              Icon(
-                                Icons.pause_circle_outline,
-                                size: FrameSize.icon,
-                                color: tokens.warning,
-                              ),
-                              const SizedBox(width: FrameSpace.x2),
-                              Expanded(
-                                child: Text(
-                                  readOnly
-                                      ? strings.writesDisabledReadOnly(
-                                          readOnlyReason,
+                          Expanded(
+                            child: ClipRect(
+                              // The summary line stays outside the scroll view. The clip
+                              // keeps scrolled group headers from painting over it.
+                              child: files.isEmpty
+                                  ? FrameEmptyState(
+                                      keyPrefix: 'git-empty',
+                                      icon: Icons.check_circle_outline,
+                                      title: strings.gitCleanTitle,
+                                      message: strings.gitCleanMessage(
+                                        _status?['branch']?.toString() ?? '—',
+                                      ),
+                                      actionLabel: strings.gitRefreshAction,
+                                      actionIcon: Icons.refresh,
+                                      onAction: _loading
+                                          ? null
+                                          : () => _refresh(),
+                                    )
+                                  : Focus(
+                                      focusNode: _listFocus,
+                                      onFocusChange: (_) => setState(() {}),
+                                      onKeyEvent: (node, event) => _onListKey(
+                                        event,
+                                        listEntries,
+                                        blocked,
+                                      ),
+                                      child: ListView.builder(
+                                        key: const ValueKey('git-list'),
+                                        controller: _listScroll,
+                                        itemExtent: FrameSize.rowList,
+                                        itemCount: listEntries.length,
+                                        itemBuilder: (context, index) {
+                                          final entry = listEntries[index];
+                                          return entry.render(
+                                            _listFocus.hasFocus &&
+                                                entry.key ==
+                                                    _activeKey(listEntries),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          if (_working)
+                            LinearProgressIndicator(
+                              key: const ValueKey('git-working-progress'),
+                              minHeight: 2,
+                              color: tokens.accent,
+                              backgroundColor: tokens.surface,
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Always reserved, so the list above does not move when a run
+                                // starts or ends. Shows the reason writes are paused.
+                                SizedBox(
+                                  height: FrameSize.icon,
+                                  child: blocked
+                                      ? Row(
+                                          key: const ValueKey(
+                                            'git-writes-disabled',
+                                          ),
+                                          children: [
+                                            Icon(
+                                              Icons.pause_circle_outline,
+                                              size: FrameSize.icon,
+                                              color: tokens.warning,
+                                            ),
+                                            const SizedBox(
+                                              width: FrameSpace.x2,
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                readOnly
+                                                    ? strings
+                                                          .writesDisabledReadOnly(
+                                                            readOnlyReason,
+                                                          )
+                                                    : strings
+                                                          .writesDisabledPiWorking,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: text.caption.copyWith(
+                                                  color: tokens.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         )
-                                      : strings.writesDisabledPiWorking,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.caption.copyWith(
-                                    color: tokens.textPrimary,
-                                  ),
+                                      : null,
+                                ),
+                                Row(
+                                  children: [
+                                    for (final (i, spec) in [
+                                      (
+                                        'fetch',
+                                        Icons.cloud_download_outlined,
+                                        strings.gitFetchLabel,
+                                        strings.gitFetchTooltip,
+                                      ),
+                                      (
+                                        'pull',
+                                        Icons.arrow_downward,
+                                        strings.gitPullLabel,
+                                        strings.gitPullTooltip,
+                                      ),
+                                      (
+                                        'push',
+                                        Icons.arrow_upward,
+                                        strings.gitPushLabel,
+                                        strings.gitPushTooltip,
+                                      ),
+                                      (
+                                        'sync',
+                                        Icons.sync,
+                                        strings.gitSyncLabel,
+                                        strings.gitSyncTooltip,
+                                      ),
+                                    ].indexed) ...[
+                                      if (i > 0) const SizedBox(width: 4),
+                                      _remoteButton(
+                                        action: spec.$1,
+                                        icon: spec.$2,
+                                        label: spec.$3,
+                                        tooltip: spec.$4,
+                                        enabled:
+                                            !blocked && !_working && !_loading,
+                                        tokens: tokens,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FilledButton(
+                                onPressed: blocked || _working || staged.isEmpty
+                                    ? null
+                                    : _commit,
+                                child: Text(
+                                  strings.commitButtonLabel(staged.length),
                                 ),
                               ),
-                            ],
-                          )
-                        : null,
-                  ),
-                  Row(
-                    children: [
-                      for (final (i, spec) in [
-                        (
-                          'fetch',
-                          Icons.cloud_download_outlined,
-                          strings.gitFetchLabel,
-                          strings.gitFetchTooltip,
-                        ),
-                        (
-                          'pull',
-                          Icons.arrow_downward,
-                          strings.gitPullLabel,
-                          strings.gitPullTooltip,
-                        ),
-                        (
-                          'push',
-                          Icons.arrow_upward,
-                          strings.gitPushLabel,
-                          strings.gitPushTooltip,
-                        ),
-                        (
-                          'sync',
-                          Icons.sync,
-                          strings.gitSyncLabel,
-                          strings.gitSyncTooltip,
-                        ),
-                      ].indexed) ...[
-                        if (i > 0) const SizedBox(width: 4),
-                        _remoteButton(
-                          action: spec.$1,
-                          icon: spec.$2,
-                          label: spec.$3,
-                          tooltip: spec.$4,
-                          enabled: !blocked && !_working && !_loading,
-                          tokens: tokens,
-                        ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
-              ),
+                    ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: blocked || _working || staged.isEmpty
-                      ? null
-                      : _commit,
-                  child: Text(strings.commitButtonLabel(staged.length)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );

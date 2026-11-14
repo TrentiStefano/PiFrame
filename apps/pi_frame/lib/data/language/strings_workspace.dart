@@ -224,8 +224,20 @@ extension WorkspaceStrings on AppStrings {
       ? failureText(this, 'Operazione Git non riuscita', error)
       : failureText(this, 'Git operation failed', error);
 
-  String get closeDiffTooltip =>
-      isItalian ? 'Chiudi diff' : 'Close diff';
+  String get gitBackToChanges => isItalian ? 'Modifiche' : 'Changes';
+
+  String get gitDiffPreviousFile =>
+      isItalian ? 'File precedente' : 'Previous file';
+
+  String get gitDiffNextFile => isItalian ? 'File successivo' : 'Next file';
+
+  String get gitDiffOpenWindow =>
+      isItalian ? 'Apri in finestra' : 'Open in window';
+
+  String get gitDiffLoading => isItalian ? 'Caricamento diff…' : 'Loading diff…';
+
+  /// "2/5": the file's place in the list the diff pane steps through.
+  String gitDiffPosition(int index, int total) => '$index/$total';
 
   String get noDifferencesFound =>
       isItalian ? 'Nessuna differenza trovata.' : 'No differences found.';
