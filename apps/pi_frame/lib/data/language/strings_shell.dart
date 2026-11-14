@@ -305,19 +305,19 @@ extension ShellStrings on AppStrings {
   String get paletteCompactTitle =>
       isItalian ? 'Compatta contesto' : 'Compact context';
   String get paletteCompactSubtitle => isItalian
-      ? 'Esegui manual compaction per ridurre i token'
+      ? 'Compatta manualmente il contesto per ridurre i token'
       : 'Run manual compaction to reduce tokens';
   String get paletteClearQueueTitle =>
       isItalian ? 'Svuota coda' : 'Clear queue';
   String get paletteClearQueueSubtitle => isItalian
-      ? 'Rimuovi tutti i messaggi steer e follow-up in attesa'
+      ? 'Rimuovi tutti i messaggi di guida e follow-up in attesa'
       : 'Remove all pending steer and follow-up messages';
   String get paletteInterruptTitle =>
-      isItalian ? 'Interrompi agente (Esc)' : 'Interrupt agent (Esc)';
+      isItalian ? 'Interrompi agente' : 'Interrupt agent';
   String get paletteInterruptSubtitle =>
       isItalian ? 'Ferma il modello in esecuzione' : 'Stop running model';
   String get paletteSwitchBrowserTitle =>
-      isItalian ? 'Mostra Web Browser' : 'Show Web Browser';
+      isItalian ? 'Mostra browser web' : 'Show Web Browser';
   String get paletteSwitchBrowserSubtitle => isItalian
       ? 'Apri il browser web integrato nel pannello laterale'
       : 'Open embedded web browser in side panel';
@@ -336,6 +336,57 @@ extension ShellStrings on AppStrings {
       : 'Search action or command...';
   String get paletteNoActionsFound =>
       isItalian ? 'Nessuna azione trovata' : 'No actions found';
+  String get paletteEscKeyLabel => 'ESC';
+  String paletteModifierKeyLabel({required bool macOS}) =>
+      macOS ? '⌘' : 'Ctrl';
+  String paletteShiftKeyLabel({required bool macOS}) =>
+      macOS ? '⇧' : 'Shift';
+  String get paletteGroupSession => isItalian ? 'Sessione' : 'Session';
+  String get paletteGroupView => isItalian ? 'Vista' : 'View';
+  String get paletteGroupGit => 'Git';
+  String get paletteGroupSettings => isItalian ? 'Impostazioni' : 'Settings';
+  String get paletteGoToSessionTitle =>
+      isItalian ? 'Vai a sessione…' : 'Go to session…';
+  String get paletteGoToSessionSubtitle => isItalian
+      ? 'Cerca tra le sessioni e apri quella scelta'
+      : 'Search sessions and open the one you pick';
+  String get paletteSessionSearchHint =>
+      isItalian ? 'Cerca una sessione...' : 'Search sessions...';
+  String get paletteNoSessionsFound =>
+      isItalian ? 'Nessuna sessione trovata' : 'No sessions found';
+  String get paletteNewTerminalTitle =>
+      isItalian ? 'Apri terminale' : 'Open terminal';
+  String get paletteNewTerminalSubtitle => isItalian
+      ? 'Apri un terminale nativo nella cartella della sessione'
+      : 'Open a native terminal in the session folder';
+  String get paletteReviewChangesTitle =>
+      isItalian ? 'Rivedi modifiche' : 'Review changes';
+  String get paletteReviewChangesSubtitle => isItalian
+      ? 'Apri la revisione delle modifiche della sessione'
+      : 'Open review of the session changes';
+  String get paletteGitFetchTitle => 'Git fetch';
+  String get paletteGitFetchSubtitle =>
+      isItalian ? 'Scarica i riferimenti remoti' : 'Fetch from remotes';
+  String get paletteGitPullTitle => 'Git pull';
+  String get paletteGitPullSubtitle => isItalian
+      ? 'Aggiorna il ramo dal remoto (solo fast-forward)'
+      : 'Pull from remote (fast-forward only)';
+  String get paletteGitPushTitle => 'Git push';
+  String get paletteGitPushSubtitle =>
+      isItalian ? 'Invia i commit al remoto' : 'Push commits to remote';
+  String get paletteThemeSubtitle =>
+      isItalian ? 'Cambia il tema dell\'app' : 'Switch the app theme';
+  String get paletteChatPaneName => 'Chat';
+  String get paletteRepositoryPaneName => 'Repository';
+  String get paletteGitPaneName =>
+      isItalian ? 'Modifiche Git' : 'Git Changes';
+  String paletteShowPaneTitle(String pane) =>
+      isItalian ? 'Mostra $pane' : 'Show $pane';
+  String paletteHidePaneTitle(String pane) =>
+      isItalian ? 'Nascondi $pane' : 'Hide $pane';
+  String paletteTogglePaneSubtitle(String pane) => isItalian
+      ? 'Mostra o nascondi il pannello $pane'
+      : 'Show or hide the $pane pane';
 
   // Agent Status Badge
   String agentStatusLabel(AgentStatus status) {

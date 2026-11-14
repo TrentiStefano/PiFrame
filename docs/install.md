@@ -379,7 +379,8 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
   - **Comandi Slash Built-in**: `/side [domanda]` e `/btw [domanda]` gestiti localmente dal composer (mai inviati come prompt all'agente principale). Presenti nel menu slash con la descrizione *"Conversazione laterale in sola lettura"*.
   - **Scorciatoia da Tastiera & Command Palette**:
     - Scorciatoia globale: `Ctrl+Shift+B` (Linux/Windows) o `Cmd+Shift+B` (macOS) per aprire/chiudere il pannello laterale nella sessione corrente.
-    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale (Ctrl+Shift+B)"*.
+    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale"*, con il tasto `Ctrl`/`⌘` + `Shift` + `B` mostrato a destra.
+    - La Command Palette raggruppa i comandi in Sessione, Vista, Git e Impostazioni, mostra solo i comandi applicabili (per esempio *"Interrompi agente"* solo mentre l'agente lavora), chiude se stessa prima di eseguire il comando e include *"Vai a sessione…"* con ricerca fuzzy tra le sessioni.
   - **Pannello Laterale Agganciato (Side Panel)**:
     - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
     - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.

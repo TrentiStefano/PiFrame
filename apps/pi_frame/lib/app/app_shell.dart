@@ -507,7 +507,10 @@ class _AppShellState extends ConsumerState<AppShell>
 
   void _palette() => CommandPalette.show(
     context,
+    ref: ref,
     onOpenSettings: () => ref.read(showSettingsProvider.notifier).state = true,
+    isPaneVisible: (pane) => _paneVisibility[pane] == true,
+    onTogglePane: _togglePane,
   );
   Future<void> _create() async {
     if (_creating) return;
