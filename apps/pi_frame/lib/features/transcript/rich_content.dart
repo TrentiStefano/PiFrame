@@ -312,7 +312,7 @@ class RichContent extends StatefulWidget {
           ),
           style: TextStyle(
             color: tokens.textPrimary,
-            fontSize: 12.5,
+            fontSize: FrameText.fromTokens(tokens).label.fontSize,
             height: 1.45,
             fontWeight: isHeader ? FontWeight.w700 : FontWeight.w400,
           ),
@@ -389,7 +389,7 @@ class RichContent extends StatefulWidget {
                 ),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 13.5,
+                  fontSize: FrameText.fromTokens(tokens).body.fontSize,
                   height: 1.55,
                 ),
               ),
@@ -431,7 +431,7 @@ class RichContent extends StatefulWidget {
                 trimmed.substring(4),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 14.5,
+                  fontSize: FrameText.fromTokens(tokens).bodyLarge.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -452,7 +452,7 @@ class RichContent extends StatefulWidget {
                   trimmed.substring(3),
                   style: TextStyle(
                     color: tokens.textPrimary,
-                    fontSize: 16.5,
+                    fontSize: FrameText.fromTokens(tokens).title.fontSize,
                     fontWeight: FontWeight.bold,
                     fontFamily: tokens.headingFontFamily,
                   ),
@@ -468,7 +468,7 @@ class RichContent extends StatefulWidget {
                 trimmed.substring(2),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 20,
+                  fontSize: FrameText.fromTokens(tokens).heading.fontSize,
                   fontWeight: FontWeight.bold,
                   fontFamily: tokens.headingFontFamily,
                 ),
@@ -502,7 +502,7 @@ class RichContent extends StatefulWidget {
               ),
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 13,
+                fontSize: FrameText.fromTokens(tokens).body.fontSize,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
               ),
@@ -539,7 +539,7 @@ class RichContent extends StatefulWidget {
                     ),
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 13.5,
+                      fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
                   ),
@@ -566,7 +566,7 @@ class RichContent extends StatefulWidget {
                     '$numStr.',
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 12,
+                      fontSize: FrameText.fromTokens(tokens).label.fontSize,
                       fontWeight: FontWeight.bold,
                       fontFamily: tokens.monoFontFamily,
                     ),
@@ -583,7 +583,7 @@ class RichContent extends StatefulWidget {
                     ),
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 13.5,
+                      fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
                   ),
@@ -743,7 +743,7 @@ class RichContent extends StatefulWidget {
                   color: tokens.textPrimary,
                   backgroundColor: tokens.surfaceElevated,
                   fontFamily: tokens.monoFontFamily,
-                  fontSize: 12,
+                  fontSize: FrameText.fromTokens(tokens).label.fontSize,
                 ),
               ),
             );
@@ -883,7 +883,7 @@ class RichContent extends StatefulWidget {
             color: tokens.textPrimary,
             backgroundColor: tokens.surfaceElevated,
             fontFamily: tokens.monoFontFamily,
-            fontSize: 12,
+            fontSize: FrameText.fromTokens(tokens).label.fontSize,
             decoration: TextDecoration.underline,
             decorationColor: tokens.accent.withValues(alpha: 0.6),
           ),

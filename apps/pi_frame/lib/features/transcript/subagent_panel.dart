@@ -195,7 +195,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                               : strings.subagentsStripIdle,
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.of(context).caption.fontSize,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.0,
                           ),
@@ -213,8 +213,8 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
 
     // AnimatedSize clips while it resizes, so the panel never lays out squeezed.
     return AnimatedSize(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+      duration: FrameMotion.panel,
+      curve: FrameMotion.enterCurve,
       alignment: Alignment.centerLeft,
       child: child,
     );
@@ -267,7 +267,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 strings.subagentsPanelTitle,
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 12.5,
+                  fontSize: FrameText.of(context).label.fontSize,
                   fontWeight: FontWeight.bold,
                   fontFamily: tokens.headingFontFamily,
                 ),
@@ -278,7 +278,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                   costLabel,
                   style: TextStyle(
                     color: tokens.syntaxString,
-                    fontSize: 10.5,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.bold,
                     fontFamily: tokens.monoFontFamily,
                   ),
@@ -290,7 +290,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 const SizedBox(width: 4),
                 Text(
                   strings.subagentsRunningCount(runningCount),
-                  style: TextStyle(color: tokens.syntaxKeyword, fontSize: 10.5),
+                  style: TextStyle(color: tokens.syntaxKeyword, fontSize: FrameText.of(context).caption.fontSize),
                 ),
               ],
               const Spacer(),
@@ -332,7 +332,7 @@ class _Entrance extends StatelessWidget {
       // `begin` only matters on the first build of this row's state.
       tween: Tween(begin: animate ? 0 : 1, end: 1),
       duration: FrameMotion.panel,
-      curve: Curves.easeOutCubic,
+      curve: FrameMotion.enterCurve,
       builder: (context, t, child) => Opacity(
         opacity: t,
         child: Transform.translate(offset: Offset(12 * (1 - t), 0), child: child),
@@ -589,7 +589,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           title: strings.subagentMainSession,
           subtitle: Text(
             summary,
-            style: TextStyle(color: context.tokens.textMuted, fontSize: 10.5),
+            style: TextStyle(color: context.tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
           ),
         ),
         for (final node in nodes)
@@ -647,7 +647,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               counts,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+              style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
             ),
           if (node.runChildren.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -711,7 +711,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               meta,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: tokens.textMuted, fontSize: 10.5, fontFamily: tokens.monoFontFamily),
+              style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontFamily: tokens.monoFontFamily),
             ),
           if (agent.activity != null && agent.activity!.isNotEmpty) ...[
             const SizedBox(height: 3),
@@ -799,13 +799,13 @@ class _TreeRow extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(3),
+                            borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                           ),
                           child: Text(
                             badge!,
                             style: TextStyle(
                               color: color,
-                              fontSize: 8.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.6,
                             ),
@@ -820,7 +820,7 @@ class _TreeRow extends StatelessWidget {
                           style: TextStyle(
                             color: struck ? tokens.textMuted : tokens.textPrimary,
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontSize: FrameText.of(context).label.fontSize,
                             height: 1.25,
                             decoration: struck ? TextDecoration.lineThrough : null,
                             decorationColor: tokens.textMuted,
@@ -1058,11 +1058,11 @@ class _StatusChip extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+            Text(label, style: TextStyle(color: color, fontSize: FrameText.of(context).caption.fontSize, fontWeight: FontWeight.w700)),
             if (detail.isNotEmpty)
               Text(
                 detail,
-                style: TextStyle(color: tokens.textMuted, fontSize: 9.5, fontFamily: tokens.monoFontFamily),
+                style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontFamily: tokens.monoFontFamily),
               ),
           ],
         ),
@@ -1116,7 +1116,7 @@ class _ActivityLine extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: running ? tokens.textPrimary : tokens.textSecondary,
-                fontSize: 10.5,
+                fontSize: FrameText.of(context).caption.fontSize,
                 height: 1.3,
                 fontFamily: tool != null ? tokens.monoFontFamily : null,
               ),
@@ -1145,7 +1145,7 @@ class _ProgressSegments extends StatelessWidget {
             Expanded(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   color: switch (children[i].status) {
                     'running' || 'steering' => tokens.agentWorking.withValues(alpha: 0.55),
                     'error' => tokens.agentError,
@@ -1181,13 +1181,13 @@ class _PhaseTrack extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(context.tokens.radiusSm),
               border: Border.all(color: settled ? tokens.success.withValues(alpha: 0.6) : tokens.border),
               color: tokens.surfaceElevated,
             ),
             child: Text(
               phases[i],
-              style: TextStyle(color: tokens.textSecondary, fontSize: 9.5),
+              style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
             ),
           ),
         ],
@@ -1277,7 +1277,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
         if (run.description != null && run.description!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(run.description!, style: TextStyle(color: tokens.textSecondary, fontSize: 11.5)),
+            child: Text(run.description!, style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize)),
           ),
         for (final entry in _journal)
           Padding(
@@ -1299,7 +1299,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.textSecondary, fontSize: 11),
+                    style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
                   ),
                 ),
               ],
@@ -1310,7 +1310,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
         else if (_journal.isEmpty && !widget.hasChildren)
           Text(
             run.isRunning ? strings.workflowWaitingFirstAgent : strings.workflowNoResultsRecorded,
-            style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
+            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontStyle: FontStyle.italic),
           ),
       ],
     );
@@ -1341,7 +1341,7 @@ class _OutputBox extends StatelessWidget {
           selectionWidthStyle: BoxWidthStyle.tight,
           style: TextStyle(
             color: tokens.textPrimary,
-            fontSize: 11,
+            fontSize: FrameText.of(context).caption.fontSize,
             fontFamily: tokens.monoFontFamily,
             height: 1.4,
           ),
@@ -1400,7 +1400,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
         if (task != null && task.isNotEmpty && task != agent.name)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(task, style: TextStyle(color: tokens.textSecondary, fontSize: 11, height: 1.35)),
+            child: Text(task, style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize, height: 1.35)),
           ),
         // Child sessions run in a worker the daemon cannot steer.
         if (!agent.isUnlinked)
@@ -1418,7 +1418,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                   icon: Icon(Icons.alt_route, size: 13, color: tokens.syntaxFunction),
                   label: Text(
                     agent.isSteeringOpen ? strings.subagentSteerClose : strings.subagentSteer,
-                    style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
                   ),
                 ),
                 TextButton.icon(
@@ -1435,7 +1435,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                   ),
                   label: Text(
                     agent.isRunning ? strings.subagentStop : strings.subagentFinished,
-                    style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
                   ),
                 ),
               ],
@@ -1453,11 +1453,11 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     controller: _steer,
                     autofocus: true,
                     onSubmitted: (_) => _submit(),
-                    style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                    style: TextStyle(color: tokens.textPrimary, fontSize: FrameText.of(context).label.fontSize),
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: strings.subagentSteerInputHint,
-                      hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                      hintStyle: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).label.fontSize),
                       filled: true,
                       fillColor: tokens.background,
                       border: OutlineInputBorder(
@@ -1481,7 +1481,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
         else
           Text(
             agent.isRunning ? strings.subagentWorkingOutput : strings.subagentNoOutputRecorded,
-            style: TextStyle(color: tokens.textMuted, fontSize: 11, fontStyle: FontStyle.italic),
+            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontStyle: FontStyle.italic),
           ),
       ],
     );
@@ -1572,7 +1572,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           style: TextStyle(
                             color: sub.isCompleted ? tokens.textMuted : tokens.textPrimary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12.5,
+                            fontSize: FrameText.of(context).label.fontSize,
                             decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
                             decorationColor: tokens.textMuted,
                           ),
@@ -1590,7 +1590,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: tokens.textSecondary,
-                                  fontSize: 10,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                 ),
                               ),
@@ -1602,7 +1602,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                   : '\$${sub.cost!.toStringAsFixed(4)}',
                               style: TextStyle(
                                 color: tokens.syntaxString,
-                                fontSize: 10,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontWeight: FontWeight.w600,
                                 fontFamily: tokens.monoFontFamily,
                               ),
@@ -1616,7 +1616,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                             sub.description!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                           ),
                       ],
                     ),
@@ -1658,7 +1658,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           sub.isSteeringOpen
                               ? strings.subagentSteerClose
                               : strings.subagentSteer,
-                          style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                          style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
                         ),
                         onPressed: widget.onToggleSteeringBox,
                       ),
@@ -1675,7 +1675,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           sub.isRunning
                               ? strings.subagentStop
                               : strings.subagentFinished,
-                          style: TextStyle(fontSize: 11, color: tokens.textSecondary),
+                          style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
                         ),
                         onPressed: sub.isRunning ? widget.onStop : null,
                       ),
@@ -1712,7 +1712,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 strings.subagentManualSteeringTitle,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1728,13 +1728,13 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                   autofocus: true,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize: 12,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                   ),
                                   decoration: InputDecoration(
                                     hintText: strings.subagentManualSteeringHint,
                                     hintStyle: TextStyle(
                                       color: tokens.textMuted,
-                                      fontSize: 11.5,
+                                      fontSize: FrameText.of(context).caption.fontSize,
                                     ),
                                     isDense: true,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -1775,7 +1775,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 ),
                                 icon: const Icon(Icons.send, size: 12),
                                 label: Text(strings.subagentSendButton,
-                                    style: const TextStyle(fontSize: 11)),
+                                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize)),
                                 onPressed: _submitSteer,
                               ),
                             ],
@@ -1805,7 +1805,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 selectionWidthStyle: BoxWidthStyle.tight,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   height: 1.4,
                                 ),
@@ -1826,7 +1826,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: tokens.textMuted,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -1894,7 +1894,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
             label,
             style: TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: FrameText.of(context).caption.fontSize,
               fontWeight: FontWeight.w600,
             ),
           ),

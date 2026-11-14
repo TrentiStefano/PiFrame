@@ -101,12 +101,12 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                   const SizedBox(width: 6),
                   Text(
                     strings.transcriptReasoning,
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     strings.transcriptWordsCount(words),
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                    style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                   ),
                   if (MediaQuery.sizeOf(context).width > 700) ...[
                     const SizedBox(width: 10),
@@ -115,7 +115,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                         _effectiveExpanded ? '' : firstLine,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                       ),
                     ),
                   ] else
@@ -144,7 +144,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
               selectionWidthStyle: BoxWidthStyle.tight,
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 12,
+                fontSize: FrameText.of(context).label.fontSize,
                 height: 1.5,
               ),
             ),
@@ -161,7 +161,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
                     : FrameMotion.small,
-                curve: Curves.easeOutCubic,
+                curve: FrameMotion.enterCurve,
                 alignment: Alignment.topCenter,
                 child: content,
               ),

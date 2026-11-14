@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../ui/motion.dart';
 import '../composer/attachment_ingest.dart';
 import '../composer/composer_attachments_provider.dart';
 
@@ -67,12 +68,12 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
               ignoring: !_isDragging,
               child: AnimatedOpacity(
                 key: const ValueKey('chat-drop-overlay-opacity'),
-                duration: const Duration(milliseconds: 200),
-                curve: _isDragging ? Curves.easeOutCubic : Curves.easeInCubic,
+                duration: FrameMotion.small,
+                curve: _isDragging ? FrameMotion.enterCurve : FrameMotion.panelCurve,
                 opacity: _isDragging ? 1.0 : 0.0,
                 child: AnimatedScale(
-                  duration: const Duration(milliseconds: 200),
-                  curve: _isDragging ? Curves.easeOutCubic : Curves.easeInCubic,
+                  duration: FrameMotion.small,
+                  curve: _isDragging ? FrameMotion.enterCurve : FrameMotion.panelCurve,
                   scale: _isDragging ? 1.0 : 0.96,
                   child: Container(
                     margin: const EdgeInsets.all(12),
@@ -122,7 +123,7 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
                               strings.dropTargetTitle,
                               style: TextStyle(
                                 color: tokens.textPrimary,
-                                fontSize: 16,
+                                fontSize: FrameText.of(context).title.fontSize,
                                 fontWeight: FontWeight.bold,
                                 fontFamily: tokens.headingFontFamily,
                               ),
@@ -132,7 +133,7 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
                               strings.dropTargetSubtitle,
                               style: TextStyle(
                                 color: tokens.textMuted,
-                                fontSize: 12,
+                                fontSize: FrameText.of(context).label.fontSize,
                               ),
                             ),
                           ],

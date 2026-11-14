@@ -13,6 +13,8 @@ import '../../data/language/strings_transcript.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_pane_header.dart';
+import '../../ui/frame_dialog.dart';
+import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 import '../../domain/session/agent_status.dart';
@@ -194,7 +196,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _activeBookTab = (_activeBookTab == tab) ? _ActiveBookTab.none : tab;
       _userManuallyToggledTabs = true;
     });
-    Future.delayed(const Duration(milliseconds: 250), () {
+    Future.delayed(FrameMotion.panel, () {
       if (mounted) {
         _isProgrammaticScroll = false;
       }
@@ -296,7 +298,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         FrameSnackBar.show(
           context,
           message: _currentStrings.transcriptRenameError('$e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
+          isError: true,
         );
       }
     }
@@ -396,7 +398,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : context.tokens.panelDuration,
-            curve: Curves.easeOutCubic,
+            curve: FrameMotion.enterCurve,
           )
           .whenComplete(() {
             _isProgrammaticScroll = false;
@@ -518,14 +520,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     children: [
                       TextSpan(
                         text: '$label · ',
-                        style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                        style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                       ),
                       TextSpan(
                         text: value,
                         style: TextStyle(
                           color: valueColor ?? tokens.textPrimary,
                           fontWeight: FontWeight.w600,
-                          fontSize: 10,
+                          fontSize: FrameText.of(context).caption.fontSize,
                         ),
                       ),
                     ],
@@ -626,7 +628,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       return '$tokens tokens';
     }
 
-    await showDialog(
+    await showFrameDialogBuilder<void>(
       context: context,
       builder: (dialogCtx) {
         int level = 0; // 0: Overview, 1: Main Agent Models, 2: Subagents Breakdown
@@ -645,12 +647,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             final agentCount = agents.length;
             Widget content;
             String title;
-            IconData titleIcon;
 
             if (level == 1) {
               // Level 1: Agent Models
               title = strings.transcriptAgentModelCosts;
-              titleIcon = Icons.smart_toy_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -670,7 +670,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             strings.transcriptCostReportedByPi,
                             style: TextStyle(
                               color: tokens.textSecondary,
-                              fontSize: 11,
+                              fontSize: FrameText.of(context).caption.fontSize,
                             ),
                           ),
                         ),
@@ -680,7 +680,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             color: tokens.syntaxString,
                             fontWeight: FontWeight.bold,
                             fontFamily: tokens.monoFontFamily,
-                            fontSize: 12,
+                            fontSize: FrameText.of(context).label.fontSize,
                           ),
                         ),
                       ],
@@ -688,7 +688,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ),
                   const SizedBox(height: 8),
                   if (agentModelCosts.isEmpty)
-                    Text(strings.transcriptModelCostsUnavailable, style: TextStyle(color: tokens.textMuted, fontSize: 11))
+                    Text(strings.transcriptModelCostsUnavailable, style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize))
                   else
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 280),
@@ -726,7 +726,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                             entry.key,
                                             style: TextStyle(
                                               color: tokens.textPrimary,
-                                              fontSize: 11.5,
+                                              fontSize: FrameText.of(context).caption.fontSize,
                                               fontWeight: FontWeight.w500,
                                             ),
                                             overflow: TextOverflow.ellipsis,
@@ -739,7 +739,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                                 formatTokens(agentModelTokens[entry.key]!),
                                                 style: TextStyle(
                                                   color: tokens.textMuted,
-                                                  fontSize: 10,
+                                                  fontSize: FrameText.of(context).caption.fontSize,
                                                   fontFamily: tokens.monoFontFamily,
                                                 ),
                                               ),
@@ -755,7 +755,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 style: TextStyle(
                                   color: tokens.syntaxString,
                                   fontFamily: tokens.monoFontFamily,
-                                  fontSize: 11.5,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -770,7 +770,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             } else if (level == 2) {
               // Level 2: Subagents Breakdown
               title = strings.transcriptSubagentModelCosts;
-              titleIcon = Icons.hub_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -790,7 +789,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             strings.transcriptChildSessionCosts(agentCount),
                             style: TextStyle(
                               color: tokens.textSecondary,
-                              fontSize: 11,
+                              fontSize: FrameText.of(context).caption.fontSize,
                             ),
                           ),
                         ),
@@ -800,7 +799,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             color: tokens.syntaxString,
                             fontWeight: FontWeight.bold,
                             fontFamily: tokens.monoFontFamily,
-                            fontSize: 12,
+                            fontSize: FrameText.of(context).label.fontSize,
                           ),
                         ),
                       ],
@@ -813,7 +812,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       child: Center(
                         child: Text(
                           strings.transcriptNoSubagentsExecuted,
-                          style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                          style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                         ),
                       ),
                     )
@@ -837,7 +836,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                               child: Text(
                                 strings.transcriptUnattributedChildSession(sub.name, subModel, subCost),
-                                style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                                style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                               ),
                             );
                           }
@@ -862,7 +861,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                         sub.name.isNotEmpty ? sub.name : strings.transcriptSubagentNumbered(i + 1),
                                         style: TextStyle(
                                           color: tokens.textPrimary,
-                                          fontSize: 11.5,
+                                          fontSize: FrameText.of(context).caption.fontSize,
                                           fontWeight: FontWeight.w600,
                                         ),
                                         maxLines: 1,
@@ -881,7 +880,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                             subModel,
                                             style: TextStyle(
                                               color: tokens.textSecondary,
-                                              fontSize: 10,
+                                              fontSize: FrameText.of(context).caption.fontSize,
                                             ),
                                           ),
                                         ],
@@ -895,7 +894,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   style: TextStyle(
                                     color: tokens.syntaxString,
                                     fontFamily: tokens.monoFontFamily,
-                                    fontSize: 11.5,
+                                    fontSize: FrameText.of(context).caption.fontSize,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -910,7 +909,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             } else {
               // Level 0: Main Overview (Total, Agent, Subagents)
               title = strings.transcriptSessionCostBreakdown;
-              titleIcon = Icons.monetization_on_outlined;
               content = Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -930,7 +928,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             strings.transcriptCostReportedByPi,
                             style: TextStyle(
                               color: tokens.textSecondary,
-                              fontSize: 11.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -941,7 +939,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             color: tokens.syntaxString,
                             fontWeight: FontWeight.bold,
                             fontFamily: tokens.monoFontFamily,
-                            fontSize: 13,
+                            fontSize: FrameText.of(context).body.fontSize,
                           ),
                         ),
                       ],
@@ -952,7 +950,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     strings.transcriptPiCostDisclaimer,
                     style: TextStyle(
                       color: tokens.textMuted,
-                      fontSize: 10.5,
+                      fontSize: FrameText.of(context).caption.fontSize,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -986,7 +984,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   strings.transcriptPiSession,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize: 12,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -994,7 +992,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   sessionState.currentModel ?? strings.transcriptSessionModel,
                                   style: TextStyle(
                                     color: tokens.textMuted,
-                                    fontSize: 10,
+                                    fontSize: FrameText.of(context).caption.fontSize,
                                   ),
                                 ),
                               ],
@@ -1005,7 +1003,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             style: TextStyle(
                               color: tokens.syntaxString,
                               fontFamily: tokens.monoFontFamily,
-                              fontSize: 12,
+                              fontSize: FrameText.of(context).label.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1050,7 +1048,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   strings.transcriptSubagents,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize: 12,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1058,7 +1056,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   strings.transcriptIdentifiedSubagents(agentCount),
                                   style: TextStyle(
                                     color: tokens.textMuted,
-                                    fontSize: 10,
+                                    fontSize: FrameText.of(context).caption.fontSize,
                                   ),
                                 ),
                               ],
@@ -1069,7 +1067,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             style: TextStyle(
                               color: tokens.syntaxString,
                               fontFamily: tokens.monoFontFamily,
-                              fontSize: 12,
+                              fontSize: FrameText.of(context).label.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1087,73 +1085,35 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               );
             }
 
-            return Dialog(
-              backgroundColor: tokens.surfaceElevated,
-              alignment: const Alignment(0.0, -0.45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                side: BorderSide(color: tokens.borderStrong),
-              ),
-              child: SizedBox(
-                width: 350,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Row(
-                              children: [
-                                if (level != 0) ...[
-                                  IconButton(
-                                    key: const ValueKey('cost-breakdown-back-btn'),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                    icon: Icon(Icons.arrow_back, size: 16, color: tokens.textPrimary),
-                                    onPressed: () => setDialogState(() => level = 0),
-                                  ),
-                                  const SizedBox(width: 4),
-                                ] else ...[
-                                  Icon(titleIcon, size: 16, color: tokens.syntaxString),
-                                  const SizedBox(width: 6),
-                                ],
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: tokens.headingFontFamily,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            key: const ValueKey('cost-breakdown-close-btn'),
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(Icons.close, size: 16, color: tokens.textMuted),
-                            onPressed: () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      content,
-                    ],
-                  ),
+            // Shared frame dialog: the title, close control and back control
+            // come from the frame, the level content is the body.
+            return FrameDialog<void>(
+              title: title,
+              maxWidth: 350,
+              headerActions: [
+                FrameIconAction(
+                  key: const ValueKey('cost-breakdown-close-btn'),
+                  icon: Icons.close,
+                  tooltip: _currentStrings.close,
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
                 ),
+              ],
+              body: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (level != 0)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FrameIconAction(
+                        key: const ValueKey('cost-breakdown-back-btn'),
+                        icon: Icons.arrow_back,
+                        tooltip: _currentStrings.transcriptCancelTooltip,
+                        onPressed: () => setDialogState(() => level = 0),
+                      ),
+                    ),
+                  content,
+                ],
               ),
             );
           }),
@@ -1440,7 +1400,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   icon: const Icon(Icons.history, size: 14),
                                   label: Text(
                                     label,
-                                    style: const TextStyle(fontSize: 11),
+                                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize),
                                   ),
                                   onPressed: () async {
                                     if (visibleEntries.isEmpty) return;
@@ -1805,8 +1765,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 left: 0,
                 right: 0,
                 child: AnimatedSize(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
+                  duration: FrameMotion.small,
+                  curve: FrameMotion.enterCurve,
                   alignment: Alignment.topCenter,
                   child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
                       ? TodoPopDown(
@@ -2024,9 +1984,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       );
         } else {
           titleWidget = 
-                      GestureDetector(
+                      InkWell(
                         key: const ValueKey('session-name-title'),
-                        behavior: HitTestBehavior.opaque,
                         onDoubleTap: () => _startRenaming(
                           sessionState.sessionName ?? widget.sessionId,
                         ),
@@ -2073,21 +2032,29 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               ? sessionState.cwd
               : _currentStrings.transcriptNoFolderOpened,
           actions: [
+            // The status tag and the chips share one budget of 60% of the
+            // header. The status keeps its intrinsic width (never clipped or
+            // scrolled) and the chips take what is left, so the title column
+            // (cwd middle-ellipsized) keeps the rest and nothing runs under the
+            // status tag.
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
-              child: SingleChildScrollView(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AgentStatusBadge(
+                    key: const ValueKey('session-header-status'),
+                    status: sessionState.agentStatus,
+                    onDisplay: false,
+                  ),
+                  const SizedBox(width: FrameSpace.x1),
+                  Flexible(
+                    child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 reverse: true,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Status scrolls with the chips, so it can never overflow
-                    // the title row at narrow widths.
-                    AgentStatusBadge(
-                      status: sessionState.agentStatus,
-                      onDisplay: false,
-                    ),
-                    const SizedBox(width: FrameSpace.x2),
                     // Opens the context drawer, where usage and compaction live.
                     _metricChip(
                       tokens,
@@ -2134,6 +2101,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ],
                 ),
               ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -2169,7 +2139,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               margin: const EdgeInsets.only(bottom: 2),
               decoration: BoxDecoration(
                 color: tokens.borderStrong.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(1.5),
+                borderRadius: BorderRadius.circular(context.tokens.radiusSm),
               ),
             )
           else
@@ -2185,7 +2155,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   onTap: () => _toggleBookTab(_ActiveBookTab.todos),
                   borderRadius: _activeBookTab == _ActiveBookTab.todos
                       ? const BorderRadius.vertical(top: Radius.circular(6))
-                      : BorderRadius.circular(6),
+                      : BorderRadius.circular(context.tokens.radiusSm),
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 9,
@@ -2197,7 +2167,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           : tokens.surfaceElevated.withValues(alpha: 0.6),
                       borderRadius: _activeBookTab == _ActiveBookTab.todos
                           ? const BorderRadius.vertical(top: Radius.circular(6))
-                          : BorderRadius.circular(6),
+                          : BorderRadius.circular(context.tokens.radiusSm),
                       border: Border.all(
                         color: _activeBookTab == _ActiveBookTab.todos
                             ? tokens.borderStrong
@@ -2218,7 +2188,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.checklist_rtl_rounded,
+                          Icons.checklist_rtl_outlined,
                           size: 12,
                           color: tokens.accent,
                         ),
@@ -2229,7 +2199,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             color: _activeBookTab == _ActiveBookTab.todos
                                 ? tokens.textPrimary
                                 : tokens.textSecondary,
-                            fontSize: 10.5,
+                            fontSize: FrameText.of(context).caption.fontSize,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -2331,7 +2301,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     _currentStrings.transcriptProcessing,
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 12,
+                      fontSize: FrameText.of(context).label.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2381,7 +2351,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       FrameSnackBar.show(
         context,
         message: _currentStrings.transcriptForkError('$e'),
-        backgroundColor: context.tokens.danger,
+        isError: true,
       );
     }
   }
@@ -2447,7 +2417,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       _currentStrings.transcriptYou,
                       style: TextStyle(
                         color: tokens.textPrimary,
-                        fontSize: 11,
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -2458,7 +2428,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     opacity: revealed ? 1 : 0,
                     duration: FrameMotion.micro,
                     child: InkWell(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                     onTap: () => _handleFork(entry.id),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -2481,7 +2451,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: tokens.textSecondary,
-                                fontSize: 10,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -2511,7 +2481,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               Text(
                 _currentStrings.transcriptSendFailed(sendError),
                 key: ValueKey('failed-message-error-${entry.id}'),
-                style: TextStyle(color: tokens.danger, fontSize: 12),
+                style: TextStyle(color: tokens.danger, fontSize: FrameText.of(context).label.fontSize),
               ),
             ],
           ],
@@ -2541,7 +2511,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             Expanded(
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: GestureDetector(
+                child: InkWell(
                   key: ValueKey('failed-user-message-${entry.id}'),
                   onDoubleTap: () => _restoreFailedPrompt(entry.id),
                   child: bubble,
@@ -2706,7 +2676,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   entry.metadata!['errorMessage'].toString(),
                 ),
                 key: ValueKey('turn-error-${entry.id}'),
-                style: TextStyle(color: tokens.danger, fontSize: 12),
+                style: TextStyle(color: tokens.danger, fontSize: FrameText.of(context).label.fontSize),
               ),
             ),
         ],
@@ -2749,7 +2719,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     command,
                     style: TextStyle(
                       fontFamily: tokens.monoFontFamily,
-                      fontSize: 12,
+                      fontSize: FrameText.of(context).label.fontSize,
                       fontWeight: FontWeight.bold,
                       color: tokens.textPrimary,
                     ),
@@ -2768,7 +2738,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     child: Text(
                       _currentStrings.transcriptCancelledBadge,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: FrameText.of(context).caption.fontSize,
                         color: tokens.warning,
                         fontWeight: FontWeight.bold,
                       ),
@@ -2791,7 +2761,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       'exit $exitCode',
                       style: TextStyle(
                         fontFamily: tokens.monoFontFamily,
-                        fontSize: 10,
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.bold,
                         color: exitCode == 0 ? tokens.success : tokens.danger,
                       ),
@@ -2824,7 +2794,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   fontFamily: tokens.monoFontFamily,
-                  fontSize: 11.5,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   height: 1.4,
                   color: tokens.textSecondary,
                 ),
@@ -2837,7 +2807,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 _currentStrings.transcriptPartialOutputTruncated,
                 style: TextStyle(
                   fontStyle: FontStyle.italic,
-                  fontSize: 10,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   color: tokens.textMuted,
                 ),
               ),
@@ -2866,7 +2836,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ? entry.text
                   : _currentStrings.transcriptBranchCreatedFrom('${entry.metadata?['fromId'] ?? ''}'),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: FrameText.of(context).caption.fontSize,
                 color: tokens.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -2877,7 +2847,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               'orig: ${entry.metadata!['fromId']}',
               style: TextStyle(
                 fontFamily: tokens.monoFontFamily,
-                fontSize: 10,
+                fontSize: FrameText.of(context).caption.fontSize,
                 color: tokens.textMuted,
               ),
             ),
@@ -2905,7 +2875,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ? entry.text
                   : _currentStrings.transcriptContextCompacted,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: FrameText.of(context).caption.fontSize,
                 color: tokens.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -2916,7 +2886,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               _currentStrings.transcriptInitialTokens(entry.metadata!['tokensBefore'] as num),
               style: TextStyle(
                 fontFamily: tokens.monoFontFamily,
-                fontSize: 10,
+                fontSize: FrameText.of(context).caption.fontSize,
                 color: tokens.textMuted,
               ),
             ),
@@ -2954,7 +2924,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 Text(
                   customType,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.bold,
                     color: tokens.textPrimary,
                   ),
@@ -3053,7 +3023,7 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
             '${liveElapsedSec}s',
             style: TextStyle(
               color: tokens.agentWorking,
-              fontSize: 11,
+              fontSize: FrameText.of(context).caption.fontSize,
               fontFamily: tokens.monoFontFamily,
               fontWeight: FontWeight.bold,
             ),

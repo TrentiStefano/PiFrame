@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/motion.dart';
 import 'todo_provider.dart';
 
 class TodoPopDown extends ConsumerStatefulWidget {
@@ -134,7 +135,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
             child: Row(
               children: [
                 Icon(
-                  Icons.checklist_rtl_rounded,
+                  Icons.checklist_rtl_outlined,
                   size: 15,
                   color: tokens.accent,
                 ),
@@ -146,7 +147,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: tokens.textPrimary,
-                      fontSize: 12,
+                      fontSize: FrameText.of(context).label.fontSize,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -166,7 +167,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: percent >= 1.0 ? tokens.success : tokens.accent,
-                        fontSize: 10,
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -187,7 +188,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: tokens.agentWorking,
-                          fontSize: 10,
+                          fontSize: FrameText.of(context).caption.fontSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -233,12 +234,12 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       controller: _addController,
                       autofocus: true,
                       onSubmitted: (_) => _submitNewTask(),
-                      style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+                      style: TextStyle(color: tokens.textPrimary, fontSize: FrameText.of(context).label.fontSize),
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 4),
                         hintText: strings.todoAddTaskHint,
-                        hintStyle: TextStyle(color: tokens.textMuted, fontSize: 11.5),
+                        hintStyle: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                         border: InputBorder.none,
                       ),
                     ),
@@ -250,7 +251,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     ),
                     onPressed: _submitNewTask,
-                    child: Text(strings.todoAddButton, style: const TextStyle(fontSize: 10.5)),
+                    child: Text(strings.todoAddButton, style: TextStyle(fontSize: FrameText.of(context).caption.fontSize)),
                   ),
                 ],
               ),
@@ -263,7 +264,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               child: Center(
                 child: Text(
                   strings.todoNoTasksYet,
-                  style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
+                  style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                 ),
               ),
             )
@@ -334,7 +335,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                         : task.isInProgress
                                             ? tokens.textPrimary
                                             : tokens.textSecondary,
-                                    fontSize: 12,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                     fontWeight: task.isInProgress
                                         ? FontWeight.bold
                                         : FontWeight.w500,
@@ -381,7 +382,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                     : strings.todoNoDetailedDescription,
                                 style: TextStyle(
                                   color: hasDescription ? tokens.textSecondary : tokens.textMuted,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   height: 1.4,
                                 ),
                               ),
@@ -413,7 +414,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 height: 2.5,
                 decoration: BoxDecoration(
                   color: tokens.accent.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(1.5),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                 ),
               ),
               InkWell(
@@ -449,7 +450,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.checklist_rtl_rounded,
+                        Icons.checklist_rtl_outlined,
                         size: 11,
                         color: tokens.accent,
                       ),
@@ -458,7 +459,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         strings.todoPeekTab(completedCount, totalCount),
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: 10,
+                          fontSize: FrameText.of(context).caption.fontSize,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -481,8 +482,8 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     }
 
     return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
+      duration: FrameMotion.small,
+      curve: FrameMotion.enterCurve,
       alignment: Alignment.topCenter,
       child: panelContent,
     );
@@ -504,7 +505,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
           strings.todoBadgeCompleted,
           style: TextStyle(
             color: tokens.success,
-            fontSize: 8.5,
+            fontSize: FrameText.of(context).caption.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -538,7 +539,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               strings.todoBadgeInProgress,
               style: TextStyle(
                 color: tokens.agentWorking,
-                fontSize: 8.5,
+                fontSize: FrameText.of(context).caption.fontSize,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -558,7 +559,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
         strings.todoBadgePending,
         style: TextStyle(
           color: tokens.textMuted,
-          fontSize: 8.5,
+          fontSize: FrameText.of(context).caption.fontSize,
           fontWeight: FontWeight.w500,
         ),
       ),

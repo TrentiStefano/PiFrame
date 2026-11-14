@@ -390,7 +390,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                   visualDensity: VisualDensity.compact,
                   textStyle: TextStyle(
                     fontFamily: tokens.uiFontFamily,
-                    fontSize: 12,
+                    fontSize: FrameText.of(context).label.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -526,7 +526,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                         : failed
                             ? tokens.danger
                             : tokens.textSecondary,
-                    fontSize: 12,
+                    fontSize: FrameText.of(context).label.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -636,8 +636,8 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     const SizedBox(width: 6),
                     Text(
                       strings.transcriptReasoning,
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: TextStyle(
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -649,7 +649,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: tokens.textMuted,
-                          fontSize: 11,
+                          fontSize: FrameText.of(context).caption.fontSize,
                         ),
                       ),
                     ),
@@ -686,7 +686,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: tokens.textMuted,
-                  fontSize: 10.5,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   height: 1.3,
                 ),
               ),
@@ -708,7 +708,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.textSecondary,
-                  fontSize: 12,
+                  fontSize: FrameText.of(context).label.fontSize,
                   height: 1.5,
                 ),
               ),
@@ -787,7 +787,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: tokens.textSecondary,
-                              fontSize: 11.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.uiFontFamily,
                               fontWeight: FontWeight.w600,
                             ),
@@ -801,7 +801,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: tokens.syntaxString,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -840,7 +840,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                               durationText,
                               style: TextStyle(
                                 color: tokens.textMuted,
-                                fontSize: 9.5,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontFamily: tokens.monoFontFamily,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1003,7 +1003,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   parsed.summaryText!,
                   style: TextStyle(
                     color: tokens.textSecondary,
-                    fontSize: 11,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1025,12 +1025,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   strings.stepGroupInput,
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 10.5,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 InkWell(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: prettyInput));
                     FrameSnackBar.show(
@@ -1057,7 +1057,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                           strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.of(context).caption.fontSize,
                           ),
                         ),
                       ],
@@ -1081,7 +1081,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.syntaxNumber,
-                  fontSize: 11,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   fontFamily: tokens.monoFontFamily,
                   height: 1.4,
                 ),
@@ -1106,7 +1106,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         : strings.stepGroupShowAll,
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 10.5,
+                      fontSize: FrameText.of(context).caption.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1126,12 +1126,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   strings.stepGroupOutput,
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 10.5,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 InkWell(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: tool.output));
                     FrameSnackBar.show(
@@ -1158,7 +1158,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                           strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.of(context).caption.fontSize,
                           ),
                         ),
                       ],
@@ -1184,7 +1184,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   color: tool.isError
                       ? tokens.agentError
                       : tokens.textSecondary,
-                  fontSize: 11,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   fontFamily: tokens.monoFontFamily,
                   height: 1.4,
                 ),
@@ -1209,7 +1209,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         : strings.stepGroupShowAll,
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 10.5,
+                      fontSize: FrameText.of(context).caption.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

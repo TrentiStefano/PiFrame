@@ -379,7 +379,7 @@ class _ToolCardState extends State<ToolCard> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: tokens.textSecondary,
-                                fontSize: 11.5,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontFamily: tokens.uiFontFamily,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -396,7 +396,7 @@ class _ToolCardState extends State<ToolCard> {
                                   color: isTerminal
                                       ? tokens.syntaxNumber
                                       : tokens.syntaxString,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -435,7 +435,7 @@ class _ToolCardState extends State<ToolCard> {
                               '${durationSeconds}s',
                               style: TextStyle(
                                 color: tokens.textSecondary,
-                                fontSize: 10,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontFamily: tokens.monoFontFamily,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -445,7 +445,7 @@ class _ToolCardState extends State<ToolCard> {
                                 ' / $timeoutLabel',
                                 style: TextStyle(
                                   color: tokens.textMuted,
-                                  fontSize: 9.5,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                 ),
                               ),
@@ -469,7 +469,7 @@ class _ToolCardState extends State<ToolCard> {
                           '${tool.durationMs}ms',
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 9.5,
+                            fontSize: FrameText.of(context).caption.fontSize,
                             fontFamily: tokens.monoFontFamily,
                             fontWeight: FontWeight.w500,
                           ),
@@ -493,7 +493,7 @@ class _ToolCardState extends State<ToolCard> {
                           'timeout $timeoutLabel',
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 9.5,
+                            fontSize: FrameText.of(context).caption.fontSize,
                             fontFamily: tokens.monoFontFamily,
                           ),
                         ),
@@ -584,7 +584,7 @@ class _ToolCardState extends State<ToolCard> {
                                 : strings.toolCardCommandParams,
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -616,7 +616,7 @@ class _ToolCardState extends State<ToolCard> {
                                     strings.toolCardRequestedTimeout(timeoutLabel),
                                     style: TextStyle(
                                       color: tokens.textMuted,
-                                      fontSize: 9.5,
+                                      fontSize: FrameText.of(context).caption.fontSize,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -626,7 +626,7 @@ class _ToolCardState extends State<ToolCard> {
                           ],
                           const Spacer(),
                           InkWell(
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                             onTap: () {
                               Clipboard.setData(
                                 ClipboardData(text: commandText),
@@ -655,7 +655,7 @@ class _ToolCardState extends State<ToolCard> {
                                     strings.toolCardCopyCommand,
                                     style: TextStyle(
                                       color: tokens.textMuted,
-                                      fontSize: 10,
+                                      fontSize: FrameText.of(context).caption.fontSize,
                                     ),
                                   ),
                                 ],
@@ -677,7 +677,7 @@ class _ToolCardState extends State<ToolCard> {
                           selectionWidthStyle: BoxWidthStyle.tight,
                           style: TextStyle(
                             color: tokens.syntaxNumber,
-                            fontSize: 12,
+                            fontSize: FrameText.of(context).label.fontSize,
                             fontFamily: tokens.monoFontFamily,
                             height: 1.4,
                           ),
@@ -712,7 +712,7 @@ class _ToolCardState extends State<ToolCard> {
                                   parsed.summaryText!,
                                   style: TextStyle(
                                     color: tokens.textSecondary,
-                                    fontSize: 11.5,
+                                    fontSize: FrameText.of(context).caption.fontSize,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -759,7 +759,7 @@ class _ToolCardState extends State<ToolCard> {
                             color: tool.isError
                                 ? tokens.agentError
                                 : tokens.textSecondary,
-                            fontSize: 11.5,
+                            fontSize: FrameText.of(context).caption.fontSize,
                             fontFamily: tokens.monoFontFamily,
                             height: 1.4,
                           ),
