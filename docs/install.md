@@ -458,6 +458,15 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 
 Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
 
+## 15b. Animazione di avvio
+
+Impostazioni → **Aspetto** → **Animazione di avvio** (EN: *Startup animation*).
+
+- Alla prima apertura di PiFrame si vede l'animazione di avvio di circa 1,4 secondi, con audio. Dalle aperture successive l'app compare subito con una breve dissolvenza (620 ms).
+- Con l'interruttore attivo, l'animazione con audio torna a comparire a ogni apertura.
+- La preferenza è salvata in `~/.piframe/startup_animation_settings.json`. Il flag del primo avvio è in `~/.piframe/app_first_run.json`.
+- Con *Riduci animazioni* attivo, l'animazione non viene riprodotta.
+
 ## 16. Animazioni dei pannelli e notifiche (snackbar)
 
 **Pannelli.** Mostrare, nascondere o comprimere un pannello (dalla barra del titolo, menu *Vista*, o dalla scorciatoia) anima la sua larghezza. Il testo delle altre colonne non va a capo durante l'animazione: il layout è stabile e il pannello che entra sfuma nella propria posizione. Con l'interruttore *Riduci animazioni* (sezione 15) o con la preferenza di sistema attiva, il layout cambia subito e il pannello che entra sfuma soltanto, senza movimento.
