@@ -126,4 +126,42 @@ void main() {
       expect(button.onPressed, isNotNull);
     },
   );
+
+  testWidgets('copy hit target is 28 px and the meta line stays 24 px', (
+    tester,
+  ) async {
+    var copied = 0;
+    await tester.pumpWidget(
+      _app(
+        AssistantTurnFrame(
+          label: 'Assistant',
+          onCopy: () => copied++,
+          copyKey: const ValueKey('copy'),
+          copyTooltip: 'Copy',
+          body: const Text(_bodyText),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.getSize(find.byKey(const ValueKey('copy')));
+    expect(button.width >= 28, isTrue, reason: 'width ${button.width}');
+    expect(button.height >= 28, isTrue, reason: 'height ${button.height}');
+
+    final metaLine = tester.getSize(
+      find
+          .byWidgetPredicate(
+            (w) => w is SizedBox && w.height == kAssistantMetaLineHeight,
+          )
+          .first,
+    );
+    expect(metaLine.height, kAssistantMetaLineHeight);
+
+    // 13 px above the button centre is outside the 24 px row but inside the
+    // 28 px target, so it must still press the button.
+    final center = tester.getCenter(find.byKey(const ValueKey('copy')));
+    await tester.tapAt(Offset(center.dx, center.dy - 13));
+    await tester.pump();
+    expect(copied, 1);
+  });
 }

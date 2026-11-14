@@ -8,6 +8,11 @@ import '../../ui/motion.dart';
 /// once settled put their content at the same y.
 const double kAssistantMetaLineHeight = 24;
 
+/// Hit size of the meta-line actions (copy). It is larger than the 24 px line
+/// on purpose: the button overflows the row, centred, and the row keeps its
+/// height. Meets the 28 px minimum target (FrameSize.hitMin).
+const double kMetaActionHitSize = FrameSize.hitMin;
+
 /// Widest reading measure for assistant prose, centred in wide panes (4.1).
 const double kAssistantReadingMeasure = 760;
 
@@ -57,67 +62,87 @@ class AssistantTurnFrame extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: kAssistantReadingMeasure),
         child: HoverRevealBuilder(
-          builder: (context, revealed) => Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          builder: (context, revealed) => Stack(
+            clipBehavior: Clip.none,
             children: [
-              SizedBox(
-                height: kAssistantMetaLineHeight,
-                child: Row(
-                  children: [
-                    // Icon size 14 sits inside the 24 px meta line; it is not a
-                    // control icon.
-                    Icon(
-                      Icons.smart_toy_outlined,
-                      size: 14,
-                      color: tokens.textSecondary,
-                    ),
-                    const SizedBox(width: FrameSpace.x1),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.label.copyWith(color: tokens.textSecondary),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (statusTag != null) ...[
-                      statusTag!,
-                      const SizedBox(width: FrameSpace.x2),
-                    ],
-                    if (elapsedChip != null) ...[
-                      elapsedChip!,
-                      const SizedBox(width: FrameSpace.x2),
-                    ],
-                    if (onCopy != null)
-                      AnimatedOpacity(
-                        opacity: revealed ? 1 : 0,
-                        duration: FrameMotion.micro,
-                        child: SizedBox(
-                          width: kAssistantMetaLineHeight,
-                          height: kAssistantMetaLineHeight,
-                          child: IconButton(
-                            key: copyKey,
-                            tooltip: copyTooltip,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints.tightFor(
-                              width: kAssistantMetaLineHeight,
-                              height: kAssistantMetaLineHeight,
-                            ),
-                            iconSize: FrameSize.icon,
-                            onPressed: onCopy,
-                            icon: Icon(
-                              Icons.copy_outlined,
-                              color: tokens.textMuted,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: kAssistantMetaLineHeight,
+                    child: Row(
+                      children: [
+                        // Icon size 14 sits inside the 24 px meta line; it is not a
+                        // control icon.
+                        Icon(
+                          Icons.smart_toy_outlined,
+                          size: 14,
+                          color: tokens.textSecondary,
+                        ),
+                        const SizedBox(width: FrameSpace.x1),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.label.copyWith(
+                              color: tokens.textSecondary,
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
+                        const Spacer(),
+                        if (statusTag != null) ...[
+                          statusTag!,
+                          const SizedBox(width: FrameSpace.x2),
+                        ],
+                        if (elapsedChip != null) ...[
+                          elapsedChip!,
+                          const SizedBox(width: FrameSpace.x2),
+                        ],
+                        // Keeps the copy action's 24 px slot in the row. The action
+                        // itself is drawn over the slot, see the Positioned below.
+                        if (onCopy != null)
+                          const SizedBox(width: kAssistantMetaLineHeight),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: FrameSpace.x2),
+                  body,
+                ],
               ),
-              const SizedBox(height: FrameSpace.x2),
-              body,
+              // The copy action is 28 px, centred on the 24 px row. It is laid
+              // out over the frame, not inside the row, because a child outside
+              // its parent's bounds is not hit-tested. The frame is taller than
+              // 28 px (body below), so the whole 28 px target takes taps.
+              if (onCopy != null)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    opacity: revealed ? 1 : 0,
+                    duration: FrameMotion.micro,
+                    child: SizedBox(
+                      width: kMetaActionHitSize,
+                      height: kMetaActionHitSize,
+                      child: IconButton(
+                        key: copyKey,
+                        tooltip: copyTooltip,
+                        // Pads the icon up to the row's centre line (12 px).
+                        padding: const EdgeInsets.only(bottom: 4),
+                        constraints: const BoxConstraints.tightFor(
+                          width: kMetaActionHitSize,
+                          height: kMetaActionHitSize,
+                        ),
+                        iconSize: FrameSize.icon,
+                        onPressed: onCopy,
+                        icon: Icon(
+                          Icons.copy_outlined,
+                          color: tokens.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
