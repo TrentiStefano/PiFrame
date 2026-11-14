@@ -122,7 +122,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.lock_outline, color: tokens.warning, size: 20),
+                      Icon(Icons.lock_outlined, color: tokens.warning, size: FrameSize.iconLg),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -154,7 +154,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      Icons.info_outline,
+                      Icons.info_outlined,
                       color: tokens.info,
                       size: FrameSize.iconLg,
                     ),
@@ -223,7 +223,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   child: Row(
                     children: [
                       Icon(
-                        Icons.error_outline,
+                        Icons.error_outlined,
                         color: tokens.danger,
                         size: FrameSize.iconLg,
                       ),
@@ -1090,7 +1090,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   ),
                   const SizedBox(width: 4),
                   Icon(
-                    Icons.help_outline,
+                    Icons.help_outlined,
                     size: FrameSize.icon,
                     color: tokens.textMuted,
                   ),
@@ -1180,7 +1180,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.lock_outline,
+                          Icons.lock_outlined,
                           size: FrameSize.icon,
                           color: tokens.textMuted,
                         ),

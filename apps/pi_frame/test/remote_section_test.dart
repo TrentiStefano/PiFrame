@@ -179,7 +179,7 @@ void main() {
     // The missing-binary notice is a FrameCallout: its info tone uses the info icon.
     final icon = tester.widget<Icon>(find.descendant(
       of: find.byKey(const ValueKey('remote-tailscale-missing')),
-      matching: find.byIcon(Icons.info_outline),
+      matching: find.byIcon(Icons.info_outlined),
     ));
     expect(icon.color, FrameTokens.dark.info);
     expect(icon.color, isNot(FrameTokens.dark.warning));

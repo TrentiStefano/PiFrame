@@ -1262,7 +1262,7 @@ class _ComposerState extends ConsumerState<Composer> {
             children: [
               Icon(
                 Icons.psychology_outlined,
-                size: 15,
+                size: FrameSize.icon,
                 color: isCurrent ? tokens.accent : tokens.textMuted,
               ),
               const SizedBox(width: FrameSpace.x2),
@@ -1467,7 +1467,7 @@ class _ComposerState extends ConsumerState<Composer> {
             children: [
               Icon(
                 Icons.upload_file_outlined,
-                size: 16,
+                size: FrameSize.icon,
                 color: tokens.syntaxFunction,
               ),
               const SizedBox(width: FrameSpace.x2),
@@ -1856,7 +1856,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                 children: [
                                   Icon(
                                     Icons.queue_outlined,
-                                    size: 16,
+                                    size: FrameSize.icon,
                                     color: tokens.accent,
                                   ),
                                   const SizedBox(width: FrameSpace.x2),
@@ -1876,7 +1876,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         _queueExpanded
                                             ? Icons.keyboard_arrow_up_outlined
                                             : Icons.keyboard_arrow_down_outlined,
-                                        size: 16,
+                                        size: FrameSize.icon,
                                         color: tokens.textSecondary,
                                       ),
                                       onPressed: () => setState(
@@ -2031,7 +2031,7 @@ class _ComposerState extends ConsumerState<Composer> {
                             children: [
                               Icon(
                                 Icons.warning_amber_outlined,
-                                size: 18,
+                                size: FrameSize.iconLg,
                                 color: tokens.danger,
                               ),
                               const SizedBox(width: FrameSpace.x2),
@@ -2795,7 +2795,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               width: 16,
                                               height: 16,
                                               child:
-                                                  FrameActivityIndicator(size: 16, 
+                                                  FrameActivityIndicator(size: FrameSize.icon, 
                                                     strokeWidth: 2,
                                                     color: tokens.danger,
                                                   ),
@@ -2803,7 +2803,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           : Icon(
                                               Icons.stop_circle_outlined,
                                               color: tokens.signalDanger,
-                                              size: 19,
+                                              size: FrameSize.iconLg,
                                             ),
                                       tooltip: strings.composerStopEscTooltip,
                                       padding: EdgeInsets.zero,
@@ -2841,7 +2841,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             children: [
                                               Icon(
                                                 Icons.bolt_outlined,
-                                                size: 16,
+                                                size: FrameSize.icon,
                                                 color:
                                                     tokens.accentContrast,
                                               ),
@@ -2893,7 +2893,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             children: [
                                               Icon(
                                                 Icons.more_time_outlined,
-                                                size: 15,
+                                                size: FrameSize.icon,
                                                 color: tokens.textPrimary,
                                               ),
                                               SizedBox(
@@ -2986,7 +2986,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               else
                                                 Icon(
                                                   Icons.arrow_upward_outlined,
-                                                  size: 16,
+                                                  size: FrameSize.icon,
                                                   color:
                                                       tokens.accentContrast,
                                                 ),

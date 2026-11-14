@@ -132,7 +132,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 decoration: InputDecoration(
                   labelText: strings.attTitleOptional,
                   hintText: strings.attTitleHint,
-                  prefixIcon: const Icon(Icons.label_outline, size: FrameSize.icon),
+                  prefixIcon: const Icon(Icons.label_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
                   border: OutlineInputBorder(

@@ -221,7 +221,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                 Row(
                   children: [
                     Icon(
-                      Icons.check_circle_outline,
+                      Icons.check_circle_outlined,
                       size: FrameSize.icon,
                       color: tokens.agentSettled,
                     ),

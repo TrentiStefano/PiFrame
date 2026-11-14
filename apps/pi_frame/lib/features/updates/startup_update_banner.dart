@@ -54,7 +54,7 @@ class StartupUpdateBanner extends ConsumerWidget {
         borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
       child: Icon(
-        Icons.system_update_alt,
+        Icons.system_update_alt_outlined,
         color: tokens.signalWarning,
         size: FrameSize.iconLg,
       ),
@@ -111,7 +111,7 @@ class StartupUpdateBanner extends ConsumerWidget {
       key: const ValueKey('startup-update-dismiss-btn'),
       visualDensity: VisualDensity.compact,
       tooltip: strings.updateNoticeDismiss,
-      icon: Icon(Icons.close, size: FrameSize.icon, color: tokens.textMuted),
+      icon: Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.textMuted),
       onPressed: () {
         ref.read(startupUpdatesProvider.notifier).dismiss();
       },

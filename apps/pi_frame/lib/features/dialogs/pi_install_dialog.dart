@@ -152,7 +152,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
                       borderRadius: BorderRadius.circular(tokens.radiusMd),
                     ),
                     child: Icon(
-                      Icons.terminal,
+                      Icons.terminal_outlined,
                       color: tokens.accent,
                       size: FrameSize.iconLg,
                     ),
@@ -216,7 +216,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                Icons.info_outline,
+                Icons.info_outlined,
                 color: tokens.info,
                 size: FrameSize.iconLg,
               ),
@@ -312,7 +312,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
             child: Row(
               children: [
                 Icon(
-                  _isSuccess ? Icons.check_circle : Icons.error_outline,
+                  _isSuccess ? Icons.check_circle_outlined : Icons.error_outlined,
                   color: _isSuccess ? tokens.success : tokens.danger,
                   size: FrameSize.iconLg,
                 ),
@@ -424,7 +424,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
               backgroundColor: tokens.accent,
               foregroundColor: tokens.accentContrast,
             ),
-            icon: const Icon(Icons.download, size: FrameSize.iconLg),
+            icon: const Icon(Icons.download_outlined, size: FrameSize.iconLg),
             label: Text(strings.piInstallNow),
             onPressed: _startInstall,
           ),

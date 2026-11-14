@@ -222,7 +222,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   tooltip: strings.sideBackTooltip,
                   icon: Icon(
                     Icons.arrow_back_outlined,
-                    size: 18,
+                    size: FrameSize.iconLg,
                     color: tokens.textSecondary,
                   ),
                   onPressed: () => ref
@@ -291,7 +291,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   tooltip: strings.sideStopTooltip,
                   icon: Icon(
                     Icons.stop_circle_outlined,
-                    size: 18,
+                    size: FrameSize.iconLg,
                     color: tokens.danger,
                   ),
                   onPressed: () => ref
@@ -306,7 +306,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 tooltip: strings.sideCloseTooltip,
                 icon: Icon(
                   Icons.close_outlined,
-                  size: 18,
+                  size: FrameSize.iconLg,
                   color: tokens.textSecondary,
                 ),
                 onPressed: () => _requestClose(context),
@@ -346,13 +346,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         break;
       case 'error':
         noticeText = strings.sideClosedNoticeError;
-        noticeIcon = Icons.error_outline;
+        noticeIcon = Icons.error_outlined;
         noticeColor = tokens.danger;
         break;
       case 'user':
       default:
         noticeText = strings.sideClosedNoticeUser;
-        noticeIcon = Icons.info_outline;
+        noticeIcon = Icons.info_outlined;
         noticeColor = tokens.syntaxFunction;
         break;
     }

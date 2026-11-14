@@ -444,7 +444,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             _browserMenuItem(
                               key: const ValueKey('browser-menu-send-to-chat'),
                               value: _BrowserMenuAction.sendToChat,
-                              icon: Icons.chat_bubble_outline,
+                              icon: Icons.chat_bubble_outlined,
                               label: strings.sendToChatComposerTooltip,
                               tokens: tokens,
                             ),
@@ -467,7 +467,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             padding: const EdgeInsets.all(4),
                             child: Icon(
                               Icons.more_horiz_outlined,
-                              size: 16,
+                              size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),
                           ),
@@ -500,7 +500,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           ),
                           onPressed: _sendActiveTabToComposer,
                           icon: const Icon(
-                            Icons.chat_bubble_outline,
+                            Icons.chat_bubble_outlined,
                             size: FrameSize.icon,
                           ),
                         ),
@@ -837,7 +837,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         ),
                         child: Icon(
                           activeTab.url.startsWith('https://')
-                              ? Icons.lock_outline
+                              ? Icons.lock_outlined
                               : Icons.search_outlined,
                           size: 13,
                           color: activeTab.url.startsWith('https://')
@@ -904,7 +904,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                                   activeTab.title,
                                 ),
                           icon: Icon(
-                            isBookmarked ? Icons.star : Icons.star_border,
+                            isBookmarked ? Icons.star_outlined : Icons.star_border,
                             size: 14,
                             color: isBookmarked
                                 ? tokens.warning
@@ -1008,7 +1008,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                     _browserMenuItem(
                       key: const ValueKey('browser-menu-bookmark'),
                       value: _BrowserMenuAction.bookmark,
-                      icon: isBookmarked ? Icons.star : Icons.star_border,
+                      icon: isBookmarked ? Icons.star_outlined : Icons.star_border,
                       label: isBookmarked
                           ? strings.removeBookmarkTooltip
                           : strings.addBookmarkTooltip,
@@ -1020,7 +1020,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                     padding: const EdgeInsets.all(4),
                     child: Icon(
                       Icons.more_horiz_outlined,
-                      size: 16,
+                      size: FrameSize.icon,
                       color: tokens.textMuted,
                     ),
                   ),
@@ -1641,7 +1641,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   ),
                   prefixIcon: Icon(
                     browserState.searchEngine.icon,
-                    size: 16,
+                    size: FrameSize.icon,
                     color: tokens.accent,
                   ),
                   suffixIcon: IconButton(

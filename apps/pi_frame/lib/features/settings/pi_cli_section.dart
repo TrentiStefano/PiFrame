@@ -103,7 +103,7 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
     command: 'pi --version',
     args: ['--version'],
     description: strings.piCmdVersionDesc,
-    icon: Icons.info_outline,
+    icon: Icons.info_outlined,
   ),
 ];
 
@@ -469,7 +469,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     final footer = Row(
       children: [
         Icon(
-          Icons.check_circle_outline,
+          Icons.check_circle_outlined,
           size: FrameSize.icon,
           color: tokens.success,
         ),

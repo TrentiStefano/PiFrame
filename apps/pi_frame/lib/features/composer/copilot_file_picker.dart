@@ -365,7 +365,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                   children: [
                                     Icon(
                                       _getFileIcon(path),
-                                      size: 16,
+                                      size: FrameSize.icon,
                                       color: isSelected
                                           ? tokens.accent
                                           : tokens.textSecondary,

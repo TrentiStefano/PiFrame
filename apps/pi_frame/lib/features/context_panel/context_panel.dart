@@ -613,7 +613,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                     color: tokens.surface,
                   ),
                 )
-              : const Icon(Icons.compress, size: FrameSize.icon),
+              : const Icon(Icons.compress_outlined, size: FrameSize.icon),
           label: Text(
             _isCompacting
                 ? strings.compactingLabel
@@ -633,7 +633,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             side: BorderSide(color: tokens.border),
           ),
           icon: Icon(
-            Icons.content_copy,
+            Icons.content_copy_outlined,
             size: FrameSize.icon,
             color: tokens.textSecondary,
           ),

@@ -14,7 +14,7 @@ enum SearchEngine {
   ),
   youtube(
     label: 'YouTube',
-    icon: Icons.play_circle_outline,
+    icon: Icons.play_circle_outlined,
     searchUrlTemplate: 'https://www.youtube.com/results?search_query={query}',
     homeUrl: 'https://www.youtube.com',
   ),
@@ -44,7 +44,7 @@ enum SearchEngine {
   ),
   stackOverflow(
     label: 'Stack Overflow',
-    icon: Icons.help_outline,
+    icon: Icons.help_outlined,
     searchUrlTemplate: 'https://stackoverflow.com/questions/tagged/{query}',
     homeUrl: 'https://stackoverflow.com',
   ),
