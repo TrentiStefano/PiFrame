@@ -343,7 +343,7 @@ index ccb1dd3..d31323b 100644
         await tester.pumpAndSettle();
 
         // Title and count
-        expect(find.text('Review Changes'), findsOneWidget);
+        expect(find.text('Rivedi modifiche'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
 
         // Files listed

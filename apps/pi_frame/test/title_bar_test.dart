@@ -9,6 +9,7 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/layout/layout_store.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/features/settings/settings_view.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 
 /// Title bar layout and controls (plan task 5.4).
@@ -126,9 +127,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(container.read(showSettingsProvider), isTrue);
+    // Settings opens by section id, so the test does not depend on tab order.
     expect(
-      container.read(settingsTabIndexProvider),
-      kDiagnosticsSettingsTab,
+      tester.widget<SettingsView>(find.byType(SettingsView)).initialSection,
+      kSettingsSectionDiagnostics,
     );
     expect(tester.takeException(), isNull);
   });

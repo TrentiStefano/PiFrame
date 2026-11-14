@@ -142,7 +142,7 @@ void main() {
 
     // Verify recent sessions title is present
     expect(find.text('Sessioni recenti'), findsOneWidget);
-    expect(find.text('Quick Launch'), findsOneWidget);
+    expect(find.text('Avvio rapido'), findsOneWidget);
 
     // Verify the top 5 sessions are rendered
     expect(find.text('Refactor Core Engine'), findsOneWidget);

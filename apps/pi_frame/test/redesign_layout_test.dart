@@ -302,22 +302,22 @@ void main() {
       } else if (size.width < 900) {
         expect(find.text('Chat'), findsOneWidget);
         expect(find.text('File'), findsOneWidget);
-        expect(find.text('Git Changes'), findsOneWidget);
-        await tester.tap(find.text('Git Changes').first);
+        expect(find.text('Modifiche Git'), findsOneWidget);
+        await tester.tap(find.text('Modifiche Git').first);
         await tester.pumpAndSettle();
         expect(find.text('GIT CHANGES'), findsOneWidget);
         await tester.tap(find.text('Chat').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Git Changes').last);
+        await tester.tap(find.text('Modifiche Git').last);
         await tester.pumpAndSettle();
-        expect(find.text('Git Changes'), findsNothing);
+        expect(find.text('Modifiche Git'), findsNothing);
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Git Changes').last);
+        await tester.tap(find.text('Modifiche Git').last);
         await tester.pumpAndSettle();
-        expect(find.text('Git Changes'), findsOneWidget);
+        expect(find.text('Modifiche Git'), findsOneWidget);
       } else {
         expect(
           find.byKey(const ValueKey('companion-tab-git')),
@@ -529,7 +529,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chat'), findsOneWidget);
     expect(find.text('File'), findsOneWidget);
-    expect(find.text('Git Changes'), findsOneWidget);
+    expect(find.text('Modifiche Git'), findsOneWidget);
     await tester.tap(find.text('File').first);
     await tester.pumpAndSettle();
     expect(find.text('REPOSITORY'), findsOneWidget);
@@ -551,7 +551,7 @@ void main() {
       '$capturePrefix-compact-file',
       outputDirectory: '../../docs/design-evidence',
     );
-    await tester.tap(find.text('Git Changes').first);
+    await tester.tap(find.text('Modifiche Git').first);
     await tester.pumpAndSettle();
     expect(find.text('GIT CHANGES'), findsOneWidget);
     await capture(

@@ -18,6 +18,7 @@ import '../data/daemon/daemon_providers.dart';
 import '../data/daemon/pcp_client.dart';
 import '../data/language/language_settings.dart';
 import '../data/language/strings_shell.dart';
+import '../data/language/strings_workspace.dart';
 import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
 import '../features/sessions_sidebar/session_actions.dart';
@@ -148,9 +149,6 @@ const double kConnectionLabelMinWidth = 920;
 /// Window width from which the context drawer button shows its label "Sessione" (plan
 /// task 5.4); below it the button is icon-only.
 const double kContextDrawerLabelMinWidth = 1100;
-
-/// Settings tab index of Diagnostics (the sixth tab in settings_view.dart).
-const int kDiagnosticsSettingsTab = 5;
 
 /// Title bar connection status (plan task 5.4): a dot, with the label from
 /// [kConnectionLabelMinWidth] up. A click opens Diagnostics in Settings.
@@ -299,6 +297,8 @@ class _AppShellState extends ConsumerState<AppShell>
   late final bool _hasWindowListener;
   bool _creating = false;
   int _settingsEpoch = 0;
+  // Section id for the next Settings open; null means the tab index provider decides.
+  String? _settingsSection;
   WorkspacePane _compactPane = WorkspacePane.chat;
   WorkspacePane _companionPane = WorkspacePane.repository;
   final Map<WorkspacePane, bool> _paneVisibility = {
@@ -646,8 +646,10 @@ class _AppShellState extends ConsumerState<AppShell>
   /// Opens Settings on Diagnostics (plan task 5.4). [_settingsEpoch] remounts the view,
   /// because a view that is already open keeps its first tab.
   void _openDiagnostics() {
-    ref.read(settingsTabIndexProvider.notifier).state = kDiagnosticsSettingsTab;
-    setState(() => _settingsEpoch++);
+    setState(() {
+      _settingsSection = kSettingsSectionDiagnostics;
+      _settingsEpoch++;
+    });
     ref.read(showSettingsProvider.notifier).state = true;
   }
 
@@ -781,6 +783,10 @@ class _AppShellState extends ConsumerState<AppShell>
       if (prev != null && next != null && prev != next) _previousSessionId = prev;
     });
     ref.listen<bool>(showSettingsProvider, (prev, next) {
+      // Closing Settings forgets the section, so a later plain open uses the tab index.
+      if (!next) {
+        _settingsSection = null;
+      }
       _setEscapeLayer('settings', EscapeLayer.settings, next, () {
         final wasOpen = ref.read(showSettingsProvider);
         ref.read(showSettingsProvider.notifier).state = false;
@@ -1094,7 +1100,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                           ),
                                           label: Text(
                                             strings.sessionDrawerLabel,
-                                            style: const TextStyle(fontSize: 12),
+                                            style: FrameText.of(context).label,
                                           ),
                                         ),
                                       )
@@ -1207,6 +1213,7 @@ class _AppShellState extends ConsumerState<AppShell>
                             key: ValueKey('settings-view-$_settingsEpoch'),
                             initialTabIndex:
                                 ref.watch(settingsTabIndexProvider),
+                            initialSection: _settingsSection,
                             onClose: () =>
                                 ref.read(showSettingsProvider.notifier).state =
                                     false,
@@ -1366,16 +1373,19 @@ class _AppShellState extends ConsumerState<AppShell>
     return order.where((pane) => _paneVisibility[pane] == true).toList();
   }
 
-  String _paneLabel(WorkspacePane pane) => switch (pane) {
-    WorkspacePane.chat => 'Chat',
-    WorkspacePane.repository => 'Repository',
-    WorkspacePane.git => ref.watch(isReviewingChangesProvider)
-        ? 'Review Changes'
-        : (ref.watch(browserPaneSupportedProvider) &&
-                  ref.watch(rightPaneModeProvider) == RightPaneMode.browser
-            ? 'Web Browser'
-            : 'Git Changes'),
-  };
+  String _paneLabel(WorkspacePane pane) {
+    final strings = ref.watch(appStringsProvider);
+    return switch (pane) {
+      WorkspacePane.chat => strings.companionChatTab,
+      WorkspacePane.repository => strings.paletteRepositoryPaneName,
+      WorkspacePane.git => ref.watch(isReviewingChangesProvider)
+          ? strings.companionReviewTab
+          : (ref.watch(browserPaneSupportedProvider) &&
+                    ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+                ? strings.companionWebBrowserTab
+                : strings.paletteGitPaneName),
+    };
+  }
 
   void _togglePane(WorkspacePane pane) {
     final visible = _visiblePanes();
@@ -1991,10 +2001,13 @@ class _AppShellState extends ConsumerState<AppShell>
     final isMobile = width < 600;
     final isBrowser = ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
+    final strings = ref.watch(appStringsProvider);
     String label(WorkspacePane pane) => switch (pane) {
-      WorkspacePane.chat => 'Chat',
-      WorkspacePane.repository => 'File',
-      WorkspacePane.git => isBrowser ? 'Web Browser' : 'Git Changes',
+      WorkspacePane.chat => strings.companionChatTab,
+      WorkspacePane.repository => strings.companionFileTab,
+      WorkspacePane.git => isBrowser
+          ? strings.companionWebBrowserTab
+          : strings.paletteGitPaneName,
     };
     return Container(
       height: 44,
@@ -2130,7 +2143,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 border: Border.all(color: tokens.border),
               ),
               child: Text(
-                'Quick Launch',
+                ref.watch(appStringsProvider).companionQuickLaunchBadge,
                 style: TextStyle(
                   color: tokens.accent,
                   fontSize: 10,

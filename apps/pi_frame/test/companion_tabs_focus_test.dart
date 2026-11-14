@@ -36,16 +36,14 @@ void main() {
   Future<List<WorkspacePane>> pumpPane(
     WidgetTester tester, {
     required List<WorkspacePane> selected,
+    double width = 1600,
   }) async {
     selected.clear();
-    // The header row already overflows by 39 px in the test font (same at HEAD, with or
-    // without this change). Ignore only that overflow so the focus behaviour is tested.
-    final original = FlutterError.onError;
-    FlutterError.onError = (details) {
-      if (details.exceptionAsString().contains('overflowed')) return;
-      original?.call(details);
-    };
-    addTearDown(() => FlutterError.onError = original);
+    // The test surface defaults to 800 px, which would clamp the pane below.
+    tester.view.physicalSize = Size(width, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    addTearDown(() => tester.view.resetDevicePixelRatio());
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -58,7 +56,7 @@ void main() {
           ),
           home: Scaffold(
             body: SizedBox(
-              width: 1600,
+              width: width,
               child: SessionChangesPane(
                 sessionId: 'session_1',
                 companionTabs: tabs,
@@ -83,6 +81,7 @@ void main() {
     return null;
   }
 
+  // The app defaults to Italian, so the tab names are the Italian strings.
   testWidgets('tabs are selected buttons in the semantics tree', (
     tester,
   ) async {
@@ -91,9 +90,9 @@ void main() {
     await pumpPane(tester, selected: selected);
 
     expect(
-      tester.getSemantics(find.bySemanticsLabel('Review Changes')),
+      tester.getSemantics(find.bySemanticsLabel('Rivedi modifiche')),
       matchesSemantics(
-        label: 'Review Changes',
+        label: 'Rivedi modifiche',
         isButton: true,
         hasSelectedState: true,
         isSelected: true,
@@ -167,4 +166,31 @@ void main() {
     expect(selected, [WorkspacePane.chat]);
     expect(tester.takeException(), isNull);
   });
+
+  // No overflow exception is ignored: every width must lay out cleanly.
+  for (final width in [1600.0, 320.0]) {
+    testWidgets('tab header lays out without overflow at ${width.toInt()} px', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final selected = <WorkspacePane>[];
+      await pumpPane(tester, selected: selected, width: width);
+
+      // Every tab keeps its name for assistive tech, even when only its icon shows.
+      for (final label in ['File', 'Rivedi modifiche', 'Chat']) {
+        expect(find.bySemanticsLabel(label), findsOneWidget);
+      }
+      // The active tab always shows its label; at 320 px the others are icon-only.
+      expect(find.text('RIVEDI MODIFICHE'), findsOneWidget);
+      if (width < kCompanionTabLabelsMinWidth) {
+        expect(find.text('File'), findsNothing);
+        expect(find.text('Chat'), findsNothing);
+      } else {
+        expect(find.text('File'), findsOneWidget);
+        expect(find.text('Chat'), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    });
+  }
 }
