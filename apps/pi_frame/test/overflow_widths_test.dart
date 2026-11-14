@@ -16,6 +16,8 @@ import 'package:pi_frame/features/transcript/task_notification_card.dart';
 import 'package:pi_frame/features/transcript/subagent_panel.dart';
 import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame/features/transcript/workflows_provider.dart';
+import 'package:pi_frame/domain/session/session_state.dart';
+import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 
 /// Narrow widths that every companion/transcript widget must survive without
@@ -49,6 +51,7 @@ void main() {
   _todoTests();
   _transcriptTests();
   _subagentTests();
+  _composerTests();
   group('Browser companion fits narrow widths (task 1.2a)', () {
     for (final width in kNarrowWidths) {
       testWidgets('toolbar and header do not overflow at ${width.toInt()} px',
@@ -352,4 +355,53 @@ Future<void> _openPanel(WidgetTester tester, String sessionId) async {
       .read(agentActivityPanelOpenProvider(sessionId).notifier)
       .state = true;
   await tester.pump();
+}
+
+void _composerTests() {
+  group('Composer chip row fits narrow widths (task 1.2e)', () {
+    for (final width in kNarrowWidths) {
+      testWidgets('model, thinking and send chips never overflow at ${width.toInt()} px',
+          (tester) async {
+        const sessionId = 'overflow-composer';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              daemonEndpointProvider.overrideWith((ref) async => null),
+              sessionStateFamily(sessionId).overrideWith(
+                (ref) => SessionStateNotifier(sessionId, null)
+                  ..state = const SessionState(
+                    sessionId: sessionId,
+                    cwd: '/fixture',
+                    currentModel: 'An unusually long model name for the chip',
+                  ),
+              ),
+            ],
+            child: _themed(
+              child: SizedBox(
+                width: width,
+                height: 300,
+                child: const Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Composer(sessionId: sessionId),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        final model = tester.getRect(
+          find.byKey(const ValueKey('composer-model-picker-btn')),
+        );
+        final thinking = tester.getRect(
+          find.byKey(const ValueKey('composer-thinking-picker-btn')),
+        );
+        expect(model.overlaps(thinking), isFalse);
+        // Below the icon-only threshold the long model name is not drawn.
+        expect(find.text('An unusually long model name for the chip'),
+            findsNothing);
+      });
+    }
+  });
 }

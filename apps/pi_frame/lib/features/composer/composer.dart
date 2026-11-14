@@ -64,6 +64,13 @@ class _ComposerSizeAnimator extends ConsumerWidget {
   }
 }
 
+/// Width of the composer chip row (audit R2). Below kComposerChipNameFullWidth the
+/// model name is truncated to kComposerChipNameNarrowWidth; below
+/// kComposerChipLabelsMinWidth the chip labels drop to icon + tooltip.
+const double kComposerChipNameFullWidth = 300;
+const double kComposerChipNameNarrowWidth = 48;
+const double kComposerChipLabelsMinWidth = 180;
+
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -2593,7 +2600,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                   Row(
                                     children: [
                                       Expanded(
-                                        child: SingleChildScrollView(
+                                        // Chip labels step down as the row narrows: the model name
+                                        // truncates first, then labels drop to icon + tooltip.
+                                        child: LayoutBuilder(
+                                          builder: (context, chipBox) =>
+                                              SingleChildScrollView(
                                           scrollDirection: Axis.horizontal,
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
@@ -2644,13 +2655,16 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                 tokens.accent,
                                                           ),
                                                           // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile) ...[const SizedBox(
+ if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
                                                             width: 4,
                                                           ),
                                                           ConstrainedBox(
                                                             constraints: BoxConstraints(
                                                               maxWidth:
-                                                                  MediaQuery.sizeOf(
+                                                                  chipBox.maxWidth <
+                                                                      kComposerChipNameFullWidth
+                                                                  ? kComposerChipNameNarrowWidth
+                                                                  : MediaQuery.sizeOf(
                                                                         context,
                                                                       ).width <
                                                                       500
@@ -2736,7 +2750,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                 tokens.thinking,
                                                           ),
                                                           // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile) ...[const SizedBox(
+ if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
                                                             width: 3,
                                                           ),
                                                           Text(
@@ -2859,6 +2873,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               ],
                                             ],
                                           ),
+                                        ),
                                         ),
                                       ),
                                       Tooltip(
