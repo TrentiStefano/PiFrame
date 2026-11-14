@@ -132,7 +132,9 @@ void main() {
     // Verify dialog header, inputs, and previews
     expect(find.text('Editor temi personalizzati'), findsOneWidget);
     expect(find.text('Anteprima componenti'), findsOneWidget);
-    expect(find.text('Scheda Bento & Superfici'), findsOneWidget);
+    // The preview is built from real components: a Git row and a chat turn.
+    expect(find.text('lib/app.dart'), findsOneWidget);
+    expect(find.text('Rinomina la funzione'), findsOneWidget);
     expect(find.text('Pulsante accento'), findsOneWidget);
     expect(find.text('Scuro'), findsWidgets);
 
