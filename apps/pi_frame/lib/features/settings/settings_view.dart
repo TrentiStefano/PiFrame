@@ -63,7 +63,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   double? _packageUpdateProgress;
   String? _packageUpdateError;
   bool _isRestartingDaemon = false;
-  String? _packageError;
+  Object? _packageError;
   List<Map<String, dynamic>> _packages = [];
   int _packageListRequest = 0;
   Timer? _packageLoadTimer;
@@ -190,7 +190,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       }
     } catch (error) {
       if (mounted && request == _packageListRequest) {
-        setState(() => _packageError = error.toString());
+        setState(() => _packageError = error);
       }
     } finally {
       if (request == _packageListRequest) {

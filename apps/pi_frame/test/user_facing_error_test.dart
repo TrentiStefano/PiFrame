@@ -6,6 +6,7 @@ import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
 import 'package:pi_frame/data/language/strings_errors.dart';
 import 'package:pi_frame/data/language/strings_workspace.dart';
+import 'package:pi_frame/data/update/github_update_client.dart';
 import 'package:pi_frame/domain/errors/user_facing_error.dart';
 
 void main() {
@@ -147,6 +148,73 @@ void main() {
     test('a raw string is described the same way as an exception', () {
       final e = describeError('Session working directory is not inside a Git repository.', it);
       expect(e.title, it.errorNotRepositoryTitle);
+    });
+  });
+
+  group('protocol messages are shown, raw Dart exceptions are not', () {
+    test('a daemon reply (PcpException) shows its message as the title', () {
+      final e = describeError(
+        PcpException('installed version 0.1.15, expected 1.2.0',
+            code: 'PACKAGE_UPDATE_FAILED'),
+        it,
+      );
+      expect(e.title, 'installed version 0.1.15, expected 1.2.0');
+      expect(e.isProtocolMessage, isTrue);
+      expect(e.isGeneric, isFalse);
+      expect(e.details, e.title);
+    });
+
+    test('an update client message (UpdateException) is shown as is', () {
+      final e = describeError(
+        const UpdateException('Download annullato dall\'utente.'),
+        it,
+      );
+      expect(e.title, 'Download annullato dall\'utente.');
+      expect(e.isProtocolMessage, isTrue);
+    });
+
+    test('a provider message in a string is shown after the Dart prefix', () {
+      final e = describeError('Exception: Model unavailable', it);
+      expect(e.title, 'Model unavailable');
+      expect(e.isProtocolMessage, isTrue);
+    });
+
+    test('failureText keeps a provider message visible', () {
+      expect(
+        failureText(it, 'Invio non riuscito', 'Model unavailable'),
+        'Invio non riuscito: Model unavailable',
+      );
+      expect(
+        failureText(
+          it,
+          'Invio non riuscito',
+          PcpException('Model unavailable', code: 'PROVIDER_ERROR'),
+        ),
+        'Invio non riuscito: Model unavailable',
+      );
+    });
+
+    test('a raw Dart exception is still mapped, never shown', () {
+      final e = describeError(StateError('Package download failed'), it);
+      expect(e.isGeneric, isTrue);
+      expect(e.title, 'Operazione non riuscita');
+      expect(e.details, 'Package download failed');
+    });
+
+    test('a string that looks like a Dart dump is treated as raw', () {
+      final e = describeError("Instance of 'Foo'", it);
+      expect(e.isGeneric, isTrue);
+      expect(e.title, 'Operazione non riuscita');
+    });
+
+    test('a known protocol failure still maps to its localized title', () {
+      final e = describeError(
+        PcpException('Workspace is read-only while Pi is working',
+            code: 'COMMAND_REJECTED'),
+        it,
+      );
+      expect(e.title, it.errorBusyTitle);
+      expect(e.isProtocolMessage, isFalse);
     });
   });
 

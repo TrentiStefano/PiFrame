@@ -935,8 +935,8 @@ Git, la lista dei file, la lista dei pacchetti o un'altra schermata mostra un me
 
 ### Causa
 
-PiFrame traduce gli errori tecnici (daemon non raggiungibile, Git non installato, permessi negati, timeout e altri) in un titolo e un suggerimento comprensibili. Gli errori non riconosciuti mostrano solo il titolo generico, e il testo grezzo non compare più nei messaggi a comparsa.
+PiFrame traduce gli errori tecnici interni (daemon non raggiungibile, Git non installato, permessi negati, timeout e altri) in un titolo e un suggerimento comprensibili. I messaggi che il daemon o Pi inviano per l'utente (per esempio «Model unavailable» o un limite di frequenza del provider) vengono mostrati così come arrivano. Un'eccezione interna di Dart senza un messaggio utile mostra solo il titolo generico, e il testo grezzo non compare nei messaggi a comparsa.
 
 ### Risoluzione
 
-Apri il riquadro dell'errore e premi **Dettagli**: il testo tecnico originale è selezionabile e si può copiare nella segnalazione. Se l'errore è recuperabile, **Riprova** ripete l'operazione. Se il suggerimento indica un daemon obsoleto, esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon quando nessun worker Pi è attivo.
+Messaggi del provider e del daemon sono visibili nella chat e nelle schermate. Per gli errori interni, apri il riquadro dell'errore e premi **Dettagli**: il testo tecnico originale è selezionabile e si può copiare nella segnalazione. Se l'errore è recuperabile, **Riprova** ripete l'operazione. Se il suggerimento indica un daemon obsoleto, esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon quando nessun worker Pi è attivo.
