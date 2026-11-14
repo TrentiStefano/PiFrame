@@ -1077,3 +1077,134 @@ Still **[NV]**: the working-dot and subagent pulse loops under reduced motion. T
 | R7 | P3 | **The session tree dialog is a flat list.** Branches are not visually nested, so the fork structure is hard to read. | `v-tree` |
 | R8 | P3 | **Extension status text truncates** in the session header ("offline-check · CHECKING S…"). | `v-status` |
 | R9 | P3 | **Agents tab model selects show "—"** with no models, although fake-pi returns two. Needs investigation (temporary RPC model query). | `v-p-agents` |
+
+## 17. Round 7: implementation status
+
+Status of every audit ID after the implementation phases (plan `UI_UX_IMPLEMENTATION_PLAN.md`, section 13 step 3). **Done**: implemented as the audit asked. **Changed**: implemented differently or narrower, reason given. **Deferred**: not done, reason given. **Not verified**: no evidence in this pass. Task numbers refer to the plan. PR numbers: Phase 1 #26, Phase 2 #27, Phase 3 #31, Phase 4 #34, Phase 5 #32, Phase 6 #30, Phase 7 #35, Phase 8 #29, Phase 9 #28, Phase 10 #33. Phases 11–12 are in the final integration PR from `ui/phase-11-12-integration`.
+
+Items marked "verified in code" were checked against the source in this pass. Others come from the phase reports.
+
+### 17.1 P0 and P1
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| P0-1 | Done | Fixed in an earlier round. | earlier |
+| P1-1 | Done | Git paths and file names; see 3.1. | 3.1 / #31 |
+| P1-2 | Done | Git review rows; see 3.1. | 3.1 / #31 |
+| P1-3 | Done | In-pane diff replaces the file list; Escape layer `EscapeLayer.diff` (verified in code). | 3.2 / #31 |
+| P1-4 | Done | Layout fixes at narrow width (see the overflow entry in `troubleshooting.md`). | 1.2, 10.2 / #26, #33 |
+| P1-5 | Done | Side conversation docked beside the chat (`side_split.dart`, verified). | 10.1 / #33 |
+| P1-6 | Done | Layout fix (phase report). | 4.3 / #34 |
+| P1-7 | Done | Layout fix (phase report). | 4.1 / #34 |
+| P1-8 | Done | Editor and repository work. | 9.1 / #28 |
+| P1-9 | Changed | Loops stop under reduced motion for the composer, sessions and working dot (verified). The planned `FrameLinearProgress` wrapper was not built: the page-load bar and the Git changes bar check reduced motion, but the indeterminate bars in `packages_section.dart` and `updates_section.dart` still loop. Follow-up needed. | done earlier; Phases 4, 11, 12 |
+| P1-10 | Done | Keyboard focus ring (`FrameFocusRing`, verified). | 2.2, 6.1 / #27, #30 |
+| P1-11 | Done | Small-target and narrow-width fixes. | 1.5 / #26 |
+| P1-12 | Done | Raw Dart exceptions map to a title with a "Dettagli" toggle (verified in `FrameErrorCallout`). Pi and daemon messages are shown as they arrive. | 1.6 / #26 |
+| P1-13 | Changed | Literal migration done for font sizes, radii, durations, curves, shadows and gesture detectors, with a ratchet test. Remaining literals are listed in `DESIGN.md` section 07. | 2.1, 2.5 / #27; Phase 11 sweep |
+| P1-14 | Done | Shared widgets in `ui/` (verified in `DESIGN.md` section 07). | 2.3 / #27 |
+| P1-15 | Done | Session and Git list rows. | 5.1 / #32 |
+| P1-16 | Done | Settings and pane layout. | 7.3, 3.2, 10.1 / #35, #31, #33 |
+| P1-17 | Done | Shell keyboard handling (verified in `AppShell._handleShortcut`). | 6.2 / #30 |
+| P1-18 | Done | Extension confirmations. The protocol has no destructive flag, so nothing changed (see N2). | 1.1 / #26 |
+
+### 17.2 P2
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| P2-1 | Done | Command and extension feedback. | 1.8, 1.1 / #26 |
+| P2-2 | Done | Keyboard path for session actions. | 1.7 / #26 |
+| P2-3 | Done | Escape closes the topmost layer (verified in `escape_layers.dart`). | 6.3 / #30 |
+| P2-4 | Changed | A pane that collapsed automatically because the window was too narrow reopens at 320 px after a restart. | 6.6 / #30 |
+| P2-5 | Changed | Keyboard commands for Git commit, per-section Settings and focus-pane were not added: there was no reachable action for them. The inline commit form (P2-14) is the commit path. | 6.5 / #30 |
+| P2-6 | Done | Commit and history list changes. | 8.1–8.3 / #29 |
+| P2-7 | Done | Settings and dialog focus. | 2.1 / #27 |
+| P2-8 | Done | Settings and dialog focus. | 2.1 / #27 |
+| P2-9 | Done | Shared pattern and lane work. | 2.6 / #27 |
+| P2-10 | Done | Git and composer layout. | 3.3, 4.6, 5.6 / #31, #34, #32 |
+| P2-11 | Done | Motion and list rows. | 5.4, 4.5 / #32, #34 |
+| P2-12 | Done | List and row behaviour. | 5.2 / #32 |
+| P2-13 | Done | List and row behaviour. | 5.3 / #32 |
+| P2-14 | Done | Inline commit form above Fetch, Pull, Push and Sync (verified in `git_commit_form.dart`). | 3.5 / #31 |
+| P2-15 | Done | Diff and file actions. | 3.4 / #31 |
+| P2-16 | Done | Pane and row states. | 4.5 / #34 |
+| P2-17 | Done | Side-thread and pane behaviour. | 10.3 / #33 |
+| P2-18 | Done | Side-thread and pane behaviour. | 10.4 / #33 |
+| P2-19 | Deferred | Full triptych at 1280 px with the rail collapsed. Reason: plan decision D-1, no change to breakpoints. The docked rail threshold is 1560 px (verified in `app_shell.dart`). | D-1 |
+| P2-20 | Done | First run keeps the 1.4 s intro; later launches use a 620 ms reveal. The "Animazione di avvio" toggle in Settings → Aspetto (off by default, verified) controls the intro. | 7.8 / #35 |
+| P2-21 | Done | Expand/collapse motion uses `FrameExpandable` (verified). | 7.2, 7.7 / #35 |
+| P2-22 | Done | Pane and list behaviour. | 5.5 / #32 |
+| P2-23 | Done | Escape and shortcut behaviour; Ctrl/Cmd+S saves in the editor (verified in `repository_editor_pane.dart`). | 6.4, 9.2 / #30, #28 |
+
+### 17.3 P3
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| P3-1 | Changed | Icons are outlined. `FrameSize.iconSm` 14 px for dense chips and toolbars is planned but is not yet defined in `theme_scale.dart` (verified). | 12.x-4..6 |
+| P3-2 | Done | Concentric radius for pane headers. | commit 92057b0 |
+| P3-3 | Done | Keyboard and focus behaviour. | 9.3 / #28 |
+| P3-4 | Done | Switch control. | 2.4 / #27 |
+| P3-5 | Done | Dialogs share `FrameDialog`. The two remaining `showDialog` callers (command palette and extension UI) keep instant transitions by design (see M-8). | 7.5 / #35 |
+| P3-6 | Done | Shift+F10 and the Menu key open the row menu (verified in `row_context_menu.dart`). | 3.6 / #31 |
+| P3-7 | Not verified | Chip close rotation and mixed dialog transitions. Dialog transitions are covered by P3-5. Chip rotation was not confirmed in this pass. | none |
+| P3-8 | Changed | Stale comment fixed. The four legacy built-in themes are kept (plan decision D-4). | D-4 |
+| P3-9 | Done | Privacy merged into Diagnostics (verified in `diagnostics.dart`). Terminal options are disabled until "Terminale nativo OS" is chosen (per `install.md`, not re-verified in code). | Settings phase |
+| P3-10 | Done | List and row behaviour. | 5.2 / #32 |
+| P3-11 | Done | Minimum heights checked at text scale 1.4 and 2.0. | integration branch |
+
+### 17.4 Narrow layout and rendering defects (R1–R9)
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| R1 | Done | Overflow fixes at narrow chat widths; see the overflow entry in `troubleshooting.md`. | 1.2 / #26 |
+| R2 | Done | Agents panel becomes a sheet when the chat would be under 420 px (verified in `app_shell.dart`). | 1.2, 10.2 / #26, #33 |
+| R3 | Done | The startup update banner is inline, not overlaid. | 1.4 / #26 |
+| R4 | Done | Rich-content and Markdown rendering. | 4.7 / #34 |
+| R5 | Done | Rich-content and Markdown rendering. | 4.7 / #34 |
+| R6 | Done | Elapsed-time chip. | 4.7 / #34 |
+| R7 | Done | Session tree dialog layout. | 5.6 / #32 |
+| R8 | Done | Session header status text. | 4.5 / #34 |
+| R9 | Done | Root cause: the model select showed "—" because Pi has no default model. It now shows "Predefinito di Pi". | integration branch |
+
+### 17.5 Other findings (N1–N15)
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| N1 | Done | See P1-17. | 6.2 / #30 |
+| N2 | Done | See P1-18. The extension protocol has no destructive flag, so confirmations are unchanged. | 1.1 / #26 |
+| N3 | Done | See P2-1. | 1.8 / #26 |
+| N4 | Changed | See P2-5. | 6.5 / #30 |
+| N5 | Done | Structural fix; the defect could not be reproduced. | 1.3 / #26 |
+| N6 | Done | See P1-1. | 3.1 / #31 |
+| N7 | Done | See P2-2. | 1.7 / #26 |
+| N8 | Done | Focus ring and keyboard path; see P1-10. | 2.2, 6.1 / #27, #30 |
+| N9 | Changed | The "Riprendi sessione" action was kept. No new resend action was added. | 1.9 / #26 |
+| N10 | Done | See P2-1. | 1.8, 1.1 / #26 |
+| N11 | Done | Session and Git rows. | 5.1 / #32 |
+| N12 | Done | Session and Git rows. | 5.1 / #32 |
+| N13 | Done | Session and Git rows. | 5.1 / #32 |
+| N14 | Done | Long paths and names truncate in the middle (`FrameMiddleEllipsis`, verified). | integration branch |
+| N15 | Done | Action and tooltip labels. | 8.1 / #29 |
+
+### 17.6 Motion and meta findings (M-1 to M-10)
+
+| ID | Status | Detail | Task / PR |
+|---|---|---|---|
+| M-1 | Changed | See P1-9. | done earlier |
+| M-2 | Done | Earlier round. | earlier |
+| M-3 | Done | Earlier round. | earlier |
+| M-4 | Done | Tool cards and steps use `FrameExpandable` (round 3); the rest is covered by P2-21. | 7.2, 7.7 / #35 |
+| M-5 | Done | Composer height curve is 240 ms (round 3). | earlier |
+| M-6 | Changed | The intro is kept on the first run. Later launches are quiet unless the "Animazione di avvio" toggle is on (see P2-20). | 7.8 / #35 |
+| M-7 | Not a defect | Corrected in round 3 (§14.3). | none |
+| M-8 | Done | Dialog transitions on `FrameDialog`. The command palette and extension UI stay instant by design. | 7.5 / #35 |
+| M-9 | Done | Motion tokens and reduced-motion handling. | 7.7 / #35 |
+| M-10 | Not verified | Indeterminate spinners on tiny icons. Not covered in the phase reports, so not checked. | none |
+
+### 17.7 Deferred and open after round 7
+
+- **P2-19** (full triptych at 1280 px): deferred by decision D-1.
+- **P1-9 / M-1**: the indeterminate bars in `packages_section.dart` and `updates_section.dart` still loop under reduced motion; a shared `FrameLinearProgress` wrapper was not built.
+- **P1-13**: the literal migration leaves the exceptions listed in `DESIGN.md` section 07.
+- **P3-1**: `FrameSize.iconSm` (14 px) is not yet in the code.
+- **P3-7, M-10**: not verified in this pass.
