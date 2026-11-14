@@ -1,14 +1,16 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
+import 'session_titles.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/shimmer_border.dart';
-import '../command_palette/command_palette.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../transcript/workflows_provider.dart';
 import '../workspace/repository_workspace.dart';
@@ -38,6 +40,32 @@ bool _isWorkerSession(Map<String, dynamic> session) => _isSubsession(session);
 
 String _sessionFolder(Map<String, dynamic> session) => sessionFolder(session);
 
+/// The session's name when the user or Pi chose it, else an empty string.
+String _chosenNameOf(Map<String, dynamic> session) {
+  final id = session['id'] as String? ?? '';
+  final name = session['name'] as String?;
+  return hasChosenSessionName(name, id) ? name!.trim() : '';
+}
+
+/// Repository to expand by default: the active session's, else the one with
+/// the most recent activity.
+String? _railDefaultFolder(List<Map<String, dynamic>> sessions, String? activeId) {
+  Map<String, dynamic>? latest;
+  var latestTime = -1.0;
+  for (final session in sessions) {
+    if (_isWorkerSession(session)) continue;
+    if (activeId != null && session['id'] == activeId) {
+      return _sessionFolder(session);
+    }
+    final time = (session['lastActivityAt'] as num?)?.toDouble() ?? 0;
+    if (time > latestTime) {
+      latestTime = time;
+      latest = session;
+    }
+  }
+  return latest == null ? null : _sessionFolder(latest);
+}
+
 String _folderName(String path, [String fallback = 'Sessioni']) {
   final segments = path
       .replaceAll('\\', '/')
@@ -60,12 +88,40 @@ class SessionsSidebar extends ConsumerStatefulWidget {
   ConsumerState<SessionsSidebar> createState() => _SessionsSidebarState();
 }
 
+/// One row of the rail in visible order, used by the keyboard handler.
+class _RailRow {
+  final String? folder;
+  final String? sessionId;
+  final String name;
+
+  const _RailRow.folder(this.folder)
+      : sessionId = null,
+        name = '';
+
+  const _RailRow.session({
+    required this.sessionId,
+    required this.folder,
+    required this.name,
+  });
+
+  bool get isFolder => sessionId == null;
+}
+
 class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _railFocus = FocusNode(debugLabel: 'sessions-rail');
   String _searchQuery = '';
   String _filterMode = 'all'; // 'all', 'active', 'repo'
   bool _creating = false;
   final Set<String> _expandedFolders = {};
+  // Folders the user collapsed while they were expanded by default.
+  final Set<String> _collapsedFolders = {};
+  // Repository expanded by default: the active session's, else the latest used.
+  String? _defaultFolder;
+  // Keyboard position in the rail, as a row key ('folder:<f>' or 'session:<id>').
+  String? _cursorKey;
+  List<_RailRow> _railRows = const [];
+  String? _railActiveId;
 
   @override
   void initState() {
@@ -75,12 +131,110 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         _searchQuery = _searchController.text.trim().toLowerCase();
       });
     });
+    _railFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _railFocus.dispose();
     super.dispose();
+  }
+
+  bool _isFolderExpanded(String folder) {
+    if (_searchQuery.isNotEmpty) return true;
+    if (_expandedFolders.contains(folder)) return true;
+    return folder == _defaultFolder && !_collapsedFolders.contains(folder);
+  }
+
+  void _setFolderExpanded(String folder, bool expanded) {
+    setState(() {
+      if (expanded) {
+        _expandedFolders.add(folder);
+        _collapsedFolders.remove(folder);
+      } else {
+        _expandedFolders.remove(folder);
+        _collapsedFolders.add(folder);
+      }
+    });
+  }
+
+  KeyEventResult _onRailKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final rows = _railRows;
+    if (rows.isEmpty) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    var index = rows.indexWhere((r) => _rowKey(r) == _cursorKey);
+    if (index < 0) {
+      index = rows.indexWhere((r) => r.sessionId != null && r.sessionId == _railActiveId);
+      if (index < 0) index = 0;
+    }
+    final current = rows[index];
+
+    void moveTo(int i) {
+      setState(() => _cursorKey = _rowKey(rows[i]));
+    }
+
+    if (key == LogicalKeyboardKey.arrowDown) {
+      moveTo((index + 1).clamp(0, rows.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      moveTo((index - 1).clamp(0, rows.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      if (current.isFolder) {
+        final expanded = _isFolderExpanded(current.folder!);
+        if (!expanded) {
+          _setFolderExpanded(current.folder!, true);
+        } else if (index + 1 < rows.length) {
+          moveTo(index + 1);
+        }
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      if (current.isFolder) {
+        if (_isFolderExpanded(current.folder!)) {
+          _setFolderExpanded(current.folder!, false);
+        }
+      } else {
+        final parent = rows.indexWhere(
+          (r) => r.isFolder && r.folder == current.folder,
+        );
+        if (parent >= 0) moveTo(parent);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+      if (current.isFolder) {
+        final folder = current.folder!;
+        _setFolderExpanded(folder, !_isFolderExpanded(folder));
+      } else {
+        _openSession(current.sessionId!);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.f2 && !current.isFolder) {
+      _showRenameDialog(current.sessionId!, current.name);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  String _rowKey(_RailRow row) =>
+      row.isFolder ? 'folder:${row.folder}' : 'session:${row.sessionId}';
+
+  Future<void> _openSession(String id) async {
+    setState(() => _cursorKey = 'session:$id');
+    if (await switchSessionSafely(context, ref, id)) {
+      widget.onSessionSelected?.call();
+    }
   }
 
   Future<void> _showRenameDialog(String sessionId, String currentName) async {
@@ -346,24 +500,28 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
           ),
 
-          // Filter Chips
+          // Filter: left-aligned segmented control over a full-width divider
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x3,
+              vertical: FrameSpace.x1,
+            ),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: tokens.border, width: 1),
               ),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('all', strings.filterAll, tokens),
-                  const SizedBox(width: 6),
-                  _buildFilterChip('active', strings.filterActive, tokens),
-                  const SizedBox(width: 6),
-                  _buildFilterChip('repo', strings.filterRepo, tokens),
-                ],
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('all', strings.filterAll, tokens),
+                    _buildFilterChip('active', strings.filterActive, tokens),
+                    _buildFilterChip('repo', strings.filterRepo, tokens),
+                  ],
+                ),
               ),
             ),
           ),
@@ -378,7 +536,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       .where((s) => !_isWorkerSession(s))
                       .map(_sessionFolder),
                 );
+                _railActiveId = activeId;
                 final sessionNames = ref.watch(sessionDisplayNamesProvider);
+                _defaultFolder = _railDefaultFolder(allSessions, activeId);
 
                 // Apply search and filter
                 final filtered = allSessions.where((s) {
@@ -472,8 +632,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                 for (final group in grouped.entries) {
                   folderRows.add((folder: group.key, session: null, isFolder: true));
-                  final isExpanded = _expandedFolders.contains(group.key) ||
-                      _searchQuery.isNotEmpty;
+                  final isExpanded = _isFolderExpanded(group.key);
                   if (isExpanded) {
                     folderRows.addAll(
                       group.value.map(
@@ -486,6 +645,25 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 final showPinnedSection = _searchQuery.isEmpty &&
                     _filterMode == 'all' &&
                     pinnedSessions.isNotEmpty;
+
+                _railRows = [
+                  if (showPinnedSection)
+                    for (final s in pinnedSessions)
+                      _RailRow.session(
+                        sessionId: s['id'] as String? ?? '',
+                        folder: _sessionFolder(s),
+                        name: _chosenNameOf(s),
+                      ),
+                  for (final row in folderRows)
+                    if (row.isFolder)
+                      _RailRow.folder(row.folder)
+                    else
+                      _RailRow.session(
+                        sessionId: row.session!['id'] as String? ?? '',
+                        folder: _sessionFolder(row.session!),
+                        name: _chosenNameOf(row.session!),
+                      ),
+                ];
 
                 Widget buildPinnedHeader() {
                   final hasWorkingPinned = pinnedSessions.any((s) {
@@ -539,7 +717,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   );
                 }
 
-                return CustomScrollView(
+                return Focus(
+                  focusNode: _railFocus,
+                  onKeyEvent: _onRailKey,
+                  child: CustomScrollView(
                   slivers: [
                     if (showPinnedSection) ...[
                       SliverPadding(
@@ -584,16 +765,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               index: index,
                               child: _SessionTile(
                                 session: s,
-                                displayName: sessionNames[id] ??
-                                    (s['name'] ?? id).toString(),
                                 isPinned: true,
+                                qualifiedName: sessionNames[id],
                                 isPinnedSection: true,
                                 isSelected: isSelected,
-                                onTap: () async {
-                                  if (await switchSessionSafely(
-                                      context, ref, id)) {
-                                    widget.onSessionSelected?.call();
-                                  }
+                                isCursor: _railFocus.hasFocus &&
+                                    _cursorKey == 'session:$id',
+                                onTap: () {
+                                  _railFocus.requestFocus();
+                                  _openSession(id);
                                 },
                                 onPinToggle: () => ref
                                     .read(pinnedSessionsProvider.notifier)
@@ -605,20 +785,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   sessionId: sId,
                                 ),
                                 onClone: (sId) => _cloneSession(sId),
-                                onInstructions: (sId, folder) =>
-                                    InstructionFileDialog.show(
-                                  context,
-                                  folder: folder,
-                                  sessionId: sId,
-                                ),
-                                onRemoveRepo: (folder) =>
-                                    removeRepoWithConfirmation(
-                                  context,
-                                  ref,
-                                  folder: folder,
-                                  repoName: folderNames[folder] ?? _folderName(folder),
-                                  folderSessions: grouped[folder] ?? [s],
-                                ),
                                 onDelete: (sId, sName) =>
                                     deleteSessionWithConfirmation(
                                   context,
@@ -653,7 +819,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             final row = folderRows[index];
                             if (row.isFolder) {
                       final folder = row.folder ?? '';
-                      final expanded = _expandedFolders.contains(folder);
+                      final expanded = _isFolderExpanded(folder);
                       final hasActive = activeFolders.contains(folder);
                       final folderSessions = grouped[folder] ?? [];
                       final hasWorking = folderSessions.any((s) {
@@ -772,13 +938,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             ),
                           ],
                         ),
-                        onTap: () => setState(() {
-                          if (expanded) {
-                            _expandedFolders.remove(folder);
-                          } else {
-                            _expandedFolders.add(folder);
-                          }
-                        }),
+                        onTap: () {
+                          _railFocus.requestFocus();
+                          setState(() => _cursorKey = 'folder:$folder');
+                          _setFolderExpanded(folder, !expanded);
+                        },
                       );
 
                       folderTile = GestureDetector(
@@ -905,9 +1069,19 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         child: folderTile,
                       );
 
+                      final folderCursor =
+                          _railFocus.hasFocus && _cursorKey == 'folder:$folder';
                       return Material(
                         color: tokens.surface,
-                        child: folderTile,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            border: folderCursor
+                                ? Border.all(color: tokens.focusRing)
+                                : null,
+                          ),
+                          child: folderTile,
+                        ),
                       );
                     }
 
@@ -918,15 +1092,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                     return _SessionTile(
                         session: s,
-                        displayName:
-                            sessionNames[id] ?? (s['name'] ?? id).toString(),
                         isPinned: isPinned,
+                        qualifiedName: sessionNames[id],
                         isPinnedSection: false,
                         isSelected: isSelected,
-                        onTap: () async {
-                          if (await switchSessionSafely(context, ref, id)) {
-                            widget.onSessionSelected?.call();
-                          }
+                        isCursor:
+                            _railFocus.hasFocus && _cursorKey == 'session:$id',
+                        onTap: () {
+                          _railFocus.requestFocus();
+                          _openSession(id);
                         },
                         onPinToggle: () => ref
                             .read(pinnedSessionsProvider.notifier)
@@ -935,18 +1109,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         onTree: (sId) =>
                             SessionTreeDialog.show(context, sessionId: sId),
                         onClone: (sId) => _cloneSession(sId),
-                        onInstructions: (sId, folder) => InstructionFileDialog.show(
-                          context,
-                          folder: folder,
-                          sessionId: sId,
-                        ),
-                        onRemoveRepo: (folder) => removeRepoWithConfirmation(
-                          context,
-                          ref,
-                          folder: folder,
-                          repoName: folderNames[folder] ?? _folderName(folder),
-                          folderSessions: grouped[folder] ?? [s],
-                        ),
                         onDelete: (sId, sName) => deleteSessionWithConfirmation(
                           context,
                           ref,
@@ -960,7 +1122,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
               ),
             ],
-          );
+          ),
+                );
               },
               loading: () => Center(
                 child: CircularProgressIndicator(
@@ -1023,18 +1186,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     },
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                  tooltip: strings.commandPaletteTooltip,
-                  onPressed: () {
-                    CommandPalette.show(
-                      context,
-                      onOpenSettings: () {
-                        ref.read(showSettingsProvider.notifier).state = true;
-                      },
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -1045,30 +1196,40 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   Widget _buildFilterChip(String mode, String label, FrameTokens tokens) {
     final isSelected = _filterMode == mode;
+    final text = FrameText.of(context);
     return Semantics(
       selected: isSelected,
-      child: TextButton(
-        style: TextButton.styleFrom(
-          foregroundColor: isSelected ? tokens.displayText : tokens.textPrimary,
-          backgroundColor: isSelected
-              ? tokens.surfaceElevated
-              : tokens.surface.withValues(alpha: 0),
-          side: BorderSide(
-            color: isSelected ? tokens.focusRing : tokens.border,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
-          minimumSize: const Size(0, 36),
-          padding: const EdgeInsets.symmetric(horizontal: 9),
-          textStyle: TextStyle(
-            fontSize: 11,
-            fontFamily: tokens.uiFontFamily,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      button: true,
+      child: InkWell(
+        key: ValueKey('sessions-filter-$mode'),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        onTap: () => setState(() => _filterMode = mode),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: FrameSize.hitMin),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: text.label.copyWith(
+                    color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: FrameSpace.x1),
+                // Selected state: an accent bar under the label.
+                Container(
+                  width: 24,
+                  height: 2,
+                  color: isSelected ? tokens.accent : tokens.surface.withValues(alpha: 0),
+                ),
+              ],
+            ),
           ),
         ),
-        onPressed: () => setState(() => _filterMode = mode),
-        child: Text(label),
       ),
     );
   }
@@ -1153,271 +1314,205 @@ class _WorkingDotState extends State<_WorkingDot>
   }
 }
 
+/// Divider between popup-menu groups, in the token border colour.
+class _TokenMenuDivider extends PopupMenuEntry<String> {
+  final Color color;
+
+  const _TokenMenuDivider({required this.color});
+
+  @override
+  double get height => 1;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_TokenMenuDivider> createState() => _TokenMenuDividerState();
+}
+
+class _TokenMenuDividerState extends State<_TokenMenuDivider> {
+  @override
+  Widget build(BuildContext context) {
+    return Divider(height: 1, thickness: 1, color: widget.color);
+  }
+}
+
 class _SessionTile extends ConsumerWidget {
   final Map<String, dynamic> session;
-  final String displayName;
   final bool isPinned;
   final bool isPinnedSection;
   final bool isSelected;
+  final bool isCursor;
   final VoidCallback onTap;
   final VoidCallback onPinToggle;
   final void Function(String id, String name) onRename;
   final void Function(String id) onTree;
   final void Function(String id) onClone;
-  final void Function(String id, String folder)? onInstructions;
-  final void Function(String folder)? onRemoveRepo;
-  final void Function(String id, String name)? onDelete;
+  final void Function(String id, String name) onDelete;
+  // The session name qualified by repository when names collide, from sessionDisplayNames.
+  final String? qualifiedName;
+
+  /// Inset of a session under its repository row: 20 px, so it reads as a child.
+  static const double _nestedIndent = 20;
 
   const _SessionTile({
     required this.session,
-    required this.displayName,
     required this.isPinned,
     required this.isPinnedSection,
     required this.isSelected,
+    required this.isCursor,
     required this.onTap,
     required this.onPinToggle,
     required this.onRename,
     required this.onTree,
     required this.onClone,
-    this.onInstructions,
-    this.onRemoveRepo,
-    this.onDelete,
+    required this.onDelete,
+    this.qualifiedName,
   });
 
+  /// Session actions only. Repository actions live on the repository row.
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
     FrameTokens tokens,
     AppStrings strings,
   ) {
     return [
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'pin',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-              size: 14,
-              color: tokens.accent,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                isPinned ? strings.unpinAction : strings.pinAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+        iconColor: tokens.accent,
+        label: isPinned ? strings.unpinAction : strings.pinAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
-        value: 'instructions',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.description_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.repoInstructionsAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'rename',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.edit_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.renameAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.edit_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.renameAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'tree',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.account_tree_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.branchTreeAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.account_tree_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.branchTreeAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'clone',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.copy_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.duplicateAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.copy_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.duplicateAction,
+        textColor: tokens.textPrimary,
       ),
-      const PopupMenuDivider(height: 1),
-      if (onRemoveRepo != null) ...[
-        PopupMenuItem(
-          value: 'remove_repo',
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.close,
-                size: 14,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  strings.removeRepoFromSidebarAction,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      PopupMenuItem(
+      _TokenMenuDivider(color: tokens.border),
+      _menuAction(
+        context,
         value: 'delete',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.delete_outline,
-              size: 14,
-              color: tokens.danger,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.deleteSessionAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.danger,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.delete_outline,
+        iconColor: tokens.danger,
+        label: strings.deleteSessionAction,
+        textColor: tokens.danger,
       ),
     ];
   }
 
-  void _handleAction(
-    String action,
+  PopupMenuItem<String> _menuAction(
+    BuildContext context, {
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required Color textColor,
+  }) {
+    final text = FrameText.of(context);
+    return PopupMenuItem(
+      value: value,
+      height: FrameSize.rowForm,
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: FrameSize.icon, color: iconColor),
+          const SizedBox(width: FrameSpace.x2),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.label.copyWith(color: textColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleAction(String action, String id, String name) {
+    switch (action) {
+      case 'pin':
+        onPinToggle();
+      case 'rename':
+        onRename(id, name);
+      case 'tree':
+        onTree(id);
+      case 'clone':
+        onClone(id);
+      case 'delete':
+        onDelete(id, name);
+    }
+  }
+
+  Future<void> _showContextMenu(
+    BuildContext context,
+    Offset position,
+    FrameTokens tokens,
+    AppStrings strings,
     String id,
     String name,
-    String folder,
-  ) {
-    if (action == 'pin') {
-      onPinToggle();
-    } else if (action == 'instructions') {
-      onInstructions?.call(id, folder);
-    } else if (action == 'rename') {
-      onRename(id, name);
-    } else if (action == 'tree') {
-      onTree(id);
-    } else if (action == 'clone') {
-      onClone(id);
-    } else if (action == 'remove_repo') {
-      onRemoveRepo?.call(folder);
-    } else if (action == 'delete') {
-      onDelete?.call(id, name);
-    }
+  ) async {
+    final action = await showMenu<String>(
+      context: context,
+      color: tokens.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        side: BorderSide(color: tokens.border),
+      ),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: _buildMenuItems(context, tokens, strings),
+    );
+    if (action != null) _handleAction(action, id, name);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final id = session['id'] as String? ?? 's';
-    final name = session['name'] as String? ?? id;
-    final cwd = session['cwd'] as String? ?? '';
-    final preview = session['lastMessagePreview'] as String?;
-    final isStaticActive = session['isActive'] == true;
+    // A chosen name (rename or Pi title); empty for a provisional one.
+    final chosenName = _chosenNameOf(session);
+    final prompt = ref.watch(sessionStateFamily(id).select(firstUserPrompt));
+    final title = sessionRailTitle(
+      id: id,
+      name: session['name'] as String?,
+      qualifiedName: qualifiedName,
+      prompt: prompt,
+      messageCount: (session['messageCount'] as num?)?.toInt(),
+      lastPreview: session['lastMessagePreview'] as String?,
+      strings: strings,
+    );
     final folder = _sessionFolder(session);
+    final isStaticActive = session['isActive'] == true;
 
     final isWorking = (isPinned || isSelected || isStaticActive)
         ? ref.watch(sessionStateFamily(id).select((s) =>
@@ -1430,20 +1525,18 @@ class _SessionTile extends ConsumerWidget {
             ref.watch(backgroundAgentsRunningProvider(id))
         : (session['status'] == 'working' || session['isStreaming'] == true);
 
-    final tile = ListTile(
+    final relative = relativeTimeLabel(
+      strings,
+      (session['lastActivityAt'] as num?)?.toInt(),
+    );
+    final metaColor = isSelected
+        ? tokens.displayText.withValues(alpha: 0.8)
+        : tokens.textMuted;
+
+    final row = FrameListRow(
+      key: ValueKey('session-row-$id'),
+      name: title,
       selected: isSelected,
-      selectedColor: tokens.displayText,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-      ),
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      minVerticalPadding: 2,
-      minLeadingWidth: 14,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 0,
-      ),
       leading: isWorking
           ? _WorkingDot(color: tokens.agentWorking)
           : Container(
@@ -1455,128 +1548,78 @@ class _SessionTile extends ConsumerWidget {
                     ? tokens.displayText
                     : (isStaticActive
                         ? tokens.agentSettled
-                        : tokens.textMuted.withValues(
-                            alpha: 0.5,
-                          )),
+                        : tokens.textMuted.withValues(alpha: 0.5)),
                 border: Border.all(color: tokens.borderStrong),
               ),
             ),
-      title: Row(
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Text(
-              displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isSelected ? tokens.displayText : tokens.textPrimary,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
+          if (isPinned)
+            Icon(Icons.push_pin, size: 11, color: tokens.accent),
+          if (isPinned && relative != null) const SizedBox(width: FrameSpace.x1),
+          if (relative != null)
+            Text(
+              relative,
+              style: text.caption.copyWith(color: metaColor),
             ),
-          ),
-          if (isPinned) ...[
-            const SizedBox(width: 4),
-            Icon(
-              Icons.push_pin,
-              size: 11,
-              color: tokens.accent,
-            ),
-          ],
         ],
       ),
-      subtitle: Text(
-        preview != null && preview.isNotEmpty ? preview : cwd,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: isSelected
-              ? tokens.displayText.withValues(alpha: 0.8)
-              : tokens.textMuted,
-          fontSize: 12,
-        ),
-      ),
-      trailing: PopupMenuButton<String>(
-        tooltip: strings.sessionActionsTooltip,
-        icon: Icon(
-          Icons.more_horiz,
-          size: 18,
-          color: isSelected ? tokens.displayText : tokens.textMuted,
-        ),
-        color: tokens.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          side: BorderSide(color: tokens.border),
-        ),
-        onSelected: (action) => _handleAction(action, id, name, folder),
-        itemBuilder: (ctx) => _buildMenuItems(ctx, tokens, strings),
-      ),
-      onTap: onTap,
-    );
-
-    final card = Material(
-      color: isSelected
-          ? tokens.displaySurface
-          : tokens.surfaceElevated.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        side: BorderSide(
-          color: isSelected ? tokens.focusRing : tokens.border,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: tile,
-    );
-
-    final interactiveCard = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onSecondaryTapDown: (details) async {
-        final pos = details.globalPosition;
-        final action = await showMenu<String>(
-          context: context,
+      actions: [
+        PopupMenuButton<String>(
+          key: ValueKey('session-menu-$id'),
+          tooltip: strings.sessionActionsTooltip,
+          icon: Icon(
+            Icons.more_horiz,
+            size: FrameSize.iconLg,
+            color: metaColor,
+          ),
           color: tokens.surfaceElevated,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             side: BorderSide(color: tokens.border),
           ),
-          position: RelativeRect.fromLTRB(
-            pos.dx,
-            pos.dy,
-            pos.dx + 1,
-            pos.dy + 1,
-          ),
-          items: _buildMenuItems(context, tokens, strings),
-        );
-        if (action != null) {
-          _handleAction(action, id, name, folder);
-        }
-      },
-      child: card,
+          onSelected: (action) => _handleAction(action, id, chosenName),
+          itemBuilder: (ctx) => _buildMenuItems(ctx, tokens, strings),
+        ),
+      ],
+      onTap: onTap,
+      onSecondaryTap: (position) => _showContextMenu(
+        context,
+        position,
+        tokens,
+        strings,
+        id,
+        chosenName,
+      ),
     );
 
+    Widget content = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(
+          color: isCursor ? tokens.focusRing : tokens.surface.withValues(alpha: 0),
+        ),
+      ),
+      child: row,
+    );
     if (isWorking) {
-      return Padding(
-        padding: EdgeInsets.only(
-          left: isPinnedSection ? 4 : 14,
-          right: 4,
-          bottom: 3,
-        ),
-        child: ShimmerBorder(
-          isActive: true,
-          strokeWidth: 1.0,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          child: interactiveCard,
-        ),
+      content = ShimmerBorder(
+        isActive: true,
+        strokeWidth: 1.0,
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        child: content,
       );
     }
 
     return Padding(
+      key: ValueKey('session-tile-$folder-$id'),
       padding: EdgeInsets.only(
-        left: isPinnedSection ? 4 : 14,
-        right: 4,
-        bottom: 3,
+        left: isPinnedSection ? FrameSpace.x2 : _nestedIndent,
+        right: FrameSpace.x1,
+        bottom: FrameSpace.x1,
       ),
-      child: interactiveCard,
+      child: content,
     );
   }
 }

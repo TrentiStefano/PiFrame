@@ -82,12 +82,11 @@ void main() {
       expect(find.text('Gestite'), findsOneWidget);
       expect(find.text('Questo repo'), findsOneWidget);
 
-      // Folders should initially be visible minimized
+      // The active repository is expanded by default; the other one stays collapsed.
       expect(find.text('pi-frame'), findsOneWidget);
       expect(find.text('other-repo'), findsOneWidget);
 
-      // Expand folders to view sessions
-      await tester.tap(find.text('pi-frame'));
+      // Expand the other folder to view its sessions
       await tester.tap(find.text('other-repo'));
       await tester.pumpAndSettle();
 
@@ -162,8 +161,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-folder:/other')), findsOneWidget);
     expect(find.text('worker#19'), findsNothing);
 
-    // Expand collapsed folders to reveal sessions
-    await tester.tap(find.byKey(const ValueKey('session-folder:/repo')));
+    // The active repository (/repo) is expanded by default; expand the other one
     await tester.tap(find.byKey(const ValueKey('session-folder:/other')));
     await tester.pumpAndSettle();
 

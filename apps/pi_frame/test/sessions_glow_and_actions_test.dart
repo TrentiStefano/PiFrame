@@ -8,6 +8,7 @@ import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart';
 import 'package:pi_frame/features/sessions_sidebar/removed_repos_provider.dart';
 import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
+import 'package:pi_frame/ui/frame_list_row.dart';
 import 'package:pi_frame/ui/shimmer_border.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -72,12 +73,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Folder "myrepo" exists
+      // Folder "myrepo" exists and, as the only repository, is expanded by default
       expect(find.text('myrepo'), findsOneWidget);
-
-      // Tap on folder "myrepo" to expand it
-      await tester.tap(find.text('myrepo'));
-      await tester.pumpAndSettle();
 
       expect(find.text('Open Idle Session'), findsOneWidget);
 
@@ -214,11 +211,10 @@ void main() {
         isNull,
       );
 
-      await tester.tap(find.text('myrepo'));
-      await tester.pumpAndSettle();
+      // The only repository is the active one, so it is expanded by default.
       final sessionTile = find.ancestor(
         of: find.text('Working Session'),
-        matching: find.byType(ListTile),
+        matching: find.byType(FrameListRow),
       );
       expect(
         find.descendant(
@@ -348,17 +344,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Expand folder to show session
-      await tester.tap(find.text('demo_repo'));
-      await tester.pumpAndSettle();
-
+      // The only repository is expanded by default, so the session is visible.
       // Right-click on session tile
       await tester.tap(find.text('Test Session'), buttons: kSecondaryMouseButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Istruzioni repository'), findsOneWidget);
-      expect(find.text('Rimuovi repository dal riquadro'), findsOneWidget);
+      // Session menu holds session actions only; repository actions moved to the repository row.
       expect(find.text('Elimina sessione'), findsOneWidget);
+      expect(find.text('Istruzioni repository'), findsNothing);
+      expect(find.text('Rimuovi repository dal riquadro'), findsNothing);
     },
   );
 
@@ -400,17 +394,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Expand folder
-      await tester.tap(find.text('demo_repo'));
-      await tester.pumpAndSettle();
-
+      // The only repository is expanded by default
       expect(find.text('Session To Delete'), findsOneWidget);
 
-      // Find PopupMenuButton on session tile
-      final moreBtn = find.byTooltip('Azioni sessione');
-      expect(moreBtn, findsOneWidget);
-
-      await tester.tap(moreBtn);
+      // The row's menu button is revealed on hover only; right-click opens the same menu.
+      await tester.tap(
+        find.byKey(const ValueKey('session-row-sess_to_delete')),
+        buttons: kSecondaryMouseButton,
+      );
       await tester.pumpAndSettle();
 
       // Click "Elimina sessione" in menu

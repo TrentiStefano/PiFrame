@@ -3,6 +3,13 @@ import '../../domain/session/agent_status.dart';
 import 'language_settings.dart';
 
 extension ShellStrings on AppStrings {
+  // Sessions rail: provisional titles and relative times
+  String get sessionUntitledTitle => isItalian ? 'Nuova sessione' : 'New session';
+  String get relativeJustNow => isItalian ? 'ora' : 'now';
+  String relativeMinutesAgo(int n) => isItalian ? '$n min fa' : '$n min ago';
+  String relativeHoursAgo(int n) => isItalian ? '$n h fa' : '$n h ago';
+  String relativeDaysAgo(int n) => isItalian ? '$n g fa' : '$n d ago';
+
   // Desktop Chrome Caption Buttons
   String get captionMinimize => isItalian ? 'Riduci a icona' : 'Minimize';
   String get captionRestore => isItalian ? 'Ripristina finestra' : 'Restore window';
