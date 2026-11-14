@@ -258,7 +258,7 @@ extension SettingsStrings on AppStrings {
       ? 'Tutti i dati di diagnostica restano sulla tua macchina locale. Nessun dato viene mai trasmesso a server esterni.'
       : 'All diagnostic data stays on your local machine. No data is ever sent to external servers.';
   String get diagRuntimeStateHeader =>
-      isItalian ? 'STATO ATTUALE DEL RUNTIME' : 'CURRENT RUNTIME STATE';
+      isItalian ? 'Stato attuale del runtime' : 'Current runtime state';
   String get diagDaemonConnection =>
       isItalian ? 'Connessione daemon' : 'Daemon Connection';
   String get diagAppVersionLabel =>
@@ -270,7 +270,7 @@ extension SettingsStrings on AppStrings {
   String get diagRemoteTelemetry =>
       isItalian ? 'Telemetria remota' : 'Remote Telemetry';
   String get diagTelemetryDisabled =>
-      isItalian ? 'DISABILITATA' : 'DISABLED (Zero Analytics)';
+      isItalian ? 'Disattivata' : 'Disabled (zero analytics)';
   String get diagExportBundleTitle =>
       isItalian ? 'Esporta bundle diagnostico' : 'Export Diagnostic Bundle';
   String get diagExportBundleDesc => isItalian
@@ -291,16 +291,16 @@ extension SettingsStrings on AppStrings {
       ? 'Esegui comandi e aggiornamenti ufficiali di Pi coding agent direttamente da PiFrame.'
       : 'Run official Pi Coding Agent commands and updates directly from PiFrame.';
   String get piCliFastCommands =>
-      isItalian ? 'COMANDI RAPIDI' : 'QUICK COMMANDS';
+      isItalian ? 'Comandi rapidi' : 'Quick commands';
   String get piCliCustomCmdHeader =>
-      isItalian ? 'COMANDO PERSONALIZZATO' : 'CUSTOM COMMAND';
+      isItalian ? 'Comando personalizzato' : 'Custom command';
   String get piCliCustomCmdHint => isItalian
       ? 'es. update --force, auth check, mcp login <server>...'
       : 'e.g. update --force, auth check, mcp login <server>...';
   String get piCliRunBtn =>
       isItalian ? 'Esegui' : 'Run';
   String get piCliConsoleOutputHeader =>
-      isItalian ? 'OUTPUT CONSOLE' : 'CONSOLE OUTPUT';
+      isItalian ? 'Output' : 'Output';
   String piCliRunningNotice(String cmd) =>
       isItalian ? 'In esecuzione $cmd...' : 'Running $cmd...';
   String get piCliStopBtn =>

@@ -7,6 +7,8 @@ import '../../../data/language/strings_settings.dart';
 import '../../../data/update/startup_updates_provider.dart';
 import '../../../domain/errors/user_facing_error.dart';
 import '../../../ui/frame_error_callout.dart';
+import '../../../ui/frame_list_row.dart';
+import '../../../ui/frame_section.dart';
 import '../package_load_states.dart';
 
 /// Pi packages tab: installed packages list, update, pin and remove actions.
@@ -47,6 +49,7 @@ class PackagesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final text = FrameText.of(context);
     if (isLoading) {
       return PackageLoadingView(
         tokens: tokens,
@@ -57,7 +60,7 @@ class PackagesSection extends ConsumerWidget {
     }
     if (loadError != null) {
       return ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(FrameSpace.x6),
         children: [
           FrameErrorCallout(
             keyPrefix: 'packages-load',
@@ -70,149 +73,128 @@ class PackagesSection extends ConsumerWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final title = Text(
-              strings.packagesInstalledTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+        FrameSection(
+          title: strings.packagesInstalledTitle,
+          description: strings.packagesInstalledSubtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  key: const ValueKey('update-all-pi-packages'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                  ),
+                  onPressed:
+                      isWorking || !packages.any(hasAvailablePiPackageUpdate)
+                      ? null
+                      : onUpdateAll,
+                  icon: const Icon(Icons.system_update_alt, size: FrameSize.icon),
+                  label: Text(
+                    updateProgress == null
+                        ? strings.updateAllPackages
+                        : strings.updatingPackages,
+                  ),
+                ),
               ),
-            );
-            final button = FilledButton.icon(
-              key: const ValueKey('update-all-pi-packages'),
-              onPressed: isWorking || !packages.any(hasAvailablePiPackageUpdate)
-                  ? null
-                  : onUpdateAll,
-              icon: const Icon(Icons.system_update_alt, size: 18),
-              label: Text(
-                updateProgress == null
-                    ? strings.updateAllPackages
-                    : strings.updatingPackages,
-              ),
-            );
-            if (constraints.maxWidth < 520) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [title, const SizedBox(height: 12), button],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: title),
-                const SizedBox(width: 12),
-                button,
+              if (isWorking) ...[
+                const SizedBox(height: FrameSpace.x3),
+                LinearProgressIndicator(color: tokens.accent, value: updateProgress),
               ],
-            );
-          },
-        ),
-        const SizedBox(height: 6),
-        Text(
-          strings.packagesInstalledSubtitle,
-          style: TextStyle(color: tokens.textMuted, fontSize: 12),
-        ),
-        if (isWorking) ...[
-          const SizedBox(height: 12),
-          LinearProgressIndicator(color: tokens.accent, value: updateProgress),
-        ],
-        if (updateErrorMessage != null) ...[
-          const SizedBox(height: 12),
-          Text(
-            updateErrorMessage!,
-            key: const ValueKey('pi-package-update-error'),
-            style: TextStyle(color: tokens.danger, fontSize: 12),
+              if (updateErrorMessage != null) ...[
+                const SizedBox(height: FrameSpace.x3),
+                Text(
+                  updateErrorMessage!,
+                  key: const ValueKey('pi-package-update-error'),
+                  style: text.caption.copyWith(color: tokens.danger),
+                ),
+              ],
+              const SizedBox(height: FrameSpace.x3),
+              if (packages.isEmpty)
+                Text(
+                  strings.noPackagesInstalled,
+                  style: text.body.copyWith(color: tokens.textMuted),
+                ),
+              for (final package in packages)
+                _buildPackageRow(context, ref, package),
+            ],
           ),
-        ],
-        const SizedBox(height: 16),
-        if (packages.isEmpty)
-          Text(
-            strings.noPackagesInstalled,
-            style: TextStyle(color: tokens.textMuted),
-          ),
-        for (final package in packages) _buildPackageCard(ref, package),
+        ),
       ],
     );
   }
 
-  Widget _buildPackageCard(WidgetRef ref, Map<String, dynamic> package) {
+  Widget _buildPackageRow(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> package,
+  ) {
+    final text = FrameText.of(context);
     final source = package['source']?.toString() ?? '';
     final name = package['name']?.toString() ?? source;
     final version = package['version']?.toString() ?? strings.unknownVersion;
     final pin = package['pinnedVersion']?.toString();
     final updateError = package['updateError']?.toString();
     final supportsPin = source.startsWith('npm:');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
+    return FrameListRow(
+      name: name,
+      secondary: '$version${pin == null ? '' : ' · pinned $pin'} · $source',
+      leading: Icon(
+        Icons.extension_outlined,
+        color: tokens.textSecondary,
+        size: FrameSize.icon,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Icon(Icons.extension_outlined, color: tokens.accent, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
+      // Actions are always visible (not hover-only), so touch users can reach
+      // them: they sit in the trailing slot, not in FrameListRow.actions.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (updateError != null) ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220),
+              child: Text(
+                ref
+                    .watch(appStringsProvider)
+                    .packageUpdateUnavailable(
+                      package['latestVersion']?.toString() ?? '?',
+                      updateError,
                     ),
-                  ),
-                  Text(
-                    '$version${pin == null ? '' : ' · pinned $pin'} · $source',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 10,
-                      fontFamily: tokens.monoFontFamily,
-                    ),
-                  ),
-                  if (updateError != null)
-                    Text(
-                      ref
-                          .watch(appStringsProvider)
-                          .packageUpdateUnavailable(
-                            package['latestVersion']?.toString() ?? '?',
-                            updateError,
-                          ),
-                      style: TextStyle(color: tokens.danger, fontSize: 11),
-                    ),
-                ],
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: text.caption.copyWith(color: tokens.danger),
               ),
             ),
-            IconButton(
-              tooltip: strings.updatePackageTooltip(name),
-              onPressed: isWorking || !hasAvailablePiPackageUpdate(package)
-                  ? null
-                  : () => onUpdatePackage(package),
-              icon: const Icon(Icons.system_update_alt, size: 18),
-            ),
-            if (supportsPin)
-              IconButton(
-                tooltip: strings.pinPackageTooltip(name),
-                onPressed: isWorking ? null : () => onPinPackage(package),
-                icon: const Icon(Icons.push_pin_outlined, size: 18),
-              ),
-            IconButton(
-              tooltip: strings.removePackageTooltip(name),
-              onPressed: isWorking ? null : () => onRemovePackage(package),
-              icon: Icon(Icons.delete_outline, size: 18, color: tokens.danger),
-            ),
+            const SizedBox(width: FrameSpace.x2),
           ],
-        ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: strings.updatePackageTooltip(name),
+            onPressed: isWorking || !hasAvailablePiPackageUpdate(package)
+                ? null
+                : () => onUpdatePackage(package),
+            icon: const Icon(Icons.system_update_alt, size: FrameSize.iconLg),
+          ),
+          if (supportsPin)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: strings.pinPackageTooltip(name),
+              onPressed: isWorking ? null : () => onPinPackage(package),
+              icon: const Icon(Icons.push_pin_outlined, size: FrameSize.iconLg),
+            ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: strings.removePackageTooltip(name),
+            onPressed: isWorking ? null : () => onRemovePackage(package),
+            icon: Icon(
+              Icons.delete_outline,
+              size: FrameSize.iconLg,
+              color: tokens.danger,
+            ),
+          ),
+        ],
       ),
     );
   }

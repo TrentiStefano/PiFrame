@@ -12,7 +12,10 @@ import '../../data/language/strings_settings.dart';
 import '../../data/platform/platform_environment.dart';
 
 import 'mcp_servers_dialog.dart';
+import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/frame_status_tag.dart';
+import 'sections/settings_common.dart';
 
 class PiCommandItem {
   final String label;
@@ -302,458 +305,341 @@ class _PiCliSectionState extends State<PiCliSection> {
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
     final strings = _strings;
+    final text = FrameText.of(context);
     final commands = getBuiltinPiCommands(strings);
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        // Title & Description
         Row(
           children: [
-            Icon(Icons.terminal, color: tokens.accent, size: 22),
-            const SizedBox(width: 10),
+            Icon(Icons.terminal, color: tokens.accent, size: FrameSize.iconLg),
+            const SizedBox(width: FrameSpace.x3),
             Text(
               strings.piCliTitle,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: text.title.copyWith(color: tokens.textPrimary),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: FrameSpace.x1),
         Text(
           strings.piCliSubtitle,
-          style: TextStyle(
-            color: tokens.textMuted,
-            fontSize: 13,
-          ),
+          style: text.body.copyWith(color: tokens.textMuted),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: FrameSpace.x6),
 
-        // Section: Fast Commands Grid
-        Text(
-          strings.piCliFastCommands,
-          style: TextStyle(
-            color: tokens.displayText,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            for (final cmd in commands)
-              _buildActionCard(tokens, cmd, strings),
-          ],
-        ),
-
-        const SizedBox(height: 24),
-
-        // Section: Custom Command Line
-        Text(
-          strings.piCliCustomCmdHeader,
-          style: TextStyle(
-            color: tokens.displayText,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
-          child: Row(
+        FrameSection(
+          title: strings.piCliFastCommands,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'pi ',
-                style: TextStyle(
-                  color: tokens.accent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: tokens.monoFontFamily,
-                ),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _customCmdController,
-                  enabled: !_isExecuting,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: strings.piCliCustomCmdHint,
-                    hintStyle: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 12,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                  onSubmitted: (_) => _runCustomCommand(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: tokens.accent,
-                  foregroundColor: tokens.surface,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
-                ),
-                onPressed: _isExecuting ? null : _runCustomCommand,
-                icon: const Icon(Icons.play_arrow, size: 16),
-                label: Text(strings.piCliRunBtn),
-              ),
+              for (final cmd in commands) _buildActionRow(tokens, cmd, strings),
             ],
           ),
         ),
+        const SizedBox(height: FrameSpace.x6),
 
-        const SizedBox(height: 24),
-
-        // Console Output Window
-        Row(
-          children: [
-            Text(
-              strings.piCliConsoleOutputHeader,
-              style: TextStyle(
-                color: tokens.displayText,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
+        FrameSection(
+          title: strings.piCliCustomCmdHeader,
+          child: Row(
+            children: [
+              Expanded(
+                child: buildSettingsFieldBox(
+                  tokens,
+                  Row(
+                    children: [
+                      Text(
+                        'pi ',
+                        style: text.mono.copyWith(
+                          color: tokens.accent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey('pi-cli-custom-command-field'),
+                          controller: _customCmdController,
+                          enabled: !_isExecuting,
+                          style: text.mono.copyWith(color: tokens.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: strings.piCliCustomCmdHint,
+                            hintStyle: text.caption.copyWith(
+                              color: tokens.textMuted,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onSubmitted: (_) => _runCustomCommand(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            if (_isExecuting) ...[
+              const SizedBox(width: FrameSpace.x2),
               SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: tokens.accent,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                strings.piCliRunningNotice(_currentCommand ?? ''),
-                style: TextStyle(color: tokens.accent, fontSize: 11),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  foregroundColor: tokens.danger,
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: _cancelActiveProcess,
-                icon: const Icon(Icons.stop, size: 14),
-                label: Text(strings.piCliStopBtn),
-              ),
-            ] else if (_exitCode != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _exitCode == 0
-                      ? tokens.success.withValues(alpha: 0.15)
-                      : tokens.danger.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(
-                    color: _exitCode == 0 ? tokens.success : tokens.danger,
-                  ),
-                ),
-                child: Text(
-                  _exitCode == 0
-                      ? strings.piCliSuccessCode
-                      : strings.piCliExitCode(_exitCode!),
-                  style: TextStyle(
-                    color: _exitCode == 0 ? tokens.success : tokens.danger,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (_executionDuration != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  '${(_executionDuration!.inMilliseconds / 1000).toStringAsFixed(2)}s',
-                  style: TextStyle(color: tokens.textMuted, fontSize: 11),
-                ),
-              ],
-              const Spacer(),
-            ] else
-              const Spacer(),
-            if (_consoleOutput.isNotEmpty) ...[
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-                tooltip: strings.piCliCopyOutputTooltip,
-                icon: const Icon(Icons.copy, size: 15),
-                onPressed: _copyConsoleOutput,
-              ),
-              const SizedBox(width: 6),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.all(4),
-                constraints: const BoxConstraints(),
-                tooltip: strings.piCliClearOutputTooltip,
-                icon: const Icon(Icons.clear_all, size: 16),
-                onPressed: _clearConsoleOutput,
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        Container(
-          height: 240,
-          decoration: BoxDecoration(
-            color: tokens.chassis,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.borderStrong),
-          ),
-          child: _consoleOutput.isEmpty && !_isExecuting
-              ? Center(
-                  child: Text(
-                    strings.piCliEmptyOutput,
-                    style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                  ),
-                )
-              : Scrollbar(
-                  controller: _logScrollController,
-                  child: SingleChildScrollView(
-                    controller: _logScrollController,
-                    padding: const EdgeInsets.all(12),
-                    child: SelectableText(
-                      _consoleOutput,
-                      style: TextStyle(
-                        color: tokens.displayText,
-                        fontSize: 12,
-                        height: 1.4,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
-                    ),
-                  ),
-                ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // System verification footer
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            border: Border.all(color: tokens.border),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.check_circle_outline, size: 18, color: tokens.success),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  strings.piCliSystemPathNotice,
-                  style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                ),
-              ),
-              if (widget.onRecheck != null)
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  icon: const Icon(Icons.refresh, size: 14),
-                  label: Text(strings.piCliRecheckBtn),
-                  onPressed: widget.onRecheck,
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    FrameTokens tokens,
-    PiCommandItem item,
-    AppStrings strings,
-  ) {
-    final isSelected = _currentCommand == item.command;
-    final isRunning = isSelected && _isExecuting;
-    final isMcpCard = item.command == 'pi mcp list';
-
-    final cardContent = Container(
-      width: 440,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: item.isPrimary ? tokens.surfaceElevated : tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(
-          color: item.isPrimary
-              ? tokens.accent.withValues(alpha: 0.5)
-              : tokens.border,
-          width: item.isPrimary ? 1.5 : 1.0,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: item.isPrimary
-                      ? tokens.accent.withValues(alpha: 0.15)
-                      : tokens.displaySurface,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                ),
-                child: Icon(
-                  item.icon,
-                  size: 16,
-                  color: item.isPrimary
-                      ? tokens.accent
-                      : tokens.displayText,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.command,
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (isMcpCard) ...[
-                OutlinedButton(
-                  key: const ValueKey('btn-manage-mcp-servers'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: tokens.textPrimary,
-                    side: BorderSide(color: tokens.border),
-                    visualDensity: VisualDensity.compact,
+                height: FrameSize.rowForm,
+                child: FilledButton.icon(
+                  key: const ValueKey('pi-cli-custom-run-btn'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: tokens.accent,
+                    foregroundColor: tokens.surface,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: FrameSpace.x4,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
                   ),
-                  onPressed: () => McpServersDialog.show(
-                    context,
-                    tokens,
-                    strings: strings,
-                  ),
-                  child: Text(strings.piCliManageMcpBtn, style: const TextStyle(fontSize: 11)),
+                  onPressed: _isExecuting ? null : _runCustomCommand,
+                  icon: const Icon(Icons.play_arrow, size: FrameSize.icon),
+                  label: Text(strings.piCliRunBtn),
                 ),
-                const SizedBox(width: 6),
-              ],
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: item.isPrimary
-                      ? tokens.accent
-                      : tokens.surfaceElevated,
-                  foregroundColor: item.isPrimary
-                      ? tokens.surface
-                      : tokens.textPrimary,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    side: item.isPrimary
-                        ? BorderSide.none
-                        : BorderSide(color: tokens.border),
-                  ),
-                ),
-                onPressed: _isExecuting
-                    ? null
-                    : () => _executeCommand(item.command, item.args),
-                icon: isRunning
-                    ? SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: item.isPrimary
-                              ? tokens.surface
-                              : tokens.accent,
-                        ),
-                      )
-                    : const Icon(Icons.play_arrow, size: 14),
-                label: Text(isRunning ? strings.piCliInProgress : strings.piCliRunBtn),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            item.description,
-            style: TextStyle(
-              color: tokens.textMuted,
-              fontSize: 12,
-              height: 1.3,
+        ),
+        const SizedBox(height: FrameSpace.x6),
+
+        FrameSection(
+          title: strings.piCliConsoleOutputHeader,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildConsoleToolbar(tokens, text, strings),
+              const SizedBox(height: FrameSpace.x2),
+              Container(
+                height: 240,
+                decoration: BoxDecoration(
+                  color: tokens.chassis,
+                  borderRadius: BorderRadius.circular(tokens.radiusMd),
+                  border: Border.all(color: tokens.borderStrong),
+                ),
+                child: _consoleOutput.isEmpty && !_isExecuting
+                    ? Center(
+                        child: Text(
+                          strings.piCliEmptyOutput,
+                          style: text.caption.copyWith(color: tokens.textMuted),
+                        ),
+                      )
+                    : Scrollbar(
+                        controller: _logScrollController,
+                        child: SingleChildScrollView(
+                          controller: _logScrollController,
+                          padding: const EdgeInsets.all(FrameSpace.x3),
+                          child: SelectableText(
+                            _consoleOutput,
+                            style: text.mono.copyWith(
+                              color: tokens.displayText,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: FrameSpace.x6),
+
+        // System verification footer: flat, no second border level.
+        Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: FrameSize.icon,
+              color: tokens.success,
             ),
+            const SizedBox(width: FrameSpace.x3),
+            Expanded(
+              child: Text(
+                strings.piCliSystemPathNotice,
+                style: text.caption.copyWith(color: tokens.textMuted),
+              ),
+            ),
+            if (widget.onRecheck != null)
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, FrameSize.rowForm),
+                ),
+                onPressed: widget.onRecheck,
+                child: Text(strings.piCliRecheckBtn),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsoleToolbar(
+    FrameTokens tokens,
+    FrameText text,
+    AppStrings strings,
+  ) {
+    return Row(
+      children: [
+        if (_isExecuting) ...[
+          SizedBox(
+            width: FrameSize.icon - FrameSpace.x1,
+            height: FrameSize.icon - FrameSpace.x1,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: tokens.accent,
+            ),
+          ),
+          const SizedBox(width: FrameSpace.x2),
+          Flexible(
+            child: Text(
+              strings.piCliRunningNotice(_currentCommand ?? ''),
+              overflow: TextOverflow.ellipsis,
+              style: text.caption.copyWith(color: tokens.accent),
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: tokens.danger),
+            onPressed: _cancelActiveProcess,
+            icon: const Icon(Icons.stop, size: FrameSize.icon),
+            label: Text(strings.piCliStopBtn),
+          ),
+        ] else ...[
+          if (_exitCode != null)
+            FrameStatusTag(
+              key: const ValueKey('pi-cli-exit-status'),
+              label: _exitCode == 0
+                  ? strings.piCliSuccessCode
+                  : strings.piCliExitCode(_exitCode!),
+              tone: _exitCode == 0
+                  ? FrameStatusTone.success
+                  : FrameStatusTone.danger,
+            ),
+          if (_executionDuration != null) ...[
+            const SizedBox(width: FrameSpace.x2),
+            Text(
+              '${(_executionDuration!.inMilliseconds / 1000).toStringAsFixed(2)}s',
+              style: text.caption.copyWith(color: tokens.textMuted),
+            ),
+          ],
+          const Spacer(),
+        ],
+        if (_consoleOutput.isNotEmpty) ...[
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: strings.piCliCopyOutputTooltip,
+            icon: const Icon(Icons.copy, size: FrameSize.icon),
+            onPressed: _copyConsoleOutput,
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: strings.piCliClearOutputTooltip,
+            icon: const Icon(Icons.clear_all, size: FrameSize.iconLg),
+            onPressed: _clearConsoleOutput,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionRow(
+    FrameTokens tokens,
+    PiCommandItem item,
+    AppStrings strings,
+  ) {
+    final text = FrameText.of(context);
+    final isRunning = _currentCommand == item.command && _isExecuting;
+    final isMcpRow = item.command == 'pi mcp list';
+
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
+      child: Row(
+        children: [
+          Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
+          const SizedBox(width: FrameSpace.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: text.label.copyWith(color: tokens.textPrimary),
+                ),
+                Text(
+                  item.command,
+                  style: text.mono.copyWith(color: tokens.textMuted),
+                ),
+                Text(
+                  item.description,
+                  style: text.caption.copyWith(color: tokens.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: FrameSpace.x2),
+          if (isMcpRow) ...[
+            OutlinedButton(
+              key: const ValueKey('btn-manage-mcp-servers'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.borderStrong),
+                minimumSize: const Size(0, FrameSize.hitMin),
+              ),
+              onPressed: () => McpServersDialog.show(
+                context,
+                tokens,
+                strings: strings,
+              ),
+              child: Text(strings.piCliManageMcpBtn),
+            ),
+            const SizedBox(width: FrameSpace.x2),
+          ],
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: item.isPrimary
+                  ? tokens.accent
+                  : tokens.surfaceElevated,
+              foregroundColor: item.isPrimary
+                  ? tokens.surface
+                  : tokens.textPrimary,
+              minimumSize: const Size(0, FrameSize.hitMin),
+            ),
+            onPressed: _isExecuting
+                ? null
+                : () => _executeCommand(item.command, item.args),
+            icon: isRunning
+                ? SizedBox(
+                    width: FrameSize.icon,
+                    height: FrameSize.icon,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: item.isPrimary ? tokens.surface : tokens.accent,
+                    ),
+                  )
+                : const Icon(Icons.play_arrow, size: FrameSize.icon),
+            label: Text(isRunning ? strings.piCliInProgress : strings.piCliRunBtn),
           ),
         ],
       ),
     );
 
-    if (isMcpCard) {
+    if (isMcpRow) {
       return Material(
         key: const ValueKey('pi-cli-card-pi-mcp-list'),
         type: MaterialType.transparency,
         child: Tooltip(
           message: strings.piCliMcpCardTooltip,
           child: InkWell(
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
             onTap: () => McpServersDialog.show(
               context,
               tokens,
               strings: strings,
             ),
-            child: cardContent,
+            child: row,
           ),
         ),
       );
     }
 
-    return cardContent;
+    return row;
   }
 }

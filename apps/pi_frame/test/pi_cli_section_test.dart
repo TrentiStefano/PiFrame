@@ -41,11 +41,11 @@ void main() {
     expect(find.text('Versione Pi CLI'), findsOneWidget);
 
     // Verify Custom Command Input
-    expect(find.text('COMANDO PERSONALIZZATO'), findsOneWidget);
+    expect(find.text('Comando personalizzato'), findsOneWidget);
     expect(find.text('pi '), findsOneWidget);
     expect(find.text('Esegui'), findsWidgets);
 
     // Verify Output Console
-    expect(find.text('OUTPUT CONSOLE'), findsOneWidget);
+    expect(find.text('Output'), findsOneWidget);
   });
 }

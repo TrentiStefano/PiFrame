@@ -49,39 +49,43 @@ class DaemonSection extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              buildSettingsInfoCard(tokens, [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        strings.labelStatus,
-                        style: text.body.copyWith(color: tokens.textSecondary),
+              // Rows sit flat inside the section: one border level only.
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          strings.labelStatus,
+                          style: text.body.copyWith(color: tokens.textSecondary),
+                        ),
                       ),
-                    ),
-                    FrameStatusTag(
-                      key: const ValueKey('settings-daemon-status'),
-                      label: endpoint == null
-                          ? strings.labelNotConnected
-                          : strings.labelEndpointDetected,
-                      tone: endpoint == null
-                          ? FrameStatusTone.danger
-                          : FrameStatusTone.success,
-                    ),
-                  ],
-                ),
-                buildSettingsInfoRow(
-                  tokens,
-                  strings.labelHttpWsPort,
-                  endpoint != null
-                      ? '127.0.0.1:${endpoint.port}'
-                      : strings.labelConnecting,
-                ),
-                buildSettingsInfoRow(
-                  tokens,
-                  strings.labelProtocol,
-                  strings.protocolPcp1,
-                ),
-              ]),
+                      FrameStatusTag(
+                        key: const ValueKey('settings-daemon-status'),
+                        label: endpoint == null
+                            ? strings.labelNotConnected
+                            : strings.labelEndpointDetected,
+                        tone: endpoint == null
+                            ? FrameStatusTone.danger
+                            : FrameStatusTone.success,
+                      ),
+                    ],
+                  ),
+                  buildSettingsInfoRow(
+                    tokens,
+                    strings.labelHttpWsPort,
+                    endpoint != null
+                        ? '127.0.0.1:${endpoint.port}'
+                        : strings.labelConnecting,
+                  ),
+                  buildSettingsInfoRow(
+                    tokens,
+                    strings.labelProtocol,
+                    strings.protocolPcp1,
+                  ),
+                ],
+              ),
               const SizedBox(height: FrameSpace.x4),
               Align(
                 alignment: Alignment.centerLeft,
