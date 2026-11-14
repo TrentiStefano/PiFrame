@@ -44,31 +44,34 @@ class StartupUpdateBanner extends ConsumerWidget {
       details.add(strings.packageUpdateCheckFailed(state.error!));
     }
 
+    final text = FrameText.of(context);
+
     final icon = Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(FrameSpace.x2),
       decoration: BoxDecoration(
         color: tokens.signalWarning.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
-      child: Icon(Icons.system_update_alt, color: tokens.signalWarning, size: 20),
+      child: Icon(
+        Icons.system_update_alt,
+        color: tokens.signalWarning,
+        size: FrameSize.iconLg,
+      ),
     );
 
     final title = Text(
       strings.updateNoticeTitle,
-      style: TextStyle(
+      style: text.body.copyWith(
         color: tokens.textPrimary,
         fontWeight: FontWeight.bold,
-        fontSize: 13,
-        fontFamily: tokens.uiFontFamily,
       ),
     );
 
     final detailText = Text(
       details.join(' • '),
-      style: TextStyle(
+      style: text.label.copyWith(
         color: tokens.textSecondary,
-        fontSize: 12,
-        fontFamily: tokens.uiFontFamily,
+        fontWeight: FontWeight.w400,
       ),
       maxLines: inRail ? 3 : 2,
       overflow: TextOverflow.ellipsis,
@@ -79,25 +82,25 @@ class StartupUpdateBanner extends ConsumerWidget {
       style: FilledButton.styleFrom(
         backgroundColor: tokens.accent,
         foregroundColor: tokens.surface,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FrameSpace.x3,
+          vertical: FrameSpace.x2,
+        ),
         visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
         ),
       ),
       onPressed: () {
-        ref.read(settingsTabIndexProvider.notifier).state =
-            state.piHasUpdate ? 0 : 1;
+        ref.read(settingsTabIndexProvider.notifier).state = state.piHasUpdate
+            ? 0
+            : 1;
         ref.read(showSettingsProvider.notifier).state = true;
         ref.read(startupUpdatesProvider.notifier).dismiss();
       },
       child: Text(
         strings.updateNoticeOpenSettings,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          fontFamily: tokens.uiFontFamily,
-        ),
+        style: text.label.copyWith(fontWeight: FontWeight.w600),
       ),
     );
 
@@ -105,7 +108,7 @@ class StartupUpdateBanner extends ConsumerWidget {
       key: const ValueKey('startup-update-dismiss-btn'),
       visualDensity: VisualDensity.compact,
       tooltip: strings.updateNoticeDismiss,
-      icon: Icon(Icons.close, size: 16, color: tokens.textMuted),
+      icon: Icon(Icons.close, size: FrameSize.icon, color: tokens.textMuted),
       onPressed: () {
         ref.read(startupUpdatesProvider.notifier).dismiss();
       },
@@ -130,11 +133,11 @@ class StartupUpdateBanner extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: FrameSpace.x2),
           Row(
             children: [
               Expanded(child: openButton),
-              const SizedBox(width: 4),
+              const SizedBox(width: FrameSpace.x1),
               dismissButton,
             ],
           ),
@@ -144,7 +147,7 @@ class StartupUpdateBanner extends ConsumerWidget {
       content = Row(
         children: [
           icon,
-          const SizedBox(width: 12),
+          const SizedBox(width: FrameSpace.x3),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -152,7 +155,7 @@ class StartupUpdateBanner extends ConsumerWidget {
               children: [title, const SizedBox(height: 2), detailText],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: FrameSpace.x3),
           openButton,
           const SizedBox(width: 6),
           dismissButton,
@@ -162,8 +165,18 @@ class StartupUpdateBanner extends ConsumerWidget {
 
     return Container(
       margin: inRail
-          ? const EdgeInsets.fromLTRB(8, 8, 8, 0)
-          : const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          ? const EdgeInsets.fromLTRB(
+              FrameSpace.x2,
+              FrameSpace.x2,
+              FrameSpace.x2,
+              0,
+            )
+          : const EdgeInsets.fromLTRB(
+              FrameSpace.x3,
+              FrameSpace.x2,
+              FrameSpace.x3,
+              0,
+            ),
       child: Material(
         elevation: 0,
         color: tokens.surfaceElevated,
@@ -173,8 +186,8 @@ class StartupUpdateBanner extends ConsumerWidget {
         ),
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: inRail ? 12 : 16,
-            vertical: 12,
+            horizontal: inRail ? FrameSpace.x3 : FrameSpace.x4,
+            vertical: FrameSpace.x3,
           ),
           child: content,
         ),

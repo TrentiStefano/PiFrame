@@ -831,6 +831,29 @@ Only create or expand abstractions that have a clear shared intent.
 
 ## Tokens
 
+### Code tokens (`packages/pi_frame_theme`, app wrappers in `lib/ui/motion.dart`)
+- `FrameSpace` x1 4, x2 8, x3 12, x4 16, x6 24, x8 32: gaps and paddings. Use these instead of literal spacing where a value matches.
+- `FrameSize` rowList 28, rowForm 40, hitMin 28, icon 16, iconLg 20, paneHeader 40: row heights, hit targets and icons.
+- `FrameText.of(context)` caption 11/16, label 12/16 w500, body 13/20, bodyLarge 14/20, title 16/22 w600, heading 20/26 w600, display 28/32 w600, mono 12/18, monoBody 13/20: the only source of font sizes. Anything below 11 px becomes caption.
+- `FrameMotion` / `FrameMotionTokens`: instant 0, micro 120, small 160, panel 240, smallExit 120, panelExit 180, dialog 180, dialogExit 120, firstRun 300, stagger 100, crossFade 120 ms; curves enterCurve and panelCurve. Use these for every duration and curve.
+- `FrameTokens` radiusSm 6, radiusMd 10, radiusLg 14, radiusPill 999; inputBorder; focusRing: radii, field outlines and focus.
+- Literals that remain are listed in the ratchet test (`apps/pi_frame/test/design_literals_lint_test.dart`), which fails if a count rises.
+
+### Shared widgets (`apps/pi_frame/lib/ui/frame_*.dart`)
+- `FrameCallout` (`FrameCalloutTone`): inline info, warning or danger notice with an optional details toggle.
+- `FrameDialog` (`FrameDialogAction`, `FrameDialogActionRole`): dialog shell with cancel, primary and destructive actions; scrolls above 80 % of the window height.
+- `FrameEmptyState`: centred icon, title, message and one action button.
+- `FrameErrorCallout`: failed load or action, with a retry button when the error is retryable and a details toggle.
+- `FrameFocusRing`: 2 px `focusRing` outline, shown only for keyboard focus.
+- `FrameIconAction`: 16 px icon in a 28 x 28 target; the tooltip is required and is the accessible name.
+- `FrameListRow`: compact selectable row (at least `rowList` high) with actions revealed on hover or focus.
+- `FrameMiddleEllipsis`: truncates a path in the middle so the file name stays visible.
+- `FramePaneHeader`: pane heading (Barlow Condensed title, mono subtitle, actions, optional tabs) at `paneHeader` height, flat.
+- `FrameSearchField`: 32 px search input with `inputBorder`, clear button and Escape handling.
+- `FrameSection`: settings or dialog block with a title, optional description and one border level.
+- `FrameSnackBar`: floating bottom-right notice, 280 to 460 px wide, dismissed by a tap.
+- `FrameStatusTag` (`FrameStatusTone`): coloured dot with a label, no background or border.
+
 ### Semantic colors
 `piframe-light.json` / `piframe-dark.json` define the normative hex values for `background/chassis`, `surface/displaySurface`, text/subtext, `accent/focusRing`, `success/warning/danger/info`, `agent*`, syntax and diff roles.
 - Primary accent is signature Steel Blue (`#5f9fc5` in Dark, `#24638a` in Light).
@@ -840,19 +863,19 @@ Only create or expand abstractions that have a clear shared intent.
 - Status and syntax accents that miss text contrast pair with named text/surface colors; never invent darker replacement hues. PiFrame Light chat/composer use coordinated crisp surfaces; PiFrame Dark uses layered midnight-slate surfaces.
 
 ### Typography roles
-Keep bundled Schibsted Grotesk for UI/body (14px base, 1.5 line-height); Barlow Condensed for brand and pane headings; Source Code Pro for code, file paths, commit messages and diffs. Existing roles: 11/12/14/16/20/28px; 400/500/600 weights. Preserve text scaling and avoid condensed type for long reading.
+Keep bundled Schibsted Grotesk for UI/body (14px base, 1.5 line-height); Barlow Condensed for brand and pane headings; Source Code Pro for code, file paths, commit messages and diffs. Roles are `FrameText` (caption 11, label 12, body 13, bodyLarge 14, title 16, heading 20, display 28; mono 12 and 13), with 400/500/600 weights. Preserve text scaling and avoid condensed type for long reading.
 
 ### Spacing scale
-4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32/48px inner spacing. Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
+4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32px inner spacing (`FrameSpace`). Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
 
 ### Radii / shape
-Use 1px subtle borders and 6/10/14px semantic radii (small/medium/large). Apply to panes and non-pane functional surfaces; keep list rows compact and avoid giant cards or pill treatment.
+Use 1px subtle borders and 6/10/14px semantic radii (`radiusSm`/`radiusMd`/`radiusLg`). Apply to panes and non-pane functional surfaces; keep list rows compact and avoid giant cards or pill treatment.
 
 ### Elevation / surface hierarchy
 Use aligned surfaces, thin 1px borders (`#2e3c53` Dark / `#d3dae4` Light) and small gaps to separate compartments; avoid heavy shadows. Reserve native elevation for menus/dialogs.
 
 ### Motion
-Existing tokens: 120ms pointer press feedback and list highlight; 140ms menu entrance; 150–180ms chip insert/remove (fade, scale and width); about 520ms one-shot chip confirmation glow; 240ms pane movement with drawer curve; 280ms composer minimize/expand. Keyboard actions stay immediate. Respect reduced motion (`MediaQuery.disableAnimationsOf`); no decorative launch or streaming animations.
+All durations and curves come from `FrameMotion` (see Code tokens). Current values by use: 120ms pointer press feedback and list highlight; 140ms menu entrance; 150–180ms chip insert/remove (fade, scale and width); about 520ms one-shot chip confirmation glow; 240ms pane movement with drawer curve; 280ms composer minimize/expand. Keyboard actions stay immediate. Respect reduced motion (`MediaQuery.disableAnimationsOf`); no decorative launch or streaming animations.
 
 ### Breakpoints / size classes
 Use current content-driven classes: compact <900px; medium 900–1439px; expanded ≥1440px. Compact: chat default + explicit Repository/Git Changes switcher. Medium: chat + one companion pane. Expanded: Bento Triptych visible; collapse session navigation before shrinking work panes. Revalidate exact widths with rendered layouts.
