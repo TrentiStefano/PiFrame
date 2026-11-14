@@ -11,6 +11,7 @@ import '../../data/language/strings_composer.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/escape_layers.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../composer/composer_draft.dart';
 import '../tool_timeline/tool_card.dart';
 import '../transcript/rich_content.dart';
@@ -85,8 +86,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
+          duration: FrameMotion.small,
+          curve: FrameMotion.enterCurve,
         );
       }
     });
