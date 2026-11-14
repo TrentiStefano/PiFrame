@@ -224,4 +224,167 @@ void main() {
     );
     expect(LayoutStore.instance.load(), isEmpty);
   });
+
+group('restored pane layout (task 6.6)', () {
+  test('clamp keeps companions at 320 px and chat at 420 px', () {
+    final weights = clampRestoredPaneWeights(
+      panes: const [
+        WorkspacePane.repository,
+        WorkspacePane.chat,
+        WorkspacePane.git,
+      ],
+      collapsed: const {},
+      weights: const {
+        WorkspacePane.repository: 90,
+        WorkspacePane.chat: 5,
+        WorkspacePane.git: 5,
+      },
+      availableWidth: 1400,
+    );
+    final total = weights.values.fold<double>(0, (sum, v) => sum + v);
+    expect(total, closeTo(100, 1e-9));
+    expect(weights[WorkspacePane.chat]! / 100 * 1400, greaterThanOrEqualTo(420));
+    expect(
+      weights[WorkspacePane.git]! / 100 * 1400,
+      greaterThanOrEqualTo(kCompanionMinWidth),
+    );
+    expect(
+      weights[WorkspacePane.repository]! / 100 * 1400,
+      greaterThanOrEqualTo(kCompanionMinWidth),
+    );
+  });
+
+  test('clamp leaves a healthy layout unchanged in proportion', () {
+    final weights = clampRestoredPaneWeights(
+      panes: const [WorkspacePane.chat, WorkspacePane.git],
+      collapsed: const {},
+      weights: const {WorkspacePane.chat: 60, WorkspacePane.git: 40},
+      availableWidth: 2000,
+    );
+    expect(weights[WorkspacePane.chat], closeTo(60, 1e-9));
+    expect(weights[WorkspacePane.git], closeTo(40, 1e-9));
+  });
+
+  test('clamp ignores collapsed panes and a single open pane', () {
+    final weights = clampRestoredPaneWeights(
+      panes: const [WorkspacePane.chat, WorkspacePane.git],
+      collapsed: const {WorkspacePane.git},
+      weights: const {WorkspacePane.chat: 10, WorkspacePane.git: 90},
+      availableWidth: 800,
+    );
+    expect(weights[WorkspacePane.chat], 10);
+    expect(weights[WorkspacePane.git], 90);
+  });
+
+  testWidgets('restored weights are clamped to the minimum widths', (
+    tester,
+  ) async {
+    layoutFile.writeAsStringSync(
+      jsonEncode({
+        'paneWeights': {'repository': 90, 'chat': 5, 'git': 5},
+      }),
+    );
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    final chat = tester.getSize(
+      find.byKey(const ValueKey('pane-enter-WorkspacePane.chat')),
+    );
+    final git = tester.getSize(
+      find.byKey(const ValueKey('pane-enter-WorkspacePane.git')),
+    );
+    expect(chat.width, greaterThanOrEqualTo(kChatMinWidth - 1));
+    expect(git.width, greaterThanOrEqualTo(kCompanionMinWidth - 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a dragged pane divider survives a restart', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    final divider = find.byKey(
+      const ValueKey('pane-divider-WorkspacePane.repository-WorkspacePane.chat'),
+    );
+    final repo = find.byKey(const ValueKey('pane-enter-WorkspacePane.repository'));
+    final before = tester.getSize(repo).width;
+    await tester.drag(divider, const Offset(-40, 0));
+    await tester.pumpAndSettle();
+    final dragged = tester.getSize(repo).width;
+    expect(dragged, lessThan(before));
+    expect(
+      (jsonDecode(layoutFile.readAsStringSync()) as Map)['paneWeights'],
+      isA<Map>(),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    await pumpShell(tester, container);
+    expect(tester.getSize(repo).width, closeTo(dragged, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('collapsed panes, compact pane and companion tab are saved', (
+    tester,
+  ) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    await tester.tap(find.byTooltip('Collassa pannello Git changes'));
+    await tester.pumpAndSettle();
+
+    final saved =
+        jsonDecode(layoutFile.readAsStringSync()) as Map<String, dynamic>;
+    expect(saved['collapsedPanes'], contains('git'));
+    expect(saved['compactPane'], isA<String>());
+    expect(saved['companionPane'], isA<String>());
+    expect(saved['paneWeights'], isA<Map>());
+  });
+
+  testWidgets('restored collapsed pane stays collapsed after restart', (
+    tester,
+  ) async {
+    layoutFile.writeAsStringSync(
+      jsonEncode({
+        'collapsedPanes': ['git'],
+        'companionPane': 'repository',
+      }),
+    );
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    expect(
+      find.byKey(const ValueKey('pane-enter-WorkspacePane.git')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('pane-enter-WorkspacePane.repository')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a restored state that collapses every pane is discarded', (
+    tester,
+  ) async {
+    layoutFile.writeAsStringSync(
+      jsonEncode({
+        'collapsedPanes': ['repository', 'chat', 'git', 'bogus'],
+        'companionPane': 'chat',
+        'compactPane': 'nope',
+      }),
+    );
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    expect(
+      find.byKey(const ValueKey('pane-enter-WorkspacePane.chat')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+});
 }

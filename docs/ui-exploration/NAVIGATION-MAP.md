@@ -94,7 +94,7 @@ Responsive breakpoints use Flutter viewport width:
 | `≥ 1440` | Resizable multi-pane row using visible pane weights. |
 | `≥ 1560` | Add the persistent Sessions rail. |
 
-Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore`; review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
+Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore` (`~/.piframe/layout.json`): pane visibility, sessions bar collapsed state and width, pane weights, collapsed panes, the compact selected pane and the companion tab. On start, `AppShell` restores these; restored pane weights are clamped so that no companion is narrower than 320 px and the chat pane is narrower than 420 px, and invalid or unknown values fall back to the defaults. Review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
 
 ### Workspace components
 

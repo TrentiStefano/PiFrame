@@ -75,6 +75,66 @@ Set<WorkspacePane> narrowCompanionPanes({
   };
 }
 
+/// Minimum width of the chat pane when the layout is restored (plan task 6.6).
+const double kChatMinWidth = 420;
+
+/// Clamps restored pane weights so that every open companion is at least
+/// [kCompanionMinWidth] wide and the chat pane at least [kChatMinWidth]. Pinned panes
+/// keep their minimum share; the other open panes share what is left, in proportion.
+/// Returns weights summing to 100 over the open panes. A single open pane is untouched.
+Map<WorkspacePane, double> clampRestoredPaneWeights({
+  required List<WorkspacePane> panes,
+  required Set<WorkspacePane> collapsed,
+  required Map<WorkspacePane, double> weights,
+  required double availableWidth,
+}) {
+  final result = {for (final p in panes) p: weights[p] ?? 1.0};
+  final open = panes.where((p) => !collapsed.contains(p)).toList();
+  if (open.length < 2 || availableWidth <= 0) return result;
+  // Flex weights are rounded to whole numbers when laid out, so each minimum gets a
+  // small margin; otherwise a pane could land a few pixels under its minimum.
+  double minShare(WorkspacePane p) =>
+      (p == WorkspacePane.chat ? kChatMinWidth : kCompanionMinWidth) *
+      1.03 /
+      availableWidth;
+
+  final pinned = <WorkspacePane, double>{};
+  var changed = true;
+  while (changed) {
+    changed = false;
+    final free = open.where((p) => !pinned.containsKey(p)).toList();
+    final freeTotal = free.fold<double>(0, (sum, p) => sum + result[p]!);
+    final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
+    for (final p in free) {
+      final share = freeTotal > 0
+          ? result[p]! / freeTotal * budget
+          : budget / free.length;
+      if (share < minShare(p)) {
+        pinned[p] = minShare(p);
+        changed = true;
+      }
+    }
+  }
+
+  final freeTotal = open
+      .where((p) => !pinned.containsKey(p))
+      .fold<double>(0, (sum, p) => sum + result[p]!);
+  final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
+  for (final p in open) {
+    final share = pinned[p] ??
+        (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
+    result[p] = share * 100;
+  }
+  return result;
+}
+
+WorkspacePane? _paneNamed(Object? name) {
+  for (final pane in WorkspacePane.values) {
+    if (pane.name == name) return pane;
+  }
+  return null;
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
   @override
@@ -107,6 +167,8 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   bool _sidebarCollapsed = false;
+  // Set when weights are restored; they are clamped on the first pane row with a known width.
+  bool _pendingWeightClamp = false;
   Widget? _chatSidecar;
   String? _chatSidecarSessionId;
   // Width of the last pane row, used to size a restored companion (task 1.2f).
@@ -167,7 +229,27 @@ class _AppShellState extends ConsumerState<AppShell>
       },
       'sidebarCollapsed': _sidebarCollapsed,
       'sidebarWidth': _sidebarWidth,
+      'paneWeights': {
+        for (final pane in WorkspacePane.values)
+          pane.name: _paneWeights[pane] ?? 1.0,
+      },
+      'collapsedPanes': [
+        for (final pane in WorkspacePane.values)
+          if (_collapsedPanes.contains(pane)) pane.name,
+      ],
+      'compactPane': _compactPane.name,
+      'companionPane': _companionPane.name,
     });
+  }
+
+  void _selectCompanionPane(WorkspacePane pane) {
+    setState(() => _companionPane = pane);
+    _persistLayout();
+  }
+
+  void _selectCompactPane(WorkspacePane pane) {
+    setState(() => _compactPane = pane);
+    _persistLayout();
   }
 
   AppStrings get strings => ref.watch(appStringsProvider);
@@ -194,8 +276,41 @@ class _AppShellState extends ConsumerState<AppShell>
     if (!_paneVisibility.containsValue(true)) {
       _paneVisibility[WorkspacePane.chat] = true;
     }
+    final weights = saved['paneWeights'];
+    if (weights is Map) {
+      for (final pane in WorkspacePane.values) {
+        final value = weights[pane.name];
+        if (value is num && value.isFinite && value > 0) {
+          _paneWeights[pane] = value.clamp(1, 100).toDouble();
+        }
+      }
+      // Clamped against the real row width on the first multi-pane build.
+      _pendingWeightClamp = true;
+    }
+    final collapsed = saved['collapsedPanes'];
+    if (collapsed is List) {
+      _collapsedPanes.clear();
+      for (final name in collapsed) {
+        final pane = _paneNamed(name);
+        if (pane != null && _paneVisibility[pane] == true) {
+          _collapsedPanes.add(pane);
+        }
+      }
+      // Never restore a layout with every visible pane collapsed.
+      if (_collapsedPanes.length >= _visiblePanes().length) {
+        _collapsedPanes.clear();
+      }
+    }
     final remaining = _visiblePanes();
+    final compact = _paneNamed(saved['compactPane']);
+    if (compact != null && remaining.contains(compact)) _compactPane = compact;
     if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
+    final companion = _paneNamed(saved['companionPane']);
+    if (companion != null &&
+        companion != WorkspacePane.chat &&
+        remaining.contains(companion)) {
+      _companionPane = companion;
+    }
     if (!remaining.contains(_companionPane)) {
       _companionPane = remaining.firstWhere(
         (item) => item != WorkspacePane.chat,
@@ -785,7 +900,7 @@ class _AppShellState extends ConsumerState<AppShell>
         onCollapse: () => _collapsePane(WorkspacePane.repository),
         companionTabs: companionTabs,
         activeCompanionTab: selectedCompanion,
-        onSelectCompanionTab: (pane) => setState(() => _companionPane = pane),
+        onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
       ),
       WorkspacePane.chat: chat(),
       WorkspacePane.git: isReviewing
@@ -797,7 +912,7 @@ class _AppShellState extends ConsumerState<AppShell>
               companionTabs: companionTabs,
               activeCompanionTab: selectedCompanion,
               onSelectCompanionTab: (pane) =>
-                  setState(() => _companionPane = pane),
+                  _selectCompanionPane(pane),
             )
           : (ref.watch(browserPaneSupportedProvider) &&
                   ref.watch(rightPaneModeProvider) == RightPaneMode.browser
@@ -808,7 +923,7 @@ class _AppShellState extends ConsumerState<AppShell>
                   companionTabs: companionTabs,
                   activeCompanionTab: selectedCompanion,
                   onSelectCompanionTab: (pane) =>
-                      setState(() => _companionPane = pane),
+                      _selectCompanionPane(pane),
                 )
               : GitChangesPane(
                   key: ValueKey('git_$sessionId'),
@@ -817,7 +932,7 @@ class _AppShellState extends ConsumerState<AppShell>
                   companionTabs: companionTabs,
                   activeCompanionTab: selectedCompanion,
                   onSelectCompanionTab: (pane) =>
-                      setState(() => _companionPane = pane),
+                      _selectCompanionPane(pane),
                 )),
     };
 
@@ -830,7 +945,7 @@ class _AppShellState extends ConsumerState<AppShell>
           _paneSelector(
             visible,
             selected,
-            (pane) => setState(() => _compactPane = pane),
+            (pane) => _selectCompactPane(pane),
             showLayoutMenu: true,
           ),
           Expanded(
@@ -966,6 +1081,7 @@ class _AppShellState extends ConsumerState<AppShell>
         }
       }
     });
+    _persistLayout();
   }
 
   /// Expands a pane from its strip. A companion the layout collapsed only for being
@@ -1010,6 +1126,7 @@ class _AppShellState extends ConsumerState<AppShell>
         }
       }
     });
+    _persistLayout();
   }
 
   Widget _collapsedPaneStrip(WorkspacePane pane) {
@@ -1282,6 +1399,17 @@ class _AppShellState extends ConsumerState<AppShell>
         final stateCollapsed = panes
             .where((p) => _collapsedPanes.contains(p))
             .length;
+        if (_pendingWeightClamp && openWidth > 0) {
+          _pendingWeightClamp = false;
+          _paneWeights.addAll(
+            clampRestoredPaneWeights(
+              panes: panes,
+              collapsed: _collapsedPanes,
+              weights: _paneWeights,
+              availableWidth: openWidth - collapsedWidth * stateCollapsed,
+            ),
+          );
+        }
         // A companion narrower than kCompanionMinWidth collapses to its tab.
         final narrow = narrowCompanionPanes(
           panes: panes,
@@ -1324,10 +1452,14 @@ class _AppShellState extends ConsumerState<AppShell>
                     behavior: HitTestBehavior.opaque,
                     onHorizontalDragStart: (_) =>
                         ref.read(paneDraggingProvider.notifier).state = true,
-                    onHorizontalDragEnd: (_) =>
-                        ref.read(paneDraggingProvider.notifier).state = false,
-                    onHorizontalDragCancel: () =>
-                        ref.read(paneDraggingProvider.notifier).state = false,
+                    onHorizontalDragEnd: (_) {
+                      ref.read(paneDraggingProvider.notifier).state = false;
+                      _persistLayout();
+                    },
+                    onHorizontalDragCancel: () {
+                      ref.read(paneDraggingProvider.notifier).state = false;
+                      _persistLayout();
+                    },
                     onHorizontalDragUpdate: (details) => _resizeAdjacent(
                       panes[index],
                       panes[index + 1],
