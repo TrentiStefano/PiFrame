@@ -13,6 +13,7 @@ import 'package:pi_frame/features/settings/remote_section.dart';
 class _MockRemoteClient extends PcpClient {
   _MockRemoteClient({this.initialData}) : super(port: 1, token: 'test');
   final Map<String, dynamic>? initialData;
+  Object? statusError;
   final _eventsController = StreamController<PcpEvent>.broadcast();
 
   void emitEvent(PcpEvent event) {
@@ -23,15 +24,18 @@ class _MockRemoteClient extends PcpClient {
   Stream<PcpEvent> events(String sessionId) => _eventsController.stream;
 
   @override
-  Future<Map<String, dynamic>> getRemoteStatus() async => {
-    'data': initialData ?? {
-      'enabled': false,
-      'state': 'stopped',
-      'tunnelProvider': 'cloudflared',
-      'devices': [],
-      'options': {'defaultMode': 'view'},
-    },
-  };
+  Future<Map<String, dynamic>> getRemoteStatus() async {
+    if (statusError != null) throw statusError!;
+    return {
+      'data': initialData ?? {
+        'enabled': false,
+        'state': 'stopped',
+        'tunnelProvider': 'cloudflared',
+        'devices': [],
+        'options': {'defaultMode': 'view'},
+      },
+    };
+  }
 }
 
 void main() {
@@ -56,6 +60,32 @@ void main() {
     expect(find.text('Abilita accesso remoto'), findsOneWidget);
     expect(find.text('Configurazione provider tunnel'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
+  });
+
+  testWidgets('a failed status load shows a callout with raw text behind Dettagli', (
+    tester,
+  ) async {
+    final client = _MockRemoteClient()..statusError = StateError('remote-boom-7');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: RemoteSection()),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('remote-error')), findsOneWidget);
+    expect(find.text('Operazione remota non riuscita'), findsOneWidget);
+    expect(find.textContaining('remote-boom-7'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('remote-details-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('remote-boom-7'), findsOneWidget);
   });
 
   testWidgets('RemoteSection renders active tunnel with QR code and device modes', (tester) async {

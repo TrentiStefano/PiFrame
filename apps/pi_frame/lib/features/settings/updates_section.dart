@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../ui/frame_error_callout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -280,58 +281,17 @@ class UpdatesSection extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ] else if (updateState.status == UpdateStatus.error) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.circular(tokens.radiusMd),
-              border: Border.all(
-                color: tokens.danger.withValues(alpha: 0.4),
-              ),
+          FrameErrorCallout(
+            keyPrefix: 'updates',
+            title: strings.updatesCheckErrorTitle,
+            error: describeError(
+              updateState.errorMessage ?? strings.updatesUnexpectedError,
+              strings,
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  color: tokens.danger,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        strings.updatesCheckErrorTitle,
-                        style: TextStyle(
-                          color: tokens.danger,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        updateState.errorMessage == null
-                            ? strings.updatesUnexpectedError
-                            : describeError(updateState.errorMessage!, strings).summary,
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                OutlinedButton(
-                  onPressed: () {
-                    ref
-                        .read(updateControllerProvider.notifier)
-                        .checkForUpdates(isManual: true);
-                  },
-                  child: Text(strings.retryAction),
-                ),
-              ],
-            ),
+            strings: strings,
+            onRetry: () => ref
+                .read(updateControllerProvider.notifier)
+                .checkForUpdates(isManual: true),
           ),
           const SizedBox(height: 16),
         ] else if (updateState.hasUpdate &&

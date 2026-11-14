@@ -8,7 +8,9 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_errors.dart';
 import '../../data/language/strings_composer.dart';
+import '../../ui/frame_error_callout.dart';
 import '../transcript/workflows_provider.dart';
 
 class ExtensionUiDialog extends ConsumerStatefulWidget {
@@ -56,7 +58,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   Timer? _countdownTimer;
   StreamSubscription? _resolutionSubscription;
   bool _isResponding = false;
-  String? _responseError;
+  UserFacingError? _responseError;
   int _secondsRemaining = 0;
 
   bool get _isMultiSelect =>
@@ -279,7 +281,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
       final strings = ref.read(appStringsProvider);
-      setState(() => _responseError = strings.composerDaemonNotConnected);
+      setState(() => _responseError = describeError(strings.composerDaemonNotConnected, strings));
       return;
     }
     setState(() {
@@ -310,8 +312,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
       setState(() {
         _isResponding = false;
         _responseError = error is TimeoutException
-            ? strings.extUiNoDaemonResponse
-            : describeError(error, strings).summary;
+            ? UserFacingError(
+                title: strings.extUiNoDaemonResponse,
+                details: error.toString(),
+                retryable: true,
+              )
+            : describeError(error, strings);
       });
     }
   }
@@ -661,9 +667,11 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         if (_responseError != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              _responseError!,
-              style: TextStyle(color: tokens.danger, fontSize: 12),
+            child: FrameErrorCallout(
+              keyPrefix: 'extension-ui',
+              title: strings.extensionErrorTitle,
+              error: _responseError!,
+              strings: strings,
             ),
           ),
 

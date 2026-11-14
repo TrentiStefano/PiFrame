@@ -621,21 +621,12 @@ extension SettingsStrings on AppStrings {
   String remoteCloudflaredReadySnackBar(String path) => isItalian
       ? 'cloudflared scaricato e pronto in $path!'
       : 'cloudflared downloaded and ready at $path!';
-  String remoteCloudflaredInstallError(Object error) => isItalian
-      ? failureText(this, 'Errore durante l\'installazione di cloudflared', error)
-      : failureText(this, 'Error installing cloudflared', error);
   String get remoteTailscaleInstallDefaultToast => isItalian
       ? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.'
       : 'Tailscale installation started! Confirm the system prompt.';
-  String remoteTailscaleInstallError(Object error) => isItalian
-      ? failureText(this, 'Errore durante l\'installazione di Tailscale', error)
-      : failureText(this, 'Error installing Tailscale', error);
   String remoteTailscaleDomainUpdatedToast(String domain) => isItalian
       ? 'Nome host Tailscale aggiornato! Nuovo dominio: $domain'
       : 'Tailscale hostname updated! New domain: $domain';
-  String remoteTailscaleRenameError(Object error) => isItalian
-      ? failureText(this, 'Errore durante la ridenominazione', error)
-      : failureText(this, 'Error during rename', error);
   String get remoteTailscaleMissingDialogTitle => isItalian
       ? 'Tailscale non installato'
       : 'Tailscale not installed';

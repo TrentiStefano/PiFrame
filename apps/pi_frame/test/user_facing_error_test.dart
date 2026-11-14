@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
 import 'package:pi_frame/data/language/strings_errors.dart';
+import 'package:pi_frame/data/language/strings_composer.dart';
 import 'package:pi_frame/data/language/strings_workspace.dart';
 import 'package:pi_frame/data/update/github_update_client.dart';
 import 'package:pi_frame/domain/errors/user_facing_error.dart';
@@ -191,6 +192,20 @@ void main() {
           PcpException('Model unavailable', code: 'PROVIDER_ERROR'),
         ),
         'Invio non riuscito: Model unavailable',
+      );
+    });
+
+    test('an upload failure keeps the daemon reason and hides raw text', () {
+      expect(
+        it.composerUploadFailed(
+          'a.png',
+          PcpException('Quota exceeded', code: 'UPLOAD_REJECTED'),
+        ),
+        'Caricamento di "a.png" non riuscito: Quota exceeded',
+      );
+      expect(
+        it.composerUploadFailed('a.png', StateError('boom-9')),
+        'Caricamento di "a.png" non riuscito.',
       );
     });
 

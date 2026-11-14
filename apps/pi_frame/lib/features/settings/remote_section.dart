@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../ui/frame_error_callout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_errors.dart';
 import '../../data/language/strings_settings.dart';
 import '../../ui/frame_snack_bar.dart';
 
@@ -20,11 +22,17 @@ class RemoteSection extends ConsumerStatefulWidget {
 }
 
 class _RemoteSectionState extends ConsumerState<RemoteSection> {
-  String _describe(Object e) => describeError(e, ref.read(appStringsProvider)).summary;
+  /// Keeps [e] as a mapped error for the callout. [title] is its context line.
+  void _showError(Object e, {String? title}) {
+    final strings = ref.read(appStringsProvider);
+    _error = describeError(e, strings);
+    _errorTitle = title ?? strings.remoteActionFailedTitle;
+  }
 
   bool _isLoading = true;
   bool _isToggling = false;
-  String? _errorMessage;
+  UserFacingError? _error;
+  String? _errorTitle;
 
   bool _enabled = false;
   String _state = 'stopped';
@@ -116,7 +124,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       }
 
       _localPort = data['localPort'] as int?;
-      _errorMessage = (data['error'] as String?) == null ? null : _describe(data['error'] as String);
+      _error = null;
+      final remoteError = data['error'] as String?;
+      if (remoteError != null) _showError(remoteError);
 
       final pairing = data['pairingPending'] as Map<String, dynamic>?;
       _pairingUrl = pairing?['url'] as String?;
@@ -150,7 +160,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = _describe(e);
+          _showError(e);
           _isLoading = false;
         });
       }
@@ -163,7 +173,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     setState(() {
       _isInstallingCloudflared = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
@@ -183,7 +193,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        setState(() => _errorMessage = strings.remoteCloudflaredInstallError(e));
+        setState(() => _showError(e, title: strings.remoteInstallFailedTitle('cloudflared')));
       }
     } finally {
       if (mounted) {
@@ -198,7 +208,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     setState(() {
       _isInstallingTailscale = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
@@ -217,7 +227,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        setState(() => _errorMessage = strings.remoteTailscaleInstallError(e));
+        setState(() => _showError(e, title: strings.remoteInstallFailedTitle('Tailscale')));
       }
     } finally {
       if (mounted) {
@@ -233,7 +243,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     setState(() {
       _isSavingTailscaleHostname = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
@@ -252,7 +262,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        setState(() => _errorMessage = strings.remoteTailscaleRenameError(e));
+        setState(() => _showError(e, title: strings.remoteRenameFailedTitle));
       }
     } finally {
       if (mounted) {
@@ -315,7 +325,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
     setState(() {
       _isToggling = true;
-      _errorMessage = null;
+      _error = null;
     });
 
     try {
@@ -336,7 +346,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = _describe(e));
+        setState(() => _showError(e));
       }
     } finally {
       if (mounted) {
@@ -359,7 +369,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = _describe(e));
+      if (mounted) setState(() => _showError(e));
     }
   }
 
@@ -389,7 +399,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.revokeRemoteDevice(deviceId);
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = _describe(e));
+      if (mounted) setState(() => _showError(e));
     }
   }
 
@@ -419,7 +429,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.revokeAllRemoteDevices();
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = _describe(e));
+      if (mounted) setState(() => _showError(e));
     }
   }
 
@@ -431,7 +441,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       _applyStatusData(data);
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = _describe(e));
+      if (mounted) setState(() => _showError(e));
     }
   }
 
@@ -464,7 +474,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.setRemoteDeviceMode(deviceId: deviceId, mode: newMode);
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = _describe(e));
+      if (mounted) setState(() => _showError(e));
     }
   }
 
@@ -521,21 +531,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
         const SizedBox(height: 20),
 
-        if (_errorMessage != null)
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.errorContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colorScheme.error.withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline, color: colorScheme.error, size: 20),
-                const SizedBox(width: 8),
-                Expanded(child: Text(_errorMessage!, style: TextStyle(color: colorScheme.onErrorContainer, fontSize: 13))),
-              ],
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: FrameErrorCallout(
+              keyPrefix: 'remote',
+              title: _errorTitle ?? strings.remoteActionFailedTitle,
+              error: _error!,
+              strings: strings,
             ),
           ),
 
