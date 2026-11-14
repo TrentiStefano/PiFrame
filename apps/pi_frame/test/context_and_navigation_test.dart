@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -189,10 +191,14 @@ void main() {
     expect(container.read(pcpClientProvider), same(client));
     await tester.tap(find.byTooltip('Nuova sessione'));
     await tester.pumpAndSettle();
+    final projectDir = Directory.systemTemp.createTempSync('piframe_new_session_');
+    addTearDown(() => projectDir.deleteSync(recursive: true));
     await tester.enterText(
       find.byKey(const ValueKey('new-session-cwd')),
-      'C:/work/project',
+      projectDir.path,
     );
+    // The folder check is debounced, so let it run before Create is enabled.
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Crea'));
     await tester.pumpAndSettle();
@@ -200,7 +206,7 @@ void main() {
     final create = client.commands.firstWhere(
       (command) => command.type == 'session.create',
     );
-    expect(create.payload['cwd'], 'C:/work/project');
+    expect(create.payload['cwd'], projectDir.path);
   });
 
   testWidgets('SessionTreeDialog opens titled with the session and its id as a detail row', (

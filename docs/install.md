@@ -410,3 +410,16 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
 
 Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
+
+## 16. Schermata di benvenuto e nuova sessione
+
+Quando nessuna sessione è aperta, la schermata di benvenuto è una ripresa del lavoro.
+
+- **Riprendi il lavoro**: a sinistra la descrizione, **Nuova sessione** (pulsante principale) ed **Esplora sessioni**. A destra, fino a 8 sessioni recenti raggruppate per repository, come righe selezionabili. Con una tastiera fisica si usano ↑/↓ per spostarsi e Invio per aprire la sessione. Su telefono e tablet (senza tastiera fisica) il suggerimento "Ctrl / Cmd + K" non compare. Sotto i 960 px di larghezza le sessioni passano sotto i pulsanti; sotto i 640 px il titolo è più piccolo.
+- **Prima apertura**: al primo avvio il titolo, la descrizione e i pulsanti compaiono in sequenza (300 ms ciascuno, sfalsati di 100 ms, con una leggera risalita). Con "Riduci animazioni" compare solo una dissolvenza. Il flag è salvato in `~/.piframe/app_first_run.json` (chiave `introPlayed`), separato da `first_run.json`, che riguarda l'installazione di Pi; alle aperture successive l'animazione non si ripete.
+- **Nuova sessione**: apre una finestra di dialogo di 480 px con il campo "Percorso della cartella…" (precompilato con la cartella della sessione attiva, se c'è), il pulsante per scegliere una cartella dal computer e fino a 5 cartelle recenti da selezionare con un clic. Il percorso viene verificato 300 ms dopo l'ultima modifica:
+  - "Cartella non trovata": il percorso non esiste e **Crea** resta disattivato;
+  - "Repository Git rilevato · <ramo>": la cartella è un repository Git, e il ramo è letto da `HEAD` (su un HEAD staccato compare solo "Repository Git rilevato");
+  - "Cartella trovata": una cartella esistente che non è un repository Git.
+  Invio crea la sessione quando il percorso è valido, Esc chiude la finestra. Il pulsante del benvenuto resta fermo finché non si preme **Crea**.
+- Nel browser il percorso non può essere verificato sul computer: il campo accetta qualsiasi percorso non vuoto e mostra il promemoria sul percorso locale. Sul computer la verifica usa il file system dell'app: se app e daemon girano su macchine diverse, il risultato riguarda la macchina dell'app.
