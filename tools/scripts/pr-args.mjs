@@ -4,11 +4,16 @@
 
 export const VERIFY_FLAGS = new Set(['--release', '--e2e', '--force', '--no-merge', '--verbose', '--keep']);
 
-/** Splits argv into flags for `verify` and everything else, which is forwarded to `gh pr create`. */
+/**
+ * Splits argv into flags for `verify` and everything else, which is forwarded to `gh pr create`.
+ * A bare `--` is dropped first: `pnpm run pr -- --title ...` makes pnpm pass the separator on to this
+ * script, and gh would read it as the start of positional arguments.
+ */
 export function splitArgs(argv) {
+  const args = argv.filter((a) => a !== '--');
   return {
-    verifyArgs: argv.filter((a) => VERIFY_FLAGS.has(a)),
-    ghArgs: argv.filter((a) => !VERIFY_FLAGS.has(a))
+    verifyArgs: args.filter((a) => VERIFY_FLAGS.has(a)),
+    ghArgs: args.filter((a) => !VERIFY_FLAGS.has(a))
   };
 }
 
