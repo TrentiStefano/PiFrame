@@ -86,9 +86,13 @@ class GitChangeRow extends StatelessWidget {
     required this.onStage,
     required this.onUnstage,
     required this.onDiscard,
+    this.selected = false,
+    this.onContextMenu,
   });
 
   final Map<String, dynamic> file;
+  final bool selected;
+  final ValueChanged<Offset>? onContextMenu;
   final bool isStaged;
   final bool hasUnstagedEdit;
   final Set<String> piTouchedPaths;
@@ -129,6 +133,12 @@ class GitChangeRow extends StatelessWidget {
       name: parts.name,
       secondary: parts.dir,
       inlineSecondary: true,
+      // The Git list is one Tab stop; arrow keys move between rows. Mouse and
+      // right-click work on the row directly.
+      focusable: false,
+      selected: selected,
+      revealActionsWhenSelected: true,
+      onSecondaryTap: onContextMenu,
       onTap: () => onShowDiff(path),
       leading: FileIcon(path: path, size: FrameSize.icon),
       trailing: Row(
@@ -164,24 +174,29 @@ class GitChangeRow extends StatelessWidget {
           ),
         ],
       ),
+      // Excluded from Tab: Space and Delete on the focused list do the same.
       actions: [
-        FrameIconAction(
-          key: ValueKey('git-$section-toggle-$path'),
-          icon: isStaged ? Icons.remove_circle_outline : Icons.add,
-          tooltip: isStaged
-              ? strings.unstageFileTooltip(path)
-              : strings.stageFileTooltip(path),
-          onPressed: actionsBlocked
-              ? null
-              : () => isStaged ? onUnstage(path) : onStage(path),
+        ExcludeFocus(
+          child: FrameIconAction(
+            key: ValueKey('git-$section-toggle-$path'),
+            icon: isStaged ? Icons.remove_circle_outline : Icons.add,
+            tooltip: isStaged
+                ? strings.unstageFileTooltip(path)
+                : strings.stageFileTooltip(path),
+            onPressed: actionsBlocked
+                ? null
+                : () => isStaged ? onUnstage(path) : onStage(path),
+          ),
         ),
         // Gap between stage and discard, so a misclick does not discard.
         const SizedBox(width: FrameSpace.x2),
-        FrameIconAction(
-          key: ValueKey('git-$section-discard-$path'),
-          icon: Icons.undo,
-          tooltip: strings.discardFileTooltip(path),
-          onPressed: actionsBlocked ? null : () => onDiscard(path),
+        ExcludeFocus(
+          child: FrameIconAction(
+            key: ValueKey('git-$section-discard-$path'),
+            icon: Icons.undo,
+            tooltip: strings.discardFileTooltip(path),
+            onPressed: actionsBlocked ? null : () => onDiscard(path),
+          ),
         ),
       ],
     );

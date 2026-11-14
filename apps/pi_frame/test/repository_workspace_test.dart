@@ -568,6 +568,109 @@ void main() {
     expect(client.gitActions, hasLength(4));
   });
 
+  testWidgets('Git row right-click menu adds the file to the chat', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('notes.txt'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('git-menu-open-diff')), findsOneWidget);
+    expect(find.byKey(const ValueKey('git-menu-toggle-stage')), findsOneWidget);
+    expect(find.byKey(const ValueKey('git-menu-discard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('git-menu-copy-path')), findsOneWidget);
+    expect(find.byKey(const ValueKey('git-menu-add-chat')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('git-menu-add-chat')));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(GitChangesPane)),
+    );
+    // Same path as the editor's "Add file to chat": an @mention in the draft.
+    expect(
+      container.read(composerDraftProvider('session-a')),
+      contains('@notes.txt '),
+    );
+  });
+
+  testWidgets(
+    'Git list is one Tab stop; arrows move, Space stages, Delete discards',
+    (tester) async {
+      final client = _FakeWorkspaceClient();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pcpClientProvider.overrideWithValue(client),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state = const SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [FrameTokens.light],
+            ),
+            home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Rows are not Tab stops: the list node holds the focus.
+      final listNode = Focus.of(
+        tester.element(find.byKey(const ValueKey('git-list'))),
+      );
+      listNode.requestFocus();
+      await tester.pumpAndSettle();
+
+      // Entries: STAGED header, CHANGES header, lib/main.dart, notes.txt.
+      // Down twice reaches lib/main.dart.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(client.gitActions.last['action'], 'stage');
+      expect(client.gitActions.last['paths'], ['lib/main.dart']);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+      expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Annulla'));
+      await tester.pumpAndSettle();
+
+      // Up one row reaches the CHANGES header; Enter collapses it.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.text('notes.txt'), findsNothing);
+    },
+  );
+
   testWidgets('Git writes-disabled line does not move the file rows', (
     tester,
   ) async {

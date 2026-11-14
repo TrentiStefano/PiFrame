@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -17,6 +18,7 @@ import '../../../ui/frame_snack_bar.dart';
 import '../branch_picker_dialog.dart';
 import '../../browser/browser_controller.dart';
 import '../../browser/browser_models.dart';
+import '../../composer/composer_draft.dart';
 import '../../session_changes/session_changes_provider.dart';
 import '../workspace_change_paths.dart';
 import '../workspace_pane.dart';
@@ -30,6 +32,39 @@ import 'git_section_header.dart';
 
 /// Expansion of the STAGED and CHANGES groups. Null means "not toggled yet":
 /// the default rule applies (see `build`).
+/// One entry of the Git list as the keyboard sees it. Every entry is one row
+/// high. [render] builds it; [selected] marks the keyboard cursor.
+class _GitEntry {
+  _GitEntry({
+    required this.key,
+    required this.section,
+    required this.render,
+    this.path,
+    this.isHeader = false,
+    this.expanded = false,
+  });
+
+  /// A note under an empty section ("Nessun file preparato.").
+  factory _GitEntry.note(String section, String message) => _GitEntry(
+    key: 'n:$section',
+    section: section,
+    render: (_) => GitListNote(message: message),
+  );
+
+  final String key;
+
+  /// 'staged' or 'unstaged'.
+  final String section;
+  final Widget Function(bool selected) render;
+
+  /// File path, for file rows only.
+  final String? path;
+  final bool isHeader;
+
+  /// Whether the section is open, for section headers only.
+  final bool expanded;
+}
+
 final gitStagedExpandedProvider = StateProvider.family<bool?, String>(
   (ref, sessionId) => null,
 );
@@ -64,6 +99,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   bool _working = false;
   bool _branchPickerOpen = false;
   final _message = TextEditingController();
+
+  /// The Git list is one Tab stop; this node holds that focus.
+  final _listFocus = FocusNode(debugLabel: 'git-list');
+  final _listScroll = ScrollController();
+
+  /// Keyboard cursor: the key of the focused entry, or null for the first one.
+  String? _cursorKey;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +125,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   void dispose() {
     _message.dispose();
+    _listFocus.dispose();
+    _listScroll.dispose();
     super.dispose();
   }
 
@@ -570,12 +615,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     required Set<String> manualSavedPaths,
     required bool blocked,
     required AppStrings strings,
+    bool selected = false,
   }) {
     final path = file['path'].toString();
+    final section = isStaged ? 'staged' : 'unstaged';
     return GitChangeRow(
-      key: ValueKey(
-        'git-row-${isStaged ? 'staged' : 'unstaged'}-${file['path']}',
-      ),
+      key: ValueKey('git-row-$section-$path'),
       file: file,
       isStaged: isStaged,
       hasUnstagedEdit: hasUnstagedEdit,
@@ -584,16 +629,217 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       blocked: blocked,
       working: _working,
       strings: strings,
-      onShowDiff: (_) => showGitDiffDialog(
-        context: context,
-        ref: ref,
-        sessionId: widget.sessionId,
+      selected: selected,
+      onShowDiff: (_) {
+        _selectRow('r:$section:$path');
+        _openDiff(path);
+      },
+      onContextMenu: (position) => _showRowMenu(
+        position,
         path: path,
+        isStaged: isStaged,
+        blocked: blocked,
       ),
       onStage: (path) => _action('stage', [path]),
       onUnstage: (path) => _action('unstage', [path]),
       onDiscard: (path) => _discardFile(path),
     );
+  }
+
+  void _openDiff(String path) {
+    showGitDiffDialog(
+      context: context,
+      ref: ref,
+      sessionId: widget.sessionId,
+      path: path,
+    );
+  }
+
+  /// Moves the cursor to [key] and takes keyboard focus for the list.
+  void _selectRow(String key) {
+    setState(() => _cursorKey = key);
+    _listFocus.requestFocus();
+  }
+
+  void _toggleSection(String section, bool expanded) {
+    final provider = section == 'staged'
+        ? gitStagedExpandedProvider
+        : gitUnstagedExpandedProvider;
+    ref.read(provider(widget.sessionId).notifier).state = !expanded;
+  }
+
+  int _cursorIndex(List<_GitEntry> entries) {
+    final index = entries.indexWhere((e) => e.key == _cursorKey);
+    return index < 0 ? 0 : index;
+  }
+
+  String _activeKey(List<_GitEntry> entries) =>
+      entries[_cursorIndex(entries)].key;
+
+  void _moveCursor(int index, List<_GitEntry> entries) {
+    final target = index < 0
+        ? 0
+        : index >= entries.length
+        ? entries.length - 1
+        : index;
+    setState(() => _cursorKey = entries[target].key);
+    _ensureVisible(target);
+  }
+
+  /// Scrolls the list by the least amount that shows row [index]. Every entry
+  /// is exactly `FrameSize.rowList` high, so the offset is arithmetic.
+  void _ensureVisible(int index) {
+    if (!_listScroll.hasClients) return;
+    final position = _listScroll.position;
+    final top = index * FrameSize.rowList;
+    final bottom = top + FrameSize.rowList;
+    final viewTop = position.pixels;
+    final viewBottom = viewTop + position.viewportDimension;
+    double? target;
+    if (top < viewTop) {
+      target = top;
+    } else if (bottom > viewBottom) {
+      target = bottom - position.viewportDimension;
+    }
+    if (target == null) return;
+    _listScroll.jumpTo(
+      target
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble(),
+    );
+  }
+
+  /// Keys on the focused Git list: arrows move, Enter opens the diff (or
+  /// toggles a section), Space stages or unstages (or toggles a section),
+  /// Delete opens the discard confirmation.
+  KeyEventResult _onListKey(
+    KeyEvent event,
+    List<_GitEntry> entries,
+    bool blocked,
+  ) {
+    if (event is KeyUpEvent || entries.isEmpty) return KeyEventResult.ignored;
+    final index = _cursorIndex(entries);
+    final entry = entries[index];
+    final key = event.logicalKey;
+    final writesOff = blocked || _working;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _moveCursor(index + 1, entries);
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      _moveCursor(index - 1, entries);
+    } else if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) {
+      if (entry.isHeader) {
+        _toggleSection(entry.section, entry.expanded);
+      } else if (entry.path != null) {
+        _openDiff(entry.path!);
+      }
+    } else if (key == LogicalKeyboardKey.space) {
+      if (entry.isHeader) {
+        _toggleSection(entry.section, entry.expanded);
+      } else if (entry.path != null && !writesOff) {
+        _action(entry.section == 'staged' ? 'unstage' : 'stage', [entry.path!]);
+      }
+    } else if (key == LogicalKeyboardKey.delete) {
+      if (entry.path != null && !writesOff) _discardFile(entry.path!);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
+  }
+
+  /// Right-click menu of a Git row. The actions are the existing ones: diff,
+  /// stage or unstage, discard, copy path, and add to the chat (the same path
+  /// the editor uses).
+  Future<void> _showRowMenu(
+    Offset position, {
+    required String path,
+    required bool isStaged,
+    required bool blocked,
+  }) async {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
+    final strings = ref.read(appStringsProvider);
+    final writesOff = blocked || _working;
+    Widget item(IconData icon, String label, Color iconColor) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: FrameSize.icon, color: iconColor),
+        const SizedBox(width: FrameSpace.x2),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.body.copyWith(color: tokens.textPrimary),
+          ),
+        ),
+      ],
+    );
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: [
+        PopupMenuItem<String>(
+          key: const ValueKey('git-menu-open-diff'),
+          value: 'diff',
+          child: item(
+            Icons.article_outlined,
+            strings.gitMenuOpenDiff,
+            tokens.textMuted,
+          ),
+        ),
+        PopupMenuItem<String>(
+          key: const ValueKey('git-menu-toggle-stage'),
+          value: 'toggle',
+          enabled: !writesOff,
+          child: item(
+            isStaged ? Icons.remove_circle_outline : Icons.add,
+            isStaged ? strings.gitMenuUnstage : strings.gitMenuStage,
+            tokens.textMuted,
+          ),
+        ),
+        PopupMenuItem<String>(
+          key: const ValueKey('git-menu-discard'),
+          value: 'discard',
+          enabled: !writesOff,
+          child: item(Icons.undo, strings.gitMenuDiscard, tokens.danger),
+        ),
+        PopupMenuItem<String>(
+          key: const ValueKey('git-menu-copy-path'),
+          value: 'copy',
+          child: item(Icons.copy, strings.copyPath, tokens.textMuted),
+        ),
+        PopupMenuItem<String>(
+          key: const ValueKey('git-menu-add-chat'),
+          value: 'chat',
+          child: item(
+            Icons.add_comment_outlined,
+            strings.addPathToChat,
+            tokens.accent,
+          ),
+        ),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'diff':
+        _openDiff(path);
+      case 'toggle':
+        _action(isStaged ? 'unstage' : 'stage', [path]);
+      case 'discard':
+        _discardFile(path);
+      case 'copy':
+        Clipboard.setData(ClipboardData(text: path));
+        FrameSnackBar.show(context, message: strings.pathCopied(path));
+      case 'chat':
+        appendFileMentionToComposer(ref, widget.sessionId, path);
+        FrameSnackBar.show(context, message: strings.addedFileToChat(path));
+    }
   }
 
   @override
@@ -675,6 +921,103 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         unstagedFiles.isNotEmpty;
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? cwd;
+    _GitEntry fileEntry(
+      Map<String, dynamic> file, {
+      required bool isStaged,
+      required bool hasUnstagedEdit,
+    }) {
+      final path = file['path'].toString();
+      final section = isStaged ? 'staged' : 'unstaged';
+      return _GitEntry(
+        key: 'r:$section:$path',
+        section: section,
+        path: path,
+        render: (selected) => _buildGitFileRow(
+          file: file,
+          isStaged: isStaged,
+          hasUnstagedEdit: hasUnstagedEdit,
+          piTouchedPaths: piTouchedPaths,
+          manualSavedPaths: repository.manualSavedPaths,
+          blocked: blocked,
+          strings: strings,
+          selected: selected,
+        ),
+      );
+    }
+
+    final listEntries = <_GitEntry>[
+      _GitEntry(
+        key: 'h:staged',
+        section: 'staged',
+        isHeader: true,
+        expanded: isStagedExpanded,
+        render: (selected) => GitSectionHeader(
+          title: strings.stagedChangesSectionUpper,
+          count: stagedFiles.length,
+          isExpanded: isStagedExpanded,
+          selected: selected,
+          onToggle: () => _toggleSection('staged', isStagedExpanded),
+          trailing: stagedFiles.isEmpty || blocked || _working
+              ? null
+              : ExcludeFocus(
+                  child: FrameIconAction(
+                    key: const ValueKey('git-unstage-all-btn'),
+                    tooltip: strings.unstageAllTooltip,
+                    icon: Icons.remove_circle_outline,
+                    onPressed: () => _action(
+                      'unstage',
+                      stagedFiles.map((f) => f['path'].toString()).toList(),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+      if (isStagedExpanded)
+        ...(stagedFiles.isEmpty
+            ? [_GitEntry.note('staged', strings.noStagedFiles)]
+            : [
+                for (final file in stagedFiles)
+                  fileEntry(
+                    file,
+                    isStaged: true,
+                    hasUnstagedEdit: file['unstaged'] == true,
+                  ),
+              ]),
+      _GitEntry(
+        key: 'h:unstaged',
+        section: 'unstaged',
+        isHeader: true,
+        expanded: isUnstagedExpanded,
+        render: (selected) => GitSectionHeader(
+          title: strings.changesSectionUpper,
+          count: unstagedFiles.length,
+          isExpanded: isUnstagedExpanded,
+          selected: selected,
+          onToggle: () => _toggleSection('unstaged', isUnstagedExpanded),
+          trailing: unstagedFiles.isEmpty || blocked || _working
+              ? null
+              : ExcludeFocus(
+                  child: FrameIconAction(
+                    key: const ValueKey('git-stage-all-btn'),
+                    tooltip: strings.stageAllTooltip,
+                    icon: Icons.add,
+                    onPressed: () => _action(
+                      'stage',
+                      unstagedFiles.map((f) => f['path'].toString()).toList(),
+                    ),
+                  ),
+                ),
+        ),
+      ),
+      if (isUnstagedExpanded)
+        ...(unstagedFiles.isEmpty
+            ? [_GitEntry.note('unstaged', strings.noUnstagedChanges)]
+            : [
+                for (final file in unstagedFiles)
+                  fileEntry(file, isStaged: false, hasUnstagedEdit: true),
+              ]),
+    ];
+
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
       child: Column(
@@ -964,120 +1307,24 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                         actionIcon: Icons.refresh,
                         onAction: _loading ? null : () => _refresh(),
                       )
-                    : ListView(
-                        children: [
-                          GitSectionHeader(
-                            title: strings.stagedChangesSectionUpper,
-                            count: stagedFiles.length,
-                            isExpanded: isStagedExpanded,
-                            onToggle: () {
-                              ref
-                                      .read(
-                                        gitStagedExpandedProvider(
-                                          widget.sessionId,
-                                        ).notifier,
-                                      )
-                                      .state =
-                                  !isStagedExpanded;
-                            },
-                            trailing: stagedFiles.isEmpty || blocked || _working
-                                ? null
-                                : FrameIconAction(
-                                    key: const ValueKey('git-unstage-all-btn'),
-                                    tooltip: strings.unstageAllTooltip,
-                                    icon: Icons.remove_circle_outline,
-                                    onPressed: () => _action(
-                                      'unstage',
-                                      stagedFiles
-                                          .map((f) => f['path'].toString())
-                                          .toList(),
-                                    ),
-                                  ),
-                          ),
-                          if (isStagedExpanded) ...[
-                            if (stagedFiles.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                child: Text(
-                                  strings.noStagedFiles,
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              )
-                            else
-                              for (final file in stagedFiles)
-                                _buildGitFileRow(
-                                  file: file,
-                                  isStaged: true,
-                                  hasUnstagedEdit: file['unstaged'] == true,
-                                  piTouchedPaths: piTouchedPaths,
-                                  manualSavedPaths: repository.manualSavedPaths,
-                                  blocked: blocked,
-                                  strings: strings,
-                                ),
-                          ],
-                          GitSectionHeader(
-                            title: strings.changesSectionUpper,
-                            count: unstagedFiles.length,
-                            isExpanded: isUnstagedExpanded,
-                            onToggle: () {
-                              ref
-                                      .read(
-                                        gitUnstagedExpandedProvider(
-                                          widget.sessionId,
-                                        ).notifier,
-                                      )
-                                      .state =
-                                  !isUnstagedExpanded;
-                            },
-                            trailing:
-                                unstagedFiles.isEmpty || blocked || _working
-                                ? null
-                                : FrameIconAction(
-                                    key: const ValueKey('git-stage-all-btn'),
-                                    tooltip: strings.stageAllTooltip,
-                                    icon: Icons.add,
-                                    onPressed: () => _action(
-                                      'stage',
-                                      unstagedFiles
-                                          .map((f) => f['path'].toString())
-                                          .toList(),
-                                    ),
-                                  ),
-                          ),
-                          if (isUnstagedExpanded) ...[
-                            if (unstagedFiles.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                child: Text(
-                                  strings.noUnstagedChanges,
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              )
-                            else
-                              for (final file in unstagedFiles)
-                                _buildGitFileRow(
-                                  file: file,
-                                  isStaged: false,
-                                  hasUnstagedEdit: true,
-                                  piTouchedPaths: piTouchedPaths,
-                                  manualSavedPaths: repository.manualSavedPaths,
-                                  blocked: blocked,
-                                  strings: strings,
-                                ),
-                          ],
-                        ],
+                    : Focus(
+                        focusNode: _listFocus,
+                        onFocusChange: (_) => setState(() {}),
+                        onKeyEvent: (node, event) =>
+                            _onListKey(event, listEntries, blocked),
+                        child: ListView.builder(
+                          key: const ValueKey('git-list'),
+                          controller: _listScroll,
+                          itemExtent: FrameSize.rowList,
+                          itemCount: listEntries.length,
+                          itemBuilder: (context, index) {
+                            final entry = listEntries[index];
+                            return entry.render(
+                              _listFocus.hasFocus &&
+                                  entry.key == _activeKey(listEntries),
+                            );
+                          },
+                        ),
                       ),
               ),
             ),

@@ -317,6 +317,14 @@ extension WorkspaceStrings on AppStrings {
 
   String get gitRefreshAction => isItalian ? 'Aggiorna' : 'Refresh';
 
+  String get gitMenuOpenDiff => isItalian ? 'Apri diff' : 'Open diff';
+
+  String get gitMenuStage => isItalian ? 'Metti in stage' : 'Stage';
+
+  String get gitMenuUnstage => isItalian ? 'Togli dallo stage' : 'Unstage';
+
+  String get gitMenuDiscard => isItalian ? 'Scarta…' : 'Discard…';
+
   String get gitLoadingStatus =>
       isItalian ? 'Lettura stato Git…' : 'Reading Git status…';
 
