@@ -27,14 +27,14 @@ void main() {
       expect(strings.tabPackages, 'PACCHETTI');
       expect(strings.tabAppearance, 'ASPETTO');
       expect(strings.tabAgents, 'AGENTI');
-      expect(strings.agentsTitle, 'Configurazione Agenti e Sottoagenti');
+      expect(strings.agentsTitle, 'Configurazione agenti e sottoagenti');
       expect(strings.agentsPackagesLabel, 'Pacchetti:');
       expect(strings.agentsContextSingleTierTooltip, 'Il modello ha un solo livello di contesto');
       expect(strings.agentsModelUnavailableWarning, 'Non disponibile con le credenziali attuali');
       expect(strings.agentsNotAvailableShort, 'n/d');
       expect(strings.languageSectionTitle, "Lingua dell'Applicazione");
-      expect(strings.openThemeEditorBtn, 'Editor Temi / Personalizza Tema');
-      expect(strings.updateNoticeTitle, 'Aggiornamenti Rilevati');
+      expect(strings.openThemeEditorBtn, 'Editor temi / Personalizza tema');
+      expect(strings.updateNoticeTitle, 'Aggiornamenti rilevati');
       expect(strings.branchChipTooltip, 'Cambia ramo Git');
       expect(strings.branchPickerTitle, 'Passa a un altro ramo');
       expect(strings.workspaceDirtyDialogTitle, 'Modifiche non salvate');

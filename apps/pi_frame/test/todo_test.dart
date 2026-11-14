@@ -62,7 +62,7 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('Task Agente (Todo)'), findsOneWidget);
+      expect(find.text('Task agente'), findsOneWidget);
       expect(find.text('First Task'), findsOneWidget);
       expect(find.text('Second Task'), findsOneWidget);
       expect(find.byType(Checkbox), findsNWidgets(2));

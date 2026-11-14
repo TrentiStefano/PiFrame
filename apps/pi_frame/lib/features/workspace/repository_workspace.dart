@@ -2605,10 +2605,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }) {
     final path = file['path'].toString();
     final stateLabel = isStaged && hasUnstagedEdit
-        ? 'staged + unstaged edits'
+        ? strings.gitStateStagedAndUnstaged
         : isStaged
-        ? 'staged'
-        : 'unstaged';
+        ? strings.gitStateStaged
+        : strings.gitStateUnstaged;
 
     return Material(
       color: tokens.surface.withValues(alpha: 0),
@@ -2630,7 +2630,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
         ),
         subtitle: Text(
-          '${file['status'] ?? 'modified'} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths, strings)}',
+          '${strings.gitFileStatusLabel(file['status']?.toString() ?? 'modified')} · $stateLabel · ${_changeOriginLabel(path, piTouchedPaths, manualSavedPaths, strings)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(

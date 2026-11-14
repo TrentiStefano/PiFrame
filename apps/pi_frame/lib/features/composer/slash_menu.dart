@@ -6,6 +6,8 @@ class SlashMenu extends StatelessWidget {
   final List<Map<String, dynamic>> commands;
   final String filter;
   final ValueChanged<Map<String, dynamic>> onSelect;
+  /// Localized label for a command source (Pi, estensione, prompt, skill).
+  final String Function(String source) sourceLabel;
 
   /// Keyboard-highlighted row in [filtered] order.
   final int selectedIndex;
@@ -15,6 +17,7 @@ class SlashMenu extends StatelessWidget {
     required this.commands,
     required this.filter,
     required this.onSelect,
+    required this.sourceLabel,
     this.selectedIndex = 0,
   });
 
@@ -150,7 +153,7 @@ class SlashMenu extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        source,
+                        sourceLabel(source),
                         style: TextStyle(
                           color: tokens.textMuted,
                           fontSize: 10,

@@ -494,7 +494,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
     }
 
-    final stagedHeader = find.textContaining('MODIFICHE PREPARATE (STAGED)');
+    final stagedHeader = find.textContaining('MODIFICHE IN STAGE');
     if (stagedHeader.evaluate().isNotEmpty) {
       await tester.tap(stagedHeader.first);
       await tester.pump(const Duration(milliseconds: 200));

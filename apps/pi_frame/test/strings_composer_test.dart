@@ -176,7 +176,7 @@ void main() {
         strings.composerModelContextNotAvailableDaemon,
         'Contesto del modello non disponibile. Riprova quando il daemon è connesso.',
       );
-      expect(strings.composerContextSizeTitle, 'Dimensione Contesto');
+      expect(strings.composerContextSizeTitle, 'Dimensione contesto');
       expect(
         strings.composerContextSelectionFailed('err'),
         'Selezione contesto non riuscita: err',
@@ -207,13 +207,13 @@ void main() {
       // Section 4: Attachments
       expect(strings.attEnterValidUrl, 'Inserisci un URL valido');
       expect(strings.attInvalidUrlFormat, 'Formato URL non valido');
-      expect(strings.attAddWebLinkTitle, 'Aggiungi Link Web');
+      expect(strings.attAddWebLinkTitle, 'Aggiungi link Web');
       expect(strings.attTitleOptional, 'Titolo o etichetta (opzionale)');
       expect(
         strings.attTitleHint,
         'Documentazione API, PR GitHub...',
       );
-      expect(strings.attAddLinkAction, 'Aggiungi Link');
+      expect(strings.attAddLinkAction, 'Aggiungi link');
       expect(strings.attClosePreviewTooltip, 'Chiudi anteprima');
       expect(
         strings.attImageLoadError,
@@ -258,8 +258,8 @@ void main() {
         strings.modelListNotAvailable('gpt'),
         'gpt\nElenco modelli non disponibile.',
       );
-      expect(strings.thinkingLevelHeader, 'Livello Thinking');
-      expect(strings.contextSizeHeader, 'Dimensione Contesto');
+      expect(strings.thinkingLevelHeader, 'Livello thinking');
+      expect(strings.contextSizeHeader, 'Dimensione contesto');
       expect(
         strings.compactionMarginHeader,
         'Margine per compattazione (%)',
@@ -281,13 +281,13 @@ void main() {
         strings.compactionMarginUnused,
         'Il margine resta inutilizzato prima della compattazione automatica.',
       );
-      expect(strings.contextUsageHeader, 'Utilizzo Contesto');
+      expect(strings.contextUsageHeader, 'Utilizzo contesto');
       expect(strings.dataNotAvailable, 'Dati non disponibili');
       expect(strings.contextTokensUsage(70000, '1M'), '70000 / 1M token');
       expect(strings.compactingLabel, 'Compattazione...');
       expect(strings.compactContextAction, 'Compatta contesto');
-      expect(strings.duplicateBranchAction, 'Duplica Ramo (Clone)');
-      expect(strings.branchTreeAction, 'Albero dei Rami (Tree)');
+      expect(strings.duplicateBranchAction, 'Duplica ramo');
+      expect(strings.branchTreeAction, 'Albero dei rami');
       expect(strings.compactionCompletedTitle, 'Compattazione completata');
       expect(
         strings.compactionDialogContent(100, 50, '\$0.01'),
@@ -317,12 +317,12 @@ void main() {
       expect(strings.modelsNotAvailable('err'), 'Modelli non disponibili: err');
 
       // Section 7: Dialogs
-      expect(strings.piInstallTitle, 'Installazione Pi Coding Agent');
+      expect(strings.piInstallTitle, 'Installazione Pi coding agent');
       expect(
         strings.piInstallSubtitle,
         'Configurazione automatica iniziale',
       );
-      expect(strings.piInstallNotDetected, 'Pi Coding Agent non rilevato');
+      expect(strings.piInstallNotDetected, 'Pi coding agent non rilevato');
       expect(
         strings.piInstallDescription,
         'PiFrame utilizza pi-coding-agent (@earendil-works/pi-coding-agent) per alimentare le sessioni e gli strumenti dell\'agente. Non è stato rilevato alcun comando "pi" nel sistema.',
@@ -360,7 +360,7 @@ void main() {
         strings.extUiNoDaemonResponse,
         'Nessuna risposta dal daemon. Riprova.',
       );
-      expect(strings.extUiInteractionRequest, 'Richiesta di Interazione');
+      expect(strings.extUiInteractionRequest, 'Richiesta di interazione');
       expect(
         strings.extUiLockedByOther,
         'Un altro client sta rispondendo a questa richiesta.',
@@ -381,7 +381,7 @@ void main() {
       );
 
       // Section 9: Session Tree Dialog
-      expect(strings.sessionTreeDialogTitle, 'Albero della Sessione');
+      expect(strings.sessionTreeDialogTitle, 'Albero della sessione');
       expect(strings.sessionTreeSessionLabel('s1'), 'Sessione: s1');
       expect(strings.sessionTreeReload, 'Ricarica');
       expect(strings.sessionTreeError('err'), 'Errore: err');

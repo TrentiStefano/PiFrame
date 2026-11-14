@@ -45,7 +45,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         } catch (_) {}
       }
 
-      // Redacted Diagnostic Bundle (D16: strictly local, secrets scrubbed)
+      // Redacted diagnostic bundle (strictly local, secrets scrubbed)
       final bundle = {
         'generatedAt': DateTime.now().toIso8601String(),
         'app': {'name': 'PiFrame', 'version': piFrameVersion, 'protocol': 1},
@@ -60,7 +60,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         'environment': {
           'activeSessionId': activeId,
           'totalSessionsCount': sessions.length,
-          'telemetry': 'DISABLED (D16: zero remote telemetry)',
+          'telemetry': 'DISABLED (no remote telemetry)',
         },
         'sessionsSummary': sessions
             .map(
@@ -184,7 +184,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
               const SizedBox(height: 12),
               _buildMetricRow(
                 strings.diagDaemonConnection,
-                connState.name.toUpperCase(),
+                strings.daemonConnectionStateLabel(connState.name),
                 tokens,
                 color: connState == DaemonConnectionState.connected
                     ? tokens.agentSettled

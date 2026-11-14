@@ -172,7 +172,7 @@ class AppStrings {
 
   // Appearance tab
   String get appearanceTitle =>
-      isItalian ? 'Personalizzazione Tema e UI' : 'Theme & UI Customization';
+      isItalian ? 'Personalizzazione tema e UI' : 'Theme & UI Customization';
   String get appearanceSubtitle => isItalian
       ? 'PiFrame supporta temi personalizzati definiti via file JSON in ~/.piframe/themes/.'
       : 'PiFrame supports custom themes defined via JSON files in ~/.piframe/themes/.';
@@ -187,49 +187,49 @@ class AppStrings {
       ? 'Adatta automaticamente l\'aspetto in base alla modalità chiara o scura del sistema operativo.'
       : 'Automatically match appearance with operating system dark/light mode.';
   String get selectActiveTheme =>
-      isItalian ? 'Seleziona Tema Attivo:' : 'Select Active Theme:';
+      isItalian ? 'Seleziona tema attivo:' : 'Select Active Theme:';
   String get defaultDarkTheme =>
-      isItalian ? 'Tema Scuro Predefinito:' : 'Default Dark Theme:';
+      isItalian ? 'Tema scuro predefinito:' : 'Default Dark Theme:';
   String get defaultLightTheme =>
-      isItalian ? 'Tema Chiaro Predefinito:' : 'Default Light Theme:';
+      isItalian ? 'Tema chiaro predefinito:' : 'Default Light Theme:';
   String get importThemeBtn => isItalian
       ? 'Importa tema JSON (VSCode / PiFrame)'
       : 'Import JSON Theme (VSCode / PiFrame)';
   String get openThemeEditorBtn => isItalian
-      ? 'Editor Temi / Personalizza Tema'
+      ? 'Editor temi / Personalizza tema'
       : 'Theme Editor / Customize Theme';
 
   // Theme Editor
   String get themeEditorTitle =>
-      isItalian ? 'Editor Temi Personalizzati' : 'Custom Theme Editor';
+      isItalian ? 'Editor temi personalizzati' : 'Custom Theme Editor';
   String get themeEditorSubtitle => isItalian
       ? 'Crea un nuovo tema a partire da uno esistente, personalizzane i componenti grafici e salvalo con un nome.'
       : 'Create a new theme based on an existing one, customize visual components, and save with a custom name.';
   String get baseThemeLabel =>
-      isItalian ? 'Tema di Partenza' : 'Starting Theme';
-  String get themeNameLabel => isItalian ? 'Nome Tema' : 'Theme Name';
+      isItalian ? 'Tema di partenza' : 'Starting Theme';
+  String get themeNameLabel => isItalian ? 'Nome tema' : 'Theme Name';
   String get themeNameHint =>
-      isItalian ? 'Es. Mio Tema Scuro' : 'E.g. My Custom Dark';
+      isItalian ? 'Es. Mio tema scuro' : 'E.g. My Custom Dark';
   String get themeVariantLabel => isItalian ? 'Variante' : 'Variant';
-  String get variantDark => isItalian ? 'Scuro (Dark)' : 'Dark';
-  String get variantLight => isItalian ? 'Chiaro (Light)' : 'Light';
+  String get variantDark => isItalian ? 'Scuro' : 'Dark';
+  String get variantLight => isItalian ? 'Chiaro' : 'Light';
   String get previewLabel =>
-      isItalian ? 'Anteprima Componenti' : 'Component Preview';
+      isItalian ? 'Anteprima componenti' : 'Component Preview';
   String get saveThemeAction =>
-      isItalian ? 'Salva e Applica Tema' : 'Save & Apply Theme';
+      isItalian ? 'Salva e applica tema' : 'Save & Apply Theme';
 
   // Theme Editor component categories
   String get catSurfaces =>
       isItalian ? 'Superfici & Sfondo' : 'Surfaces & Background';
   String get catAccents => isItalian ? 'Accenti & Focus' : 'Accents & Focus';
   String get catText => isItalian ? 'Tipografia & Testi' : 'Typography & Text';
-  String get catAgent => isItalian ? 'Stati Agente' : 'Agent States';
+  String get catAgent => isItalian ? 'Stati agente' : 'Agent States';
   String get catSyntax =>
-      isItalian ? 'Evidenziazione Sintassi' : 'Syntax Highlighting';
+      isItalian ? 'Evidenziazione sintassi' : 'Syntax Highlighting';
 
   // Startup Update Notification
   String get updateNoticeTitle =>
-      isItalian ? 'Aggiornamenti Rilevati' : 'Updates Available';
+      isItalian ? 'Aggiornamenti rilevati' : 'Updates Available';
   String get updateNoticePi => isItalian
       ? 'Nuova versione di Pi CLI disponibile'
       : 'New Pi CLI version available';
@@ -425,7 +425,7 @@ class AppStrings {
 
   // Agents tab
   String get agentsTitle => isItalian
-      ? 'Configurazione Agenti e Sottoagenti'
+      ? 'Configurazione agenti e sottoagenti'
       : 'Agent & Subagent Configuration';
   String get agentsSubtitle => isItalian
       ? 'Gestisci modelli predefiniti, livelli di thinking e quote di contesto per la sessione principale e i sottoagenti.'
@@ -464,7 +464,7 @@ class AppStrings {
       ? 'Agente di fallback (tintinweb)'
       : 'Fallback agent (tintinweb)';
   String get agentsListTitle => isItalian
-      ? 'Elenco Agenti'
+      ? 'Elenco agenti'
       : 'Agents List';
   String get agentsListSubtitle => isItalian
       ? 'Configura modello, thinking e quote di contesto per ciascun agente.'
@@ -496,7 +496,8 @@ class AppStrings {
   // Side Conversation
   String get sideConversationTitle =>
       isItalian ? 'Conversazione laterale' : 'Side conversation';
-  String get sideReadOnlyBadge => 'Side · read-only';
+  String get sideReadOnlyBadge =>
+      isItalian ? 'Laterale · sola lettura' : 'Side · read-only';
   String get sideNotPartOfMain => isItalian
       ? 'Non fa parte della conversazione principale'
       : 'Not part of the main conversation';

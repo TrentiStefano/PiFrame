@@ -430,7 +430,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify banner is shown
-    expect(find.text('Aggiornamenti Rilevati'), findsOneWidget);
+    expect(find.text('Aggiornamenti rilevati'), findsOneWidget);
     expect(find.textContaining('Pi CLI: 1.3.0 → 1.4.0'), findsOneWidget);
     expect(find.textContaining('pi-caveman, pi-web-access'), findsOneWidget);
 
@@ -489,7 +489,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Aggiornamenti Rilevati'), findsOneWidget);
+    expect(find.text('Aggiornamenti rilevati'), findsOneWidget);
     expect(find.textContaining('pi-caveman'), findsOneWidget);
 
     // Tap dismiss
@@ -499,7 +499,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Banner is dismissed
-    expect(find.text('Aggiornamenti Rilevati'), findsNothing);
+    expect(find.text('Aggiornamenti rilevati'), findsNothing);
     expect(container.read(startupUpdatesProvider).isDismissed, isTrue);
   });
 }

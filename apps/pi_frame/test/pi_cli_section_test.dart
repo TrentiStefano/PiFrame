@@ -27,17 +27,17 @@ void main() {
     expect(find.text('Aggiorna Pi CLI'), findsOneWidget);
     expect(find.text('pi update'), findsOneWidget);
 
-    expect(find.text('Aggiorna Estensioni'), findsOneWidget);
+    expect(find.text('Aggiorna estensioni'), findsOneWidget);
     expect(find.text('pi update --extensions'), findsOneWidget);
 
-    expect(find.text('Aggiorna Catalogo Modelli'), findsOneWidget);
+    expect(find.text('Aggiorna catalogo modelli'), findsOneWidget);
     expect(find.text('pi update --models'), findsOneWidget);
 
-    expect(find.text('Aggiorna Tutto'), findsOneWidget);
+    expect(find.text('Aggiorna tutto'), findsOneWidget);
     expect(find.text('pi update --all'), findsOneWidget);
 
-    expect(find.text('Elenco Estensioni'), findsOneWidget);
-    expect(find.text('Stato Server MCP'), findsOneWidget);
+    expect(find.text('Elenco estensioni'), findsOneWidget);
+    expect(find.text('Stato server MCP'), findsOneWidget);
     expect(find.text('Versione Pi CLI'), findsOneWidget);
 
     // Verify Custom Command Input

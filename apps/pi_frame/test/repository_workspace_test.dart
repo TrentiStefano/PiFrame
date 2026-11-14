@@ -254,7 +254,7 @@ void main() {
     repository.edit('lib/main.dart', 'manual edit\n');
     await repository.save('lib/main.dart');
     // Git changes starts collapsed by default: tap section header to expand
-    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.tap(find.text('MODIFICHE'));
     await tester.pumpAndSettle();
 
     expect(
@@ -310,7 +310,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.tap(find.text('MODIFICHE'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
@@ -319,7 +319,7 @@ void main() {
     expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
     expect(
       find.text(
-        'Le modifiche staged e unstaged di questo file verranno rimosse. '
+        'Le modifiche in stage e non in stage di questo file verranno rimosse. '
         'L’operazione non può essere annullata.',
       ),
       findsOneWidget,
@@ -378,9 +378,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('MODIFICHE PREPARATE (STAGED)'));
+    await tester.tap(find.text('MODIFICHE IN STAGE'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.tap(find.text('MODIFICHE'));
     await tester.pumpAndSettle();
 
     final summaryFinder = find.text('201 file');
@@ -396,8 +396,8 @@ void main() {
     );
 
     final headers = [
-      find.text('MODIFICHE PREPARATE (STAGED)'),
-      find.text('MODIFICHE (CHANGES)'),
+      find.text('MODIFICHE IN STAGE'),
+      find.text('MODIFICHE'),
     ];
     // Scroll the list down in steps, then back to the top. Whatever part of a
     // group header is still visible inside the list must sit below the

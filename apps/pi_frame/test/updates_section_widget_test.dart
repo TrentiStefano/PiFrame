@@ -194,16 +194,16 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now ready to install
-    expect(find.text('Installa e Riavvia'), findsOneWidget);
+    expect(find.text('Installa e riavvia'), findsOneWidget);
     expect(find.text('Pronto per l\'installazione'), findsOneWidget);
 
     // Tap install button -> confirmation dialog should open
-    await tester.tap(find.text('Installa e Riavvia'));
+    await tester.tap(find.text('Installa e riavvia'));
     await tester.pumpAndSettle();
 
     expect(find.text('Confermare installazione?'), findsOneWidget);
     // Confirm install in dialog
-    await tester.tap(find.text('Installa e Riavvia').last);
+    await tester.tap(find.text('Installa e riavvia').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 

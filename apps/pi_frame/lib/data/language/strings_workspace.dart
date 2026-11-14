@@ -39,7 +39,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Stop process (Ctrl+C)';
 
   String get terminalClearTooltip =>
-      isItalian ? 'Pulisci schermo (Clear)' : 'Clear screen';
+      isItalian ? 'Pulisci schermo' : 'Clear screen';
 
   String get terminalNativeAppTooltip => isItalian
       ? 'Apri nel terminale nativo (OS)'
@@ -196,7 +196,7 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Aggiorna file' : 'Refresh files';
 
   String get collapseRepoPanelTooltip => isItalian
-      ? 'Collassa pannello Repository'
+      ? 'Collassa pannello repository'
       : 'Collapse Repository panel';
 
   String get fileListLimitedNotice => isItalian
@@ -240,7 +240,7 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Scartare le modifiche a questo file?' : 'Discard changes to this file?';
 
   String get discardAllChangesWarning => isItalian
-      ? 'Le modifiche staged e unstaged di questo file verranno rimosse. L’operazione non può essere annullata.'
+      ? 'Le modifiche in stage e non in stage di questo file verranno rimosse. L’operazione non può essere annullata.'
       : 'The staged and unstaged changes to this file will be removed. This cannot be undone.';
 
   String get discardChangesBtn =>
@@ -284,7 +284,7 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Aggiorna stato Git' : 'Refresh Git status';
 
   String get collapseGitPanelTooltip => isItalian
-      ? 'Collassa pannello Git Changes'
+      ? 'Collassa pannello Git changes'
       : 'Collapse Git Changes panel';
 
   String writesDisabledReadOnly(String? reason) => isItalian
@@ -308,11 +308,31 @@ extension WorkspaceStrings on AppStrings {
   String get workingTreeClean =>
       isItalian ? 'Working tree pulito' : 'Working tree clean';
 
+  /// Localized Git file status (raw value from the daemon, e.g. "untracked").
+  String gitFileStatusLabel(String status) => switch (status) {
+        'modified' => isItalian ? 'Modificato' : 'Modified',
+        'untracked' => isItalian ? 'Non tracciato' : 'Untracked',
+        'added' => isItalian ? 'Aggiunto' : 'Added',
+        'deleted' => isItalian ? 'Eliminato' : 'Deleted',
+        'renamed' => isItalian ? 'Rinominato' : 'Renamed',
+        'copied' => isItalian ? 'Copiato' : 'Copied',
+        'typechanged' => isItalian ? 'Tipo modificato' : 'Type changed',
+        'unmerged' => isItalian ? 'In conflitto' : 'Conflict',
+        _ => status,
+      };
+
+  String get gitStateStaged => isItalian ? 'in stage' : 'staged';
+
+  String get gitStateUnstaged => isItalian ? 'non in stage' : 'unstaged';
+
+  String get gitStateStagedAndUnstaged =>
+      isItalian ? 'in stage e non in stage' : 'staged + unstaged edits';
+
   String get stagedChangesSectionTitle =>
-      isItalian ? 'Modifiche preparate (Staged)' : 'Staged changes';
+      isItalian ? 'Modifiche in stage' : 'Staged changes';
 
   String get stagedChangesSectionUpper =>
-      isItalian ? 'MODIFICHE PREPARATE (STAGED)' : 'STAGED CHANGES';
+      isItalian ? 'MODIFICHE IN STAGE' : 'STAGED CHANGES';
 
   String get unstageAllTooltip =>
       isItalian ? 'Togli tutti dallo stage' : 'Unstage all';
@@ -336,10 +356,10 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Nessun file preparato.' : 'No staged files.';
 
   String get changesSectionTitle =>
-      isItalian ? 'Modifiche (Changes)' : 'Changes';
+      isItalian ? 'Modifiche' : 'Changes';
 
   String get changesSectionUpper =>
-      isItalian ? 'MODIFICHE (CHANGES)' : 'CHANGES';
+      isItalian ? 'MODIFICHE' : 'CHANGES';
 
   String get stageAllTooltip =>
       isItalian ? 'Metti tutti in stage' : 'Stage all';
@@ -446,7 +466,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Open Chromium DevTools (F12)';
 
   String get sendToChatComposerTooltip => isItalian
-      ? 'Invia al Chat Composer'
+      ? 'Invia al chat composer'
       : 'Send to Chat Composer';
 
   String get copyUrlTooltip =>

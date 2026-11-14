@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Repository pane collapse button exists
-    final repoCollapseBtn = find.byTooltip('Collassa pannello Repository');
+    final repoCollapseBtn = find.byTooltip('Collassa pannello repository');
     expect(repoCollapseBtn, findsOneWidget);
 
     // Click collapse button on Repository pane
@@ -65,10 +65,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Repository pane is expanded again
-    expect(find.byTooltip('Collassa pannello Repository'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello repository'), findsOneWidget);
 
     // Verify Git Changes pane collapse button exists
-    final gitCollapseBtn = find.byTooltip('Collassa pannello Git Changes');
+    final gitCollapseBtn = find.byTooltip('Collassa pannello Git changes');
     expect(gitCollapseBtn, findsOneWidget);
 
     // Click collapse button on Git Changes pane
@@ -84,7 +84,7 @@ void main() {
     await tester.tap(gitExpandBtn);
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Collassa pannello Git Changes'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
   });
 
   testWidgets('Sessions sidebar can collapse and expand using arrow icon', (
@@ -248,7 +248,7 @@ void main() {
         await tester.pumpAndSettle();
         if (!preOpened) {
           expect(
-            find.byTooltip('Collassa pannello Git Changes'),
+            find.byTooltip('Collassa pannello Git changes'),
             findsOneWidget,
           );
           await tester.tap(

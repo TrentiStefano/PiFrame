@@ -193,8 +193,8 @@ void main() {
 
       expect(find.byKey(const ValueKey('settings-theme-system-switch')), findsOneWidget);
       expect(find.text('Usa tema di sistema'), findsOneWidget);
-      expect(find.text('Tema Scuro Predefinito:'), findsOneWidget);
-      expect(find.text('Tema Chiaro Predefinito:'), findsOneWidget);
+      expect(find.text('Tema scuro predefinito:'), findsOneWidget);
+      expect(find.text('Tema chiaro predefinito:'), findsOneWidget);
 
       // Toggle system theme switch
       await tester.tap(find.byKey(const ValueKey('settings-theme-system-switch')));

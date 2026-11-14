@@ -870,7 +870,7 @@ void main() {
       find.byKey(const ValueKey('cost-breakdown-subagents-row')),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Costi Subagenti & Modelli'), findsOneWidget);
+    expect(find.text('Costi subagenti & modelli'), findsOneWidget);
     expect(
       find.descendant(of: find.byType(Dialog), matching: find.text('\$0.0175')),
       findsNWidgets(2),

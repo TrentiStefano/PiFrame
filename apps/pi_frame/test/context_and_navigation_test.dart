@@ -189,7 +189,7 @@ void main() {
       tester.element(find.byType(SessionsSidebar)),
     );
     expect(container.read(pcpClientProvider), same(client));
-    await tester.tap(find.byTooltip('Nuova Sessione'));
+    await tester.tap(find.byTooltip('Nuova sessione'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('new-session-cwd')),
@@ -214,7 +214,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Albero della Sessione'), findsOneWidget);
+    expect(find.text('Albero della sessione'), findsOneWidget);
     expect(find.text('Sessione: sess_test'), findsOneWidget);
     expect(find.text('Chiudi'), findsOneWidget);
   });

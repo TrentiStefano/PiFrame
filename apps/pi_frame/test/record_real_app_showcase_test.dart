@@ -377,7 +377,7 @@ void main() {
 
     // SCENE 6: Git Changes inspection (2s)
     final gitPane = find.byType(GitChangesPane);
-    final changesHeader = find.descendant(of: gitPane, matching: find.textContaining('MODIFICHE (CHANGES)'));
+    final changesHeader = find.descendant(of: gitPane, matching: find.textContaining('MODIFICHE'));
     if (changesHeader.evaluate().isNotEmpty) {
       await tester.tap(changesHeader.first);
       await _recordFrames(tester, boundaryKey, 8);

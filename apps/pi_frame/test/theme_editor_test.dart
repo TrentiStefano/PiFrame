@@ -130,11 +130,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify dialog header, inputs, and previews
-    expect(find.text('Editor Temi Personalizzati'), findsOneWidget);
-    expect(find.text('Anteprima Componenti'), findsOneWidget);
+    expect(find.text('Editor temi personalizzati'), findsOneWidget);
+    expect(find.text('Anteprima componenti'), findsOneWidget);
     expect(find.text('Scheda Bento & Superfici'), findsOneWidget);
-    expect(find.text('Pulsante Accento'), findsOneWidget);
-    expect(find.text('Scuro (Dark)'), findsWidgets);
+    expect(find.text('Pulsante accento'), findsOneWidget);
+    expect(find.text('Scuro'), findsWidgets);
 
     // Edit Theme Name
     final nameInput = find.byType(TextField).first;
@@ -148,19 +148,19 @@ void main() {
     await tester.pumpAndSettle();
 
     // Color picker dialog should appear
-    expect(find.text('Sfondo Principale'), findsWidgets);
+    expect(find.text('Sfondo principale'), findsWidgets);
     expect(find.text('Applica'), findsOneWidget);
     await tester.tap(find.text('Applica'));
     await tester.pumpAndSettle();
 
-    // Tap "Salva e Applica Tema"
-    final saveBtn = find.text('Salva e Applica Tema');
+    // Tap "Salva e applica tema"
+    final saveBtn = find.text('Salva e applica tema');
     expect(saveBtn, findsOneWidget);
     await tester.tap(saveBtn);
     await tester.pumpAndSettle();
 
     // Verify dialog closed
-    expect(find.text('Editor Temi Personalizzati'), findsNothing);
+    expect(find.text('Editor temi personalizzati'), findsNothing);
 
     // Verify custom theme was saved to storage
     expect(storage.userThemes.containsKey('custom-mio-tema-pro.json'), isTrue);

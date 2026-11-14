@@ -630,7 +630,7 @@ void main() {
       await tester.tap(find.textContaining('\$0.0200'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Dettaglio Costi Sessione'), findsOneWidget);
+      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-subagents-row')), findsOneWidget);
 
@@ -638,7 +638,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi Modelli Agente'), findsOneWidget);
+      expect(find.text('Costi modelli agente'), findsOneWidget);
       expect(find.text('Costi per modello non disponibili'), findsOneWidget);
       expect(find.byKey(const ValueKey('agent-model-cost-claude-3-5-sonnet')), findsNothing);
       expect(find.text('\$0.0200'), findsWidgets);
@@ -646,13 +646,13 @@ void main() {
       // Click Back button to return to Level 0
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-back-btn')));
       await tester.pumpAndSettle();
-      expect(find.text('Dettaglio Costi Sessione'), findsOneWidget);
+      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
 
       // Click on Subagents cost row -> navigate to Level 2
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi Subagenti & Modelli'), findsOneWidget);
+      expect(find.text('Costi subagenti & modelli'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byType(Dialog),
@@ -668,7 +668,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog is dismissed
-      expect(find.text('Costi Subagenti & Modelli'), findsNothing);
+      expect(find.text('Costi subagenti & modelli'), findsNothing);
     });
 
     testWidgets('Chat parses <task-notification> and displays formatted card instead of raw XML', (tester) async {
@@ -726,7 +726,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.textContaining('<tool-use-id>'), findsNothing);
 
       // Beautiful card should be rendered with summary, status, tokens, and duration
-      expect(find.text('Notifica Subagente'), findsOneWidget);
+      expect(find.text('Notifica subagente'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('task-notification-card-05928f01-b805-46c')),

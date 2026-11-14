@@ -1342,7 +1342,7 @@ class _ComposerState extends ConsumerState<Composer> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  lvl.toUpperCase(),
+                  ref.read(appStringsProvider).thinkingLevelLabel(lvl),
                   style: TextStyle(
                     color: isCurrent ? tokens.thinking : tokens.textPrimary,
                     fontSize: 12,
@@ -1937,6 +1937,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                 filter: _controller.text,
                                 selectedIndex: _slashSelectedIndex,
                                 onSelect: _onSelectSlashCommand,
+                                sourceLabel: strings.composerCommandSourceLabel,
                               ),
                             ),
 
@@ -2733,9 +2734,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                             width: 3,
                                                           ),
                                                           Text(
-                                                            (currentThinkingLevel ??
-                                                                    'med')
-                                                                .toUpperCase(),
+                                                            strings.thinkingLevelLabel(currentThinkingLevel ?? 'medium'),
                                                             style: TextStyle(
                                                               color: tokens
                                                                   .textSecondary,

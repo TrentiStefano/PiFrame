@@ -74,9 +74,9 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    expect(find.byTooltip('Collassa pannello Repository'), findsNothing);
+    expect(find.byTooltip('Collassa pannello repository'), findsNothing);
     expect(find.byTooltip('Espandi pannello Repository'), findsNothing);
-    expect(find.byTooltip('Collassa pannello Git Changes'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
   });
 
   testWidgets('hiding a pane and collapsing the sessions bar are saved', (
@@ -103,7 +103,7 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    expect(find.byTooltip('Collassa pannello Repository'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello repository'), findsOneWidget);
     expect(find.byTooltip('Collassa barra sessioni'), findsOneWidget);
   });
 

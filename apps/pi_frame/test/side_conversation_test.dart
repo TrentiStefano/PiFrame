@@ -453,7 +453,7 @@ void main() {
 
       // Read-only badge visible
       expect(find.byKey(const ValueKey('side-read-only-badge')), findsOneWidget);
-      expect(find.text('Side · read-only'), findsOneWidget);
+      expect(find.text('Laterale · sola lettura'), findsOneWidget);
 
       // Model visible
       expect(find.text('gpt-4o'), findsOneWidget);

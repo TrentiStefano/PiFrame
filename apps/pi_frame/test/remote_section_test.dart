@@ -50,10 +50,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Connessione Remota Sicura'), findsOneWidget);
+    expect(find.text('Connessione remota sicura'), findsOneWidget);
     expect(find.text('DISATTIVATO'), findsOneWidget);
-    expect(find.text('Abilita Accesso Remoto'), findsOneWidget);
-    expect(find.text('Configurazione Provider Tunnel'), findsOneWidget);
+    expect(find.text('Abilita accesso remoto'), findsOneWidget);
+    expect(find.text('Configurazione provider tunnel'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
   });
 
@@ -99,14 +99,14 @@ void main() {
     await tester.pump();
 
     expect(find.text('ATTIVO'), findsOneWidget);
-    expect(find.text('Associa il tuo Smartphone'), findsOneWidget);
+    expect(find.text('Associa il tuo smartphone'), findsOneWidget);
     expect(find.byType(QrImageView), findsOneWidget);
 
     // Scroll down to reveal options and paired devices section
     await tester.drag(find.byType(ListView), const Offset(0, -600));
     await tester.pump();
 
-    expect(find.text('Modalità Predefinita per Nuovi Dispositivi'), findsOneWidget);
+    expect(find.text('Modalità predefinita per nuovi dispositivi'), findsOneWidget);
     expect(find.text('Apple iOS Device'), findsOneWidget);
     expect(find.text('VIEW'), findsOneWidget);
     expect(find.text('Revoca'), findsOneWidget);
