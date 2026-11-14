@@ -58,8 +58,11 @@ void main() {
     expect(find.text('Connessione remota sicura'), findsOneWidget);
     expect(find.text('DISATTIVATO'), findsOneWidget);
     expect(find.text('Abilita accesso remoto'), findsOneWidget);
-    expect(find.text('Configurazione provider tunnel'), findsOneWidget);
     expect(find.byType(Switch), findsOneWidget);
+    // The provider card sits below the fold now that sections are taller.
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
+    expect(find.text('Configurazione provider tunnel'), findsOneWidget);
   });
 
   testWidgets('a failed status load shows a callout with raw text behind Dettagli', (
@@ -170,8 +173,14 @@ void main() {
 
   testWidgets('missing Tailscale callout is info while remote access is off', (tester) async {
     await pumpRemoteWith(tester, missingTailscaleData(enabled: false));
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
 
-    final icon = tester.widget<Icon>(find.byIcon(Icons.warning_amber_rounded));
+    // The missing-binary notice is a FrameCallout: its info tone uses the info icon.
+    final icon = tester.widget<Icon>(find.descendant(
+      of: find.byKey(const ValueKey('remote-tailscale-missing')),
+      matching: find.byIcon(Icons.info_outline),
+    ));
     expect(icon.color, FrameTokens.dark.info);
     expect(icon.color, isNot(FrameTokens.dark.warning));
     expect(icon.color, isNot(FrameTokens.dark.danger));
@@ -179,8 +188,13 @@ void main() {
 
   testWidgets('missing Tailscale callout is warning once remote access is on', (tester) async {
     await pumpRemoteWith(tester, missingTailscaleData(enabled: true));
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
 
-    final icon = tester.widget<Icon>(find.byIcon(Icons.warning_amber_rounded));
+    final icon = tester.widget<Icon>(find.descendant(
+      of: find.byKey(const ValueKey('remote-tailscale-missing')),
+      matching: find.byIcon(Icons.warning_amber_rounded),
+    ));
     expect(icon.color, FrameTokens.dark.warning);
     expect(icon.color, isNot(FrameTokens.dark.danger));
   });

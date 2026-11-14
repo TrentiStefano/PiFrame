@@ -1,5 +1,7 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../ui/frame_callout.dart';
 import '../../ui/frame_error_callout.dart';
+import '../../ui/frame_section.dart';
 import '../../ui/frame_status_tag.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -490,13 +492,15 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     // A missing optional binary is informational while remote access is off,
     // and only needs attention once remote access is on.
-    final missingBinaryTone = _enabled ? tokens.warning : tokens.info;
+    final missingBinaryTone = _enabled
+        ? FrameCalloutTone.warning
+        : FrameCalloutTone.info;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -506,23 +510,29 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     final isStarting = _state == 'starting' || _isToggling;
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        // Title & Description
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.phonelink_ring, size: 28, color: colorScheme.primary),
-            const SizedBox(width: 12),
+            Icon(
+              Icons.phonelink_ring,
+              size: FrameSize.iconLg,
+              color: tokens.accent,
+            ),
+            const SizedBox(width: FrameSpace.x3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(strings.remoteTitle, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
+                  Text(
+                    strings.remoteTitle,
+                    style: text.title.copyWith(color: tokens.textPrimary),
+                  ),
+                  const SizedBox(height: FrameSpace.x1),
                   Text(
                     strings.remoteSubtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    style: text.body.copyWith(color: tokens.textSecondary),
                   ),
                 ],
               ),
@@ -530,11 +540,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           ],
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: FrameSpace.x6),
 
         if (_error != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: FrameSpace.x4),
             child: FrameErrorCallout(
               keyPrefix: 'remote',
               title: _errorTitle ?? strings.remoteActionFailedTitle,
@@ -543,697 +553,641 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
             ),
           ),
 
-        // Main Toggle Card
-        Card(
-          elevation: 0,
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(strings.remoteEnableTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 10),
-                          _buildStatusBadge(colorScheme, tokens, strings),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _enabled
-                            ? strings.remoteEnabledDesc
-                            : strings.remoteDisabledDesc,
-                        style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _enabled,
-                  onChanged: isStarting ? null : (val) => _toggleRemote(val),
-                ),
-              ],
-            ),
+        // Main toggle
+        FrameSection(
+          title: strings.remoteEnableTitle,
+          description: _enabled
+              ? strings.remoteEnabledDesc
+              : strings.remoteDisabledDesc,
+          child: Row(
+            children: [
+              _buildStatusBadge(colorScheme, tokens, strings),
+              const Spacer(),
+              Switch(
+                value: _enabled,
+                onChanged: isStarting ? null : (val) => _toggleRemote(val),
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: FrameSpace.x6),
 
-        // Active Remote Connection Details
+        // Active remote connection details
         if (_enabled && isRunning && _url != null) ...[
-          Card(
-            elevation: 0,
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(strings.remotePairSmartphoneTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isCompact = constraints.maxWidth < 620;
-                      final qrData = _pairingUrl ?? _url!;
-                      final qrWidget = Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceElevated,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: tokens.overlay.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: QrImageView(
-                          data: qrData,
-                          version: QrVersions.auto,
-                          size: 160.0,
-                          backgroundColor: tokens.surfaceElevated,
-                          dataModuleStyle: QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: tokens.textPrimary,
-                          ),
-                          eyeStyle: QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: tokens.textPrimary,
-                          ),
-                        ),
-                      );
-
-                      final infoWidget = Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(strings.remotePairStep1, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          Text(strings.remotePairStep1Desc, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-                          const SizedBox(height: 12),
-
-                          if (_pairingExpiresAt != null) ...[
-                            Row(
-                              children: [
-                                Icon(Icons.timer_outlined, size: 16, color: colorScheme.primary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _formatExpires(_pairingExpiresAt, strings),
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.primary),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.refresh, size: 16),
-                                label: Text(strings.remoteNewQrBtn),
-                                onPressed: _generateNewPairing,
-                              ),
-                              OutlinedButton.icon(
-                                icon: const Icon(Icons.copy, size: 16),
-                                label: Text(strings.remoteCopyPairLinkBtn),
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: _pairingUrl ?? _url!));
-                                  FrameSnackBar.show(
-                                    context,
-                                    message: strings.remotePairLinkCopiedSnackBar,
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.open_in_browser, size: 20),
-                                tooltip: strings.remoteOpenInBrowserTooltip,
-                                onPressed: () => launchUrl(Uri.parse(_url!)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-
-                      if (isCompact) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(child: qrWidget),
-                            const SizedBox(height: 16),
-                            infoWidget,
-                          ],
-                        );
-                      } else {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            qrWidget,
-                            const SizedBox(width: 24),
-                            Expanded(child: infoWidget),
-                          ],
-                        );
-                      }
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-                  Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: [
-                      Icon(Icons.link, size: 18, color: colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Text(strings.remotePublicUrlLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.onSurfaceVariant)),
-                      Expanded(
-                        child: SelectableText(
-                          _url!,
-                          style: TextStyle(fontFamily: 'SourceCodePro', fontSize: 12, color: colorScheme.primary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Security Guardrails & Default Mode Card
-          Card(
-            elevation: 0,
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(strings.remoteDefaultModeTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Text(
-                    strings.remoteDefaultModeSubtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 14),
-                  SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(
-                        value: 'view',
-                        label: Text(strings.remoteSegmentView),
-                        icon: const Icon(Icons.visibility),
-                      ),
-                      ButtonSegment(
-                        value: 'control',
-                        label: Text(strings.remoteSegmentControl),
-                        icon: const Icon(Icons.settings_remote),
-                      ),
-                    ],
-                    selected: {_defaultMode},
-                    onSelectionChanged: (set) {
-                      if (set.isNotEmpty) _updateDefaultMode(set.first);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _defaultMode == 'view'
-                        ? strings.remoteModeViewExplanation
-                        : strings.remoteModeControlExplanation,
-                    style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Paired Devices Management
-          Card(
-            elevation: 0,
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(strings.remoteAuthorizedDevicesTitle(_devices.length), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      if (_devices.isNotEmpty)
-                        TextButton.icon(
-                          icon: Icon(Icons.delete_forever, size: 16, color: colorScheme.error),
-                          label: Text(strings.remoteRevokeAllBtn, style: TextStyle(color: colorScheme.error, fontSize: 12)),
-                          onPressed: _revokeAllDevices,
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  if (_devices.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        strings.remoteNoDevicesAuthorized,
-                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
-                      ),
-                    )
-                  else
-                    ..._devices.map((dev) {
-                      final name = dev['name'] as String? ?? strings.remoteUnknownDevice;
-                      final deviceId = dev['deviceId'] as String? ?? '';
-                      final mode = dev['mode'] as String? ?? 'view';
-                      final ip = dev['remoteIp'] as String? ?? strings.remoteLocalIp;
-                      final lastUsed = dev['lastUsedAt'] as int?;
-                      final expiresAt = dev['expiresAt'] as int?;
-                      final lastStr = lastUsed != null
-                          ? DateTime.fromMillisecondsSinceEpoch(lastUsed).toLocal().toString().split('.')[0]
-                          : strings.remoteNeverUsed;
-                      final expiresStr = expiresAt != null
-                          ? DateTime.fromMillisecondsSinceEpoch(expiresAt).toLocal().toString().split(' ')[0]
-                          : '-';
-
-                      final isControl = mode == 'control';
-
-                      return Container(
-                        margin: const EdgeInsets.only(top: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surface,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              name.contains('iOS') || name.contains('Android') ? Icons.smartphone : Icons.devices,
-                              color: colorScheme.primary,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: isControl
-                                              ? tokens.accent.withValues(alpha: 0.2)
-                                              : tokens.info.withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          isControl ? 'CONTROL' : 'VIEW',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                            color: isControl ? tokens.accent : tokens.info,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    strings.remoteDeviceInfoLine(ip, lastStr, expiresStr),
-                                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            DropdownButton<String>(
-                              value: mode,
-                              underline: const SizedBox(),
-                              items: const [
-                                DropdownMenuItem(value: 'view', child: Text('View', style: TextStyle(fontSize: 12))),
-                                DropdownMenuItem(value: 'control', child: Text('Control', style: TextStyle(fontSize: 12))),
-                              ],
-                              onChanged: (newMode) {
-                                if (newMode != null) {
-                                  _changeDeviceMode(deviceId, mode, newMode, name);
-                                }
-                              },
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colorScheme.error,
-                                side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              onPressed: () => _revokeDevice(deviceId, name),
-                              child: Text(strings.remoteRevokeBtn, style: const TextStyle(fontSize: 12)),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                ],
-              ),
-            ),
-          ),
-        ],
-
-        // Provider configuration
-        const SizedBox(height: 20),
-        Card(
-          elevation: 0,
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.4)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
+          FrameSection(
+            title: strings.remotePairSmartphoneTitle,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(strings.remoteProviderConfigTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _tunnelProvider,
-                      items: [
-                        DropdownMenuItem(
-                          value: 'tailscale',
-                          child: Text(strings.remoteProviderTailscale),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 620;
+                    final qrData = _pairingUrl ?? _url!;
+                    final qrWidget = Container(
+                      padding: const EdgeInsets.all(FrameSpace.x3),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusMd),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 160.0,
+                        backgroundColor: tokens.surfaceElevated,
+                        dataModuleStyle: QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: tokens.textPrimary,
                         ),
-                        DropdownMenuItem(
-                          value: 'cloudflared',
-                          child: Text(strings.remoteProviderCloudflared),
+                        eyeStyle: QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: tokens.textPrimary,
                         ),
-                        DropdownMenuItem(
-                          value: 'custom',
-                          child: Text(strings.remoteProviderCustom),
-                        ),
-                      ],
-                      onChanged: _enabled ? null : (val) => setState(() => _tunnelProvider = val!),
-                    ),
-                  ),
-                ),
+                      ),
+                    );
 
-                if (_tunnelProvider == 'tailscale') ...[
-                  const SizedBox(height: 12),
-                  if (!_tailscaleInstalled)
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: missingBinaryTone.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: missingBinaryTone.withValues(alpha: 0.35)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    final infoWidget = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          strings.remotePairStep1,
+                          style: text.bodyLarge.copyWith(
+                            color: tokens.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: FrameSpace.x1),
+                        Text(
+                          strings.remotePairStep1Desc,
+                          style: text.body.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: FrameSpace.x3),
+
+                        if (_pairingExpiresAt != null) ...[
                           Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: missingBinaryTone, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  strings.remoteTailscaleNotInstalledTitle,
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: missingBinaryTone),
+                              Icon(
+                                Icons.timer_outlined,
+                                size: FrameSize.icon,
+                                color: tokens.accent,
+                              ),
+                              const SizedBox(width: FrameSpace.x2),
+                              Text(
+                                _formatExpires(_pairingExpiresAt, strings),
+                                style: text.label.copyWith(
+                                  color: tokens.accent,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            strings.remoteTailscaleNotInstalledDesc,
-                            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
-                            icon: _isInstallingTailscale
-                                ? SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.accentContrast,
-                                    ),
-                                  )
-                                : const Icon(Icons.download, size: 18),
-                            label: Text(_isInstallingTailscale ? strings.remoteTailscaleInstallingBtn : strings.remoteTailscaleInstallAutoBtn),
-                            onPressed: _isInstallingTailscale ? null : _installTailscale,
-                          ),
+                          const SizedBox(height: FrameSpace.x3),
                         ],
-                      ),
-                    )
-                  else if (!_tailscaleRunning)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: tokens.warning.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: tokens.warning.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: tokens.warning, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              strings.remoteTailscaleNotRunning,
-                              style: const TextStyle(fontSize: 12),
+
+                        Wrap(
+                          spacing: FrameSpace.x2,
+                          runSpacing: FrameSpace.x2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.refresh,
+                                size: FrameSize.icon,
+                              ),
+                              label: Text(strings.remoteNewQrBtn),
+                              onPressed: _generateNewPairing,
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: tokens.info.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: tokens.info.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.verified_user, color: tokens.info, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  strings.remoteTailscaleActiveTitle,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: tokens.info,
-                                  ),
-                                ),
+                            OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.copy,
+                                size: FrameSize.icon,
                               ),
-                            ],
-                          ),
-                          if (_tailscaleDomain != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              strings.remoteTailscalePermanentAddress(_tailscaleDomain!),
-                              style: TextStyle(fontFamily: 'SourceCodePro', fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.primary),
+                              label: Text(strings.remoteCopyPairLinkBtn),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: _pairingUrl ?? _url!),
+                                );
+                                FrameSnackBar.show(
+                                  context,
+                                  message: strings.remotePairLinkCopiedSnackBar,
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.open_in_browser,
+                                size: FrameSize.iconLg,
+                              ),
+                              tooltip: strings.remoteOpenInBrowserTooltip,
+                              onPressed: () => launchUrl(Uri.parse(_url!)),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          Text(
-                            strings.remoteTailscaleCustomizeHostname,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _tailscaleHostnameController,
-                                  decoration: InputDecoration(
-                                    labelText: strings.remoteTailscaleHostnameLabel,
-                                    border: const OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              FilledButton(
-                                onPressed: _isSavingTailscaleHostname ? null : _saveTailscaleHostname,
-                                child: _isSavingTailscaleHostname
-                                    ? SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: tokens.accentContrast,
-                                        ),
-                                      )
-                                    : Text(strings.remoteTailscaleSaveNameBtn),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+                        ),
+                      ],
+                    );
 
-                if (_tunnelProvider == 'cloudflared') ...[
-                  const SizedBox(height: 12),
-                  if (_cloudflaredInstalled)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: tokens.success.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: tokens.success.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_outline, color: tokens.success, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  strings.remoteCloudflaredDetectedTitle,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: tokens.success,
-                                  ),
-                                ),
-                                if (_cloudflaredPath != null)
-                                  Text(
-                                    _cloudflaredPath!,
-                                    style: TextStyle(fontFamily: 'SourceCodePro', fontSize: 11, color: colorScheme.onSurfaceVariant),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: colorScheme.errorContainer.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colorScheme.error.withValues(alpha: 0.3)),
-                      ),
-                      child: Column(
+                    if (isCompact) {
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Center(child: qrWidget),
+                          const SizedBox(height: FrameSpace.x4),
+                          infoWidget,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        qrWidget,
+                        const SizedBox(width: FrameSpace.x6),
+                        Expanded(child: infoWidget),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: FrameSpace.x4),
+                Divider(color: tokens.border),
+                const SizedBox(height: FrameSpace.x2),
+
+                Row(
+                  children: [
+                    Icon(
+                      Icons.link,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
+                    const SizedBox(width: FrameSpace.x2),
+                    Text(
+                      strings.remotePublicUrlLabel,
+                      style: text.label.copyWith(
+                        color: tokens.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Expanded(
+                      child: SelectableText(
+                        _url!,
+                        style: text.mono.copyWith(color: tokens.accent),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: FrameSpace.x6),
+        ],
+
+        // Security guardrails and default mode
+        FrameSection(
+          title: strings.remoteDefaultModeTitle,
+          description: strings.remoteDefaultModeSubtitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'view',
+                    label: Text(strings.remoteSegmentView),
+                    icon: const Icon(Icons.visibility),
+                  ),
+                  ButtonSegment(
+                    value: 'control',
+                    label: Text(strings.remoteSegmentControl),
+                    icon: const Icon(Icons.settings_remote),
+                  ),
+                ],
+                selected: {_defaultMode},
+                onSelectionChanged: (set) {
+                  if (set.isNotEmpty) _updateDefaultMode(set.first);
+                },
+              ),
+              const SizedBox(height: FrameSpace.x2),
+              Text(
+                _defaultMode == 'view'
+                    ? strings.remoteModeViewExplanation
+                    : strings.remoteModeControlExplanation,
+                style: text.caption.copyWith(
+                  fontStyle: FontStyle.italic,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: FrameSpace.x6),
+
+        // Paired devices
+        FrameSection(
+          title: strings.remoteAuthorizedDevicesTitle(_devices.length),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_devices.isNotEmpty)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    icon: Icon(
+                      Icons.delete_forever,
+                      size: FrameSize.icon,
+                      color: tokens.danger,
+                    ),
+                    label: Text(
+                      strings.remoteRevokeAllBtn,
+                      style: text.label.copyWith(color: tokens.danger),
+                    ),
+                    onPressed: _revokeAllDevices,
+                  ),
+                ),
+              if (_devices.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: FrameSpace.x3),
+                  child: Text(
+                    strings.remoteNoDevicesAuthorized,
+                    style: text.body.copyWith(color: tokens.textSecondary),
+                  ),
+                )
+              else
+                ..._devices.map((dev) {
+                  final name =
+                      dev['name'] as String? ?? strings.remoteUnknownDevice;
+                  final deviceId = dev['deviceId'] as String? ?? '';
+                  final mode = dev['mode'] as String? ?? 'view';
+                  final ip =
+                      dev['remoteIp'] as String? ?? strings.remoteLocalIp;
+                  final lastUsed = dev['lastUsedAt'] as int?;
+                  final expiresAt = dev['expiresAt'] as int?;
+                  final lastStr = lastUsed != null
+                      ? DateTime.fromMillisecondsSinceEpoch(lastUsed)
+                            .toLocal()
+                            .toString()
+                            .split('.')[0]
+                      : strings.remoteNeverUsed;
+                  final expiresStr = expiresAt != null
+                      ? DateTime.fromMillisecondsSinceEpoch(expiresAt)
+                            .toLocal()
+                            .toString()
+                            .split(' ')[0]
+                      : '-';
+
+                  final isControl = mode == 'control';
+
+                  return Container(
+                    margin: const EdgeInsets.only(top: FrameSpace.x2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FrameSpace.x3,
+                      vertical: FrameSpace.x2 + FrameSpace.x1 / 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tokens.surface,
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      border: Border.all(color: tokens.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          name.contains('iOS') || name.contains('Android')
+                              ? Icons.smartphone
+                              : Icons.devices,
+                          color: tokens.accent,
+                          size: FrameSize.iconLg,
+                        ),
+                        const SizedBox(width: FrameSpace.x3),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: colorScheme.error, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  strings.remoteCloudflaredNotFoundTitle,
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colorScheme.error),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      name,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: text.body.copyWith(
+                                        color: tokens.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: FrameSpace.x2),
+                                  FrameStatusTag(
+                                    label: isControl ? 'CONTROL' : 'VIEW',
+                                    tone: isControl
+                                        ? FrameStatusTone.warning
+                                        : FrameStatusTone.info,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: FrameSpace.x1 / 2),
+                              Text(
+                                strings.remoteDeviceInfoLine(
+                                  ip,
+                                  lastStr,
+                                  expiresStr,
+                                ),
+                                style: text.caption.copyWith(
+                                  color: tokens.textSecondary,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            strings.remoteCloudflaredNotFoundDesc,
-                            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                        ),
+                        DropdownButton<String>(
+                          value: mode,
+                          underline: const SizedBox(),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'view',
+                              child: Text('View', style: text.label),
+                            ),
+                            DropdownMenuItem(
+                              value: 'control',
+                              child: Text('Control', style: text.label),
+                            ),
+                          ],
+                          onChanged: (newMode) {
+                            if (newMode != null) {
+                              _changeDeviceMode(deviceId, mode, newMode, name);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: FrameSpace.x2),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: tokens.danger,
+                            side: BorderSide(
+                              color: tokens.danger.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: FrameSpace.x2 + FrameSpace.x1 / 2,
+                              vertical: FrameSpace.x1,
+                            ),
+                            visualDensity: VisualDensity.compact,
                           ),
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
-                            icon: _isInstallingCloudflared
-                                ? SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: tokens.accentContrast,
-                                    ),
-                                  )
-                                : const Icon(Icons.download, size: 18),
-                            label: Text(_isInstallingCloudflared ? strings.remoteCloudflaredInstallingBtn : strings.remoteCloudflaredInstallAutoBtn),
-                            onPressed: _isInstallingCloudflared ? null : _installCloudflared,
+                          onPressed: () => _revokeDevice(deviceId, name),
+                          child: Text(
+                            strings.remoteRevokeBtn,
+                            style: text.label,
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                            strings.remoteCloudflaredInstallNote,
-                            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: FrameSpace.x6),
+
+        // Provider configuration
+        FrameSection(
+          title: strings.remoteProviderConfigTitle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: FrameSize.rowForm,
+                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+                decoration: BoxDecoration(
+                  color: tokens.surface,
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  border: Border.all(color: tokens.inputBorder),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _tunnelProvider,
+                    items: [
+                      DropdownMenuItem(
+                        value: 'tailscale',
+                        child: Text(strings.remoteProviderTailscale),
                       ),
-                    ),
-                ],
+                      DropdownMenuItem(
+                        value: 'cloudflared',
+                        child: Text(strings.remoteProviderCloudflared),
+                      ),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text(strings.remoteProviderCustom),
+                      ),
+                    ],
+                    onChanged: _enabled
+                        ? null
+                        : (val) => setState(() => _tunnelProvider = val!),
+                  ),
+                ),
+              ),
 
-                if (_localPort != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    strings.remoteDedicatedListenerPort(_localPort!),
-                    style: TextStyle(fontFamily: 'SourceCodePro', fontSize: 12, color: colorScheme.primary),
-                  ),
-                ],
-
-                if (_tunnelProvider == 'custom') ...[
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _customUrlController,
-                    decoration: InputDecoration(
-                      labelText: strings.remoteCustomHttpsUrlLabel,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+              if (_tunnelProvider == 'tailscale') ...[
+                const SizedBox(height: FrameSpace.x3),
+                if (!_tailscaleInstalled)
+                  FrameCallout(
+                    keyPrefix: 'remote-tailscale-missing',
+                    tone: missingBinaryTone,
+                    title: strings.remoteTailscaleNotInstalledTitle,
+                    strings: strings,
+                    body: Text(strings.remoteTailscaleNotInstalledDesc),
+                    action: OutlinedButton.icon(
+                      icon: _isInstallingTailscale
+                          ? SizedBox(
+                              width: FrameSize.icon,
+                              height: FrameSize.icon,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: tokens.accent,
+                              ),
+                            )
+                          : const Icon(Icons.download, size: FrameSize.icon),
+                      label: Text(
+                        _isInstallingTailscale
+                            ? strings.remoteTailscaleInstallingBtn
+                            : strings.remoteTailscaleInstallAutoBtn,
+                      ),
+                      onPressed: _isInstallingTailscale
+                          ? null
+                          : _installTailscale,
+                    ),
+                  )
+                else if (!_tailscaleRunning)
+                  FrameCallout(
+                    keyPrefix: 'remote-tailscale-stopped',
+                    tone: FrameCalloutTone.warning,
+                    title: strings.remoteTailscaleNotRunning,
+                    strings: strings,
+                  )
+                else
+                  FrameCallout(
+                    keyPrefix: 'remote-tailscale-active',
+                    tone: FrameCalloutTone.info,
+                    title: strings.remoteTailscaleActiveTitle,
+                    strings: strings,
+                    body: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_tailscaleDomain != null) ...[
+                          Text(
+                            strings.remoteTailscalePermanentAddress(
+                              _tailscaleDomain!,
+                            ),
+                            style: text.mono.copyWith(
+                              color: tokens.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: FrameSpace.x3),
+                        ],
+                        Text(
+                          strings.remoteTailscaleCustomizeHostname,
+                          style: text.label.copyWith(
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: FrameSpace.x1),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _tailscaleHostnameController,
+                                decoration: InputDecoration(
+                                  labelText:
+                                      strings.remoteTailscaleHostnameLabel,
+                                  border: const OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: FrameSpace.x3),
+                            FilledButton(
+                              onPressed: _isSavingTailscaleHostname
+                                  ? null
+                                  : _saveTailscaleHostname,
+                              child: _isSavingTailscaleHostname
+                                  ? SizedBox(
+                                      width: FrameSize.icon,
+                                      height: FrameSize.icon,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: tokens.accentContrast,
+                                      ),
+                                    )
+                                  : Text(strings.remoteTailscaleSaveNameBtn),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _customCommandController,
-                    decoration: InputDecoration(
-                      labelText: strings.remoteCustomCommandLabel,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ],
               ],
-            ),
+
+              if (_tunnelProvider == 'cloudflared') ...[
+                const SizedBox(height: FrameSpace.x3),
+                if (_cloudflaredInstalled)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FrameStatusTag(
+                        key: const ValueKey('remote-cloudflared-status'),
+                        label: strings.remoteCloudflaredDetectedTitle,
+                        tone: FrameStatusTone.success,
+                      ),
+                      if (_cloudflaredPath != null) ...[
+                        const SizedBox(width: FrameSpace.x2),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              top: FrameSpace.x2 / 2,
+                            ),
+                            child: Text(
+                              _cloudflaredPath!,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.mono.copyWith(
+                                color: tokens.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  )
+                else
+                  FrameCallout(
+                    keyPrefix: 'remote-cloudflared-missing',
+                    tone: missingBinaryTone,
+                    title: strings.remoteCloudflaredNotFoundTitle,
+                    strings: strings,
+                    body: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(strings.remoteCloudflaredNotFoundDesc),
+                        const SizedBox(height: FrameSpace.x1),
+                        Text(
+                          strings.remoteCloudflaredInstallNote,
+                          style: text.caption.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    action: OutlinedButton.icon(
+                      icon: _isInstallingCloudflared
+                          ? SizedBox(
+                              width: FrameSize.icon,
+                              height: FrameSize.icon,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: tokens.accent,
+                              ),
+                            )
+                          : const Icon(Icons.download, size: FrameSize.icon),
+                      label: Text(
+                        _isInstallingCloudflared
+                            ? strings.remoteCloudflaredInstallingBtn
+                            : strings.remoteCloudflaredInstallAutoBtn,
+                      ),
+                      onPressed: _isInstallingCloudflared
+                          ? null
+                          : _installCloudflared,
+                    ),
+                  ),
+              ],
+
+              if (_localPort != null) ...[
+                const SizedBox(height: FrameSpace.x2 + FrameSpace.x1 / 2),
+                Text(
+                  strings.remoteDedicatedListenerPort(_localPort!),
+                  style: text.mono.copyWith(color: tokens.textMuted),
+                ),
+              ],
+
+              if (_tunnelProvider == 'custom') ...[
+                const SizedBox(height: FrameSpace.x3),
+                TextField(
+                  controller: _customUrlController,
+                  decoration: InputDecoration(
+                    labelText: strings.remoteCustomHttpsUrlLabel,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: FrameSpace.x2 + FrameSpace.x1 / 2),
+                TextField(
+                  controller: _customCommandController,
+                  decoration: InputDecoration(
+                    labelText: strings.remoteCustomCommandLabel,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
