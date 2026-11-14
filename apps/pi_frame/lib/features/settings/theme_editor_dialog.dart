@@ -12,6 +12,7 @@ import '../../ui/frame_pane_header.dart';
 import '../../ui/frame_search_field.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
+import '../../ui/precision.dart';
 
 class ThemeEditorDialog extends ConsumerStatefulWidget {
   final ThemeSpec? initialTheme;
@@ -19,7 +20,7 @@ class ThemeEditorDialog extends ConsumerStatefulWidget {
   const ThemeEditorDialog({super.key, this.initialTheme});
 
   static Future<void> show(BuildContext context, {ThemeSpec? initialTheme}) {
-    return showDialog<void>(
+    return showFrameDialogBuilder<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => ThemeEditorDialog(initialTheme: initialTheme),
@@ -44,7 +45,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   @override
   void initState() {
     super.initState();
-    final active = widget.initialTheme ??
+    final active =
+        widget.initialTheme ??
         ref.read(activeThemeSpecProvider) ??
         ref.read(themeRepositoryProvider).activeTheme;
     _selectedBaseThemeId = active.id;
@@ -81,7 +83,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   }
 
   void _setColor(String key, Color color, {bool isSyntax = false}) {
-    final hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+    final hex =
+        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
     setState(() {
       if (isSyntax) {
         _customSyntax[key] = hex;
@@ -91,23 +94,45 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     });
   }
 
-  Future<void> _openColorPicker(String key, String title, Color currentColor, {bool isSyntax = false}) async {
+  Future<void> _openColorPicker(
+    String key,
+    String title,
+    Color currentColor, {
+    bool isSyntax = false,
+  }) async {
     final tokens = context.tokens;
     final strings = ref.read(appStringsProvider);
     final hexController = TextEditingController(
-      text: '#${currentColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+      text:
+          '#${currentColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
     );
 
     // Curated palette of modern vibrant and neutral colors
     final palette = [
-      '#0F141C', '#161B22', '#1E232A',
-      '#262C36', '#323945', '#4A5568',
-      '#8B949E', '#C9D1D9', '#F0F6FC',
-      '#58A6FF', '#388BFD', '#1F6FEB',
-      '#3FB950', '#2EA043', '#238636',
-      '#D29922', '#E3B341', '#F0883E',
-      '#F85149', '#DA3633', '#A371F7',
-      '#BC8CFF', '#DB61A2', '#56D364',
+      '#0F141C',
+      '#161B22',
+      '#1E232A',
+      '#262C36',
+      '#323945',
+      '#4A5568',
+      '#8B949E',
+      '#C9D1D9',
+      '#F0F6FC',
+      '#58A6FF',
+      '#388BFD',
+      '#1F6FEB',
+      '#3FB950',
+      '#2EA043',
+      '#238636',
+      '#D29922',
+      '#E3B341',
+      '#F0883E',
+      '#F85149',
+      '#DA3633',
+      '#A371F7',
+      '#BC8CFF',
+      '#DB61A2',
+      '#56D364',
     ].map((h) => parseHexColor(h)!).toList();
 
     Color selectedColor = currentColor;
@@ -132,7 +157,10 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                         decoration: BoxDecoration(
                           color: selectedColor,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: tokens.borderStrong, width: 2),
+                          border: Border.all(
+                            color: tokens.borderStrong,
+                            width: 2,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -142,12 +170,18 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           style: TextStyle(
                             fontFamily: tokens.monoFontFamily,
                             color: tokens.textPrimary,
-                            fontSize: FrameText.fromTokens(tokens).bodyLarge.fontSize,
+                            fontSize: FrameText.fromTokens(tokens)
+                                .bodyLarge
+                                .fontSize,
                           ),
                           decoration: InputDecoration(
                             labelText: strings.themeEditorHexLabel,
-                            labelStyle: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            labelStyle: FrameText.fromTokens(tokens).label
+                                .copyWith(color: tokens.textSecondary),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                           ),
                           onChanged: (val) {
                             final p = parseHexColor(val.trim());
@@ -162,19 +196,22 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                   const SizedBox(height: 16),
                   Text(
                     strings.themeEditorSuggestedColors,
-                    style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
+                    style: FrameText.fromTokens(tokens).caption
+                        .copyWith(color: tokens.textMuted),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: palette.map((color) {
-                      final isSelected = color.toARGB32() == selectedColor.toARGB32();
+                      final isSelected =
+                          color.toARGB32() == selectedColor.toARGB32();
                       return InkWell(
                         onTap: () {
                           setDialogState(() {
                             selectedColor = color;
-                            hexController.text = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+                            hexController.text =
+                                '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
                           });
                         },
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -183,7 +220,9 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           height: 28,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
                             border: Border.all(
                               color: isSelected ? tokens.accent : tokens.border,
                               width: isSelected ? 2 : 1,
@@ -266,14 +305,25 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     }
   }
 
-  Widget _buildColorRow(String key, String label, {bool isSyntax = false, required FrameTokens tokens, Color? fallback}) {
+  Widget _buildColorRow(
+    String key,
+    String label, {
+    bool isSyntax = false,
+    required FrameTokens tokens,
+    Color? fallback,
+  }) {
     // Token search matches the label, so a long list can be narrowed.
     if (_tokenQuery.trim().isNotEmpty &&
         !label.toLowerCase().contains(_tokenQuery.trim().toLowerCase())) {
       return const SizedBox.shrink();
     }
-    final color = _resolveColor(key, isSyntax: isSyntax, fallback: fallback ?? tokens.textMuted);
-    final hexString = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+    final color = _resolveColor(
+      key,
+      isSyntax: isSyntax,
+      fallback: fallback ?? tokens.textMuted,
+    );
+    final hexString =
+        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
     return InkWell(
       key: ValueKey('theme-editor-color-$key'),
@@ -302,7 +352,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
             Expanded(
               child: Text(
                 label,
-                style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
+                style: FrameText.fromTokens(tokens).body
+                    .copyWith(color: tokens.textPrimary),
               ),
             ),
             Text(
@@ -313,7 +364,11 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.colorize_outlined, size: FrameSize.icon, color: tokens.textMuted),
+            Icon(
+              Icons.colorize_outlined,
+              size: FrameSize.icon,
+              color: tokens.textMuted,
+            ),
           ],
         ),
       ),
@@ -392,20 +447,30 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           children: [
                             Text(
                               strings.themeEditorPreviewAssistantTurn,
-                              style: text.bodyLarge.copyWith(color: tokens.textPrimary),
+                              style: text.bodyLarge.copyWith(
+                                color: tokens.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: FrameSpace.x2),
                             Wrap(
                               spacing: FrameSpace.x2,
                               runSpacing: FrameSpace.x2,
                               children: [
-                                FilledButton(
-                                  onPressed: () {},
-                                  child: Text(strings.themeEditorPreviewAccentBtn),
+                                PressFeedback(
+                                  child: FilledButton(
+                                    onPressed: () {},
+                                    child: Text(
+                                      strings.themeEditorPreviewAccentBtn,
+                                    ),
+                                  ),
                                 ),
-                                OutlinedButton(
-                                  onPressed: () {},
-                                  child: Text(strings.themeEditorPreviewSecondaryBtn),
+                                PressFeedback(
+                                  child: OutlinedButton(
+                                    onPressed: () {},
+                                    child: Text(
+                                      strings.themeEditorPreviewSecondaryBtn,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -490,7 +555,11 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               // Header
               Row(
                 children: [
-                  Icon(Icons.tune_outlined, color: tokens.accent, size: FrameSize.iconLg),
+                  Icon(
+                    Icons.tune_outlined,
+                    color: tokens.accent,
+                    size: FrameSize.iconLg,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -500,14 +569,17 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           strings.themeEditorTitle,
                           style: TextStyle(
                             color: tokens.displayText,
-                            fontSize: FrameText.fromTokens(tokens).heading.fontSize,
+                            fontSize: FrameText.fromTokens(tokens)
+                                .heading
+                                .fontSize,
                             fontWeight: FontWeight.bold,
                             fontFamily: tokens.headingFontFamily,
                           ),
                         ),
                         Text(
                           strings.themeEditorSubtitle,
-                          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
+                          style: FrameText.fromTokens(tokens).label
+                              .copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ),
@@ -528,13 +600,19 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(strings.baseThemeLabel, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary)),
+                        Text(
+                          strings.baseThemeLabel,
+                          style: FrameText.fromTokens(tokens).label
+                              .copyWith(color: tokens.textSecondary),
+                        ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: tokens.surface,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
                             border: Border.all(color: tokens.border),
                           ),
                           child: DropdownButtonHideUnderline(
@@ -543,7 +621,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               isExpanded: true,
                               value: _selectedBaseThemeId,
                               dropdownColor: tokens.surfaceElevated,
-                              style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
+                              style: FrameText.fromTokens(tokens).body
+                                  .copyWith(color: tokens.textPrimary),
                               items: availableThemes.map((t) {
                                 return DropdownMenuItem<String>(
                                   value: t.id,
@@ -552,7 +631,9 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               }).toList(),
                               onChanged: (id) {
                                 if (id != null) {
-                                  final selected = availableThemes.firstWhere((t) => t.id == id);
+                                  final selected = availableThemes.firstWhere(
+                                    (t) => t.id == id,
+                                  );
                                   _onBaseThemeChanged(selected);
                                 }
                               },
@@ -568,15 +649,23 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(strings.themeNameLabel, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary)),
+                        Text(
+                          strings.themeNameLabel,
+                          style: FrameText.fromTokens(tokens).label
+                              .copyWith(color: tokens.textSecondary),
+                        ),
                         const SizedBox(height: 4),
                         TextField(
                           key: const ValueKey('theme-editor-name-input'),
                           controller: _nameController,
-                          style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
+                          style: FrameText.fromTokens(tokens).body
+                              .copyWith(color: tokens.textPrimary),
                           decoration: InputDecoration(
                             hintText: strings.themeNameHint,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
                       ],
@@ -588,25 +677,40 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(strings.themeVariantLabel, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary)),
+                        Text(
+                          strings.themeVariantLabel,
+                          style: FrameText.fromTokens(tokens).label
+                              .copyWith(color: tokens.textSecondary),
+                        ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: tokens.surface,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
                             border: Border.all(color: tokens.border),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              key: const ValueKey('theme-editor-variant-dropdown'),
+                              key: const ValueKey(
+                                'theme-editor-variant-dropdown',
+                              ),
                               isExpanded: true,
                               value: _variant,
                               dropdownColor: tokens.surfaceElevated,
-                              style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
+                              style: FrameText.fromTokens(tokens).body
+                                  .copyWith(color: tokens.textPrimary),
                               items: [
-                                DropdownMenuItem(value: 'dark', child: Text(strings.variantDark)),
-                                DropdownMenuItem(value: 'light', child: Text(strings.variantLight)),
+                                DropdownMenuItem(
+                                  value: 'dark',
+                                  child: Text(strings.variantDark),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'light',
+                                  child: Text(strings.variantLight),
+                                ),
                               ],
                               onChanged: (v) {
                                 if (v != null) setState(() => _variant = v);
@@ -647,45 +751,175 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               onClear: () => setState(() => _tokenQuery = ''),
                             ),
                             const SizedBox(height: 8),
-                            Text(strings.catSurfaces, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent)),
+                            Text(
+                              strings.catSurfaces,
+                              style: FrameText.fromTokens(tokens).label
+                                  .copyWith(color: tokens.accent),
+                            ),
                             const SizedBox(height: 4),
-                            _buildColorRow('background', strings.colorLabelBackground, tokens: tokens, fallback: tokens.background),
-                            _buildColorRow('surface', strings.colorLabelSurface, tokens: tokens, fallback: tokens.surface),
-                            _buildColorRow('surfaceElevated', strings.colorLabelSurfaceElevated, tokens: tokens, fallback: tokens.surfaceElevated),
-                            _buildColorRow('border', strings.colorLabelBorder, tokens: tokens, fallback: tokens.border),
-                            _buildColorRow('borderStrong', strings.colorLabelBorderStrong, tokens: tokens, fallback: tokens.borderStrong),
+                            _buildColorRow(
+                              'background',
+                              strings.colorLabelBackground,
+                              tokens: tokens,
+                              fallback: tokens.background,
+                            ),
+                            _buildColorRow(
+                              'surface',
+                              strings.colorLabelSurface,
+                              tokens: tokens,
+                              fallback: tokens.surface,
+                            ),
+                            _buildColorRow(
+                              'surfaceElevated',
+                              strings.colorLabelSurfaceElevated,
+                              tokens: tokens,
+                              fallback: tokens.surfaceElevated,
+                            ),
+                            _buildColorRow(
+                              'border',
+                              strings.colorLabelBorder,
+                              tokens: tokens,
+                              fallback: tokens.border,
+                            ),
+                            _buildColorRow(
+                              'borderStrong',
+                              strings.colorLabelBorderStrong,
+                              tokens: tokens,
+                              fallback: tokens.borderStrong,
+                            ),
 
                             const SizedBox(height: 12),
-                            Text(strings.catAccents, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent)),
+                            Text(
+                              strings.catAccents,
+                              style: FrameText.fromTokens(tokens).label
+                                  .copyWith(color: tokens.accent),
+                            ),
                             const SizedBox(height: 4),
-                            _buildColorRow('accent', strings.colorLabelAccent, tokens: tokens, fallback: tokens.accent),
-                            _buildColorRow('accentContrast', strings.colorLabelAccentContrast, tokens: tokens, fallback: tokens.accentContrast),
-                            _buildColorRow('focusRing', strings.colorLabelFocusRing, tokens: tokens, fallback: tokens.focusRing),
+                            _buildColorRow(
+                              'accent',
+                              strings.colorLabelAccent,
+                              tokens: tokens,
+                              fallback: tokens.accent,
+                            ),
+                            _buildColorRow(
+                              'accentContrast',
+                              strings.colorLabelAccentContrast,
+                              tokens: tokens,
+                              fallback: tokens.accentContrast,
+                            ),
+                            _buildColorRow(
+                              'focusRing',
+                              strings.colorLabelFocusRing,
+                              tokens: tokens,
+                              fallback: tokens.focusRing,
+                            ),
 
                             const SizedBox(height: 12),
-                            Text(strings.catText, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent)),
+                            Text(
+                              strings.catText,
+                              style: FrameText.fromTokens(tokens).label
+                                  .copyWith(color: tokens.accent),
+                            ),
                             const SizedBox(height: 4),
-                            _buildColorRow('textPrimary', strings.colorLabelTextPrimary, tokens: tokens, fallback: tokens.textPrimary),
-                            _buildColorRow('textSecondary', strings.colorLabelTextSecondary, tokens: tokens, fallback: tokens.textSecondary),
-                            _buildColorRow('textMuted', strings.colorLabelTextMuted, tokens: tokens, fallback: tokens.textMuted),
+                            _buildColorRow(
+                              'textPrimary',
+                              strings.colorLabelTextPrimary,
+                              tokens: tokens,
+                              fallback: tokens.textPrimary,
+                            ),
+                            _buildColorRow(
+                              'textSecondary',
+                              strings.colorLabelTextSecondary,
+                              tokens: tokens,
+                              fallback: tokens.textSecondary,
+                            ),
+                            _buildColorRow(
+                              'textMuted',
+                              strings.colorLabelTextMuted,
+                              tokens: tokens,
+                              fallback: tokens.textMuted,
+                            ),
 
                             const SizedBox(height: 12),
-                            Text(strings.catAgent, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent)),
+                            Text(
+                              strings.catAgent,
+                              style: FrameText.fromTokens(tokens).label
+                                  .copyWith(color: tokens.accent),
+                            ),
                             const SizedBox(height: 4),
-                            _buildColorRow('agentWorking', strings.colorLabelAgentWorking, tokens: tokens, fallback: tokens.agentWorking),
-                            _buildColorRow('agentSettled', strings.colorLabelAgentSettled, tokens: tokens, fallback: tokens.agentSettled),
-                            _buildColorRow('agentRetrying', strings.colorLabelAgentRetrying, tokens: tokens, fallback: tokens.agentRetrying),
-                            _buildColorRow('agentCompacting', strings.colorLabelAgentCompacting, tokens: tokens, fallback: tokens.agentCompacting),
-                            _buildColorRow('danger', strings.colorLabelDanger, tokens: tokens, fallback: tokens.danger),
+                            _buildColorRow(
+                              'agentWorking',
+                              strings.colorLabelAgentWorking,
+                              tokens: tokens,
+                              fallback: tokens.agentWorking,
+                            ),
+                            _buildColorRow(
+                              'agentSettled',
+                              strings.colorLabelAgentSettled,
+                              tokens: tokens,
+                              fallback: tokens.agentSettled,
+                            ),
+                            _buildColorRow(
+                              'agentRetrying',
+                              strings.colorLabelAgentRetrying,
+                              tokens: tokens,
+                              fallback: tokens.agentRetrying,
+                            ),
+                            _buildColorRow(
+                              'agentCompacting',
+                              strings.colorLabelAgentCompacting,
+                              tokens: tokens,
+                              fallback: tokens.agentCompacting,
+                            ),
+                            _buildColorRow(
+                              'danger',
+                              strings.colorLabelDanger,
+                              tokens: tokens,
+                              fallback: tokens.danger,
+                            ),
 
                             const SizedBox(height: 12),
-                            Text(strings.catSyntax, style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent)),
+                            Text(
+                              strings.catSyntax,
+                              style: FrameText.fromTokens(tokens).label
+                                  .copyWith(color: tokens.accent),
+                            ),
                             const SizedBox(height: 4),
-                            _buildColorRow('keyword', strings.colorLabelKeyword, isSyntax: true, tokens: tokens, fallback: tokens.syntaxKeyword),
-                            _buildColorRow('function', strings.colorLabelFunction, isSyntax: true, tokens: tokens, fallback: tokens.syntaxFunction),
-                            _buildColorRow('string', strings.colorLabelString, isSyntax: true, tokens: tokens, fallback: tokens.syntaxString),
-                            _buildColorRow('number', strings.colorLabelNumber, isSyntax: true, tokens: tokens, fallback: tokens.syntaxNumber),
-                            _buildColorRow('comment', strings.colorLabelComment, isSyntax: true, tokens: tokens, fallback: tokens.syntaxComment),
+                            _buildColorRow(
+                              'keyword',
+                              strings.colorLabelKeyword,
+                              isSyntax: true,
+                              tokens: tokens,
+                              fallback: tokens.syntaxKeyword,
+                            ),
+                            _buildColorRow(
+                              'function',
+                              strings.colorLabelFunction,
+                              isSyntax: true,
+                              tokens: tokens,
+                              fallback: tokens.syntaxFunction,
+                            ),
+                            _buildColorRow(
+                              'string',
+                              strings.colorLabelString,
+                              isSyntax: true,
+                              tokens: tokens,
+                              fallback: tokens.syntaxString,
+                            ),
+                            _buildColorRow(
+                              'number',
+                              strings.colorLabelNumber,
+                              isSyntax: true,
+                              tokens: tokens,
+                              fallback: tokens.syntaxNumber,
+                            ),
+                            _buildColorRow(
+                              'comment',
+                              strings.colorLabelComment,
+                              isSyntax: true,
+                              tokens: tokens,
+                              fallback: tokens.syntaxComment,
+                            ),
                           ],
                         ),
                       ),
@@ -704,7 +938,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               const SizedBox(height: 12),
                               Text(
                                 _errorMessage!,
-                                style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.danger),
+                                style: FrameText.fromTokens(tokens).label
+                                    .copyWith(color: tokens.danger),
                               ),
                             ],
                           ],
@@ -720,18 +955,30 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(strings.cancel),
+                  PressFeedback(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(strings.cancel),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  FilledButton.icon(
-                    key: const ValueKey('theme-editor-save-btn'),
-                    onPressed: _isSaving ? null : _saveAndApplyTheme,
-                    icon: _isSaving
-                        ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
-                        : const Icon(Icons.check_outlined, size: FrameSize.icon),
-                    label: Text(strings.saveThemeAction),
+                  PressFeedback(
+                    enabled: (_isSaving ? null : _saveAndApplyTheme) != null,
+                    child: FilledButton.icon(
+                      key: const ValueKey('theme-editor-save-btn'),
+                      onPressed: _isSaving ? null : _saveAndApplyTheme,
+                      icon: _isSaving
+                          ? FrameActivityIndicator(
+                              size: FrameSize.icon,
+                              strokeWidth: 2,
+                              color: tokens.accentContrast,
+                            )
+                          : const Icon(
+                              Icons.check_outlined,
+                              size: FrameSize.icon,
+                            ),
+                      label: Text(strings.saveThemeAction),
+                    ),
                   ),
                 ],
               ),

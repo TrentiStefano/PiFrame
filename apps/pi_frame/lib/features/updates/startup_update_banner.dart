@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/update/startup_updates_provider.dart';
+import '../../ui/precision.dart';
 
 /// Startup notice about available Pi and package updates.
 ///
@@ -53,7 +54,7 @@ class StartupUpdateBanner extends ConsumerWidget {
         borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
       child: Icon(
-        Icons.system_update_alt,
+        Icons.system_update_alt_outlined,
         color: tokens.signalWarning,
         size: FrameSize.iconLg,
       ),
@@ -77,30 +78,32 @@ class StartupUpdateBanner extends ConsumerWidget {
       overflow: TextOverflow.ellipsis,
     );
 
-    final openButton = FilledButton(
-      key: const ValueKey('startup-update-open-btn'),
-      style: FilledButton.styleFrom(
-        backgroundColor: tokens.accent,
-        foregroundColor: tokens.surface,
-        padding: const EdgeInsets.symmetric(
-          horizontal: FrameSpace.x3,
-          vertical: FrameSpace.x2,
+    final openButton = PressFeedback(
+      child: FilledButton(
+        key: const ValueKey('startup-update-open-btn'),
+        style: FilledButton.styleFrom(
+          backgroundColor: tokens.accent,
+          foregroundColor: tokens.surface,
+          padding: const EdgeInsets.symmetric(
+            horizontal: FrameSpace.x3,
+            vertical: FrameSpace.x2,
+          ),
+          visualDensity: VisualDensity.compact,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+          ),
         ),
-        visualDensity: VisualDensity.compact,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
+        onPressed: () {
+          ref.read(settingsTabIndexProvider.notifier).state = state.piHasUpdate
+              ? 0
+              : 1;
+          ref.read(showSettingsProvider.notifier).state = true;
+          ref.read(startupUpdatesProvider.notifier).dismiss();
+        },
+        child: Text(
+          strings.updateNoticeOpenSettings,
+          style: text.label.copyWith(fontWeight: FontWeight.w600),
         ),
-      ),
-      onPressed: () {
-        ref.read(settingsTabIndexProvider.notifier).state = state.piHasUpdate
-            ? 0
-            : 1;
-        ref.read(showSettingsProvider.notifier).state = true;
-        ref.read(startupUpdatesProvider.notifier).dismiss();
-      },
-      child: Text(
-        strings.updateNoticeOpenSettings,
-        style: text.label.copyWith(fontWeight: FontWeight.w600),
       ),
     );
 
@@ -108,7 +111,7 @@ class StartupUpdateBanner extends ConsumerWidget {
       key: const ValueKey('startup-update-dismiss-btn'),
       visualDensity: VisualDensity.compact,
       tooltip: strings.updateNoticeDismiss,
-      icon: Icon(Icons.close, size: FrameSize.icon, color: tokens.textMuted),
+      icon: Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.textMuted),
       onPressed: () {
         ref.read(startupUpdatesProvider.notifier).dismiss();
       },

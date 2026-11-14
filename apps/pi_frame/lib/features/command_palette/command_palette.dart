@@ -202,7 +202,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: '',
           title: name,
           subtitle: (session['cwd'] ?? '').toString(),
-          icon: Icons.chat_bubble_outline,
+          icon: Icons.chat_bubble_outlined,
           onExecute: () async {
             final host = widget.hostContext;
             final hostRef = widget.hostRef;
@@ -246,7 +246,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         group: sessionGroup,
         title: strings.paletteNewSessionTitle,
         subtitle: strings.paletteNewSessionSubtitle,
-        icon: Icons.add_circle_outline,
+        icon: Icons.add_circle_outlined,
         onExecute: () async {
           final client = hostRef.read(pcpClientProvider);
           if (client == null) return;
@@ -264,7 +264,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         group: sessionGroup,
         title: strings.paletteGoToSessionTitle,
         subtitle: strings.paletteGoToSessionSubtitle,
-        icon: Icons.manage_search,
+        icon: Icons.manage_search_outlined,
         opensSessionPicker: true,
         onExecute: () async {},
       ),
@@ -274,7 +274,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: sessionGroup,
           title: strings.paletteCompactTitle,
           subtitle: strings.paletteCompactSubtitle,
-          icon: Icons.compress,
+          icon: Icons.compress_outlined,
           onExecute: () async {
             await hostRef
                 .read(sessionStateFamily(activeSessionId).notifier)
@@ -286,7 +286,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: sessionGroup,
           title: strings.paletteClearQueueTitle,
           subtitle: strings.paletteClearQueueSubtitle,
-          icon: Icons.clear_all,
+          icon: Icons.clear_all_outlined,
           onExecute: () async {
             await hostRef
                 .read(sessionStateFamily(activeSessionId).notifier)
@@ -316,7 +316,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: sessionGroup,
           title: strings.paletteNewTerminalTitle,
           subtitle: strings.paletteNewTerminalSubtitle,
-          icon: Icons.terminal,
+          icon: Icons.terminal_outlined,
           onExecute: () async {
             final terminal = hostRef.read(terminalSettingsProvider);
             final cwd = hostRef.read(sessionStateFamily(activeSessionId)).cwd;
@@ -341,7 +341,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: viewGroup,
           title: strings.sideToggleActionTitle,
           subtitle: strings.sideToggleActionSubtitle,
-          icon: Icons.call_split,
+          icon: Icons.call_split_outlined,
           keys: [modifier, shift, 'B'],
           onExecute: () async {
             hostRef
@@ -413,13 +413,13 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             'git_pull',
             strings.paletteGitPullTitle,
             strings.paletteGitPullSubtitle,
-            Icons.arrow_downward,
+            Icons.arrow_downward_outlined,
           ),
           (
             'git_push',
             strings.paletteGitPushTitle,
             strings.paletteGitPushSubtitle,
-            Icons.arrow_upward,
+            Icons.arrow_upward_outlined,
           ),
         ])
           PaletteAction(
@@ -444,7 +444,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           group: settingsGroup,
           title: strings.paletteSettingsTitle,
           subtitle: strings.paletteSettingsSubtitle,
-          icon: Icons.settings,
+          icon: Icons.settings_outlined,
           onExecute: () async {
             widget.onOpenSettings?.call();
           },
@@ -471,7 +471,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           : strings.paletteShowPaneTitle(name),
       subtitle: strings.paletteTogglePaneSubtitle(name),
       icon: switch (pane) {
-        WorkspacePane.chat => Icons.chat_bubble_outline,
+        WorkspacePane.chat => Icons.chat_bubble_outlined,
         WorkspacePane.repository => Icons.folder_outlined,
         WorkspacePane.git => Icons.source_outlined,
       },
@@ -555,7 +555,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.search,
+                          Icons.search_outlined,
                           size: FrameSize.iconLg,
                           color: tokens.textMuted,
                         ),

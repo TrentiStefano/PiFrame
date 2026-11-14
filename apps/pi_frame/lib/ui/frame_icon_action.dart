@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'frame_control_scale.dart';
+
 /// A 16 px icon button inside a 28 x 28 target.
 ///
 /// [tooltip] is required: it is the accessible name as well as the hover
@@ -37,6 +39,11 @@ class FrameIconAction extends StatelessWidget {
         ? tokens.accent
         : tokens.textSecondary;
 
+    // Glyph and target grow with the text scale, capped (see frameControlScale).
+    final scale = frameControlScale(context);
+    final glyph = FrameSize.icon * scale;
+    final target = FrameSize.hitMin * scale;
+
     // TODO(focus-ring): wrap in FrameFocusRing once lib/ui/frame_focus.dart
     // exists. Until then the Material focus highlight below is the indicator.
     return Semantics(
@@ -44,13 +51,13 @@ class FrameIconAction extends StatelessWidget {
       child: IconButton(
         onPressed: onPressed,
         tooltip: message,
-        icon: Icon(icon, size: FrameSize.icon, color: color),
+        icon: Icon(icon, size: glyph, color: color),
         isSelected: selected,
-        iconSize: FrameSize.icon,
-        splashRadius: FrameSize.hitMin / 2,
+        iconSize: glyph,
+        splashRadius: target / 2,
         style: IconButton.styleFrom(
-          fixedSize: const Size.square(FrameSize.hitMin),
-          minimumSize: const Size.square(FrameSize.hitMin),
+          fixedSize: Size.square(target),
+          minimumSize: Size.square(target),
           padding: EdgeInsets.zero,
           // Keep the 28 px target: the default padded tap target would
           // enlarge it to 48 px.

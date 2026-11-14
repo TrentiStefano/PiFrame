@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../ui/frame_dialog.dart';
+import '../../ui/precision.dart';
 
 enum CopilotFileActionType { mention, attach }
 
@@ -64,7 +66,8 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    if (_scrollController.position.extentAfter < 200 && _renderedLimit < _filteredFiles.length) {
+    if (_scrollController.position.extentAfter < 200 &&
+        _renderedLimit < _filteredFiles.length) {
       setState(() {
         _renderedLimit = (_renderedLimit + 50).clamp(0, _filteredFiles.length);
       });
@@ -90,10 +93,15 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
   IconData _getFileIcon(String path) {
     final lower = path.toLowerCase();
     if (lower.endsWith('.dart')) return Icons.code_outlined;
-    if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.endsWith('.tsx') || lower.endsWith('.jsx')) {
+    if (lower.endsWith('.js') ||
+        lower.endsWith('.ts') ||
+        lower.endsWith('.tsx') ||
+        lower.endsWith('.jsx')) {
       return Icons.javascript_outlined;
     }
-    if (lower.endsWith('.json') || lower.endsWith('.yaml') || lower.endsWith('.yml')) {
+    if (lower.endsWith('.json') ||
+        lower.endsWith('.yaml') ||
+        lower.endsWith('.yml')) {
       return Icons.data_object_outlined;
     }
     if (lower.endsWith('.md') || lower.endsWith('.txt')) {
@@ -116,7 +124,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
   AppStrings _resolveStrings(BuildContext context) {
     if (widget.strings != null) return widget.strings!;
     try {
-      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
+      return ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(appStringsProvider);
     } catch (_) {
       return const AppStrings(AppLanguage.it);
     }
@@ -133,7 +144,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
         borderRadius: BorderRadius.circular(tokens.radiusLg),
         side: BorderSide(color: tokens.border, width: 1),
       ),
-      insetPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x6, vertical: FrameSpace.x8),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: FrameSpace.x6,
+        vertical: FrameSpace.x8,
+      ),
       child: Focus(
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
@@ -147,13 +161,17 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
             } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
               if (_filteredFiles.isNotEmpty) {
                 setState(() {
-                  _selectedIndex = (_selectedIndex - 1 + _filteredFiles.length) % _filteredFiles.length;
+                  _selectedIndex =
+                      (_selectedIndex - 1 + _filteredFiles.length) %
+                      _filteredFiles.length;
                 });
                 return KeyEventResult.handled;
               }
             } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-              if (_filteredFiles.isNotEmpty && _selectedIndex < _filteredFiles.length) {
-                final path = _filteredFiles[_selectedIndex]['path']?.toString() ?? '';
+              if (_filteredFiles.isNotEmpty &&
+                  _selectedIndex < _filteredFiles.length) {
+                final path =
+                    _filteredFiles[_selectedIndex]['path']?.toString() ?? '';
                 if (path.isNotEmpty) {
                   _selectFile(path, CopilotFileActionType.attach);
                   return KeyEventResult.handled;
@@ -179,7 +197,11 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       color: tokens.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
-                    child: Icon(Icons.add_link_outlined, size: FrameSize.icon, color: tokens.accent),
+                    child: Icon(
+                      Icons.add_link_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -188,17 +210,25 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       children: [
                         Text(
                           strings.copilotAddContextTitle,
-                          style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
+                          style: FrameText.of(context).bodyLarge.copyWith(
+                            color: tokens.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           strings.copilotAddContextSubtitle,
-                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                          style: FrameText.of(context).caption
+                              .copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
+                    icon: Icon(
+                      Icons.close_outlined,
+                      size: FrameSize.iconLg,
+                      color: tokens.textMuted,
+                    ),
                     tooltip: strings.copilotCloseEscTooltip,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -211,20 +241,33 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 autofocus: true,
-                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
+                style: FrameText.of(context).body
+                    .copyWith(color: tokens.textPrimary),
                 decoration: InputDecoration(
                   hintText: strings.copilotSearchHint,
-                  hintStyle: FrameText.of(context).body.copyWith(color: tokens.textMuted),
-                  prefixIcon: Icon(Icons.search_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
+                  hintStyle: FrameText.of(context).body
+                      .copyWith(color: tokens.textMuted),
+                  prefixIcon: Icon(
+                    Icons.search_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.textMuted,
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.clear_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                          icon: Icon(
+                            Icons.clear_outlined,
+                            size: FrameSize.icon,
+                            color: tokens.textMuted,
+                          ),
                           onPressed: () => _searchController.clear(),
                         )
                       : null,
                   filled: true,
                   fillColor: tokens.surfaceElevated,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: FrameSpace.x3,
+                    vertical: 10,
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
                     borderSide: BorderSide(color: tokens.border),
@@ -243,7 +286,8 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 children: [
                   Text(
                     strings.copilotFilesFound(_filteredFiles.length),
-                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                    style: FrameText.of(context).caption
+                        .copyWith(color: tokens.textMuted),
                   ),
                   Flexible(
                     child: Text(
@@ -251,7 +295,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
-                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                      style: FrameText.of(context).caption.copyWith(
+                        color: tokens.textMuted,
+                        fontFamily: tokens.monoFontFamily,
+                      ),
                     ),
                   ),
                 ],
@@ -264,7 +311,8 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                     ? Center(
                         child: Text(
                           strings.copilotNoFilesMatch,
-                          style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
+                          style: FrameText.of(context).label
+                              .copyWith(color: tokens.textMuted),
                         ),
                       )
                     : Container(
@@ -281,11 +329,18 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                               : _filteredFiles.length,
                           itemExtent: 44.0,
                           itemBuilder: (context, index) {
-                            if (index == _renderedLimit && _renderedLimit < _filteredFiles.length) {
+                            if (index == _renderedLimit &&
+                                _renderedLimit < _filteredFiles.length) {
                               return Center(
                                 child: Text(
-                                  strings.copilotLoadingMore(_renderedLimit, _filteredFiles.length),
-                                  style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                                  strings.copilotLoadingMore(
+                                    _renderedLimit,
+                                    _filteredFiles.length,
+                                  ),
+                                  style: FrameText.of(context).caption.copyWith(
+                                    color: tokens.textMuted,
+                                    fontFamily: tokens.monoFontFamily,
+                                  ),
                                 ),
                               );
                             }
@@ -294,7 +349,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                             final isSelected = index == _selectedIndex;
 
                             return InkWell(
-                              onTap: () => _selectFile(path, CopilotFileActionType.attach),
+                              onTap: () => _selectFile(
+                                path,
+                                CopilotFileActionType.attach,
+                              ),
                               child: Container(
                                 color: isSelected
                                     ? tokens.accent.withValues(alpha: 0.12)
@@ -307,8 +365,10 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                   children: [
                                     Icon(
                                       _getFileIcon(path),
-                                      size: 16,
-                                      color: isSelected ? tokens.accent : tokens.textSecondary,
+                                      size: FrameSize.icon,
+                                      color: isSelected
+                                          ? tokens.accent
+                                          : tokens.textSecondary,
                                     ),
                                     const SizedBox(width: 10),
                                     Expanded(
@@ -316,28 +376,54 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         path,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: FrameText.of(context).label.copyWith(color: isSelected ? tokens.accent : tokens.textPrimary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
+                                        style: FrameText.of(context).label
+                                            .copyWith(
+                                              color: isSelected
+                                                  ? tokens.accent
+                                                  : tokens.textPrimary,
+                                              fontWeight: FontWeight.w600,
+                                              fontFamily: tokens.monoFontFamily,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
                                     Text(
                                       _formatBytes(file['sizeBytes']),
-                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                                      style: FrameText.of(context).caption
+                                          .copyWith(
+                                            color: tokens.textMuted,
+                                            fontFamily: tokens.monoFontFamily,
+                                          ),
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
                                     // Action buttons
-                                    OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        visualDensity: VisualDensity.compact,
-                                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
-                                        side: BorderSide(color: tokens.border),
-                                        foregroundColor: tokens.textSecondary,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                    PressFeedback(
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: FrameSpace.x2,
+                                            vertical: FrameSpace.x1,
+                                          ),
+                                          side: BorderSide(
+                                            color: tokens.border,
+                                          ),
+                                          foregroundColor: tokens.textSecondary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusSm,
+                                            ),
+                                          ),
+                                        ),
+                                        onPressed: () => _selectFile(
+                                          path,
+                                          CopilotFileActionType.mention,
+                                        ),
+                                        child: Text(
+                                          strings.copilotLinkAtAction,
+                                          style: FrameText.of(context).caption,
                                         ),
                                       ),
-                                      onPressed: () => _selectFile(path, CopilotFileActionType.mention),
-                                      child: Text(strings.copilotLinkAtAction, style: FrameText.of(context).caption),
                                     ),
                                   ],
                                 ),

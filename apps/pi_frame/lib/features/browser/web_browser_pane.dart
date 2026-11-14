@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -18,6 +19,7 @@ import '../composer/composer_draft.dart';
 import '../workspace/repository_workspace.dart';
 import 'browser_controller.dart';
 import 'browser_models.dart';
+import '../../ui/precision.dart';
 
 /// Companion width below which header and toolbar actions move into
 /// overflow menus so the single toolbar row always fits (audit P1-4).
@@ -104,44 +106,40 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       WinNavigationDelegate(
         onPageStarted: (url) {
           if (!mounted) return;
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(
-            url: url,
-            isLoading: true,
-          );
+          ref
+              .read(webBrowserProvider.notifier)
+              .updateCurrentTab(url: url, isLoading: true);
         },
         onPageFinished: (url) async {
           if (!mounted) return;
           final title = await controller.getTitle();
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(
-            url: url,
-            title: title,
-            isLoading: false,
-          );
+          ref
+              .read(webBrowserProvider.notifier)
+              .updateCurrentTab(url: url, title: title, isLoading: false);
         },
         onUrlChange: (change) {
           if (!mounted) return;
           final url = change.url;
           if (url != null && url.isNotEmpty) {
-            ref.read(webBrowserProvider.notifier).updateCurrentTab(
-              url: url,
-            );
+            ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url);
           }
         },
         onPageTitleChanged: (title) {
           if (!mounted) return;
           final activeTab = ref.read(webBrowserProvider).activeTab;
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(
-            url: activeTab.url,
-            title: title,
-          );
+          ref
+              .read(webBrowserProvider.notifier)
+              .updateCurrentTab(url: activeTab.url, title: title);
         },
         onWebResourceError: (error) {
           if (!mounted) return;
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(
-            url: ref.read(webBrowserProvider).activeTab.url,
-            isLoading: false,
-            errorMessage: error.description,
-          );
+          ref
+              .read(webBrowserProvider.notifier)
+              .updateCurrentTab(
+                url: ref.read(webBrowserProvider).activeTab.url,
+                isLoading: false,
+                errorMessage: error.description,
+              );
         },
       ),
     );
@@ -200,8 +198,9 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     if (text.isEmpty) return;
     _urlFocusNode.unfocus();
 
-    final normalized =
-        await ref.read(webBrowserProvider.notifier).navigate(text);
+    final normalized = await ref
+        .read(webBrowserProvider.notifier)
+        .navigate(text);
     if (_isNativeWebViewSupported && _winController != null) {
       if (normalized == 'about:home') {
         await _winController!.setVisibility(false);
@@ -230,8 +229,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Future<void> _switchTab(String tabId) async {
     ref.read(webBrowserProvider.notifier).switchTab(tabId);
-    final targetTab =
-        ref.read(webBrowserProvider).tabs.firstWhere((t) => t.id == tabId);
+    final targetTab = ref
+        .read(webBrowserProvider)
+        .tabs
+        .firstWhere((t) => t.id == tabId);
     if (_isNativeWebViewSupported && _winController != null) {
       if (targetTab.isHome) {
         await _winController!.setVisibility(false);
@@ -343,9 +344,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           _buildHeader(tokens, browserState),
           _buildOmniboxBar(tokens, browserState, activeTab),
           if (activeTab.isLoading) _loadingBar(tokens),
-          Expanded(
-            child: _buildBody(tokens, activeTab),
-          ),
+          Expanded(child: _buildBody(tokens, activeTab)),
         ],
       ),
     );
@@ -376,151 +375,186 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 child: SizedBox(
                   height: 34,
                   child: Row(
-            children: [
-              // Segmented Switcher: [ Git Changes ] [ Web Browser ]
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: tokens.surface,
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    border: Border.all(color: tokens.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Segmented Switcher: [ Git Changes ] [ Web Browser ]
                       Flexible(
-                        child: _buildSegmentButton(
-                          key: const ValueKey('right-pane-switch-git-chip'),
-                          label: _getStrings().browserGitChangesLabel,
-                          icon: Icons.source_outlined,
-                          isSelected: false,
-                          tokens: tokens,
-                          onTap: () {
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: tokens.surface,
+                            borderRadius: BorderRadius.circular(
+                              tokens.radiusSm,
+                            ),
+                            border: Border.all(color: tokens.border),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: _buildSegmentButton(
+                                  key: const ValueKey(
+                                    'right-pane-switch-git-chip',
+                                  ),
+                                  label: _getStrings().browserGitChangesLabel,
+                                  icon: Icons.source_outlined,
+                                  isSelected: false,
+                                  tokens: tokens,
+                                  onTap: () {
+                                    _winController?.setVisibility(false);
+                                    ref
+                                        .read(rightPaneModeProvider.notifier)
+                                        .state = RightPaneMode
+                                        .git;
+                                  },
+                                ),
+                              ),
+                              Flexible(
+                                child: _buildSegmentButton(
+                                  key: const ValueKey(
+                                    'right-pane-switch-browser-chip',
+                                  ),
+                                  label: _getStrings().browserWebBrowserLabel,
+                                  icon: Icons.language_outlined,
+                                  isSelected: true,
+                                  tokens: tokens,
+                                  onTap: () {},
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Action buttons: inline when wide, in one overflow menu when narrow.
+                      if (compact)
+                        PopupMenuButton<_BrowserMenuAction>(
+                          key: const ValueKey('browser-companion-overflow-btn'),
+                          tooltip: strings.browserMoreActionsTooltip,
+                          padding: EdgeInsets.zero,
+                          onSelected: _onBrowserMenuAction,
+                          itemBuilder: (context) => [
+                            if (_isNativeWebViewSupported)
+                              _browserMenuItem(
+                                key: const ValueKey('browser-menu-devtools'),
+                                value: _BrowserMenuAction.devTools,
+                                icon: Icons.developer_mode_outlined,
+                                label: strings.openChromiumDevToolsTooltip,
+                                tokens: tokens,
+                              ),
+                            _browserMenuItem(
+                              key: const ValueKey('browser-menu-send-to-chat'),
+                              value: _BrowserMenuAction.sendToChat,
+                              icon: Icons.chat_bubble_outlined,
+                              label: strings.sendToChatComposerTooltip,
+                              tokens: tokens,
+                            ),
+                            _browserMenuItem(
+                              key: const ValueKey('browser-menu-copy-url'),
+                              value: _BrowserMenuAction.copyUrl,
+                              icon: Icons.copy_outlined,
+                              label: strings.copyUrlTooltip,
+                              tokens: tokens,
+                            ),
+                            _browserMenuItem(
+                              key: const ValueKey('browser-menu-open-external'),
+                              value: _BrowserMenuAction.openExternal,
+                              icon: Icons.open_in_new_outlined,
+                              label: strings.openInSystemBrowserTooltip,
+                              tokens: tokens,
+                            ),
+                          ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.more_horiz_outlined,
+                              size: FrameSize.icon,
+                              color: tokens.textMuted,
+                            ),
+                          ),
+                        )
+                      else ...[
+                        if (_isNativeWebViewSupported)
+                          IconButton(
+                            key: const ValueKey('browser-devtools-btn'),
+                            tooltip: strings.openChromiumDevToolsTooltip,
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(
+                              minWidth: 26,
+                              minHeight: 26,
+                            ),
+                            onPressed: _openDevTools,
+                            icon: const Icon(
+                              Icons.developer_mode_outlined,
+                              size: FrameSize.icon,
+                            ),
+                          ),
+                        IconButton(
+                          key: const ValueKey('browser-send-to-chat-btn'),
+                          tooltip: strings.sendToChatComposerTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          onPressed: _sendActiveTabToComposer,
+                          icon: const Icon(
+                            Icons.chat_bubble_outlined,
+                            size: FrameSize.icon,
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('browser-copy-url-btn'),
+                          tooltip: strings.copyUrlTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          onPressed: _copyActiveUrl,
+                          icon: const Icon(
+                            Icons.copy_outlined,
+                            size: FrameSize.icon,
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('browser-open-external-btn'),
+                          tooltip: strings.openInSystemBrowserTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          onPressed: _openActiveExternal,
+                          icon: const Icon(
+                            Icons.open_in_new_outlined,
+                            size: FrameSize.icon,
+                          ),
+                        ),
+                      ],
+                      if (widget.onCollapse != null) ...[
+                        const SizedBox(width: FrameSpace.x1),
+                        IconButton(
+                          key: const ValueKey('browser-collapse-btn'),
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          tooltip: strings.collapseBrowserPanelTooltip,
+                          onPressed: () {
                             _winController?.setVisibility(false);
-                            ref.read(rightPaneModeProvider.notifier).state =
-                                RightPaneMode.git;
+                            widget.onCollapse?.call();
                           },
+                          icon: const Icon(
+                            Icons.chevron_right_outlined,
+                            size: FrameSize.icon,
+                          ),
                         ),
-                      ),
-                      Flexible(
-                        child: _buildSegmentButton(
-                          key: const ValueKey('right-pane-switch-browser-chip'),
-                          label: _getStrings().browserWebBrowserLabel,
-                          icon: Icons.language_outlined,
-                          isSelected: true,
-                          tokens: tokens,
-                          onTap: () {},
-                        ),
-                      ),
+                      ],
                     ],
                   ),
-                ),
-              ),
-              const Spacer(),
-              // Action buttons: inline when wide, in one overflow menu when narrow.
-              if (compact)
-                PopupMenuButton<_BrowserMenuAction>(
-                  key: const ValueKey('browser-companion-overflow-btn'),
-                  tooltip: strings.browserMoreActionsTooltip,
-                  padding: EdgeInsets.zero,
-                  onSelected: _onBrowserMenuAction,
-                  itemBuilder: (context) => [
-                    if (_isNativeWebViewSupported)
-                      _browserMenuItem(
-                        key: const ValueKey('browser-menu-devtools'),
-                        value: _BrowserMenuAction.devTools,
-                        icon: Icons.developer_mode_outlined,
-                        label: strings.openChromiumDevToolsTooltip,
-                        tokens: tokens,
-                      ),
-                    _browserMenuItem(
-                      key: const ValueKey('browser-menu-send-to-chat'),
-                      value: _BrowserMenuAction.sendToChat,
-                      icon: Icons.chat_bubble_outline,
-                      label: strings.sendToChatComposerTooltip,
-                      tokens: tokens,
-                    ),
-                    _browserMenuItem(
-                      key: const ValueKey('browser-menu-copy-url'),
-                      value: _BrowserMenuAction.copyUrl,
-                      icon: Icons.copy_outlined,
-                      label: strings.copyUrlTooltip,
-                      tokens: tokens,
-                    ),
-                    _browserMenuItem(
-                      key: const ValueKey('browser-menu-open-external'),
-                      value: _BrowserMenuAction.openExternal,
-                      icon: Icons.open_in_new_outlined,
-                      label: strings.openInSystemBrowserTooltip,
-                      tokens: tokens,
-                    ),
-                  ],
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.more_horiz_outlined,
-                      size: 16,
-                      color: tokens.textMuted,
-                    ),
-                  ),
-                )
-              else ...[
-                if (_isNativeWebViewSupported)
-                  IconButton(
-                    key: const ValueKey('browser-devtools-btn'),
-                    tooltip: strings.openChromiumDevToolsTooltip,
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                    onPressed: _openDevTools,
-                    icon: const Icon(Icons.developer_mode_outlined, size: FrameSize.icon),
-                  ),
-                IconButton(
-                  key: const ValueKey('browser-send-to-chat-btn'),
-                  tooltip: strings.sendToChatComposerTooltip,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: _sendActiveTabToComposer,
-                  icon: const Icon(Icons.chat_bubble_outline, size: FrameSize.icon),
-                ),
-                IconButton(
-                  key: const ValueKey('browser-copy-url-btn'),
-                  tooltip: strings.copyUrlTooltip,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: _copyActiveUrl,
-                  icon: const Icon(Icons.copy_outlined, size: FrameSize.icon),
-                ),
-                IconButton(
-                  key: const ValueKey('browser-open-external-btn'),
-                  tooltip: strings.openInSystemBrowserTooltip,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  onPressed: _openActiveExternal,
-                  icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
-                ),
-              ],
-              if (widget.onCollapse != null) ...[
-                const SizedBox(width: FrameSpace.x1),
-                IconButton(
-                  key: const ValueKey('browser-collapse-btn'),
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  tooltip: strings.collapseBrowserPanelTooltip,
-                  onPressed: () {
-                    _winController?.setVisibility(false);
-                    widget.onCollapse?.call();
-                  },
-                  icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.icon),
-                ),
-              ],
-            ],
-          ),
                 ),
               ),
               _buildTabBar(tokens, browserState),
@@ -545,7 +579,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       borderRadius: BorderRadius.circular(tokens.radiusSm),
       child: AnimatedContainer(
         duration: FrameMotion.small,
-        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FrameSpace.x2,
+          vertical: 3,
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? tokens.surfaceElevated
@@ -569,7 +606,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: FrameText.of(context).caption.copyWith(color: isSelected ? tokens.displayText : tokens.textMuted, fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400),
+                style: FrameText.of(context).caption.copyWith(
+                  color: isSelected ? tokens.displayText : tokens.textMuted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
           ],
@@ -600,8 +640,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   key: ValueKey('browser-tab-${tab.id}'),
                   onTap: () => _switchTab(tab.id),
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 160, minWidth: 80),
-                    padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                    constraints: const BoxConstraints(
+                      maxWidth: 160,
+                      minWidth: 80,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FrameSpace.x2,
+                    ),
                     decoration: BoxDecoration(
                       color: isActive ? tokens.surfaceElevated : tokens.surface,
                       borderRadius: BorderRadius.vertical(
@@ -623,20 +668,28 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           )
                         else
                           Icon(
-                            tab.isHome ? Icons.home_outlined : Icons.language_outlined,
+                            tab.isHome
+                                ? Icons.home_outlined
+                                : Icons.language_outlined,
                             size: 12,
                             color: isActive ? tokens.accent : tokens.textMuted,
                           ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            tab.title.isEmpty ? strings.newBrowserTab : tab.title,
+                            tab.title.isEmpty
+                                ? strings.newBrowserTab
+                                : tab.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: FrameText.of(context).caption.copyWith(fontWeight:
-                                  isActive ? FontWeight.w600 : FontWeight.w400, color: isActive
+                            style: FrameText.of(context).caption.copyWith(
+                              fontWeight: isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: isActive
                                   ? tokens.textPrimary
-                                  : tokens.textMuted),
+                                  : tokens.textMuted,
+                            ),
                           ),
                         ),
                         const SizedBox(width: FrameSpace.x1),
@@ -707,7 +760,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         ref.read(webBrowserProvider.notifier).goBack();
                       }
                     : null,
-                icon: const Icon(Icons.arrow_back_outlined, size: FrameSize.icon),
+                icon: const Icon(
+                  Icons.arrow_back_outlined,
+                  size: FrameSize.icon,
+                ),
               ),
               IconButton(
                 key: const ValueKey('browser-forward-btn'),
@@ -725,7 +781,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         ref.read(webBrowserProvider.notifier).goForward();
                       }
                     : null,
-                icon: const Icon(Icons.arrow_forward_outlined, size: FrameSize.icon),
+                icon: const Icon(
+                  Icons.arrow_forward_outlined,
+                  size: FrameSize.icon,
+                ),
               ),
               IconButton(
                 key: const ValueKey('browser-reload-btn'),
@@ -749,7 +808,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   tooltip: strings.browserHomeTooltip,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  constraints: const BoxConstraints(
+                    minWidth: 26,
+                    minHeight: 26,
+                  ),
                   onPressed: _goHome,
                   icon: const Icon(Icons.home_outlined, size: FrameSize.icon),
                 ),
@@ -775,7 +837,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         ),
                         child: Icon(
                           activeTab.url.startsWith('https://')
-                              ? Icons.lock_outline
+                              ? Icons.lock_outlined
                               : Icons.search_outlined,
                           size: 13,
                           color: activeTab.url.startsWith('https://')
@@ -788,13 +850,18 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           key: const ValueKey('browser-omnibox-input'),
                           controller: _urlController,
                           focusNode: _urlFocusNode,
-                          style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
+                          style: FrameText.of(context).caption.copyWith(
+                            color: tokens.textPrimary,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
                           decoration: InputDecoration(
                             isDense: true,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 7),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 7,
+                            ),
                             hintText: strings.browserOmniboxHint,
-                            hintStyle: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                            hintStyle: FrameText.of(context).caption
+                                .copyWith(color: tokens.textMuted),
                             border: InputBorder.none,
                           ),
                           onSubmitted: (_) => _submitUrl(),
@@ -805,13 +872,18 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           tooltip: strings.browserClearTooltip,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints:
-                              const BoxConstraints(minWidth: 20, minHeight: 20),
+                          constraints: const BoxConstraints(
+                            minWidth: 20,
+                            minHeight: 20,
+                          ),
                           onPressed: () {
                             _urlController.clear();
                             setState(() {});
                           },
-                          icon: const Icon(Icons.close_outlined, size: FrameSize.icon),
+                          icon: const Icon(
+                            Icons.close_outlined,
+                            size: FrameSize.icon,
+                          ),
                         ),
                       if (!compact)
                         IconButton(
@@ -821,18 +893,22 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                               : strings.addBookmarkTooltip,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints:
-                              const BoxConstraints(minWidth: 24, minHeight: 24),
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
                           onPressed: activeTab.isHome
                               ? null
                               : () => notifier.toggleBookmark(
-                                    activeTab.url,
-                                    activeTab.title,
-                                  ),
+                                  activeTab.url,
+                                  activeTab.title,
+                                ),
                           icon: Icon(
-                            isBookmarked ? Icons.star : Icons.star_border,
+                            isBookmarked ? Icons.star_outlined : Icons.star_border,
                             size: 14,
-                            color: isBookmarked ? tokens.warning : tokens.textMuted,
+                            color: isBookmarked
+                                ? tokens.warning
+                                : tokens.textMuted,
                           ),
                         ),
                       IconButton(
@@ -840,10 +916,15 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         tooltip: strings.browserGoTooltip,
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 24, minHeight: 24),
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
                         onPressed: _submitUrl,
-                        icon: const Icon(Icons.arrow_forward_ios_outlined, size: FrameSize.icon),
+                        icon: const Icon(
+                          Icons.arrow_forward_ios_outlined,
+                          size: FrameSize.icon,
+                        ),
                       ),
                     ],
                   ),
@@ -853,7 +934,9 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               // Search Engine Picker
               PopupMenuButton<SearchEngine>(
                 key: const ValueKey('browser-engine-picker'),
-                tooltip: strings.browserSearchEngineTooltip(browserState.searchEngine.label),
+                tooltip: strings.browserSearchEngineTooltip(
+                  browserState.searchEngine.label,
+                ),
                 initialValue: browserState.searchEngine,
                 padding: EdgeInsets.zero,
                 onSelected: (engine) => notifier.setSearchEngine(engine),
@@ -864,7 +947,11 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       height: 32,
                       child: Row(
                         children: [
-                          Icon(engine.icon, size: FrameSize.icon, color: tokens.accent),
+                          Icon(
+                            engine.icon,
+                            size: FrameSize.icon,
+                            color: tokens.accent,
+                          ),
                           const SizedBox(width: FrameSpace.x2),
                           Text(
                             engine.label,
@@ -876,7 +963,9 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 ],
                 child: Container(
                   height: 30,
-                  padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FrameSpace.x1,
+                  ),
                   decoration: BoxDecoration(
                     color: tokens.surfaceElevated,
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -891,7 +980,11 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         color: tokens.accent,
                       ),
                       const SizedBox(width: FrameSpace.x1),
-                      Icon(Icons.arrow_drop_down_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                      Icon(
+                        Icons.arrow_drop_down_outlined,
+                        size: FrameSize.icon,
+                        color: tokens.textMuted,
+                      ),
                     ],
                   ),
                 ),
@@ -915,7 +1008,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                     _browserMenuItem(
                       key: const ValueKey('browser-menu-bookmark'),
                       value: _BrowserMenuAction.bookmark,
-                      icon: isBookmarked ? Icons.star : Icons.star_border,
+                      icon: isBookmarked ? Icons.star_outlined : Icons.star_border,
                       label: isBookmarked
                           ? strings.removeBookmarkTooltip
                           : strings.addBookmarkTooltip,
@@ -927,7 +1020,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                     padding: const EdgeInsets.all(4),
                     child: Icon(
                       Icons.more_horiz_outlined,
-                      size: 16,
+                      size: FrameSize.icon,
                       color: tokens.textMuted,
                     ),
                   ),
@@ -1018,10 +1111,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   /// nothing loops on screen.
   Widget _loadingBar(FrameTokens tokens) {
     if (FrameMotion.reduced(context)) {
-      return SizedBox(
-        height: 2,
-        child: ColoredBox(color: tokens.accent),
-      );
+      return SizedBox(height: 2, child: ColoredBox(color: tokens.accent));
     }
     return LinearProgressIndicator(
       minHeight: 2,
@@ -1042,16 +1132,9 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       _winController!.setVisibility(true);
       return Stack(
         children: [
-          Positioned.fill(
-            child: WinWebViewWidget(controller: _winController!),
-          ),
+          Positioned.fill(child: WinWebViewWidget(controller: _winController!)),
           if (activeTab.isLoading)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: _loadingBar(tokens),
-            ),
+            Positioned(top: 0, left: 0, right: 0, child: _loadingBar(tokens)),
         ],
       );
     }
@@ -1067,16 +1150,24 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FrameActivityIndicator(size: FrameSize.iconLg, color: tokens.accent, strokeWidth: 2),
+            FrameActivityIndicator(
+              size: FrameSize.iconLg,
+              color: tokens.accent,
+              strokeWidth: 2,
+            ),
             const SizedBox(height: FrameSpace.x3),
             Text(
               strings.browserLoadingInProgress,
-              style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
+              style: FrameText.of(context).label
+                  .copyWith(color: tokens.textMuted),
             ),
             const SizedBox(height: FrameSpace.x1),
             Text(
               activeTab.url,
-              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+              style: FrameText.of(context).caption.copyWith(
+                color: tokens.textMuted,
+                fontFamily: tokens.monoFontFamily,
+              ),
             ),
           ],
         ),
@@ -1101,13 +1192,15 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: FrameSpace.x3),
               Text(
                 strings.unableToLoadPageTitle,
-                style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold),
+                style: FrameText.of(context).bodyLarge
+                    .copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: FrameSpace.x2),
               Text(
                 describeError(activeTab.errorMessage!, strings).summary,
                 textAlign: TextAlign.center,
-                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                style: FrameText.of(context).caption
+                    .copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: FrameSpace.x4),
               Wrap(
@@ -1115,17 +1208,27 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  FilledButton.tonalIcon(
-                    key: const ValueKey('browser-retry-btn'),
-                    onPressed: () =>
-                        ref.read(webBrowserProvider.notifier).reload(),
-                    icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
-                    label: Text(strings.retryBtn),
+                  PressFeedback(
+                    child: FilledButton.tonalIcon(
+                      key: const ValueKey('browser-retry-btn'),
+                      onPressed: () =>
+                          ref.read(webBrowserProvider.notifier).reload(),
+                      icon: const Icon(
+                        Icons.refresh_outlined,
+                        size: FrameSize.icon,
+                      ),
+                      label: Text(strings.retryBtn),
+                    ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => _openExternal(activeTab.url),
-                    icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
-                    label: Text(strings.openExternallyBtn),
+                  PressFeedback(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openExternal(activeTab.url),
+                      icon: const Icon(
+                        Icons.open_in_new_outlined,
+                        size: FrameSize.icon,
+                      ),
+                      label: Text(strings.openExternallyBtn),
+                    ),
                   ),
                 ],
               ),
@@ -1154,19 +1257,26 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: FrameSpace.x3),
               Text(
                 strings.noMainTextDetectedTitle,
-                style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold),
+                style: FrameText.of(context).bodyLarge
+                    .copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: FrameSpace.x2),
               Text(
                 strings.noMainTextDetectedMessage,
                 textAlign: TextAlign.center,
-                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                style: FrameText.of(context).caption
+                    .copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: FrameSpace.x4),
-              OutlinedButton.icon(
-                onPressed: () => _openExternal(activeTab.url),
-                icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
-                label: Text(strings.openInSystemBrowserBtn),
+              PressFeedback(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openExternal(activeTab.url),
+                  icon: const Icon(
+                    Icons.open_in_new_outlined,
+                    size: FrameSize.icon,
+                  ),
+                  label: Text(strings.openInSystemBrowserBtn),
+                ),
               ),
             ],
           ),
@@ -1203,11 +1313,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             ),
                             decoration: BoxDecoration(
                               color: tokens.accent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              borderRadius: BorderRadius.circular(
+                                tokens.radiusSm,
+                              ),
                             ),
                             child: Text(
                               content.domain,
-                              style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
+                              style: FrameText.of(context).caption.copyWith(
+                                color: tokens.accent,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: FrameSpace.x2),
@@ -1216,7 +1331,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                               content.url,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                              style: FrameText.of(context).caption.copyWith(
+                                color: tokens.textMuted,
+                                fontFamily: tokens.monoFontFamily,
+                              ),
                             ),
                           ),
                         ],
@@ -1224,14 +1342,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       const SizedBox(height: 6),
                       Text(
                         content.title,
-                        style: FrameText.of(context).title.copyWith(fontWeight: FontWeight.bold),
+                        style: FrameText.of(context).title
+                            .copyWith(fontWeight: FontWeight.bold),
                       ),
                       if (content.description != null &&
                           content.description!.isNotEmpty) ...[
                         const SizedBox(height: FrameSpace.x1),
                         Text(
                           content.description!,
-                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                          style: FrameText.of(context).caption
+                              .copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ],
@@ -1240,7 +1360,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 IconButton(
                   tooltip: strings.openInSystemBrowserTooltip,
                   onPressed: () => _openExternal(content.url),
-                  icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
+                  icon: const Icon(
+                    Icons.open_in_new_outlined,
+                    size: FrameSize.icon,
+                  ),
                 ),
                 IconButton(
                   tooltip: strings.sendToChatComposerTooltip,
@@ -1256,7 +1379,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           if (content.isSearch) ...[
             Text(
               strings.browserSearchResultsCount(content.searchResults.length),
-              style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
+              style: FrameText.of(context).label.copyWith(
+                color: tokens.textMuted,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: FrameSpace.x2),
             for (int i = 0; i < content.searchResults.length; i++)
@@ -1270,10 +1396,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             if (content.headings.isNotEmpty) ...[
               for (final heading in content.headings)
                 Padding(
-                  padding: const EdgeInsets.only(top: FrameSpace.x3, bottom: FrameSpace.x1),
+                  padding: const EdgeInsets.only(
+                    top: FrameSpace.x3,
+                    bottom: FrameSpace.x1,
+                  ),
                   child: Text(
                     heading,
-                    style: FrameText.of(context).bodyLarge.copyWith(fontWeight: FontWeight.bold, color: tokens.textPrimary),
+                    style: FrameText.of(context).bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: tokens.textPrimary,
+                    ),
                   ),
                 ),
             ],
@@ -1284,21 +1416,26 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   padding: const EdgeInsets.only(bottom: FrameSpace.x2),
                   child: Text(
                     p,
-                    style: FrameText.of(context).label.copyWith(height: 1.5, color: tokens.textPrimary),
+                    style: FrameText.of(context).label
+                        .copyWith(height: 1.5, color: tokens.textPrimary),
                   ),
                 ),
             ] else if (content.rawText.isNotEmpty) ...[
               const SizedBox(height: FrameSpace.x2),
               SelectableText(
                 content.rawText,
-                style: FrameText.of(context).label.copyWith(height: 1.5, color: tokens.textPrimary),
+                style: FrameText.of(context).label
+                    .copyWith(height: 1.5, color: tokens.textPrimary),
               ),
             ],
             if (content.codeSnippets.isNotEmpty) ...[
               const SizedBox(height: FrameSpace.x3),
               Text(
                 strings.browserExtractedCodeCount(content.codeSnippets.length),
-                style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
+                style: FrameText.of(context).label.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 6),
               for (final code in content.codeSnippets)
@@ -1316,13 +1453,19 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       Expanded(
                         child: SelectableText(
                           code,
-                          style: FrameText.of(context).caption.copyWith(fontFamily: tokens.monoFontFamily, color: tokens.textPrimary),
+                          style: FrameText.of(context).caption.copyWith(
+                            fontFamily: tokens.monoFontFamily,
+                            color: tokens.textPrimary,
+                          ),
                         ),
                       ),
                       IconButton(
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        constraints: const BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
                         tooltip: strings.copyCodeTooltip,
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: code));
@@ -1332,7 +1475,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             duration: const Duration(seconds: 1),
                           );
                         },
-                        icon: const Icon(Icons.copy_outlined, size: FrameSize.icon),
+                        icon: const Icon(
+                          Icons.copy_outlined,
+                          size: FrameSize.icon,
+                        ),
                       ),
                     ],
                   ),
@@ -1342,7 +1488,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               const SizedBox(height: FrameSpace.x4),
               Text(
                 strings.browserPageLinksCount(content.links.length),
-                style: FrameText.of(context).label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
+                style: FrameText.of(context).label.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -1355,12 +1504,17 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       backgroundColor: tokens.surfaceElevated,
                       side: BorderSide(color: tokens.border, width: 0.5),
-                      avatar: Icon(Icons.link_outlined, size: FrameSize.icon, color: tokens.accent),
+                      avatar: Icon(
+                        Icons.link_outlined,
+                        size: FrameSize.icon,
+                        color: tokens.accent,
+                      ),
                       label: Text(
                         link.text,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: FrameText.of(context).caption.copyWith(color: tokens.accent),
+                        style: FrameText.of(context).caption
+                            .copyWith(color: tokens.accent),
                       ),
                       onPressed: () => _navigateTo(link.url),
                     ),
@@ -1399,7 +1553,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 ),
                 child: Text(
                   result.domain,
-                  style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
+                  style: FrameText.of(context).caption.copyWith(
+                    color: tokens.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(width: FrameSpace.x2),
@@ -1408,7 +1565,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   result.url,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                  style: FrameText.of(context).caption.copyWith(
+                    color: tokens.textMuted,
+                    fontFamily: tokens.monoFontFamily,
+                  ),
                 ),
               ),
             ],
@@ -1419,14 +1579,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             onTap: () => _navigateTo(result.url),
             child: Text(
               result.title,
-              style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold, color: tokens.accent),
+              style: FrameText.of(context).body
+                  .copyWith(fontWeight: FontWeight.bold, color: tokens.accent),
             ),
           ),
           if (result.snippet.isNotEmpty) ...[
             const SizedBox(height: FrameSpace.x1),
             Text(
               result.snippet,
-              style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary),
+              style: FrameText.of(context).caption
+                  .copyWith(color: tokens.textPrimary),
             ),
           ],
         ],
@@ -1449,17 +1611,23 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 20),
-              Icon(Icons.travel_explore_outlined, size: 48, color: tokens.accent),
+              Icon(
+                Icons.travel_explore_outlined,
+                size: 48,
+                color: tokens.accent,
+              ),
               const SizedBox(height: FrameSpace.x3),
               Text(
                 'PiFrame Web Browser',
-                style: FrameText.of(context).heading.copyWith(fontWeight: FontWeight.bold),
+                style: FrameText.of(context).heading
+                    .copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
                 strings.browserHomeSubtitle,
                 textAlign: TextAlign.center,
-                style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
+                style: FrameText.of(context).label
+                    .copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: FrameSpace.x6),
 
@@ -1468,10 +1636,12 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 key: const ValueKey('browser-home-search-input'),
                 controller: _homeSearchController,
                 decoration: InputDecoration(
-                  hintText: strings.browserHomeSearchHint(browserState.searchEngine.label),
+                  hintText: strings.browserHomeSearchHint(
+                    browserState.searchEngine.label,
+                  ),
                   prefixIcon: Icon(
                     browserState.searchEngine.icon,
-                    size: 16,
+                    size: FrameSize.icon,
                     color: tokens.accent,
                   ),
                   suffixIcon: IconButton(
@@ -1494,7 +1664,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   strings.quickBookmarksHeader,
-                  style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold, color: tokens.textMuted),
+                  style: FrameText.of(context).label.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: tokens.textMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: FrameSpace.x2),
@@ -1523,7 +1696,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         size: 14,
                         color: tokens.accent,
                       ),
-                      label: Text(bm.title, style: FrameText.of(context).caption),
+                      label: Text(
+                        bm.title,
+                        style: FrameText.of(context).caption,
+                      ),
                     ),
                 ],
               ),
@@ -1534,7 +1710,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     strings.recentSearchesHeader,
-                    style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold, color: tokens.textMuted),
+                    style: FrameText.of(context).label.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: tokens.textMuted,
+                    ),
                   ),
                 ),
                 const SizedBox(height: FrameSpace.x2),
@@ -1547,8 +1726,15 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         visualDensity: VisualDensity.compact,
                         backgroundColor: tokens.surfaceElevated,
                         side: BorderSide(color: tokens.border, width: 0.5),
-                        avatar: Icon(Icons.history_outlined, size: FrameSize.icon, color: tokens.textMuted),
-                        label: Text(query, style: FrameText.of(context).caption),
+                        avatar: Icon(
+                          Icons.history_outlined,
+                          size: FrameSize.icon,
+                          color: tokens.textMuted,
+                        ),
+                        label: Text(
+                          query,
+                          style: FrameText.of(context).caption,
+                        ),
                         onPressed: () => _navigateTo(query),
                       ),
                   ],

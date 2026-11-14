@@ -50,7 +50,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3600),
+      duration: FrameMotionTokens.shimmerLoop,
     );
   }
 
@@ -122,7 +122,6 @@ class _ShimmerBorderState extends State<ShimmerBorder>
         final eased = Curves.easeInOutCubic.transform(sweep);
         // Beam strength rises and falls across the pass, so it never snaps on or off.
         final intensity = math.sin(math.pi * sweep);
-        final glow = 0.10 * intensity;
 
         return CustomPaint(
           painter: _SweepBorderPainter(
@@ -134,20 +133,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
             accentColor: tokens.accent,
             glowColor: tokens.focusRing,
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: widget.borderRadius,
-              boxShadow: [
-                if (glow > 0)
-                  BoxShadow(
-                    color: tokens.accent.withValues(alpha: glow),
-                    blurRadius: 14,
-                    spreadRadius: 1,
-                  ),
-              ],
-            ),
-            child: child,
-          ),
+          child: child,
         );
       },
     );

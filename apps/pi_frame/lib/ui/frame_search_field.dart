@@ -5,7 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../data/language/language_settings.dart';
 import '../data/language/strings_workspace.dart';
 
-/// A compact search input: one border (`FrameTokens.inputBorder`), 32 px high,
+/// A compact search input: one border (`FrameTokens.inputBorder`), 32 px minimum height,
 /// a leading search glyph and a clear button shown while there is text.
 ///
 /// Escape behaviour: the first Escape clears the text when there is some; when
@@ -96,8 +96,10 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
           borderSide: BorderSide(color: color, width: width),
         );
 
-    return SizedBox(
-      height: _height,
+    // Minimum height, not a fixed one: at a 2.0 text scale the text grows and
+    // a fixed 32 px box would clip it.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: _height),
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),

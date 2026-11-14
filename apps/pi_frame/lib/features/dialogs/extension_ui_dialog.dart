@@ -423,7 +423,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.lock_outline,
+                          Icons.lock_outlined,
                           size: FrameSize.icon,
                           color: tokens.textPrimary,
                         ),
@@ -486,12 +486,12 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                                 Icon(
                                   _isMultiSelect
                                       ? (isSelected
-                                            ? Icons.check_box
+                                            ? Icons.check_box_outlined
                                             : Icons.check_box_outline_blank)
                                       : (isSelected
-                                            ? Icons.radio_button_checked
-                                            : Icons.radio_button_unchecked),
-                                  size: 18,
+                                            ? Icons.radio_button_checked_outlined
+                                            : Icons.radio_button_unchecked_outlined),
+                                  size: FrameSize.iconLg,
                                   color: isSelected
                                       ? tokens.accent
                                       : tokens.textSecondary,

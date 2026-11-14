@@ -69,7 +69,7 @@ class _LaunchRevealState extends State<LaunchReveal>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 620),
+    duration: FrameMotionTokens.launchReveal,
   );
   bool _started = false;
   bool _startScheduled = false;

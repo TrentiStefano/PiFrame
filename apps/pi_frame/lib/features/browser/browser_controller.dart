@@ -42,7 +42,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     WebBookmark(
       title: 'YouTube',
       url: 'https://www.youtube.com',
-      icon: Icons.play_circle_outline,
+      icon: Icons.play_circle_outlined,
     ),
     WebBookmark(
       title: 'GitHub',
@@ -57,7 +57,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     WebBookmark(
       title: 'Stack Overflow',
       url: 'https://stackoverflow.com',
-      icon: Icons.help_outline,
+      icon: Icons.help_outlined,
     ),
     WebBookmark(
       title: 'Flutter Docs',
