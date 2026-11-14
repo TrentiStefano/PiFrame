@@ -274,7 +274,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Stage $path';
 
   String discardFileTooltip(String path) => isItalian
-      ? 'Annulla modifiche a $path'
+      ? 'Scarta modifiche a $path'
       : 'Discard changes to $path';
 
   String get switchToWebBrowserTooltip =>

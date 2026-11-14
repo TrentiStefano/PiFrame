@@ -280,7 +280,7 @@ void main() {
     expect(client.gitActions.last['action'], 'stage');
     expect(client.gitActions.last['paths'], ['notes.txt']);
 
-    await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
+    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
     await tester.pumpAndSettle();
     expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
     await tester.tap(find.text('Scarta modifiche'));
@@ -313,7 +313,7 @@ void main() {
     await tester.tap(find.text('MODIFICHE (CHANGES)'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
+    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
     await tester.pumpAndSettle();
 
     expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
