@@ -903,6 +903,13 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
         ),
       if (node.isDirectory && widget.rootPath != null)
         _menuItem('session', Icons.add, tokens.accent, strings.newSessionHere),
+      if (node.isDirectory && widget.onAddToChat != null)
+        _menuItem(
+          'chat-folder',
+          Icons.create_new_folder_outlined,
+          tokens.accent,
+          strings.addFolderToChat,
+        ),
       _menuItem('copy', Icons.copy, tokens.textMuted, strings.copyPath),
     ];
     showMenu<String>(
@@ -918,6 +925,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
       if (!mounted || choice == null) return;
       switch (choice) {
         case 'chat':
+        case 'chat-folder':
           widget.onAddToChat!(node.path);
         case 'session':
           createSession(

@@ -405,6 +405,9 @@ extension WorkspaceStrings on AppStrings {
   String get addPathToChat =>
       isItalian ? 'Aggiungi alla chat' : 'Add to chat';
 
+  String get addFolderToChat =>
+      isItalian ? 'Aggiungi cartella alla chat' : 'Add folder to chat';
+
   String get copyPath =>
       isItalian ? 'Copia percorso' : 'Copy path';
 

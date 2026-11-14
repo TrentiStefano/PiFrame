@@ -50,7 +50,7 @@ Future<void> _pump(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('folder context menu offers new session here and copy path', (
+  testWidgets('folder context menu offers new session, add folder to chat and copy path', (
     tester,
   ) async {
     await _pump(tester);
@@ -60,7 +60,9 @@ void main() {
     expect(find.byKey(const ValueKey('tree-menu-session')), findsOneWidget);
     expect(find.text('Nuova sessione qui'), findsOneWidget);
     expect(find.byKey(const ValueKey('tree-menu-copy')), findsOneWidget);
-    // Folders get no add-to-chat entry: that action only exists for files.
+    // Folders get the folder variant of add-to-chat, never the file one.
+    expect(find.byKey(const ValueKey('tree-menu-chat-folder')), findsOneWidget);
+    expect(find.text('Aggiungi cartella alla chat'), findsOneWidget);
     expect(find.byKey(const ValueKey('tree-menu-chat')), findsNothing);
   });
 

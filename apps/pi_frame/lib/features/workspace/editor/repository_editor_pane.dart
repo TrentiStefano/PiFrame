@@ -26,9 +26,6 @@ const double _gutterWidth = 44;
 /// Inset of the code text inside the editor surface, on every side.
 const double _codePadding = FrameSpace.x3;
 
-/// Room for the caret after the longest line when soft wrap is off.
-const double _caretSlack = FrameSpace.x1;
-
 /// Gap between the gutter numbers and the right edge of the gutter.
 const double _gutterRightInset = FrameSpace.x2;
 
@@ -437,21 +434,28 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                   onPressed: _closeEditor,
                 ),
               Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    style: text.mono.copyWith(color: tokens.textPrimary),
-                    children: [
-                      TextSpan(text: path),
-                      if (buffer.dirty)
-                        TextSpan(
-                          text: ' $_dirtyMark',
-                          style: TextStyle(color: tokens.accent),
-                        ),
-                    ],
-                  ),
+                child: Row(
                   key: const ValueKey('repository-editor-title'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  children: [
+                    // The path ellipsizes; the dirty dot sits outside it so a
+                    // long name can never hide the unsaved state.
+                    Flexible(
+                      child: Text(
+                        path,
+                        style: text.mono.copyWith(color: tokens.textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (buffer.dirty) ...[
+                      const SizedBox(width: FrameSpace.x1),
+                      Text(
+                        _dirtyMark,
+                        key: const ValueKey('repository-editor-dirty-mark'),
+                        style: text.mono.copyWith(color: tokens.accent),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(width: FrameSpace.x2),
@@ -608,6 +612,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
       color: tokens.textPrimary,
     );
     final wrap = _wrapLines;
+    final textScaler = MediaQuery.textScalerOf(context);
 
     return ColoredBox(
       color: tokens.background,
@@ -633,6 +638,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                 lines,
                 codeStyle,
                 wrap ? wrapWidth : null,
+                textScaler: textScaler,
               );
               final tops = <double>[];
               var y = _codePadding;
@@ -647,9 +653,18 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                   ? textAreaWidth
                   : math.max(
                       textAreaWidth,
-                      _codeLayout.widestLineWidth(lines, codeStyle) +
+                      // The field lays mono text out a few percent wider
+                      // than the bare TextPainter measures it, so leave
+                      // headroom: a no-wrap line must never soft-wrap, or
+                      // the gutter drifts from the text.
+                      _codeLayout.widestLineWidth(
+                                lines,
+                                codeStyle,
+                                textScaler: textScaler,
+                              ) *
+                              1.1 +
                           2 * _codePadding +
-                          _caretSlack,
+                          FrameSpace.x6,
                     );
               final bandTop = caretLine < tops.length
                   ? tops[caretLine]
@@ -698,9 +713,11 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                             );
                             items.add(
                               ContextMenuButtonItem(
+                                // The menu label shows the file name so the
+                                // line range fits; the chat gets the full path.
                                 label: strings.addSelectionToChat(
                                   strings.codeLineReference(
-                                    path,
+                                    path.split(RegExp(r'[\\/]')).last,
                                     range.start,
                                     range.end,
                                   ),
@@ -729,7 +746,13 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                         style: codeStyle,
                         decoration: InputDecoration(
                           isDense: true,
+                          // The app input theme fills and outlines every
+                          // field; the code surface is a plain page.
+                          filled: false,
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
                           contentPadding: const EdgeInsets.all(_codePadding),
                           hintText: writeBlocked
                               ? strings.readOnlyBlockedReason
@@ -758,6 +781,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                     viewportHeight: viewportHeight,
                     padding: _codePadding,
                     rightInset: _gutterRightInset,
+                    textScaler: textScaler,
                   ),
                 ),
               );

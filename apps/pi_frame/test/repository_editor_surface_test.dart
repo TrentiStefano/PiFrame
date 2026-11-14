@@ -185,22 +185,25 @@ void main() {
     await _openMainDart(tester);
 
     Finder saveButton() => find.byKey(const ValueKey('repository-save-btn'));
+    // The dot is its own widget (outside the ellipsized path) so a long
+    // file name can never hide the unsaved state.
+    Finder dirtyDot() => find.byKey(const ValueKey('repository-editor-dirty-mark'));
     // Clean: text button, no dot.
     expect(tester.widget(saveButton()), isA<TextButton>());
-    expect(find.textContaining('main.dart ●'), findsNothing);
+    expect(dirtyDot(), findsNothing);
 
     await tester.tap(_editorField);
     await tester.pumpAndSettle();
     await tester.enterText(_editorField, 'alpha\nbeta\nedited\n');
     await tester.pumpAndSettle();
     expect(tester.widget(saveButton()), isA<FilledButton>());
-    expect(find.textContaining('main.dart ●'), findsOneWidget);
+    expect(dirtyDot(), findsOneWidget);
 
     await _pressCtrl(tester, LogicalKeyboardKey.keyS);
     expect(client.saveCount, 1);
     expect(client.diskContent, 'alpha\nbeta\nedited\n');
     expect(tester.widget(saveButton()), isA<TextButton>());
-    expect(find.textContaining('main.dart ●'), findsNothing);
+    expect(dirtyDot(), findsNothing);
   });
 
   testWidgets('Ctrl+G moves the caret to the requested line', (tester) async {

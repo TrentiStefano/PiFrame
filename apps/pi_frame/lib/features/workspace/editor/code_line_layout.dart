@@ -12,30 +12,42 @@ class CodeLineLayout {
 
   /// Height in px of every line in [lines], laid out with [style]. A null
   /// [maxWidth] means no soft wrap, so every line is exactly one line high.
+  ///
+  /// [textScaler] must be the one the editor renders with (the
+  /// `MediaQuery` text scaler), or the measured lines drift from the text.
   List<double> lineHeights(
     List<String> lines,
     TextStyle style,
-    double? maxWidth,
-  ) {
-    final single = _singleLineHeight(style);
+    double? maxWidth, {
+    TextScaler textScaler = TextScaler.noScaling,
+  }) {
+    final single = _singleLineHeight(style, textScaler);
     if (maxWidth == null) {
       return List<double>.filled(lines.length, single);
     }
     final signature =
-        '${style.fontFamily}|${style.fontSize}|${style.height}|$maxWidth';
+        '${style.fontFamily}|${style.fontSize}|${style.height}|$maxWidth|'
+        '${textScaler.scale(10)}';
     if (signature != _signature || _heights.length > _maxCachedLines) {
       _heights.clear();
       _signature = signature;
     }
     return [
       for (final line in lines)
-        _heights.putIfAbsent(line, () => _measure(line, style, maxWidth)),
+        _heights.putIfAbsent(
+          line,
+          () => _measure(line, style, maxWidth, textScaler),
+        ),
     ];
   }
 
   /// Width in px of the widest line. Only exact for monospace styles, which
   /// is what the code editor uses: the longest line is the widest one.
-  double widestLineWidth(List<String> lines, TextStyle style) {
+  double widestLineWidth(
+    List<String> lines,
+    TextStyle style, {
+    TextScaler textScaler = TextScaler.noScaling,
+  }) {
     var longest = '';
     for (final line in lines) {
       if (line.length > longest.length) longest = line;
@@ -44,27 +56,35 @@ class CodeLineLayout {
     final painter = TextPainter(
       text: TextSpan(text: longest, style: style),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
     )..layout();
     final width = painter.width;
     painter.dispose();
     return width;
   }
 
-  double _measure(String line, TextStyle style, double maxWidth) {
-    if (line.isEmpty) return _singleLineHeight(style);
+  double _measure(
+    String line,
+    TextStyle style,
+    double maxWidth,
+    TextScaler textScaler,
+  ) {
+    if (line.isEmpty) return _singleLineHeight(style, textScaler);
     final painter = TextPainter(
       text: TextSpan(text: line, style: style),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
     )..layout(maxWidth: maxWidth < 1 ? 1 : maxWidth);
     final height = painter.height;
     painter.dispose();
     return height;
   }
 
-  double _singleLineHeight(TextStyle style) {
+  double _singleLineHeight(TextStyle style, TextScaler textScaler) {
     final painter = TextPainter(
       text: TextSpan(text: 'M', style: style),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
     )..layout();
     final height = painter.height;
     painter.dispose();
@@ -87,7 +107,11 @@ class CodeLineGutterPainter extends CustomPainter {
     required this.viewportHeight,
     required this.padding,
     required this.rightInset,
+    this.textScaler = TextScaler.noScaling,
   }) : super(repaint: scroll);
+
+  /// Text scaler the editor text renders with, so numbers match the lines.
+  final TextScaler textScaler;
 
   /// Number of logical lines; one number is painted for each.
   final int lineCount;
@@ -113,7 +137,7 @@ class CodeLineGutterPainter extends CustomPainter {
     final offset = scroll.hasClients ? scroll.offset : 0.0;
     final bottom = offset + viewportHeight;
     for (var i = 0; i < lineCount && i < tops.length; i++) {
-      final y = padding + tops[i];
+      final y = tops[i];
       final height = i < heights.length ? heights[i] : 0.0;
       if (y + height < offset) continue;
       if (y > bottom) break;
@@ -123,6 +147,7 @@ class CodeLineGutterPainter extends CustomPainter {
           style: i == caretLine ? currentStyle : numberStyle,
         ),
         textDirection: TextDirection.ltr,
+        textScaler: textScaler,
       )..layout();
       painter.paint(
         canvas,
@@ -139,5 +164,6 @@ class CodeLineGutterPainter extends CustomPainter {
       oldDelegate.caretLine != caretLine ||
       oldDelegate.viewportHeight != viewportHeight ||
       oldDelegate.numberStyle != numberStyle ||
-      oldDelegate.currentStyle != currentStyle;
+      oldDelegate.currentStyle != currentStyle ||
+      oldDelegate.textScaler != textScaler;
 }
