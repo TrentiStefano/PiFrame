@@ -320,17 +320,11 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Initially minimized while streaming
-      expect(
-        find.byKey(const ValueKey('composer-minimized-bar')),
-        findsOneWidget,
-      );
+      // The status line and the full field are visible while streaming
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
 
-      // Tap minimized bar to expand
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
-
-      // Steer & Follow-up buttons should now be visible
+      // Steer & Follow-up buttons are visible
       expect(find.text('Steer'), findsOneWidget);
       expect(find.text('Follow-up'), findsOneWidget);
       // Stop button should be visible
@@ -365,8 +359,8 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 50));
 
-    // Never minimized while messages wait in the queue
-    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+    // The status line stays up while messages wait in the queue
+    expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(
@@ -401,8 +395,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // No run is active: the composer is not minimized and offers no stop, steer or follow-up.
-    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+    // No run is active: no status line, and no stop, steer or follow-up.
+    expect(find.byKey(const ValueKey('composer-status-line')), findsNothing);
     expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
     expect(find.byKey(const ValueKey('composer-steer-btn')), findsNothing);
     expect(find.byKey(const ValueKey('composer-followup-btn')), findsNothing);

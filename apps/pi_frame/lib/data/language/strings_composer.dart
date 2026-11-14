@@ -7,12 +7,20 @@ extension ComposerStrings on AppStrings {
       ? 'Cosa vuoi realizzare? Digita / per i comandi.'
       : 'What do you want to build? Type / for commands.';
 
-  String get composerHintStreaming => isItalian
-      ? 'Aggiungi istruzioni o prepara il prossimo turno...'
-      : 'Add instructions or queue the next turn...';
+  /// Placeholder while Pi runs. It names the keys that really steer: with Enter sending
+  /// (mode ON), plain Enter steers; otherwise Ctrl+Enter does. Follow-up is the queue button.
+  String get composerHintStreamingEnter => isItalian
+      ? 'Invio per indirizzare · Shift+Invio per una nuova riga'
+      : 'Enter to steer · Shift+Enter for a new line';
 
-  String composerInputHint({required bool isStreaming}) =>
-      isStreaming ? composerHintStreaming : composerHintDefault;
+  String get composerHintStreamingCtrlEnter => isItalian
+      ? 'Ctrl+Invio per indirizzare l\'agente'
+      : 'Ctrl+Enter to steer the agent';
+
+  String composerInputHint({required bool isStreaming, required bool sendWithEnter}) {
+    if (!isStreaming) return composerHintDefault;
+    return sendWithEnter ? composerHintStreamingEnter : composerHintStreamingCtrlEnter;
+  }
 
   String composerEnlargeTooltip(bool enlarged) => enlarged
       ? (isItalian ? 'Riduci area di testo' : 'Collapse text area')
@@ -70,11 +78,21 @@ extension ComposerStrings on AppStrings {
       ? (isItalian ? 'Chiudi revisione modifiche' : 'Close review changes')
       : (isItalian ? 'Rivedi modifiche ai file' : 'Review file changes');
 
+  /// "Rivedi modifiche (3)"; the count is left out when there is nothing to review.
+  String composerReviewChangesLabel(int count) {
+    final base = isItalian ? 'Rivedi modifiche' : 'Review changes';
+    return count > 0 ? '$base ($count)' : base;
+  }
+
+  String get composerReviewChangesNoneTooltip => isItalian
+      ? 'Nessuna modifica da rivedere: il pulsante si attiva quando Pi modifica dei file'
+      : 'No changes to review: this turns on when Pi edits files';
+
   String get composerSendLabel => isItalian ? 'Invia' : 'Send';
 
-  String get composerAgentAnsweringMinimized => isItalian
-      ? 'L\'agente sta rispondendo... Passa il mouse o clicca per scrivere'
-      : 'Agent is responding... Hover or click to type';
+  String get composerAgentAnswering => isItalian
+      ? 'L\'agente sta rispondendo…'
+      : 'Agent is responding…';
 
   String get composerStopAction => isItalian ? 'Interrompi' : 'Stop';
 
@@ -135,6 +153,9 @@ extension ComposerStrings on AppStrings {
 
   String get composerRemoveCommandTooltip =>
       isItalian ? 'Rimuovi comando (Backspace)' : 'Remove command (Backspace)';
+
+  String get composerRemoveAttachmentTooltip =>
+      isItalian ? 'Rimuovi allegato' : 'Remove attachment';
 
   String composerCommandArgsHint(String name, String argumentHint) => isItalian
       ? '${argumentHint.isEmpty ? 'Nessun argomento richiesto' : argumentHint} · Invio esegue /$name'
