@@ -8,6 +8,7 @@ import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/shimmer_border.dart';
@@ -903,17 +904,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
+                            FrameIconAction(
                               key: ValueKey('repo-new-session-btn-$folder'),
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                minimumSize: const Size(20, 20),
-                                padding: EdgeInsets.zero,
-                              ),
-                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                              icon: Icon(Icons.add, size: 14, color: tokens.accent),
+                              icon: Icons.add,
                               tooltip: strings.newSessionInFolderTooltip,
                               onPressed: () async {
                                 setState(() => _expandedFolders.add(folder));
@@ -936,8 +929,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         },
                       );
 
-                      folderTile = GestureDetector(
-                        behavior: HitTestBehavior.opaque,
+                      // The ListTile above keeps keyboard focus and primary taps;
+                      // this InkWell only adds the right-click menu, so it is not a
+                      // second Tab stop.
+                      folderTile = InkWell(
+                        canRequestFocus: false,
                         onSecondaryTapDown: (details) async {
                           final pos = details.globalPosition;
                           final action = await showMenu<String>(

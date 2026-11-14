@@ -227,6 +227,77 @@ void main() {
   );
 
   testWidgets(
+    'rail surface has no box shadows and the folder new-session target is 28 px',
+    (tester) async {
+      final mockSessions = [
+        {
+          'id': 'sess_working',
+          'name': 'Working Session',
+          'cwd': 'C:/projects/myrepo',
+          'isActive': true,
+          'status': 'working',
+        },
+      ];
+      final sessionNotifier = SessionStateNotifier('sess_working', null)
+        ..state = SessionState(
+          sessionId: 'sess_working',
+          sessionName: 'Working Session',
+          cwd: 'C:/projects/myrepo',
+          agentStatus: AgentStatus.working,
+          entries: [],
+        );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionListProvider.overrideWith(
+              (ref) => Future.value(mockSessions),
+            ),
+            pinnedSessionsProvider.overrideWith(
+              (ref) => _TestPinnedNotifier({}),
+            ),
+            removedReposProvider.overrideWith(
+              (ref) => _TestRemovedNotifier({}),
+            ),
+            activeSessionIdProvider.overrideWith((ref) => null),
+            sessionStateFamily('sess_working').overrideWith(
+              (ref) => sessionNotifier,
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(body: SessionsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Flat surface: no decoration in the rail carries a shadow, glow included.
+      final shadowed = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(SessionsSidebar),
+              matching: find.byType(Container),
+            ),
+          )
+          .where((c) =>
+              c.decoration is BoxDecoration &&
+              ((c.decoration as BoxDecoration).boxShadow?.isNotEmpty ?? false));
+      expect(shadowed, isEmpty);
+
+      // The per-folder new-session button meets the 28 px minimum target.
+      final newInFolder = find.byKey(
+        const ValueKey('repo-new-session-btn-C:/projects/myrepo'),
+      );
+      expect(newInFolder, findsOneWidget);
+      expect(tester.getSize(newInFolder), const Size.square(FrameSize.hitMin));
+    },
+  );
+
+  testWidgets(
     'repo remove button opens dialog with hide and delete all options',
     (tester) async {
       final mockSessions = [
