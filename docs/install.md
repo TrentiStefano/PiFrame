@@ -410,3 +410,7 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
 
 Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
+
+## Navigazione delle Impostazioni
+
+Su finestre di almeno 900 px le **Impostazioni** mostrano una colonna di navigazione a sinistra con tre gruppi: **Generale** (Aspetto, Terminale, Aggiornamenti, Privacy), **Pi** (Pi CLI, Pacchetti, Agenti) e **Sistema** (Daemon, Diagnostica, Accesso remoto). Su finestre più strette la navigazione diventa una riga di schede scorrevole. Le frecce ↑/↓ spostano la selezione tra le sezioni, Esc chiude le Impostazioni, e l'intestazione mostra lo stato della sessione attiva (per esempio *In esecuzione*) anche quando sei in Impostazioni.

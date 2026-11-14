@@ -986,7 +986,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('PACCHETTI'));
+    await tester.tap(find.text('Pacchetti'));
     await tester.pumpAndSettle();
 
     expect(find.text('pi-caveman'), findsOneWidget);
@@ -1064,7 +1064,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('ASPETTO'));
+    await tester.tap(find.text('Aspetto'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('settings-theme-dropdown')));
     await tester.pumpAndSettle();
@@ -1091,16 +1091,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       for (final tab in [
-        'PI CLI',
-        'PACCHETTI',
-        'DAEMON',
-        'ASPETTO',
-        'PRIVACY',
-        'DIAGNOSTICA',
-        'AGGIORNAMENTI',
-        'TERMINALE',
-        'ACCESSO REMOTO',
-        'AGENTI',
+        'Pi CLI',
+        'Pacchetti',
+        'Daemon',
+        'Aspetto',
+        'Privacy',
+        'Diagnostica',
+        'Aggiornamenti',
+        'Terminale',
+        'Accesso remoto',
+        'Agenti',
       ]) {
         await tester.ensureVisible(find.text(tab).first);
         expect(find.text(tab), findsOneWidget);
@@ -1262,4 +1262,105 @@ void main() {
       expect(closed, isTrue);
     },
   );
+
+  group('Settings navigation (task 8.1)', () {
+    Future<void> pumpSettings(
+      WidgetTester tester, {
+      required Size size,
+      int initialTabIndex = 0,
+    }) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+            home: Scaffold(
+              body: SettingsView(
+                onClose: () {},
+                initialTabIndex: initialTabIndex,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('wide layout shows grouped left navigation', (tester) async {
+      await pumpSettings(tester, size: const Size(1200, 900));
+
+      expect(find.text('Generale'), findsOneWidget);
+      expect(find.text('Sistema'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-nav-appearance')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('settings-nav-remote')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-section-piCli')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('narrow layout uses a single section tab row', (tester) async {
+      await pumpSettings(tester, size: const Size(800, 900));
+
+      expect(find.text('Generale'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('settings-nav-packages')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('pointer selection switches the section', (tester) async {
+      await pumpSettings(tester, size: const Size(1200, 900));
+
+      await tester.tap(find.byKey(const ValueKey('settings-nav-privacy')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('settings-section-privacy')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings-section-piCli')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('arrow keys move the selection in display order', (
+      tester,
+    ) async {
+      await pumpSettings(
+        tester,
+        size: const Size(1200, 900),
+        initialTabIndex: 3, // Aspetto, first in the General group
+      );
+      tester
+          .widget<InkWell>(
+            find.byKey(const ValueKey('settings-nav-appearance')),
+          )
+          .focusNode!
+          .requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('settings-section-terminal')),
+        findsOneWidget,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('settings-section-appearance')),
+        findsOneWidget,
+      );
+    });
+  });
 }

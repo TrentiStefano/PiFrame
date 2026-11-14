@@ -10,9 +10,13 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../domain/errors/user_facing_error.dart';
 import '../../data/update/startup_updates_provider.dart';
+import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';
+import '../../ui/frame_status_tag.dart';
+import '../../ui/motion.dart';
 import 'diagnostics.dart';
 import 'sections/aspetto_section.dart';
 import 'sections/daemon_section.dart';
@@ -39,9 +43,25 @@ class SettingsView extends ConsumerStatefulWidget {
   ConsumerState<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsViewState extends ConsumerState<SettingsView>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  /// From this width the navigation is a left column; below it, a tab row.
+  static const double _wideNavBreakpoint = 900;
+  /// Width of the left navigation column.
+  static const double _navWidth = 220;
+  /// Maximum width of the section content column.
+  static const double _contentMaxWidth = 760;
+
+  late _SettingsSection _section;
+  // True when the last section change came from the keyboard or a
+  // reduced-motion setting: the content then switches without a cross-fade.
+  bool _instantSwitch = false;
+  final Map<_SettingsSection, FocusNode> _navFocus = {
+    for (final section in _SettingsSection.values)
+      section: FocusNode(debugLabel: 'settings-nav-${section.name}'),
+  };
+  final Map<_SettingsSection, GlobalKey> _navItemKeys = {
+    for (final section in _SettingsSection.values) section: GlobalKey(),
+  };
   int _workerIdleTimeoutMinutes = 30;
   bool _isLoadingConfig = true;
   String? _configStatusMessage;
@@ -59,11 +79,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 10,
-      vsync: this,
-      initialIndex: widget.initialTabIndex,
-    );
+    _section = _SettingsSection.fromIndex(widget.initialTabIndex);
     _fetchDaemonConfig();
     _fetchPiPackages();
   }
@@ -550,7 +566,9 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   @override
   void dispose() {
     _cancelPackageLoadTimer();
-    _tabController.dispose();
+    for (final node in _navFocus.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -574,190 +592,182 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     });
 
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
-    final endpointAsync = ref.watch(daemonEndpointProvider);
-    final endpoint = endpointAsync.value;
+    final endpoint = ref.watch(daemonEndpointProvider).value;
+    final activeSessionId = ref.watch(activeSessionIdProvider);
+    final runStatus = activeSessionId == null
+        ? null
+        : ref.watch(
+            sessionStateFamily(
+              activeSessionId,
+            ).select((state) => state.agentStatus),
+          );
+    final reduced = FrameMotion.reduced(context);
+
+    Widget sectionBody(_SettingsSection section) {
+      return switch (section) {
+        _SettingsSection.piCli => PiCliSection(
+          tokens: tokens,
+          strings: strings,
+          onRecheck: () {
+            ref.invalidate(daemonEndpointProvider);
+          },
+          onPackagesChanged: () async {
+            await ref.read(startupUpdatesProvider.notifier).refreshPackages();
+            if (!mounted) return;
+            await _fetchPiPackages();
+            if (!mounted) return;
+            final error = ref.read(startupUpdatesProvider).error;
+            if (error != null) {
+              setState(
+                () => _packageUpdateError = strings.packageUpdateCheckFailed(
+                  error,
+                ),
+              );
+            }
+          },
+        ),
+        _SettingsSection.packages => PackagesSection(
+          tokens: tokens,
+          strings: strings,
+          isLoading: _isLoadingPackages,
+          slow: _packageLoadSlow,
+          loadError: _packageError,
+          packages: _packages,
+          isWorking: _isWorkingWithPackage,
+          updateProgress: _packageUpdateProgress,
+          updateErrorMessage: _packageUpdateError,
+          onRetry: _fetchPiPackages,
+          onUpdateAll: _updateAllPackages,
+          onUpdatePackage: _updatePackage,
+          onPinPackage: _pinPackage,
+          onRemovePackage: _removePackage,
+        ),
+        _SettingsSection.daemon => DaemonSection(
+          tokens: tokens,
+          strings: strings,
+          endpoint: endpoint,
+          isLoadingConfig: _isLoadingConfig,
+          workerIdleTimeoutMinutes: _workerIdleTimeoutMinutes,
+          configStatusMessage: _configStatusMessage,
+          isRestartingDaemon: _isRestartingDaemon,
+          onRestartDaemon: _restartDaemon,
+          onUpdateTimeout: _updateTimeout,
+        ),
+        _SettingsSection.appearance => AppearanceSection(
+          tokens: tokens,
+          strings: strings,
+        ),
+        _SettingsSection.privacy => PrivacySection(
+          tokens: tokens,
+          strings: strings,
+        ),
+        _SettingsSection.diagnostics => const DiagnosticsSection(),
+        _SettingsSection.updates => const UpdatesSection(),
+        _SettingsSection.terminal => TerminalSection(
+          tokens: tokens,
+          strings: strings,
+        ),
+        _SettingsSection.remote => const RemoteSection(),
+        _SettingsSection.agents => const AgentsSection(),
+      };
+    }
+
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+        child: AnimatedSwitcher(
+          duration: _instantSwitch || reduced
+              ? FrameMotion.instant
+              : FrameMotion.crossFade,
+          child: KeyedSubtree(
+            key: ValueKey('settings-section-${_section.name}'),
+            child: sectionBody(_section),
+          ),
+        ),
+      ),
+    );
 
     final settingsContent = Container(
       color: tokens.background,
       child: Column(
         children: [
-          // Top Navigation Header
           Container(
-            margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            margin: const EdgeInsets.fromLTRB(
+              FrameSpace.x2,
+              FrameSpace.x2,
+              FrameSpace.x2,
+              FrameSpace.x1,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x4,
+              vertical: FrameSpace.x2,
+            ),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
               borderRadius: BorderRadius.circular(tokens.radiusLg),
               border: Border.all(color: tokens.border),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    IconButton(
-                      key: const ValueKey('settings-back-button'),
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: strings.backToWorkspaceTooltip,
+                IconButton(
+                  key: const ValueKey('settings-back-button'),
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: strings.backToWorkspaceTooltip,
+                  color: tokens.displayText,
+                  onPressed: widget.onClose,
+                ),
+                const SizedBox(width: FrameSpace.x2),
+                Expanded(
+                  child: Text(
+                    strings.settingsTitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.display.copyWith(
                       color: tokens.displayText,
-                      onPressed: widget.onClose,
+                      fontFamily: tokens.headingFontFamily,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        strings.settingsTitle,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: tokens.displayText,
-                          fontSize: 28,
-                          height: 1,
-                          fontFamily: tokens.headingFontFamily,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  ),
+                ),
+                if (runStatus != null) ...[
+                  const SizedBox(width: FrameSpace.x2),
+                  Flexible(
+                    child: Tooltip(
+                      message: strings.settingsRunStatusTooltip,
+                      child: FrameStatusTag(
+                        key: const ValueKey('settings-run-status'),
+                        label: strings.agentStatusLabel(runStatus),
+                        tone: _runStatusTone(runStatus),
                       ),
                     ),
-                  ],
-                ),
-                TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  indicatorColor: tokens.accent,
-                  labelColor: tokens.displayText,
-                  unselectedLabelColor: tokens.displayText.withValues(
-                    alpha: 0.72,
                   ),
-                  labelStyle: TextStyle(
-                    fontFamily: tokens.uiFontFamily,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.7,
-                  ),
-                  tabs: [
-                    Tab(text: strings.tabPiCli),
-                    Tab(text: strings.tabPackages),
-                    Tab(text: strings.tabDaemon),
-                    Tab(text: strings.tabAppearance),
-                    Tab(text: strings.tabPrivacy),
-                    Tab(text: strings.tabDiagnostics),
-                    Tab(text: strings.tabUpdates),
-                    Tab(text: strings.tabTerminal),
-                    Tab(text: strings.tabRemote),
-                    Tab(text: strings.tabAgents),
-                  ],
-                ),
+                ],
               ],
             ),
           ),
-
-          // Tab views
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 960),
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: const NeverScrollableScrollPhysics(),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= _wideNavBreakpoint) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: _navWidth,
+                        child: _buildVerticalNav(strings, tokens, text),
+                      ),
+                      Expanded(child: content),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // -------------------------------------------------------------
-                    // Tab 1: Pi CLI
-                    // -------------------------------------------------------------
-                    PiCliSection(
-                      tokens: tokens,
-                      strings: strings,
-                      onRecheck: () {
-                        ref.invalidate(daemonEndpointProvider);
-                      },
-                      onPackagesChanged: () async {
-                        await ref
-                            .read(startupUpdatesProvider.notifier)
-                            .refreshPackages();
-                        if (!mounted) return;
-                        await _fetchPiPackages();
-                        if (!mounted) return;
-                        final error = ref.read(startupUpdatesProvider).error;
-                        if (error != null) {
-                          setState(
-                            () => _packageUpdateError = strings
-                                .packageUpdateCheckFailed(error),
-                          );
-                        }
-                      },
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 2: Pacchetti Pi
-                    // -------------------------------------------------------------
-                    PackagesSection(
-                      tokens: tokens,
-                      strings: strings,
-                      isLoading: _isLoadingPackages,
-                      slow: _packageLoadSlow,
-                      loadError: _packageError,
-                      packages: _packages,
-                      isWorking: _isWorkingWithPackage,
-                      updateProgress: _packageUpdateProgress,
-                      updateErrorMessage: _packageUpdateError,
-                      onRetry: _fetchPiPackages,
-                      onUpdateAll: _updateAllPackages,
-                      onUpdatePackage: _updatePackage,
-                      onPinPackage: _pinPackage,
-                      onRemovePackage: _removePackage,
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 3: Daemon
-                    // -------------------------------------------------------------
-                    DaemonSection(
-                      tokens: tokens,
-                      strings: strings,
-                      endpoint: endpoint,
-                      isLoadingConfig: _isLoadingConfig,
-                      workerIdleTimeoutMinutes: _workerIdleTimeoutMinutes,
-                      configStatusMessage: _configStatusMessage,
-                      isRestartingDaemon: _isRestartingDaemon,
-                      onRestartDaemon: _restartDaemon,
-                      onUpdateTimeout: _updateTimeout,
-                    ),
-
-                    // -------------------------------------------------------------
-                    // Tab 4: Aspetto
-                    // -------------------------------------------------------------
-                    AppearanceSection(tokens: tokens, strings: strings),
-
-                    // -------------------------------------------------------------
-                    // Tab 5: Privacy (D16 — Zero Telemetry)
-                    // -------------------------------------------------------------
-                    PrivacySection(tokens: tokens, strings: strings),
-
-                    // -------------------------------------------------------------
-                    // Tab 6: Diagnostica Locale & Export Bundle (D16)
-                    // -------------------------------------------------------------
-                    const DiagnosticsSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 7: Aggiornamenti Ufficiali GitHub
-                    // -------------------------------------------------------------
-                    const UpdatesSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 8: Terminale & Ambiente di Esecuzione
-                    // -------------------------------------------------------------
-                    TerminalSection(tokens: tokens, strings: strings),
-
-                    // -------------------------------------------------------------
-                    // Tab 9: Accesso Remoto Sicuro
-                    // -------------------------------------------------------------
-                    const RemoteSection(),
-
-                    // -------------------------------------------------------------
-                    // Tab 10: Agenti & Sottoagenti
-                    // -------------------------------------------------------------
-                    const AgentsSection(),
+                    _buildHorizontalNav(strings, tokens, text),
+                    Expanded(child: content),
                   ],
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -771,4 +781,371 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     );
   }
 
+  /// Settings sections grouped for the navigation, in display order.
+  List<(String, List<_SettingsSection>)> _navGroups(AppStrings strings) => [
+    (
+      strings.settingsNavGeneral,
+      const [
+        _SettingsSection.appearance,
+        _SettingsSection.terminal,
+        _SettingsSection.updates,
+        _SettingsSection.privacy,
+      ],
+    ),
+    (
+      strings.settingsNavPi,
+      const [
+        _SettingsSection.piCli,
+        _SettingsSection.packages,
+        _SettingsSection.agents,
+      ],
+    ),
+    (
+      strings.settingsNavSystem,
+      const [
+        _SettingsSection.daemon,
+        _SettingsSection.diagnostics,
+        _SettingsSection.remote,
+      ],
+    ),
+  ];
+
+  String _sectionLabel(_SettingsSection section, AppStrings strings) =>
+      switch (section) {
+        _SettingsSection.piCli => strings.tabPiCli,
+        _SettingsSection.packages => strings.tabPackages,
+        _SettingsSection.daemon => strings.tabDaemon,
+        _SettingsSection.appearance => strings.tabAppearance,
+        _SettingsSection.privacy => strings.tabPrivacy,
+        _SettingsSection.diagnostics => strings.tabDiagnostics,
+        _SettingsSection.updates => strings.tabUpdates,
+        _SettingsSection.terminal => strings.tabTerminal,
+        _SettingsSection.remote => strings.tabRemote,
+        _SettingsSection.agents => strings.tabAgents,
+      };
+
+  Widget _buildVerticalNav(
+    AppStrings strings,
+    FrameTokens tokens,
+    FrameText text,
+  ) {
+    return Focus(
+      onKeyEvent: _handleNavKey,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          FrameSpace.x2,
+          FrameSpace.x2,
+          FrameSpace.x2,
+          FrameSpace.x4,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (label, sections) in _navGroups(strings)) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  FrameSpace.x2,
+                  FrameSpace.x3,
+                  FrameSpace.x2,
+                  FrameSpace.x1,
+                ),
+                child: Text(
+                  label,
+                  style: text.caption.copyWith(color: tokens.textMuted),
+                ),
+              ),
+              for (final section in sections)
+                _SettingsNavItem(
+                  label: _sectionLabel(section, strings),
+                  name: section.name,
+                  selected: section == _section,
+                  vertical: true,
+                  focusNode: _navFocus[section]!,
+                  itemKey: _navItemKeys[section]!,
+                  onTap: () => _selectFromPointerOrKeyboard(section),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Narrow layout: one horizontal row of section tabs that scrolls, with
+  /// fade edges that show there is more to reach.
+  Widget _buildHorizontalNav(
+    AppStrings strings,
+    FrameTokens tokens,
+    FrameText text,
+  ) {
+    final fadeColor = tokens.surfaceElevated;
+    final transparent = fadeColor.withValues(alpha: 0);
+    final sections = [
+      for (final group in _navGroups(strings)) ...group.$2,
+    ];
+    return Focus(
+      onKeyEvent: _handleNavKey,
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x4,
+              vertical: FrameSpace.x2,
+            ),
+            child: Row(
+              children: [
+                for (final section in sections)
+                  Padding(
+                    padding: const EdgeInsets.only(right: FrameSpace.x1),
+                    child: _SettingsNavItem(
+                      label: _sectionLabel(section, strings),
+                      name: section.name,
+                      selected: section == _section,
+                      vertical: false,
+                      focusNode: _navFocus[section]!,
+                      itemKey: _navItemKeys[section]!,
+                      onTap: () => _selectFromPointerOrKeyboard(section),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: FrameSpace.x4,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [fadeColor, transparent]),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: FrameSpace.x6,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [fadeColor, transparent],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectFromPointerOrKeyboard(_SettingsSection section) {
+    _select(
+      section,
+      keyboard:
+          FocusManager.instance.highlightMode ==
+          FocusHighlightMode.traditional,
+    );
+  }
+
+  void _select(_SettingsSection section, {required bool keyboard}) {
+    if (section == _section) return;
+    setState(() {
+      _section = section;
+      _instantSwitch = keyboard;
+    });
+    if (!keyboard) return;
+    // Keyboard moves follow the selection: focus and scroll the new item in.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _navFocus[section]?.requestFocus();
+      final itemContext = _navItemKeys[section]?.currentContext;
+      if (itemContext != null) {
+        Scrollable.ensureVisible(
+          itemContext,
+          alignment: 0.5,
+          duration: FrameMotion.instant,
+        );
+      }
+    });
+  }
+
+  /// Up and down move the selection through the sections in display order.
+  KeyEventResult _handleNavKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
+    final step = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowDown => 1,
+      LogicalKeyboardKey.arrowUp => -1,
+      _ => 0,
+    };
+    if (step == 0) return KeyEventResult.ignored;
+    final strings = ref.read(appStringsProvider);
+    final order = [
+      for (final group in _navGroups(strings)) ...group.$2,
+    ];
+    final index = order.indexOf(_section);
+    final target = (index + step).clamp(0, order.length - 1);
+    _select(order[target], keyboard: true);
+    return KeyEventResult.handled;
+  }
+
+  FrameStatusTone _runStatusTone(AgentStatus status) => switch (status) {
+    AgentStatus.idle => FrameStatusTone.neutral,
+    AgentStatus.settled => FrameStatusTone.success,
+    AgentStatus.working ||
+    AgentStatus.retrying ||
+    AgentStatus.compacting => FrameStatusTone.info,
+    AgentStatus.awaitingUser => FrameStatusTone.warning,
+    AgentStatus.error || AgentStatus.workerError => FrameStatusTone.danger,
+  };
+}
+
+/// The settings sections. The index order is the one `initialTabIndex`
+/// uses (0 = Pi CLI), so callers that pass an index keep working.
+enum _SettingsSection {
+  piCli,
+  packages,
+  daemon,
+  appearance,
+  privacy,
+  diagnostics,
+  updates,
+  terminal,
+  remote,
+  agents;
+
+  static _SettingsSection fromIndex(int index) {
+    final clamped = index.clamp(0, values.length - 1);
+    return values[clamped];
+  }
+}
+
+/// One navigation entry: a label, a selection bar and a rounded hover shape.
+/// Vertical items sit in the left column; horizontal items form the narrow
+/// tab row and mark the selection with an underline.
+class _SettingsNavItem extends StatefulWidget {
+  const _SettingsNavItem({
+    required this.label,
+    required this.name,
+    required this.selected,
+    required this.vertical,
+    required this.focusNode,
+    required this.itemKey,
+    required this.onTap,
+  });
+
+  final String label;
+  final String name;
+  final bool selected;
+  final bool vertical;
+  final FocusNode focusNode;
+  final GlobalKey itemKey;
+  final VoidCallback onTap;
+
+  @override
+  State<_SettingsNavItem> createState() => _SettingsNavItemState();
+}
+
+class _SettingsNavItemState extends State<_SettingsNavItem> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = FrameText.of(context);
+    final transparent = tokens.surface.withValues(alpha: 0);
+    final background = widget.selected
+        ? tokens.surfaceElevated
+        : _hovered
+        ? tokens.surface
+        : transparent;
+    final labelStyle = (widget.vertical ? text.body : text.label).copyWith(
+      color: widget.selected ? tokens.textPrimary : tokens.textSecondary,
+      fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w500,
+    );
+    final indicator = widget.selected ? tokens.accent : transparent;
+
+    final label = Text(
+      widget.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: labelStyle,
+    );
+
+    final body = widget.vertical
+        ? Row(
+            children: [
+              // Accent selection bar on the leading edge.
+              AnimatedContainer(
+                duration: FrameMotion.micro,
+                width: FrameSpace.x1 / 2,
+                height: FrameSpace.x4,
+                decoration: BoxDecoration(
+                  color: indicator,
+                  borderRadius: BorderRadius.circular(tokens.radiusPill),
+                ),
+              ),
+              const SizedBox(width: FrameSpace.x2),
+              Expanded(child: label),
+            ],
+          )
+        : IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                label,
+                const SizedBox(height: FrameSpace.x1),
+                // Accent selection bar underneath.
+                AnimatedContainer(
+                  duration: FrameMotion.micro,
+                  height: FrameSpace.x1 / 2,
+                  decoration: BoxDecoration(
+                    color: indicator,
+                    borderRadius: BorderRadius.circular(tokens.radiusPill),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+    return Semantics(
+      button: true,
+      selected: widget.selected,
+      label: widget.label,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: InkWell(
+          key: ValueKey('settings-nav-${widget.name}'),
+          focusNode: widget.focusNode,
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          hoverColor: transparent,
+          highlightColor: tokens.surfaceElevated,
+          child: AnimatedContainer(
+            key: widget.itemKey,
+            duration: FrameMotion.micro,
+            constraints: const BoxConstraints(minHeight: FrameSize.rowList),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x2,
+              vertical: FrameSpace.x1,
+            ),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
+            child: body,
+          ),
+        ),
+      ),
+    );
+  }
 }

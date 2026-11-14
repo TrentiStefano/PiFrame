@@ -115,16 +115,24 @@ class AppStrings {
   String get close => isItalian ? 'Chiudi' : 'Close';
 
   // Tabs
-  String get tabPiCli => 'PI CLI';
-  String get tabPackages => isItalian ? 'PACCHETTI' : 'PACKAGES';
-  String get tabDaemon => 'DAEMON';
-  String get tabAppearance => isItalian ? 'ASPETTO' : 'APPEARANCE';
-  String get tabPrivacy => 'PRIVACY';
-  String get tabDiagnostics => isItalian ? 'DIAGNOSTICA' : 'DIAGNOSTICS';
-  String get tabUpdates => isItalian ? 'AGGIORNAMENTI' : 'UPDATES';
-  String get tabTerminal => isItalian ? 'TERMINALE' : 'TERMINAL';
-  String get tabRemote => isItalian ? 'ACCESSO REMOTO' : 'REMOTE ACCESS';
-  String get tabAgents => isItalian ? 'AGENTI' : 'AGENTS';
+  String get tabPiCli => 'Pi CLI';
+  String get tabPackages => isItalian ? 'Pacchetti' : 'Packages';
+  String get tabDaemon => 'Daemon';
+  String get tabAppearance => isItalian ? 'Aspetto' : 'Appearance';
+  String get tabPrivacy => 'Privacy';
+  String get tabDiagnostics => isItalian ? 'Diagnostica' : 'Diagnostics';
+  String get tabUpdates => isItalian ? 'Aggiornamenti' : 'Updates';
+  String get tabTerminal => isItalian ? 'Terminale' : 'Terminal';
+  String get tabRemote => isItalian ? 'Accesso remoto' : 'Remote access';
+  String get tabAgents => isItalian ? 'Agenti' : 'Agents';
+
+  // Settings navigation groups (task 8.1)
+  String get settingsNavGeneral => isItalian ? 'Generale' : 'General';
+  String get settingsNavPi => 'Pi';
+  String get settingsNavSystem => isItalian ? 'Sistema' : 'System';
+  String get settingsRunStatusTooltip => isItalian
+      ? 'Stato della sessione attiva'
+      : 'Active session status';
 
   String get updateAllPackages => isItalian ? 'Aggiorna tutto' : 'Update all';
   String get updatingPackages => isItalian ? 'Aggiornamento...' : 'Updating...';

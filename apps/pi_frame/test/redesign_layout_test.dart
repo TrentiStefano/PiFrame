@@ -352,17 +352,17 @@ void main() {
       await tester.tap(find.byTooltip('Impostazioni'));
       await tester.pumpAndSettle();
       for (final tab in [
-        'PI CLI',
-        'DAEMON',
-        'ASPETTO',
-        'PRIVACY',
-        'DIAGNOSTICA',
+        'Pi CLI',
+        'Daemon',
+        'Aspetto',
+        'Privacy',
+        'Diagnostica',
       ]) {
         await tester.ensureVisible(find.text(tab).first);
         await tester.tap(find.text(tab).first);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: '$tab at ${size.width}');
-        if (tab == 'ASPETTO' || tab == 'DIAGNOSTICA') {
+        if (tab == 'Aspetto' || tab == 'Diagnostica') {
           await capture(tester, boundaryKey, '$name-$tab');
         }
       }
