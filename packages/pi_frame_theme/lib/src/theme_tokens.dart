@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'theme_motion.dart';
+
 class FrameTokens extends ThemeExtension<FrameTokens> {
   // Core colors
   final Color background;
@@ -14,6 +16,9 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
   final Color accent;
   final Color accentContrast;
   final Color focusRing;
+  /// Outline of text fields, the composer and search fields. At least 3:1
+  /// against `surface` in the official themes (WCAG non-text contrast).
+  final Color inputBorder;
   final Color success;
   final Color warning;
   final Color danger;
@@ -79,6 +84,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
     required this.accent,
     required this.accentContrast,
     required this.focusRing,
+    Color? inputBorder,
     required this.success,
     required this.warning,
     required this.danger,
@@ -118,11 +124,12 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
     Color? displayText,
     Color? signalWarning,
     Color? signalDanger,
-    this.pressDuration = const Duration(milliseconds: 120),
-    this.panelDuration = const Duration(milliseconds: 240),
-    this.enterCurve = const Cubic(0.23, 1, 0.32, 1),
-    this.panelCurve = const Cubic(0.32, 0.72, 0, 1),
-  }) : chassis = chassis ?? surfaceElevated,
+    this.pressDuration = FrameMotionTokens.micro,
+    this.panelDuration = FrameMotionTokens.panel,
+    this.enterCurve = FrameMotionTokens.enterCurve,
+    this.panelCurve = FrameMotionTokens.panelCurve,
+  }) : inputBorder = inputBorder ?? textMuted,
+       chassis = chassis ?? surfaceElevated,
        displaySurface = displaySurface ?? textPrimary,
        displayText = displayText ?? background,
        signalWarning = signalWarning ?? warning,
@@ -146,6 +153,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
     accent: Color(0xFF5F9FC5),
     accentContrast: Color(0xFF0B1118),
     focusRing: Color(0xFF5F9FC5),
+    inputBorder: Color(0xFF627699),
     success: Color(0xFFA1D9B0),
     warning: Color(0xFFF6BD53),
     danger: Color(0xFFF1887A),
@@ -196,6 +204,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
     accent: Color(0xFF24638A),
     accentContrast: Color(0xFFFFFFFF),
     focusRing: Color(0xFF24638A),
+    inputBorder: Color(0xFF7D8AA0),
     success: Color(0xFF336C42),
     warning: Color(0xFF895706),
     danger: Color(0xFF882316),
@@ -242,6 +251,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
     Color? accent,
     Color? accentContrast,
     Color? focusRing,
+    Color? inputBorder,
     Color? success,
     Color? warning,
     Color? danger,
@@ -299,6 +309,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
       accent: accent ?? this.accent,
       accentContrast: accentContrast ?? this.accentContrast,
       focusRing: focusRing ?? this.focusRing,
+      inputBorder: inputBorder ?? this.inputBorder,
       success: success ?? this.success,
       warning: warning ?? this.warning,
       danger: danger ?? this.danger,
@@ -364,6 +375,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
       accent: Color.lerp(accent, other.accent, t)!,
       accentContrast: Color.lerp(accentContrast, other.accentContrast, t)!,
       focusRing: Color.lerp(focusRing, other.focusRing, t)!,
+      inputBorder: Color.lerp(inputBorder, other.inputBorder, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
@@ -417,6 +429,15 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
       panelCurve: t < 0.5 ? panelCurve : other.panelCurve,
     );
   }
+}
+
+/// WCAG contrast ratio between two colours (1:1 to 21:1).
+double frameContrastRatio(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  final hi = la > lb ? la : lb;
+  final lo = la < lb ? la : lb;
+  return (hi + 0.05) / (lo + 0.05);
 }
 
 extension FrameTokensExtension on BuildContext {
