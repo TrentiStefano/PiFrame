@@ -880,24 +880,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ],
             ),
           ),
-          if (blocked)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: tokens.warning.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.border),
-                ),
-                child: Text(
-                  readOnly
-                      ? strings.writesDisabledReadOnly(readOnlyReason)
-                      : strings.writesDisabledPiWorking,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 11),
-                ),
-              ),
-            ),
           if (!repo)
             Builder(
               builder: (context) {
@@ -1108,44 +1090,81 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final (i, spec) in [
-                    (
-                      'fetch',
-                      Icons.cloud_download_outlined,
-                      strings.gitFetchLabel,
-                      strings.gitFetchTooltip,
-                    ),
-                    (
-                      'pull',
-                      Icons.arrow_downward,
-                      strings.gitPullLabel,
-                      strings.gitPullTooltip,
-                    ),
-                    (
-                      'push',
-                      Icons.arrow_upward,
-                      strings.gitPushLabel,
-                      strings.gitPushTooltip,
-                    ),
-                    (
-                      'sync',
-                      Icons.sync,
-                      strings.gitSyncLabel,
-                      strings.gitSyncTooltip,
-                    ),
-                  ].indexed) ...[
-                    if (i > 0) const SizedBox(width: 4),
-                    _remoteButton(
-                      action: spec.$1,
-                      icon: spec.$2,
-                      label: spec.$3,
-                      tooltip: spec.$4,
-                      enabled: !blocked && !_working && !_loading,
-                      tokens: tokens,
-                    ),
-                  ],
+                  // Always reserved, so the list above does not move when a run
+                  // starts or ends. Shows the reason writes are paused.
+                  SizedBox(
+                    height: FrameSize.icon,
+                    child: blocked
+                        ? Row(
+                            key: const ValueKey('git-writes-disabled'),
+                            children: [
+                              Icon(
+                                Icons.pause_circle_outline,
+                                size: FrameSize.icon,
+                                color: tokens.warning,
+                              ),
+                              const SizedBox(width: FrameSpace.x2),
+                              Expanded(
+                                child: Text(
+                                  readOnly
+                                      ? strings.writesDisabledReadOnly(
+                                          readOnlyReason,
+                                        )
+                                      : strings.writesDisabledPiWorking,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.caption.copyWith(
+                                    color: tokens.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                  ),
+                  Row(
+                    children: [
+                      for (final (i, spec) in [
+                        (
+                          'fetch',
+                          Icons.cloud_download_outlined,
+                          strings.gitFetchLabel,
+                          strings.gitFetchTooltip,
+                        ),
+                        (
+                          'pull',
+                          Icons.arrow_downward,
+                          strings.gitPullLabel,
+                          strings.gitPullTooltip,
+                        ),
+                        (
+                          'push',
+                          Icons.arrow_upward,
+                          strings.gitPushLabel,
+                          strings.gitPushTooltip,
+                        ),
+                        (
+                          'sync',
+                          Icons.sync,
+                          strings.gitSyncLabel,
+                          strings.gitSyncTooltip,
+                        ),
+                      ].indexed) ...[
+                        if (i > 0) const SizedBox(width: 4),
+                        _remoteButton(
+                          action: spec.$1,
+                          icon: spec.$2,
+                          label: spec.$3,
+                          tooltip: spec.$4,
+                          enabled: !blocked && !_working && !_loading,
+                          tokens: tokens,
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),

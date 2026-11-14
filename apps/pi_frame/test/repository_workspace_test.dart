@@ -11,6 +11,7 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
 import 'package:pi_frame/domain/errors/user_facing_error.dart';
+import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/composer/composer_draft.dart';
@@ -101,7 +102,9 @@ class _FakeWorkspaceClient extends PcpClient {
     'data': {
       'rootPath': '/repo',
       'path': path,
-      'content': path == 'README.md' ? '# Welcome\nDocumentation file.' : diskContent,
+      'content': path == 'README.md'
+          ? '# Welcome\nDocumentation file.'
+          : diskContent,
       'revision': diskRevision,
       'sizeBytes': diskContent.length,
     },
@@ -363,10 +366,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Provenance is an icon; its tooltip carries the origin text.
-    expect(
-      find.byTooltip('Tool Pi + salvataggio PiFrame'),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Tool Pi + salvataggio PiFrame'), findsOneWidget);
     // Name first in its own text; the directory is on the same line.
     expect(find.text('main.dart'), findsOneWidget);
     expect(find.text('lib'), findsOneWidget);
@@ -407,8 +407,10 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
           ),
         ],
         child: MaterialApp(
@@ -460,76 +462,77 @@ void main() {
     );
   });
 
-  testWidgets('Git group headers never paint over the summary line while scrolling', (
-    tester,
-  ) async {
-    final client = _ManyFilesWorkspaceClient();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-          sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
-          ),
-        ],
-        child: MaterialApp(
-          theme: ThemeData.light().copyWith(
-            extensions: const [FrameTokens.light],
-          ),
-          home: const Scaffold(
-            body: SizedBox(
-              width: 420,
-              height: 360,
-              child: GitChangesPane(sessionId: 'session-a'),
+  testWidgets(
+    'Git group headers never paint over the summary line while scrolling',
+    (tester) async {
+      final client = _ManyFilesWorkspaceClient();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pcpClientProvider.overrideWithValue(client),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state = const SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [FrameTokens.light],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 420,
+                height: 360,
+                child: GitChangesPane(sessionId: 'session-a'),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    // CHANGES (200 files) opens by default; STAGED is opened here.
-    await tester.tap(find.text('MODIFICHE IN STAGE'));
-    await tester.pumpAndSettle();
-
-    final summaryFinder = find.text('201 file');
-    final listFinder = find.descendant(
-      of: find.byType(GitChangesPane),
-      matching: find.byType(ListView),
-    );
-    expect(summaryFinder, findsOneWidget);
-    expect(listFinder, findsOneWidget);
-    expect(
-      find.ancestor(of: listFinder, matching: find.byType(ClipRect)),
-      findsOneWidget,
-    );
-
-    final headers = [
-      find.text('MODIFICHE IN STAGE'),
-      find.text('MODIFICHE'),
-    ];
-    // Scroll the list down in steps, then back to the top. Whatever part of a
-    // group header is still visible inside the list must sit below the
-    // summary line.
-    for (final dy in [-200.0, -400.0, -600.0, 1600.0]) {
-      await tester.drag(listFinder, Offset(0, dy));
+      );
       await tester.pumpAndSettle();
-      final summary = tester.getRect(summaryFinder);
-      final visibleList = tester.getRect(listFinder);
-      expect(visibleList.top, greaterThanOrEqualTo(summary.bottom));
-      for (final header in headers) {
-        // The lazy list does not build rows scrolled far out of view.
-        if (header.evaluate().isEmpty) continue;
-        final visible = tester.getRect(header).intersect(visibleList);
-        if (visible.isEmpty) continue;
-        expect(
-          visible.top,
-          greaterThanOrEqualTo(summary.bottom),
-          reason: 'group header painted over the summary line after dy=$dy',
-        );
+      // CHANGES (200 files) opens by default; STAGED is opened here.
+      await tester.tap(find.text('MODIFICHE IN STAGE'));
+      await tester.pumpAndSettle();
+
+      final summaryFinder = find.text('201 file');
+      final listFinder = find.descendant(
+        of: find.byType(GitChangesPane),
+        matching: find.byType(ListView),
+      );
+      expect(summaryFinder, findsOneWidget);
+      expect(listFinder, findsOneWidget);
+      expect(
+        find.ancestor(of: listFinder, matching: find.byType(ClipRect)),
+        findsOneWidget,
+      );
+
+      final headers = [find.text('MODIFICHE IN STAGE'), find.text('MODIFICHE')];
+      // Scroll the list down in steps, then back to the top. Whatever part of a
+      // group header is still visible inside the list must sit below the
+      // summary line.
+      for (final dy in [-200.0, -400.0, -600.0, 1600.0]) {
+        await tester.drag(listFinder, Offset(0, dy));
+        await tester.pumpAndSettle();
+        final summary = tester.getRect(summaryFinder);
+        final visibleList = tester.getRect(listFinder);
+        expect(visibleList.top, greaterThanOrEqualTo(summary.bottom));
+        for (final header in headers) {
+          // The lazy list does not build rows scrolled far out of view.
+          if (header.evaluate().isEmpty) continue;
+          final visible = tester.getRect(header).intersect(visibleList);
+          if (visible.isEmpty) continue;
+          expect(
+            visible.top,
+            greaterThanOrEqualTo(summary.bottom),
+            reason: 'group header painted over the summary line after dy=$dy',
+          );
+        }
       }
-    }
-  });
+    },
+  );
 
   testWidgets('Git Changes bottom bar sends fetch, pull, push and sync', (
     tester,
@@ -540,8 +543,10 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
           ),
         ],
         child: MaterialApp(
@@ -563,6 +568,55 @@ void main() {
     expect(client.gitActions, hasLength(4));
   });
 
+  testWidgets('Git writes-disabled line does not move the file rows', (
+    tester,
+  ) async {
+    Future<double?> pumpWith(AgentStatus status) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          // A new key remounts the scope, so the new overrides take effect.
+          key: UniqueKey(),
+          overrides: [
+            pcpClientProvider.overrideWithValue(_FakeWorkspaceClient()),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state = SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                  agentStatus: status,
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [FrameTokens.light],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 380,
+                height: 360,
+                child: GitChangesPane(sessionId: 'session-a'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return tester.getTopLeft(find.text('notes.txt')).dy;
+    }
+
+    final idleY = await pumpWith(AgentStatus.settled);
+    expect(find.byKey(const ValueKey('git-writes-disabled')), findsNothing);
+
+    final workingY = await pumpWith(AgentStatus.working);
+    expect(find.byKey(const ValueKey('git-writes-disabled')), findsOneWidget);
+    expect(
+      find.text('Scritture disabilitate mentre Pi sta lavorando.'),
+      findsOneWidget,
+    );
+    expect(workingY, idleY);
+  });
+
   testWidgets('Git clean tree shows an empty state with a refresh action', (
     tester,
   ) async {
@@ -572,8 +626,10 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
           ),
         ],
         child: MaterialApp(
@@ -607,8 +663,10 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
           ),
         ],
         child: MaterialApp(
@@ -630,53 +688,60 @@ void main() {
     expect(find.byKey(const ValueKey('git-loading')), findsNothing);
   });
 
-  testWidgets('Git rows keep the whole file name on one line in a 380 px pane', (
-    tester,
-  ) async {
-    final client = _LongNameWorkspaceClient();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-          sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier('session-a', null)
-              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
-          ),
-        ],
-        child: MaterialApp(
-          theme: ThemeData.light().copyWith(
-            extensions: const [FrameTokens.light],
-          ),
-          home: const Scaffold(
-            body: SizedBox(
-              width: 380,
-              height: 360,
-              child: GitChangesPane(sessionId: 'session-a'),
+  testWidgets(
+    'Git rows keep the whole file name on one line in a 380 px pane',
+    (tester) async {
+      final client = _LongNameWorkspaceClient();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pcpClientProvider.overrideWithValue(client),
+            sessionStateFamily('session-a').overrideWith(
+              (ref) => SessionStateNotifier('session-a', null)
+                ..state = const SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.light().copyWith(
+              extensions: const [FrameTokens.light],
+            ),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 380,
+                height: 360,
+                child: GitChangesPane(sessionId: 'session-a'),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    // CHANGES has files, so it is open by default.
-    final nameFinder = find.text(_LongNameWorkspaceClient.longName);
-    expect(nameFinder, findsOneWidget);
-    final nameText = tester.widget<Text>(nameFinder);
-    final natural = TextPainter(
-      text: TextSpan(text: _LongNameWorkspaceClient.longName, style: nameText.style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    addTearDown(natural.dispose);
-    // Not truncated: the laid-out name is as wide as its natural width.
-    expect(
-      tester.getSize(nameFinder).width,
-      greaterThanOrEqualTo(natural.width - 0.5),
-    );
-    // The row is one line high: 28 px.
-    final row = tester.getRect(find.byType(FrameListRow).first);
-    expect(row.height, lessThanOrEqualTo(FrameSize.rowList));
-  });
+      // CHANGES has files, so it is open by default.
+      final nameFinder = find.text(_LongNameWorkspaceClient.longName);
+      expect(nameFinder, findsOneWidget);
+      final nameText = tester.widget<Text>(nameFinder);
+      final natural = TextPainter(
+        text: TextSpan(
+          text: _LongNameWorkspaceClient.longName,
+          style: nameText.style,
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      addTearDown(natural.dispose);
+      // Not truncated: the laid-out name is as wide as its natural width.
+      expect(
+        tester.getSize(nameFinder).width,
+        greaterThanOrEqualTo(natural.width - 0.5),
+      );
+      // The row is one line high: 28 px.
+      final row = tester.getRect(find.byType(FrameListRow).first);
+      expect(row.height, lessThanOrEqualTo(FrameSize.rowList));
+    },
+  );
 
   testWidgets('Composer can add a repository file to prompt context', (
     tester,
@@ -846,8 +911,10 @@ void main() {
             pcpClientProvider.overrideWithValue(client),
             sessionStateFamily('session-a').overrideWith(
               (ref) => SessionStateNotifier('session-a', null)
-                ..state =
-                    const SessionState(sessionId: 'session-a', cwd: '/repo'),
+                ..state = const SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                ),
             ),
           ],
           child: MaterialApp(
@@ -927,8 +994,10 @@ void main() {
             pcpClientProvider.overrideWithValue(client),
             sessionStateFamily('session-a').overrideWith(
               (ref) => SessionStateNotifier('session-a', null)
-                ..state =
-                    const SessionState(sessionId: 'session-a', cwd: '/repo'),
+                ..state = const SessionState(
+                  sessionId: 'session-a',
+                  cwd: '/repo',
+                ),
             ),
           ],
           child: MaterialApp(
@@ -964,7 +1033,9 @@ void main() {
       );
 
       // Markdown toggle button is visible
-      final toggleBtn = find.byKey(const ValueKey('repository-markdown-toggle-btn'));
+      final toggleBtn = find.byKey(
+        const ValueKey('repository-markdown-toggle-btn'),
+      );
       expect(toggleBtn, findsOneWidget);
 
       // Tap toggle button to switch to raw editor
@@ -995,4 +1066,3 @@ void main() {
     },
   );
 }
-
