@@ -560,7 +560,10 @@ void main() {
       editorState,
     ) as AdaptiveTextSelectionToolbar;
     menu.buttonItems!
-        .singleWhere((item) => item.label == 'Aggiungi alla chat')
+        // The menu entry now names the selected line range (plan 9.1).
+        .singleWhere(
+          (item) => item.label == 'Aggiungi alla chat (lib/main.dart:L1)',
+        )
         .onPressed!
         .call();
 

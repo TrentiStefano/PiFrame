@@ -24,13 +24,13 @@ final _gestureDetector = RegExp(r'\bGestureDetector\(');
 
 /// Baselines are today's counts. Lower them as literals are migrated.
 const _baselines = <String, int>{
-  'fontSize numeric literal': 719,
-  'fontSize below 11': 132,
-  'BorderRadius.circular numeric': 43,
+  'fontSize numeric literal': 702,
+  'fontSize below 11': 130,
+  'BorderRadius.circular numeric': 42,
   'Duration(milliseconds:) numeric': 41,
   'Curves.': 22,
-  'BoxShadow(': 16,
-  'GestureDetector(': 14,
+  'BoxShadow(': 15,
+  'GestureDetector(': 13,
 };
 
 typedef _Hit = ({String file, int line});

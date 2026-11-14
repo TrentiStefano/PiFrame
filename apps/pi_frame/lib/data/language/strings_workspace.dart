@@ -59,12 +59,14 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Modifiche non salvate' : 'Unsaved changes';
 
   String get unsavedChangesContentCanSave => isItalian
-      ? 'Salva o scarta le modifiche prima di lasciare questa sessione.'
-      : 'Save or discard changes before leaving this session.';
+      ? 'Vuoi salvare le modifiche prima di continuare?'
+      : 'Do you want to save your changes before continuing?';
 
   String unsavedChangesContentBlocked(String blockedReason) => isItalian
-      ? 'Salvataggio non disponibile: $blockedReason. Puoi scartare le modifiche o annullare.'
-      : 'Saving not available: $blockedReason. You can discard changes or cancel.';
+      ? 'Salvataggio non disponibile: $blockedReason. Puoi non salvare le modifiche o annullare.'
+      : 'Saving not available: $blockedReason. You can skip saving or cancel.';
+
+  String get dontSave => isItalian ? 'Non salvare' : "Don't save";
 
   String get readOnlySessionLower =>
       isItalian ? 'sessione in sola lettura' : 'read-only session';
@@ -176,6 +178,35 @@ extension WorkspaceStrings on AppStrings {
 
   String get closeFileSearchTooltip =>
       isItalian ? 'Chiudi (Esc)' : 'Close (Esc)';
+
+  String get saveWithShortcutTooltip =>
+      isItalian ? 'Salva (Ctrl+S)' : 'Save (Ctrl+S)';
+
+  String get wrapLinesTooltip =>
+      isItalian ? 'A capo automatico' : 'Wrap long lines';
+
+  String addSelectionToChat(String reference) => isItalian
+      ? 'Aggiungi alla chat ($reference)'
+      : 'Add to chat ($reference)';
+
+  /// `path:L10–L24` for a range, `path:L10` for a single line.
+  String codeLineReference(String path, int startLine, int endLine) {
+    final lines = startLine == endLine
+        ? 'L$startLine'
+        : 'L$startLine–L$endLine';
+    return '$path:$lines';
+  }
+
+  String get goToLineTitle => isItalian ? 'Vai alla riga' : 'Go to line';
+
+  String get goToLineAction => isItalian ? 'Vai' : 'Go';
+
+  String goToLineHint(int lastLine) => isItalian
+      ? 'Numero di riga (1–$lastLine)'
+      : 'Line number (1–$lastLine)';
+
+  String get invalidLineNumber =>
+      isItalian ? 'Numero di riga non valido.' : 'Invalid line number.';
 
   String get openNativeTerminalTooltip => isItalian
       ? 'Apri terminale nativo (OS)'
@@ -376,6 +407,12 @@ extension WorkspaceStrings on AppStrings {
 
   String get copyPath =>
       isItalian ? 'Copia percorso' : 'Copy path';
+
+  String get newSessionHere =>
+      isItalian ? 'Nuova sessione qui' : 'New session here';
+
+  String get repositoryMoreActionsTooltip =>
+      isItalian ? 'Altre azioni' : 'More actions';
 
   String pathCopied(String path) => isItalian
       ? 'Percorso copiato: $path'
