@@ -597,7 +597,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           children: [
             Icon(
               icon,
-              size: 13,
+              size: FrameSize.iconSm,
               color: isSelected ? tokens.accent : tokens.textMuted,
             ),
             const SizedBox(width: 5),
@@ -671,7 +671,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                             tab.isHome
                                 ? Icons.home_outlined
                                 : Icons.language_outlined,
-                            size: 12,
+                            size: FrameSize.iconSm,
                             color: isActive ? tokens.accent : tokens.textMuted,
                           ),
                         const SizedBox(width: 6),
@@ -839,7 +839,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           activeTab.url.startsWith('https://')
                               ? Icons.lock_outlined
                               : Icons.search_outlined,
-                          size: 13,
+                          size: FrameSize.iconSm,
                           color: activeTab.url.startsWith('https://')
                               ? tokens.accent
                               : tokens.textMuted,
@@ -905,7 +905,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                                 ),
                           icon: Icon(
                             isBookmarked ? Icons.star_outlined : Icons.star_border,
-                            size: 14,
+                            size: FrameSize.iconSm,
                             color: isBookmarked
                                 ? tokens.warning
                                 : tokens.textMuted,
@@ -976,7 +976,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                     children: [
                       Icon(
                         browserState.searchEngine.icon,
-                        size: 13,
+                        size: FrameSize.iconSm,
                         color: tokens.accent,
                       ),
                       const SizedBox(width: FrameSpace.x1),
@@ -1693,7 +1693,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                       onPressed: () => _navigateTo(bm.url),
                       icon: Icon(
                         bm.icon ?? Icons.bookmark_border_outlined,
-                        size: 14,
+                        size: FrameSize.iconSm,
                         color: tokens.accent,
                       ),
                       label: Text(

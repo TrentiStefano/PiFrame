@@ -382,7 +382,7 @@ class AttachmentChip extends ConsumerWidget {
             attachment.type == AttachmentType.repoFile
                 ? Icons.folder_outlined
                 : Icons.insert_drive_file_outlined,
-            size: 14,
+            size: FrameSize.iconSm,
             color: tokens.accent,
           ),
           const SizedBox(width: 6),
@@ -427,7 +427,7 @@ class AttachmentChip extends ConsumerWidget {
           children: [
             Icon(
               Icons.link_outlined,
-              size: 14,
+              size: FrameSize.iconSm,
               color: tokens.syntaxKeyword,
             ),
             const SizedBox(width: 6),

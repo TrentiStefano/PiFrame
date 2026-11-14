@@ -122,7 +122,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                     const Spacer(),
                   Icon(
                     _effectiveExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
-                    size: 15,
+                    size: FrameSize.iconSm,
                     color: tokens.textSecondary,
                   ),
                 ],
