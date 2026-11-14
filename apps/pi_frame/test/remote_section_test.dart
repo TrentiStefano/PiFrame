@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
+import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
@@ -110,5 +111,47 @@ void main() {
     expect(find.text('Apple iOS Device'), findsOneWidget);
     expect(find.text('VIEW'), findsOneWidget);
     expect(find.text('Revoca'), findsOneWidget);
+  });
+
+  Map<String, dynamic> missingTailscaleData({required bool enabled}) => {
+    'enabled': enabled,
+    'state': 'stopped',
+    'tunnelProvider': 'tailscale',
+    'devices': [],
+    'options': {'defaultMode': 'view'},
+    'tailscale': {'installed': false, 'running': false},
+  };
+
+  Future<void> pumpRemoteWith(WidgetTester tester, Map<String, dynamic> data) async {
+    final client = _MockRemoteClient(initialData: data);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: RemoteSection()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  testWidgets('missing Tailscale callout is info while remote access is off', (tester) async {
+    await pumpRemoteWith(tester, missingTailscaleData(enabled: false));
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.warning_amber_rounded));
+    expect(icon.color, FrameTokens.dark.info);
+    expect(icon.color, isNot(FrameTokens.dark.warning));
+    expect(icon.color, isNot(FrameTokens.dark.danger));
+  });
+
+  testWidgets('missing Tailscale callout is warning once remote access is on', (tester) async {
+    await pumpRemoteWith(tester, missingTailscaleData(enabled: true));
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.warning_amber_rounded));
+    expect(icon.color, FrameTokens.dark.warning);
+    expect(icon.color, isNot(FrameTokens.dark.danger));
   });
 }

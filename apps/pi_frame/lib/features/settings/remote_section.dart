@@ -480,6 +480,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     final colorScheme = theme.colorScheme;
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
+    // A missing optional binary is informational while remote access is off,
+    // and only needs attention once remote access is on.
+    final missingBinaryTone = _enabled ? tokens.warning : tokens.info;
 
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -968,21 +971,21 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: colorScheme.errorContainer.withValues(alpha: 0.25),
+                        color: missingBinaryTone.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: colorScheme.error.withValues(alpha: 0.3)),
+                        border: Border.all(color: missingBinaryTone.withValues(alpha: 0.35)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: colorScheme.error, size: 20),
+                              Icon(Icons.warning_amber_rounded, color: missingBinaryTone, size: 20),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   strings.remoteTailscaleNotInstalledTitle,
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: colorScheme.error),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: missingBinaryTone),
                                 ),
                               ),
                             ],

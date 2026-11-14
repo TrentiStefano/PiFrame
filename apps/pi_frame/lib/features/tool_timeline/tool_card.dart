@@ -70,7 +70,7 @@ Color getToolColor(String name, FrameTokens tokens) {
   switch (name.toLowerCase()) {
     case 'read':
     case 'read_file':
-      return tokens.syntaxFunction;
+      return tokens.info;
     case 'write':
     case 'write_file':
     case 'edit':

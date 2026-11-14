@@ -606,12 +606,10 @@ class _PiCliSectionState extends State<PiCliSection> {
         color: item.isPrimary ? tokens.surfaceElevated : tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(
-          color: isMcpCard
-              ? tokens.syntaxFunction.withValues(alpha: 0.5)
-              : item.isPrimary
+          color: item.isPrimary
               ? tokens.accent.withValues(alpha: 0.5)
               : tokens.border,
-          width: (item.isPrimary || isMcpCard) ? 1.5 : 1.0,
+          width: item.isPrimary ? 1.5 : 1.0,
         ),
       ),
       child: Column(
@@ -622,9 +620,7 @@ class _PiCliSectionState extends State<PiCliSection> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: isMcpCard
-                      ? tokens.syntaxFunction.withValues(alpha: 0.15)
-                      : item.isPrimary
+                  color: item.isPrimary
                       ? tokens.accent.withValues(alpha: 0.15)
                       : tokens.displaySurface,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -632,9 +628,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 child: Icon(
                   item.icon,
                   size: 16,
-                  color: isMcpCard
-                      ? tokens.syntaxFunction
-                      : item.isPrimary
+                  color: item.isPrimary
                       ? tokens.accent
                       : tokens.displayText,
                 ),
@@ -669,10 +663,8 @@ class _PiCliSectionState extends State<PiCliSection> {
                 OutlinedButton(
                   key: const ValueKey('btn-manage-mcp-servers'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: tokens.syntaxFunction,
-                    side: BorderSide(
-                      color: tokens.syntaxFunction.withValues(alpha: 0.5),
-                    ),
+                    foregroundColor: tokens.textPrimary,
+                    side: BorderSide(color: tokens.border),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,

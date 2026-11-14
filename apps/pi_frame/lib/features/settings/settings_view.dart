@@ -784,7 +784,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
                   controller: _tabController,
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
-                  indicatorColor: tokens.signalWarning,
+                  indicatorColor: tokens.accent,
                   labelColor: tokens.displayText,
                   unselectedLabelColor: tokens.displayText.withValues(
                     alpha: 0.72,

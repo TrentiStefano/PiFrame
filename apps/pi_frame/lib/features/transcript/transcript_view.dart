@@ -14,6 +14,7 @@ import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
+import '../../domain/session/context_usage_tone.dart';
 import '../../domain/session/session_state.dart';
 import '../composer/attachment_chips.dart';
 import '../composer/composer_attachments_provider.dart';
@@ -168,6 +169,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   String? _cachedHeaderModel;
   String? _cachedHeaderThinkingLevel;
   String? _cachedHeaderContextLabel;
+  Color? _cachedHeaderContextIconColor;
   num? _cachedHeaderCost;
   bool? _cachedHeaderIsRenaming;
   bool? _cachedHeaderIsCompact;
@@ -1398,6 +1400,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         : effectivePercent == null
         ? '${strings.transcriptPostCompaction} · —/${_formatTokens(effectiveContextWindow)}'
         : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
+    final contextTone = contextUsage == null || effectivePercent == null
+        ? ContextUsageTone.muted
+        : contextUsageTone(
+            effectivePercent.toDouble(),
+            compactionReservePercent: sessionState.compactionReservePercent,
+          );
+    final contextIconColor = switch (contextTone) {
+      ContextUsageTone.muted => tokens.textMuted,
+      ContextUsageTone.warning => tokens.warning,
+      ContextUsageTone.danger => tokens.danger,
+    };
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final todos = ref.watch(todosFamily(widget.sessionId));
 
@@ -1569,6 +1582,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           todos,
           mainAgentCost: mainAgentCost,
           subagentsCost: subagentsCost,
+          contextIconColor: contextIconColor,
         ),
         if (todos.isNotEmpty)
           _buildUnifiedBookTabsBar(
@@ -2072,6 +2086,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     List<TodoItem> todos, {
     double? mainAgentCost,
     double subagentsCost = 0.0,
+    required Color contextIconColor,
   }) {
     final effectiveSessionName = ref.watch(
       sessionDisplayNameProvider(widget.sessionId),
@@ -2083,6 +2098,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _cachedHeaderModel == sessionState.currentModel &&
         _cachedHeaderThinkingLevel == sessionState.currentThinkingLevel &&
         _cachedHeaderContextLabel == contextLabel &&
+        _cachedHeaderContextIconColor == contextIconColor &&
         _cachedHeaderCost == cost &&
         _cachedHeaderIsRenaming == _isRenaming &&
         _cachedHeaderIsCompact == isCompact &&
@@ -2098,6 +2114,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderModel = sessionState.currentModel;
     _cachedHeaderThinkingLevel = sessionState.currentThinkingLevel;
     _cachedHeaderContextLabel = contextLabel;
+    _cachedHeaderContextIconColor = contextIconColor;
     _cachedHeaderCost = cost;
     _cachedHeaderIsRenaming = _isRenaming;
     _cachedHeaderIsCompact = isCompact;
@@ -2328,7 +2345,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   _currentStrings.transcriptContext,
                   contextLabel,
                   leadingIcon: Icons.pie_chart_outline,
-                  iconColor: tokens.syntaxFunction,
+                  iconColor: contextIconColor,
                   trailingIcon: Icons.info_outline,
                   onTap: (ctx) =>
                       _showContextDialog(ctx, contextUsage, stats, cost),

@@ -212,11 +212,9 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 key: const ValueKey('side-read-only-badge'),
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: tokens.syntaxFunction.withValues(alpha: 0.14),
+                  color: tokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(
-                    color: tokens.syntaxFunction.withValues(alpha: 0.35),
-                  ),
+                  border: Border.all(color: tokens.border),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -224,13 +222,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                     Icon(
                       Icons.call_split,
                       size: 13,
-                      color: tokens.syntaxFunction,
+                      color: tokens.textSecondary,
                     ),
                     const SizedBox(width: 5),
                     Text(
                       strings.sideReadOnlyBadge,
                       style: TextStyle(
-                        color: tokens.syntaxFunction,
+                        color: tokens.textSecondary,
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
                         fontFamily: tokens.monoFontFamily,

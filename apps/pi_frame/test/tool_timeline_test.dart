@@ -190,4 +190,34 @@ void main() {
     expect(find.byIcon(Icons.expand_less), findsOneWidget);
     expect(find.byKey(const ValueKey('tool-card-expanded-command')), findsOneWidget);
   });
+
+  testWidgets('successful read tool icon uses info, not the error colour', (tester) async {
+    const tool = ToolExecutionState(
+      toolCallId: 'read_call_ok',
+      toolName: 'read',
+      args: {'path': 'file.txt'},
+      output: 'hello',
+    );
+
+    await tester.pumpWidget(wrapWithTheme(const ToolCard(tool: tool)));
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.file_open_outlined));
+    expect(icon.color, FrameTokens.dark.info);
+    expect(icon.color, isNot(FrameTokens.dark.agentError));
+  });
+
+  testWidgets('failed read tool icon uses the error colour', (tester) async {
+    const tool = ToolExecutionState(
+      toolCallId: 'read_call_fail',
+      toolName: 'read',
+      args: {'path': 'missing.txt'},
+      output: 'ENOENT',
+      isError: true,
+    );
+
+    await tester.pumpWidget(wrapWithTheme(const ToolCard(tool: tool)));
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.file_open_outlined));
+    expect(icon.color, FrameTokens.dark.agentError);
+  });
 }
