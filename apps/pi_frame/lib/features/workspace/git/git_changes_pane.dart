@@ -1612,7 +1612,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                     !_working &&
                                     staged.isNotEmpty &&
                                     _subject.text.trim().isNotEmpty,
-                                fullWidth: false,
+                                fullWidth: gitCompactLayout(context),
                                 onPressed: _commit,
                               ),
                             ),

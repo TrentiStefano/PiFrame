@@ -73,11 +73,15 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
 /// breakpoint as the shell's narrow layout (`app_shell.dart`).
 const double gitCompactLayoutWidth = 900;
 
+/// Whether the Git pane is in the compact layout (below [gitCompactLayoutWidth]).
+bool gitCompactLayout(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < gitCompactLayoutWidth;
+
 /// Whether the row actions (stage, unstage, discard) stay visible without a
 /// hover. True where there is no hover pointer: compact layouts, iOS and
 /// Android, and mobile web (Flutter web reports the device platform there).
 bool gitRowActionsAlwaysVisible(BuildContext context) {
-  if (MediaQuery.sizeOf(context).width < gitCompactLayoutWidth) return true;
+  if (gitCompactLayout(context)) return true;
   return switch (defaultTargetPlatform) {
     TargetPlatform.iOS || TargetPlatform.android => true,
     _ => false,

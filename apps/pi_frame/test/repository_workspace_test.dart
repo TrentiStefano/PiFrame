@@ -994,9 +994,10 @@ void main() {
   /// One staged file, and a commit that records its message or fails on request.
   Future<void> pumpCommitPane(
     WidgetTester tester,
-    _StagedCommitClient client,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 800);
+    _StagedCommitClient client, {
+    Size size = const Size(1280, 800),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -1099,6 +1100,44 @@ void main() {
       expect(tester.widget<FilledButton>(commitButton).onPressed, isNotNull);
     },
   );
+
+  testWidgets('Compact layout spans Commit under the four remote buttons', (
+    tester,
+  ) async {
+    final fetch = find.byKey(const ValueKey('git-fetch-btn'));
+    final sync = find.byKey(const ValueKey('git-sync-btn'));
+
+    await pumpCommitPane(
+      tester,
+      _StagedCommitClient(),
+      size: const Size(800, 900),
+    );
+    expect(
+      tester.getTopLeft(commitButton).dx,
+      closeTo(tester.getTopLeft(fetch).dx, 0.5),
+    );
+    expect(
+      tester.getBottomRight(commitButton).dx,
+      closeTo(tester.getBottomRight(sync).dx, 0.5),
+    );
+    // Commit sits below the remote buttons.
+    expect(
+      tester.getTopLeft(commitButton).dy,
+      greaterThan(tester.getBottomLeft(fetch).dy),
+    );
+  });
+
+  testWidgets('Wide layout keeps Commit at its natural width, on the right', (
+    tester,
+  ) async {
+    await pumpCommitPane(tester, _StagedCommitClient());
+    final fetch = find.byKey(const ValueKey('git-fetch-btn'));
+    expect(
+      tester.getTopLeft(commitButton).dx,
+      greaterThan(tester.getTopLeft(fetch).dx),
+    );
+    expect(tester.getSize(commitButton).width, lessThan(200));
+  });
 
   testWidgets('A failed commit shows its error inline and keeps the message', (
     tester,
