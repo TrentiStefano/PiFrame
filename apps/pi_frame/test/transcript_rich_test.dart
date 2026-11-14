@@ -198,6 +198,38 @@ void main() {}
     expect(find.textContaining('la guida', findRichText: true), findsWidgets);
     expect(find.byIcon(Icons.insert_drive_file_outlined), findsNWidgets(2));
   });
+
+  group('markdown tables', () {
+    const table = '| Check | Result |\n| --- | --- |\n| Build | Ready |\n| Tests | Passing |';
+
+    testWidgets('renders a header and body rows as a Table, not raw pipes', (tester) async {
+      await tester.pumpWidget(wrapWithTheme(const RichContent(text: table)));
+
+      expect(find.byType(Table), findsOneWidget);
+      expect(find.text('Check'), findsOneWidget);
+      expect(find.text('Ready'), findsOneWidget);
+      expect(find.textContaining('|', findRichText: true), findsNothing);
+    });
+
+    testWidgets('wide tables scroll horizontally without overflow at 320 px', (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const wide = '| Column one with a long name | Column two with a long name | Column three | Four |\n'
+          '| --- | --- | --- | --- |\n'
+          '| a very long cell value that keeps going | another long cell value here | x | y |';
+      await tester.pumpWidget(wrapWithTheme(const RichContent(text: wide)));
+
+      expect(find.byType(Table), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final horizontal = tester.widgetList<SingleChildScrollView>(
+        find.byType(SingleChildScrollView),
+      ).where((s) => s.scrollDirection == Axis.horizontal);
+      expect(horizontal, isNotEmpty);
+    });
+  });
 }
 
 
