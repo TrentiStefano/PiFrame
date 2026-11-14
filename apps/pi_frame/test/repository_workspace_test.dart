@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -150,6 +152,54 @@ class _ManyFilesWorkspaceClient extends _FakeWorkspaceClient {
         'branch': 'main',
         'files': files,
         'totalAdditions': 205,
+        'totalDeletions': 0,
+      },
+    };
+  }
+}
+
+/// A clean working tree on branch main.
+class _CleanWorkspaceClient extends _FakeWorkspaceClient {
+  int refreshCalls = 0;
+
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async {
+    refreshCalls++;
+    return {
+      'data': {
+        'isRepository': true,
+        'rootPath': '/repo',
+        'branch': 'main',
+        'files': <Map<String, dynamic>>[],
+        'totalAdditions': 0,
+        'totalDeletions': 0,
+      },
+    };
+  }
+}
+
+/// Holds the status request until [release] is called, to show the loading state.
+class _SlowWorkspaceClient extends _FakeWorkspaceClient {
+  final _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async {
+    await _gate.future;
+    return {
+      'data': {
+        'isRepository': true,
+        'rootPath': '/repo',
+        'branch': 'main',
+        'files': <Map<String, dynamic>>[],
+        'totalAdditions': 0,
         'totalDeletions': 0,
       },
     };
@@ -511,6 +561,73 @@ void main() {
       expect(client.gitActions.last['paths'], isEmpty);
     }
     expect(client.gitActions, hasLength(4));
+  });
+
+  testWidgets('Git clean tree shows an empty state with a refresh action', (
+    tester,
+  ) async {
+    final client = _CleanWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('git-empty')), findsOneWidget);
+    expect(find.text('Nessuna modifica'), findsOneWidget);
+    expect(
+      find.text('Il ramo main non ha modifiche da rivedere.'),
+      findsOneWidget,
+    );
+    final refreshCalls = client.refreshCalls;
+    await tester.tap(find.byKey(const ValueKey('git-empty-action')));
+    await tester.pumpAndSettle();
+    expect(client.refreshCalls, greaterThan(refreshCalls));
+  });
+
+  testWidgets('Git list shows skeleton rows while the status is loading', (
+    tester,
+  ) async {
+    final client = _SlowWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('git-loading')), findsOneWidget);
+    expect(find.text('Lettura stato Git…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    client.release();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('git-loading')), findsNothing);
   });
 
   testWidgets('Git rows keep the whole file name on one line in a 380 px pane', (

@@ -309,6 +309,17 @@ extension WorkspaceStrings on AppStrings {
   String get workingTreeClean =>
       isItalian ? 'Working tree pulito' : 'Working tree clean';
 
+  String get gitCleanTitle => isItalian ? 'Nessuna modifica' : 'No changes';
+
+  String gitCleanMessage(String branch) => isItalian
+      ? 'Il ramo $branch non ha modifiche da rivedere.'
+      : 'Branch $branch has no changes to review.';
+
+  String get gitRefreshAction => isItalian ? 'Aggiorna' : 'Refresh';
+
+  String get gitLoadingStatus =>
+      isItalian ? 'Lettura stato Git…' : 'Reading Git status…';
+
   /// Localized Git file status (raw value from the daemon, e.g. "untracked").
   String gitFileStatusLabel(String status) => switch (status) {
         'modified' => isItalian ? 'Modificato' : 'Modified',

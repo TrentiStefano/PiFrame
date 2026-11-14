@@ -10,6 +10,7 @@ import '../../../data/language/strings_errors.dart';
 import '../../../domain/errors/user_facing_error.dart';
 import '../../../domain/session/agent_status.dart';
 import '../../../domain/session/session_state.dart';
+import '../../../ui/frame_empty_state.dart';
 import '../../../ui/frame_error_callout.dart';
 import '../../../ui/frame_icon_action.dart';
 import '../../../ui/frame_snack_bar.dart';
@@ -24,6 +25,7 @@ import '../repository_state.dart';
 import 'git_change_row.dart';
 import 'git_commit_form.dart';
 import 'git_diff_view.dart';
+import 'git_loading_rows.dart';
 import 'git_section_header.dart';
 
 /// Expansion of the STAGED and CHANGES groups. Null means "not toggled yet":
@@ -597,6 +599,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final (readOnly, readOnlyReason, agentStatus, cwd, touchedKey) = ref.watch(
       sessionStateFamily(widget.sessionId).select(
@@ -906,29 +909,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     (_status == null && cwd.isEmpty);
 
                 if (_loading || isAttaching) {
+                  // Skeleton rows in the place of the file rows, so the
+                  // list does not jump when the status arrives.
                   return Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: tokens.accent,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            strings.connectingToGit,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: GitLoadingRows(
+                      key: const ValueKey('git-loading'),
+                      label: strings.gitLoadingStatus,
                     ),
                   );
                 }
@@ -938,7 +924,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     child: Center(
                       child: Text(
                         strings.noGitRepository,
-                        style: TextStyle(color: tokens.textMuted),
+                        style: text.body.copyWith(color: tokens.textMuted),
                       ),
                     ),
                   );
@@ -985,11 +971,16 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 // The summary line stays outside the scroll view. The clip
                 // keeps scrolled group headers from painting over it.
                 child: files.isEmpty
-                    ? Center(
-                        child: Text(
-                          strings.workingTreeClean,
-                          style: TextStyle(color: tokens.textMuted),
+                    ? FrameEmptyState(
+                        keyPrefix: 'git-empty',
+                        icon: Icons.check_circle_outline,
+                        title: strings.gitCleanTitle,
+                        message: strings.gitCleanMessage(
+                          _status?['branch']?.toString() ?? '—',
                         ),
+                        actionLabel: strings.gitRefreshAction,
+                        actionIcon: Icons.refresh,
+                        onAction: _loading ? null : () => _refresh(),
                       )
                     : ListView(
                         children: [
