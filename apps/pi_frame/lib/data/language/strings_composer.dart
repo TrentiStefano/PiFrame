@@ -346,6 +346,8 @@ extension ComposerStrings on AppStrings {
       ? 'Impossibile caricare l\'immagine'
       : 'Unable to load image';
 
+  String get attUrlFieldLabel => isItalian ? 'URL' : 'URL';
+
   String get attImageInvalid => isItalian
       ? 'Immagine non valida'
       : 'Invalid image';

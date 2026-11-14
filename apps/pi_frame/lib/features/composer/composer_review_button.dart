@@ -38,7 +38,7 @@ class ComposerReviewButton extends StatelessWidget {
         : tokens.textSecondary;
 
     final icon = Icon(
-      reviewing ? Icons.rate_review : Icons.rate_review_outlined,
+      reviewing ? Icons.rate_review_outlined : Icons.rate_review_outlined,
       size: FrameSize.icon,
       color: color,
     );

@@ -137,7 +137,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
             height: FrameSize.icon - FrameSpace.x1,
             child: isTest
                 ? Icon(
-                    Icons.sync,
+                    Icons.sync_outlined,
                     size: FrameSize.icon - FrameSpace.x1,
                     color: tokens.agentWorking,
                   )
@@ -171,7 +171,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
               padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            icon: Icon(Icons.stop_rounded, size: 13, color: danger),
+            icon: Icon(Icons.stop_outlined, size: FrameSize.icon, color: danger),
             label: Text(
               widget.interruptLabel,
               maxLines: 1,

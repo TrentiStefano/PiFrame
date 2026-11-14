@@ -42,6 +42,7 @@ import '../workspace/repository_workspace.dart';
 import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/motion.dart';
 import '../context_panel/context_window_selector.dart';
@@ -173,97 +174,77 @@ class _ComposerState extends ConsumerState<Composer> {
       sessionStateFamily(widget.sessionId).notifier,
     );
 
-    await showDialog<void>(
+    await showFrameDialog<void>(
       context: context,
-      builder: (dialogCtx) {
-        return AlertDialog(
-          backgroundColor: tokens.surfaceElevated,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            side: BorderSide(color: tokens.borderStrong),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.edit_note, size: 20, color: tokens.accent),
-              const SizedBox(width: 8),
-              Text(
-                strings.steerEditDialogTitle(index),
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: 480,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  strings.steerEditDialogDesc,
-                  style: TextStyle(color: tokens.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  key: const ValueKey('edit-steer-dialog-field'),
-                  controller: textController,
-                  maxLines: 4,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 13),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: tokens.background,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      borderSide: BorderSide(color: tokens.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      borderSide: BorderSide(color: tokens.accent),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogCtx).pop();
-                sessionNotifier.removeSteerMessage(index);
-                _controller.text = textController.text;
-                _focusNode.requestFocus();
-                FrameSnackBar.show(
-                  context,
-                  message: strings.steerLoadedToComposer,
-                  duration: const Duration(seconds: 2),
-                );
-              },
-              child: Text(
-                strings.steerLoadToComposerAction,
-                style: TextStyle(color: tokens.accent),
+      dialog: FrameDialog<void>(
+        title: strings.steerEditDialogTitle(index),
+        maxWidth: 480,
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              strings.steerEditDialogDesc,
+              style: FrameText.of(context).label.copyWith(
+                color: tokens.textSecondary,
               ),
             ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogCtx).pop(),
-              child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
-            ),
-            FilledButton(
-              key: const ValueKey('edit-steer-dialog-save'),
-              onPressed: () async {
-                final newText = textController.text.trim();
-                Navigator.of(dialogCtx).pop();
-                if (newText.isNotEmpty) {
-                  await sessionNotifier.updateSteerMessage(index, newText);
-                }
-              },
-              child: Text(strings.steerUpdateAction),
+            const SizedBox(height: FrameSpace.x3),
+            TextField(
+              key: const ValueKey('edit-steer-dialog-field'),
+              controller: textController,
+              maxLines: 4,
+              style: FrameText.of(context).body.copyWith(
+                color: tokens.textPrimary,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: tokens.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  borderSide: BorderSide(color: tokens.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  borderSide: BorderSide(color: tokens.accent),
+                ),
+              ),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          FrameDialogAction<void>(
+            label: strings.steerLoadToComposerAction,
+            role: FrameDialogActionRole.cancel,
+            key: const ValueKey('edit-steer-dialog-load'),
+            onPressed: () {
+              sessionNotifier.removeSteerMessage(index);
+              _controller.text = textController.text;
+              _focusNode.requestFocus();
+              FrameSnackBar.show(
+                context,
+                message: strings.steerLoadedToComposer,
+                duration: const Duration(seconds: 2),
+              );
+            },
+          ),
+          FrameDialogAction<void>(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+          ),
+          FrameDialogAction<void>(
+            label: strings.steerUpdateAction,
+            role: FrameDialogActionRole.primary,
+            key: const ValueKey('edit-steer-dialog-save'),
+            onPressed: () {
+              final newText = textController.text.trim();
+              if (newText.isNotEmpty) {
+                sessionNotifier.updateSteerMessage(index, newText);
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -583,7 +564,7 @@ class _ComposerState extends ConsumerState<Composer> {
     } catch (error) {
       if (mounted && streamingBehavior != null) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(context, message: strings.composerSendFailed(error));
+        FrameSnackBar.show(context, message: strings.composerSendFailed(error), isError: true);
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -592,19 +573,21 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _continueAmbiguousSession() async {
     final strings = ref.read(appStringsProvider);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFrameDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.composerVerifySessionTitle),
-        content: Text(strings.composerVerifySessionContent),
+      dialog: FrameDialog<bool>(
+        title: strings.composerVerifySessionTitle,
+        body: Text(strings.composerVerifySessionContent),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(strings.cancel),
+          FrameDialogAction<bool>(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(strings.composerContinueHereAction),
+          FrameDialogAction<bool>(
+            label: strings.composerContinueHereAction,
+            role: FrameDialogActionRole.primary,
+            value: true,
           ),
         ],
       ),
@@ -619,7 +602,7 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.invalidate(sessionStateFamily(widget.sessionId));
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: strings.composerResumeFailed(error));
+        FrameSnackBar.show(context, message: strings.composerResumeFailed(error), isError: true);
       }
     }
   }
@@ -630,7 +613,7 @@ class _ComposerState extends ConsumerState<Composer> {
     } catch (error) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(context, message: strings.composerActionFailed(error));
+        FrameSnackBar.show(context, message: strings.composerActionFailed(error), isError: true);
       }
     }
   }
@@ -666,6 +649,7 @@ class _ComposerState extends ConsumerState<Composer> {
         message: state.error == null
             ? strings.composerNoFilesAvailable
             : describeError(state.error!, strings).summary,
+        isError: state.error != null,
       );
       return;
     }
@@ -728,6 +712,7 @@ class _ComposerState extends ConsumerState<Composer> {
           FrameSnackBar.show(
             context,
             message: strings.composerUploadFailed(files[i].name, error),
+            isError: true,
           );
         }
       } finally {
@@ -785,6 +770,7 @@ class _ComposerState extends ConsumerState<Composer> {
         FrameSnackBar.show(
           context,
           message: strings.composerInterruptFailed(error),
+          isError: true,
         );
       }
       return;
@@ -892,7 +878,7 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.read(composerDraftProvider(widget.sessionId).notifier).state = '';
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(context, message: strings.composerCommandFailed(error));
+        FrameSnackBar.show(context, message: strings.composerCommandFailed(error), isError: true);
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -1035,27 +1021,31 @@ class _ComposerState extends ConsumerState<Composer> {
     final strings = ref.read(appStringsProvider);
     final controller = TextEditingController(text: initial);
     try {
-      return await showDialog<String>(
+      String? saved;
+      final submitted = await showFrameDialogBuilder<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(strings.composerSessionNameTitle),
-          content: TextField(
+        instant: true,
+        builder: (dialogContext) => FrameDialog<String>(
+          title: strings.composerSessionNameTitle,
+          body: TextField(
             controller: controller,
             autofocus: true,
             onSubmitted: (value) => Navigator.pop(dialogContext, value),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(strings.cancel),
+            FrameDialogAction<String>(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, controller.text),
-              child: Text(strings.save),
+            FrameDialogAction<String>(
+              label: strings.save,
+              role: FrameDialogActionRole.primary,
+              onPressed: () => saved = controller.text,
             ),
           ],
         ),
       );
+      return submitted ?? saved;
     } finally {
       controller.dispose();
     }
@@ -1090,12 +1080,13 @@ class _ComposerState extends ConsumerState<Composer> {
       if (userEntries.isEmpty) {
         throw StateError(strings.composerForkNoUserMessages);
       }
-      entryId = await showDialog<String>(
+      entryId = await showFrameDialogBuilder<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(strings.composerForkTitle),
-          content: SizedBox(
-            width: 460,
+        instant: true,
+        builder: (dialogContext) => FrameDialog<String>(
+          title: strings.composerForkTitle,
+          maxWidth: 460,
+          body: SizedBox(
             height: 360,
             child: ListView.builder(
               itemCount: userEntries.length,
@@ -1114,9 +1105,9 @@ class _ComposerState extends ConsumerState<Composer> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(strings.cancel),
+            FrameDialogAction<String>(
+              label: strings.cancel,
+              role: FrameDialogActionRole.cancel,
             ),
           ],
         ),
@@ -1139,12 +1130,13 @@ class _ComposerState extends ConsumerState<Composer> {
     final sessions = await ref.read(sessionListProvider.future);
     if (!mounted) return;
     final sessionNames = ref.read(sessionDisplayNamesProvider);
-    final selectedId = await showDialog<String>(
+    final selectedId = await showFrameDialogBuilder<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.composerResumeTitle),
-        content: SizedBox(
-          width: 460,
+      instant: true,
+      builder: (dialogContext) => FrameDialog<String>(
+        title: strings.composerResumeTitle,
+        maxWidth: 460,
+        body: SizedBox(
           height: 360,
           child: sessions.isEmpty
               ? Center(child: Text(strings.composerNoSessionsAvailable))
@@ -1170,9 +1162,9 @@ class _ComposerState extends ConsumerState<Composer> {
                 ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(strings.cancel),
+          FrameDialogAction<String>(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
           ),
         ],
       ),
@@ -1185,33 +1177,34 @@ class _ComposerState extends ConsumerState<Composer> {
     final strings = ref.read(appStringsProvider);
     final state = ref.read(sessionStateFamily(widget.sessionId));
     final stats = state.sessionStats ?? const <String, dynamic>{};
-    await showDialog<void>(
+    await showFrameDialogBuilder<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.composerPiSessionTitle),
-        content: SizedBox(
-          width: 440,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(strings.composerSessionInfoName(state.sessionName ?? '—')),
-                Text(strings.composerSessionInfoSession(state.sessionId)),
-                Text(strings.composerSessionInfoFolder(state.cwd)),
-                Text(strings.composerSessionInfoModel(state.currentModel ?? '—')),
-                Text(strings.composerSessionInfoThinking(state.currentThinkingLevel ?? '—')),
-                const SizedBox(height: 12),
-                for (final entry in stats.entries)
-                  Text('${entry.key}: ${entry.value}'),
-              ],
+      instant: true,
+      builder: (dialogContext) => FrameDialog<void>(
+        title: strings.composerPiSessionTitle,
+        maxWidth: 440,
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(strings.composerSessionInfoName(state.sessionName ?? '—')),
+            Text(strings.composerSessionInfoSession(state.sessionId)),
+            Text(strings.composerSessionInfoFolder(state.cwd)),
+            Text(strings.composerSessionInfoModel(state.currentModel ?? '—')),
+            Text(
+              strings.composerSessionInfoThinking(
+                state.currentThinkingLevel ?? '—',
+              ),
             ),
-          ),
+            const SizedBox(height: FrameSpace.x3),
+            for (final entry in stats.entries)
+              Text('${entry.key}: ${entry.value}'),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(strings.close),
+          FrameDialogAction<void>(
+            label: strings.close,
+            role: FrameDialogActionRole.cancel,
           ),
         ],
       ),
@@ -1272,7 +1265,7 @@ class _ComposerState extends ConsumerState<Composer> {
                 size: 15,
                 color: isCurrent ? tokens.accent : tokens.textMuted,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1280,25 +1273,21 @@ class _ComposerState extends ConsumerState<Composer> {
                   children: [
                     Text(
                       name,
-                      style: TextStyle(
-                        color: isCurrent ? tokens.accent : tokens.textPrimary,
-                        fontSize: 12,
-                        fontWeight: isCurrent
+                      style: FrameText.of(context).label.copyWith(color: isCurrent ? tokens.accent : tokens.textPrimary, fontWeight: isCurrent
                             ? FontWeight.bold
-                            : FontWeight.w500,
-                      ),
+                            : FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (m['provider'] != null)
                       Text(
                         m['provider'].toString(),
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                       ),
                   ],
                 ),
               ),
-              if (isCurrent) Icon(Icons.check, size: 14, color: tokens.accent),
+              if (isCurrent) Icon(Icons.check_outlined, size: FrameSize.icon, color: tokens.accent),
             ],
           ),
         );
@@ -1358,19 +1347,15 @@ class _ComposerState extends ConsumerState<Composer> {
                 level: lvl,
                 litColor: isCurrent ? tokens.thinking : tokens.textSecondary,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Text(
                   ref.read(appStringsProvider).thinkingLevelLabel(lvl),
-                  style: TextStyle(
-                    color: isCurrent ? tokens.thinking : tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                  ),
+                  style: FrameText.of(context).label.copyWith(color: isCurrent ? tokens.thinking : tokens.textPrimary, fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500),
                 ),
               ),
               if (isCurrent)
-                Icon(Icons.check, size: 14, color: tokens.thinking),
+                Icon(Icons.check_outlined, size: FrameSize.icon, color: tokens.thinking),
             ],
           ),
         );
@@ -1401,32 +1386,23 @@ class _ComposerState extends ConsumerState<Composer> {
         FrameSnackBar.show(
           context,
           message: strings.composerModelContextNotAvailableDaemon,
+          isError: true,
         );
         return;
       }
-      final tokens = context.tokens;
       final strings = ref.read(appStringsProvider);
       setState(() => _isContextPickerLoading = false);
-      await showDialog<void>(
+      await showFrameDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
+        dialog: FrameDialog<void>(
           key: const ValueKey('composer-context-size-dialog'),
-          backgroundColor: tokens.surfaceElevated,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
-            side: BorderSide(color: tokens.borderStrong),
-          ),
-          title: Text(strings.composerContextSizeTitle),
-          content: SizedBox(
-            width: 340,
-            child: SingleChildScrollView(
-              child: ContextWindowSelector(sessionId: sessionId, model: model),
-            ),
-          ),
+          title: strings.composerContextSizeTitle,
+          maxWidth: 340,
+          body: ContextWindowSelector(sessionId: sessionId, model: model),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(strings.close),
+            FrameDialogAction<void>(
+              label: strings.close,
+              role: FrameDialogActionRole.cancel,
             ),
           ],
         ),
@@ -1437,6 +1413,7 @@ class _ComposerState extends ConsumerState<Composer> {
         FrameSnackBar.show(
           context,
           message: strings.composerContextSelectionFailed(error),
+          isError: true,
         );
       }
     } finally {
@@ -1448,7 +1425,7 @@ class _ComposerState extends ConsumerState<Composer> {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
       tooltip: strings.composerAttachTooltip,
-      icon: Icon(Icons.attach_file, size: 17, color: tokens.textSecondary),
+      icon: Icon(Icons.attach_file_outlined, size: FrameSize.icon, color: tokens.textSecondary),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       color: tokens.surfaceElevated,
@@ -1463,18 +1440,18 @@ class _ComposerState extends ConsumerState<Composer> {
           key: const ValueKey('attach-option-repo'),
           value: 'repo',
           height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.folder_open_outlined, size: 16, color: tokens.accent),
-              const SizedBox(width: 8),
+              Icon(Icons.folder_open_outlined, size: FrameSize.icon, color: tokens.accent),
+              const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachFromRepo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1484,7 +1461,7 @@ class _ComposerState extends ConsumerState<Composer> {
           key: const ValueKey('attach-option-external'),
           value: 'external',
           height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1493,13 +1470,13 @@ class _ComposerState extends ConsumerState<Composer> {
                 size: 16,
                 color: tokens.syntaxFunction,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachExternalFile,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1509,18 +1486,18 @@ class _ComposerState extends ConsumerState<Composer> {
           key: const ValueKey('attach-option-link'),
           value: 'link',
           height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.link, size: 16, color: tokens.syntaxKeyword),
-              const SizedBox(width: 8),
+              Icon(Icons.link_outlined, size: FrameSize.icon, color: tokens.syntaxKeyword),
+              const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachWebLink,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1530,18 +1507,18 @@ class _ComposerState extends ConsumerState<Composer> {
           key: const ValueKey('attach-option-image'),
           value: 'image',
           height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.image_outlined, size: 16, color: tokens.syntaxType),
-              const SizedBox(width: 8),
+              Icon(Icons.image_outlined, size: FrameSize.icon, color: tokens.syntaxType),
+              const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachImage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12.5),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1656,18 +1633,18 @@ class _ComposerState extends ConsumerState<Composer> {
                   : strings.composerReadOnlyUnknownNotice,
               style: TextStyle(color: tokens.textSecondary),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: FrameSpace.x2),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 if (readOnlyReason == 'unknown') ...[
                   TextButton.icon(
-                    icon: const Icon(Icons.play_arrow),
+                    icon: const Icon(Icons.play_arrow_outlined),
                     label: Text(strings.composerContinueHereAction),
                     onPressed: _continueAmbiguousSession,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: FrameSpace.x2),
                 ],
                 TextButton.icon(
                   icon: const Icon(Icons.copy_outlined),
@@ -1708,6 +1685,7 @@ class _ComposerState extends ConsumerState<Composer> {
                         FrameSnackBar.show(
                           context,
                           message: strings.composerDuplicationFailed(error),
+                          isError: true,
                         );
                       }
                     }
@@ -1772,8 +1750,8 @@ class _ComposerState extends ConsumerState<Composer> {
         activeToolCallsNotEmpty;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeInOutCubic,
+      duration: FrameMotion.panel,
+      curve: FrameMotion.panelCurve,
       margin: EdgeInsets.fromLTRB(
         horizontalMargin,
         4,
@@ -1793,7 +1771,7 @@ class _ComposerState extends ConsumerState<Composer> {
             child: pendingInteractionRequests.isNotEmpty
                 ? Padding(
                     key: const ValueKey('composer-extension-ui-card'),
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: FrameSpace.x2),
                     child: ExtensionUiDialog(
                       key: ValueKey(
                         'ext_ui_${pendingInteractionRequests.last['requestId']}',
@@ -1877,18 +1855,15 @@ class _ComposerState extends ConsumerState<Composer> {
                               Row(
                                 children: [
                                   Icon(
-                                    Icons.queue,
+                                    Icons.queue_outlined,
                                     size: 16,
                                     color: tokens.accent,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: FrameSpace.x2),
                                   Expanded(
                                     child: Text(
                                       strings.composerQueuedSummary(totalQueued, steeringQueue.length, followUpQueue.length),
-                                      style: TextStyle(
-                                        color: tokens.textSecondary,
-                                        fontSize: 12,
-                                      ),
+                                      style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
                                     ),
                                   ),
                                   if (steeringQueue.isNotEmpty)
@@ -1899,8 +1874,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                       tooltip: strings.composerToggleQueueTooltip(_queueExpanded),
                                       icon: Icon(
                                         _queueExpanded
-                                            ? Icons.keyboard_arrow_up
-                                            : Icons.keyboard_arrow_down,
+                                            ? Icons.keyboard_arrow_up_outlined
+                                            : Icons.keyboard_arrow_down_outlined,
                                         size: 16,
                                         color: tokens.textSecondary,
                                       ),
@@ -1920,16 +1895,13 @@ class _ComposerState extends ConsumerState<Composer> {
                                           MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     icon: Icon(
-                                      Icons.clear_all,
+                                      Icons.clear_all_outlined,
                                       size: 14,
                                       color: tokens.textMuted,
                                     ),
                                     label: Text(
                                       strings.composerClearQueueAction,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11,
-                                      ),
+                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                                     ),
                                     onPressed: () => _runAction(
                                       sessionNotifier.clearQueue,
@@ -1984,25 +1956,17 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                           child: Text(
                                             'STEER #${i + 1}',
-                                            style: TextStyle(
-                                              color: tokens.accent,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                            style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: FrameSpace.x2),
                                         Expanded(
                                           child: Text(
                                             steeringQueue[i],
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: 12,
-                                              fontFamily:
-                                                  tokens.monoFontFamily,
-                                            ),
+                                            style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontFamily:
+                                                  tokens.monoFontFamily),
                                           ),
                                         ),
                                         IconButton(
@@ -2033,7 +1997,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ),
                                           tooltip: strings.composerDeleteFromQueueTooltip,
                                           icon: Icon(
-                                            Icons.close,
+                                            Icons.close_outlined,
                                             size: 14,
                                             color: tokens.textMuted,
                                           ),
@@ -2066,22 +2030,18 @@ class _ComposerState extends ConsumerState<Composer> {
                           child: Row(
                             children: [
                               Icon(
-                                Icons.warning_amber_rounded,
+                                Icons.warning_amber_outlined,
                                 size: 18,
                                 color: tokens.danger,
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: FrameSpace.x2),
                               Expanded(
                                 child: Text(
                                   strings.composerWorkerCrashBanner,
-                                  style: TextStyle(
-                                    color: tokens.danger,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: FrameText.of(context).label.copyWith(color: tokens.danger, fontWeight: FontWeight.w500),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: FrameSpace.x2),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: tokens.accent,
@@ -2092,13 +2052,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                   ),
                                   minimumSize: Size.zero,
                                 ),
-                                icon: const Icon(Icons.refresh, size: 14),
+                                icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                                 label: Text(
                                   strings.composerRecoverSessionAction,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 onPressed: () => _runAction(
                                   sessionNotifier.recoverSession,
@@ -2303,15 +2260,12 @@ class _ComposerState extends ConsumerState<Composer> {
                                           strokeWidth: 2,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: FrameSpace.x2),
                                       Text(
                                         strings.composerUploadingAttachments(
                                           _pendingUploads,
                                         ),
-                                        style: TextStyle(
-                                          color: tokens.textSecondary,
-                                          fontSize: 11.5,
-                                        ),
+                                        style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -2339,12 +2293,12 @@ class _ComposerState extends ConsumerState<Composer> {
                                   AnimatedSize(
                                     duration: MediaQuery.disableAnimationsOf(context)
                                         ? Duration.zero
-                                        : const Duration(milliseconds: 180),
-                                    curve: Curves.easeOutCubic,
+                                        : FrameMotion.small,
+                                    curve: FrameMotion.enterCurve,
                                     child: AnimatedSwitcher(
                                       duration: MediaQuery.disableAnimationsOf(context)
                                           ? Duration.zero
-                                          : const Duration(milliseconds: 150),
+                                          : FrameMotion.small,
                                       transitionBuilder: (child, animation) => FadeTransition(
                                         opacity: animation,
                                         child: ScaleTransition(
@@ -2413,10 +2367,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               isStreaming: isStreaming,
                                               sendWithEnter: composerSettings.sendWithEnter,
                                             ),
-                                      hintStyle: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 13.5,
-                                      ),
+                                      hintStyle: FrameText.of(context).body.copyWith(color: tokens.textMuted),
                                       filled: false,
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
@@ -2482,7 +2433,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   _isInputEnlarged
                                                       ? Icons
                                                             .close_fullscreen
-                                                      : Icons.open_in_full,
+                                                      : Icons.open_in_full_outlined,
                                                   size: 11,
                                                   color: _isInputEnlarged
                                                       ? tokens.accent
@@ -2492,15 +2443,11 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 const SizedBox(width: 3),
                                                 Text(
                                                   strings.composerEnlargeLabel(_isInputEnlarged),
-                                                  style: TextStyle(
-                                                    color: _isInputEnlarged
+                                                  style: FrameText.of(context).caption.copyWith(color: _isInputEnlarged
                                                         ? tokens.accent
                                                         : tokens
-                                                              .textSecondary,
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.w600,
-                                                  ),
+                                                              .textSecondary, fontWeight:
+                                                        FontWeight.w600),
                                                 ),
                                               ],
                                             ),
@@ -2510,7 +2457,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                     ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: FrameSpace.x1),
                               LayoutBuilder(
                                 builder: (context, rowBox) => Row(
                                 children: [
@@ -2617,14 +2564,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                 overflow:
                                                                     TextOverflow
                                                                         .ellipsis,
-                                                                style: TextStyle(
-                                                                  color: tokens
-                                                                      .textSecondary,
-                                                                  fontSize: 11,
-                                                                  fontWeight:
+                                                                style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                      .textSecondary, fontWeight:
                                                                       FontWeight
-                                                                          .w500,
-                                                                ),
+                                                                          .w500),
                                                               ),
                                                             ),
                                                             const SizedBox(
@@ -2700,14 +2643,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                     'medium',
                                                               ),
                                                               maxLines: 1,
-                                                              style: TextStyle(
-                                                                color: tokens
-                                                                    .textSecondary,
-                                                                fontSize: 11,
-                                                                fontWeight:
+                                                              style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                    .textSecondary, fontWeight:
                                                                     FontWeight
-                                                                        .w500,
-                                                              ),
+                                                                        .w500),
                                                             ),
                                                           ],
                                                           if (!compact) ...[
@@ -2783,7 +2722,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                               )
                                                             else
                                                               Icon(
-                                                                Icons.tune,
+                                                                Icons.tune_outlined,
                                                                 size: 12,
                                                                 color: tokens
                                                                     .accent,
@@ -2797,14 +2736,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                                   effectiveContextWindow,
                                                                 ),
                                                                 maxLines: 1,
-                                                                style: TextStyle(
-                                                                  color: tokens
-                                                                      .accent,
-                                                                  fontSize: 11,
-                                                                  fontWeight:
+                                                                style: FrameText.of(context).caption.copyWith(color: tokens
+                                                                      .accent, fontWeight:
                                                                       FontWeight
-                                                                          .w600,
-                                                                ),
+                                                                          .w600),
                                                               ),
                                                             ],
                                                             if (!compact) ...[
@@ -2838,8 +2773,8 @@ class _ComposerState extends ConsumerState<Composer> {
                                       'composer-enlarge-toggle-btn',
                                     ),
                                     icon: _isInputEnlarged
-                                        ? Icons.close_fullscreen
-                                        : Icons.open_in_full,
+                                        ? Icons.close_fullscreen_outlined
+                                        : Icons.open_in_full_outlined,
                                     tooltip: strings.composerEnlargeTooltip(
                                       _isInputEnlarged,
                                     ),
@@ -2848,9 +2783,9 @@ class _ComposerState extends ConsumerState<Composer> {
                                       () => _isInputEnlarged = !_isInputEnlarged,
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: FrameSpace.x1),
                                   _buildAttachButton(tokens, strings),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: FrameSpace.x1),
                                   if (isStreaming ||
                                       agentStatus == AgentStatus.working ||
                                       activeToolCallsNotEmpty) ...[
@@ -2880,7 +2815,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                           ? null
                                           : _interrupt,
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: FrameSpace.x1),
                                     Tooltip(
                                       message: strings.composerSteerTooltip(
                                         sendWithEnter:
@@ -2905,7 +2840,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             alignment: Alignment.center,
                                             children: [
                                               Icon(
-                                                Icons.bolt,
+                                                Icons.bolt_outlined,
                                                 size: 16,
                                                 color:
                                                     tokens.accentContrast,
@@ -2915,13 +2850,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   'Steer',
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                             ],
@@ -2935,7 +2867,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: FrameSpace.x1),
                                     Tooltip(
                                       message: strings.composerFollowUpTooltip,
                                       child: Container(
@@ -2960,7 +2892,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             alignment: Alignment.center,
                                             children: [
                                               Icon(
-                                                Icons.more_time,
+                                                Icons.more_time_outlined,
                                                 size: 15,
                                                 color: tokens.textPrimary,
                                               ),
@@ -2969,13 +2901,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   'Follow-up',
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                             ],
@@ -3009,7 +2938,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 .read(isReviewingChangesProvider.notifier)
                                                 .update((v) => !v),
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: FrameSpace.x1),
                                     Tooltip(
                                       key: const ValueKey('composer-send'),
                                       message: strings.composerSendTooltip(
@@ -3056,7 +2985,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 )
                                               else
                                                 Icon(
-                                                  Icons.arrow_upward,
+                                                  Icons.arrow_upward_outlined,
                                                   size: 16,
                                                   color:
                                                       tokens.accentContrast,
@@ -3066,13 +2995,10 @@ class _ComposerState extends ConsumerState<Composer> {
                                                 height: 0,
                                                 child: Text(
                                                   strings.composerSendLabel,
-                                                  style: TextStyle(
-                                                    fontSize: 0,
-                                                    color: tokens.background
+                                                  style: FrameText.of(context).caption.copyWith(color: tokens.background
                                                         .withValues(
                                                           alpha: 0,
-                                                        ),
-                                                  ),
+                                                        )),
                                                 ),
                                               ),
                                               if (isSending)
@@ -3080,7 +3006,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   width: 0,
                                                   height: 0,
                                                   child: Icon(
-                                                    Icons.arrow_upward,
+                                                    Icons.arrow_upward_outlined,
                                                     size: 0,
                                                   ),
                                                 ),

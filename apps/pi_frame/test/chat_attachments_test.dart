@@ -285,7 +285,7 @@ void main() {
       // 2. Clickable Web link is present with link icon
       final linkChipFinder = find.byKey(const ValueKey('attachment-link-user_att_link'));
       expect(linkChipFinder, findsOneWidget);
-      expect(find.descendant(of: linkChipFinder, matching: find.byIcon(Icons.link)), findsOneWidget);
+      expect(find.descendant(of: linkChipFinder, matching: find.byIcon(Icons.link_outlined)), findsOneWidget);
       expect(find.descendant(of: linkChipFinder, matching: find.text('Dashboard URL')), findsOneWidget);
 
       // 3. User message text is clean

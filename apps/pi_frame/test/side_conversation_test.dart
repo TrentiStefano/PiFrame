@@ -205,7 +205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit via icon button
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       expect(sendBtn, findsOneWidget);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();
@@ -244,7 +244,7 @@ void main() {
       await tester.enterText(textField, '/btw can you explain this test?');
       await tester.pumpAndSettle();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();
 

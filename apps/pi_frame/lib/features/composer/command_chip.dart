@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_icon_action.dart';
+import '../../ui/motion.dart';
 
 /// A Pi slash command staged in the composer. It is a separate token, never text: what is left in
 /// the text field is only the command's arguments.
@@ -30,15 +32,15 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
   // One pass: pop in (first 40%), then the accent glow fades out.
   late final AnimationController _intro = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 520),
+    duration: FrameMotion.panel,
   )..forward();
   late final Animation<double> _scale = CurvedAnimation(
     parent: _intro,
-    curve: const Interval(0, 0.4, curve: Curves.easeOutBack),
+    curve: const Interval(0, 0.4, curve: FrameMotion.enterCurve),
   );
   late final Animation<double> _glow = CurvedAnimation(
     parent: _intro,
-    curve: const Interval(0.15, 1, curve: Curves.easeOut),
+    curve: const Interval(0.15, 1, curve: FrameMotion.enterCurve),
   );
 
   @override
@@ -84,8 +86,8 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
           ),
         ),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
+          duration: FrameMotion.small,
+          curve: FrameMotion.enterCurve,
           // No vertical padding: the 28 px remove control sets the chip height.
           padding: const EdgeInsets.fromLTRB(6, 0, 2, 0),
           decoration: BoxDecoration(
@@ -102,7 +104,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 140),
+                duration: FrameMotion.small,
                 transitionBuilder: (child, animation) => ScaleTransition(
                   scale: animation,
                   child: FadeTransition(opacity: animation, child: child),
@@ -112,13 +114,14 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                         key: const ValueKey('running'),
                         width: 13,
                         height: 13,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(
+                          size: 13,
                           strokeWidth: 1.8,
                           color: tokens.accent,
                         ),
                       )
                     : Icon(
-                        Icons.terminal_rounded,
+                        Icons.terminal_outlined,
                         key: const ValueKey('idle'),
                         size: 14,
                         color: tokens.accent,
@@ -127,12 +130,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
               const SizedBox(width: 5),
               Text(
                 '/${widget.name}',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontFamily: tokens.monoFontFamily,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                ),
+                style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 6),
               Container(
@@ -143,19 +141,14 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                 ),
                 child: Text(
                   widget.sourceLabel,
-                  style: TextStyle(
-                    color: tokens.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.w600, letterSpacing: 0.3),
                 ),
               ),
               const SizedBox(width: 2),
               // A focusable 28 px control (plan 6.1, 2.6): reachable by Tab and Enter.
               FrameIconAction(
                 key: const ValueKey('composer-command-chip-remove'),
-                icon: Icons.close_rounded,
+                icon: Icons.close_outlined,
                 tooltip: widget.removeTooltip,
                 onPressed: widget.running ? null : widget.onRemove,
               ),

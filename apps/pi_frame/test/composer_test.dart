@@ -95,25 +95,25 @@ void main() {
 
     await tester.tap(find.text('/settings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(container.read(showSettingsProvider), isTrue);
     expect(session.state.entries, isEmpty);
 
     // Typed and sent, a command first becomes a chip; the second send runs it.
     await tester.enterText(find.byType(TextField), '/login');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('composer-command-chip')), findsOneWidget);
     expect(session.loginCalls, 0);
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(session.loginCalls, 1);
     expect(session.state.entries, isEmpty);
 
     await tester.enterText(find.byType(TextField), '/logout ');
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(session.logoutCalls, 1);
     expect(session.state.entries, isEmpty);
@@ -149,7 +149,7 @@ void main() {
         tester.element(find.byType(Composer)),
       );
       await tester.enterText(find.byType(TextField), 'Pending draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       expect(find.text('Pending draft'), findsNothing);
       expect(container.read(composerDraftProvider('pending')), isEmpty);
@@ -160,7 +160,7 @@ void main() {
       final sendButton = tester.widget<FilledButton>(
         find
             .ancestor(
-              of: find.byIcon(Icons.arrow_upward),
+              of: find.byIcon(Icons.arrow_upward_outlined),
               matching: find.byType(FilledButton),
             )
             .first,
@@ -174,7 +174,7 @@ void main() {
 
       session.completion = Completer<void>();
       await tester.enterText(find.byType(TextField), 'Second draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Newer edit');
       container.read(activeSessionIdProvider.notifier).state = 'B';
@@ -206,7 +206,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), 'Keep this draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       expect(find.text('Keep this draft'), findsNothing);
       expect(session.state.entries.single.text, 'Keep this draft');
@@ -243,7 +243,7 @@ void main() {
       ),
     );
     await tester.enterText(find.byType(TextField), 'Session A draft');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pump();
     expect(session.state.entries.single.text, 'Session A draft');
     expect(
@@ -289,7 +289,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Verify arrow_upward icon (Invia) is present
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_outlined), findsOneWidget);
     // Verify Steer and Follow-up buttons are NOT present when idle
     expect(find.text('Steer'), findsNothing);
     expect(find.text('Follow-up'), findsNothing);
