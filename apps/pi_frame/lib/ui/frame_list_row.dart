@@ -21,7 +21,8 @@ import 'frame_middle_ellipsis.dart';
 /// secondary text is shortened. [focusable] false takes the row out of the Tab
 /// order, for lists that handle arrow keys themselves. With
 /// [revealActionsWhenSelected] the actions also show on the selected row, so a
-/// keyboard cursor shows them too.
+/// keyboard cursor shows them too. [revealActionsAlways] keeps them visible
+/// all the time, for layouts without a hover pointer (touch, compact).
 class FrameListRow extends StatefulWidget {
   final String name;
   final String? secondary;
@@ -34,6 +35,7 @@ class FrameListRow extends StatefulWidget {
   final bool inlineSecondary;
   final bool focusable;
   final bool revealActionsWhenSelected;
+  final bool revealActionsAlways;
 
   const FrameListRow({
     super.key,
@@ -48,6 +50,7 @@ class FrameListRow extends StatefulWidget {
     this.inlineSecondary = false,
     this.focusable = true,
     this.revealActionsWhenSelected = false,
+    this.revealActionsAlways = false,
   });
 
   @override
@@ -105,6 +108,7 @@ class _FrameListRowState extends State<FrameListRow> {
     final text = FrameText.of(context);
     final enabled = widget.onTap != null;
     final revealActions =
+        widget.revealActionsAlways ||
         _hovered ||
         _focusWithin ||
         (widget.revealActionsWhenSelected && widget.selected);

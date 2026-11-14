@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -718,6 +719,103 @@ void main() {
       findsOneWidget,
     );
     expect(workingY, idleY);
+  });
+
+  /// Opacity of the row actions of [key]: 0 when hidden, 1 when revealed.
+  double rowActionOpacity(WidgetTester tester, String key) {
+    final opacity = tester.widget<Opacity>(
+      find
+          .ancestor(of: find.byKey(ValueKey(key)), matching: find.byType(Opacity))
+          .first,
+    );
+    return opacity.opacity;
+  }
+
+  Future<void> pumpGitRows(WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(_FakeWorkspaceClient()),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  const unstagedToggleKey = 'git-unstaged-toggle-notes.txt';
+
+  testWidgets('Git row actions reveal on hover with a desktop pointer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    // flutter_test defaults the platform to Android, which is a touch platform.
+    // A desktop pointer needs an explicit desktop platform here.
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      await pumpGitRows(tester);
+      expect(rowActionOpacity(tester, unstagedToggleKey), 0);
+      final row = find.byKey(const ValueKey('git-row-unstaged-notes.txt'));
+      final at = tester.getCenter(row);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: at);
+      await mouse.moveTo(at);
+      await tester.pumpAndSettle();
+      expect(rowActionOpacity(tester, unstagedToggleKey), 1);
+      await mouse.removePointer();
+      await tester.pumpAndSettle();
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Git row actions stay visible in the compact layout', (
+    tester,
+  ) async {
+    // Default test surface is 800 px wide, below the compact breakpoint.
+    tester.view.physicalSize = const Size(800, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpGitRows(tester);
+
+    expect(rowActionOpacity(tester, unstagedToggleKey), 1);
+    expect(
+      find.byKey(const ValueKey('git-unstaged-discard-notes.txt')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Git row actions stay visible on a touch platform at desktop width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    // The override must be cleared inside the test body: flutter_test checks
+    // the foundation debug variables before tearDown callbacks run.
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      await pumpGitRows(tester);
+      expect(rowActionOpacity(tester, unstagedToggleKey), 1);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('Git clean tree shows an empty state with a refresh action', (

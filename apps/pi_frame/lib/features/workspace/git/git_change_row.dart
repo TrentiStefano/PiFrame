@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -66,6 +67,21 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
   if (cut < 0) return (name: path, dir: null);
   final dir = path.substring(0, cut);
   return (name: path.substring(cut + 1), dir: dir.isEmpty ? null : dir);
+}
+
+/// Companion width below which the Git list is treated as compact. Same
+/// breakpoint as the shell's narrow layout (`app_shell.dart`).
+const double gitCompactLayoutWidth = 900;
+
+/// Whether the row actions (stage, unstage, discard) stay visible without a
+/// hover. True where there is no hover pointer: compact layouts, iOS and
+/// Android, and mobile web (Flutter web reports the device platform there).
+bool gitRowActionsAlwaysVisible(BuildContext context) {
+  if (MediaQuery.sizeOf(context).width < gitCompactLayoutWidth) return true;
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.iOS || TargetPlatform.android => true,
+    _ => false,
+  };
 }
 
 /// One file row of the Git pane (staged or unstaged), on one line: the file
@@ -138,6 +154,7 @@ class GitChangeRow extends StatelessWidget {
       focusable: false,
       selected: selected,
       revealActionsWhenSelected: true,
+      revealActionsAlways: gitRowActionsAlwaysVisible(context),
       onSecondaryTap: onContextMenu,
       onTap: () => onShowDiff(path),
       leading: FileIcon(path: path, size: FrameSize.icon),
