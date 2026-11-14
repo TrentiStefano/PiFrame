@@ -270,10 +270,8 @@ class UpdatesSection extends ConsumerWidget {
             Expanded(
               child: Text(
                 strings.updatesPrivacySafetyNotice,
-                style: text.caption.copyWith(
-                  color: tokens.textMuted,
-                  height: 1.5,
-                ),
+                // caption already carries the 16 px line height of the role.
+                style: text.caption.copyWith(color: tokens.textMuted),
               ),
             ),
           ],

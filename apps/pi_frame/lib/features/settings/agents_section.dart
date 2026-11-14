@@ -1258,7 +1258,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         child: DropdownButton<String>(
           value: valueInItems ? effectiveVal : null,
           hint: Text(
-            effectiveVal ?? '—',
+            effectiveVal ?? ref.read(appStringsProvider).agentsPiDefaultLabel,
             style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,

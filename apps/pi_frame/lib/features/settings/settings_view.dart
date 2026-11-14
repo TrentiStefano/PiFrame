@@ -663,7 +663,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           strings: strings,
         ),
         _SettingsSection.remote => const RemoteSection(),
-        _SettingsSection.agents => const AgentsSection(),
+        _SettingsSection.agents => AgentsSection(
+          onOpenPackages: () =>
+              setState(() => _section = _SettingsSection.packages),
+        ),
       };
     }
 

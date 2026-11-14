@@ -177,7 +177,7 @@ class _PiCliSectionState extends State<PiCliSection> {
       if (_logScrollController.hasClients) {
         _logScrollController.animateTo(
           _logScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 150),
+          duration: FrameMotion.small,
           curve: FrameMotion.enterCurve,
         );
       }
@@ -383,7 +383,14 @@ class _PiCliSectionState extends State<PiCliSection> {
                         hintStyle: text.caption.copyWith(
                           color: tokens.textMuted,
                         ),
+                        // The surrounding box draws the one border; the
+                        // field's own states must not add another.
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),

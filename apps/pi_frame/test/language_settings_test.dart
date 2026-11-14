@@ -32,8 +32,8 @@ void main() {
       expect(strings.agentsContextSingleTierTooltip, 'Il modello ha un solo livello di contesto');
       expect(strings.agentsModelUnavailableWarning, 'Non disponibile con le credenziali attuali');
       expect(strings.agentsNotAvailableShort, 'n/d');
-      expect(strings.languageSectionTitle, "Lingua dell'Applicazione");
-      expect(strings.openThemeEditorBtn, 'Editor temi / Personalizza tema');
+      expect(strings.languageSectionTitle, "Lingua dell'applicazione");
+      expect(strings.openThemeEditorBtn, 'Editor temi');
       expect(strings.updateNoticeTitle, 'Aggiornamenti rilevati');
       expect(strings.branchChipTooltip, 'Cambia ramo Git');
       expect(strings.branchPickerTitle, 'Passa a un altro ramo');
@@ -88,7 +88,7 @@ void main() {
       expect(strings.agentsModelUnavailableWarning, 'Not available with current credentials');
       expect(strings.agentsNotAvailableShort, 'N/A');
       expect(strings.languageSectionTitle, 'Application Language');
-      expect(strings.openThemeEditorBtn, 'Theme Editor / Customize Theme');
+      expect(strings.openThemeEditorBtn, 'Theme Editor');
       expect(strings.updateNoticeTitle, 'Updates Available');
       expect(strings.branchChipTooltip, 'Switch Git branch');
       expect(strings.branchPickerTitle, 'Switch branch');
@@ -187,7 +187,7 @@ void main() {
     expect(find.text('Impostazioni PiFrame'), findsOneWidget);
     expect(find.text('Pacchetti'), findsOneWidget);
     expect(find.text('Aspetto'), findsOneWidget);
-    expect(find.text("Lingua dell'Applicazione"), findsOneWidget);
+    expect(find.text("Lingua dell'applicazione"), findsOneWidget);
 
     // Find and tap the language dropdown
     final dropdownFinder = find.byKey(

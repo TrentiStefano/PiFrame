@@ -413,7 +413,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Lingua dell\'Applicazione'), findsOneWidget);
+    expect(find.text('Lingua dell\'applicazione'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '05_appearance_settings.png');
   });

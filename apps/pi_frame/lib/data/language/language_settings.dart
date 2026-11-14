@@ -119,7 +119,6 @@ class AppStrings {
   String get tabPackages => isItalian ? 'Pacchetti' : 'Packages';
   String get tabDaemon => 'Daemon';
   String get tabAppearance => isItalian ? 'Aspetto' : 'Appearance';
-  String get tabPrivacy => 'Privacy';
   String get tabDiagnostics => isItalian ? 'Diagnostica' : 'Diagnostics';
   String get tabUpdates => isItalian ? 'Aggiornamenti' : 'Updates';
   String get tabTerminal => isItalian ? 'Terminale' : 'Terminal';
@@ -186,7 +185,7 @@ class AppStrings {
       ? 'PiFrame supporta temi personalizzati definiti via file JSON in ~/.piframe/themes/.'
       : 'PiFrame supports custom themes defined via JSON files in ~/.piframe/themes/.';
   String get languageSectionTitle =>
-      isItalian ? 'Lingua dell\'Applicazione' : 'Application Language';
+      isItalian ? 'Lingua dell\'applicazione' : 'Application Language';
   String get languageSectionSubtitle => isItalian
       ? 'Seleziona la lingua per l\'interfaccia grafica e i messaggi dell\'applicazione.'
       : 'Select the language for the graphical interface and application messages.';
@@ -204,9 +203,7 @@ class AppStrings {
   String get importThemeBtn => isItalian
       ? 'Importa tema JSON (VSCode / PiFrame)'
       : 'Import JSON Theme (VSCode / PiFrame)';
-  String get openThemeEditorBtn => isItalian
-      ? 'Editor temi / Personalizza tema'
-      : 'Theme Editor / Customize Theme';
+  String get openThemeEditorBtn => isItalian ? 'Editor temi' : 'Theme Editor';
 
   // Theme Editor
   String get themeEditorTitle =>
