@@ -124,6 +124,15 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   /// Bumped on each status refresh, so the open diff reloads after a stage.
   int _statusRevision = 0;
 
+  /// Rows that left a group in the last refresh. They stay in their old group
+  /// for one exit fade (Spec F) while the counts already show the new state.
+  final List<_DepartingRow> _departing = [];
+  int _departureSeq = 0;
+
+  /// 'staged:path' or 'unstaged:path' keys of rows that entered a group in the
+  /// last refresh. They fade and slide into place once.
+  Set<String> _arrivals = {};
+
   @override
   void initState() {
     super.initState();
@@ -135,6 +144,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId) {
       _status = null;
+      _departing.clear();
+      _arrivals = {};
       _refresh();
     }
   }
@@ -182,8 +193,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       final result = await client.refreshWorkspace(widget.sessionId);
       if (mounted) {
         setState(() {
+          final previous = _files;
           _status = (result['data'] as Map<String, dynamic>?) ?? result;
           _statusRevision++;
+          _recordTravel(previous);
         });
       }
     } catch (e) {
@@ -197,6 +210,54 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       ((_status?['files'] as List?) ?? const [])
           .cast<Map<String, dynamic>>()
           .toList();
+
+  /// The rows shown in each group, keyed 'staged:path' or 'unstaged:path'.
+  /// Mirrors the grouping in `build`: a file is Staged when `staged` is true,
+  /// and Changes when it has unstaged edits or is not staged.
+  static Map<String, Map<String, dynamic>> _sectionRows(
+    List<Map<String, dynamic>> files,
+  ) {
+    final rows = <String, Map<String, dynamic>>{};
+    for (final file in files) {
+      final path = file['path'].toString();
+      final staged = file['staged'] == true;
+      if (staged) rows['staged:$path'] = file;
+      if (file['unstaged'] == true || !staged) rows['unstaged:$path'] = file;
+    }
+    return rows;
+  }
+
+  /// Compares the groups before and after a refresh. A row that moved from one
+  /// group to the other departs its old group and arrives in the new one.
+  void _recordTravel(List<Map<String, dynamic>> previous) {
+    final before = _sectionRows(previous);
+    final after = _sectionRows(_files);
+    _departing.clear();
+    _arrivals = {};
+    for (final entry in before.entries) {
+      if (after.containsKey(entry.key)) continue;
+      final isStaged = entry.key.startsWith('staged:');
+      final path = entry.key.substring(entry.key.indexOf(':') + 1);
+      final other = isStaged ? 'unstaged:$path' : 'staged:$path';
+      if (!after.containsKey(other)) continue;
+      _departing.add(
+        _DepartingRow(
+          id: ++_departureSeq,
+          isStaged: isStaged,
+          file: entry.value,
+          hasUnstagedEdit: !isStaged || entry.value['unstaged'] == true,
+        ),
+      );
+    }
+    for (final key in after.keys) {
+      if (before.containsKey(key)) continue;
+      final isStaged = key.startsWith('staged:');
+      final path = key.substring(key.indexOf(':') + 1);
+      final other = isStaged ? 'unstaged:$path' : 'staged:$path';
+      if (before.containsKey(other)) _arrivals.add(key);
+    }
+  }
+
   List<String> get _staged =>
       _files
           .where((f) => f['staged'] == true)
@@ -663,7 +724,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     }
   }
 
-  /// Each row fades in where it appears, so a file moving between Staged and Changes is visible.
+  /// A row that moved into its group fades and slides in once (Spec F). Reduced
+  /// motion makes the move instant.
   Widget _buildGitFileRow({
     required Map<String, dynamic> file,
     required bool isStaged,
@@ -673,11 +735,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     required bool blocked,
     required AppStrings strings,
     bool selected = false,
+    bool leaving = false,
   }) {
     final path = file['path'].toString();
     final section = isStaged ? 'staged' : 'unstaged';
-    return GitChangeRow(
-      key: ValueKey('git-row-$section-$path'),
+    final row = GitChangeRow(
       file: file,
       isStaged: isStaged,
       hasUnstagedEdit: hasUnstagedEdit,
@@ -700,6 +762,22 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       onStage: (path) => _action('stage', [path]),
       onUnstage: (path) => _action('unstage', [path]),
       onDiscard: (path) => _discardFile(path),
+    );
+    if (leaving) {
+      return ExcludeSemantics(
+        child: IgnorePointer(
+          child: KeyedSubtree(
+            key: ValueKey('git-row-leaving-$section-$path'),
+            child: row,
+          ),
+        ),
+      );
+    }
+    return _RowTravelEnter(
+      key: ValueKey('git-row-$section-$path'),
+      animate:
+          !FrameMotion.reduced(context) && _arrivals.contains('$section:$path'),
+      child: row,
     );
   }
 
@@ -992,14 +1070,23 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               f['unstaged'] == true || !staged.contains(f['path'].toString()),
         )
         .toList();
+    // A row still fading out of a group keeps that group open until it is gone.
+    final reduced = FrameMotion.reduced(context);
+    final leavingStaged = reduced
+        ? const <_DepartingRow>[]
+        : _departing.where((d) => d.isStaged).toList();
+    final leavingUnstaged = reduced
+        ? const <_DepartingRow>[]
+        : _departing.where((d) => !d.isStaged).toList();
     // Default rule: CHANGES opens when it has files; STAGED opens when it has
     // files and CHANGES is empty. A toggle by the user overrides the default.
     final isStagedExpanded =
         ref.watch(gitStagedExpandedProvider(widget.sessionId)) ??
-        (stagedFiles.isNotEmpty && unstagedFiles.isEmpty);
+        (leavingStaged.isNotEmpty ||
+            (stagedFiles.isNotEmpty && unstagedFiles.isEmpty));
     final isUnstagedExpanded =
         ref.watch(gitUnstagedExpandedProvider(widget.sessionId)) ??
-        unstagedFiles.isNotEmpty;
+        (unstagedFiles.isNotEmpty || leavingUnstaged.isNotEmpty);
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? cwd;
     _GitEntry fileEntry(
@@ -1022,6 +1109,33 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           blocked: blocked,
           strings: strings,
           selected: selected,
+        ),
+      );
+    }
+
+    // A row leaving its group keeps its old place for one exit fade. It is
+    // not focusable: it has no path, so Space and Enter do nothing on it.
+    _GitEntry departingEntry(_DepartingRow row) {
+      final section = row.isStaged ? 'staged' : 'unstaged';
+      return _GitEntry(
+        key: 'x:${row.id}',
+        section: section,
+        render: (_) => _RowTravelLeave(
+          onDone: () {
+            if (mounted) {
+              setState(() => _departing.removeWhere((d) => d.id == row.id));
+            }
+          },
+          child: _buildGitFileRow(
+            file: row.file,
+            isStaged: row.isStaged,
+            hasUnstagedEdit: row.hasUnstagedEdit,
+            piTouchedPaths: piTouchedPaths,
+            manualSavedPaths: repository.manualSavedPaths,
+            blocked: blocked,
+            strings: strings,
+            leaving: true,
+          ),
         ),
       );
     }
@@ -1054,7 +1168,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         ),
       ),
       if (isStagedExpanded)
-        ...(stagedFiles.isEmpty
+        ...(stagedFiles.isEmpty && leavingStaged.isEmpty
             ? [_GitEntry.note('staged', strings.noStagedFiles)]
             : [
                 for (final file in stagedFiles)
@@ -1063,6 +1177,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     isStaged: true,
                     hasUnstagedEdit: file['unstaged'] == true,
                   ),
+                for (final row in leavingStaged) departingEntry(row),
               ]),
       _GitEntry(
         key: 'h:unstaged',
@@ -1091,11 +1206,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         ),
       ),
       if (isUnstagedExpanded)
-        ...(unstagedFiles.isEmpty
+        ...(unstagedFiles.isEmpty && leavingUnstaged.isEmpty
             ? [_GitEntry.note('unstaged', strings.noUnstagedChanges)]
             : [
                 for (final file in unstagedFiles)
                   fileEntry(file, isStaged: false, hasUnstagedEdit: true),
+                for (final row in leavingUnstaged) departingEntry(row),
               ]),
     ];
 
@@ -1632,6 +1748,137 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A row that left one group for the other in the last status refresh.
+class _DepartingRow {
+  const _DepartingRow({
+    required this.id,
+    required this.isStaged,
+    required this.file,
+    required this.hasUnstagedEdit,
+  });
+
+  final int id;
+  final bool isStaged;
+  final Map<String, dynamic> file;
+  final bool hasUnstagedEdit;
+}
+
+/// Fades a row in and rises it 4 px into its group: opacity 0 to 1 and y +4
+/// to 0 over `FrameMotion.small` (Spec F). Only rows that just arrived pass
+/// [animate]; every other row mounts at rest.
+class _RowTravelEnter extends StatefulWidget {
+  const _RowTravelEnter({
+    super.key,
+    required this.animate,
+    required this.child,
+  });
+
+  final bool animate;
+  final Widget child;
+
+  @override
+  State<_RowTravelEnter> createState() => _RowTravelEnterState();
+}
+
+class _RowTravelEnterState extends State<_RowTravelEnter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: FrameMotion.small,
+      value: widget.animate ? 0 : 1,
+    );
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: FrameMotion.enterCurve,
+    );
+    if (widget.animate) _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      child: widget.child,
+      builder: (context, child) => Opacity(
+        opacity: _curve.value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - _curve.value) * FrameSpace.x1),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Fades a row out and lifts it 4 px while it leaves its group: opacity 1 to 0
+/// and y 0 to -4 over `FrameMotion.smallExit` (Spec F). [onDone] runs when the
+/// fade ends, so the row can be dropped from the list.
+class _RowTravelLeave extends StatefulWidget {
+  const _RowTravelLeave({required this.onDone, required this.child});
+
+  final VoidCallback onDone;
+  final Widget child;
+
+  @override
+  State<_RowTravelLeave> createState() => _RowTravelLeaveState();
+}
+
+class _RowTravelLeaveState extends State<_RowTravelLeave>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(vsync: this, duration: FrameMotion.smallExit)
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed) widget.onDone();
+          });
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: FrameMotion.enterCurve,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      child: widget.child,
+      builder: (context, child) => Opacity(
+        opacity: 1 - _curve.value,
+        child: Transform.translate(
+          offset: Offset(0, -FrameSpace.x1 * _curve.value),
+          child: child,
+        ),
       ),
     );
   }
