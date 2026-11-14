@@ -4,6 +4,15 @@ import 'language_settings.dart';
 
 extension SettingsStrings on AppStrings {
   // ---------------------------------------------------------------------------
+  // Settings: Agenti
+  // ---------------------------------------------------------------------------
+  String get agentsOpenPackagesBtn =>
+      isItalian ? 'Apri Pacchetti' : 'Open Packages';
+  /// Shown in a model select that has no saved default: Pi picks its own.
+  String get agentsPiDefaultLabel =>
+      isItalian ? 'Predefinito di Pi' : 'Pi default';
+
+  // ---------------------------------------------------------------------------
   // Settings View: General & Daemon & Packages
   // ---------------------------------------------------------------------------
   String get daemonRestartSuccess =>
