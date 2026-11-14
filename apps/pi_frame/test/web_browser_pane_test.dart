@@ -396,7 +396,7 @@ void main() {
         find.text('final countProvider = StateProvider((ref) => 0);'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Invia al Chat Composer'), findsWidgets);
+      expect(find.byTooltip('Invia al chat composer'), findsWidgets);
     });
 
     testWidgets('Clicking "Invia a Chat Composer" updates composerDraftProvider', (tester) async {

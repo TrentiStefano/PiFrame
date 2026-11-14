@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +47,33 @@ import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
 import '../data/window/window_state_service.dart';
 import '../data/layout/layout_store.dart';
+import '../domain/session/session_labels.dart';
+
+/// Minimum width of a companion pane (repository, git or browser). Narrower, and
+/// the companion collapses to its tab (audit R2 / plan task 1.2f).
+const double kCompanionMinWidth = 320;
+
+/// Companion panes whose share of [availableWidth] would be narrower than
+/// [kCompanionMinWidth]. Only applies while another pane stays open, so the last
+/// visible pane is never hidden. The chat pane is never a companion.
+Set<WorkspacePane> narrowCompanionPanes({
+  required List<WorkspacePane> panes,
+  required Set<WorkspacePane> collapsed,
+  required Map<WorkspacePane, int> weights,
+  required double availableWidth,
+  double minWidth = kCompanionMinWidth,
+}) {
+  final open = panes.where((p) => !collapsed.contains(p)).toList();
+  if (open.length < 2) return <WorkspacePane>{};
+  final totalWeight = open.fold<int>(0, (sum, p) => sum + (weights[p] ?? 1));
+  if (totalWeight <= 0) return <WorkspacePane>{};
+  return {
+    for (final p in open)
+      if (p != WorkspacePane.chat &&
+          availableWidth * (weights[p] ?? 1) / totalWeight < minWidth)
+        p,
+  };
+}
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -80,6 +108,14 @@ class _AppShellState extends ConsumerState<AppShell>
   };
   bool _sidebarCollapsed = false;
   Widget? _chatSidecar;
+  String? _chatSidecarSessionId;
+  // Width of the last pane row, used to size a restored companion (task 1.2f).
+  double _rowWidth = 0;
+  static const _defaultSidebarWidth = 280.0;
+  static const _minimumSidebarWidth = 220.0;
+  static const _maximumSidebarWidth = 560.0;
+  static const _sidebarDividerWidth = 8.0;
+  double _sidebarWidth = _defaultSidebarWidth;
   bool? _preReviewSidebarCollapsed;
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
@@ -130,6 +166,7 @@ class _AppShellState extends ConsumerState<AppShell>
         for (final pane in WorkspacePane.values) pane.name: _paneVisibility[pane] ?? true,
       },
       'sidebarCollapsed': _sidebarCollapsed,
+      'sidebarWidth': _sidebarWidth,
     });
   }
 
@@ -147,6 +184,12 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     if (saved['sidebarCollapsed'] is bool) {
       _sidebarCollapsed = saved['sidebarCollapsed'] as bool;
+    }
+    final sidebarWidth = saved['sidebarWidth'];
+    if (sidebarWidth is num && sidebarWidth.isFinite) {
+      _sidebarWidth = sidebarWidth
+          .clamp(_minimumSidebarWidth, _maximumSidebarWidth)
+          .toDouble();
     }
     if (!_paneVisibility.containsValue(true)) {
       _paneVisibility[WorkspacePane.chat] = true;
@@ -306,6 +349,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final connected = connection == DaemonConnectionState.connected;
     final width = MediaQuery.sizeOf(context).width;
     final showSessionRail = width >= 1560;
+    final bannerInRail = showSessionRail && !_sidebarCollapsed && !settings;
     final nativeChrome = ref.watch(desktopChromeProvider);
     Widget workArea() => activeId == null
         ? _welcome(tokens, !showSessionRail, connected)
@@ -326,9 +370,13 @@ class _AppShellState extends ConsumerState<AppShell>
                         top: 0,
                         right: 0,
                         bottom: 0,
-                        child: SidePanel(
-                          key: ValueKey('side_panel_$activeId'),
-                          sessionId: activeId,
+                        child: FrameEnter(
+                          horizontal: true,
+                          offset: 24,
+                          child: SidePanel(
+                            key: ValueKey('side_panel_$activeId'),
+                            sessionId: activeId,
+                          ),
                         ),
                       ),
                     ],
@@ -369,10 +417,9 @@ class _AppShellState extends ConsumerState<AppShell>
         key: _scaffoldKey,
         backgroundColor: tokens.background,
         drawer: Drawer(
-          width: 280,
-          child: SessionsSidebar(
-            onSessionSelected: () => _scaffoldKey.currentState?.closeDrawer(),
-          ),
+          width: _effectiveSidebarWidth(width, inDrawer: true) +
+              _sidebarDividerWidth,
+          child: _sessionsSidebar(width, inDrawer: true),
         ),
         endDrawer: activeId == null
             ? null
@@ -567,6 +614,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               ),
                         ),
                         IconButton(
+                          key: const ValueKey('shell-settings-button'),
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           constraints: const BoxConstraints(
@@ -666,6 +714,9 @@ class _AppShellState extends ConsumerState<AppShell>
                         ],
                       ),
                     ),
+                  // Full-width notice under the title bar when the sessions
+                  // rail is not showing; the rail hosts it otherwise.
+                  if (!bannerInRail) const StartupUpdateBanner(),
                   Expanded(
                     child: settings
                         ? SettingsView(
@@ -680,17 +731,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               if (showSessionRail)
                                 _sidebarCollapsed
                                     ? _collapsedSidebarStrip(tokens)
-                                    : _bentoPane(
-                                        SizedBox(
-                                          width: 280,
-                                          child: SessionsSidebar(
-                                            onCollapse: () {
-                                              setState(() => _sidebarCollapsed = true);
-                                              _persistLayout();
-                                            },
-                                          ),
-                                        ),
-                                      ),
+                                    : _sessionsSidebar(width),
                               Expanded(
                                 child: activeId == null
                                     ? RepaintBoundary(child: workArea())
@@ -702,7 +743,6 @@ class _AppShellState extends ConsumerState<AppShell>
                 ],
               ),
             ),
-            const StartupUpdateBanner(),
           ],
         ),
       ),
@@ -710,6 +750,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    _chatSidecarSessionId = width < 900 ? null : sessionId;
     _chatSidecar = width < 900
         ? null
         : AgentActivitySidecar(
@@ -860,10 +901,14 @@ class _AppShellState extends ConsumerState<AppShell>
   /// Chat keeps the Agents/Workflows column as a sibling card on its right.
   Widget _paneCard(WorkspacePane pane, Widget child) {
     final sidecar = _chatSidecar;
-    if (pane != WorkspacePane.chat || sidecar == null) return _bentoPane(child);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [Expanded(child: _bentoPane(child)), sidecar],
+    final sessionId = _chatSidecarSessionId;
+    if (pane != WorkspacePane.chat || sidecar == null || sessionId == null) {
+      return _bentoPane(child);
+    }
+    return AgentSidecarLayout(
+      sessionId: sessionId,
+      chat: _bentoPane(child),
+      sidecar: sidecar,
     );
   }
 
@@ -923,6 +968,13 @@ class _AppShellState extends ConsumerState<AppShell>
     });
   }
 
+  /// Expands a pane from its strip. A companion the layout collapsed only for being
+  /// narrower than kCompanionMinWidth is not in _collapsedPanes, so it is added first.
+  void _expandStripPane(WorkspacePane pane) {
+    _collapsedPanes.add(pane);
+    _expandPane(pane);
+  }
+
   void _expandPane(WorkspacePane pane) {
     if (!_collapsedPanes.contains(pane)) return;
     setState(() {
@@ -932,7 +984,15 @@ class _AppShellState extends ConsumerState<AppShell>
           .where((p) => p != pane && !_collapsedPanes.contains(p))
           .toList();
 
-      final restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
+      var restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
+      // Restoring must not hand the pane a share narrower than the companion
+      // minimum, or the layout would collapse it again straight away.
+      if (_rowWidth > 0) {
+        final minWeight = (kCompanionMinWidth * 100 / _rowWidth * 1.05)
+            .clamp(15.0, 60.0)
+            .toDouble();
+        if (restoreWeight < minWeight) restoreWeight = minWeight;
+      }
       _paneWeights[pane] = restoreWeight;
 
       if (openOthers.isNotEmpty) {
@@ -987,7 +1047,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
                 icon: Icon(expandIcon, size: 18, color: tokens.accent),
-                onPressed: () => _expandPane(pane),
+                onPressed: () => _expandStripPane(pane),
               ),
               const SizedBox(height: 6),
               Icon(iconData, size: 15, color: tokens.textMuted),
@@ -1013,6 +1073,136 @@ class _AppShellState extends ConsumerState<AppShell>
           ),
         ),
       ),
+    );
+  }
+
+  double _effectiveSidebarWidth(double windowWidth, {bool inDrawer = false}) {
+    return _clampSidebarWidth(_sidebarWidth, windowWidth, inDrawer: inDrawer);
+  }
+
+  double _clampSidebarWidth(
+    double value,
+    double windowWidth, {
+    bool inDrawer = false,
+  }) {
+    final maximum = inDrawer
+        ? (windowWidth - 32).clamp(0.0, _maximumSidebarWidth).toDouble()
+        : _maximumSidebarWidth;
+    final minimum = maximum < _minimumSidebarWidth
+        ? maximum
+        : _minimumSidebarWidth;
+    return value.clamp(minimum, maximum).toDouble();
+  }
+
+  void _resizeSidebar(
+    double delta,
+    double windowWidth, {
+    required bool inDrawer,
+  }) {
+    final current = _effectiveSidebarWidth(windowWidth, inDrawer: inDrawer);
+    setState(() {
+      _sidebarWidth = _clampSidebarWidth(
+        current + delta,
+        windowWidth,
+        inDrawer: inDrawer,
+      );
+    });
+  }
+
+  void _finishSidebarResize() {
+    ref.read(paneDraggingProvider.notifier).state = false;
+    _persistLayout();
+  }
+
+  Widget _sessionsSidebar(double windowWidth, {bool inDrawer = false}) {
+    final sidebarWidth = _effectiveSidebarWidth(
+      windowWidth,
+      inDrawer: inDrawer,
+    );
+    final increasedWidth = _clampSidebarWidth(
+      sidebarWidth + 20,
+      windowWidth,
+      inDrawer: inDrawer,
+    );
+    final decreasedWidth = _clampSidebarWidth(
+      sidebarWidth - 20,
+      windowWidth,
+      inDrawer: inDrawer,
+    );
+    final sidebar = SizedBox(
+      key: const ValueKey('sessions-sidebar-pane'),
+      width: sidebarWidth,
+      child: Column(
+        children: [
+          if (!inDrawer) const StartupUpdateBanner(inRail: true),
+          Expanded(
+            child: SessionsSidebar(
+              onSessionSelected: inDrawer
+                  ? () => _scaffoldKey.currentState?.closeDrawer()
+                  : null,
+              onCollapse: inDrawer
+                  ? null
+                  : () {
+                      setState(() => _sidebarCollapsed = true);
+                      _persistLayout();
+                    },
+            ),
+          ),
+        ],
+      ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        inDrawer ? sidebar : _bentoPane(sidebar),
+        MouseRegion(
+          key: const ValueKey('sessions-sidebar-divider'),
+          cursor: SystemMouseCursors.resizeLeftRight,
+          child: Semantics(
+            label: 'Larghezza barra sessioni',
+            value: '${sidebarWidth.round()} pixel',
+            increasedValue: '${increasedWidth.round()} pixel',
+            decreasedValue: '${decreasedWidth.round()} pixel',
+            onIncrease: increasedWidth > sidebarWidth
+                ? () {
+                    _resizeSidebar(20, windowWidth, inDrawer: inDrawer);
+                    _persistLayout();
+                  }
+                : null,
+            onDecrease: decreasedWidth < sidebarWidth
+                ? () {
+                    _resizeSidebar(-20, windowWidth, inDrawer: inDrawer);
+                    _persistLayout();
+                  }
+                : null,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragStart: (_) =>
+                  ref.read(paneDraggingProvider.notifier).state = true,
+              onHorizontalDragUpdate: (details) => _resizeSidebar(
+                details.delta.dx,
+                windowWidth,
+                inDrawer: inDrawer,
+              ),
+              onHorizontalDragEnd: (_) => _finishSidebarResize(),
+              onHorizontalDragCancel: _finishSidebarResize,
+              child: Tooltip(
+                message: 'Trascina per ridimensionare la barra sessioni',
+                child: SizedBox(
+                  width: _sidebarDividerWidth,
+                  child: Center(
+                    child: Container(
+                      width: 1,
+                      height: 40,
+                      color: context.tokens.borderStrong,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1085,19 +1275,33 @@ class _AppShellState extends ConsumerState<AppShell>
     return LayoutBuilder(
       builder: (context, constraints) {
         const dividerWidth = 8.0;
-        final collapsedCount = panes
+        const collapsedWidth = 40.0;
+        _rowWidth = constraints.maxWidth;
+        final openWidth =
+            constraints.maxWidth - dividerWidth * (panes.length - 1);
+        final stateCollapsed = panes
             .where((p) => _collapsedPanes.contains(p))
             .length;
-        const collapsedWidth = 40.0;
+        // A companion narrower than kCompanionMinWidth collapses to its tab.
+        final narrow = narrowCompanionPanes(
+          panes: panes,
+          collapsed: _collapsedPanes,
+          weights: {
+            for (final p in panes)
+              p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt(),
+          },
+          availableWidth: openWidth - collapsedWidth * stateCollapsed,
+        );
+        bool isCollapsed(WorkspacePane p) =>
+            _collapsedPanes.contains(p) || narrow.contains(p);
+        final collapsedCount = panes.where(isCollapsed).length;
         final availableWidth =
-            constraints.maxWidth -
-            dividerWidth * (panes.length - 1) -
-            (collapsedWidth * collapsedCount);
+            openWidth - (collapsedWidth * collapsedCount);
 
         return Row(
           children: [
             for (var index = 0; index < panes.length; index++) ...[
-              if (_collapsedPanes.contains(panes[index]))
+              if (isCollapsed(panes[index]))
                 _collapsedPaneStrip(panes[index])
               else
                 Expanded(
@@ -1105,7 +1309,10 @@ class _AppShellState extends ConsumerState<AppShell>
                       .round()
                       .clamp(1, 100)
                       .toInt(),
-                  child: _paneCard(panes[index], contents[panes[index]]!),
+                  child: FrameEnter(
+                    key: ValueKey('pane-enter-${panes[index]}'),
+                    child: _paneCard(panes[index], contents[panes[index]]!),
+                  ),
                 ),
               if (index < panes.length - 1)
                 MouseRegion(
@@ -1298,8 +1505,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   String _sessionFolder(Map<String, dynamic> session) {
-    final gitRoot = (session['gitRoot'] ?? '').toString().trim();
-    return gitRoot.isNotEmpty ? gitRoot : (session['cwd'] ?? '').toString();
+    return sessionFolder(session);
   }
 
   int _sessionTimestamp(Map<String, dynamic> s) {
@@ -1374,7 +1580,8 @@ class _AppShellState extends ConsumerState<AppShell>
     Map<String, dynamic> session,
   ) {
     final id = (session['id'] ?? '').toString();
-    final name = (session['name'] ?? id).toString();
+    final name = ref.watch(sessionDisplayNamesProvider)[id] ??
+        (session['name'] ?? id).toString();
     final folder = _sessionFolder(session);
     final folderDisplay = folder.isNotEmpty ? folder : strings.noFolderDisplay;
 
@@ -1509,6 +1716,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 children: [
                   PressFeedback(
                     child: FilledButton.icon(
+                      key: const ValueKey('new-session-button'),
                       onPressed: connected && !_creating ? _create : null,
                       icon: const Icon(Icons.add, size: 18),
                       label: Text(

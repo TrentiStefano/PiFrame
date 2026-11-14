@@ -384,13 +384,13 @@ class _McpServersDialogState extends State<McpServersDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: tokens.syntaxFunction.withValues(alpha: 0.15),
+                      color: tokens.surfaceElevated,
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
                     child: Icon(
                       Icons.hub_outlined,
                       size: 20,
-                      color: tokens.syntaxFunction,
+                      color: tokens.textSecondary,
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -15,6 +16,20 @@ import '../composer/composer_draft.dart';
 import '../workspace/repository_workspace.dart';
 import 'browser_controller.dart';
 import 'browser_models.dart';
+
+/// Companion width below which header and toolbar actions move into
+/// overflow menus so the single toolbar row always fits (audit P1-4).
+const double kCompactCompanionWidth = 360;
+
+/// Actions that move into the overflow menus on narrow companions.
+enum _BrowserMenuAction {
+  devTools,
+  sendToChat,
+  copyUrl,
+  openExternal,
+  home,
+  bookmark,
+}
 
 class WebBrowserPane extends ConsumerStatefulWidget {
   final String sessionId;
@@ -325,7 +340,6 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
           _buildHeader(tokens),
           _buildTabBar(tokens, browserState),
           _buildOmniboxBar(tokens, browserState, activeTab),
-          _buildBookmarksBar(tokens, browserState),
           if (activeTab.isLoading)
             LinearProgressIndicator(
               minHeight: 2,
@@ -342,116 +356,169 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Widget _buildHeader(FrameTokens tokens) {
     final strings = _getStrings();
-    return Container(
-      height: 40,
-      margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(color: tokens.borderStrong),
-      ),
-      child: Row(
-        children: [
-          // Segmented Switcher: [ Git Changes ] [ Web Browser ]
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border.all(color: tokens.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildSegmentButton(
-                  key: const ValueKey('right-pane-switch-git-chip'),
-                  label: 'Git Changes',
-                  icon: Icons.source_outlined,
-                  isSelected: false,
-                  tokens: tokens,
-                  onTap: () {
-                    _winController?.setVisibility(false);
-                    ref.read(rightPaneModeProvider.notifier).state =
-                        RightPaneMode.git;
-                  },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < kCompactCompanionWidth;
+        return Container(
+          height: 40,
+          margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            border: Border.all(color: tokens.borderStrong),
+          ),
+          child: Row(
+            children: [
+              // Segmented Switcher: [ Git Changes ] [ Web Browser ]
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: tokens.surface,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: _buildSegmentButton(
+                          key: const ValueKey('right-pane-switch-git-chip'),
+                          label: 'Git Changes',
+                          icon: Icons.source_outlined,
+                          isSelected: false,
+                          tokens: tokens,
+                          onTap: () {
+                            _winController?.setVisibility(false);
+                            ref.read(rightPaneModeProvider.notifier).state =
+                                RightPaneMode.git;
+                          },
+                        ),
+                      ),
+                      Flexible(
+                        child: _buildSegmentButton(
+                          key: const ValueKey('right-pane-switch-browser-chip'),
+                          label: 'Web Browser',
+                          icon: Icons.language,
+                          isSelected: true,
+                          tokens: tokens,
+                          onTap: () {},
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                _buildSegmentButton(
-                  key: const ValueKey('right-pane-switch-browser-chip'),
-                  label: 'Web Browser',
-                  icon: Icons.language,
-                  isSelected: true,
-                  tokens: tokens,
-                  onTap: () {},
+              ),
+              const Spacer(),
+              // Action buttons: inline when wide, in one overflow menu when narrow.
+              if (compact)
+                PopupMenuButton<_BrowserMenuAction>(
+                  key: const ValueKey('browser-companion-overflow-btn'),
+                  tooltip: strings.browserMoreActionsTooltip,
+                  padding: EdgeInsets.zero,
+                  onSelected: _onBrowserMenuAction,
+                  itemBuilder: (context) => [
+                    if (_isNativeWebViewSupported)
+                      _browserMenuItem(
+                        key: const ValueKey('browser-menu-devtools'),
+                        value: _BrowserMenuAction.devTools,
+                        icon: Icons.developer_mode,
+                        label: strings.openChromiumDevToolsTooltip,
+                        tokens: tokens,
+                      ),
+                    _browserMenuItem(
+                      key: const ValueKey('browser-menu-send-to-chat'),
+                      value: _BrowserMenuAction.sendToChat,
+                      icon: Icons.chat_bubble_outline,
+                      label: strings.sendToChatComposerTooltip,
+                      tokens: tokens,
+                    ),
+                    _browserMenuItem(
+                      key: const ValueKey('browser-menu-copy-url'),
+                      value: _BrowserMenuAction.copyUrl,
+                      icon: Icons.copy_outlined,
+                      label: strings.copyUrlTooltip,
+                      tokens: tokens,
+                    ),
+                    _browserMenuItem(
+                      key: const ValueKey('browser-menu-open-external'),
+                      value: _BrowserMenuAction.openExternal,
+                      icon: Icons.open_in_new,
+                      label: strings.openInSystemBrowserTooltip,
+                      tokens: tokens,
+                    ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.more_horiz,
+                      size: 16,
+                      color: tokens.textMuted,
+                    ),
+                  ),
+                )
+              else ...[
+                if (_isNativeWebViewSupported)
+                  IconButton(
+                    key: const ValueKey('browser-devtools-btn'),
+                    tooltip: strings.openChromiumDevToolsTooltip,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    onPressed: _openDevTools,
+                    icon: const Icon(Icons.developer_mode, size: 15),
+                  ),
+                IconButton(
+                  key: const ValueKey('browser-send-to-chat-btn'),
+                  tooltip: strings.sendToChatComposerTooltip,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: _sendActiveTabToComposer,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 15),
+                ),
+                IconButton(
+                  key: const ValueKey('browser-copy-url-btn'),
+                  tooltip: strings.copyUrlTooltip,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: _copyActiveUrl,
+                  icon: const Icon(Icons.copy_outlined, size: 15),
+                ),
+                IconButton(
+                  key: const ValueKey('browser-open-external-btn'),
+                  tooltip: strings.openInSystemBrowserTooltip,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: _openActiveExternal,
+                  icon: const Icon(Icons.open_in_new, size: 15),
                 ),
               ],
-            ),
+              if (widget.onCollapse != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const ValueKey('browser-collapse-btn'),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(),
+                  tooltip: strings.collapseBrowserPanelTooltip,
+                  onPressed: () {
+                    _winController?.setVisibility(false);
+                    widget.onCollapse?.call();
+                  },
+                  icon: const Icon(Icons.chevron_right, size: 18),
+                ),
+              ],
+            ],
           ),
-          const Spacer(),
-          // Action Buttons
-          if (_isNativeWebViewSupported)
-            IconButton(
-              key: const ValueKey('browser-devtools-btn'),
-              tooltip: strings.openChromiumDevToolsTooltip,
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-              onPressed: () => _winController?.openDevTools(),
-              icon: const Icon(Icons.developer_mode, size: 15),
-            ),
-          IconButton(
-            key: const ValueKey('browser-send-to-chat-btn'),
-            tooltip: strings.sendToChatComposerTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () => _sendToComposer(
-              ref.read(webBrowserProvider).activeTab,
-            ),
-            icon: const Icon(Icons.chat_bubble_outline, size: 15),
-          ),
-          IconButton(
-            key: const ValueKey('browser-copy-url-btn'),
-            tooltip: strings.copyUrlTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () => _copyUrl(
-              ref.read(webBrowserProvider).activeTab.url,
-            ),
-            icon: const Icon(Icons.copy_outlined, size: 15),
-          ),
-          IconButton(
-            key: const ValueKey('browser-open-external-btn'),
-            tooltip: strings.openInSystemBrowserTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () {
-              final url = ref.read(webBrowserProvider).activeTab.url;
-              if (url != 'about:home') _openExternal(url);
-            },
-            icon: const Icon(Icons.open_in_new, size: 15),
-          ),
-          if (widget.onCollapse != null) ...[
-            const SizedBox(width: 4),
-            IconButton(
-              key: const ValueKey('browser-collapse-btn'),
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(),
-              tooltip: strings.collapseBrowserPanelTooltip,
-              onPressed: () {
-                _winController?.setVisibility(false);
-                widget.onCollapse?.call();
-              },
-              icon: const Icon(Icons.chevron_right, size: 18),
-            ),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
+
 
   Widget _buildSegmentButton({
     required Key key,
@@ -486,12 +553,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               color: isSelected ? tokens.accent : tokens.textMuted,
             ),
             const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? tokens.displayText : tokens.textMuted,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? tokens.displayText : tokens.textMuted,
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
           ],
@@ -612,255 +683,340 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     final notifier = ref.read(webBrowserProvider.notifier);
     final isBookmarked = browserState.isBookmarked(activeTab.url);
 
-    return Container(
-      height: 38,
-      margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-      child: Row(
-        children: [
-          IconButton(
-            key: const ValueKey('browser-back-btn'),
-            tooltip: strings.browserBackTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: activeTab.canGoBack
-                ? () async {
-                    if (_isNativeWebViewSupported &&
-                        _winController != null &&
-                        await _winController!.canGoBack()) {
-                      await _winController!.goBack();
-                    }
-                    ref.read(webBrowserProvider.notifier).goBack();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < kCompactCompanionWidth;
+        return Container(
+          height: 38,
+          margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          child: Row(
+            children: [
+              IconButton(
+                key: const ValueKey('browser-back-btn'),
+                tooltip: strings.browserBackTooltip,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                onPressed: activeTab.canGoBack
+                    ? () async {
+                        if (_isNativeWebViewSupported &&
+                            _winController != null &&
+                            await _winController!.canGoBack()) {
+                          await _winController!.goBack();
+                        }
+                        ref.read(webBrowserProvider.notifier).goBack();
+                      }
+                    : null,
+                icon: const Icon(Icons.arrow_back, size: 16),
+              ),
+              IconButton(
+                key: const ValueKey('browser-forward-btn'),
+                tooltip: strings.browserForwardTooltip,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                onPressed: activeTab.canGoForward
+                    ? () async {
+                        if (_isNativeWebViewSupported &&
+                            _winController != null &&
+                            await _winController!.canGoForward()) {
+                          await _winController!.goForward();
+                        }
+                        ref.read(webBrowserProvider.notifier).goForward();
+                      }
+                    : null,
+                icon: const Icon(Icons.arrow_forward, size: 16),
+              ),
+              IconButton(
+                key: const ValueKey('browser-reload-btn'),
+                tooltip: strings.browserReloadTooltip,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                onPressed: () async {
+                  if (_isNativeWebViewSupported &&
+                      _winController != null &&
+                      !activeTab.isHome) {
+                    await _winController!.reload();
                   }
-                : null,
-            icon: const Icon(Icons.arrow_back, size: 16),
-          ),
-          IconButton(
-            key: const ValueKey('browser-forward-btn'),
-            tooltip: strings.browserForwardTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: activeTab.canGoForward
-                ? () async {
-                    if (_isNativeWebViewSupported &&
-                        _winController != null &&
-                        await _winController!.canGoForward()) {
-                      await _winController!.goForward();
-                    }
-                    ref.read(webBrowserProvider.notifier).goForward();
-                  }
-                : null,
-            icon: const Icon(Icons.arrow_forward, size: 16),
-          ),
-          IconButton(
-            key: const ValueKey('browser-reload-btn'),
-            tooltip: strings.browserReloadTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () async {
-              if (_isNativeWebViewSupported &&
-                  _winController != null &&
-                  !activeTab.isHome) {
-                await _winController!.reload();
-              }
-              ref.read(webBrowserProvider.notifier).reload();
-            },
-            icon: const Icon(Icons.refresh, size: 16),
-          ),
-          IconButton(
-            key: const ValueKey('browser-home-btn'),
-            tooltip: strings.browserHomeTooltip,
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-            onPressed: () async {
-              if (_isNativeWebViewSupported && _winController != null) {
-                await _winController!.setVisibility(false);
-              }
-              ref.read(webBrowserProvider.notifier).goHome();
-            },
-            icon: const Icon(Icons.home_outlined, size: 16),
-          ),
-          const SizedBox(width: 4),
-          // Omnibox Input
-          Expanded(
-            child: Container(
-              height: 30,
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(
-                  color: _urlFocusNode.hasFocus
-                      ? tokens.accent
-                      : tokens.borderStrong,
+                  ref.read(webBrowserProvider.notifier).reload();
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+              ),
+              if (!compact)
+                IconButton(
+                  key: const ValueKey('browser-home-btn'),
+                  tooltip: strings.browserHomeTooltip,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: _goHome,
+                  icon: const Icon(Icons.home_outlined, size: 16),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      activeTab.url.startsWith('https://')
-                          ? Icons.lock_outline
-                          : Icons.search,
-                      size: 13,
-                      color: activeTab.url.startsWith('https://')
+              const SizedBox(width: 4),
+              // Omnibox Input
+              Expanded(
+                child: Container(
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(
+                      color: _urlFocusNode.hasFocus
                           ? tokens.accent
-                          : tokens.textMuted,
+                          : tokens.borderStrong,
                     ),
                   ),
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey('browser-omnibox-input'),
-                      controller: _urlController,
-                      focusNode: _urlFocusNode,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: tokens.textPrimary,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 7),
-                        hintText: strings.browserOmniboxHint,
-                        hintStyle: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: 11,
-                        ),
-                        border: InputBorder.none,
-                      ),
-                      onSubmitted: (_) => _submitUrl(),
-                    ),
-                  ),
-                  if (_urlController.text.isNotEmpty)
-                    IconButton(
-                      tooltip: strings.browserClearTooltip,
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                      onPressed: () {
-                        _urlController.clear();
-                        setState(() {});
-                      },
-                      icon: const Icon(Icons.close, size: 12),
-                    ),
-                  IconButton(
-                    key: const ValueKey('browser-bookmark-btn'),
-                    tooltip: isBookmarked
-                        ? strings.removeBookmarkTooltip
-                        : strings.addBookmarkTooltip,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: activeTab.isHome
-                        ? null
-                        : () => notifier.toggleBookmark(
-                              activeTab.url,
-                              activeTab.title,
-                            ),
-                    icon: Icon(
-                      isBookmarked ? Icons.star : Icons.star_border,
-                      size: 14,
-                      color: isBookmarked ? tokens.warning : tokens.textMuted,
-                    ),
-                  ),
-                  IconButton(
-                    key: const ValueKey('browser-go-btn'),
-                    tooltip: strings.browserGoTooltip,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    onPressed: _submitUrl,
-                    icon: const Icon(Icons.arrow_forward_ios, size: 11),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          // Search Engine Picker
-          PopupMenuButton<SearchEngine>(
-            key: const ValueKey('browser-engine-picker'),
-            tooltip: strings.browserSearchEngineTooltip(browserState.searchEngine.label),
-            initialValue: browserState.searchEngine,
-            padding: EdgeInsets.zero,
-            onSelected: (engine) => notifier.setSearchEngine(engine),
-            itemBuilder: (context) => [
-              for (final engine in SearchEngine.values)
-                PopupMenuItem(
-                  value: engine,
-                  height: 32,
                   child: Row(
                     children: [
-                      Icon(engine.icon, size: 14, color: tokens.accent),
-                      const SizedBox(width: 8),
-                      Text(
-                        engine.label,
-                        style: const TextStyle(fontSize: 12),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 4 : 6,
+                        ),
+                        child: Icon(
+                          activeTab.url.startsWith('https://')
+                              ? Icons.lock_outline
+                              : Icons.search,
+                          size: 13,
+                          color: activeTab.url.startsWith('https://')
+                              ? tokens.accent
+                              : tokens.textMuted,
+                        ),
+                      ),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey('browser-omnibox-input'),
+                          controller: _urlController,
+                          focusNode: _urlFocusNode,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: tokens.textPrimary,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 7),
+                            hintText: strings.browserOmniboxHint,
+                            hintStyle: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: 11,
+                            ),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (_) => _submitUrl(),
+                        ),
+                      ),
+                      if (_urlController.text.isNotEmpty)
+                        IconButton(
+                          tooltip: strings.browserClearTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints(minWidth: 20, minHeight: 20),
+                          onPressed: () {
+                            _urlController.clear();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.close, size: 12),
+                        ),
+                      if (!compact)
+                        IconButton(
+                          key: const ValueKey('browser-bookmark-btn'),
+                          tooltip: isBookmarked
+                              ? strings.removeBookmarkTooltip
+                              : strings.addBookmarkTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints(minWidth: 24, minHeight: 24),
+                          onPressed: activeTab.isHome
+                              ? null
+                              : () => notifier.toggleBookmark(
+                                    activeTab.url,
+                                    activeTab.title,
+                                  ),
+                          icon: Icon(
+                            isBookmarked ? Icons.star : Icons.star_border,
+                            size: 14,
+                            color: isBookmarked ? tokens.warning : tokens.textMuted,
+                          ),
+                        ),
+                      IconButton(
+                        key: const ValueKey('browser-go-btn'),
+                        tooltip: strings.browserGoTooltip,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 24, minHeight: 24),
+                        onPressed: _submitUrl,
+                        icon: const Icon(Icons.arrow_forward_ios, size: 11),
                       ),
                     ],
                   ),
                 ),
-            ],
-            child: Container(
-              height: 30,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(color: tokens.borderStrong),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    browserState.searchEngine.icon,
-                    size: 13,
-                    color: tokens.accent,
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_drop_down, size: 14, color: tokens.textMuted),
+              const SizedBox(width: 4),
+              // Search Engine Picker
+              PopupMenuButton<SearchEngine>(
+                key: const ValueKey('browser-engine-picker'),
+                tooltip: strings.browserSearchEngineTooltip(browserState.searchEngine.label),
+                initialValue: browserState.searchEngine,
+                padding: EdgeInsets.zero,
+                onSelected: (engine) => notifier.setSearchEngine(engine),
+                itemBuilder: (context) => [
+                  for (final engine in SearchEngine.values)
+                    PopupMenuItem(
+                      value: engine,
+                      height: 32,
+                      child: Row(
+                        children: [
+                          Icon(engine.icon, size: 14, color: tokens.accent),
+                          const SizedBox(width: 8),
+                          Text(
+                            engine.label,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
+                child: Container(
+                  height: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.borderStrong),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        browserState.searchEngine.icon,
+                        size: 13,
+                        color: tokens.accent,
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_drop_down, size: 14, color: tokens.textMuted),
+                    ],
+                  ),
+                ),
               ),
-            ),
+              // Narrow companions move home and bookmark into this menu.
+              if (compact) ...[
+                const SizedBox(width: 4),
+                PopupMenuButton<_BrowserMenuAction>(
+                  key: const ValueKey('browser-toolbar-overflow-btn'),
+                  tooltip: strings.browserMoreActionsTooltip,
+                  padding: EdgeInsets.zero,
+                  onSelected: _onBrowserMenuAction,
+                  itemBuilder: (context) => [
+                    _browserMenuItem(
+                      key: const ValueKey('browser-menu-home'),
+                      value: _BrowserMenuAction.home,
+                      icon: Icons.home_outlined,
+                      label: strings.browserHomeTooltip,
+                      tokens: tokens,
+                    ),
+                    _browserMenuItem(
+                      key: const ValueKey('browser-menu-bookmark'),
+                      value: _BrowserMenuAction.bookmark,
+                      icon: isBookmarked ? Icons.star : Icons.star_border,
+                      label: isBookmarked
+                          ? strings.removeBookmarkTooltip
+                          : strings.addBookmarkTooltip,
+                      tokens: tokens,
+                      enabled: !activeTab.isHome,
+                    ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.more_horiz,
+                      size: 16,
+                      color: tokens.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildBookmarksBar(FrameTokens tokens, WebBrowserState browserState) {
-    return Container(
-      height: 26,
-      margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: browserState.bookmarks.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 4),
-        itemBuilder: (context, index) {
-          final bm = browserState.bookmarks[index];
-          return ActionChip(
-            key: ValueKey('browser-bm-$index'),
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            backgroundColor: tokens.surfaceElevated,
-            side: BorderSide(color: tokens.border, width: 0.5),
-            avatar: Icon(
-              bm.icon ?? Icons.bookmark_border,
-              size: 11,
-              color: tokens.accent,
+  // --- Shared actions (used by inline buttons and overflow menus) ---
+
+  void _openDevTools() => _winController?.openDevTools();
+
+  void _sendActiveTabToComposer() =>
+      _sendToComposer(ref.read(webBrowserProvider).activeTab);
+
+  void _copyActiveUrl() => _copyUrl(ref.read(webBrowserProvider).activeTab.url);
+
+  void _openActiveExternal() {
+    final url = ref.read(webBrowserProvider).activeTab.url;
+    if (url != 'about:home') _openExternal(url);
+  }
+
+  Future<void> _goHome() async {
+    if (_isNativeWebViewSupported && _winController != null) {
+      await _winController!.setVisibility(false);
+    }
+    ref.read(webBrowserProvider.notifier).goHome();
+  }
+
+  void _toggleActiveBookmark() {
+    final tab = ref.read(webBrowserProvider).activeTab;
+    if (tab.isHome) return;
+    ref.read(webBrowserProvider.notifier).toggleBookmark(tab.url, tab.title);
+  }
+
+  void _onBrowserMenuAction(_BrowserMenuAction action) {
+    switch (action) {
+      case _BrowserMenuAction.devTools:
+        _openDevTools();
+      case _BrowserMenuAction.sendToChat:
+        _sendActiveTabToComposer();
+      case _BrowserMenuAction.copyUrl:
+        _copyActiveUrl();
+      case _BrowserMenuAction.openExternal:
+        _openActiveExternal();
+      case _BrowserMenuAction.home:
+        _goHome();
+      case _BrowserMenuAction.bookmark:
+        _toggleActiveBookmark();
+    }
+  }
+
+  PopupMenuItem<_BrowserMenuAction> _browserMenuItem({
+    required Key key,
+    required _BrowserMenuAction value,
+    required IconData icon,
+    required String label,
+    required FrameTokens tokens,
+    bool enabled = true,
+  }) {
+    return PopupMenuItem<_BrowserMenuAction>(
+      key: key,
+      value: value,
+      enabled: enabled,
+      height: 32,
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: tokens.accent),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
             ),
-            label: Text(
-              bm.title,
-              style: TextStyle(
-                fontSize: 10.5,
-                color: tokens.textPrimary,
-              ),
-            ),
-            onPressed: () => _navigateTo(bm.url),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -948,7 +1104,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               ),
               const SizedBox(height: 8),
               Text(
-                activeTab.errorMessage!,
+                describeError(activeTab.errorMessage!, strings).summary,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
               ),

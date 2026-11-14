@@ -376,9 +376,10 @@ export class SessionRegistry {
 
     // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
     const terminalOwner = await this.refreshTerminalOwnership(session);
-    session.entries = this.index.readTranscript(found.sessionFile);
+    const text = await this.index.readSessionText(found.sessionFile);
+    session.entries = this.index.readTranscript(found.sessionFile, text);
     if (found.sessionFile) {
-      const meta = this.index.extractSessionMetadata(found.sessionFile);
+      const meta = this.index.extractSessionMetadata(found.sessionFile, text);
       if (meta.usage) session.usage = meta.usage;
       if (meta.model) session.model = meta.model;
       if (meta.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;
@@ -486,9 +487,10 @@ export class SessionRegistry {
     if (session.sessionFile) {
       await this.refreshTerminalOwnership(session);
       if (session.readOnly || !session.worker) {
-        session.entries = this.index.readTranscript(session.sessionFile);
+        const text = await this.index.readSessionText(session.sessionFile);
+        session.entries = this.index.readTranscript(session.sessionFile, text);
         if (!session.usage || Object.keys(session.usage).length === 0) {
-          const meta = this.index.extractSessionMetadata(session.sessionFile);
+          const meta = this.index.extractSessionMetadata(session.sessionFile, text);
           if (meta.usage) session.usage = meta.usage;
           if (meta.model && !session.model) session.model = meta.model;
           if (meta.thinkingLevel && !session.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;

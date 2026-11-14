@@ -23,6 +23,9 @@ importers:
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
+      semver:
+        specifier: ^7.7.2
+        version: 7.8.6
       ulid:
         specifier: ^2.3.0
         version: 2.4.0
@@ -33,6 +36,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.3
+      '@types/semver':
+        specifier: ^7.7.0
+        version: 7.8.0
       '@types/ws':
         specifier: ^8.5.14
         version: 8.18.1
@@ -311,6 +317,9 @@ packages:
   '@types/node@22.20.3':
     resolution: {integrity: sha512-DZmzkmwHzXrLPAXPyKNDzlIwMMUZCVacoD25ywdy5YTKGbOx/2ld+Q38Im2zJ0vBuZP5Prd3VZutKZyXwkOS8A==}
 
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
+
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
@@ -394,6 +403,11 @@ packages:
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
+
+  semver@7.8.6:
+    resolution: {integrity: sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==}
+    engines: {node: '>=10'}
+    hasBin: true
 
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
@@ -519,6 +533,8 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/semver@7.8.0': {}
+
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 22.20.3
@@ -612,6 +628,8 @@ snapshots:
   readdirp@4.1.2: {}
 
   require-from-string@2.0.2: {}
+
+  semver@7.8.6: {}
 
   tinyglobby@0.2.17:
     dependencies:

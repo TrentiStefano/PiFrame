@@ -53,10 +53,15 @@ function getOrCreateAuthDeviceId(): string {
   }
 }
 
+const SHARED_READ_COMMANDS = new Set([
+  'workspace.refresh', 'workspace.listFiles', 'session.subagents', 'session.getStats', 'agent.getModels', 'agent.getCommands',
+]);
+
 export class Dispatcher {
   private registry: SessionRegistry;
   private connectionManager: ConnectionManager;
   private deduplicator = new CommandDeduplicator();
+  private sharedReads = new Map<string, Promise<any>>();
   private workspaceService = new WorkspaceService();
   private sessionIndex: SessionIndex;
   private piPackages: PiPackageOperations;
@@ -274,7 +279,7 @@ export class Dispatcher {
 
     // 3. Execute command
     try {
-      const data = await this.execute(conn, cmd);
+      const data = await this.executeShared(conn, cmd);
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: any) {
@@ -309,6 +314,21 @@ export class Dispatcher {
 
       this.sendResult(conn, commandId, state, undefined, payload.error);
     }
+  }
+
+  /**
+   * Identical read commands from one connection that arrive while the first is still running share its result.
+   * On startup the app asks for the same workspace status, models and subagents several times per session,
+   * and each copy spawned git or Pi requests that slowed every other command.
+   */
+  private executeShared(conn: Connection, cmd: PcpCommand): Promise<any> {
+    if (!SHARED_READ_COMMANDS.has(cmd.type) || !cmd.sessionId) return this.execute(conn, cmd);
+    const key = `${conn.id}|${cmd.type}|${cmd.sessionId}|${JSON.stringify(cmd.payload ?? {})}`;
+    const running = this.sharedReads.get(key);
+    if (running) return running;
+    const task = this.execute(conn, cmd).finally(() => this.sharedReads.delete(key));
+    this.sharedReads.set(key, task);
+    return task;
   }
 
   private sendAck(conn: Connection, commandId: string): void {
@@ -631,7 +651,7 @@ export class Dispatcher {
         if (conn.isRemote) {
           throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
         }
-        return { packages: await this.piPackages.list() };
+        return { packages: await this.piPackages.list(payload.checkUpdates === true) };
 
       case 'pi.packages.update':
         if (conn.isRemote) {
@@ -768,6 +788,9 @@ export class Dispatcher {
           cwd,
           name: payload.name
         });
+        // Start Pi now: its cold start takes seconds and would otherwise stall the first prompt.
+        // A prompt that arrives meanwhile joins the same start; failures resurface on that prompt.
+        void this.registry.ensureWorkerForSession(session.id).catch(() => {});
         return { session: session.getSessionMeta() };
       }
 
@@ -801,15 +824,16 @@ export class Dispatcher {
         const usage = state?.model?.piframeContextUsage;
         const window = session?.contextWindowOverride ?? physicalModel(state?.model)?.contextWindow;
         if (usage && typeof window === 'number' && window > 0) {
+          const tokens = usage.tokens ?? session?.postCompactionTokens ?? null;
           data.contextUsage = {
-            tokens: usage.tokens,
+            tokens,
             contextWindow: window,
-            percent: typeof usage.tokens === 'number' ? usage.tokens / window * 100 : null,
+            percent: typeof tokens === 'number' ? tokens / window * 100 : null,
           };
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
-          const meta = this.sessionIndex.extractSessionMetadata(sessionFile);
+          const meta = this.sessionIndex.extractSessionMetadata(sessionFile, await this.sessionIndex.readSessionText(sessionFile));
           if (meta.usage && (meta.usage as any).byModel) {
             data.byModel = (meta.usage as any).byModel;
             data.models = (meta.usage as any).models;
@@ -902,26 +926,39 @@ export class Dispatcher {
           throw err;
         }
 
+        // Pi refuses prompts while a compaction runs; deliver the message once it ends instead of failing it.
+        for (const deadline = Date.now() + 10 * 60_000; session.isCompacting && Date.now() < deadline;) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+
         const worker = await this.registry.ensureWorkerForSession(sessionId);
 
-        if (payload.streamingBehavior === 'steer') {
+        if (payload.streamingBehavior === 'steer' || payload.streamingBehavior === 'followUp') {
+          // Pi's prompt queues while its run is active and starts a run when idle. A bare steer/follow_up
+          // sent just as the run ends (e.g. during post-run compaction) would sit in the queue unanswered.
           const res = await worker.send({
-            command: 'steer',
-            arguments: { message: payload.text, images: payload.images }
-          });
-          return res.data;
-        } else if (payload.streamingBehavior === 'followUp') {
-          const res = await worker.send({
-            command: 'follow_up',
-            arguments: { message: payload.text, images: payload.images }
+            command: 'prompt',
+            arguments: { message: payload.text, images: payload.images, streamingBehavior: payload.streamingBehavior }
           });
           return res.data;
         } else {
-          const res = await worker.send({
-            command: 'prompt',
-            arguments: { message: payload.text, images: payload.images }
-          });
-          return res.data;
+          try {
+            const res = await worker.send({
+              command: 'prompt',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          } catch (error) {
+            // The daemon can see the run as idle while Pi still owns it (between agent_end and agent_settled,
+            // or during a retry). Pi then rejects a plain prompt; queue it as a follow-up instead of failing.
+            if (!/already processing/i.test(String((error as Error)?.message ?? error))) throw error;
+            session.isStreaming = true;
+            const res = await worker.send({
+              command: 'follow_up',
+              arguments: { message: payload.text, images: payload.images }
+            });
+            return res.data;
+          }
         }
       }
 
@@ -1098,16 +1135,14 @@ export class Dispatcher {
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
         const selectedModel = physicalModel(res.data);
-        const nextPolicy = { ...previousPolicy };
+        const modelChanged = previousModel?.provider !== selectedModel?.provider || previousModel?.id !== selectedModel?.id;
+        // A context limit is chosen for one model: a different model starts from its own full window.
+        // Carrying it over left e.g. Opus capped at Haiku's 100k and compacting in a loop.
+        const nextPolicy = { ...previousPolicy, contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride };
         try {
-          if (nextPolicy.contextWindowOverride !== null) {
-            const maximum = selectedModel?.contextWindow;
-            if (!Number.isSafeInteger(maximum) || maximum <= 0) throw new Error('Selected model context window is unavailable.');
-            nextPolicy.contextWindowOverride = Math.min(nextPolicy.contextWindowOverride, maximum);
-          }
           Object.assign(session, nextPolicy);
           let model = selectedModel;
-          if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+          if (previousPolicy.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
             model = await applyContextPolicy(worker, session);
           }
           if (nextPolicy.contextWindowOverride !== previousPolicy.contextWindowOverride) {

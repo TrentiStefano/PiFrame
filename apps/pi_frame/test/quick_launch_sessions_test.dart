@@ -25,6 +25,43 @@ class _MockPcpClient extends PcpClient {
 }
 
 void main() {
+  testWidgets('Quick Launch labels use all sessions, not only the latest five', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(null),
+          connectionStateProvider.overrideWith(
+            (ref) => Stream.value(DaemonConnectionState.connected),
+          ),
+          sessionListProvider.overrideWith(
+            (ref) async => [
+              {'id': 'one', 'name': 'PiFrame', 'cwd': '/v1/PiFrame', 'updatedAt': 100},
+              for (var i = 0; i < 4; i++)
+                {'id': 'other-$i', 'name': 'Other $i', 'updatedAt': 90 - i},
+              {'id': 'two', 'name': 'PiFrame', 'cwd': '/v2/PiFrame', 'updatedAt': 1},
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const AppShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('v1 / PiFrame'), findsOneWidget);
+    expect(find.text('v2 / PiFrame'), findsNothing);
+    expect(find.text('PiFrame'), findsNothing);
+  });
+
   testWidgets('Landing page displays top 5 recent active sessions and switches session on tap', (
     tester,
   ) async {

@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Strisce di overflow in companion, todo, card e pannello Agenti a larghezze strette
+
+**Sintomo:** con la chat stretta o il pannello Agenti aperto, la barra del browser, il pannello todo, le card delle attività, l'intestazione dell'assistente e i chip del composer mostrano strisce gialle e nere (in debug) o vengono tagliati (in release). Il chip del modello finisce sotto l'icona di espansione.
+
+**Causa:** barre e intestazioni avevano larghezze fisse o elementi non flessibili. Il pannello Agenti occupava circa 360 px e lasciava alla chat troppo poco spazio.
+
+**Correzione:** un companion (Git, file o browser) più stretto di 320 px si riduce alla propria scheda laterale, invece di comprimere la barra. Il browser stretto sposta Home e segnalibri nel menu della barra. Il pannello Agenti diventa un foglio sopra la chat quando lascerebbe la chat sotto 420 px; il foglio si ferma sopra il composer, così invio e modello restano raggiungibili. Todo, card delle attività e intestazione dell'assistente usano layout flessibili e testo che va a capo. I chip del composer riducono le etichette man mano che lo spazio diminuisce.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/overflow_widths_test.dart
+```
+
+---
+
 ## Domande con anteprime troppo alte per la finestra
 
 **Causa:** il fallback RPC di `rpiv-ask-user-question` inserisce tutte le anteprime nel titolo della richiesta. PiFrame mostrava il titolo fuori dall'area scorrevole, spingendo le risposte fuori dalla finestra.
@@ -18,6 +35,20 @@ Verifica da sorgente:
 cd apps/pi_frame
 flutter test test/extension_ui_card_test.dart test/extension_ui_test.dart
 ```
+
+---
+
+## Avviso dei pacchetti ripetuto e versioni che non avanzano
+
+**Sintomo:** all'avvio ricompare l'avviso delle estensioni; dopo un aggiornamento la pagina dichiara il successo ma può mostrare ancora la versione precedente.
+
+**Cause corrette:** il controllo iniziale confrontava le dipendenze riportate da `npm outdated` con `latest`, senza seguire le sorgenti configurate in Pi o le versioni bloccate. Gli aggiornamenti erano considerati riusciti soltanto dal codice di uscita, senza verificare i manifest installati, e non ricaricavano lo stato dell'avviso. Metadati npm in cache possono inoltre lasciare una versione precedente anche quando il comando non fallisce.
+
+**Correzione:** controllo e aggiornamento usano i pacchetti utente elencati dal daemon e risolvono la versione prevista dalla sorgente npm, rispettando intervalli, tag e pin. Le richieste npm preferiscono metadati freschi; dopo l'installazione la versione effettiva deve raggiungere quella prevista, altrimenti viene mostrato un errore con versione installata e attesa. Il riepilogo distingue pacchetti aggiornati, già aggiornati e bloccati. Dopo aggiornamenti, rimozioni e pin viene ricalcolato l'avviso. Errori di rete o del package manager non vengono trasformati in «nessun aggiornamento».
+
+**Incompatibilità di piattaforma:** un errore npm `EBADPLATFORM` può riguardare una dipendenza obbligatoria, anche quando l'estensione non dichiara restrizioni. Ad esempio `@hypabolic/pi-hypa@1.2.0` richiede `@hypabolic/hypa@1.2.0`, disponibile solo su macOS e Linux. PiFrame verifica prima l'installazione con un dry run senza script, mostra il motivo nella pagina dei pacchetti e non propone quella versione come aggiornamento installabile. Su Windows la versione `0.1.15` dell'estensione può essere installata e bloccata tramite **Blocca versione**, dopo averne verificato la compatibilità. Il blocco è esplicito: PiFrame non forza versioni incompatibili e non cambia automaticamente la sorgente configurata.
+
+Per applicare questa correzione occorrono sia l'app sia il daemon aggiornati. Un daemon già attivo continua a eseguire il codice precedente: riavvialo da **Impostazioni → Daemon** solo dopo aver terminato i worker Pi. Il codice delle estensioni aggiornate viene caricato al successivo avvio di Pi; non serve cancellare pacchetti o impostazioni.
 
 ---
 
@@ -827,3 +858,85 @@ Il terminale integrato avvia la shell tramite pipe, senza pseudo-console. I prog
 
 ### Risoluzione
 PiFrame converte ora ogni LF isolato in CRLF prima di scrivere nel terminale (stdout e stderr), anche quando un CRLF arriva diviso in due blocchi. Aggiorna PiFrame per ricevere la correzione.
+
+## Sessioni WSL: "Invio non riuscito: spawn ...\node.exe ENOENT" dopo inattività
+
+### Sintomi
+Dopo un periodo di inattività (worker fermato dopo 30 minuti, PC in standby) l'invio in una sessione con cartella `\wsl.localhost\...` falliva con `spawn C:\...\node.exe ENOENT`, anche se `node.exe` esiste. Il riavvio del daemon dalle Impostazioni non bastava.
+
+### Causa
+La cartella `\wsl.localhost\<distro>\...` è servita dalla VM di WSL. Quando la VM è ferma e il redirector non la riavvia, Windows non riesce ad aprire la cartella di lavoro del nuovo processo e Node segnala l'errore col nome dell'eseguibile invece che della cartella.
+
+### Risoluzione
+Prima di avviare un worker in una cartella WSL non raggiungibile, il daemon avvia la distro con `wsl.exe -d <distro> --exec true` e poi esegue lo spawn. Se lo spawn fallisce ancora, l'errore indica la cartella (`(cwd: ...)`). Aggiorna PiFrame per ricevere la correzione.
+
+## Steer rifiutato durante la compattazione e limite di contesto ereditato dal modello precedente
+
+### Sintomi
+- Durante "Compacting…" un messaggio inviato con Invio falliva con `Agent is streaming. Specify streamingBehavior`.
+- Dopo il cambio modello (per esempio da Haiku a Opus) restava il limite di contesto del modello precedente e la sessione si ricompattava di continuo.
+
+### Risoluzione
+- Durante la compattazione il composer invia il messaggio come steer. Il daemon passa steer e follow-up a Pi tramite `prompt` con `streamingBehavior`: Pi lo accoda se è in esecuzione o avvia un run se ha già finito.
+- Il cambio modello azzera il limite di contesto: il nuovo modello parte dalla sua finestra completa. Il limite resta modificabile solo a turno concluso.
+
+## `/reload` inviato come messaggio e messaggi rifiutati durante la compattazione
+
+### Sintomi
+- `/reload` compariva nella chat come un messaggio dell'utente e non ricaricava Pi.
+- Un messaggio inviato mentre Pi compattava falliva con `Cannot submit a prompt while compaction is in progress`.
+
+### Cause
+- Il composer riconosceva un comando solo se l'elenco dei comandi era già caricato. Inoltre `/reload` veniva inviato come prompt e creava una voce in chat.
+- Pi rifiuta i prompt durante una compattazione manuale, che è anche quella avviata dal limite di contesto di PiFrame.
+
+### Risoluzione
+- I comandi sono un chip separato dal testo e vengono eseguiti senza creare messaggi. L'elenco dei comandi si ricarica a ogni apertura del menu `/`.
+- Il daemon aspetta la fine della compattazione (al massimo 10 minuti) prima di inoltrare il messaggio a Pi.
+
+## Contesto invariato dopo la compattazione
+
+### Sintomi
+Dopo una compattazione l'indicatore del contesto mostrava ancora il valore di prima.
+
+### Causa
+Fino alla risposta successiva Pi segnala i token di contesto come sconosciuti. PiFrame non aggiornava le statistiche a fine compattazione e mostrava i token dell'ultima risposta, misurati prima della compattazione.
+
+### Risoluzione
+A fine compattazione PiFrame aggiorna le statistiche e mostra la stima di Pi (`estimatedTokensAfter`) finché non arriva il valore reale. Se la stima non è disponibile, mostra "post-compattazione" invece del valore vecchio.
+
+## Notifica di un sottoagente mostrata come XML grezzo
+
+### Sintomi
+Nella chat compariva una card `subagent-notification` con il testo `<task-notification>`, `<tool-use-id>`, `<status>` e così via, invece della card formattata della notifica.
+
+### Causa
+Il risultato del sottoagente conteneva un blocco di codice (```` ``` ````). La chat divideva il messaggio sui blocchi di codice prima di riconoscere la notifica, quindi la notifica veniva spezzata e mostrata come testo.
+
+### Risoluzione
+La chat riconosce ora le notifiche prima dei blocchi di codice. Il risultato, compreso il blocco di codice, appare nella card della notifica. Aggiorna PiFrame per ricevere la correzione.
+
+## Errore del provider prima della risposta: il messaggio resta senza risposta e senza errore
+
+### Sintomi
+Dopo l'invio di un messaggio, il messaggio compare nella chat, lo stato torna a «Completato» e non arriva nessuna risposta né alcun errore. Il messaggio non è segnalato come fallito e non c'è un pulsante «Riprova».
+
+### Causa
+Quando il provider rifiuta la richiesta (per esempio limite di frequenza, autenticazione scaduta, modello non disponibile o contesto troppo lungo), Pi chiude il turno con un messaggio assistente vuoto che riporta `stopReason: error` e `errorMessage`. PiFrame registrava il motivo solo su un messaggio assistente precedente. Se non ne esisteva uno, il motivo andava perso.
+
+### Risoluzione
+Il motivo dell'errore viene ora registrato sul messaggio dell'utente, che appare con il bordo di errore, il testo «Invio non riuscito: …» e il pulsante «Riprova invio». Se la risposta è iniziata e poi si è interrotta, il testo «Risposta interrotta da un errore: …» compare sotto il messaggio assistente. Una richiesta interrotta dall'utente non viene segnalata come errore. Aggiorna PiFrame per ricevere la correzione.
+
+## Errore con un messaggio generico: dove trovare il dettaglio tecnico
+
+### Sintomi
+
+Git, la lista dei file, la lista dei pacchetti o un'altra schermata mostra un messaggio breve come "Operazione non riuscita" o "Impossibile caricare i pacchetti", senza il testo tecnico dell'errore.
+
+### Causa
+
+PiFrame traduce gli errori tecnici interni (daemon non raggiungibile, Git non installato, permessi negati, timeout e altri) in un titolo e un suggerimento comprensibili. I messaggi che il daemon o Pi inviano per l'utente (per esempio «Model unavailable» o un limite di frequenza del provider) vengono mostrati così come arrivano. Un'eccezione interna di Dart senza un messaggio utile mostra solo il titolo generico, e il testo grezzo non compare nei messaggi a comparsa.
+
+### Risoluzione
+
+Messaggi del provider e del daemon sono visibili nella chat e nelle schermate. Per gli errori interni, apri il riquadro dell'errore e premi **Dettagli**: il testo tecnico originale è selezionabile e si può copiare nella segnalazione. Se l'errore è recuperabile, **Riprova** ripete l'operazione. Se il suggerimento indica un daemon obsoleto, esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon quando nessun worker Pi è attivo.

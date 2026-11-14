@@ -615,6 +615,7 @@ test('opening a pinned session before listing uses fast discovery', { timeout: 1
     resolveFast: async () => discovered ? row : undefined,
     scanFast: async () => { discovered = true; return { sessions: [row], needsRefresh: false }; },
     scan: async () => { scans++; return []; },
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;
@@ -636,6 +637,7 @@ test('opening a listed session resolves only that session, not the global scan',
   const index = {
     resolveFast: async (id: string) => id === row.id ? row : undefined,
     scan: async () => { scans++; return []; },
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;
@@ -662,6 +664,7 @@ test('a session opened with a provisional title receives the verified title', { 
     hasUnstableFiles: false,
     resolveFast: async () => row,
     scan: () => new Promise<SessionSummary[]>((resolve) => { finish = resolve; }),
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;
@@ -689,6 +692,7 @@ test('provisional title is reconciled even when authoritative cache revision is 
     hasUnstableFiles: false,
     resolveFast: async () => row,
     scan: async () => [{ ...row, name: 'verified', isProvisional: false }],
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;
@@ -720,6 +724,7 @@ test('a provisional title queued as a refresh finishes is not stranded', { timeo
     scan: () => ++scans === 1
       ? new Promise<SessionSummary[]>((resolve) => { finishScan = resolve; })
       : Promise.resolve([verified]),
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;
@@ -751,6 +756,7 @@ test('index refresh does not overwrite a manual rename made during loading', { t
     hasUnstableFiles: false,
     resolveFast: async () => row,
     scan: () => new Promise<SessionSummary[]>((resolve) => { finish = resolve; }),
+    readSessionText: async () => undefined,
     readTranscript: () => [],
     extractSessionMetadata: () => ({}),
   } as unknown as SessionIndex;

@@ -18,11 +18,13 @@
   "dependencies": {
     "@piframe/pcp-ts": "workspace:*",
     "chokidar": "^4.0.3",
+    "semver": "^7.7.2",
     "ulid": "^2.3.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/semver": "^7.7.0",
     "@types/ws": "^8.5.14",
     "esbuild": "^0.25.0",
     "typescript": "^5.6.0"

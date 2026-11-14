@@ -14,12 +14,15 @@ test.after(() => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-function fixture(options: { streaming?: boolean } = {}) {
+function fixture(options: { streaming?: boolean; piStillBusy?: boolean; state?: any } = {}) {
   const workerCalls: Array<{ command: string; arguments?: any }> = [];
   const session: any = { id: 's_reload', isStreaming: options.streaming ?? false, isCompacting: false, readOnly: false };
   const worker = {
     send: async (request: { command: string; arguments?: any }) => {
       workerCalls.push(request);
+      if (options.piStillBusy && request.command === 'prompt') {
+        throw new Error("Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message.");
+      }
       if (request.command === 'get_commands') {
         return { success: true, data: { commands: [
           { name: 'caveman', description: 'Caveman', source: 'extension' },
@@ -27,6 +30,7 @@ function fixture(options: { streaming?: boolean } = {}) {
         ] } };
       }
       if (request.command === 'get_state') {
+        if (options.state) return { success: true, data: options.state };
         return { success: true, data: { model: { piframeContextPolicy: { limit: null, percent: 2.5 } } } };
       }
       return { success: true, data: {} };
@@ -81,6 +85,53 @@ test('ordinary prompts still go to the model unchanged', async () => {
   const { workerCalls, run } = fixture();
   await run('agent.prompt', { text: 'please reload the config file' });
   assert.deepEqual(workerCalls.filter((call) => call.command === 'prompt').map((call) => call.arguments.message), ['please reload the config file']);
+});
+
+test('a prompt Pi rejects as already processing is queued as a follow-up instead of failing', async () => {
+  const { workerCalls, run } = fixture({ piStillBusy: true });
+  const result = await run('agent.prompt', { text: 'continua il merge' });
+  assert.equal(result.payload.state, 'completed');
+  const follow = workerCalls.filter((call) => call.command === 'follow_up');
+  assert.equal(follow.length, 1);
+  assert.equal(follow[0].arguments.message, 'continua il merge');
+});
+
+test('steer and follow-up go through Pi prompt so Pi queues or starts a run itself', async () => {
+  const { workerCalls, run } = fixture({ streaming: true });
+  await run('agent.prompt', { text: 'cambia approccio', streamingBehavior: 'steer' });
+  await run('agent.prompt', { text: 'poi committa', streamingBehavior: 'followUp' });
+  assert.deepEqual(workerCalls.map((call) => [call.command, call.arguments.message, call.arguments.streamingBehavior]), [
+    ['prompt', 'cambia approccio', 'steer'],
+    ['prompt', 'poi committa', 'followUp'],
+  ]);
+});
+
+test('a message sent during compaction waits for it to end instead of failing in Pi', async () => {
+  const { workerCalls, session, run } = fixture();
+  session.isCompacting = true;
+  let compactionEndedAt = 0;
+  setTimeout(() => { session.isCompacting = false; compactionEndedAt = Date.now(); }, 300);
+  const result = await run('agent.prompt', { text: 'aggiungi i test', streamingBehavior: 'steer' });
+  assert.equal(result.payload.state, 'completed');
+  assert.ok(compactionEndedAt > 0, 'prompt was forwarded before compaction ended');
+  assert.deepEqual(workerCalls.map((call) => call.arguments.message), ['aggiungi i test']);
+});
+
+test('switching model drops the previous model context limit instead of carrying it over', async () => {
+  const { workerCalls, session, run } = fixture();
+  Object.assign(session, { model: { provider: 'anthropic', id: 'haiku', contextWindow: 100000 }, contextWindowOverride: 100000, compactionReservePercent: 2.5 });
+  const result = await run('agent.setModel', { provider: 'anthropic', modelId: 'opus' });
+  assert.equal(result.payload.state, 'completed');
+  assert.equal(session.contextWindowOverride, null);
+  const policy = workerCalls.find((call) => call.command === 'prompt')?.arguments.message;
+  assert.equal(policy, '/piframe-context-policy {"limit":null,"percent":2.5}');
+});
+
+test('session stats show the post-compaction estimate while Pi reports context tokens as unknown', async () => {
+  const { session, run } = fixture({ state: { model: { contextWindow: 200000, piframeContextUsage: { tokens: null } } } });
+  Object.assign(session, { contextWindowOverride: null, postCompactionTokens: 50000 });
+  const result = await run('session.getStats', {});
+  assert.deepEqual(result.payload.data.contextUsage, { tokens: 50000, contextWindow: 200000, percent: 25 });
 });
 
 test('agent.getCommands returns every Pi built-in before extension commands', async () => {

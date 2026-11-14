@@ -72,6 +72,26 @@ Il pacchetto aggiunge PiFrame al menu applicazioni e include daemon e runtime No
 1. Il daemon `pi-agentd` include un server statico HTTP integrato per gli asset web di Flutter.
 2. Aprendo `http://127.0.0.1:<porta>/` da browser locale, il server imposta automaticamente un cookie `HttpOnly; SameSite=Strict` contenente il token di autenticazione PCP (`pcp_token`), consentendo l'accesso immediato senza configurazione manuale.
 
+### Sviluppo: harness UI desktop
+Per verificare l'interfaccia Flutter senza interferire con una sessione PiFrame dell'utente, usa l'harness desktop isolato: esegue l'app fuori schermo con **fake-pi**. È uno strumento solo per sviluppatori.
+
+Dalla radice del monorepo:
+
+```sh
+pnpm harness start
+pnpm harness shot <etichetta>
+pnpm harness stop
+```
+
+Per verificare ogni funzione senza un vero Pi:
+
+- `pnpm harness start --seed` crea dati di prova isolati: repository Git con modifiche, sessioni (anche una cronologia di 150 messaggi e un sottoagente nascosto), una sessione fissata e due server MCP.
+- `pnpm harness scenario <nome>` cambia il comportamento di fake-pi per il prompt successivo, senza riavvio. `pnpm harness scenarios` elenca gli scenari, per esempio `provider-error`, `edit-files` (abilita «Rivedi modifiche»), `subagents`, `todos`, `ui-question-preview`, `session-tree`.
+- fake-pi risponde anche ai comandi `pi list/install/remove/update` e `pi mcp list`, quindi le schede Pacchetti, Agenti e MCP mostrano dati realistici.
+- `pnpm harness media --text-scale 1.4 --reduce-motion on` simula scala del testo e movimento ridotto.
+
+Comandi, selettori e dettagli: [tools/harness/README.md](../tools/harness/README.md).
+
 ### Build Manuale da Sorgente (Eseguibile Standalone)
 Se compili manualmente l'eseguibile desktop da sorgenti anziché utilizzare l'installer (ad es. `flutter build windows --release`):
 1. Dalla radice del monorepo, aggiorna prima il daemon: `pnpm build:agentd` (o `pnpm build:all`). La build Windows rifiuta un bundle assente o privo dell'indice rapido e della risposta da snapshot cache.
@@ -120,9 +140,32 @@ Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<ve
 
 ---
 
+## Sessioni omonime e larghezza della barra laterale
+
+Quando sessioni o repository hanno nomi equivalenti (senza distinguere maiuscole e spazi), PiFrame aggiunge alle etichette le cartelle padre necessarie a distinguere i percorsi. Ad esempio, due cartelle `v1/PiFrame` e `v2/PiFrame` vengono mostrate come **v1 / PiFrame** e **v2 / PiFrame**; se anche il padre coincide, vengono inclusi gli antenati successivi. La distinzione resta visibile nella lista, nelle sessioni fissate, in Quick Launch, nel titolo della chat, nel selettore `/resume` e nelle notifiche. I nomi salvati e i campi di rinomina non vengono modificati; sessioni nella stessa cartella possono continuare ad avere lo stesso nome.
+
+Trascina il separatore sul bordo destro del riquadro **Sessioni** per allargarlo o stringerlo. Funziona sia nella barra laterale degli schermi ampi sia nel pannello aperto con **Apri sessioni**. La larghezza viene salvata insieme al layout in `~/.piframe/layout.json`, resta invariata quando collassi e riapri la barra e viene limitata allo spazio disponibile sugli schermi piccoli. Nel browser la scelta dura per l'apertura corrente, come le altre preferenze del layout.
+
+## Aggiornamento di tutti i pacchetti Pi
+
+In **Impostazioni → Pacchetti**, i pulsanti di aggiornamento sono abilitati solo quando è stata verificata una versione più recente installabile. **Aggiorna tutto** si abilita se almeno un pacchetto soddisfa questa condizione e aggiorna in sequenza soltanto quelli con aggiornamenti disponibili, usando il package manager Pi. Pacchetti già aggiornati, versioni bloccate, aggiornamenti incompatibili e versioni non verificate restano esclusi. Dopo la conferma viene mostrato l'avanzamento; i pulsanti di aggiornamento, rimozione e blocco versione restano disabilitati fino alla conclusione. Se un pacchetto non si aggiorna, PiFrame prosegue con gli altri e mostra il riepilogo e gli errori dei pacchetti non riusciti. La lista viene verificata all'apertura e ricaricata al termine: i pulsanti tornano disabilitati quando non rimangono aggiornamenti disponibili. Riavvia Pi per caricare il codice aggiornato. I pacchetti di progetto non vengono modificati.
+
+Il riepilogo distingue gli aggiornamenti realmente installati dai pacchetti già aggiornati e dalle versioni bloccate. Per i pacchetti npm il daemon verifica la versione sul disco rispetto alla versione prevista dalla sorgente configurata: senza versione usa `latest`, con un intervallo o un tag mantiene quel vincolo. Un comando concluso con codice zero ma una versione ancora precedente viene segnalato come errore. Aggiornamento, rimozione e blocco versione ricontrollano anche l'avviso iniziale, senza lasciare dati obsoleti. Su Windows viene riconosciuto anche il runtime standalone ufficiale in `%LOCALAPPDATA%\pi-node\current`.
+
+Prima di proporre una versione npm più recente viene verificata la compatibilità di installazione, comprese le dipendenze obbligatorie, con un dry run senza script. Versioni non supportate dal sistema operativo non generano l'avviso di aggiornamento disponibile; il motivo resta visibile nella pagina dei pacchetti. Anche i comandi di installazione, aggiornamento e rimozione della scheda **Pi CLI** ricontrollano la lista e l'avviso dopo la conclusione.
+
 ## Comandi slash di Pi nella chat
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
+
+Un comando non è mai testo:
+- Scegli un comando dal menu `/` con un clic, oppure con le frecce `↑`/`↓` e `Invio` o `Tab`. Il comando diventa un **chip** separato all'inizio del composer, con il nome, la provenienza (`Pi`, `estensione`, `prompt`, `skill`) e un'animazione d'ingresso.
+- Nel campo di testo restano solo gli argomenti. Il suggerimento mostra quali argomenti accetta il comando.
+- Se scrivi `/nome` seguito da uno spazio, il comando diventa subito un chip. Se invii `/nome` scritto a mano, il primo `Invio` lo trasforma in chip e il secondo lo esegue.
+- `Invio` esegue il comando: durante l'esecuzione il chip mostra un indicatore di avanzamento.
+- I comandi di Pi e delle estensioni (per esempio `/reload` o `/caveman full`) non creano messaggi nella chat. Prompt e skill diventano invece un normale messaggio dell'utente.
+- `Backspace` a campo vuoto, o la `×` sul chip, rimuove il comando. Senza argomenti, `/nome` torna nel campo come testo modificabile.
+- Il testo che contiene un `/` senza chip (per esempio `perché /reload fallisce?`) parte come messaggio normale.
 
 ## Invio dei messaggi con Enter (Invia con Enter)
 
@@ -248,6 +291,7 @@ Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e
 - **Protezione Anti-Sovrascrittura**: il cambio ramo rifiuta working tree sporchi (`onDirty: 'block'`, predefinito) segnalando il numero esatto di file modificati e non tracciati. Con `onDirty: 'stash'`, le modifiche pendenti vengono archiviate in modo sicuro nello stash Git (`piframe: before switching to <name> (<iso time>)`) prima dello switch, con ripristino automatico via `git stash pop` in caso di fallimento del checkout.
 - **Isolamento e Sicurezza**: i comandi sono rigorosamente confinati al repository della sessione corrente, eseguiti senza shell (`shell: false`) con argomenti array, protetti da injection su nomi di ramo non validi e respinti per sessioni in sola lettura o mentre l'agente sta lavorando.
 - **Interfaccia Utente (Branch Picker & Gestione Modifiche)**: nel pannello Git Changes, il ramo corrente è visualizzato come chip interattivo (con icona e commit SHA in caso di HEAD detached). Cliccandolo si apre un selettore rapido con ricerca, navigazione da tastiera (frecce, Invio, Esc) e stato di tracking (↑n ↓m). Se vi sono file non salvati, una finestra di dialogo di sicurezza blocca il cambio e richiede la conferma esplicita per archiviare nello stash o annullare, mostrando notifiche e dettagli chiari in caso di errori o recupero stash.
+- **Fetch / Pull / Push / Sync**: in fondo al pannello Git Changes quattro pulsanti eseguono `workspace.gitAction` con azione `fetch` (`git fetch --all --prune`), `pull` (solo fast-forward: una storia divergente viene rifiutata, mai unita in silenzio), `push` (se il ramo non ha upstream lo pubblica su `origin` con `--set-upstream`) e `sync` (pull e poi push). Come ogni scrittura sul repository sono disabilitati per sessioni in sola lettura o mentre l'agente lavora; il daemon non apre mai prompt di credenziali nel terminale (`GIT_TERMINAL_PROMPT=0`) e gli errori di Git compaiono in una notifica.
 
 ---
 
@@ -355,3 +399,14 @@ La web app aperta dal telefono (connessione remota) è stata resa più robusta e
 - **Angoli concentrici su iPhone (linee guida iOS)**: sui telefoni con angoli arrotondati i bordi in basso seguono la curva del display come nelle app native: raggio del pannello = raggio del display − margine (8 px) e raggio del composer = raggio del pannello − margine del composer. Il raggio del display non è leggibile da una pagina web, quindi è stimato dalla larghezza (375 pt ≈ 40, 390 pt ≈ 47, 393/430 pt ≈ 55). Con la tastiera aperta o in una scheda Safari con barra degli strumenti tornano gli angoli normali.
 - **Selezione del testo e cursore su iPhone**: il testo del composer su telefono è a 16px (stessa riga da 21px) in modo che Flutter e il campo nativo nascosto vadano a capo allo stesso modo; prima, con font diversi, il cursore mosso con la barra spaziatrice o la selezione per righe finivano in punti diversi da quelli mostrati. Il colore di selezione è più visibile (opacità 0,4 invece di 0,2) e i movimenti del solo cursore non rieseguono più la logica di slash/@-menzione (setState e richiesta del focus a ogni spostamento).
 - **Riavvio del tunnel**: se all'avvio del daemon il tunnel non parte (es. Tailscale non ancora pronto) il daemon riprova con backoff fino a 60 secondi.
+
+## 15. Movimento ridotto (Riduci animazioni)
+
+Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
+
+- Con l'interruttore attivo, PiFrame non fa più muovere gli elementi: i pannelli e le righe appaiono con una dissolvenza, i loop decorativi (anello attivo del compositore, puntino delle sessioni in esecuzione, animazione dei sottoagenti) diventano statici e le animazioni di espansione sono dissolvenze brevi.
+- La preferenza è salvata in `~/.piframe/reduced_motion_settings.json` e vale per tutte le sessioni.
+- Anche l'impostazione del sistema operativo che chiede di *ridurre o rimuovere le animazioni* (macOS: Riduci movimento; Windows: Effetti di animazione disattivati) è rispettata. Le due fonti si combinano: basta una delle due per attivare la modalità ridotta.
+- Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
+
+Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.

@@ -108,9 +108,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap minimized bar to expand controls
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
+      // A queued steer keeps the composer expanded
+      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
 
       // Verify stop button is visible
       final stopBtn = find.byIcon(Icons.stop_circle_outlined);

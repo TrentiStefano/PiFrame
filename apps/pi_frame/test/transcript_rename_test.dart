@@ -8,6 +8,52 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
+  testWidgets('duplicate title shows parents but rename edits the stored name', (
+    tester,
+  ) async {
+    final notifier = SessionStateNotifier('one', null)
+      ..state = const SessionState(
+        sessionId: 'one',
+        sessionName: 'PiFrame',
+        cwd: '/versions/v1/PiFrame',
+      );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(null),
+          sessionStateFamily('one').overrideWith((ref) => notifier),
+          sessionListProvider.overrideWith(
+            (ref) async => [
+              {'id': 'one', 'name': 'PiFrame', 'cwd': '/versions/v1/PiFrame'},
+              {'id': 'two', 'name': 'PiFrame', 'cwd': '/versions/v2/PiFrame'},
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: TranscriptView(sessionId: 'one')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('v1 / PiFrame'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('session-name-title')));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.byKey(const ValueKey('session-name-title')));
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('session-name-rename-field'));
+    expect(tester.widget<TextField>(field).controller!.text, 'PiFrame');
+
+    await tester.enterText(field, 'Different product');
+    await tester.tap(find.byKey(const ValueKey('session-name-rename-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('Different product'), findsOneWidget);
+    expect(notifier.state.sessionName, 'Different product');
+  });
+
   testWidgets('double-clicking session name enters rename mode and updates name', (
     tester,
   ) async {

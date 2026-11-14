@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,7 +27,7 @@ extension TranscriptStrings on AppStrings {
 
   // Rich content
   String get richContentOpenFileTooltip => isItalian
-      ? 'CTRL+clic per aprire in Esplora file'
+      ? 'CTRL+clic per aprire in esplora file'
       : 'Ctrl+Click to open in File Explorer';
 
   // Thinking block
@@ -37,7 +38,7 @@ extension TranscriptStrings on AppStrings {
 
   // Task notification card
   String get taskNotifSubagentNotification =>
-      isItalian ? 'Notifica Subagente' : 'Subagent Notification';
+      isItalian ? 'Notifica subagente' : 'Subagent Notification';
   String taskNotifContextPercent(int pct) =>
       isItalian ? '$pct% contesto' : '$pct% context';
   String get taskNotifOperationResult =>
@@ -47,7 +48,7 @@ extension TranscriptStrings on AppStrings {
 
   // Todo panel & provider
   String get todoAgentTasksTitle =>
-      isItalian ? 'Task Agente (Todo)' : 'Agent Tasks (Todo)';
+      isItalian ? 'Task agente' : 'Agent Tasks (Todo)';
   String todoCompletedCount(int completed, int total) =>
       isItalian ? '$completed / $total completati' : '$completed / $total completed';
   String todoInProgressCount(int inProgress) =>
@@ -156,35 +157,35 @@ extension TranscriptStrings on AppStrings {
 
   // Transcript view
   String transcriptRenameError(String e) =>
-      isItalian ? 'Errore durante la rinomina: $e' : 'Error renaming session: $e';
+      isItalian ? failureText(this, 'Errore durante la rinomina', e) : failureText(this, 'Error renaming session', e);
   String get transcriptNotification => isItalian ? 'Notifica' : 'Notification';
   String get transcriptContextTokensTitle =>
       isItalian ? 'Contesto & Token' : 'Context & Tokens';
   String get transcriptUsageLabel => isItalian ? 'Utilizzo:' : 'Usage:';
   String get transcriptTokenInput =>
-      isItalian ? 'Token Input' : 'Input Tokens';
+      isItalian ? 'Token input' : 'Input Tokens';
   String get transcriptTokenOutput =>
-      isItalian ? 'Token Output' : 'Output Tokens';
+      isItalian ? 'Token output' : 'Output Tokens';
   String get transcriptTokenCache =>
-      isItalian ? 'Token Cache' : 'Cache Tokens';
+      isItalian ? 'Token cache' : 'Cache Tokens';
   String get transcriptEstimatedCost =>
-      isItalian ? 'Costo Stimato' : 'Estimated Cost';
+      isItalian ? 'Costo stimato' : 'Estimated Cost';
   String get transcriptCompacting =>
       isItalian ? 'Compattazione...' : 'Compacting...';
   String get transcriptCompactContext =>
-      isItalian ? 'Compatta Contesto' : 'Compact Context';
+      isItalian ? 'Compatta contesto' : 'Compact Context';
   String get transcriptCompactionCompleted =>
       isItalian ? 'Compattazione completata!' : 'Compaction completed!';
   String transcriptCompactionError(String e) =>
-      isItalian ? 'Errore compattazione: $e' : 'Compaction error: $e';
+      isItalian ? failureText(this, 'Errore compattazione', e) : failureText(this, 'Compaction error', e);
   String get transcriptAgentModelCosts =>
-      isItalian ? 'Costi Modelli Agente' : 'Agent Model Costs';
+      isItalian ? 'Costi modelli agente' : 'Agent Model Costs';
   String get transcriptCostReportedByPi =>
       isItalian ? 'Costo riportato da Pi' : 'Cost reported by Pi';
   String get transcriptModelCostsUnavailable =>
       isItalian ? 'Costi per modello non disponibili' : 'Costs per model unavailable';
   String get transcriptSubagentModelCosts =>
-      isItalian ? 'Costi Subagenti & Modelli' : 'Subagent & Model Costs';
+      isItalian ? 'Costi subagenti & modelli' : 'Subagent & Model Costs';
   String transcriptChildSessionCosts(int count) => isItalian
       ? 'Costi sessioni figlie ($count agenti)'
       : 'Child session costs ($count agents)';
@@ -198,7 +199,7 @@ extension TranscriptStrings on AppStrings {
   String transcriptSubagentNumbered(int n) =>
       isItalian ? 'Subagente #$n' : 'Subagent #$n';
   String get transcriptSessionCostBreakdown =>
-      isItalian ? 'Dettaglio Costi Sessione' : 'Session Cost Breakdown';
+      isItalian ? 'Dettaglio costi sessione' : 'Session Cost Breakdown';
   String get transcriptPiCostDisclaimer => isItalian
       ? 'Il costo Pi può già includere i subagenti. Le cifre non vengono sommate.'
       : 'Pi cost may already include subagents. Values are not summed.';
@@ -229,12 +230,14 @@ extension TranscriptStrings on AppStrings {
   String transcriptNewBranchStarted(String sid) =>
       isItalian ? 'Nuovo ramo avviato: $sid' : 'New branch started: $sid';
   String transcriptForkError(String e) =>
-      isItalian ? 'Errore fork: $e' : 'Fork error: $e';
+      isItalian ? failureText(this, 'Errore fork', e) : failureText(this, 'Fork error', e);
   String get transcriptYou => isItalian ? 'Tu' : 'You';
   String get transcriptRestartFromHere =>
       isItalian ? 'Riparti da qui' : 'Restart from here';
   String transcriptSendFailed(String err) =>
-      isItalian ? 'Invio non riuscito: $err' : 'Send failed: $err';
+      isItalian ? failureText(this, 'Invio non riuscito', err) : failureText(this, 'Send failed', err);
+  String transcriptTurnFailed(String err) =>
+      isItalian ? failureText(this, 'Risposta interrotta da un errore', err) : failureText(this, 'Reply stopped by an error', err);
   String get transcriptRetrySend => isItalian ? 'Riprova invio' : 'Retry send';
   String get transcriptAssistant => isItalian ? 'Assistente' : 'Assistant';
   String get transcriptCopyMessage =>

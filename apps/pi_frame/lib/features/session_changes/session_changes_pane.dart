@@ -41,7 +41,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh();
+      ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true);
     });
   }
 

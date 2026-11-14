@@ -58,7 +58,7 @@ void main() {
 
       // Sessions Sidebar
       expect(strings.sidebarFallbackFolderLabel, 'Sessioni');
-      expect(strings.renameSessionDialogTitle, 'Rinomina Sessione');
+      expect(strings.renameSessionDialogTitle, 'Rinomina sessione');
       expect(strings.sessionNameHint, 'Nome sessione...');
       expect(strings.sessionRenamedNotice('Test'), 'Sessione rinominata in "Test"');
       expect(strings.renameErrorNotice('Err'), 'Errore rinomina: Err');
@@ -66,7 +66,7 @@ void main() {
       expect(strings.duplicateErrorNotice('Err'), 'Errore duplicazione: Err');
       expect(strings.sidebarTitle, 'Sessioni');
       expect(strings.refreshSessionsTooltip, 'Aggiorna sessioni');
-      expect(strings.newSessionTooltip, 'Nuova Sessione');
+      expect(strings.newSessionTooltip, 'Nuova sessione');
       expect(strings.collapseSidebarTooltip, 'Collassa barra sessioni');
       expect(strings.searchSessionsHint, 'Cerca sessioni...');
       expect(strings.filterAll, 'Tutte');
@@ -81,7 +81,7 @@ void main() {
       expect(strings.removeRepoFromSidebarAction, 'Rimuovi repository dal riquadro');
       expect(strings.sidebarErrorNotice('Err'), 'Errore: Err');
       expect(strings.settingsLabel, 'Impostazioni');
-      expect(strings.commandPaletteTooltip, 'Command Palette (Ctrl+K)');
+      expect(strings.commandPaletteTooltip, 'Comandi (Ctrl+K)');
       expect(strings.unpinAction, 'Rimuovi dai fissati');
       expect(strings.pinAction, 'Fissa in cima');
       expect(strings.renameAction, 'Rinomina');
@@ -175,9 +175,9 @@ void main() {
       expect(strings.paletteInterruptSubtitle, 'Ferma il modello in esecuzione');
       expect(strings.paletteSwitchBrowserTitle, 'Mostra Web Browser');
       expect(strings.paletteSwitchBrowserSubtitle, 'Apri il browser web integrato nel pannello laterale');
-      expect(strings.paletteSwitchGitTitle, 'Mostra Modifiche Git');
+      expect(strings.paletteSwitchGitTitle, 'Mostra modifiche Git');
       expect(strings.paletteSwitchGitSubtitle, 'Mostra il pannello delle modifiche Git nel pannello laterale');
-      expect(strings.paletteSettingsTitle, 'Apri Impostazioni');
+      expect(strings.paletteSettingsTitle, 'Apri impostazioni');
       expect(strings.paletteSettingsSubtitle, 'Configura percorso Pi, timeout worker e aspetto');
       expect(strings.paletteSearchHint, 'Cerca un\'azione o comando...');
       expect(strings.paletteNoActionsFound, 'Nessuna azione trovata');

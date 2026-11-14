@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,6 +14,7 @@ import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
+import '../../domain/session/context_usage_tone.dart';
 import '../../domain/session/session_state.dart';
 import '../composer/attachment_chips.dart';
 import '../composer/composer_attachments_provider.dart';
@@ -129,6 +131,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
   static const int _initialVisibleCount = 35;
   static const int _pageSize = 250;
+  static const int _minVisibleUserMessages = 5;
   int _visibleCount = _initialVisibleCount;
 
   final Map<String, double> _entryHeights = {};
@@ -166,6 +169,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   String? _cachedHeaderModel;
   String? _cachedHeaderThinkingLevel;
   String? _cachedHeaderContextLabel;
+  Color? _cachedHeaderContextIconColor;
   num? _cachedHeaderCost;
   bool? _cachedHeaderIsRenaming;
   bool? _cachedHeaderIsCompact;
@@ -562,10 +566,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             final currentUsage =
                 currentStats?['contextUsage'] as Map? ??
                 currentSession.usage?['contextUsage'] as Map?;
-            final tokensUsed =
-                currentUsage?['tokens'] ??
-                currentSession.usage?['totalTokens'] ??
-                '—';
+            // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
+            final tokensUsed = currentUsage != null
+                ? currentUsage['tokens'] ?? '—'
+                : currentSession.usage?['totalTokens'] ?? '—';
             final maxWindow = currentSession.contextWindowOverride ?? currentUsage?['contextWindow'] ?? '—';
             final pct = (currentSession.contextWindowOverride != null && tokensUsed is num && currentSession.contextWindowOverride! > 0)
                 ? (tokensUsed.toDouble() / currentSession.contextWindowOverride! * 100.0)
@@ -1386,7 +1390,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         stats?['contextUsage'] as Map? ??
         sessionState.usage?['contextUsage'] as Map?;
     final effectiveContextWindow = sessionState.contextWindowOverride ?? contextUsage?['contextWindow'];
-    final effectiveTokens = contextUsage?['tokens'] ?? sessionState.usage?['totalTokens'];
+    // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
+    final effectiveTokens = contextUsage != null ? contextUsage['tokens'] : sessionState.usage?['totalTokens'];
     final effectivePercent = (sessionState.contextWindowOverride != null && effectiveTokens is num && sessionState.contextWindowOverride! > 0)
         ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
         : (contextUsage?['percent'] as num?);
@@ -1395,6 +1400,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         : effectivePercent == null
         ? '${strings.transcriptPostCompaction} · —/${_formatTokens(effectiveContextWindow)}'
         : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
+    final contextTone = contextUsage == null || effectivePercent == null
+        ? ContextUsageTone.muted
+        : contextUsageTone(
+            effectivePercent.toDouble(),
+            compactionReservePercent: sessionState.compactionReservePercent,
+          );
+    final contextIconColor = switch (contextTone) {
+      ContextUsageTone.muted => tokens.textMuted,
+      ContextUsageTone.warning => tokens.warning,
+      ContextUsageTone.danger => tokens.danger,
+    };
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
     final todos = ref.watch(todosFamily(widget.sessionId));
 
@@ -1474,7 +1490,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       }
     }
 
-    final hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
+    var hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
+    // A turn can hold many step entries, so a count-based window may start inside it
+    // and drop the prompt. Widen the window to reach the Nth-last user message.
+    var userSeen = 0;
+    for (var i = totalEntries - 1; i >= 0; i--) {
+      if (cleanEntries[i].role == 'user' && ++userSeen == _minVisibleUserMessages) {
+        if (i < hiddenCount) {
+          hiddenCount = i;
+          _visibleCount = totalEntries - i;
+        }
+        break;
+      }
+    }
     final visibleEntries = cleanEntries.sublist(hiddenCount);
     final hasLoadBanner = hiddenCount > 0 || sessionState.hasMoreHistory;
     final visibleToolIds = {
@@ -1554,6 +1582,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           todos,
           mainAgentCost: mainAgentCost,
           subagentsCost: subagentsCost,
+          contextIconColor: contextIconColor,
         ),
         if (todos.isNotEmpty)
           _buildUnifiedBookTabsBar(
@@ -2057,8 +2086,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     List<TodoItem> todos, {
     double? mainAgentCost,
     double subagentsCost = 0.0,
+    required Color contextIconColor,
   }) {
-    final effectiveSessionName = sessionState.sessionName ?? widget.sessionId;
+    final effectiveSessionName = ref.watch(
+      sessionDisplayNameProvider(widget.sessionId),
+    );
     if (_cachedBentoHeader != null &&
         _cachedHeaderSessionName == effectiveSessionName &&
         _cachedHeaderCwd == sessionState.cwd &&
@@ -2066,6 +2098,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _cachedHeaderModel == sessionState.currentModel &&
         _cachedHeaderThinkingLevel == sessionState.currentThinkingLevel &&
         _cachedHeaderContextLabel == contextLabel &&
+        _cachedHeaderContextIconColor == contextIconColor &&
         _cachedHeaderCost == cost &&
         _cachedHeaderIsRenaming == _isRenaming &&
         _cachedHeaderIsCompact == isCompact &&
@@ -2081,6 +2114,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderModel = sessionState.currentModel;
     _cachedHeaderThinkingLevel = sessionState.currentThinkingLevel;
     _cachedHeaderContextLabel = contextLabel;
+    _cachedHeaderContextIconColor = contextIconColor;
     _cachedHeaderCost = cost;
     _cachedHeaderIsRenaming = _isRenaming;
     _cachedHeaderIsCompact = isCompact;
@@ -2240,8 +2274,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    sessionState.sessionName ??
-                                        widget.sessionId,
+                                    effectiveSessionName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -2312,7 +2345,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   _currentStrings.transcriptContext,
                   contextLabel,
                   leadingIcon: Icons.pie_chart_outline,
-                  iconColor: tokens.syntaxFunction,
+                  iconColor: contextIconColor,
                   trailingIcon: Icons.info_outline,
                   onTap: (ctx) =>
                       _showContextDialog(ctx, contextUsage, stats, cost),
@@ -2841,24 +2874,30 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: 14,
-                            color: tokens.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _currentStrings.transcriptAssistant,
-                            style: TextStyle(
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.smart_toy_outlined,
+                              size: 14,
                               color: tokens.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                _currentStrings.transcriptAssistant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2945,6 +2984,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     },
                   ),
                 ],
+              ),
+            ),
+          if (entry.metadata?['stopReason'] == 'error' &&
+              (entry.metadata?['errorMessage']?.toString() ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _currentStrings.transcriptTurnFailed(
+                  entry.metadata!['errorMessage'].toString(),
+                ),
+                key: ValueKey('turn-error-${entry.id}'),
+                style: TextStyle(color: tokens.danger, fontSize: 12),
               ),
             ),
         ],
@@ -3059,6 +3110,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               padding: const EdgeInsets.all(12),
               child: SelectableText(
                 output,
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   fontFamily: tokens.monoFontFamily,
                   fontSize: 11.5,

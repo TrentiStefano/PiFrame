@@ -233,13 +233,16 @@ test('Dispatcher: workspace gitAction stages and commits confirmed staged paths'
 test('Dispatcher: delegates Pi package list/update/remove/pin commands', async () => {
   const calls: string[] = [];
   const piPackages: PiPackageOperations = {
-    async list() {
-      calls.push('list');
-      return [{ source: 'npm:pi-caveman', name: 'pi-caveman', version: '1.2.3', pinnedVersion: null }];
+    async list(checkUpdates) {
+      calls.push(checkUpdates ? 'checkUpdates' : 'list');
+      return [{
+        source: 'npm:pi-caveman', name: 'pi-caveman', version: '1.2.3', pinnedVersion: null,
+        ...(checkUpdates ? { latestVersion: '1.2.4' } : {}),
+      }];
     },
     async update(source) {
       calls.push(`update:${source}`);
-      return { output: 'updated' };
+      return { output: 'updated', status: 'updated', previousVersion: '1.2.3', version: '1.2.4' };
     },
     async remove(source) {
       calls.push(`remove:${source}`);
@@ -253,11 +256,13 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
   const setup = createTestSetup(piPackages);
   const listed = await sendCommand(setup, 'pi.packages.list', undefined);
   assert.equal(listed[1].payload.data.packages[0].name, 'pi-caveman');
+  const checked = await sendCommand(setup, 'pi.packages.list', undefined, { checkUpdates: true });
+  assert.equal(checked[1].payload.data.packages[0].latestVersion, '1.2.4');
   assert.equal((await sendCommand(setup, 'pi.packages.update', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
   assert.equal((await sendCommand(setup, 'pi.packages.remove', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
   const pinned = await sendCommand(setup, 'pi.packages.pin', undefined, { source: 'npm:pi-caveman', version: '1.2.3' });
   assert.equal(pinned[1].payload.data.source, 'npm:pi-caveman@1.2.3');
-  assert.deepEqual(calls, ['list', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
+  assert.deepEqual(calls, ['list', 'checkUpdates', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
 });
 
 test('Dispatcher: delegates pi.agents.get and pi.agents.update for local connection', async () => {
@@ -467,6 +472,11 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   });
   const res5 = getLastResult(remoteWs);
   assert.equal(res5.payload.state, 'rejected');
+  await dispatcher.handle(remoteConn, {
+    protocol: 1, kind: 'command', id: 'cmd_pkg_check_att', ts: Date.now(),
+    commandId: 'c_pkg_check_att', type: 'pi.packages.list', payload: { checkUpdates: true }
+  });
+  assert.equal(getLastResult(remoteWs).payload.state, 'rejected');
 
   // Remote attempts pi.agents.get -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
@@ -601,3 +611,20 @@ test('Dispatcher: session.getHistory paginates historical entries backwards', as
   assert.equal(result2.payload.data.hasMore, false);
 });
 
+
+test('Dispatcher: session.create starts the Pi worker in the background so the first prompt is not stalled', async () => {
+  const repo = createGitRepo();
+  const setup = createTestSetup();
+  try {
+    const started: string[] = [];
+    (setup.registry as any).ensureWorkerForSession = async (id: string) => {
+      started.push(id);
+      throw new Error('start failures must not fail session.create');
+    };
+    const messages = await sendCommand(setup, 'session.create', undefined, { cwd: repo.root });
+    assert.equal(messages.find((m) => m.kind === 'result')?.payload.state, 'completed');
+    assert.equal(started.length, 1);
+  } finally {
+    repo.cleanup();
+  }
+});

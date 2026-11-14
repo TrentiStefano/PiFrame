@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-/// Stores which workspace panes are hidden so a restart reopens the same layout.
+/// Stores pane visibility and the sessions sidebar width across restarts.
 /// Like the other ~/.piframe preference files, it is disabled under tests unless a file is injected.
 class LayoutStore {
   LayoutStore._();

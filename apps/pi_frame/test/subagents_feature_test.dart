@@ -340,6 +340,65 @@ void main() {
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
     });
 
+    testWidgets('agents list running first, then settled, each newest launch first', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subagentsFamily('sess_order').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_order', const [
+                SubagentItem(id: 'old_run', name: 'old-running', status: 'running', startedAt: 100),
+                SubagentItem(id: 'old_done', name: 'old-done', status: 'completed', startedAt: 200),
+                SubagentItem(id: 'new_done', name: 'new-done', status: 'completed', startedAt: 900),
+                SubagentItem(id: 'new_run', name: 'new-running', status: 'running', startedAt: 800),
+              ]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'sess_order')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      double y(String name) => tester.getTopLeft(find.text(name)).dy;
+      expect(y('new-running'), lessThan(y('old-running')));
+      expect(y('old-running'), lessThan(y('new-done')));
+      expect(y('new-done'), lessThan(y('old-done')));
+    });
+
+    testWidgets('agent rows built while scrolling do not jitter horizontally', (tester) async {
+      tester.view.physicalSize = const Size(800, 500);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            subagentsFamily('sess_scroll').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', [
+                for (var i = 0; i < 40; i++)
+                  SubagentItem(id: 'a$i', name: 'agent-$i', status: 'completed'),
+              ]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'sess_scroll')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final titles = find.textContaining(RegExp(r'^agent-\d+$'));
+      final restingDx = tester.getTopLeft(titles.first).dx;
+
+      await tester.drag(find.byKey(const ValueKey('agent-activity-panel')), const Offset(0, -700));
+      // Mid-frame: lazily built rows used to still be sliding in from the right.
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(titles, findsWidgets);
+      for (final title in titles.evaluate()) {
+        expect(tester.getTopLeft(find.byWidget(title.widget)).dx, restingDx);
+      }
+    });
+
     testWidgets('agent panel lists a workflow run and expands to its phases', (tester) async {
       const script = "export const meta = { name: 'audit', description: 'Audit the repo', "
           "phases: [{ title: 'Scan' }] }";
@@ -571,7 +630,7 @@ void main() {
       await tester.tap(find.textContaining('\$0.0200'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Dettaglio Costi Sessione'), findsOneWidget);
+      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-subagents-row')), findsOneWidget);
 
@@ -579,7 +638,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi Modelli Agente'), findsOneWidget);
+      expect(find.text('Costi modelli agente'), findsOneWidget);
       expect(find.text('Costi per modello non disponibili'), findsOneWidget);
       expect(find.byKey(const ValueKey('agent-model-cost-claude-3-5-sonnet')), findsNothing);
       expect(find.text('\$0.0200'), findsWidgets);
@@ -587,13 +646,13 @@ void main() {
       // Click Back button to return to Level 0
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-back-btn')));
       await tester.pumpAndSettle();
-      expect(find.text('Dettaglio Costi Sessione'), findsOneWidget);
+      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
 
       // Click on Subagents cost row -> navigate to Level 2
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi Subagenti & Modelli'), findsOneWidget);
+      expect(find.text('Costi subagenti & modelli'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byType(Dialog),
@@ -609,7 +668,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog is dismissed
-      expect(find.text('Costi Subagenti & Modelli'), findsNothing);
+      expect(find.text('Costi subagenti & modelli'), findsNothing);
     });
 
     testWidgets('Chat parses <task-notification> and displays formatted card instead of raw XML', (tester) async {
@@ -667,7 +726,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.textContaining('<tool-use-id>'), findsNothing);
 
       // Beautiful card should be rendered with summary, status, tokens, and duration
-      expect(find.text('Notifica Subagente'), findsOneWidget);
+      expect(find.text('Notifica subagente'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('task-notification-card-05928f01-b805-46c')),
@@ -692,6 +751,60 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('a code fence inside <result> does not break the notification into raw XML', (tester) async {
+      const raw = '''
+<task-notification>
+<task-id>3c52f51e-5f5f-408</task-id>
+<tool-use-id>call_UFQPNGXjbKGi/8CP254f+qQEosFC0Z3eQ==</tool-use-id>
+<output-file>C:\\Temp\\tasks\\3c52f51e-5f5f-408.output</output-file>
+<status>Wrapped up (turn limit)</status>
+<summary>Agent "Hold debug app session" steered</summary>
+<result>Startup failed. WSL reported:
+
+```text
+/mnt/c/flutter/bin/internal/shared.sh: line 5: \$'\\r': command not found
+```
+
+The app did not stay open.</result>
+<usage><total_tokens>65262</total_tokens><tool_uses>2</tool_uses><context_percent>3</context_percent><duration_ms>32199</duration_ms></usage>
+</task-notification>
+Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
+''';
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_notif_fence').overrideWith(
+              (ref) => SessionStateNotifier('sess_notif_fence', null)
+                ..state = const SessionState(
+                  sessionId: 'sess_notif_fence',
+                  cwd: 'C:/projects/app',
+                  entries: [
+                    SessionEntry(
+                      id: 'msg-notif-fence',
+                      role: 'custom',
+                      text: raw,
+                      timestamp: 1000,
+                      metadata: {'customType': 'subagent-notification'},
+                    ),
+                  ],
+                ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: TranscriptView(sessionId: 'sess_notif_fence')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('<task-notification>'), findsNothing);
+      expect(find.textContaining('<tool-use-id>'), findsNothing);
+      expect(find.textContaining('</result>'), findsNothing);
+      expect(find.byKey(const ValueKey('task-notification-card-3c52f51e-5f5f-408')), findsOneWidget);
     });
 
     test('SubagentsNotifier does not present an estimate as actual cost', () {

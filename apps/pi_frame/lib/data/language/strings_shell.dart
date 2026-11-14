@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/session/agent_status.dart';
 import 'language_settings.dart';
 
@@ -53,22 +54,22 @@ extension ShellStrings on AppStrings {
   String get sidebarFallbackFolderLabel =>
       isItalian ? 'Sessioni' : 'Sessions';
   String get renameSessionDialogTitle =>
-      isItalian ? 'Rinomina Sessione' : 'Rename Session';
+      isItalian ? 'Rinomina sessione' : 'Rename Session';
   String get sessionNameHint =>
       isItalian ? 'Nome sessione...' : 'Session name...';
   String sessionRenamedNotice(String newName) =>
       isItalian ? 'Sessione rinominata in "$newName"' : 'Session renamed to "$newName"';
   String renameErrorNotice(Object e) =>
-      isItalian ? 'Errore rinomina: $e' : 'Rename error: $e';
+      isItalian ? failureText(this, 'Errore rinomina', e) : failureText(this, 'Rename error', e);
   String sessionDuplicatedNotice(String newSid) =>
       isItalian ? 'Sessione duplicata: $newSid' : 'Session duplicated: $newSid';
   String duplicateErrorNotice(Object e) =>
-      isItalian ? 'Errore duplicazione: $e' : 'Duplicate error: $e';
+      isItalian ? failureText(this, 'Errore duplicazione', e) : failureText(this, 'Duplicate error', e);
   String get sidebarTitle => isItalian ? 'Sessioni' : 'Sessions';
   String get refreshSessionsTooltip =>
       isItalian ? 'Aggiorna sessioni' : 'Refresh sessions';
   String get newSessionTooltip =>
-      isItalian ? 'Nuova Sessione' : 'New Session';
+      isItalian ? 'Nuova sessione' : 'New Session';
   String get collapseSidebarTooltip =>
       isItalian ? 'Collassa barra sessioni' : 'Collapse sessions sidebar';
   String get searchSessionsHint =>
@@ -91,10 +92,10 @@ extension ShellStrings on AppStrings {
   String get removeRepoFromSidebarAction =>
       isItalian ? 'Rimuovi repository dal riquadro' : 'Remove repository from sidebar';
   String sidebarErrorNotice(Object err) =>
-      isItalian ? 'Errore: $err' : 'Error: $err';
+      isItalian ? failureText(this, 'Errore', err) : failureText(this, 'Error', err);
   String get settingsLabel => isItalian ? 'Impostazioni' : 'Settings';
   String get commandPaletteTooltip =>
-      isItalian ? 'Command Palette (Ctrl+K)' : 'Command Palette (Ctrl+K)';
+      isItalian ? 'Comandi (Ctrl+K)' : 'Command Palette (Ctrl+K)';
   String get unpinAction => isItalian ? 'Rimuovi dai fissati' : 'Unpin';
   String get pinAction => isItalian ? 'Fissa in cima' : 'Pin to top';
   String get renameAction => isItalian ? 'Rinomina' : 'Rename';
@@ -107,7 +108,7 @@ extension ShellStrings on AppStrings {
 
   // Session Actions & Dialogs
   String directoryNotAvailable(Object e) =>
-      isItalian ? 'Cartella non disponibile: $e' : 'Directory not available: $e';
+      isItalian ? failureText(this, 'Cartella non disponibile', e) : failureText(this, 'Directory not available', e);
   String get newSessionDialogTitle =>
       isItalian ? 'Nuova sessione' : 'New session';
   String get workingDirectoryLabel =>
@@ -119,7 +120,7 @@ extension ShellStrings on AppStrings {
       isItalian ? 'Scegli cartella' : 'Choose folder';
   String get createAction => isItalian ? 'Crea' : 'Create';
   String creationFailedNotice(Object e) =>
-      isItalian ? 'Creazione non riuscita: $e' : 'Creation failed: $e';
+      isItalian ? failureText(this, 'Creazione non riuscita', e) : failureText(this, 'Creation failed', e);
   String get deleteSessionDialogTitle =>
       isItalian ? 'Elimina sessione' : 'Delete session';
   String deleteSessionConfirmBody(String sessionName) => isItalian
@@ -131,7 +132,7 @@ extension ShellStrings on AppStrings {
   String sessionDeletedNotice(String sessionName) =>
       isItalian ? 'Sessione "$sessionName" eliminata.' : 'Session "$sessionName" deleted.';
   String deletionFailedNotice(Object e) =>
-      isItalian ? 'Eliminazione non riuscita: $e' : 'Deletion failed: $e';
+      isItalian ? failureText(this, 'Eliminazione non riuscita', e) : failureText(this, 'Deletion failed', e);
   String removeRepoDialogTitle(String repoName) =>
       isItalian ? 'Rimuovi repository "$repoName"' : 'Remove repository "$repoName"';
   String repoSessionsCountNotice(int count) => isItalian
@@ -156,7 +157,9 @@ extension ShellStrings on AppStrings {
       ? 'Tutte le sessioni di "$repoName" sono state eliminate.'
       : 'All sessions for "$repoName" have been deleted.';
   String deletionErrorNotice(Object e) =>
-      isItalian ? 'Errore durante l\'eliminazione: $e' : 'Error during deletion: $e';
+      isItalian
+          ? failureText(this, 'Errore durante l\'eliminazione', e)
+          : failureText(this, 'Error during deletion', e);
   String get warningDeletionTitle =>
       isItalian ? 'ATTENZIONE: Eliminazione' : 'WARNING: Deletion';
   String deleteRepoWarningBody(int count, String folder) => isItalian
@@ -172,7 +175,7 @@ extension ShellStrings on AppStrings {
 
   // Instruction File Dialog
   String fileScanErrorNotice(Object e) =>
-      isItalian ? 'Errore scansione file: $e' : 'File scan error: $e';
+      isItalian ? failureText(this, 'Errore scansione file', e) : failureText(this, 'File scan error', e);
   String get unsavedChangesTitle =>
       isItalian ? 'Modifiche non salvate' : 'Unsaved changes';
   String unsavedChangesDiscardBody(String selectedFile, String fileName) => isItalian
@@ -183,7 +186,7 @@ extension ShellStrings on AppStrings {
   String fileSavedNotice(String selectedFile) =>
       isItalian ? 'File $selectedFile salvato con successo' : 'File $selectedFile saved successfully';
   String saveErrorNotice(Object e) =>
-      isItalian ? 'Errore salvataggio: $e' : 'Save error: $e';
+      isItalian ? failureText(this, 'Errore salvataggio', e) : failureText(this, 'Save error', e);
   String generateInstructionsPrompt(String selectedFile) => isItalian
       ? 'Analizza la struttura del repository in questa cartella e genera il contenuto completo per il file $selectedFile.\n'
           'Includi: Panoramica dell\'architettura, Comandi di build, test e linting, Convenzioni di codice e Linee guida operative per gli agenti.\n'
@@ -195,7 +198,7 @@ extension ShellStrings on AppStrings {
       ? 'Istruzioni per $selectedFile generate con successo dall\'agente Pi'
       : 'Instructions for $selectedFile generated successfully by Pi agent';
   String generateInstructionsErrorNotice(Object e) =>
-      isItalian ? 'Errore generazione con Pi: $e' : 'Pi generation error: $e';
+      isItalian ? failureText(this, 'Errore generazione con Pi', e) : failureText(this, 'Pi generation error', e);
   String get presentOnDiskBadge =>
       isItalian ? 'Presente sul disco' : 'Present on disk';
   String get newFileBadge =>
@@ -217,40 +220,40 @@ extension ShellStrings on AppStrings {
   String get createAndSaveFileAction =>
       isItalian ? 'Crea e salva file' : 'Create & save file';
   String get softwareProjectLabel =>
-      isItalian ? 'Progetto Software' : 'Software Project';
+      isItalian ? 'Progetto software' : 'Software Project';
   String get flutterBuildOrRunLabel =>
       isItalian ? 'flutter build (o flutter run)' : 'flutter build (or flutter run)';
 
   // Fallback markdown templates
   String fallbackAgentTitle(String folderName) =>
-      isItalian ? '# Istruzioni per gli Agenti ($folderName)\n' : '# Agent Instructions ($folderName)\n';
+      isItalian ? '# Istruzioni per gli agenti ($folderName)\n' : '# Agent Instructions ($folderName)\n';
   String get fallbackAgentIntro => isItalian
       ? 'Questo file contiene le linee guida operative generate per l\'agente Pi in questo repository.\n'
       : 'This file contains operational guidelines generated for the Pi agent in this repository.\n';
   String get fallbackAgentOverview =>
-      isItalian ? '## Panoramica del Progetto' : '## Project Overview';
+      isItalian ? '## Panoramica del progetto' : '## Project Overview';
   String get fallbackAgentTechStack =>
-      isItalian ? 'Stack Tecnologico' : 'Tech Stack';
+      isItalian ? 'Stack tecnologico' : 'Tech Stack';
   String get fallbackAgentCoreModules =>
-      isItalian ? 'Moduli Principali' : 'Core Modules';
+      isItalian ? 'Moduli principali' : 'Core Modules';
   String get fallbackAgentCommandsTitle =>
-      isItalian ? '\n## Comandi di Sviluppo e Verifica' : '\n## Development & Verification Commands';
+      isItalian ? '\n## Comandi di sviluppo e verifica' : '\n## Development & Verification Commands';
   String get fallbackAgentCommandsIntro => isItalian
       ? 'Esegui sempre i comandi di verifica dopo aver apportato modifiche:'
       : 'Always run verification commands after making changes:';
   String get fallbackAgentGuidelinesTitle =>
-      isItalian ? '\n## Linee Guida Operative' : '\n## Operational Guidelines';
+      isItalian ? '\n## Linee guida operative' : '\n## Operational Guidelines';
   String get fallbackAgentRule1 => isItalian
-      ? '1. **Integrità del Codice**: Mantieni sempre pulita la base di codice e rispetta le convenzioni del progetto.'
+      ? '1. **Integrità del codice**: Mantieni sempre pulita la base di codice e rispetta le convenzioni del progetto.'
       : '1. **Code Integrity**: Keep the codebase clean and adhere to project conventions.';
   String get fallbackAgentRule2 => isItalian
-      ? '2. **Verifica dei Test**: Assicurati che l\'intera suite di test passi prima di completare i task.'
+      ? '2. **Verifica dei test**: Assicurati che l\'intera suite di test passi prima di completare i task.'
       : '2. **Test Verification**: Ensure the entire test suite passes before completing tasks.';
   String get fallbackAgentRule3 => isItalian
       ? '3. **Architettura**: Non introdurre dipendenze non necessarie e mantieni i componenti modulari.'
       : '3. **Architecture**: Do not introduce unnecessary dependencies and keep components modular.';
   String get fallbackAgentRule4 => isItalian
-      ? '4. **Sicurezza e Robustezza**: Gestisci sempre gli errori in modo esplicito e prevedi fallback trasparenti.'
+      ? '4. **Sicurezza e robustezza**: Gestisci sempre gli errori in modo esplicito e prevedi fallback trasparenti.'
       : '4. **Safety & Robustness**: Always handle errors explicitly and provide transparent fallbacks.';
   String fallbackDefaultTitle(String targetFileName, String folderName) =>
       isItalian ? '# Istruzioni per $targetFileName ($folderName)\n' : '# Instructions for $targetFileName ($folderName)\n';
@@ -259,9 +262,9 @@ extension ShellStrings on AppStrings {
   String get fallbackDefaultTech =>
       isItalian ? 'Tecnologie' : 'Technologies';
   String get fallbackDefaultCommandsTitle =>
-      isItalian ? '\n## Comandi Principali' : '\n## Key Commands';
+      isItalian ? '\n## Comandi principali' : '\n## Key Commands';
   String get fallbackDefaultRulesTitle =>
-      isItalian ? '\n## Regole del Repository' : '\n## Repository Rules';
+      isItalian ? '\n## Regole del repository' : '\n## Repository Rules';
   String get fallbackDefaultRule1 => isItalian
       ? '- Rispetta lo stile e le convenzioni del codice esistente.'
       : '- Respect existing code style and conventions.';
@@ -270,7 +273,7 @@ extension ShellStrings on AppStrings {
       : '- Do not commit build artifacts or credentials.';
 
   String fallbackProjectTitle(String targetFileName) =>
-      isItalian ? '# Istruzioni di Progetto per $targetFileName\n' : '# Project Instructions for $targetFileName\n';
+      isItalian ? '# Istruzioni di progetto per $targetFileName\n' : '# Project Instructions for $targetFileName\n';
   String fallbackProjectHeader(String folderName) =>
       isItalian ? '## Progetto: $folderName' : '## Project: $folderName';
   String get fallbackProjectCommands =>
@@ -283,7 +286,7 @@ extension ShellStrings on AppStrings {
 
   // Command Palette
   String actionFailedNotice(Object error) =>
-      isItalian ? 'Azione non riuscita: $error' : 'Action failed: $error';
+      isItalian ? failureText(this, 'Azione non riuscita', error) : failureText(this, 'Action failed', error);
   String get paletteNewSessionTitle =>
       isItalian ? 'Crea nuova sessione' : 'Create new session';
   String get paletteNewSessionSubtitle =>
@@ -308,12 +311,12 @@ extension ShellStrings on AppStrings {
       ? 'Apri il browser web integrato nel pannello laterale'
       : 'Open embedded web browser in side panel';
   String get paletteSwitchGitTitle =>
-      isItalian ? 'Mostra Modifiche Git' : 'Show Git Changes';
+      isItalian ? 'Mostra modifiche Git' : 'Show Git Changes';
   String get paletteSwitchGitSubtitle => isItalian
       ? 'Mostra il pannello delle modifiche Git nel pannello laterale'
       : 'Show Git changes panel in side panel';
   String get paletteSettingsTitle =>
-      isItalian ? 'Apri Impostazioni' : 'Open Settings';
+      isItalian ? 'Apri impostazioni' : 'Open Settings';
   String get paletteSettingsSubtitle => isItalian
       ? 'Configura percorso Pi, timeout worker e aspetto'
       : 'Configure Pi path, worker timeouts, and appearance';

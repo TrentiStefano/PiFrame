@@ -38,6 +38,8 @@ export class Session {
   public isStreaming: boolean = false;
   public runStartedAt: number | null = null;
   public isCompacting: boolean = false;
+  /** Pi's estimate after the latest compaction; Pi reports context tokens as unknown until the next reply. */
+  public postCompactionTokens?: number;
   public autoCompaction: boolean = true;
   public contextWindowOverride: number | null = null;
   public compactionReservePercent = DEFAULT_COMPACTION_RESERVE_PERCENT;
@@ -282,6 +284,7 @@ export class Session {
 
       case 'compaction.ended':
         this.isCompacting = false;
+        if (!payload.aborted && payload.result) this.postCompactionTokens = payload.result.estimatedTokensAfter;
         this.status = this.isStreaming ? 'working' : 'settled';
         break;
 

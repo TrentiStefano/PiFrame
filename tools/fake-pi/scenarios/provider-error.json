@@ -1,0 +1,98 @@
+{
+  "name": "provider-error",
+  "description": "Empty provider error marks the user prompt failed.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [],
+          "stopReason": "error",
+          "errorMessage": "429 Too Many Requests: rate limit exceeded"
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": ""
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

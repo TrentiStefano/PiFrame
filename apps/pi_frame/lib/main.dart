@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/desktop_chrome.dart';
+import 'app/harness_mode.dart';
 import 'ui/precision.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,9 +12,16 @@ import 'app/router.dart';
 import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
 import 'data/window/window_state_service.dart';
+import 'data/motion/reduced_motion_settings.dart';
+import 'ui/motion.dart';
 import 'ui/startup_assemble_animation.dart';
 
-Future<void> main() async {
+Future<void> main() => runPiFrame();
+
+Future<void> runPiFrame({
+  Future<void> Function()? configureWindow,
+  Widget Function(Widget child)? rootWrapper,
+}) async {
   WidgetsFlutterBinding.ensureInitialized();
   final isWindows =
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
@@ -40,15 +48,20 @@ Future<void> main() async {
       );
     }
     await DesktopNotificationService.instance.initialize();
-    await WindowStateService.instance.restoreWindow();
+    if (configureWindow != null) {
+      await configureWindow();
+    } else {
+      await WindowStateService.instance.restoreWindow();
+    }
   }
+  final app = rootWrapper?.call(const PiFrameApp()) ?? const PiFrameApp();
   runApp(
     ProviderScope(
       overrides: [
         desktopChromeProvider.overrideWithValue(customDesktopChrome),
         desktopWindowLifecycleProvider.overrideWithValue(desktopWindowLifecycle),
       ],
-      child: const PiFrameApp(),
+      child: app,
     ),
   );
 }
@@ -59,17 +72,40 @@ class PiFrameApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeData = ref.watch(currentThemeDataProvider);
+    final reduceMotion = ref.watch(reducedMotionSettingsProvider).enabled;
 
     return MaterialApp.router(
       title: 'PiFrame',
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter,
       theme: themeData,
-      builder: (context, child) => LaunchReveal(
-        child: StartupAssembleOverlay(
-          child: child ?? const SizedBox.shrink(),
-        ),
-      ),
+      themeAnimationDuration: FrameMotion.panel,
+      builder: (context, child) {
+        Widget buildWithOverrides(HarnessMediaOverrides overrides) {
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: applyHarnessMediaOverrides(
+              media,
+              harnessEnabled: isHarnessMode,
+              reduceMotionPreference: reduceMotion,
+              overrides: overrides,
+            ),
+            child: LaunchReveal(
+              child: StartupAssembleOverlay(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+          );
+        }
+
+        if (!isHarnessMode) {
+          return buildWithOverrides(const HarnessMediaOverrides());
+        }
+        return ValueListenableBuilder<HarnessMediaOverrides>(
+          valueListenable: harnessMediaOverrides,
+          builder: (context, overrides, _) => buildWithOverrides(overrides),
+        );
+      },
     );
   }
 }

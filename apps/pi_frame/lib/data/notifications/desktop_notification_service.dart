@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../app/harness_mode.dart';
+
 class DesktopNotificationService {
   static final DesktopNotificationService instance =
       DesktopNotificationService._();
@@ -35,7 +37,7 @@ class DesktopNotificationService {
   }
 
   Future<bool> checkIsAppFocused(bool fallbackState) async {
-    if (!isSupported) return fallbackState;
+    if (isHarnessMode || !isSupported) return fallbackState;
     try {
       return await windowManager.isFocused();
     } catch (_) {
@@ -56,10 +58,12 @@ class DesktopNotificationService {
       );
 
       notification.onClick = () {
-        try {
-          windowManager.show();
-          windowManager.focus();
-        } catch (_) {}
+        if (!isHarnessMode) {
+          try {
+            windowManager.show();
+            windowManager.focus();
+          } catch (_) {}
+        }
         if (sessionId != null) {
           onNotificationClicked?.call(sessionId);
         }

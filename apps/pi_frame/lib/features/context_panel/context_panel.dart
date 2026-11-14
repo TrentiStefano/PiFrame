@@ -473,7 +473,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                       items: _thinkingLevels.map((lvl) {
                         return DropdownMenuItem<String>(
                           value: lvl,
-                          child: Text(lvl.toUpperCase()),
+                          child: Text(ref.read(appStringsProvider).thinkingLevelLabel(lvl)),
                         );
                       }).toList(),
                       onChanged: readOnly || sessionBusy || policySaving

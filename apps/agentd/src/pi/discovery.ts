@@ -50,6 +50,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
   if (process.platform === 'win32') {
     const appdata = process.env.APPDATA;
     const localappdata = process.env.LOCALAPPDATA;
+    if (localappdata) candidates.push(path.join(localappdata, 'pi-node', 'current', 'pi.cmd'));
     if (appdata) candidates.push(path.join(appdata, 'npm', 'pi.cmd'));
     if (localappdata) candidates.push(path.join(localappdata, 'npm', 'pi.cmd'));
     // Common nvm4w or node default global paths

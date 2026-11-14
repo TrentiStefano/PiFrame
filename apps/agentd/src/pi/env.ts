@@ -38,6 +38,7 @@ export function getAugmentedPath(): string {
     const localappdata = process.env.LOCALAPPDATA;
     if (appdata) addDir(path.join(appdata, 'npm'));
     if (localappdata) addDir(path.join(localappdata, 'npm'));
+    if (localappdata) addDir(path.join(localappdata, 'pi-node', 'current'));
     addDir(path.join(os.homedir(), '.local', 'bin'));
     try {
       addDir(path.dirname(process.execPath));
@@ -58,4 +59,3 @@ export function getAugmentedEnv(extra?: Record<string, string | undefined>): Nod
     ...extra
   };
 }
-

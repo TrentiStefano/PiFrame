@@ -1,3 +1,5 @@
+import 'dart:ui' show BoxWidthStyle;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -201,12 +203,16 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                   color: statusColor,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  strings.taskNotifSubagentNotification,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    strings.taskNotifSubagentNotification,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -366,24 +372,32 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.terminal_outlined,
-                                      size: 13,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      strings.taskNotifOperationResult,
-                                      style: TextStyle(
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.terminal_outlined,
+                                        size: 13,
                                         color: tokens.textSecondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          strings.taskNotifOperationResult,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: tokens.textSecondary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Icon(
                                   _isResultExpanded
                                       ? Icons.keyboard_arrow_up
@@ -401,6 +415,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             padding: const EdgeInsets.all(10),
                             child: SelectableText(
                               data.result,
+                              selectionWidthStyle: BoxWidthStyle.tight,
                               style: TextStyle(
                                 color: tokens.textPrimary,
                                 fontSize: 11.5,
@@ -434,12 +449,16 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'ID: ${data.taskId}',
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 10,
-                        fontFamily: tokens.monoFontFamily,
+                    Flexible(
+                      child: Text(
+                        'ID: ${data.taskId}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: 10,
+                          fontFamily: tokens.monoFontFamily,
+                        ),
                       ),
                     ),
                     if (data.fullTranscriptPath != null &&

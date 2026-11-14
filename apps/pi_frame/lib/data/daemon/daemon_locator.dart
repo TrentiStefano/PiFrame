@@ -170,7 +170,8 @@ class DaemonLocator {
         final port = data['port'] as int;
 
         final healthUri = Uri.parse('http://127.0.0.1:$port/api/health');
-        final resp = await http.get(healthUri).timeout(const Duration(milliseconds: 800));
+        // A busy daemon can answer late; a short timeout made the app think it was dead and spawn a duplicate.
+        final resp = await http.get(healthUri).timeout(const Duration(seconds: 3));
         if (resp.statusCode == 200) {
           final health = jsonDecode(resp.body) as Map<String, dynamic>;
           final runningVersionStr = health['version'] as String?;

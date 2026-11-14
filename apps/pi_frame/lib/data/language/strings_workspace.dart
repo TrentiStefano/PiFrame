@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'language_settings.dart';
 
 /// Workspace, session changes, browser, and metrics internationalized strings.
@@ -39,7 +40,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Stop process (Ctrl+C)';
 
   String get terminalClearTooltip =>
-      isItalian ? 'Pulisci schermo (Clear)' : 'Clear screen';
+      isItalian ? 'Pulisci schermo' : 'Clear screen';
 
   String get terminalNativeAppTooltip => isItalian
       ? 'Apri nel terminale nativo (OS)'
@@ -96,8 +97,8 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Sovrascrivi esplicitamente' : 'Overwrite explicitly';
 
   String saveFailed(Object error) => isItalian
-      ? 'Salvataggio non riuscito: $error'
-      : 'Save failed: $error';
+      ? failureText(this, 'Salvataggio non riuscito', error)
+      : failureText(this, 'Save failed', error);
 
   String get loadingFiles =>
       isItalian ? 'Caricamento file...' : 'Loading files...';
@@ -196,7 +197,7 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Aggiorna file' : 'Refresh files';
 
   String get collapseRepoPanelTooltip => isItalian
-      ? 'Collassa pannello Repository'
+      ? 'Collassa pannello repository'
       : 'Collapse Repository panel';
 
   String get fileListLimitedNotice => isItalian
@@ -220,8 +221,8 @@ extension WorkspaceStrings on AppStrings {
   // Git Changes Pane
   // ---------------------------------------------------------------------------
   String gitOperationFailed(Object error) => isItalian
-      ? 'Operazione Git non riuscita: $error'
-      : 'Git operation failed: $error';
+      ? failureText(this, 'Operazione Git non riuscita', error)
+      : failureText(this, 'Git operation failed', error);
 
   String get closeDiffTooltip =>
       isItalian ? 'Chiudi diff' : 'Close diff';
@@ -230,21 +231,21 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Nessuna differenza trovata.' : 'No differences found.';
 
   String diffUnavailable(Object error) => isItalian
-      ? 'Diff non disponibile: $error'
-      : 'Diff unavailable: $error';
+      ? failureText(this, 'Diff non disponibile', error)
+      : failureText(this, 'Diff unavailable', error);
 
   String get diffUnavailableShort =>
       isItalian ? 'Diff non disponibile.' : 'Diff unavailable.';
 
   String get discardAllChangesTitle =>
-      isItalian ? 'Annullare tutte le modifiche?' : 'Discard all changes?';
+      isItalian ? 'Scartare le modifiche a questo file?' : 'Discard changes to this file?';
 
   String get discardAllChangesWarning => isItalian
-      ? 'L’operazione rimuove modifiche staged e unstaged.'
-      : 'This operation removes staged and unstaged changes.';
+      ? 'Le modifiche in stage e non in stage di questo file verranno rimosse. L’operazione non può essere annullata.'
+      : 'The staged and unstaged changes to this file will be removed. This cannot be undone.';
 
   String get discardChangesBtn =>
-      isItalian ? 'Annulla modifiche' : 'Discard changes';
+      isItalian ? 'Scarta modifiche' : 'Discard changes';
 
   String get commitStagedFilesTitle =>
       isItalian ? 'Commit dei file staged' : 'Commit staged files';
@@ -274,7 +275,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Stage $path';
 
   String discardFileTooltip(String path) => isItalian
-      ? 'Annulla modifiche a $path'
+      ? 'Scarta modifiche a $path'
       : 'Discard changes to $path';
 
   String get switchToWebBrowserTooltip =>
@@ -284,7 +285,7 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Aggiorna stato Git' : 'Refresh Git status';
 
   String get collapseGitPanelTooltip => isItalian
-      ? 'Collassa pannello Git Changes'
+      ? 'Collassa pannello Git changes'
       : 'Collapse Git Changes panel';
 
   String writesDisabledReadOnly(String? reason) => isItalian
@@ -308,23 +309,58 @@ extension WorkspaceStrings on AppStrings {
   String get workingTreeClean =>
       isItalian ? 'Working tree pulito' : 'Working tree clean';
 
+  /// Localized Git file status (raw value from the daemon, e.g. "untracked").
+  String gitFileStatusLabel(String status) => switch (status) {
+        'modified' => isItalian ? 'Modificato' : 'Modified',
+        'untracked' => isItalian ? 'Non tracciato' : 'Untracked',
+        'added' => isItalian ? 'Aggiunto' : 'Added',
+        'deleted' => isItalian ? 'Eliminato' : 'Deleted',
+        'renamed' => isItalian ? 'Rinominato' : 'Renamed',
+        'copied' => isItalian ? 'Copiato' : 'Copied',
+        'typechanged' => isItalian ? 'Tipo modificato' : 'Type changed',
+        'unmerged' => isItalian ? 'In conflitto' : 'Conflict',
+        _ => status,
+      };
+
+  String get gitStateStaged => isItalian ? 'in stage' : 'staged';
+
+  String get gitStateUnstaged => isItalian ? 'non in stage' : 'unstaged';
+
+  String get gitStateStagedAndUnstaged =>
+      isItalian ? 'in stage e non in stage' : 'staged + unstaged edits';
+
   String get stagedChangesSectionTitle =>
-      isItalian ? 'Modifiche preparate (Staged)' : 'Staged changes';
+      isItalian ? 'Modifiche in stage' : 'Staged changes';
 
   String get stagedChangesSectionUpper =>
-      isItalian ? 'MODIFICHE PREPARATE (STAGED)' : 'STAGED CHANGES';
+      isItalian ? 'MODIFICHE IN STAGE' : 'STAGED CHANGES';
 
   String get unstageAllTooltip =>
       isItalian ? 'Togli tutti dallo stage' : 'Unstage all';
+
+  String get gitFetchLabel => 'Fetch';
+  String get gitPullLabel => 'Pull';
+  String get gitPushLabel => 'Push';
+  String get gitSyncLabel => 'Sync';
+  String get gitFetchTooltip =>
+      isItalian ? 'Scarica i riferimenti remoti (fetch)' : 'Fetch from remotes';
+  String get gitPullTooltip => isItalian
+      ? 'Aggiorna il ramo dal remoto (solo fast-forward)'
+      : 'Pull from remote (fast-forward only)';
+  String get gitPushTooltip =>
+      isItalian ? 'Invia i commit al remoto (push)' : 'Push commits to remote';
+  String get gitSyncTooltip => isItalian
+      ? 'Sincronizza: pull e poi push'
+      : 'Sync: pull then push';
 
   String get noStagedFiles =>
       isItalian ? 'Nessun file preparato.' : 'No staged files.';
 
   String get changesSectionTitle =>
-      isItalian ? 'Modifiche (Changes)' : 'Changes';
+      isItalian ? 'Modifiche' : 'Changes';
 
   String get changesSectionUpper =>
-      isItalian ? 'MODIFICHE (CHANGES)' : 'CHANGES';
+      isItalian ? 'MODIFICHE' : 'CHANGES';
 
   String get stageAllTooltip =>
       isItalian ? 'Metti tutti in stage' : 'Stage all';
@@ -415,8 +451,8 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Caricamento...' : 'Loading...';
 
   String cannotOpenSystemBrowser(Object error) => isItalian
-      ? 'Impossibile aprire il browser di sistema: $error'
-      : 'Cannot open system browser: $error';
+      ? failureText(this, 'Impossibile aprire il browser di sistema', error)
+      : failureText(this, 'Cannot open system browser', error);
 
   String get pageLinkAddedToComposer => isItalian
       ? 'Link della pagina aggiunto al prompt del composer.'
@@ -431,7 +467,7 @@ extension WorkspaceStrings on AppStrings {
       : 'Open Chromium DevTools (F12)';
 
   String get sendToChatComposerTooltip => isItalian
-      ? 'Invia al Chat Composer'
+      ? 'Invia al chat composer'
       : 'Send to Chat Composer';
 
   String get copyUrlTooltip =>
@@ -475,6 +511,9 @@ extension WorkspaceStrings on AppStrings {
 
   String get browserGoTooltip =>
       isItalian ? 'Vai' : 'Go';
+
+  String get browserMoreActionsTooltip =>
+      isItalian ? 'Altre azioni' : 'More actions';
 
   String browserSearchEngineTooltip(String engine) =>
       isItalian ? 'Motore di ricerca: $engine' : 'Search engine: $engine';

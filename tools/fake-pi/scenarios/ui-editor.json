@@ -1,0 +1,88 @@
+{
+  "name": "ui-editor",
+  "description": "Extension editor dialog with prefilled multiline text.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "req_editor",
+        "method": "editor",
+        "title": "Release note",
+        "message": "Review and edit the draft.",
+        "prefill": "Offline simulator update\n\n- Added workflow coverage\n- Improved error states"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The release note was saved."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "The release note was saved."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

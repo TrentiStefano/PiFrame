@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'language_settings.dart';
 
 extension ComposerStrings on AppStrings {
@@ -33,7 +34,7 @@ extension ComposerStrings on AppStrings {
     final text = error.toString();
     if (text.contains('control mode')) {
       return isItalian
-          ? 'Impossibile caricare "$name": questo dispositivo è in sola lettura (modalità view).'
+          ? 'Impossibile caricare "$name": questo dispositivo è in sola lettura (modalità visualizzazione).'
           : 'Cannot upload "$name": this device is read-only (view mode).';
     }
     if (text.contains('Too Large') || text.contains('413')) {
@@ -42,8 +43,8 @@ extension ComposerStrings on AppStrings {
           : '"$name" is larger than the 50 MB limit.';
     }
     return isItalian
-        ? 'Caricamento di "$name" non riuscito: $text'
-        : 'Upload of "$name" failed: $text';
+        ? failureText(this, 'Caricamento di "$name" non riuscito', error)
+        : failureText(this, 'Upload of "$name" failed', error);
   }
 
   String get composerChangeModelTooltip =>
@@ -115,7 +116,7 @@ extension ComposerStrings on AppStrings {
 
   // --- Section 3: Composer Errors, Recovery & Dialogs ---
   String get composerWorkerCrashBanner => isItalian
-      ? 'Il worker Pi è terminato inaspettatamente. Nessun comando è stato re-inviato automaticamente.'
+      ? 'Il worker Pi è terminato inaspettatamente. Nessun comando è stato reinviato automaticamente.'
       : 'Pi worker terminated unexpectedly. No command was resent automatically.';
 
   String get composerRecoverSessionAction =>
@@ -125,11 +126,25 @@ extension ComposerStrings on AppStrings {
       ? 'Rimuovi gli allegati prima di eseguire un comando Pi.'
       : 'Remove attachments before running a Pi command.';
 
+  String composerCommandSourceLabel(String source) => switch (source) {
+        'builtin' => 'Pi',
+        'extension' => isItalian ? 'estensione' : 'extension',
+        'skill' => 'skill',
+        _ => 'prompt',
+      };
+
+  String get composerRemoveCommandTooltip =>
+      isItalian ? 'Rimuovi comando (Backspace)' : 'Remove command (Backspace)';
+
+  String composerCommandArgsHint(String name, String argumentHint) => isItalian
+      ? '${argumentHint.isEmpty ? 'Nessun argomento richiesto' : argumentHint} · Invio esegue /$name'
+      : '${argumentHint.isEmpty ? 'No arguments needed' : argumentHint} · Enter runs /$name';
+
   String composerCommandFailed(Object error) =>
-      isItalian ? 'Comando non riuscito: $error' : 'Command failed: $error';
+      isItalian ? failureText(this, 'Comando non riuscito', error) : failureText(this, 'Command failed', error);
 
   String composerSendFailed(Object error) =>
-      isItalian ? 'Invio non riuscito: $error' : 'Send failed: $error';
+      isItalian ? failureText(this, 'Invio non riuscito', error) : failureText(this, 'Send failed', error);
 
   String get composerVerifySessionTitle =>
       isItalian ? 'Verifica la sessione Pi' : 'Verify Pi session';
@@ -142,10 +157,10 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Continua qui' : 'Continue here';
 
   String composerResumeFailed(Object error) =>
-      isItalian ? 'Ripresa non riuscita: $error' : 'Resume failed: $error';
+      isItalian ? failureText(this, 'Ripresa non riuscita', error) : failureText(this, 'Resume failed', error);
 
   String composerActionFailed(Object error) =>
-      isItalian ? 'Azione non riuscita: $error' : 'Action failed: $error';
+      isItalian ? failureText(this, 'Azione non riuscita', error) : failureText(this, 'Action failed', error);
 
   String get composerNoFilesAvailable => isItalian
       ? 'Nessun file disponibile nella sessione.'
@@ -155,7 +170,7 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Immagini' : 'Images';
 
   String composerInterruptFailed(Object error) =>
-      isItalian ? 'Interruzione non riuscita: $error' : 'Interrupt failed: $error';
+      isItalian ? failureText(this, 'Interruzione non riuscita', error) : failureText(this, 'Interrupt failed', error);
 
   String get composerAgentInterrupted => isItalian
       ? 'Agente interrotto. La coda di messaggi è stata cancellata.'
@@ -242,11 +257,11 @@ extension ComposerStrings on AppStrings {
       : 'Model context not available. Try again once daemon connects.';
 
   String get composerContextSizeTitle =>
-      isItalian ? 'Dimensione Contesto' : 'Context size';
+      isItalian ? 'Dimensione contesto' : 'Context size';
 
   String composerContextSelectionFailed(Object error) => isItalian
-      ? 'Selezione contesto non riuscita: $error'
-      : 'Context selection failed: $error';
+      ? failureText(this, 'Selezione contesto non riuscita', error)
+      : failureText(this, 'Context selection failed', error);
 
   String get composerAttachTooltip => isItalian
       ? 'Allega file, link o immagine'
@@ -276,8 +291,8 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Duplica e continua' : 'Duplicate and continue';
 
   String composerDuplicationFailed(Object error) => isItalian
-      ? 'Duplicazione non riuscita: $error'
-      : 'Duplication failed: $error';
+      ? failureText(this, 'Duplicazione non riuscita', error)
+      : failureText(this, 'Duplication failed', error);
 
   String get composerDaemonNotConnected =>
       isItalian ? 'Daemon non connesso' : 'Daemon not connected';
@@ -290,7 +305,7 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Formato URL non valido' : 'Invalid URL format';
 
   String get attAddWebLinkTitle =>
-      isItalian ? 'Aggiungi Link Web' : 'Add Web Link';
+      isItalian ? 'Aggiungi link Web' : 'Add Web Link';
 
   String get attTitleOptional => isItalian
       ? 'Titolo o etichetta (opzionale)'
@@ -301,7 +316,7 @@ extension ComposerStrings on AppStrings {
       : 'API documentation, GitHub PR...';
 
   String get attAddLinkAction =>
-      isItalian ? 'Aggiungi Link' : 'Add Link';
+      isItalian ? 'Aggiungi link' : 'Add Link';
 
   String get attClosePreviewTooltip =>
       isItalian ? 'Chiudi anteprima' : 'Close preview';
@@ -373,11 +388,23 @@ extension ComposerStrings on AppStrings {
       ? '$current\nElenco modelli non disponibile.'
       : '$current\nModel list not available.';
 
+  /// Localized label for a Pi thinking level. The raw level stays the protocol value.
+  String thinkingLevelLabel(String level) => switch (level.toLowerCase()) {
+        'off' => isItalian ? 'Spento' : 'Off',
+        'minimal' => isItalian ? 'Minimo' : 'Minimal',
+        'low' => isItalian ? 'Basso' : 'Low',
+        'medium' => isItalian ? 'Medio' : 'Medium',
+        'high' => isItalian ? 'Alto' : 'High',
+        'xhigh' => isItalian ? 'Molto alto' : 'Extra high',
+        'max' => isItalian ? 'Massimo' : 'Max',
+        _ => level,
+      };
+
   String get thinkingLevelHeader =>
-      isItalian ? 'Livello Thinking' : 'Thinking level';
+      isItalian ? 'Livello thinking' : 'Thinking level';
 
   String get contextSizeHeader =>
-      isItalian ? 'Dimensione Contesto' : 'Context size';
+      isItalian ? 'Dimensione contesto' : 'Context size';
 
   String get compactionMarginHeader => isItalian
       ? 'Margine per compattazione (%)'
@@ -403,7 +430,7 @@ extension ComposerStrings on AppStrings {
       : 'Margin is unused until automatic compaction.';
 
   String get contextUsageHeader =>
-      isItalian ? 'Utilizzo Contesto' : 'Context usage';
+      isItalian ? 'Utilizzo contesto' : 'Context usage';
 
   String get dataNotAvailable =>
       isItalian ? 'Dati non disponibili' : 'Data not available';
@@ -418,10 +445,10 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Compatta contesto' : 'Compact context';
 
   String get duplicateBranchAction =>
-      isItalian ? 'Duplica Ramo (Clone)' : 'Duplicate branch (clone)';
+      isItalian ? 'Duplica ramo' : 'Duplicate branch (clone)';
 
   String get branchTreeAction =>
-      isItalian ? 'Albero dei Rami (Tree)' : 'Branch tree';
+      isItalian ? 'Albero dei rami' : 'Branch tree';
 
   String get compactionCompletedTitle =>
       isItalian ? 'Compattazione completata' : 'Compaction completed';
@@ -432,8 +459,8 @@ extension ComposerStrings on AppStrings {
           : 'Tokens before: $before\nTokens after: $after\n${cost.isNotEmpty ? "Cost: $cost" : ""}';
 
   String contextLimitNotApplied(Object error) => isItalian
-      ? 'Limite non applicato: $error'
-      : 'Limit not applied: $error';
+      ? failureText(this, 'Limite non applicato', error)
+      : failureText(this, 'Limit not applied', error);
 
   String get contextMaxNotAvailable =>
       isItalian ? 'Massimo non disponibile' : 'Max not available';
@@ -456,24 +483,24 @@ extension ComposerStrings on AppStrings {
       : '100k–$maxFormatted · Step 50k';
 
   String compactionMarginNotApplied(Object error) => isItalian
-      ? 'Margine non applicato: $error'
-      : 'Margin not applied: $error';
+      ? failureText(this, 'Margine non applicato', error)
+      : failureText(this, 'Margin not applied', error);
 
   String compactionFailed(Object error) => isItalian
-      ? 'Compattazione non riuscita: $error'
-      : 'Compaction failed: $error';
+      ? failureText(this, 'Compattazione non riuscita', error)
+      : failureText(this, 'Compaction failed', error);
 
   String actionFailed(Object error) => composerActionFailed(error);
 
   String duplicationFailed(Object error) => composerDuplicationFailed(error);
 
   String modelsNotAvailable(Object error) => isItalian
-      ? 'Modelli non disponibili: $error'
-      : 'Models not available: $error';
+      ? failureText(this, 'Modelli non disponibili', error)
+      : failureText(this, 'Models not available', error);
 
   // --- Section 7: Dialogs ---
   String get piInstallTitle => isItalian
-      ? 'Installazione Pi Coding Agent'
+      ? 'Installazione Pi coding agent'
       : 'Pi Coding Agent Installation';
 
   String get piInstallSubtitle => isItalian
@@ -481,7 +508,7 @@ extension ComposerStrings on AppStrings {
       : 'Initial automatic setup';
 
   String get piInstallNotDetected => isItalian
-      ? 'Pi Coding Agent non rilevato'
+      ? 'Pi coding agent non rilevato'
       : 'Pi Coding Agent not detected';
 
   String get piInstallDescription => isItalian
@@ -532,7 +559,7 @@ extension ComposerStrings on AppStrings {
       : 'No response from daemon. Please try again.';
 
   String get extUiInteractionRequest => isItalian
-      ? 'Richiesta di Interazione'
+      ? 'Richiesta di interazione'
       : 'Interaction Request';
 
   String get extUiLockedByOther => isItalian
@@ -556,7 +583,7 @@ extension ComposerStrings on AppStrings {
 
   // --- Section 9: Session Tree Dialog ---
   String get sessionTreeDialogTitle =>
-      isItalian ? 'Albero della Sessione' : 'Session Tree';
+      isItalian ? 'Albero della sessione' : 'Session Tree';
 
   String sessionTreeSessionLabel(String id) =>
       isItalian ? 'Sessione: $id' : 'Session: $id';
@@ -565,7 +592,7 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Ricarica' : 'Reload';
 
   String sessionTreeError(String err) =>
-      isItalian ? 'Errore: $err' : 'Error: $err';
+      isItalian ? failureText(this, 'Errore', err) : failureText(this, 'Error', err);
 
   String get sessionTreeNoBranches => isItalian
       ? 'Nessun ramo secondario per questa sessione.'

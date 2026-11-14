@@ -1,0 +1,150 @@
+{
+  "name": "provider-error-after-reply",
+  "description": "Partial assistant reply followed by a terminal provider error.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "The notes mention a small offline simulator."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The notes mention a small offline simulator."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [],
+          "stopReason": "error",
+          "errorMessage": "429 Too Many Requests: rate limit exceeded"
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": ""
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

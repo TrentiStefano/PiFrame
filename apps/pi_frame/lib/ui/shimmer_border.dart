@@ -3,6 +3,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+/// Accent ring around an active composer.
+///
+/// Normal motion: one light beam travels around the ring, accelerates and
+/// settles, then the ring rests for the remainder of the cycle. The beam fades
+/// in and out, so the ring is quiet between passes.
+///
+/// Reduced motion, phone-web, and tests: a static accent ring with no loop.
 class ShimmerBorder extends StatefulWidget {
   final bool isActive;
   final Widget child;
@@ -21,6 +28,9 @@ class ShimmerBorder extends StatefulWidget {
   State<ShimmerBorder> createState() => _ShimmerBorderState();
 }
 
+/// Fraction of each cycle spent travelling; the rest is the resting ring.
+const double _sweepFraction = 0.6;
+
 class _ShimmerBorderState extends State<ShimmerBorder>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
@@ -28,6 +38,9 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   /// Phone browsers (canvaskit) cannot sustain a 60fps blurred sweep + animated shadow around the
   /// composer while the agent streams: it made the whole web UI lag. Use a static accent border.
   bool _lite = false;
+
+  /// The OS or the app's Reduce motion setting asks for no movement.
+  bool _reduced = false;
 
   bool get _isTest =>
       WidgetsBinding.instance.runtimeType.toString().contains('Test');
@@ -37,7 +50,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3200),
+      duration: const Duration(milliseconds: 3600),
     );
   }
 
@@ -45,11 +58,14 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
+    _reduced = MediaQuery.disableAnimationsOf(context);
     _syncAnimation();
   }
 
+  bool get _animates => widget.isActive && !_isTest && !_lite && !_reduced;
+
   void _syncAnimation() {
-    if (widget.isActive && !_isTest && !_lite) {
+    if (_animates) {
       if (!_controller.isAnimating) _controller.repeat();
     } else {
       _controller.stop();
@@ -83,7 +99,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
       );
     }
 
-    if (_lite) {
+    if (_lite || _reduced) {
       return Container(
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
@@ -101,12 +117,17 @@ class _ShimmerBorderState extends State<ShimmerBorder>
       animation: _controller,
       child: RepaintBoundary(child: widget.child),
       builder: (context, child) {
-        final angle = _controller.value * 2 * math.pi;
-        final pulse = 0.16 + 0.10 * math.sin(angle);
+        final cycle = _controller.value;
+        final sweep = (cycle / _sweepFraction).clamp(0.0, 1.0);
+        final eased = Curves.easeInOutCubic.transform(sweep);
+        // Beam strength rises and falls across the pass, so it never snaps on or off.
+        final intensity = math.sin(math.pi * sweep);
+        final glow = 0.10 * intensity;
 
         return CustomPaint(
           painter: _SweepBorderPainter(
-            progress: _controller.value,
+            progress: eased,
+            intensity: intensity,
             borderRadius: widget.borderRadius,
             strokeWidth: widget.strokeWidth,
             borderColor: tokens.border,
@@ -117,11 +138,12 @@ class _ShimmerBorderState extends State<ShimmerBorder>
             decoration: BoxDecoration(
               borderRadius: widget.borderRadius,
               boxShadow: [
-                BoxShadow(
-                  color: tokens.accent.withValues(alpha: pulse),
-                  blurRadius: 14,
-                  spreadRadius: 1,
-                ),
+                if (glow > 0)
+                  BoxShadow(
+                    color: tokens.accent.withValues(alpha: glow),
+                    blurRadius: 14,
+                    spreadRadius: 1,
+                  ),
               ],
             ),
             child: child,
@@ -134,6 +156,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
 
 class _SweepBorderPainter extends CustomPainter {
   final double progress;
+  final double intensity;
   final BorderRadius borderRadius;
   final double strokeWidth;
   final Color borderColor;
@@ -142,6 +165,7 @@ class _SweepBorderPainter extends CustomPainter {
 
   _SweepBorderPainter({
     required this.progress,
+    required this.intensity,
     required this.borderRadius,
     required this.strokeWidth,
     required this.borderColor,
@@ -154,16 +178,16 @@ class _SweepBorderPainter extends CustomPainter {
     final rect = Offset.zero & size;
     final rrect = borderRadius.toRRect(rect).deflate(strokeWidth / 2);
 
-    // 1. Draw base border
+    // 1. Base border, always visible.
     final basePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0
       ..color = borderColor;
     canvas.drawRRect(rrect, basePaint);
 
-    final angle = progress * 2 * math.pi;
+    if (intensity <= 0.001) return;
 
-    // Glowing beam sweep gradient: concentrated peak at 0.75 stop
+    final angle = progress * 2 * math.pi;
     final shader = SweepGradient(
       center: Alignment.center,
       startAngle: 0.0,
@@ -181,25 +205,33 @@ class _SweepBorderPainter extends CustomPainter {
       stops: const [0.0, 0.50, 0.68, 0.75, 0.82, 0.90, 1.0],
     ).createShader(rect);
 
-    // 2. Draw outer blur glow beam
-    final glowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth * 2.2
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0)
-      ..shader = shader;
-    canvas.drawRRect(rrect, glowPaint);
-
-    // 3. Draw inner sharp crisp highlight beam
-    final sharpPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..shader = shader;
-    canvas.drawRRect(rrect, sharpPaint);
+    // 2 & 3. Beam: blurred halo and crisp core, faded by [intensity] through a layer.
+    canvas.saveLayer(
+      rect,
+      Paint()..color = Color.fromRGBO(0, 0, 0, intensity),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth * 2.2
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0)
+        ..shader = shader,
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..shader = shader,
+    );
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_SweepBorderPainter oldDelegate) {
     return oldDelegate.progress != progress ||
+        oldDelegate.intensity != intensity ||
         oldDelegate.borderColor != borderColor ||
         oldDelegate.accentColor != accentColor ||
         oldDelegate.glowColor != glowColor;

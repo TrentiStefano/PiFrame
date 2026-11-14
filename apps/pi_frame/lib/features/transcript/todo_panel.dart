@@ -138,45 +138,57 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                   color: tokens.accent,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  strings.todoAgentTasksTitle,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    strings.todoAgentTasksTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: (percent >= 1.0 ? tokens.success : tokens.accent)
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
-                  child: Text(
-                    strings.todoCompletedCount(completedCount, totalCount),
-                    style: TextStyle(
-                      color: percent >= 1.0 ? tokens.success : tokens.accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: (percent >= 1.0 ? tokens.success : tokens.accent)
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    ),
+                    child: Text(
+                      strings.todoCompletedCount(completedCount, totalCount),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: percent >= 1.0 ? tokens.success : tokens.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
                 if (inProgressCount > 0) ...[
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                    decoration: BoxDecoration(
-                      color: tokens.agentWorking.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    ),
-                    child: Text(
-                      strings.todoInProgressCount(inProgressCount),
-                      style: TextStyle(
-                        color: tokens.agentWorking,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: tokens.agentWorking.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                      child: Text(
+                        strings.todoInProgressCount(inProgressCount),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tokens.agentWorking,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),

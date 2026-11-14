@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../domain/session/session_state.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../transcript/task_notification_card.dart';
 
 class ParsedToolOutput {
@@ -68,7 +70,7 @@ Color getToolColor(String name, FrameTokens tokens) {
   switch (name.toLowerCase()) {
     case 'read':
     case 'read_file':
-      return tokens.syntaxFunction;
+      return tokens.info;
     case 'write':
     case 'write_file':
     case 'edit':
@@ -539,7 +541,12 @@ class _ToolCardState extends State<ToolCard> {
             ),
 
             // Output / command body (if expanded)
-            if (canExpand && _isExpanded) ...[
+            FrameExpandable(
+              expanded: canExpand && _isExpanded,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               Divider(color: tokens.border, height: 1),
 
               // Full bash / terminal command section
@@ -666,6 +673,7 @@ class _ToolCardState extends State<ToolCard> {
                         ),
                         child: SelectableText(
                           commandText,
+                          selectionWidthStyle: BoxWidthStyle.tight,
                           style: TextStyle(
                             color: tokens.syntaxNumber,
                             fontSize: 12,
@@ -745,6 +753,7 @@ class _ToolCardState extends State<ToolCard> {
                       child: SingleChildScrollView(
                         child: SelectableText(
                           tool.output,
+                          selectionWidthStyle: BoxWidthStyle.tight,
                           style: TextStyle(
                             color: tool.isError
                                 ? tokens.agentError
@@ -759,7 +768,9 @@ class _ToolCardState extends State<ToolCard> {
                   },
                 ),
               ],
-            ],
+                ],
+              ),
+            ),
           ],
         ),
       ),

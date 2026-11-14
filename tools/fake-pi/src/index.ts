@@ -56,22 +56,213 @@ async function main() {
     process.exit(0);
   }
 
-  // Check for scenario
-  let scenarioName = process.env.FAKE_PI_SCENARIO || 'hello-world';
   const scenarioIdx = args.indexOf('--scenario');
-  if (scenarioIdx !== -1 && args[scenarioIdx + 1]) {
-    scenarioName = args[scenarioIdx + 1];
-  }
-
-  const scenarioPath = path.resolve(__dirname, `../scenarios/${scenarioName}.json`);
-  let scenarioConfig: any = {};
-  if (fs.existsSync(scenarioPath)) {
-    try {
-      scenarioConfig = JSON.parse(fs.readFileSync(scenarioPath, 'utf8'));
-    } catch (e) {
-      console.error(`Failed to parse scenario: ${scenarioPath}`);
+  const cliScenario = scenarioIdx !== -1 && args[scenarioIdx + 1] ? args[scenarioIdx + 1] : undefined;
+  const selectedScenarioName = (): string => {
+    const controlFile = process.env.FAKE_PI_CONTROL_FILE;
+    if (controlFile && fs.existsSync(controlFile)) {
+      try {
+        return fs.readFileSync(controlFile, 'utf8').trim();
+      } catch (error) {
+        console.error(`Unable to read FAKE_PI_CONTROL_FILE: ${String(error)}`);
+      }
     }
-  }
+    return process.env.FAKE_PI_SCENARIO || cliScenario || 'hello-world';
+  };
+  const readScenario = (): any => {
+    let name = selectedScenarioName();
+    const scenariosDir = path.resolve(__dirname, '../scenarios');
+    let scenarioPath = path.resolve(scenariosDir, `${name}.json`);
+    const scenarioRelative = path.relative(scenariosDir, scenarioPath);
+    if (!name || name.includes('/') || name.includes('\\') || scenarioRelative.startsWith('..') || path.isAbsolute(scenarioRelative) || !fs.existsSync(scenarioPath)) {
+      console.error(`Unknown fake-pi scenario '${name}', falling back to hello-world.`);
+      name = 'hello-world';
+      scenarioPath = path.resolve(__dirname, '../scenarios/hello-world.json');
+    }
+    try {
+      return JSON.parse(fs.readFileSync(scenarioPath, 'utf8'));
+    } catch (error) {
+      console.error(`Failed to parse scenario: ${scenarioPath}: ${String(error)}`);
+      return {};
+    }
+  };
+
+  const writeScenarioFile = (operation: 'writeFile' | 'appendFile', spec: any): void => {
+    try {
+      const cwd = path.resolve(process.cwd());
+      if (!fs.existsSync(path.join(cwd, '.fake-pi-writable'))) {
+        console.error(`fake-pi refused ${operation}: .fake-pi-writable marker is missing in ${cwd}`);
+        return;
+      }
+      if (!spec || typeof spec.path !== 'string' || path.isAbsolute(spec.path)) {
+        console.error(`fake-pi refused ${operation}: path must be relative`);
+        return;
+      }
+      const target = path.resolve(cwd, spec.path);
+      const relative = path.relative(cwd, target);
+      if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+        console.error(`fake-pi refused ${operation}: path escapes session cwd`);
+        return;
+      }
+      const segments = relative.split(path.sep);
+      let parent = cwd;
+      for (const segment of segments.slice(0, -1)) {
+        parent = path.join(parent, segment);
+        try {
+          const parentStat = fs.lstatSync(parent);
+          if (parentStat.isSymbolicLink() || !parentStat.isDirectory()) {
+            console.error(`fake-pi refused ${operation}: parent path is not a real directory`);
+            return;
+          }
+        } catch (error: any) {
+          if (error?.code !== 'ENOENT') throw error;
+          fs.mkdirSync(parent);
+        }
+      }
+      const realCwd = fs.realpathSync(cwd);
+      const realParent = fs.realpathSync(parent);
+      const realRelative = path.relative(realCwd, realParent);
+      if (realRelative === '..' || realRelative.startsWith(`..${path.sep}`) || path.isAbsolute(realRelative)) {
+        console.error(`fake-pi refused ${operation}: resolved path escapes session cwd`);
+        return;
+      }
+      try {
+        const targetStat = fs.lstatSync(target);
+        if (targetStat.isSymbolicLink() || (targetStat.isFile() && targetStat.nlink > 1)) {
+          console.error(`fake-pi refused ${operation}: refusing symbolic links and hard-linked files`);
+          return;
+        }
+        const realTarget = fs.realpathSync(target);
+        const targetRelative = path.relative(realCwd, realTarget);
+        if (targetRelative === '..' || targetRelative.startsWith(`..${path.sep}`) || path.isAbsolute(targetRelative)) {
+          console.error(`fake-pi refused ${operation}: resolved path escapes session cwd`);
+          return;
+        }
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+      const content = typeof spec.content === 'string' ? spec.content : '';
+      if (operation === 'writeFile') fs.writeFileSync(target, content, 'utf8');
+      else fs.appendFileSync(target, content, 'utf8');
+    } catch (error) {
+      console.error(`fake-pi refused ${operation}: ${String(error)}`);
+    }
+  };
+
+  const agentDir = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.pi', 'agent'));
+  const packagesFile = path.join(agentDir, 'fake-packages.json');
+  const defaultPackages = [
+    { source: 'npm:pi-subagents', version: '0.9.0', latest: '0.10.0' },
+    { source: 'npm:@juicesharp/rpiv-ask-user-question', version: '1.2.0', latest: '1.2.0' },
+    { source: 'npm:pi-caveman@1.0.0', version: '1.0.0', latest: '1.0.0' },
+    { source: 'git:github.com/example/pi-theme-pack', version: null, latest: null }
+  ];
+  const packageName = (source: string): string => {
+    if (!source.startsWith('npm:')) return source;
+    const spec = source.slice(4);
+    const slash = spec.lastIndexOf('/');
+    const at = spec.lastIndexOf('@');
+    return at > slash ? spec.slice(0, at) : spec;
+  };
+  const packageVersion = (source: string, fallback = '1.0.0'): string => {
+    const spec = source.slice(4);
+    const slash = spec.lastIndexOf('/');
+    const at = spec.lastIndexOf('@');
+    return at > slash ? spec.slice(at + 1) : fallback;
+  };
+  const loadPackages = (): any[] => {
+    fs.mkdirSync(agentDir, { recursive: true });
+    if (!fs.existsSync(packagesFile)) fs.writeFileSync(packagesFile, JSON.stringify(defaultPackages, null, 2));
+    try {
+      const loaded = JSON.parse(fs.readFileSync(packagesFile, 'utf8'));
+      return Array.isArray(loaded) ? loaded : [...defaultPackages];
+    } catch { return [...defaultPackages]; }
+  };
+  const savePackages = (packages: any[]): void => {
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(packagesFile, JSON.stringify(packages, null, 2));
+    for (const item of packages) {
+      if (!String(item.source).startsWith('npm:')) continue;
+      const name = packageName(item.source);
+      const installDir = path.join(agentDir, 'npm', 'node_modules', name);
+      fs.mkdirSync(installDir, { recursive: true });
+      fs.writeFileSync(path.join(installDir, 'package.json'), JSON.stringify({ name, version: item.version || packageVersion(item.source) }, null, 2));
+      if (name === 'pi-subagents') {
+        const agentsDir = path.join(installDir, 'agents');
+        fs.mkdirSync(agentsDir, { recursive: true });
+        fs.writeFileSync(path.join(agentsDir, 'reviewer.md'), '---\nname: reviewer\ndescription: Review changes offline\n---\nReview the requested changes carefully.\n');
+      }
+    }
+  };
+  const runCli = (): boolean => {
+    const command = args[0];
+    if (args.includes('--list-models')) {
+      console.log('Provider  Model          Context  Reasoning');
+      console.log('fake      fake-model     128000   yes');
+      console.log('fake      fake-fast      64000    no');
+      console.log('openai    gpt-4o-mini    128000   yes');
+      return true;
+    }
+    if (command === 'list') {
+      const packages = loadPackages();
+      savePackages(packages);
+      console.log('User packages:');
+      for (const item of packages) {
+        console.log(`  ${item.source}`);
+        if (String(item.source).startsWith('npm:')) console.log(`    ${path.join(agentDir, 'npm', 'node_modules', packageName(item.source))}`);
+      }
+      console.log('Project packages:');
+      return true;
+    }
+    if (command === 'install' && args[1]) {
+      const source = args[1];
+      const packages = loadPackages().filter((item) => item.source !== source && item.source !== `npm:${packageName(source)}`);
+      const version = source.startsWith('npm:') ? packageVersion(source, '1.0.0') : '1.0.0';
+      packages.push({ source, version, latest: version });
+      savePackages(packages);
+      console.log(`Installing ${source}...`);
+      console.log(`Installed ${source} (${version}).`);
+      return true;
+    }
+    if (command === 'remove' && args[1]) {
+      const source = args[1];
+      const packages = loadPackages().filter((item) => item.source !== source);
+      savePackages(packages);
+      if (source.startsWith('npm:')) {
+        const installDir = path.join(agentDir, 'npm', 'node_modules', packageName(source));
+        fs.rmSync(installDir, { recursive: true, force: true });
+      }
+      console.log(`Removed ${source}.`);
+      return true;
+    }
+    if (command === 'update') {
+      const packages = loadPackages();
+      const target = args[1];
+      for (const item of packages) {
+        if (!target || target === '--all' || target === '--extensions' || target === '--models' || item.source === target) {
+          const pinned = item.source.startsWith('npm:') && item.source !== `npm:${packageName(item.source)}`;
+          if (item.latest && !pinned) item.version = item.latest;
+          console.log(`Updated ${item.source} to ${item.version || 'latest'}.`);
+        }
+      }
+      savePackages(packages);
+      return true;
+    }
+    if (command === 'mcp' && args[1] === 'list') {
+      const servers = [
+        { name: 'local-files', enabled: true, state: 'connected', transport: 'stdio node local-files.js', source: path.join(agentDir, 'mcp.json'), scope: 'global', tools: ['read_file', 'list_directory'] },
+        { name: 'offline-search', enabled: true, state: 'failed', transport: 'stdio node offline-search.js', source: path.join(agentDir, 'mcp.json'), scope: 'global', tools: [], error: 'Offline simulator: server unavailable' }
+      ];
+      if (args.includes('--json')) console.log(JSON.stringify({ servers }));
+      else {
+        console.log('MCP servers:');
+        for (const server of servers) console.log(`${server.name}  ${server.state}  ${server.tools.length} tools`);
+      }
+      return true;
+    }
+    return false;
+  };
+  if (runCli()) return;
 
   let isStreaming = false;
   let abortRequested = false;
@@ -143,7 +334,7 @@ async function main() {
         command: 'get_messages',
         success: true,
         data: {
-          messages: scenarioConfig.messages || [
+          messages: readScenario().messages || [
             {
               role: 'user',
               content: [{ type: 'text', text: 'Hello, what is this project?' }],
@@ -194,7 +385,7 @@ async function main() {
         command: 'get_available_models',
         success: true,
         data: {
-          models: [
+          models: readScenario().models || [
             {
               id: 'fake-model',
               name: 'Fake Pi Model',
@@ -211,6 +402,13 @@ async function main() {
               provider: 'fake',
               reasoning: false,
               contextWindow: 64000
+            },
+            {
+              id: 'gpt-4o-mini',
+              name: 'GPT-4o mini',
+              provider: 'openai',
+              reasoning: true,
+              contextWindow: 128000
             }
           ]
         }
@@ -225,9 +423,10 @@ async function main() {
         command: 'get_commands',
         success: true,
         data: {
-          commands: [
-            { name: 'help', description: 'Show help', source: 'prompt', sourceInfo: { name: 'help' } },
-            { name: 'review', description: 'Review changes', source: 'skill', sourceInfo: { name: 'review' } }
+          commands: readScenario().commands || [
+            { name: 'help', description: 'Show help', source: 'prompt', sourceInfo: { name: 'help' }, argumentHint: '[topic]' },
+            { name: 'review', description: 'Review changes', source: 'skill', sourceInfo: { name: 'review' }, argumentHint: '[files]' },
+            { name: 'status', description: 'Show detailed extension status', source: 'extension', sourceInfo: { name: 'fake-pi' }, argumentHint: '<verbose|short>' }
           ]
         }
       });
@@ -240,7 +439,7 @@ async function main() {
         type: 'response',
         command: 'get_entries',
         success: true,
-        data: { entries: [], leafId: null }
+        data: (() => { const scenario = readScenario(); return { entries: scenario.entries || [], leafId: scenario.leafId ?? null }; })()
       });
       return;
     }
@@ -251,7 +450,7 @@ async function main() {
         type: 'response',
         command: 'get_tree',
         success: true,
-        data: { tree: [], leafId: null }
+        data: (() => { const scenario = readScenario(); return { tree: scenario.tree || [], leafId: scenario.leafId ?? null }; })()
       });
       return;
     }
@@ -262,8 +461,13 @@ async function main() {
         type: 'response',
         command: 'get_session_stats',
         success: true,
-        data: { tokens: { input: 100, output: 50, total: 150 }, cost: 0.001, contextUsage: { percent: 1.2 } }
+        data: readScenario().stats || { tokens: { input: 100, output: 50, total: 150 }, cost: 0.001, contextUsage: { tokens: 150, contextWindow: 128000, percent: 0.12 } }
       });
+      return;
+    }
+
+    if (type === 'fork' || type === 'clone') {
+      send({ id, type: 'response', command: type, success: true, data: { cancelled: false } });
       return;
     }
 
@@ -311,10 +515,10 @@ async function main() {
         type: 'response',
         command: 'compact',
         success: true,
-        data: { tokensBefore: 10000, tokensAfter: 2000, cost: 0.02 }
+        data: { tokensBefore: 10000, tokensAfter: 2000, estimatedTokensAfter: 2000, cost: 0.02 }
       });
       send({ type: 'compaction_start', reason: 'manual' });
-      send({ type: 'compaction_end', result: { tokensBefore: 10000, tokensAfter: 2000, cost: 0.02 }, aborted: false, willRetry: false });
+      send({ type: 'compaction_end', result: { tokensBefore: 10000, tokensAfter: 2000, estimatedTokensAfter: 2000, cost: 0.02 }, aborted: false, willRetry: false });
       return;
     }
 
@@ -328,6 +532,7 @@ async function main() {
       isStreaming = true;
       abortRequested = false;
 
+      const scenarioConfig = readScenario();
       const events = scenarioConfig.events || [
         { delayMs: 10, event: { type: 'agent_start' } },
         { delayMs: 10, event: { type: 'turn_start' } },
@@ -357,8 +562,18 @@ async function main() {
           sendRaw('{ malformed json line ...');
           continue;
         }
+        if (step.writeFile) writeScenarioFile('writeFile', step.writeFile);
+        if (step.appendFile) writeScenarioFile('appendFile', step.appendFile);
         if (step.event) {
-          send(step.event);
+          // Real Pi echoes the user's own prompt and stamps it with the send time; scenarios mark
+          // those slots with {{prompt}} and "{{now}}".
+          const prompt = typeof cmd.message === 'string' ? cmd.message : '';
+          const raw = JSON.stringify(step.event);
+          send(raw.includes('{{')
+            ? JSON.parse(raw
+              .split('{{prompt}}').join(JSON.stringify(prompt).slice(1, -1))
+              .split('"{{now}}"').join(String(Date.now())))
+            : step.event);
         }
       }
 

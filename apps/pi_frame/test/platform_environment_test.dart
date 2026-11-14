@@ -9,14 +9,17 @@ void main() {
     PlatformEnvironment.resetCache();
   });
 
-  test('PlatformEnvironment returns search paths including system and home paths', () {
-    final paths = PlatformEnvironment.searchPaths;
-    expect(paths, isNotEmpty);
+  test(
+    'PlatformEnvironment returns search paths including system and home paths',
+    () {
+      final paths = PlatformEnvironment.searchPaths;
+      expect(paths, isNotEmpty);
 
-    final env = PlatformEnvironment.environment;
-    expect(env['PATH'], isNotNull);
-    expect(env['PATH']!.isNotEmpty, isTrue);
-  });
+      final env = PlatformEnvironment.environment;
+      expect(env['PATH'], isNotNull);
+      expect(env['PATH']!.isNotEmpty, isTrue);
+    },
+  );
 
   test('PlatformEnvironment findExecutable locates standard executables', () {
     // Both Windows and POSIX have cmd/sh or node in standard environments
@@ -26,15 +29,32 @@ void main() {
     expect(File(found!).existsSync(), isTrue);
   });
 
-  test('PlatformEnvironment findExecutable returns null for non-existent binary', () {
-    final found = PlatformEnvironment.findExecutable('non_existent_binary_xyz_123');
-    expect(found, isNull);
+  test(
+    'PlatformEnvironment findExecutable returns null for non-existent binary',
+    () {
+      final found = PlatformEnvironment.findExecutable(
+        'non_existent_binary_xyz_123',
+      );
+      expect(found, isNull);
+    },
+  );
+
+  test('Windows search paths include the official standalone Pi runtime', () {
+    if (!Platform.isWindows) return;
+    final localAppData = Platform.environment['LOCALAPPDATA'];
+    if (localAppData == null) return;
+    expect(
+      PlatformEnvironment.searchPaths,
+      contains('$localAppData\\pi-node\\current'),
+    );
   });
 
-  test('DefaultPiInstallService isPiInstalled returns a boolean without throwing', () async {
-    final service = DefaultPiInstallService();
-    final result = await service.isPiInstalled();
-    expect(result, isA<bool>());
-  });
+  test(
+    'DefaultPiInstallService isPiInstalled returns a boolean without throwing',
+    () async {
+      final service = DefaultPiInstallService();
+      final result = await service.isPiInstalled();
+      expect(result, isA<bool>());
+    },
+  );
 }
-

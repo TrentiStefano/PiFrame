@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -5,6 +6,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/agents/agents_config_controller.dart';
 import '../../data/agents/agents_config_model.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
 import '../../ui/frame_snack_bar.dart';
 
 String formatContextTier(int tokens, int? modelContextWindow) {
@@ -187,7 +189,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          state.errorMessage!,
+                          describeError(state.errorMessage!, strings).summary,
                           style: TextStyle(
                             color: tokens.danger,
                             fontSize: 12,
@@ -1278,7 +1280,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             return DropdownMenuItem<String>(
               value: lvl,
               child: Text(
-                lvl,
+                ref.read(appStringsProvider).thinkingLevelLabel(lvl),
                 style: TextStyle(color: tokens.textPrimary, fontSize: 12),
               ),
             );

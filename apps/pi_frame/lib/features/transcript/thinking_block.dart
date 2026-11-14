@@ -1,3 +1,5 @@
+import 'dart:ui' show BoxWidthStyle;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/strings_transcript.dart';
@@ -137,6 +139,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             ),
             child: SelectableText(
               widget.thinkingText,
+              selectionWidthStyle: BoxWidthStyle.tight,
               style: TextStyle(
                 color: tokens.textSecondary,
                 fontSize: 12,

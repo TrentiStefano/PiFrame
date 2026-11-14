@@ -1,0 +1,2182 @@
+{
+  "name": "long-history",
+  "description": "Static snapshot contains 150 alternating user, assistant tool-call and tool-result messages.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "I have the earlier context and can continue."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "I have the earlier context and can continue."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "I have the earlier context and can continue."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "I have the earlier context and can continue."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 1: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000000000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 1."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_1",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000001000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_1",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 1."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000002000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 2: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000003000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 2."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_4",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000004000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_4",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 2."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000005000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 3: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000006000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 3."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_7",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000007000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_7",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 3."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000008000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 4: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000009000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 4."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_10",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000010000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_10",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 4."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000011000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 5: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000012000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 5."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_13",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000013000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_13",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 5."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000014000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 6: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000015000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 6."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_16",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000016000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_16",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 6."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000017000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 7: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000018000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 7."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_19",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000019000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_19",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 7."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000020000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 8: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000021000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 8."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_22",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000022000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_22",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 8."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000023000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 9: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000024000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 9."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_25",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000025000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_25",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 9."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000026000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 10: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000027000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 10."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_28",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000028000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_28",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 10."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000029000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 11: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000030000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 11."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_31",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000031000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_31",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 11."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000032000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 12: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000033000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 12."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_34",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000034000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_34",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 12."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000035000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 13: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000036000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 13."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_37",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000037000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_37",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 13."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000038000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 14: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000039000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 14."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_40",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000040000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_40",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 14."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000041000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 15: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000042000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 15."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_43",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000043000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_43",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 15."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000044000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 16: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000045000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 16."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_46",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000046000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_46",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 16."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000047000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 17: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000048000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 17."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_49",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000049000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_49",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 17."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000050000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 18: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000051000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 18."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_52",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000052000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_52",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 18."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000053000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 19: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000054000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 19."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_55",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000055000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_55",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 19."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000056000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 20: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000057000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 20."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_58",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000058000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_58",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 20."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000059000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 21: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000060000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 21."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_61",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000061000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_61",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 21."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000062000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 22: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000063000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 22."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_64",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000064000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_64",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 22."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000065000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 23: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000066000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 23."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_67",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000067000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_67",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 23."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000068000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 24: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000069000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 24."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_70",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000070000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_70",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 24."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000071000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 25: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000072000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 25."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_73",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000073000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_73",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 25."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000074000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 26: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000075000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 26."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_76",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000076000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_76",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 26."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000077000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 27: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000078000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 27."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_79",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000079000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_79",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 27."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000080000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 28: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000081000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 28."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_82",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000082000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_82",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 28."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000083000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 29: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000084000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 29."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_85",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000085000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_85",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 29."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000086000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 30: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000087000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 30."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_88",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000088000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_88",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 30."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000089000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 31: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000090000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 31."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_91",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000091000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_91",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 31."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000092000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 32: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000093000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 32."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_94",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000094000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_94",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 32."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000095000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 33: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000096000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 33."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_97",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000097000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_97",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 33."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000098000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 34: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000099000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 34."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_100",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000100000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_100",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 34."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000101000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 35: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000102000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 35."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_103",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000103000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_103",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 35."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000104000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 36: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000105000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 36."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_106",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000106000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_106",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 36."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000107000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 37: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000108000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 37."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_109",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000109000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_109",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 37."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000110000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 38: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000111000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 38."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_112",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000112000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_112",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 38."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000113000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 39: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000114000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 39."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_115",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000115000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_115",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 39."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000116000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 40: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000117000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 40."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_118",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000118000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_118",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 40."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000119000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 41: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000120000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 41."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_121",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000121000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_121",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 41."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000122000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 42: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000123000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 42."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_124",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000124000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_124",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 42."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000125000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 43: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000126000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 43."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_127",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000127000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_127",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 43."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000128000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 44: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000129000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 44."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_130",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000130000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_130",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 44."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000131000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 45: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000132000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 45."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_133",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000133000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_133",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 45."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000134000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 46: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000135000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 46."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_136",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000136000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_136",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 46."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000137000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 47: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000138000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 47."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_139",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000139000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_139",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 47."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000140000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 48: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000141000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 48."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_142",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000142000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_142",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 48."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000143000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 49: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000144000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 49."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_145",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000145000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_145",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 49."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000146000
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Question 50: inspect this small change."
+        }
+      ],
+      "timestamp": 1700000147000
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will inspect the relevant file for exchange 50."
+        },
+        {
+          "type": "toolCall",
+          "id": "history_call_148",
+          "name": "read",
+          "arguments": {
+            "path": "notes.md"
+          }
+        }
+      ],
+      "timestamp": 1700000148000
+    },
+    {
+      "role": "toolResult",
+      "toolCallId": "history_call_148",
+      "toolName": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "Notes excerpt 50."
+        }
+      ],
+      "isError": false,
+      "timestamp": 1700000149000
+    }
+  ]
+}

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/data/language/language_settings.dart';
+import 'package:pi_frame/domain/errors/user_facing_error.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/composer/composer_draft.dart';
@@ -116,6 +119,41 @@ class _FakeWorkspaceClient extends PcpClient {
   }
 }
 
+/// Long Git list: one staged file and 200 unstaged files, enough to scroll.
+class _ManyFilesWorkspaceClient extends _FakeWorkspaceClient {
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async {
+    final files = <Map<String, dynamic>>[
+      {
+        'path': 'staged-change.dart',
+        'status': 'modified',
+        'staged': true,
+        'unstaged': false,
+      },
+      for (var i = 1; i <= 200; i++)
+        {
+          'path': 'generated/file-${i.toString().padLeft(3, '0')}.txt',
+          'status': 'untracked',
+          'staged': false,
+          'unstaged': true,
+        },
+    ];
+    return {
+      'data': {
+        'isRepository': true,
+        'rootPath': '/repo',
+        'branch': 'main',
+        'files': files,
+        'totalAdditions': 205,
+        'totalDeletions': 0,
+      },
+    };
+  }
+}
+
 void main() {
   test(
     'stale daemon workspace command shows a safe rebuild and restart hint',
@@ -131,6 +169,13 @@ void main() {
           .loadFiles();
       expect(
         container.read(repositoryStateProvider('session-a')).error,
+        isNotNull,
+      );
+      expect(
+        describeError(
+          container.read(repositoryStateProvider('session-a')).error!,
+          const AppStrings(AppLanguage.it),
+        ).hint,
         contains('riavvia il daemon solo quando nessun worker Pi è attivo'),
       );
     },
@@ -218,7 +263,7 @@ void main() {
     repository.edit('lib/main.dart', 'manual edit\n');
     await repository.save('lib/main.dart');
     // Git changes starts collapsed by default: tap section header to expand
-    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.tap(find.text('MODIFICHE'));
     await tester.pumpAndSettle();
 
     expect(
@@ -244,12 +289,178 @@ void main() {
     expect(client.gitActions.last['action'], 'stage');
     expect(client.gitActions.last['paths'], ['notes.txt']);
 
-    await tester.tap(find.byTooltip('Annulla modifiche a lib/main.dart'));
+    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
     await tester.pumpAndSettle();
-    expect(find.text('Annullare tutte le modifiche?'), findsOneWidget);
-    await tester.tap(find.text('Annulla modifiche'));
+    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+    await tester.tap(find.text('Scarta modifiche'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'discard');
+  });
+
+  testWidgets('Git discard dialog focuses Annulla and Enter does not discard', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Scarta modifiche a lib/main.dart'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+    expect(
+      find.text(
+        'Le modifiche in stage e non in stage di questo file verranno rimosse. '
+        'L’operazione non può essere annullata.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextButton, 'Annulla'), findsOneWidget);
+    final confirm = find.widgetWithText(FilledButton, 'Scarta modifiche');
+    expect(confirm, findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(confirm)
+          .style
+          ?.backgroundColor
+          ?.resolve(<WidgetState>{}),
+      FrameTokens.light.danger,
+    );
+
+    // Cancel holds initial focus, so Enter cancels instead of discarding.
+    final focusedButton = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<TextButton>();
+    expect(focusedButton?.key, const ValueKey('discard-file-cancel-btn'));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.text('Scartare le modifiche a questo file?'), findsNothing);
+    expect(
+      client.gitActions.where((action) => action['action'] == 'discard'),
+      isEmpty,
+    );
+  });
+
+  testWidgets('Git group headers never paint over the summary line while scrolling', (
+    tester,
+  ) async {
+    final client = _ManyFilesWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 360,
+              child: GitChangesPane(sessionId: 'session-a'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE IN STAGE'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE'));
+    await tester.pumpAndSettle();
+
+    final summaryFinder = find.text('201 file');
+    final listFinder = find.descendant(
+      of: find.byType(GitChangesPane),
+      matching: find.byType(ListView),
+    );
+    expect(summaryFinder, findsOneWidget);
+    expect(listFinder, findsOneWidget);
+    expect(
+      find.ancestor(of: listFinder, matching: find.byType(ClipRect)),
+      findsOneWidget,
+    );
+
+    final headers = [
+      find.text('MODIFICHE IN STAGE'),
+      find.text('MODIFICHE'),
+    ];
+    // Scroll the list down in steps, then back to the top. Whatever part of a
+    // group header is still visible inside the list must sit below the
+    // summary line.
+    for (final dy in [-200.0, -400.0, -600.0, 1600.0]) {
+      await tester.drag(listFinder, Offset(0, dy));
+      await tester.pumpAndSettle();
+      final summary = tester.getRect(summaryFinder);
+      final visibleList = tester.getRect(listFinder);
+      expect(visibleList.top, greaterThanOrEqualTo(summary.bottom));
+      for (final header in headers) {
+        // The lazy list does not build rows scrolled far out of view.
+        if (header.evaluate().isEmpty) continue;
+        final visible = tester.getRect(header).intersect(visibleList);
+        if (visible.isEmpty) continue;
+        expect(
+          visible.top,
+          greaterThanOrEqualTo(summary.bottom),
+          reason: 'group header painted over the summary line after dy=$dy',
+        );
+      }
+    }
+  });
+
+  testWidgets('Git Changes bottom bar sends fetch, pull, push and sync', (
+    tester,
+  ) async {
+    final client = _FakeWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final action in ['fetch', 'pull', 'push', 'sync']) {
+      await tester.tap(find.byKey(ValueKey('git-$action-btn')));
+      await tester.pumpAndSettle();
+      expect(client.gitActions.last['action'], action);
+      expect(client.gitActions.last['paths'], isEmpty);
+    }
+    expect(client.gitActions, hasLength(4));
   });
 
   testWidgets('Composer can add a repository file to prompt context', (
