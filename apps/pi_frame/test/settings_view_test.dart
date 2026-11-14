@@ -795,6 +795,140 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  group('Packages loading, timeout and error states', () {
+    testWidgets('loading shows a labelled skeleton instead of a spinner', (
+      tester,
+    ) async {
+      final pending = Completer<Map<String, dynamic>>();
+      final client = _PackageClient()..onList = () => pending.future;
+      await pumpPackages(tester, client, settle: false);
+
+      expect(find.text('Caricamento pacchetti…'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('packages-skeleton-row')),
+        findsNWidgets(4),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('packages-loading')),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('packages-load-retry')), findsNothing);
+
+      await tester.pump(const Duration(seconds: 9));
+      expect(find.byKey(const ValueKey('packages-loading-slow')), findsNothing);
+
+      pending.complete({
+        'data': {'packages': client.packages},
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('packages-loading')), findsNothing);
+    });
+
+    testWidgets('timeout keeps the skeleton and retry re-requests the list', (
+      tester,
+    ) async {
+      final pending = Completer<Map<String, dynamic>>();
+      final client = _PackageClient();
+      client.onList = () {
+        if (client.listRequests == 1) return pending.future;
+        return Future.value({
+          'data': {
+            'packages': [
+              {
+                'source': 'npm:pi-caveman',
+                'name': 'pi-caveman',
+                'version': '0.1.15',
+              },
+            ],
+          },
+        });
+      };
+      await pumpPackages(tester, client, settle: false);
+
+      await tester.pump(const Duration(seconds: 10));
+      await tester.pump();
+      expect(
+        find.text('Il caricamento richiede più tempo del previsto'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('packages-skeleton-row')),
+        findsNWidgets(4),
+      );
+      expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
+      expect(client.listRequests, 1);
+
+      await tester.tap(find.byKey(const ValueKey('packages-load-retry')));
+      await tester.pumpAndSettle();
+
+      expect(client.listRequests, 2);
+      expect(find.byKey(const ValueKey('packages-loading-slow')), findsNothing);
+      expect(find.text('pi-caveman'), findsOneWidget);
+    });
+
+    testWidgets('error shows a callout with raw details behind Dettagli', (
+      tester,
+    ) async {
+      final client = _PackageClient()
+        ..onList = () async => throw StateError('daemon refused boom-42');
+      await pumpPackages(tester, client);
+
+      expect(find.byKey(const ValueKey('packages-load-error')), findsOneWidget);
+      expect(find.text('Impossibile caricare i pacchetti'), findsOneWidget);
+      expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
+      expect(find.text('Dettagli'), findsOneWidget);
+      expect(find.byKey(const ValueKey('packages-load-details')), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('packages-load-details-toggle')),
+      );
+      await tester.pumpAndSettle();
+
+      final details = tester.widget<SelectableText>(
+        find.byKey(const ValueKey('packages-load-details')),
+      );
+      expect(details.data, contains('boom-42'));
+    });
+
+    testWidgets('retry from the error callout re-requests the list', (
+      tester,
+    ) async {
+      final client = _PackageClient();
+      client.onList = () async {
+        if (client.listRequests == 1) throw StateError('first call failed');
+        return {
+          'data': {'packages': client.packages},
+        };
+      };
+      await pumpPackages(tester, client);
+
+      expect(find.byKey(const ValueKey('packages-load-error')), findsOneWidget);
+      expect(client.listRequests, 1);
+
+      await tester.tap(find.byKey(const ValueKey('packages-load-retry')));
+      await tester.pumpAndSettle();
+
+      expect(client.listRequests, 2);
+      expect(find.byKey(const ValueKey('packages-load-error')), findsNothing);
+      expect(find.text('pi-caveman'), findsOneWidget);
+    });
+
+    testWidgets('leaving settings while loading cancels the slow timer', (
+      tester,
+    ) async {
+      final pending = Completer<Map<String, dynamic>>();
+      final client = _PackageClient()..onList = () => pending.future;
+      await pumpPackages(tester, client, settle: false);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 15));
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   testWidgets('closing settings during update does not interrupt the batch', (
     tester,
   ) async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -28,6 +29,7 @@ import 'remote_section.dart';
 import 'updates_section.dart';
 import 'theme_editor_dialog.dart';
 import 'agents_section.dart';
+import 'package_load_states.dart';
 import '../../ui/frame_snack_bar.dart';
 
 /// `dart:io` Platform throws `UnsupportedError` on the web build, so every OS
@@ -62,6 +64,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
   String? _packageError;
   List<Map<String, dynamic>> _packages = [];
   int _packageListRequest = 0;
+  Timer? _packageLoadTimer;
+  bool _packageLoadSlow = false;
 
   @override
   void initState() {
@@ -139,15 +143,22 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
   }
 
+  void _cancelPackageLoadTimer() {
+    _packageLoadTimer?.cancel();
+    _packageLoadTimer = null;
+  }
+
   Future<void> _fetchPiPackages() async {
     final request = ++_packageListRequest;
     final client = ref.read(pcpClientProvider);
     final strings = ref.read(appStringsProvider);
+    _cancelPackageLoadTimer();
     if (client == null) {
       if (mounted) {
         setState(() {
           _packages = [];
           _packageError = strings.daemonNotConnected;
+          _packageLoadSlow = false;
           _isLoadingPackages = false;
         });
       }
@@ -155,7 +166,14 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
     setState(() {
       _isLoadingPackages = true;
+      _packageLoadSlow = false;
       _packageError = null;
+    });
+    _packageLoadTimer = Timer(packageLoadSlowThreshold, () {
+      if (!mounted || request != _packageListRequest || !_isLoadingPackages) {
+        return;
+      }
+      setState(() => _packageLoadSlow = true);
     });
     try {
       final result = await client.listPiPackages(checkUpdates: true);
@@ -173,8 +191,14 @@ class _SettingsViewState extends ConsumerState<SettingsView>
         setState(() => _packageError = error.toString());
       }
     } finally {
-      if (mounted && request == _packageListRequest) {
-        setState(() => _isLoadingPackages = false);
+      if (request == _packageListRequest) {
+        _cancelPackageLoadTimer();
+        if (mounted) {
+          setState(() {
+            _packageLoadSlow = false;
+            _isLoadingPackages = false;
+          });
+        }
       }
     }
   }
@@ -502,22 +526,24 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   Widget _packageList(FrameTokens tokens, AppStrings strings) {
     if (_isLoadingPackages) {
-      return Center(child: CircularProgressIndicator(color: tokens.accent));
+      return PackageLoadingView(
+        tokens: tokens,
+        strings: strings,
+        slow: _packageLoadSlow,
+        onRetry: _fetchPiPackages,
+      );
     }
     if (_packageError != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_packageError!, style: TextStyle(color: tokens.danger)),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _fetchPiPackages,
-              icon: const Icon(Icons.refresh),
-              label: Text(strings.retryAction),
-            ),
-          ],
-        ),
+      return ListView(
+        children: [
+          PackageLoadErrorCallout(
+            tokens: tokens,
+            strings: strings,
+            title: strings.packagesLoadFailed,
+            details: _packageError!,
+            onRetry: _fetchPiPackages,
+          ),
+        ],
       );
     }
     return ListView(
@@ -711,6 +737,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
 
   @override
   void dispose() {
+    _cancelPackageLoadTimer();
     _tabController.dispose();
     super.dispose();
   }

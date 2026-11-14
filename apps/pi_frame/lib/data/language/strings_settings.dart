@@ -69,6 +69,15 @@ extension SettingsStrings on AppStrings {
 
   String get retryAction =>
       isItalian ? 'Riprova' : 'Retry';
+  String get packagesLoading =>
+      isItalian ? 'Caricamento pacchetti…' : 'Loading packages…';
+  String get packagesLoadingSlow => isItalian
+      ? 'Il caricamento richiede più tempo del previsto'
+      : 'Loading is taking longer than expected';
+  String get packagesLoadFailed => isItalian
+      ? 'Impossibile caricare i pacchetti'
+      : 'Could not load packages';
+  String get detailsAction => isItalian ? 'Dettagli' : 'Details';
   String get noPackagesInstalled =>
       isItalian ? 'Nessun pacchetto Pi utente installato.' : 'No user Pi packages installed.';
   String get packagesInstalledTitle =>
