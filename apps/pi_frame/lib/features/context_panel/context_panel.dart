@@ -10,6 +10,8 @@ import '../../domain/session/agent_status.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../workspace/repository_workspace.dart';
 import 'context_window_selector.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 
@@ -172,25 +174,21 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
 
       await _closeDrawer();
       if (!mounted) return;
-      showDialog(
+      await showFrameDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: context.tokens.surface,
-          title: Text(
-            strings.compactionCompletedTitle,
-            style: TextStyle(color: context.tokens.textPrimary),
-          ),
-          content: Text(
+        dialog: FrameDialog<bool>(
+          title: strings.compactionCompletedTitle,
+          body: Text(
             strings.compactionDialogContent(tokensBefore, tokensAfter, cost),
-            style: TextStyle(color: context.tokens.textSecondary),
+            style: FrameText.of(context).body.copyWith(
+              color: context.tokens.textSecondary,
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(
-                'OK',
-                style: TextStyle(color: context.tokens.textPrimary),
-              ),
+            FrameDialogAction<bool>(
+              label: strings.compactionDismissAction,
+              role: FrameDialogActionRole.primary,
+              value: true,
             ),
           ],
         ),
@@ -360,7 +358,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           ? SizedBox(
               height: FrameSize.rowForm,
               child: Center(
-                child: CircularProgressIndicator(
+                child: FrameActivityIndicator(size: FrameSize.iconLg,
                   strokeWidth: 2,
                   color: tokens.accent,
                 ),
@@ -592,7 +590,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             ? SizedBox(
                 width: FrameSize.icon,
                 height: FrameSize.icon,
-                child: CircularProgressIndicator(
+                child: FrameActivityIndicator(size: FrameSize.iconLg,
                   strokeWidth: 2,
                   color: tokens.surface,
                 ),

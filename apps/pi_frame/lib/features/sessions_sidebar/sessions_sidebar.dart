@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../command_palette/command_palette.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -317,6 +317,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             FrameSnackBar.show(
               context,
               message: strings.renameErrorNotice(e),
+              isError: true,
               backgroundColor: tokens.danger,
             );
           }
@@ -358,6 +359,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         FrameSnackBar.show(
           context,
           message: strings.duplicateErrorNotice(e),
+          isError: true,
           backgroundColor: tokens.danger,
         );
       }
@@ -404,7 +406,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.refresh, color: tokens.textMuted, size: 18),
+                  icon: Icon(Icons.refresh, color: tokens.textMuted, size: FrameSize.iconLg),
                   tooltip: strings.refreshSessionsTooltip,
                   onPressed: () {
                     ref.invalidate(sessionListProvider);
@@ -415,7 +417,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   },
                 ),
                 IconButton(
-                  icon: Icon(Icons.add, color: tokens.accent, size: 20),
+                  icon: Icon(Icons.add, color: tokens.accent, size: FrameSize.iconLg),
                   tooltip: strings.newSessionTooltip,
                   onPressed: _creating || ref.watch(pcpClientProvider) == null
                       ? null
@@ -430,7 +432,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 if (widget.onCollapse != null)
                   IconButton(
-                    icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: 20),
+                    icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: FrameSize.iconLg),
                     tooltip: strings.collapseSidebarTooltip,
                     onPressed: widget.onCollapse,
                   ),
@@ -461,7 +463,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 prefixIcon: Icon(
                   Icons.search,
-                  size: 16,
+                  size: FrameSize.icon,
                   color: tokens.textMuted,
                 ),
                 prefixIconConstraints: const BoxConstraints(
@@ -472,7 +474,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     ? IconButton(
                         icon: Icon(
                           Icons.clear,
-                          size: 14,
+                          size: FrameSize.icon,
                           color: tokens.textMuted,
                         ),
                         padding: EdgeInsets.zero,
@@ -518,16 +520,26 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('all', strings.filterAll, tokens),
-                    _buildFilterChip('active', strings.filterActive, tokens),
-                    _buildFilterChip('repo', strings.filterRepo, tokens),
-                  ],
-                ),
-              ),
+              // Wrap at large text scales so no filter is cut off; scroll otherwise.
+              child: MediaQuery.textScalerOf(context).scale(1) > 1.3
+                  ? Wrap(
+                      spacing: FrameSpace.x1,
+                      children: [
+                        _buildFilterChip('all', strings.filterAll, tokens),
+                        _buildFilterChip('active', strings.filterActive, tokens),
+                        _buildFilterChip('repo', strings.filterRepo, tokens),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('all', strings.filterAll, tokens),
+                          _buildFilterChip('active', strings.filterActive, tokens),
+                          _buildFilterChip('repo', strings.filterRepo, tokens),
+                        ],
+                      ),
+                    ),
             ),
           ),
 
@@ -685,7 +697,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
                     child: Row(
                       children: [
-                        Icon(Icons.push_pin, size: 13, color: tokens.accent),
+                        Icon(Icons.push_pin, size: FrameSize.icon, color: tokens.accent),
                         const SizedBox(width: 6),
                         Text(
                           strings.pinnedSessionsHeader(pinnedSessions.length),
@@ -918,7 +930,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             const SizedBox(width: 2),
                             Icon(
                               expanded ? Icons.expand_more : Icons.chevron_right,
-                              size: 16,
+                              size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),
                           ],
@@ -960,7 +972,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   children: [
                                     Icon(
                                       Icons.description_outlined,
-                                      size: 14,
+                                      size: FrameSize.icon,
                                       color: tokens.textSecondary,
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
@@ -986,7 +998,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   children: [
                                     Icon(
                                       Icons.add,
-                                      size: 14,
+                                      size: FrameSize.icon,
                                       color: tokens.accent,
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
@@ -1013,7 +1025,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   children: [
                                     Icon(
                                       Icons.close,
-                                      size: 14,
+                                      size: FrameSize.icon,
                                       color: tokens.danger,
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
@@ -1111,7 +1123,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 );
               },
               loading: () => Center(
-                child: CircularProgressIndicator(
+                child: FrameActivityIndicator(size: FrameSize.iconLg,
                   color: tokens.accent,
                   strokeWidth: 2,
                 ),
@@ -1125,7 +1137,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
           ),
 
-          // Bottom utility bar: Command Palette & Settings
+          // Bottom utility bar: Settings
           Container(
             padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
@@ -1146,7 +1158,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     icon: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        const Icon(Icons.settings_outlined, size: 16),
+                        const Icon(Icons.settings_outlined, size: FrameSize.icon),
                         if (ref.watch(hasUpdateBadgeProvider))
                           Positioned(
                             top: -2,
@@ -1170,19 +1182,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       ref.read(showSettingsProvider.notifier).state = true;
                     },
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                  tooltip: strings.commandPaletteTooltip,
-                  onPressed: () {
-                    CommandPalette.show(
-                      context,
-                      ref: ref,
-                      onOpenSettings: () {
-                        ref.read(showSettingsProvider.notifier).state = true;
-                      },
-                    );
-                  },
                 ),
               ],
             ),
@@ -1533,9 +1532,14 @@ class _SessionTile extends ConsumerWidget {
         ? tokens.displayText.withValues(alpha: 0.8)
         : tokens.textMuted;
 
+    // At large text scales the trailing time squeezes the title to two or three
+    // characters, so it moves to the secondary line under the title.
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+
     final row = FrameListRow(
       key: ValueKey('session-row-$id'),
       name: title,
+      secondary: largeText ? relative : null,
       selected: isSelected,
       minHeight: _railRowMinHeight,
       leading: isWorking
@@ -1557,9 +1561,10 @@ class _SessionTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isPinned)
-            Icon(Icons.push_pin, size: 11, color: tokens.accent),
-          if (isPinned && relative != null) const SizedBox(width: FrameSpace.x1),
-          if (relative != null)
+            Icon(Icons.push_pin, size: FrameSize.icon, color: tokens.accent),
+          if (isPinned && relative != null && !largeText)
+            const SizedBox(width: FrameSpace.x1),
+          if (relative != null && !largeText)
             Text(
               relative,
               style: text.caption.copyWith(color: metaColor),

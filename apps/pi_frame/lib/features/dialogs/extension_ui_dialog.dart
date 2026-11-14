@@ -358,7 +358,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         // Header
         Row(
           children: [
-            Icon(Icons.smart_toy_outlined, size: 18, color: tokens.accent),
+            Icon(Icons.smart_toy_outlined, size: FrameSize.iconLg, color: tokens.accent),
             const SizedBox(width: 8),
             Expanded(
               child: ConstrainedBox(
@@ -371,11 +371,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 child: SingleChildScrollView(
                   child: Text(
                     title,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary,
+                      
+                      fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -390,11 +388,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 ),
                 child: Text(
                   '${_secondsRemaining}s',
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary,
+                    
+                    fontWeight: FontWeight.bold),
                 ),
               ),
           ],
@@ -428,17 +424,14 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                       children: [
                         Icon(
                           Icons.lock_outline,
-                          size: 15,
+                          size: FrameSize.icon,
                           color: tokens.textPrimary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             strings.extUiLockedByOther,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 12,
-                            ),
+                            style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                           ),
                         ),
                       ],
@@ -450,11 +443,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                 if (message.isNotEmpty) ...[
                   Text(
                     message,
-                    style: TextStyle(
-                      color: tokens.textSecondary,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
+                    style: FrameText.of(context).body.copyWith(color: tokens.textSecondary,
+                      
+                      height: 1.4),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -516,10 +507,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                                           focusNode: _customAnswerFocusNode,
                                           enabled: !_lockedByOther,
                                           onChanged: (_) => setState(() {}),
-                                          style: TextStyle(
-                                            color: tokens.textPrimary,
-                                            fontSize: 13,
-                                          ),
+                                          style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                                           decoration: InputDecoration(
                                             isDense: true,
                                             hintText: strings.extUiCustomAnswerHint,
@@ -538,10 +526,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                                         )
                                       : Text(
                                           opt,
-                                          style: TextStyle(
-                                            color: tokens.textPrimary,
-                                            fontSize: 13,
-                                          ),
+                                          style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                                         ),
                                 ),
                               ],
@@ -578,11 +563,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                             child: Text(
                               fence?.group(1) ?? preview,
                               softWrap: false,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: 12,
-                                fontFamily: tokens.monoFontFamily,
-                              ),
+                              style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
+                                
+                                fontFamily: tokens.monoFontFamily),
                             ),
                           ),
                         ),
@@ -620,7 +603,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                     obscureText: _isSecretInput,
                     autocorrect: !_isSecretInput,
                     enableSuggestions: !_isSecretInput,
-                    style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                    style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: placeholder,
@@ -640,11 +623,9 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
                       controller: _textController,
                       enabled: !_lockedByOther,
                       maxLines: null,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 12.5,
-                        fontFamily: tokens.monoFontFamily,
-                      ),
+                      style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
+                        
+                        fontFamily: tokens.monoFontFamily),
                       decoration: InputDecoration(
                         hintText: placeholder.isNotEmpty
                             ? placeholder
@@ -686,7 +667,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
               child: Text(
                 strings.cancel,
-                style: TextStyle(color: tokens.textSecondary, fontSize: 12),
+                style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
               ),
             ),
             const SizedBox(width: 8),
@@ -730,10 +711,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
               ),
               child: Text(
                 method == 'confirm' ? strings.extUiConfirm : strings.extUiSend,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
           ],

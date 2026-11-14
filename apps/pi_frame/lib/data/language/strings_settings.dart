@@ -19,6 +19,15 @@ extension SettingsStrings on AppStrings {
       ? 'Fatto: funzione rinominata in 2 file.'
       : 'Done: renamed the function in 2 files.';
 
+  // Settings: startup animation (task 7.8)
+  String get startupAnimationSectionTitle =>
+      isItalian ? 'Animazione di avvio' : 'Startup animation';
+  String get startupAnimationTitle =>
+      isItalian ? 'Animazione di avvio' : 'Startup animation';
+  String get startupAnimationSubtitle => isItalian
+      ? "Mostra l'animazione di avvio con audio a ogni apertura. Senza questa opzione compare solo al primo avvio."
+      : 'Show the startup animation with sound on every launch. Without it, it plays only on the first run.';
+
   // Settings: MCP servers dialog
   String get mcpOpenConfigBtn =>
       isItalian ? 'Apri file di configurazione' : 'Open configuration file';

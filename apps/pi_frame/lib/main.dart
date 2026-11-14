@@ -13,6 +13,7 @@ import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
 import 'data/window/window_state_service.dart';
 import 'data/motion/reduced_motion_settings.dart';
+import 'data/motion/startup_animation_settings.dart';
 import 'ui/motion.dart';
 import 'ui/startup_assemble_animation.dart';
 
@@ -35,7 +36,7 @@ Future<void> runPiFrame({
   if (desktopWindowLifecycle) {
     await windowManager.ensureInitialized();
     await windowManager.setTitle('PiFrame');
-    await windowManager.setMinimumSize(const Size(680, 480));
+    await windowManager.setMinimumSize(const Size(680, 560));
     if (isWindows) {
       await windowManager.setTitleBarStyle(
         TitleBarStyle.hidden,
@@ -73,6 +74,7 @@ class PiFrameApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeData = ref.watch(currentThemeDataProvider);
     final reduceMotion = ref.watch(reducedMotionSettingsProvider).enabled;
+    final playStartupIntro = ref.watch(startupIntroPlaysProvider);
 
     return MaterialApp.router(
       title: 'PiFrame',
@@ -91,9 +93,14 @@ class PiFrameApp extends ConsumerWidget {
               overrides: overrides,
             ),
             child: LaunchReveal(
-              child: StartupAssembleOverlay(
-                child: child ?? const SizedBox.shrink(),
-              ),
+              // The 1.4 s assemble intro only on the first run or when the
+              // "Animazione di avvio" setting is on; other launches get the
+              // 620 ms reveal alone.
+              child: playStartupIntro
+                  ? StartupAssembleOverlay(
+                      child: child ?? const SizedBox.shrink(),
+                    )
+                  : (child ?? const SizedBox.shrink()),
             ),
           );
         }

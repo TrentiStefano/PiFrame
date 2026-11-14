@@ -480,6 +480,11 @@ extension ComposerStrings on AppStrings {
   String get compactionCompletedTitle =>
       isItalian ? 'Compattazione completata' : 'Compaction completed';
 
+  String get compactionDismissAction => 'OK';
+
+  String get contextWindowCustomOption =>
+      isItalian ? 'Personalizzato' : 'Custom';
+
   String compactionDialogContent(dynamic before, dynamic after, String cost) =>
       isItalian
           ? 'Token prima: $before\nToken dopo: $after\n${cost.isNotEmpty ? "Costo: $cost" : ""}'
