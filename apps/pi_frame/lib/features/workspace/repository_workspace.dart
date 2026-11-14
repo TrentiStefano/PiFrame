@@ -10,7 +10,10 @@ import '../composer/composer_draft.dart';
 import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
+import '../../ui/frame_icon_action.dart';
+import '../../ui/frame_search_field.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../sessions_sidebar/session_actions.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
 import '../../data/language/strings_errors.dart';
@@ -198,7 +201,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             const SizedBox(height: 8),
             Text(
               strings.loadingFiles,
-              style: TextStyle(color: tokens.textMuted, fontSize: 11),
+              style: FrameText.of(context).caption.copyWith(
+                color: tokens.textMuted,
+              ),
             ),
           ],
         ),
@@ -236,59 +241,33 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
 
     return Column(
       children: [
-        Container(
-          height: 32,
-          margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-          decoration: BoxDecoration(
-            color: tokens.background,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            border: Border.all(color: tokens.border),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            FrameSpace.x2,
+            FrameSpace.x1 + 2,
+            FrameSpace.x2,
+            FrameSpace.x1 + 2,
           ),
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              Icon(Icons.search, size: 14, color: tokens.textMuted),
-              const SizedBox(width: 6),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: tokens.textPrimary, fontSize: 12),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: strings.searchFilesHint,
-                    hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                ),
-              ),
-              if (_searchQuery.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.clear, size: 14),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  tooltip: strings.clearSearchTooltip,
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                ),
-            ],
+          child: FrameSearchField(
+            keyPrefix: 'repository-tree-search',
+            strings: strings,
+            controller: _searchController,
+            hintText: strings.searchFilesHint,
+            onChanged: (val) => setState(() => _searchQuery = val.trim()),
+            onClear: () => setState(() => _searchQuery = ''),
           ),
         ),
         Expanded(
           child: flatRows.isEmpty && _searchQuery.isNotEmpty
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(FrameSpace.x4),
                     child: Text(
                       strings.noFilesFound(_searchQuery),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: tokens.textMuted, fontSize: 12),
+                      style: FrameText.of(context).body.copyWith(
+                        color: tokens.textMuted,
+                      ),
                     ),
                   ),
                 )
@@ -297,7 +276,6 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     'repository-files-${widget.sessionId}-$_searchQuery',
                   ),
                   itemCount: flatRows.length,
-                  itemExtent: 28.0,
                   itemBuilder: (context, index) {
                     final row = flatRows[index];
                     final node = row.node;
@@ -313,6 +291,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       selected: selected,
                       isExpanded: isExpanded,
                       tokens: tokens,
+                      rootPath: repo.rootPath,
                       onTap: () {
                         if (node.isDirectory) {
                           final currentExpanded = ref.read(
@@ -434,10 +413,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 // The integrated terminal spawns host processes and can only
                 // run inside the desktop app.
                 if (!kIsWeb)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                  FrameIconAction(
+                    key: const ValueKey('repository-terminal-btn'),
                     tooltip:
                         ref.watch(terminalSettingsProvider).mode ==
                             TerminalMode.native
@@ -445,6 +422,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         : (_terminalOpen && !_terminalCollapsed
                               ? strings.hideTerminalTooltip
                               : strings.integratedTerminalTooltip),
+                    selected: _terminalOpen,
                     onPressed: () {
                       final termSettings = ref.read(
                         terminalSettingsProvider,
@@ -465,35 +443,48 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         _toggleTerminal();
                       }
                     },
-                    icon: Icon(
-                      _terminalOpen ? Icons.terminal : Icons.terminal_outlined,
-                      size: 16,
-                      color: _terminalOpen ? tokens.accent : null,
-                    ),
+                    icon: _terminalOpen
+                        ? Icons.terminal
+                        : Icons.terminal_outlined,
                   ),
-                const SizedBox(width: 4),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  tooltip: strings.collapseAllFoldersTooltip,
-                  onPressed: _collapseAll,
-                  icon: const Icon(Icons.unfold_less, size: 16),
+                // Collapse all and expand all are rarely needed, so they sit
+                // in the overflow menu next to the frequent actions.
+                PopupMenuButton<String>(
+                  key: const ValueKey('repository-tree-more-btn'),
+                  tooltip: strings.repositoryMoreActionsTooltip,
+                  icon: Icon(
+                    Icons.more_horiz,
+                    size: FrameSize.icon,
+                    color: tokens.textSecondary,
+                  ),
+                  iconSize: FrameSize.icon,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: FrameSize.hitMin,
+                    height: FrameSize.hitMin,
+                  ),
+                  onSelected: (choice) {
+                    if (choice == 'collapse') {
+                      _collapseAll();
+                    } else {
+                      _expandAll(repo.files);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem<String>(
+                      key: const ValueKey('repository-tree-collapse-all'),
+                      value: 'collapse',
+                      child: Text(strings.collapseAllFoldersTooltip),
+                    ),
+                    PopupMenuItem<String>(
+                      key: const ValueKey('repository-tree-expand-all'),
+                      value: 'expand',
+                      child: Text(strings.expandAllFoldersTooltip),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  tooltip: strings.expandAllFoldersTooltip,
-                  onPressed: () => _expandAll(repo.files),
-                  icon: const Icon(Icons.unfold_more, size: 16),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
+                FrameIconAction(
+                  key: const ValueKey('repository-refresh-btn'),
                   tooltip: strings.refreshFilesTooltip,
                   onPressed: repo.loading
                       ? null
@@ -503,32 +494,32 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                                   .notifier,
                             )
                             .loadFiles(),
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: Icons.refresh,
                 ),
-                if (widget.onCollapse != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(),
+                if (widget.onCollapse != null)
+                  FrameIconAction(
+                    key: const ValueKey('repository-collapse-panel-btn'),
                     tooltip: strings.collapseRepoPanelTooltip,
                     onPressed: widget.onCollapse,
-                    icon: const Icon(Icons.chevron_left, size: 18),
+                    icon: Icons.chevron_left,
                   ),
-                ],
               ],
             ),
           ),
           if (repo.rootPath != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              padding: const EdgeInsets.fromLTRB(
+                FrameSpace.x3,
+                FrameSpace.x1,
+                FrameSpace.x3,
+                FrameSpace.x2,
+              ),
               child: Text(
                 repo.rootPath!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: FrameText.of(context).caption.copyWith(
                   color: tokens.textMuted,
-                  fontSize: 11,
                   fontFamily: tokens.monoFontFamily,
                 ),
               ),
@@ -661,7 +652,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               padding: const EdgeInsets.all(8),
               child: Text(
                 strings.fileListLimitedNotice,
-                style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                style: FrameText.of(context).caption.copyWith(
+                  color: tokens.textMuted,
+                ),
               ),
             ),
         ],
@@ -688,29 +681,23 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             const SizedBox(width: 6),
             Text(
               strings.terminalBadge,
-              style: TextStyle(
+              style: FrameText.of(context).caption.copyWith(
                 color: tokens.displayText,
-                fontSize: 11,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
             ),
             const Spacer(),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+            FrameIconAction(
+              key: const ValueKey('repository-terminal-expand-btn'),
               tooltip: strings.expandTerminalTooltip,
-              icon: const Icon(Icons.unfold_more, size: 14),
+              icon: Icons.unfold_more,
               onPressed: () => setState(() => _terminalCollapsed = false),
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+            FrameIconAction(
+              key: const ValueKey('repository-terminal-close-btn'),
               tooltip: strings.closeTerminalTooltip,
-              icon: const Icon(Icons.close, size: 13),
+              icon: Icons.close,
               onPressed: () => setState(() => _terminalOpen = false),
             ),
           ],
@@ -837,7 +824,7 @@ void _expandParentsOf(String path, Set<String> target) {
   }
 }
 
-class _TreeRow extends ConsumerWidget {
+class _TreeRow extends ConsumerStatefulWidget {
   const _TreeRow({
     super.key,
     required this.row,
@@ -846,6 +833,7 @@ class _TreeRow extends ConsumerWidget {
     required this.tokens,
     required this.onTap,
     this.onAddToChat,
+    this.rootPath,
   });
 
   final _FlatTreeRow row;
@@ -855,142 +843,211 @@ class _TreeRow extends ConsumerWidget {
   final VoidCallback onTap;
   final ValueChanged<String>? onAddToChat;
 
+  /// Absolute repository root; folder actions need it to build a session path.
+  final String? rootPath;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    AppStrings strings;
+  ConsumerState<_TreeRow> createState() => _TreeRowState();
+}
+
+class _TreeRowState extends ConsumerState<_TreeRow> {
+  bool _hovered = false;
+  bool _focusWithin = false;
+
+  AppStrings get _strings {
     try {
-      strings = ref.watch(appStringsProvider);
+      return ref.watch(appStringsProvider);
     } catch (_) {
-      strings = const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.it);
     }
-    final node = row.node;
-    final indent = (row.depth * 14.0).clamp(0.0, 160.0);
+  }
+
+  /// Joins the repository root and a tree-relative path with the separator
+  /// the root uses (`\` for Windows roots).
+  static String _absolutePath(String root, String relative) {
+    final separator = root.contains('\\') && !root.contains('/') ? '\\' : '/';
+    final base = root.endsWith('/') || root.endsWith('\\')
+        ? root.substring(0, root.length - 1)
+        : root;
+    return '$base$separator${relative.replaceAll('/', separator)}';
+  }
+
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    Color color,
+    String label,
+  ) {
+    return PopupMenuItem<String>(
+      key: ValueKey('tree-menu-$value'),
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: FrameSize.icon, color: color),
+          const SizedBox(width: FrameSpace.x2),
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        ],
+      ),
+    );
+  }
+
+  void _showMenu(Offset position, AppStrings strings) {
+    final node = widget.row.node;
+    final tokens = widget.tokens;
+    final items = <PopupMenuEntry<String>>[
+      if (!node.isDirectory && widget.onAddToChat != null)
+        _menuItem(
+          'chat',
+          Icons.add_comment_outlined,
+          tokens.accent,
+          strings.addPathToChat,
+        ),
+      if (node.isDirectory && widget.rootPath != null)
+        _menuItem('session', Icons.add, tokens.accent, strings.newSessionHere),
+      if (node.isDirectory && widget.onAddToChat != null)
+        _menuItem(
+          'chat-folder',
+          Icons.create_new_folder_outlined,
+          tokens.accent,
+          strings.addFolderToChat,
+        ),
+      _menuItem('copy', Icons.copy, tokens.textMuted, strings.copyPath),
+    ];
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: items,
+    ).then((choice) {
+      if (!mounted || choice == null) return;
+      switch (choice) {
+        case 'chat':
+        case 'chat-folder':
+          widget.onAddToChat!(node.path);
+        case 'session':
+          createSession(
+            context,
+            ref,
+            cwd: _absolutePath(widget.rootPath!, node.path),
+          );
+        case 'copy':
+          Clipboard.setData(ClipboardData(text: node.path));
+          FrameSnackBar.show(context, message: strings.pathCopied(node.path));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = _strings;
+    final tokens = widget.tokens;
+    final text = FrameText.of(context);
+    final node = widget.row.node;
+    final indent = (widget.row.depth * 14.0)
+        .clamp(0.0, 160.0)
+        .toDouble();
+    final showAddToChat = !node.isDirectory && widget.onAddToChat != null;
+    // The add-to-chat action shows on hover or focus, like the file list
+    // rows elsewhere; it stays in the tree (focusable) either way.
+    final reveal = _hovered || _focusWithin || widget.selected;
 
     return RepaintBoundary(
       child: Tooltip(
         message: node.path,
         waitDuration: const Duration(milliseconds: 700),
-        child: Material(
-          color: selected
-              ? tokens.surfaceElevated
-              : tokens.surface.withValues(alpha: 0),
-          child: GestureDetector(
-            onSecondaryTapDown: (details) {
-              if (!node.isDirectory && onAddToChat != null) {
-                final pos = details.globalPosition;
-                showMenu<String>(
-                  context: context,
-                  position: RelativeRect.fromLTRB(
-                    pos.dx,
-                    pos.dy,
-                    pos.dx + 1,
-                    pos.dy + 1,
-                  ),
-                  items: [
-                    PopupMenuItem(
-                      value: 'chat',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.add_comment_outlined,
-                            size: 16,
-                            color: tokens.accent,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(strings.addPathToChat),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'copy',
-                      child: Row(
-                        children: [
-                          Icon(Icons.copy, size: 16, color: tokens.textMuted),
-                          const SizedBox(width: 8),
-                          Text(strings.copyPath),
-                        ],
-                      ),
-                    ),
-                  ],
-                ).then((choice) {
-                  if (choice == 'chat') {
-                    onAddToChat!(node.path);
-                  } else if (choice == 'copy') {
-                    Clipboard.setData(ClipboardData(text: node.path));
-                    if (context.mounted) {
-                      FrameSnackBar.show(
-                        context,
-                        message: strings.pathCopied(node.path),
-                      );
-                    }
-                  }
-                });
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: Focus(
+            // Observes focus only; the InkWell and the action take it.
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (hasFocus) {
+              if (hasFocus != _focusWithin) {
+                setState(() => _focusWithin = hasFocus);
               }
             },
-            child: InkWell(
-              onTap: onTap,
-              hoverColor: tokens.accent.withValues(alpha: 0.08),
-              child: SizedBox(
-                height: 28.0,
-                child: Padding(
-                  padding: EdgeInsets.only(left: 4.0 + indent, right: 8.0),
-                  child: Row(
-                    children: [
-                      if (node.isDirectory) ...[
-                        Icon(
-                          isExpanded ? Icons.expand_more : Icons.chevron_right,
-                          size: 14,
-                          color: tokens.textMuted,
+            child: Material(
+              color: widget.selected
+                  ? tokens.surfaceElevated
+                  : tokens.surface.withValues(alpha: 0),
+              child: InkWell(
+                onTap: widget.onTap,
+                onSecondaryTapUp: (details) =>
+                    _showMenu(details.globalPosition, strings),
+                hoverColor: tokens.accent.withValues(alpha: 0.08),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: FrameSize.rowList,
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: FrameSpace.x1 + indent,
+                      right: FrameSpace.x1,
+                    ),
+                    child: Row(
+                      children: [
+                        if (node.isDirectory) ...[
+                          Icon(
+                            widget.isExpanded
+                                ? Icons.expand_more
+                                : Icons.chevron_right,
+                            size: FrameSize.icon,
+                            color: tokens.textMuted,
+                          ),
+                          const SizedBox(width: FrameSpace.x1),
+                          FileIcon(
+                            path: node.path,
+                            isDirectory: true,
+                            isExpanded: widget.isExpanded,
+                            size: FrameSize.icon,
+                          ),
+                        ] else ...[
+                          const SizedBox(width: FrameSize.icon),
+                          const SizedBox(width: FrameSpace.x1),
+                          FileIcon(path: node.path, size: FrameSize.icon),
+                        ],
+                        const SizedBox(width: FrameSpace.x2 - 2),
+                        Expanded(
+                          child: Text(
+                            node.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.body.copyWith(
+                              color: widget.selected
+                                  ? tokens.accent
+                                  : (node.isDirectory
+                                        ? tokens.textPrimary
+                                        : tokens.textSecondary),
+                              fontWeight: widget.selected || node.isDirectory
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        FileIcon(
-                          path: node.path,
-                          isDirectory: true,
-                          isExpanded: isExpanded,
-                          size: 15,
-                        ),
-                      ] else ...[
-                        const SizedBox(width: 14),
-                        const SizedBox(width: 4),
-                        FileIcon(path: node.path, size: 15),
+                        if (showAddToChat)
+                          Opacity(
+                            opacity: reveal ? 1 : 0,
+                            child: IgnorePointer(
+                              ignoring: !reveal,
+                              child: FrameIconAction(
+                                key: ValueKey(
+                                  'tree-add-to-chat-${node.path}',
+                                ),
+                                icon: Icons.add_comment_outlined,
+                                tooltip: strings.addPathToChat,
+                                selected: widget.selected,
+                                onPressed: () =>
+                                    widget.onAddToChat!(node.path),
+                              ),
+                            ),
+                          ),
                       ],
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          node.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: selected
-                                ? tokens.accent
-                                : (node.isDirectory
-                                      ? tokens.textPrimary
-                                      : tokens.textSecondary),
-                            fontSize: 12,
-                            fontFamily: tokens.uiFontFamily,
-                            fontWeight: selected || node.isDirectory
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                      if (!node.isDirectory && onAddToChat != null)
-                        IconButton(
-                          tooltip: strings.addPathToChat,
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          icon: Icon(
-                            Icons.add_comment_outlined,
-                            size: 14,
-                            color: selected ? tokens.accent : tokens.textMuted,
-                          ),
-                          onPressed: () => onAddToChat!(node.path),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
               ),

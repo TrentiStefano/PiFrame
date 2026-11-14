@@ -31,8 +31,8 @@ const _baselines = <String, int>{
   'BorderRadius.circular numeric': 43,
   'Duration(milliseconds:) numeric': 40,
   'Curves.': 21,
-  'BoxShadow(': 16,
-  'GestureDetector(': 14,
+  'BoxShadow(': 15,
+  'GestureDetector(': 13,
 };
 
 typedef _Hit = ({String file, int line});

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/daemon/daemon_providers.dart';
 import '../../../domain/session/agent_status.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
+import '../../../ui/frame_dialog.dart';
 
 import '../repository_state.dart';
 
@@ -31,7 +31,6 @@ Future<bool> resolveDirtyRepository(
   if (sessionId == null) return true;
   final controller = ref.read(repositoryStateProvider(sessionId).notifier);
   if (!controller.currentState.dirty) return true;
-  final tokens = context.tokens;
   final session = ref.read(sessionStateFamily(sessionId));
   final strings = ref.read(appStringsProvider);
   final writesBlocked = sessionWritesBlocked(session);
@@ -41,36 +40,35 @@ Future<bool> resolveDirtyRepository(
       : writesBlocked
       ? session.agentStatus.label
       : strings.daemonNotConnectedLower;
-  final choice = await showDialog<String>(
+  // Destructive role: Cancel takes the initial focus, so Enter never drops
+  // the unsaved text by accident.
+  final choice = await showFrameDialog<String>(
     context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      backgroundColor: tokens.surface,
-      title: Text(strings.unsavedChangesTitle),
-      content: Text(
+    dialog: FrameDialog<String>(
+      title: strings.unsavedChangesTitle,
+      body: Text(
         canSave
             ? strings.unsavedChangesContentCanSave
             : strings.unsavedChangesContentBlocked(blockedReason),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-          child: Text(strings.cancel),
+        FrameDialogAction<String>(
+          label: strings.cancel,
+          role: FrameDialogActionRole.cancel,
+          value: 'cancel',
+        ),
+        FrameDialogAction<String>(
+          label: strings.dontSave,
+          role: FrameDialogActionRole.destructive,
+          value: 'discard',
+          key: const ValueKey('unsaved-dont-save-btn'),
         ),
         if (canSave)
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(strings.discard),
-          ),
-        if (!canSave)
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, 'discard'),
-            child: Text(strings.discard),
-          ),
-        if (canSave)
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, 'save'),
-            child: Text(strings.save),
+          FrameDialogAction<String>(
+            label: strings.save,
+            role: FrameDialogActionRole.primary,
+            value: 'save',
+            key: const ValueKey('unsaved-save-btn'),
           ),
       ],
     ),
