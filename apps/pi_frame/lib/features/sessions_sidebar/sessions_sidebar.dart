@@ -704,13 +704,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: tokens.accent,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: tokens.accent.withValues(alpha: 0.6),
-                                  blurRadius: 4,
-                                  spreadRadius: 1,
-                                ),
-                              ],
                             ),
                           ),
                         ],
@@ -1243,6 +1236,13 @@ class _WorkingDot extends StatefulWidget {
   State<_WorkingDot> createState() => _WorkingDotState();
 }
 
+/// Period of the working-dot pulse. No FrameMotion token fits a looping
+/// ambient pulse, so it is named here.
+const Duration _workingPulsePeriod = Duration(milliseconds: 1400);
+
+/// Easing of the working-dot pulse (ease-in-out, unlike FrameMotion's ease-out).
+const Curve _workingPulseCurve = Curves.easeInOut;
+
 class _WorkingDotState extends State<_WorkingDot>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
@@ -1253,10 +1253,10 @@ class _WorkingDotState extends State<_WorkingDot>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: _workingPulsePeriod,
     );
     _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _controller, curve: _workingPulseCurve),
     );
   }
 
@@ -1287,6 +1287,7 @@ class _WorkingDotState extends State<_WorkingDot>
       child: AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
+        // Flat dot on the rail: the pulse is carried by alpha only, no glow.
         final scale = _controller.isAnimating ? _pulse.value : 1.0;
         return Container(
           width: widget.size,
@@ -1294,13 +1295,6 @@ class _WorkingDotState extends State<_WorkingDot>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.color.withValues(alpha: 0.75 + 0.25 * scale),
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.65 * scale),
-                blurRadius: 5.0 * scale,
-                spreadRadius: 1.2 * scale,
-              ),
-            ],
           ),
         );
       },
