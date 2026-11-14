@@ -117,6 +117,41 @@ class _FakeWorkspaceClient extends PcpClient {
   }
 }
 
+/// Long Git list: one staged file and 200 unstaged files, enough to scroll.
+class _ManyFilesWorkspaceClient extends _FakeWorkspaceClient {
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async {
+    final files = <Map<String, dynamic>>[
+      {
+        'path': 'staged-change.dart',
+        'status': 'modified',
+        'staged': true,
+        'unstaged': false,
+      },
+      for (var i = 1; i <= 200; i++)
+        {
+          'path': 'generated/file-${i.toString().padLeft(3, '0')}.txt',
+          'status': 'untracked',
+          'staged': false,
+          'unstaged': true,
+        },
+    ];
+    return {
+      'data': {
+        'isRepository': true,
+        'rootPath': '/repo',
+        'branch': 'main',
+        'files': files,
+        'totalAdditions': 205,
+        'totalDeletions': 0,
+      },
+    };
+  }
+}
+
 void main() {
   test(
     'stale daemon workspace command shows a safe rebuild and restart hint',
@@ -313,6 +348,78 @@ void main() {
       client.gitActions.where((action) => action['action'] == 'discard'),
       isEmpty,
     );
+  });
+
+  testWidgets('Git group headers never paint over the summary line while scrolling', (
+    tester,
+  ) async {
+    final client = _ManyFilesWorkspaceClient();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier('session-a', null)
+              ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 360,
+              child: GitChangesPane(sessionId: 'session-a'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE PREPARATE (STAGED)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('MODIFICHE (CHANGES)'));
+    await tester.pumpAndSettle();
+
+    final summaryFinder = find.text('201 file');
+    final listFinder = find.descendant(
+      of: find.byType(GitChangesPane),
+      matching: find.byType(ListView),
+    );
+    expect(summaryFinder, findsOneWidget);
+    expect(listFinder, findsOneWidget);
+    expect(
+      find.ancestor(of: listFinder, matching: find.byType(ClipRect)),
+      findsOneWidget,
+    );
+
+    final headers = [
+      find.text('MODIFICHE PREPARATE (STAGED)'),
+      find.text('MODIFICHE (CHANGES)'),
+    ];
+    // Scroll the list down in steps, then back to the top. Whatever part of a
+    // group header is still visible inside the list must sit below the
+    // summary line.
+    for (final dy in [-200.0, -400.0, -600.0, 1600.0]) {
+      await tester.drag(listFinder, Offset(0, dy));
+      await tester.pumpAndSettle();
+      final summary = tester.getRect(summaryFinder);
+      final visibleList = tester.getRect(listFinder);
+      expect(visibleList.top, greaterThanOrEqualTo(summary.bottom));
+      for (final header in headers) {
+        // The lazy list does not build rows scrolled far out of view.
+        if (header.evaluate().isEmpty) continue;
+        final visible = tester.getRect(header).intersect(visibleList);
+        if (visible.isEmpty) continue;
+        expect(
+          visible.top,
+          greaterThanOrEqualTo(summary.bottom),
+          reason: 'group header painted over the summary line after dy=$dy',
+        );
+      }
+    }
   });
 
   testWidgets('Git Changes bottom bar sends fetch, pull, push and sync', (

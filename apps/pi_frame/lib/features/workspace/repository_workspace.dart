@@ -3041,144 +3041,148 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
             ),
             Expanded(
-              child: files.isEmpty
-                  ? Center(
-                      child: Text(
-                        strings.workingTreeClean,
-                        style: TextStyle(color: tokens.textMuted),
+              child: ClipRect(
+                // The summary line stays outside the scroll view. The clip
+                // keeps scrolled group headers from painting over it.
+                child: files.isEmpty
+                    ? Center(
+                        child: Text(
+                          strings.workingTreeClean,
+                          style: TextStyle(color: tokens.textMuted),
+                        ),
+                      )
+                    : ListView(
+                        children: [
+                          _buildGitSectionHeader(
+                            title: strings.stagedChangesSectionUpper,
+                            count: stagedFiles.length,
+                            isExpanded: isStagedExpanded,
+                            tokens: tokens,
+                            onToggle: () {
+                              ref
+                                      .read(
+                                        gitStagedExpandedProvider(
+                                          widget.sessionId,
+                                        ).notifier,
+                                      )
+                                      .state =
+                                  !isStagedExpanded;
+                            },
+                            trailing: stagedFiles.isEmpty || blocked || _working
+                                ? null
+                                : IconButton(
+                                    tooltip: strings.unstageAllTooltip,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 24,
+                                      minHeight: 24,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      size: 14,
+                                    ),
+                                    onPressed: () => _action(
+                                      'unstage',
+                                      stagedFiles
+                                          .map((f) => f['path'].toString())
+                                          .toList(),
+                                    ),
+                                  ),
+                          ),
+                          if (isStagedExpanded) ...[
+                            if (stagedFiles.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                child: Text(
+                                  strings.noStagedFiles,
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              )
+                            else
+                              for (final file in stagedFiles)
+                                _buildGitFileRow(
+                                  file: file,
+                                  isStaged: true,
+                                  hasUnstagedEdit: file['unstaged'] == true,
+                                  tokens: tokens,
+                                  piTouchedPaths: piTouchedPaths,
+                                  manualSavedPaths: repository.manualSavedPaths,
+                                  blocked: blocked,
+                                  strings: strings,
+                                ),
+                          ],
+                          _buildGitSectionHeader(
+                            title: strings.changesSectionUpper,
+                            count: unstagedFiles.length,
+                            isExpanded: isUnstagedExpanded,
+                            tokens: tokens,
+                            onToggle: () {
+                              ref
+                                      .read(
+                                        gitUnstagedExpandedProvider(
+                                          widget.sessionId,
+                                        ).notifier,
+                                      )
+                                      .state =
+                                  !isUnstagedExpanded;
+                            },
+                            trailing: unstagedFiles.isEmpty || blocked || _working
+                                ? null
+                                : IconButton(
+                                    tooltip: strings.stageAllTooltip,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 24,
+                                      minHeight: 24,
+                                    ),
+                                    icon: const Icon(Icons.add, size: 15),
+                                    onPressed: () => _action(
+                                      'stage',
+                                      unstagedFiles
+                                          .map((f) => f['path'].toString())
+                                          .toList(),
+                                    ),
+                                  ),
+                          ),
+                          if (isUnstagedExpanded) ...[
+                            if (unstagedFiles.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                child: Text(
+                                  strings.noUnstagedChanges,
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              )
+                            else
+                              for (final file in unstagedFiles)
+                                _buildGitFileRow(
+                                  file: file,
+                                  isStaged: false,
+                                  hasUnstagedEdit: true,
+                                  tokens: tokens,
+                                  piTouchedPaths: piTouchedPaths,
+                                  manualSavedPaths: repository.manualSavedPaths,
+                                  blocked: blocked,
+                                  strings: strings,
+                                ),
+                          ],
+                        ],
                       ),
-                    )
-                  : ListView(
-                      children: [
-                        _buildGitSectionHeader(
-                          title: strings.stagedChangesSectionUpper,
-                          count: stagedFiles.length,
-                          isExpanded: isStagedExpanded,
-                          tokens: tokens,
-                          onToggle: () {
-                            ref
-                                    .read(
-                                      gitStagedExpandedProvider(
-                                        widget.sessionId,
-                                      ).notifier,
-                                    )
-                                    .state =
-                                !isStagedExpanded;
-                          },
-                          trailing: stagedFiles.isEmpty || blocked || _working
-                              ? null
-                              : IconButton(
-                                  tooltip: strings.unstageAllTooltip,
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 24,
-                                    minHeight: 24,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.remove_circle_outline,
-                                    size: 14,
-                                  ),
-                                  onPressed: () => _action(
-                                    'unstage',
-                                    stagedFiles
-                                        .map((f) => f['path'].toString())
-                                        .toList(),
-                                  ),
-                                ),
-                        ),
-                        if (isStagedExpanded) ...[
-                          if (stagedFiles.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              child: Text(
-                                strings.noStagedFiles,
-                                style: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            )
-                          else
-                            for (final file in stagedFiles)
-                              _buildGitFileRow(
-                                file: file,
-                                isStaged: true,
-                                hasUnstagedEdit: file['unstaged'] == true,
-                                tokens: tokens,
-                                piTouchedPaths: piTouchedPaths,
-                                manualSavedPaths: repository.manualSavedPaths,
-                                blocked: blocked,
-                                strings: strings,
-                              ),
-                        ],
-                        _buildGitSectionHeader(
-                          title: strings.changesSectionUpper,
-                          count: unstagedFiles.length,
-                          isExpanded: isUnstagedExpanded,
-                          tokens: tokens,
-                          onToggle: () {
-                            ref
-                                    .read(
-                                      gitUnstagedExpandedProvider(
-                                        widget.sessionId,
-                                      ).notifier,
-                                    )
-                                    .state =
-                                !isUnstagedExpanded;
-                          },
-                          trailing: unstagedFiles.isEmpty || blocked || _working
-                              ? null
-                              : IconButton(
-                                  tooltip: strings.stageAllTooltip,
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 24,
-                                    minHeight: 24,
-                                  ),
-                                  icon: const Icon(Icons.add, size: 15),
-                                  onPressed: () => _action(
-                                    'stage',
-                                    unstagedFiles
-                                        .map((f) => f['path'].toString())
-                                        .toList(),
-                                  ),
-                                ),
-                        ),
-                        if (isUnstagedExpanded) ...[
-                          if (unstagedFiles.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              child: Text(
-                                strings.noUnstagedChanges,
-                                style: TextStyle(
-                                  color: tokens.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            )
-                          else
-                            for (final file in unstagedFiles)
-                              _buildGitFileRow(
-                                file: file,
-                                isStaged: false,
-                                hasUnstagedEdit: true,
-                                tokens: tokens,
-                                piTouchedPaths: piTouchedPaths,
-                                manualSavedPaths: repository.manualSavedPaths,
-                                blocked: blocked,
-                                strings: strings,
-                              ),
-                        ],
-                      ],
-                    ),
+              ),
             ),
             if (_working)
               LinearProgressIndicator(
