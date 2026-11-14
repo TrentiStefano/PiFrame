@@ -332,8 +332,6 @@ class _AppShellState extends ConsumerState<AppShell>
   final Map<WorkspacePane, int> _exitingPanes = {};
   List<WorkspacePane> _rowOrder = const [];
   bool _paneAnimating = false;
-  // Reduced-motion cross-fade of an entering pane, at its final layout (task 7.3).
-  static const _kReducedPaneFade = Duration(milliseconds: 150);
   final Map<WorkspacePane, double> _savedPaneWeights = {
     WorkspacePane.repository: 32,
     WorkspacePane.chat: 44,
@@ -1425,8 +1423,10 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     _slotFromPx = Map.of(_slotPx);
     _paneAnimating = true;
+    // Reduced motion: the layout is final at once and the entering pane
+    // cross-fades over the crossFade token (120 ms, within the 150 ms limit).
     _paneTransition.duration = _reducedMotion
-        ? _kReducedPaneFade
+        ? FrameMotion.crossFade
         : (showing ? FrameMotion.panel : FrameMotion.panelExit);
     _paneTransition.forward(from: 0);
   }
