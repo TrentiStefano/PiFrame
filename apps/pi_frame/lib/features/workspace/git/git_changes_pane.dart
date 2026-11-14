@@ -99,7 +99,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   bool _loading = false;
   bool _working = false;
   bool _branchPickerOpen = false;
-  final _message = TextEditingController();
+
+  /// Commit message: the subject, and the optional body behind a toggle.
+  final _subject = TextEditingController();
+  final _body = TextEditingController();
+  bool _bodyOpen = false;
+
+  /// The error of the last failed commit, shown inline until the next attempt.
+  Object? _commitError;
 
   /// The Git list is one Tab stop; this node holds that focus.
   final _listFocus = FocusNode(debugLabel: 'git-list');
@@ -134,7 +141,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
 
   @override
   void dispose() {
-    _message.dispose();
+    _subject.dispose();
+    _body.dispose();
     _listFocus.dispose();
     _listScroll.dispose();
     super.dispose();
@@ -195,32 +203,50 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           .map((f) => f['path'].toString())
           .toList()
         ..sort();
-  Future<void> _action(
+
+  /// Runs one Git write and returns the daemon's reply, or null when it failed.
+  /// A failure is a snackbar, or with [inlineErrors] the commit form's error.
+  Future<Map<String, dynamic>?> _action(
     String action,
     List<String> paths, {
     String? message,
     List<String>? expected,
+    bool inlineErrors = false,
   }) async {
-    if (_working || (paths.isEmpty && !_remoteActions.contains(action))) return;
+    if (_working || (paths.isEmpty && !_remoteActions.contains(action))) {
+      return null;
+    }
     setState(() => _working = true);
     try {
-      await ref.read(pcpClientProvider)!.workspaceGitAction(widget.sessionId, {
-        'action': action,
-        'paths': paths,
-        'expectedStagedPaths': ?expected,
-        'message': ?message,
-      });
+      final reply = await ref.read(pcpClientProvider)!.workspaceGitAction(
+        widget.sessionId,
+        {
+          'action': action,
+          'paths': paths,
+          'expectedStagedPaths': ?expected,
+          'message': ?message,
+        },
+      );
       if (action == 'discard' || action == 'commit') {
         ref
             .read(repositoryStateProvider(widget.sessionId).notifier)
             .clearManualSavedPaths(paths);
       }
       await _refresh();
+      return reply;
     } catch (error) {
       if (mounted) {
-        final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(context, message: strings.gitOperationFailed(error));
+        if (inlineErrors) {
+          setState(() => _commitError = error);
+        } else {
+          final strings = ref.read(appStringsProvider);
+          FrameSnackBar.show(
+            context,
+            message: strings.gitOperationFailed(error),
+          );
+        }
       }
+      return null;
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -606,20 +632,42 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     }
   }
 
+  /// Commits the staged files with the subject and optional body from the
+  /// inline form. Success shows the short hash of the new commit.
   Future<void> _commit() async {
     final staged = _staged;
-    if (staged.isEmpty) return;
-    final strings = ref.read(appStringsProvider);
-    final message = await showGitCommitDialog(
-      context: context,
-      strings: strings,
-      controller: _message,
-      staged: staged,
-      status: _status,
+    final subject = _subject.text.trim();
+    if (staged.isEmpty || subject.isEmpty || _working) return;
+    final body = _body.text.trim();
+    final message = body.isEmpty ? subject : '$subject\n\n$body';
+    setState(() => _commitError = null);
+    final reply = await _action(
+      'commit',
+      staged,
+      message: message,
+      expected: staged,
+      inlineErrors: true,
     );
-    if (message == null || message.isEmpty) return;
-    _message.clear();
-    await _action('commit', staged, message: message, expected: staged);
+    if (reply == null || !mounted) return;
+    _subject.clear();
+    _body.clear();
+    final shortHash = await _headShortSha();
+    if (!mounted) return;
+    final strings = ref.read(appStringsProvider);
+    FrameSnackBar.show(context, message: strings.commitCreated(shortHash));
+  }
+
+  /// Short hash of HEAD, for the commit snackbar. The commit reply does not
+  /// carry it, so it comes from the branch listing. Empty when that fails.
+  Future<String> _headShortSha() async {
+    final client = ref.read(pcpClientProvider);
+    if (client == null) return '';
+    try {
+      final listing = await client.listBranches(widget.sessionId);
+      return listing.headShortSha ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   /// Each row fades in where it appears, so a file moving between Staged and Changes is visible.
@@ -1495,6 +1543,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                         )
                                       : null,
                                 ),
+                                GitCommitFields(
+                                  subject: _subject,
+                                  body: _body,
+                                  bodyOpen: _bodyOpen,
+                                  canWrite: !blocked && !_working,
+                                  strings: strings,
+                                  error: _commitError,
+                                  onToggleBody: () =>
+                                      setState(() => _bodyOpen = !_bodyOpen),
+                                  onCommit: _commit,
+                                ),
                                 Row(
                                   children: [
                                     for (final (i, spec) in [
@@ -1540,16 +1599,21 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: FilledButton(
-                                onPressed: blocked || _working || staged.isEmpty
-                                    ? null
-                                    : _commit,
-                                child: Text(
-                                  strings.commitButtonLabel(staged.length),
-                                ),
+                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                            // Rebuilt as the subject changes, so the button
+                            // enables as soon as a subject is typed.
+                            child: ListenableBuilder(
+                              listenable: _subject,
+                              builder: (context, _) => GitCommitButton(
+                                label: strings.commitButtonLabel(staged.length),
+                                tooltip: strings.commitShortcutTooltip,
+                                enabled:
+                                    !blocked &&
+                                    !_working &&
+                                    staged.isNotEmpty &&
+                                    _subject.text.trim().isNotEmpty,
+                                fullWidth: false,
+                                onPressed: _commit,
                               ),
                             ),
                           ),

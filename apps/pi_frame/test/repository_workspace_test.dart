@@ -241,6 +241,56 @@ class _LongNameWorkspaceClient extends _FakeWorkspaceClient {
   }
 }
 
+/// One staged file. Records each commit message, and fails the commit on request.
+class _StagedCommitClient extends _FakeWorkspaceClient {
+  _StagedCommitClient({this.failCommit = false});
+
+  final bool failCommit;
+  final commitMessages = <String>[];
+
+  @override
+  Future<Map<String, dynamic>> refreshWorkspace(
+    String sessionId, {
+    String? cwd,
+  }) async => {
+    'data': {
+      'isRepository': true,
+      'rootPath': '/repo',
+      'branch': 'main',
+      'files': [
+        {
+          'path': 'lib/main.dart',
+          'status': 'modified',
+          'staged': true,
+          'unstaged': false,
+        },
+      ],
+      'totalAdditions': 1,
+      'totalDeletions': 0,
+    },
+  };
+
+  @override
+  Future<Map<String, dynamic>> workspaceGitAction(
+    String sessionId,
+    Map<String, dynamic> payload,
+  ) async {
+    if (payload['action'] != 'commit') {
+      return super.workspaceGitAction(sessionId, payload);
+    }
+    if (failCommit) throw StateError('nothing to commit');
+    commitMessages.add(payload['message'] as String);
+    return {
+      'data': {'status': <String, dynamic>{}},
+    };
+  }
+
+  /// The short hash of the new HEAD comes from the branch listing.
+  @override
+  Future<WorkspaceListBranchesResult> listBranches(String sessionId) async =>
+      const WorkspaceListBranchesResult(branches: [], headShortSha: 'a1b2c3d');
+}
+
 /// Git row actions show on hover (see FrameListRow), so move the mouse onto the
 /// action first, as a user does, and then tap it.
 Future<void> _hoverAndTap(WidgetTester tester, Finder target) async {
@@ -940,6 +990,134 @@ void main() {
       }
     },
   );
+
+  /// One staged file, and a commit that records its message or fails on request.
+  Future<void> pumpCommitPane(
+    WidgetTester tester,
+    _StagedCommitClient client,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session-a').overrideWith(
+            (ref) => SessionStateNotifier(
+              'session-a',
+              null,
+            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.light().copyWith(
+            extensions: const [FrameTokens.light],
+          ),
+          home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  final commitButton = find.byKey(const ValueKey('git-commit-btn'));
+  final subjectField = find.byKey(const ValueKey('git-commit-subject'));
+
+  testWidgets('Commit form needs a subject and commits with its hash', (
+    tester,
+  ) async {
+    final client = _StagedCommitClient();
+    await pumpCommitPane(tester, client);
+
+    expect(tester.widget<FilledButton>(commitButton).onPressed, isNull);
+    await tester.tap(subjectField);
+    await tester.enterText(subjectField, 'Fix the diff pane');
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(commitButton).onPressed, isNotNull);
+
+    await tester.tap(commitButton);
+    await tester.pumpAndSettle();
+    expect(client.commitMessages, ['Fix the diff pane']);
+    // The success snackbar carries the short hash of the new HEAD.
+    expect(find.text('Commit a1b2c3d creato.'), findsOneWidget);
+    expect(tester.widget<TextField>(subjectField).controller!.text, isEmpty);
+  });
+
+  testWidgets('Ctrl+Enter commits the subject and the optional body', (
+    tester,
+  ) async {
+    final client = _StagedCommitClient();
+    await pumpCommitPane(tester, client);
+
+    await tester.tap(find.text('Aggiungi descrizione'));
+    await tester.pumpAndSettle();
+    await tester.tap(subjectField);
+    await tester.enterText(subjectField, 'Add commit form');
+    await tester.tap(find.byKey(const ValueKey('git-commit-body')));
+    await tester.enterText(
+      find.byKey(const ValueKey('git-commit-body')),
+      'Subject and body are sent together.',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(subjectField);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    expect(client.commitMessages, [
+      'Add commit form\n\nSubject and body are sent together.',
+    ]);
+  });
+
+  testWidgets(
+    'Subject past 72 characters shows the counter in the warning tone',
+    (tester) async {
+      final client = _StagedCommitClient();
+      await pumpCommitPane(tester, client);
+
+      final counter = find.byKey(const ValueKey('git-commit-subject-counter'));
+      await tester.tap(subjectField);
+      await tester.enterText(subjectField, 'x' * 72);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(counter).data, '72/72');
+      expect(
+        tester.widget<Text>(counter).style?.color,
+        isNot(FrameTokens.light.warning),
+      );
+
+      await tester.enterText(subjectField, 'x' * 73);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(counter).data, '73/72');
+      expect(
+        tester.widget<Text>(counter).style?.color,
+        FrameTokens.light.warning,
+      );
+      // The soft guide does not block the commit.
+      expect(tester.widget<FilledButton>(commitButton).onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('A failed commit shows its error inline and keeps the message', (
+    tester,
+  ) async {
+    final client = _StagedCommitClient(failCommit: true);
+    await pumpCommitPane(tester, client);
+
+    await tester.tap(subjectField);
+    await tester.enterText(subjectField, 'Will fail');
+    await tester.pumpAndSettle();
+    await tester.tap(commitButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('git-commit-error')), findsOneWidget);
+    expect(
+      tester.widget<TextField>(subjectField).controller!.text,
+      'Will fail',
+    );
+  });
 
   testWidgets('Git clean tree shows an empty state with a refresh action', (
     tester,
