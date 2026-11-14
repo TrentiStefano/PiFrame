@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
-import '../../data/first_run/app_first_run_store.dart';
+import '../../data/motion/startup_animation_settings.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../domain/session/session_labels.dart';
@@ -74,8 +74,8 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
     super.didChangeDependencies();
     if (_introChecked) return;
     _introChecked = true;
-    // Persisted: the entrance plays once per install, on the first run only.
-    if (!ref.read(appFirstRunStoreProvider).consumeIntro()) return;
+    // Once per install: main() reads the first-run flag at launch.
+    if (!ref.read(appIntroFirstRunProvider)) return;
     _introReduced = FrameMotion.reduced(context);
     _intro
       ..duration = _introReduced

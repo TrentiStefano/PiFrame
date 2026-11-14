@@ -7,6 +7,7 @@ import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
 import '../../../data/metrics/nerd_stats_settings.dart';
 import '../../../data/motion/reduced_motion_settings.dart';
+import '../../../data/motion/startup_animation_settings.dart';
 import '../../../data/theme/theme_providers.dart';
 import '../../../data/transcript/step_grouping_settings.dart';
 import '../../../data/composer/composer_settings.dart';
@@ -409,6 +410,29 @@ class AppearanceSection extends ConsumerWidget {
               onChanged: (val) {
                 ref
                     .read(reducedMotionSettingsProvider.notifier)
+                    .setEnabled(val);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: FrameSpace.x8),
+        FrameSection(
+          title: strings.startupAnimationSectionTitle,
+          description: strings.startupAnimationSubtitle,
+          child: Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              key: const ValueKey('settings-startup-animation-switch'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                strings.startupAnimationTitle,
+                style: text.body.copyWith(color: tokens.textPrimary),
+              ),
+              activeThumbColor: tokens.accent,
+              value: ref.watch(startupAnimationSettingsProvider).enabled,
+              onChanged: (val) {
+                ref
+                    .read(startupAnimationSettingsProvider.notifier)
                     .setEnabled(val);
               },
             ),

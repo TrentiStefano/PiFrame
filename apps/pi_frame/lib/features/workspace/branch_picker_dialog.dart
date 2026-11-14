@@ -5,6 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../ui/frame_focus.dart';
 
 // Layout constants with no matching token in FrameSpace / FrameSize.
@@ -229,7 +230,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                             border: Border.all(color: tokens.border),
                           ),
                           child: Text(
-                            'ESC',
+                            strings.paletteEscKeyLabel,
                             style: text.mono.copyWith(
                               color: tokens.textMuted,
                               fontWeight: FontWeight.bold,

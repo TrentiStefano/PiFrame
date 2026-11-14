@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../command_palette/command_palette.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';
@@ -1125,7 +1124,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
           ),
 
-          // Bottom utility bar: Command Palette & Settings
+          // Bottom utility bar: Settings
           Container(
             padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
@@ -1170,19 +1169,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       ref.read(showSettingsProvider.notifier).state = true;
                     },
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                  tooltip: strings.commandPaletteTooltip,
-                  onPressed: () {
-                    CommandPalette.show(
-                      context,
-                      ref: ref,
-                      onOpenSettings: () {
-                        ref.read(showSettingsProvider.notifier).state = true;
-                      },
-                    );
-                  },
                 ),
               ],
             ),

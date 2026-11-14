@@ -163,7 +163,7 @@ class WindowStateService {
       final manager = _windowManager;
       final state = await loadState();
       final width = state.width.clamp(680.0, 4000.0);
-      final height = state.height.clamp(480.0, 3000.0);
+      final height = state.height.clamp(560.0, 3000.0);
       await manager.setSize(Size(width, height));
       if (state.isFullScreen) {
         await manager.setFullScreen(true);
