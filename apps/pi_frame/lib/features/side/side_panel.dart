@@ -9,6 +9,7 @@ import '../../data/composer/composer_settings.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/session_state.dart';
+import '../../ui/escape_layers.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../composer/composer_draft.dart';
 import '../tool_timeline/tool_card.dart';
@@ -19,9 +20,14 @@ import 'side_provider.dart';
 class SidePanel extends ConsumerStatefulWidget {
   final String sessionId;
 
+  /// True when the side thread fills the whole pane (chat too narrow to share it).
+  /// The header then shows a back button that returns to the chat.
+  final bool fullPane;
+
   const SidePanel({
     super.key,
     required this.sessionId,
+    this.fullPane = false,
   });
 
   @override
@@ -32,9 +38,42 @@ class _SidePanelState extends ConsumerState<SidePanel> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  ProviderSubscription<SideThreadState>? _threadSub;
+  void Function()? _unregisterEscape;
+
+  @override
+  void initState() {
+    super.initState();
+    // Escape closes the side conversation while it is open (plan task 10.1).
+    _threadSub = ref.listenManual<SideThreadState>(
+      sideThreadFamily(widget.sessionId),
+      (_, next) => _syncEscape(next.isOpen),
+      fireImmediately: true,
+    );
+  }
+
+  void _syncEscape(bool open) {
+    if (open) {
+      _unregisterEscape ??= ref.read(escapeLayersProvider).register(
+            EscapeLayer.drawer,
+            _escapeClose,
+          );
+    } else {
+      _unregisterEscape?.call();
+      _unregisterEscape = null;
+    }
+  }
+
+  bool _escapeClose() {
+    if (!mounted) return false;
+    unawaited(_requestClose(context));
+    return true;
+  }
 
   @override
   void dispose() {
+    _unregisterEscape?.call();
+    _threadSub?.close();
     _textController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -61,7 +100,14 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     _scrollToBottom();
   }
 
-  Future<void> _confirmClose(BuildContext context) async {
+  /// Closes the side thread. Asks first only when the mini composer holds a draft,
+  /// since closing discards it (plan task 10.1).
+  Future<void> _requestClose(BuildContext context) async {
+    final hasDraft = _textController.text.trim().isNotEmpty;
+    if (!hasDraft) {
+      await ref.read(sideThreadFamily(widget.sessionId).notifier).close();
+      return;
+    }
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
 
@@ -116,19 +162,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
   @override
   Widget build(BuildContext context) {
+    // Rendered even while closed: SideSplit animates the width, and the content
+    // fades out with it. The draft in the mini composer survives a hide.
     final sideThread = ref.watch(sideThreadFamily(widget.sessionId));
-    if (!sideThread.isOpen) {
-      return const SizedBox.shrink();
-    }
-
     final sideSession = ref.watch(sideSessionFamily(widget.sessionId));
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     final composerSettings = ref.watch(composerSettingsProvider);
-
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 600;
-    final panelWidth = isMobile ? screenWidth : 420.0;
 
     final isStreaming = sideSession.isStreaming || sideThread.isOpening;
 
@@ -141,20 +181,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
     return Container(
       key: const ValueKey('side-panel-container'),
-      width: panelWidth,
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        border: Border(
-          left: BorderSide(color: tokens.borderStrong, width: 1.2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.overlay.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: const Offset(-3, 0),
-          ),
-        ],
-      ),
+      // Flat surface: the split divider draws the edge, so no shadow (task 2.4).
+      decoration: BoxDecoration(color: tokens.surfaceElevated),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -207,6 +235,23 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         children: [
           Row(
             children: [
+              // Full-pane view: back to the chat. Hides the side without closing it.
+              if (widget.fullPane) ...[
+                IconButton(
+                  key: const ValueKey('side-back-btn'),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: strings.sideBackTooltip,
+                  icon: Icon(
+                    Icons.arrow_back,
+                    size: 18,
+                    color: tokens.textSecondary,
+                  ),
+                  onPressed: () => ref
+                      .read(sideThreadFamily(widget.sessionId).notifier)
+                      .closePanel(),
+                ),
+                const SizedBox(width: 4),
+              ],
               // Badge 'Side · read-only'
               Container(
                 key: const ValueKey('side-read-only-badge'),
@@ -294,7 +339,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   size: 18,
                   color: tokens.textSecondary,
                 ),
-                onPressed: () => _confirmClose(context),
+                onPressed: () => _requestClose(context),
               ),
             ],
           ),

@@ -64,6 +64,9 @@ final sideThreadFamily =
   (ref, parentSessionId) => SideThreadNotifier(parentSessionId, ref),
 );
 
+/// Set by a toggle that must not animate (Ctrl+Shift+B). The split consumes and clears it.
+final sideInstantToggleProvider = StateProvider<bool>((ref) => false);
+
 final sideSessionFamily =
     StateNotifierProvider.family<SideSessionNotifier, SessionState, String>(
   (ref, parentSessionId) => SideSessionNotifier(parentSessionId, ref),
@@ -259,7 +262,8 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
     );
   }
 
-  void togglePanel() {
+  void togglePanel({bool instant = false}) {
+    if (instant) ref.read(sideInstantToggleProvider.notifier).state = true;
     state = state.copyWith(isOpen: !state.isOpen);
   }
 

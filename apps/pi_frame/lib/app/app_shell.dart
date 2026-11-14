@@ -42,8 +42,8 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
-import '../features/side/side_panel.dart';
 import '../features/side/side_provider.dart';
+import '../features/side/side_split.dart';
 import '../data/metrics/nerd_stats_settings.dart';
 import '../data/metrics/system_metrics_controller.dart';
 import '../features/metrics/nerd_stats_bar.dart';
@@ -708,7 +708,7 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     if (key == LogicalKeyboardKey.keyB && commandKey && shift) {
       if (activeId != null) {
-        ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+        ref.read(sideThreadFamily(activeId).notifier).togglePanel(instant: true);
         return KeyEventResult.handled;
       }
     }
@@ -819,26 +819,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: FocusRegionMarker(
                   region: FocusRegion.transcript,
                   regionKey: _regionKeys[FocusRegion.transcript]!,
-                  child: Stack(
-                    children: [
-                      TranscriptView(
-                        key: ValueKey('transcript_$activeId'),
-                        sessionId: activeId,
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: FrameEnter(
-                          horizontal: true,
-                          offset: 24,
-                          child: SidePanel(
-                            key: ValueKey('side_panel_$activeId'),
-                            sessionId: activeId,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: SideSplit(
+                    sessionId: activeId,
+                    main: TranscriptView(
+                      key: ValueKey('transcript_$activeId'),
+                      sessionId: activeId,
+                    ),
                   ),
                   ),
                 ),
