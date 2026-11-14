@@ -14,11 +14,12 @@ import '../../ui/frame_dialog.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../welcome/recent_sessions.dart';
 import 'folder_probe.dart';
 
 /// Delay between the last keystroke and the folder check that updates the notice.
-const Duration _validationDelay = Duration(milliseconds: 300);
+const Duration _validationDelay = FrameMotion.debounce;
 
 /// Asks for the working folder of a new session. Returns the trimmed path, or
 /// null when cancelled. Enter creates when the folder is valid; Escape cancels.

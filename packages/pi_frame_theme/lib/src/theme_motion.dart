@@ -38,6 +38,9 @@ abstract final class FrameMotionTokens {
   /// Cross-fade used in place of movement under reduced motion (≤150ms).
   static const Duration crossFade = Duration(milliseconds: 120);
 
+  /// Wait after the last keystroke before a field re-validates.
+  static const Duration debounce = Duration(milliseconds: 300);
+
   /// Ease-out with a fast start: most UI changes.
   static const Cubic enterCurve = Cubic(0.23, 1, 0.32, 1);
 
