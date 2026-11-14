@@ -1596,13 +1596,16 @@ class _ComposerState extends ConsumerState<Composer> {
         (s) => (
           s.readOnly,
           s.readOnlyReason,
-          // Compaction runs inside the agent run: the daemon rejects a plain prompt then, so steer instead.
-          s.isStreaming || s.agentStatus == AgentStatus.compacting,
+          // A stopped worker has no run left to stop or steer, even if the stream flag was not cleared.
+          s.agentStatus != AgentStatus.workerError &&
+              // Compaction runs inside the agent run: the daemon rejects a plain prompt then, so steer instead.
+              (s.isStreaming || s.agentStatus == AgentStatus.compacting),
           s.agentStatus,
           s.steeringQueue,
           s.followUpQueue,
           s.pendingUiRequests,
-          s.activeToolCalls.isNotEmpty,
+          s.agentStatus != AgentStatus.workerError &&
+              s.activeToolCalls.isNotEmpty,
           s.currentModel,
           s.currentModelProvider,
           s.currentModelId,

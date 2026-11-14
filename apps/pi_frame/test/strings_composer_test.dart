@@ -90,7 +90,7 @@ void main() {
       // Section 3: Composer Errors & Dialogs
       expect(
         strings.composerWorkerCrashBanner,
-        'Il worker Pi è terminato inaspettatamente. Nessun comando è stato re-inviato automaticamente.',
+        'Il worker Pi è terminato inaspettatamente. Nessun comando è stato reinviato automaticamente.',
       );
       expect(strings.composerRecoverSessionAction, 'Riprendi sessione');
       expect(
@@ -784,6 +784,22 @@ void main() {
         'All messages belong to the main branch.',
       );
       expect(strings.sessionTreeActiveBadge, 'ACTIVE');
+    });
+
+    test('localizes every Pi thinking level and keeps unknown levels raw', () {
+      const it = AppStrings(AppLanguage.it);
+      const en = AppStrings(AppLanguage.en);
+
+      const levels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+      expect(
+        [for (final level in levels) it.thinkingLevelLabel(level)],
+        ['Spento', 'Minimo', 'Basso', 'Medio', 'Alto', 'Molto alto', 'Massimo'],
+      );
+      expect(
+        [for (final level in levels) en.thinkingLevelLabel(level)],
+        ['Off', 'Minimal', 'Low', 'Medium', 'High', 'Extra high', 'Max'],
+      );
+      expect(it.thinkingLevelLabel('experimental'), 'experimental');
     });
   });
 }

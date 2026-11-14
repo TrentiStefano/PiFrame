@@ -115,7 +115,7 @@ extension ComposerStrings on AppStrings {
 
   // --- Section 3: Composer Errors, Recovery & Dialogs ---
   String get composerWorkerCrashBanner => isItalian
-      ? 'Il worker Pi è terminato inaspettatamente. Nessun comando è stato re-inviato automaticamente.'
+      ? 'Il worker Pi è terminato inaspettatamente. Nessun comando è stato reinviato automaticamente.'
       : 'Pi worker terminated unexpectedly. No command was resent automatically.';
 
   String get composerRecoverSessionAction =>
