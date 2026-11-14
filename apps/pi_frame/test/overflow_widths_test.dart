@@ -18,6 +18,8 @@ import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
+import 'package:pi_frame/app/app_shell.dart';
+import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 
 /// Narrow widths that every companion/transcript widget must survive without
@@ -52,6 +54,7 @@ void main() {
   _transcriptTests();
   _subagentTests();
   _composerTests();
+  _companionTests();
   group('Browser companion fits narrow widths (task 1.2a)', () {
     for (final width in kNarrowWidths) {
       testWidgets('toolbar and header do not overflow at ${width.toInt()} px',
@@ -403,5 +406,59 @@ void _composerTests() {
             findsNothing);
       });
     }
+  });
+}
+
+void _companionTests() {
+  group('Companion panes keep a 320 px minimum (task 1.2f)', () {
+    test('a companion narrower than 320 px collapses to its tab', () {
+      final narrow = narrowCompanionPanes(
+        panes: const [WorkspacePane.chat, WorkspacePane.git],
+        collapsed: const {},
+        weights: const {WorkspacePane.chat: 50, WorkspacePane.git: 50},
+        availableWidth: 280,
+      );
+      expect(narrow, {WorkspacePane.git});
+    });
+
+    test('a companion at 320 px or wider stays open', () {
+      final narrow = narrowCompanionPanes(
+        panes: const [WorkspacePane.chat, WorkspacePane.git],
+        collapsed: const {},
+        weights: const {WorkspacePane.chat: 50, WorkspacePane.git: 50},
+        availableWidth: 640,
+      );
+      expect(narrow, isEmpty);
+    });
+
+    test('the chat pane and the last visible pane are never collapsed', () {
+      expect(
+        narrowCompanionPanes(
+          panes: const [WorkspacePane.chat, WorkspacePane.git],
+          collapsed: const {WorkspacePane.git},
+          weights: const {WorkspacePane.chat: 50, WorkspacePane.git: 50},
+          availableWidth: 100,
+        ),
+        isEmpty,
+      );
+      expect(
+        narrowCompanionPanes(
+          panes: const [WorkspacePane.chat, WorkspacePane.git],
+          collapsed: const {},
+          weights: const {WorkspacePane.chat: 1, WorkspacePane.git: 99},
+          availableWidth: 280,
+        ),
+        {WorkspacePane.git},
+      );
+      expect(
+        narrowCompanionPanes(
+          panes: const [WorkspacePane.chat, WorkspacePane.git],
+          collapsed: const {},
+          weights: const {WorkspacePane.chat: 99, WorkspacePane.git: 1},
+          availableWidth: 280,
+        ),
+        isNot(contains(WorkspacePane.chat)),
+      );
+    });
   });
 }

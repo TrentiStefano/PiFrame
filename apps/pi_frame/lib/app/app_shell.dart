@@ -49,6 +49,32 @@ import '../data/window/window_state_service.dart';
 import '../data/layout/layout_store.dart';
 import '../domain/session/session_labels.dart';
 
+/// Minimum width of a companion pane (repository, git or browser). Narrower, and
+/// the companion collapses to its tab (audit R2 / plan task 1.2f).
+const double kCompanionMinWidth = 320;
+
+/// Companion panes whose share of [availableWidth] would be narrower than
+/// [kCompanionMinWidth]. Only applies while another pane stays open, so the last
+/// visible pane is never hidden. The chat pane is never a companion.
+Set<WorkspacePane> narrowCompanionPanes({
+  required List<WorkspacePane> panes,
+  required Set<WorkspacePane> collapsed,
+  required Map<WorkspacePane, int> weights,
+  required double availableWidth,
+  double minWidth = kCompanionMinWidth,
+}) {
+  final open = panes.where((p) => !collapsed.contains(p)).toList();
+  if (open.length < 2) return <WorkspacePane>{};
+  final totalWeight = open.fold<int>(0, (sum, p) => sum + (weights[p] ?? 1));
+  if (totalWeight <= 0) return <WorkspacePane>{};
+  return {
+    for (final p in open)
+      if (p != WorkspacePane.chat &&
+          availableWidth * (weights[p] ?? 1) / totalWeight < minWidth)
+        p,
+  };
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
   @override
@@ -1223,19 +1249,32 @@ class _AppShellState extends ConsumerState<AppShell>
     return LayoutBuilder(
       builder: (context, constraints) {
         const dividerWidth = 8.0;
-        final collapsedCount = panes
+        const collapsedWidth = 40.0;
+        final openWidth =
+            constraints.maxWidth - dividerWidth * (panes.length - 1);
+        final stateCollapsed = panes
             .where((p) => _collapsedPanes.contains(p))
             .length;
-        const collapsedWidth = 40.0;
+        // A companion narrower than kCompanionMinWidth collapses to its tab.
+        final narrow = narrowCompanionPanes(
+          panes: panes,
+          collapsed: _collapsedPanes,
+          weights: {
+            for (final p in panes)
+              p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt(),
+          },
+          availableWidth: openWidth - collapsedWidth * stateCollapsed,
+        );
+        bool isCollapsed(WorkspacePane p) =>
+            _collapsedPanes.contains(p) || narrow.contains(p);
+        final collapsedCount = panes.where(isCollapsed).length;
         final availableWidth =
-            constraints.maxWidth -
-            dividerWidth * (panes.length - 1) -
-            (collapsedWidth * collapsedCount);
+            openWidth - (collapsedWidth * collapsedCount);
 
         return Row(
           children: [
             for (var index = 0; index < panes.length; index++) ...[
-              if (_collapsedPanes.contains(panes[index]))
+              if (isCollapsed(panes[index]))
                 _collapsedPaneStrip(panes[index])
               else
                 Expanded(
