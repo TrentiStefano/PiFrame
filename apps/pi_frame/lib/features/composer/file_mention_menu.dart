@@ -22,12 +22,12 @@ class FileMentionMenu extends StatelessWidget {
 
   IconData _getFileIcon(String path) {
     final lower = path.toLowerCase();
-    if (lower.endsWith('.dart')) return Icons.code;
+    if (lower.endsWith('.dart')) return Icons.code_outlined;
     if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.endsWith('.tsx') || lower.endsWith('.jsx')) {
-      return Icons.javascript;
+      return Icons.javascript_outlined;
     }
     if (lower.endsWith('.json') || lower.endsWith('.yaml') || lower.endsWith('.yml')) {
-      return Icons.data_object;
+      return Icons.data_object_outlined;
     }
     if (lower.endsWith('.md') || lower.endsWith('.txt')) {
       return Icons.article_outlined;
@@ -79,7 +79,7 @@ class FileMentionMenu extends StatelessWidget {
           children: [
             // Hint header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: FrameSpace.x1),
               decoration: BoxDecoration(
                 color: tokens.surface,
                 border: Border(
@@ -88,8 +88,8 @@ class FileMentionMenu extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.alternate_email, size: 12, color: tokens.accent),
-                  const SizedBox(width: 4),
+                  Icon(Icons.alternate_email_outlined, size: FrameSize.icon, color: tokens.accent),
+                  const SizedBox(width: FrameSpace.x1),
                   Text(
                     appStrings.mentionLinkFileHeader,
                     style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
@@ -134,7 +134,7 @@ class FileMentionMenu extends StatelessWidget {
                             size: 14,
                             color: isSelected ? tokens.accent : tokens.textSecondary,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: FrameSpace.x2),
                           Expanded(
                             child: Row(
                               children: [

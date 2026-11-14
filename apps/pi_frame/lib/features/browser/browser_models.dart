@@ -8,7 +8,7 @@ enum RightPaneMode {
 enum SearchEngine {
   google(
     label: 'Google',
-    icon: Icons.travel_explore,
+    icon: Icons.travel_explore_outlined,
     searchUrlTemplate: 'https://www.google.com/search?q={query}',
     homeUrl: 'https://www.google.com',
   ),
@@ -20,7 +20,7 @@ enum SearchEngine {
   ),
   duckDuckGo(
     label: 'DuckDuckGo',
-    icon: Icons.search,
+    icon: Icons.search_outlined,
     searchUrlTemplate: 'https://duckduckgo.com/?q={query}',
     homeUrl: 'https://duckduckgo.com',
   ),
@@ -32,7 +32,7 @@ enum SearchEngine {
   ),
   github(
     label: 'GitHub',
-    icon: Icons.code,
+    icon: Icons.code_outlined,
     searchUrlTemplate: 'https://github.com/search?q={query}',
     homeUrl: 'https://github.com',
   ),
@@ -50,7 +50,7 @@ enum SearchEngine {
   ),
   mdn(
     label: 'MDN Web Docs',
-    icon: Icons.menu_book,
+    icon: Icons.menu_book_outlined,
     searchUrlTemplate: 'https://developer.mozilla.org/en-US/search?q={query}',
     homeUrl: 'https://developer.mozilla.org',
   );

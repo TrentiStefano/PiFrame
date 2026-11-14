@@ -136,7 +136,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Fresh new prompt');
       await tester.pumpAndSettle();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       expect(sendBtn, findsOneWidget);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();

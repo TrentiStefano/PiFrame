@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/motion.dart';
+
 class SlashMenu extends StatelessWidget {
   final List<Map<String, dynamic>> commands;
   final String filter;
@@ -48,8 +50,8 @@ class SlashMenu extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
-          : const Duration(milliseconds: 140),
-      curve: Curves.easeOutCubic,
+          : FrameMotion.small,
+      curve: FrameMotion.enterCurve,
       builder: (context, t, child) => Opacity(
         opacity: t,
         child: Transform.translate(
@@ -74,7 +76,7 @@ class SlashMenu extends StatelessWidget {
             ],
           ),
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
             shrinkWrap: true,
             itemCount: items.length,
             separatorBuilder: (_, _) =>
@@ -92,8 +94,8 @@ class SlashMenu extends StatelessWidget {
                 onTap: () => onSelect(cmd),
                 hoverColor: tokens.surface,
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 120),
-                  curve: Curves.easeOut,
+                  duration: FrameMotion.micro,
+                  curve: FrameMotion.enterCurve,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -114,7 +116,7 @@ class SlashMenu extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(
-                        Icons.terminal_rounded,
+                        Icons.terminal_outlined,
                         size: 13,
                         color: selected ? tokens.accent : tokens.textMuted,
                       ),
@@ -134,7 +136,7 @@ class SlashMenu extends StatelessWidget {
                           style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.monoFontFamily),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: FrameSpace.x2),
                       Expanded(
                         child: Text(
                           desc,
@@ -143,7 +145,7 @@ class SlashMenu extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: FrameSpace.x2),
                       Text(
                         sourceLabel(source),
                         style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
@@ -177,12 +179,12 @@ class _KeepVisibleState extends State<_KeepVisible> {
       if (!mounted) return;
       Scrollable.ensureVisible(
         context,
-        duration: const Duration(milliseconds: 100),
+        duration: FrameMotion.micro,
         alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
       );
       Scrollable.ensureVisible(
         context,
-        duration: const Duration(milliseconds: 100),
+        duration: FrameMotion.micro,
         alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
       );
     });

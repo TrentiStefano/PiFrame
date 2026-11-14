@@ -578,6 +578,12 @@ extension WorkspaceStrings on AppStrings {
   String get browserLoadingInProgress =>
       isItalian ? 'Caricamento in corso...' : 'Loading...';
 
+  String get browserGitChangesLabel =>
+      isItalian ? 'Modifiche Git' : 'Git Changes';
+
+  String get browserWebBrowserLabel =>
+      isItalian ? 'Browser web' : 'Web Browser';
+
   String get unableToLoadPageTitle =>
       isItalian ? 'Impossibile caricare la pagina' : 'Unable to load page';
 

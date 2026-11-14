@@ -273,7 +273,7 @@ void main() {
       final interruptIcon = tester.widget<Icon>(
         find.descendant(
           of: find.byKey(const ValueKey('composer-status-interrupt')),
-          matching: find.byIcon(Icons.stop_rounded),
+          matching: find.byIcon(Icons.stop_outlined),
         ),
       );
       final interruptText = tester.widget<Text>(

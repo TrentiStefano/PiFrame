@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
+import '../../ui/frame_dialog.dart';
 
 enum CopilotFileActionType { mention, attach }
 
@@ -25,10 +26,8 @@ class CopilotFilePicker extends StatefulWidget {
     required List<Map<String, dynamic>> files,
     AppStrings? strings,
   }) {
-    final tokens = context.tokens;
-    return showDialog<CopilotFileResult>(
+    return showFrameDialogBuilder<CopilotFileResult>(
       context: context,
-      barrierColor: tokens.overlay,
       builder: (ctx) => CopilotFilePicker(files: files, strings: strings),
     );
   }
@@ -90,12 +89,12 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
 
   IconData _getFileIcon(String path) {
     final lower = path.toLowerCase();
-    if (lower.endsWith('.dart')) return Icons.code;
+    if (lower.endsWith('.dart')) return Icons.code_outlined;
     if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.endsWith('.tsx') || lower.endsWith('.jsx')) {
-      return Icons.javascript;
+      return Icons.javascript_outlined;
     }
     if (lower.endsWith('.json') || lower.endsWith('.yaml') || lower.endsWith('.yml')) {
-      return Icons.data_object;
+      return Icons.data_object_outlined;
     }
     if (lower.endsWith('.md') || lower.endsWith('.txt')) {
       return Icons.article_outlined;
@@ -134,7 +133,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
         borderRadius: BorderRadius.circular(tokens.radiusLg),
         side: BorderSide(color: tokens.border, width: 1),
       ),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      insetPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x6, vertical: FrameSpace.x8),
       child: Focus(
         onKeyEvent: (node, event) {
           if (event is KeyDownEvent) {
@@ -180,7 +179,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       color: tokens.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
-                    child: Icon(Icons.add_link, size: 16, color: tokens.accent),
+                    child: Icon(Icons.add_link_outlined, size: FrameSize.icon, color: tokens.accent),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -199,13 +198,13 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
+                    icon: Icon(Icons.close_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                     tooltip: strings.copilotCloseEscTooltip,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: FrameSpace.x3),
 
               // Search Box
               TextField(
@@ -216,16 +215,16 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                 decoration: InputDecoration(
                   hintText: strings.copilotSearchHint,
                   hintStyle: FrameText.of(context).body.copyWith(color: tokens.textMuted),
-                  prefixIcon: Icon(Icons.search, size: 18, color: tokens.textMuted),
+                  prefixIcon: Icon(Icons.search_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.clear, size: 16, color: tokens.textMuted),
+                          icon: Icon(Icons.clear_outlined, size: FrameSize.icon, color: tokens.textMuted),
                           onPressed: () => _searchController.clear(),
                         )
                       : null,
                   filled: true,
                   fillColor: tokens.surfaceElevated,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: 10),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(tokens.radiusSm),
                     borderSide: BorderSide(color: tokens.border),
@@ -320,17 +319,17 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         style: FrameText.of(context).label.copyWith(color: isSelected ? tokens.accent : tokens.textPrimary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Text(
                                       _formatBytes(file['sizeBytes']),
                                       style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     // Action buttons
                                     OutlinedButton(
                                       style: OutlinedButton.styleFrom(
                                         visualDensity: VisualDensity.compact,
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
                                         side: BorderSide(color: tokens.border),
                                         foregroundColor: tokens.textSecondary,
                                         shape: RoundedRectangleBorder(
