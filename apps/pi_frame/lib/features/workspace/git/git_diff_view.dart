@@ -377,11 +377,11 @@ Future<bool?> showGitDiscardDialog({
                   strings.discardAllChangesWarning,
                   key: const ValueKey('discard-file-warning'),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: FrameSpace.x2),
                 Text(
                   '$path\n${status?['rootPath'] ?? '—'} · ${status?['branch'] ?? '—'}',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: FrameSpace.x2),
                 Expanded(
                   child: SingleChildScrollView(
                     child: DiffBlock(

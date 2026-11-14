@@ -262,13 +262,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     required bool enabled,
     required FrameTokens tokens,
   }) {
+    final text = FrameText.of(context);
     return Expanded(
       child: Tooltip(
         message: tooltip,
         child: OutlinedButton(
           key: ValueKey('git-$action-btn'),
           style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x1,
+              vertical: FrameSpace.x1,
+            ),
             minimumSize: const Size(0, 30),
             visualDensity: VisualDensity.compact,
             foregroundColor: tokens.textPrimary,
@@ -283,9 +287,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 14),
-                const SizedBox(width: 4),
-                Text(label, style: const TextStyle(fontSize: 11)),
+                Icon(icon, size: FrameSize.icon),
+                const SizedBox(width: FrameSpace.x1),
+                Text(label, style: text.caption),
               ],
             ),
           ),
@@ -417,6 +421,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }) {
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     var popped = false;
     void popOnce(BuildContext dialogContext, bool result) {
       if (popped) return;
@@ -436,15 +441,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           title: Text(
             strings.workspaceDirtyDialogTitle,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.title.copyWith(color: tokens.textPrimary),
           ),
           content: Text(
             strings.workspaceDirtyDialogMessage(changedFiles, untrackedFiles),
-            style: TextStyle(color: tokens.textMuted, fontSize: 14),
+            style: text.bodyLarge.copyWith(color: tokens.textMuted),
           ),
           actions: [
             OutlinedButton(
@@ -485,6 +486,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }) {
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final truncatedStderr = stderr.length > 2048
         ? '${stderr.substring(0, 2048)}\n…'
         : stderr;
@@ -508,15 +510,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           title: Row(
             children: [
               Icon(Icons.error_outline, color: tokens.danger, size: 20),
-              const SizedBox(width: 8),
+              const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Text(
                   strings.branchSwitchFailedTitle,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: text.title.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -530,8 +528,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 children: [
                   if (stashRetained) ...[
                     Container(
-                      padding: const EdgeInsets.all(10),
-                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(FrameSpace.x2),
+                      margin: const EdgeInsets.only(bottom: FrameSpace.x3),
                       decoration: BoxDecoration(
                         color: tokens.warning.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -547,15 +545,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             color: tokens.warning,
                             size: 18,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: FrameSpace.x2),
                           Expanded(
                             child: Text(
                               strings.stashRetainedSafeNotice(
                                 stashMessage ?? '',
                               ),
-                              style: TextStyle(
+                              style: text.body.copyWith(
                                 color: tokens.textPrimary,
-                                fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -566,7 +563,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   ],
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(FrameSpace.x2),
                     decoration: BoxDecoration(
                       color: tokens.background,
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -574,11 +571,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     ),
                     child: SelectableText(
                       truncatedStderr,
-                      style: TextStyle(
-                        fontFamily: tokens.monoFontFamily,
-                        fontSize: 12,
-                        color: tokens.textPrimary,
-                      ),
+                      style: text.mono.copyWith(color: tokens.textPrimary),
                     ),
                   ),
                 ],
@@ -1147,19 +1140,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               child: Row(
                 children: [
                   Icon(Icons.source_outlined, size: 16, color: tokens.accent),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: FrameSpace.x2),
                   Text(
                     'GIT CHANGES',
-                    style: TextStyle(
+                    style: text.label.copyWith(
                       color: tokens.textPrimary,
-                      fontSize: 11.5,
-                      fontFamily: tokens.uiFontFamily,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.4,
                     ),
                   ),
                   if (ref.watch(browserPaneSupportedProvider)) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: FrameSpace.x2),
                     InkWell(
                       key: const ValueKey('right-pane-switch-browser-chip'),
                       onTap: () {
@@ -1169,7 +1160,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
+                          horizontal: FrameSpace.x1,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
@@ -1185,12 +1176,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               size: 12,
                               color: tokens.textMuted,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: FrameSpace.x1),
                             Text(
                               'Browser',
-                              style: TextStyle(
+                              style: text.caption.copyWith(
                                 color: tokens.textMuted,
-                                fontSize: 10.5,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -1233,10 +1223,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   icon: const Icon(Icons.refresh, size: 16),
                 ),
                 if (widget.onCollapse != null) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: FrameSpace.x1),
                   IconButton(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(FrameSpace.x1),
                     constraints: const BoxConstraints(),
                     tooltip: strings.collapseGitPanelTooltip,
                     onPressed: widget.onCollapse,
@@ -1270,7 +1260,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                          padding: const EdgeInsets.fromLTRB(
+                            FrameSpace.x3,
+                            FrameSpace.x1,
+                            FrameSpace.x3,
+                            FrameSpace.x2,
+                          ),
                           child: Row(
                             children: [
                               Expanded(
@@ -1278,9 +1273,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   root,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+                                  style: text.caption.copyWith(
                                     color: tokens.textMuted,
-                                    fontSize: 10,
                                     fontFamily: tokens.monoFontFamily,
                                   ),
                                 ),
@@ -1288,7 +1282,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               if (repo ||
                                   _status?['branch'] != null ||
                                   _status?['detached'] == true) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: FrameSpace.x1),
                                 Builder(
                                   builder: (context) {
                                     final branchDisabled =
@@ -1308,7 +1302,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                         ),
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
+                                            horizontal: FrameSpace.x1,
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
@@ -1330,7 +1324,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                                     ? tokens.textMuted
                                                     : tokens.accent,
                                               ),
-                                              const SizedBox(width: 4),
+                                              const SizedBox(
+                                                width: FrameSpace.x1,
+                                              ),
                                               ConstrainedBox(
                                                 constraints:
                                                     const BoxConstraints(
@@ -1347,11 +1343,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
-                                                  style: TextStyle(
+                                                  style: text.caption.copyWith(
                                                     color: branchDisabled
                                                         ? tokens.textMuted
                                                         : tokens.textPrimary,
-                                                    fontSize: 11,
                                                     fontFamily:
                                                         tokens.monoFontFamily,
                                                     fontWeight: FontWeight.w500,
@@ -1407,7 +1402,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               return Expanded(
                                 child: Center(
                                   child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.all(
+                                      FrameSpace.x3,
+                                    ),
                                     child: FrameErrorCallout(
                                       keyPrefix: 'git-status-error',
                                       title: strings.gitStatusLoadFailed,
@@ -1422,29 +1419,28 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           )
                         else ...[
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: FrameSpace.x3,
+                            ),
                             child: Wrap(
                               spacing: 4,
                               children: [
                                 Text(
                                   strings.gitFilesCount(files.length),
-                                  style: TextStyle(
+                                  style: text.caption.copyWith(
                                     color: tokens.textSecondary,
-                                    fontSize: 11,
                                   ),
                                 ),
                                 Text(
                                   '+${_status?['totalAdditions'] ?? 0}',
-                                  style: TextStyle(
+                                  style: text.caption.copyWith(
                                     color: tokens.diffAddedFg,
-                                    fontSize: 11,
                                   ),
                                 ),
                                 Text(
                                   '-${_status?['totalDeletions'] ?? 0}',
-                                  style: TextStyle(
+                                  style: text.caption.copyWith(
                                     color: tokens.diffRemovedFg,
-                                    fontSize: 11,
                                   ),
                                 ),
                               ],
@@ -1501,7 +1497,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               backgroundColor: tokens.surface,
                             ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                            padding: const EdgeInsets.fromLTRB(
+                              FrameSpace.x2,
+                              FrameSpace.x1,
+                              FrameSpace.x2,
+                              0,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -1582,7 +1583,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                         strings.gitSyncTooltip,
                                       ),
                                     ].indexed) ...[
-                                      if (i > 0) const SizedBox(width: 4),
+                                      if (i > 0)
+                                        const SizedBox(width: FrameSpace.x1),
                                       _remoteButton(
                                         action: spec.$1,
                                         icon: spec.$2,
@@ -1599,7 +1601,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                            padding: const EdgeInsets.fromLTRB(
+                              FrameSpace.x2,
+                              FrameSpace.x1,
+                              FrameSpace.x2,
+                              FrameSpace.x2,
+                            ),
                             // Rebuilt as the subject changes, so the button
                             // enables as soon as a subject is typed.
                             child: ListenableBuilder(

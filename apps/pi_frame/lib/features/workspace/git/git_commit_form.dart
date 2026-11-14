@@ -148,7 +148,7 @@ class GitCommitFields extends StatelessWidget {
             ),
           if (failure != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: FrameSpace.x1),
               child: FrameErrorCallout(
                 keyPrefix: 'git-commit',
                 title: strings.commitFailedTitle,
