@@ -168,12 +168,12 @@ void main() {
       expect(strings.paletteNewSessionTitle, 'Crea nuova sessione');
       expect(strings.paletteNewSessionSubtitle, 'Avvia una nuova sessione Pi');
       expect(strings.paletteCompactTitle, 'Compatta contesto');
-      expect(strings.paletteCompactSubtitle, 'Esegui manual compaction per ridurre i token');
+      expect(strings.paletteCompactSubtitle, 'Compatta manualmente il contesto per ridurre i token');
       expect(strings.paletteClearQueueTitle, 'Svuota coda');
-      expect(strings.paletteClearQueueSubtitle, 'Rimuovi tutti i messaggi steer e follow-up in attesa');
-      expect(strings.paletteInterruptTitle, 'Interrompi agente (Esc)');
+      expect(strings.paletteClearQueueSubtitle, 'Rimuovi tutti i messaggi di guida e follow-up in attesa');
+      expect(strings.paletteInterruptTitle, 'Interrompi agente');
       expect(strings.paletteInterruptSubtitle, 'Ferma il modello in esecuzione');
-      expect(strings.paletteSwitchBrowserTitle, 'Mostra Web Browser');
+      expect(strings.paletteSwitchBrowserTitle, 'Mostra browser web');
       expect(strings.paletteSwitchBrowserSubtitle, 'Apri il browser web integrato nel pannello laterale');
       expect(strings.paletteSwitchGitTitle, 'Mostra modifiche Git');
       expect(strings.paletteSwitchGitSubtitle, 'Mostra il pannello delle modifiche Git nel pannello laterale');

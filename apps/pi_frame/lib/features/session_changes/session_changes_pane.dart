@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../ui/escape_layers.dart';
+import '../../ui/frame_focus.dart';
 import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
+
+/// Below this width for the companion tab row, inactive tabs show only their icon
+/// (the active tab keeps its label, ellipsised). Labels stay in semantics and tooltips.
+const double kCompanionTabLabelsMinWidth = 360;
 
 class SessionChangesPane extends ConsumerStatefulWidget {
   final String sessionId;
@@ -28,7 +35,31 @@ class SessionChangesPane extends ConsumerStatefulWidget {
   ConsumerState<SessionChangesPane> createState() => _SessionChangesPaneState();
 }
 
+/// Moves between companion tabs with ←/→ (plan task 6.1). A step of -1 or 1, wrapping.
+class _TabStepIntent extends Intent {
+  const _TabStepIntent(this.step);
+  final int step;
+}
+
 class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
+  /// One focus node per companion tab, so ←/→ can move focus with the selection.
+  final Map<WorkspacePane, FocusNode> _tabFocusNodes = {};
+
+  FocusNode _tabFocusNode(WorkspacePane tab) => _tabFocusNodes.putIfAbsent(
+    tab,
+    () => FocusNode(debugLabel: 'companion-tab-${tab.name}'),
+  );
+
+  /// Selects the tab [step] places from [tab] and moves focus to it.
+  void _stepTab(WorkspacePane tab, int step) {
+    final tabs = widget.companionTabs;
+    if (tabs == null || tabs.isEmpty) return;
+    final index = tabs.indexOf(tab);
+    final next = tabs[(index + step + tabs.length) % tabs.length];
+    widget.onSelectCompanionTab?.call(next);
+    _tabFocusNode(next).requestFocus();
+  }
+
   AppStrings _getStrings() {
     try {
       return ref.watch(appStringsProvider);
@@ -37,12 +68,35 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     }
   }
 
+  // Escape closes Review mode while the pane is open (plan task 6.3).
+  VoidCallback? _unregisterEscape;
+
   @override
   void initState() {
     super.initState();
+    _unregisterEscape = ref.read(escapeLayersProvider).register(
+      EscapeLayer.review,
+      () {
+        final onClose = widget.onClose;
+        if (onClose == null) return false;
+        onClose();
+        return true;
+      },
+    );
     Future.microtask(() {
-      ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true);
+      ref
+          .read(sessionChangesProvider(widget.sessionId).notifier)
+          .refresh(joinRunning: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _unregisterEscape?.call();
+    for (final node in _tabFocusNodes.values) {
+      node.dispose();
+    }
+    super.dispose();
   }
 
   void _toggleFileExpansion(String path) {
@@ -70,6 +124,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       expandedReviewFilesProvider(widget.sessionId),
     );
     final diffMode = ref.watch(diffViewModeProvider);
+    final showTabs =
+        widget.companionTabs != null && widget.companionTabs!.length > 1;
 
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
@@ -88,98 +144,185 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
             ),
             child: Row(
               children: [
-                if (widget.companionTabs != null &&
-                    widget.companionTabs!.length > 1)
+                if (showTabs)
                   Expanded(
-                    child: Row(
-                      children: [
-                        for (final tab in widget.companionTabs!) ...[
-                          Builder(
-                            builder: (context) {
-                              final isActive = tab == widget.activeCompanionTab;
-                              final (tabTitle, tabIcon) = switch (tab) {
-                                WorkspacePane.repository => (
-                                  'File',
-                                  Icons.folder_outlined,
-                                ),
-                                WorkspacePane.git => (
-                                  'Review Changes',
-                                  Icons.rate_review_outlined,
-                                ),
-                                WorkspacePane.chat => (
-                                  'Chat',
-                                  Icons.chat_bubble_outline,
-                                ),
-                              };
-                              return MouseRegion(
-                                cursor: isActive
-                                    ? SystemMouseCursors.basic
-                                    : SystemMouseCursors.click,
-                                child: GestureDetector(
-                                  key: ValueKey('companion-tab-${tab.name}'),
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: isActive
-                                      ? null
-                                      : () => widget.onSelectCompanionTab?.call(
-                                          tab,
-                                        ),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 140),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isActive ? 10 : 7,
-                                      vertical: 3,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final showLabels =
+                            constraints.maxWidth >= kCompanionTabLabelsMinWidth;
+                        // Each tab is unbounded in the row, so each label is capped here:
+                        // the width left after the icons and padding of the other tabs,
+                        // the gaps and the active tab's icon and padding (about 112 px).
+                        final labelMaxWidth = constraints.maxWidth > 112
+                            ? constraints.maxWidth - 112
+                            : 0.0;
+                        return Row(
+                          children: [
+                            for (final tab in widget.companionTabs!) ...[
+                              Builder(
+                                builder: (context) {
+                                  final isActive = tab == widget.activeCompanionTab;
+                                  final (tabTitle, tabIcon) = switch (tab) {
+                                    WorkspacePane.repository => (
+                                      strings.companionFileTab,
+                                      Icons.folder_outlined,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: isActive
-                                          ? tokens.surface
-                                          : tokens.surface.withValues(alpha: 0),
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      border: isActive
-                                          ? Border.all(
-                                              color: tokens.borderStrong,
-                                              width: 1,
-                                            )
-                                          : null,
+                                    WorkspacePane.git => (
+                                      strings.companionReviewTab,
+                                      Icons.rate_review_outlined,
                                     ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          tabIcon,
-                                          size: isActive ? 14 : 13,
-                                          color: isActive
-                                              ? tokens.accent
-                                              : tokens.textMuted,
+                                    WorkspacePane.chat => (
+                                      strings.companionChatTab,
+                                      Icons.chat_bubble_outline,
+                                    ),
+                                  };
+                                  return MouseRegion(
+                                    cursor: isActive
+                                        ? SystemMouseCursors.basic
+                                        : SystemMouseCursors.click,
+                                    child: Semantics(
+                                      button: true,
+                                      selected: isActive,
+                                      label: tabTitle,
+                                      excludeSemantics: true,
+                                      child: FrameFocusRing(
+                                        borderRadius: BorderRadius.circular(
+                                          tokens.radiusSm,
                                         ),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          isActive
-                                              ? tabTitle.toUpperCase()
-                                              : tabTitle,
-                                          style: TextStyle(
-                                            color: isActive
-                                                ? tokens.textPrimary
-                                                : tokens.textMuted,
-                                            fontSize: isActive ? 11.5 : 11,
-                                            fontFamily: tokens.uiFontFamily,
-                                            fontWeight: isActive
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                            letterSpacing: 0.3,
+                                        child: FocusableActionDetector(
+                                          focusNode: _tabFocusNode(tab),
+                                          shortcuts:
+                                              const <ShortcutActivator, Intent>{
+                                                SingleActivator(
+                                                  LogicalKeyboardKey.arrowLeft,
+                                                ): _TabStepIntent(
+                                                  -1,
+                                                ),
+                                                SingleActivator(
+                                                  LogicalKeyboardKey.arrowRight,
+                                                ): _TabStepIntent(
+                                                  1,
+                                                ),
+                                              },
+                                          actions: <Type, Action<Intent>>{
+                                            _TabStepIntent:
+                                                CallbackAction<_TabStepIntent>(
+                                                  onInvoke: (intent) {
+                                                    _stepTab(tab, intent.step);
+                                                    return null;
+                                                  },
+                                                ),
+                                            // Enter and Space select the focused tab.
+                                            ActivateIntent:
+                                                CallbackAction<ActivateIntent>(
+                                                  onInvoke: (_) {
+                                                    if (!isActive) {
+                                                      widget.onSelectCompanionTab
+                                                          ?.call(tab);
+                                                    }
+                                                    return null;
+                                                  },
+                                                ),
+                                          },
+                                          child: InkWell(
+                                            // The detector above owns the focus stop.
+                                            canRequestFocus: false,
+                                            key: ValueKey(
+                                              'companion-tab-${tab.name}',
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              tokens.radiusSm,
+                                            ),
+                                            hoverColor: tokens.surfaceElevated,
+                                            highlightColor: tokens.surfaceElevated,
+                                            splashFactory: NoSplash.splashFactory,
+                                            onTap: isActive
+                                                ? null
+                                                : () => widget.onSelectCompanionTab
+                                                      ?.call(tab),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(
+                                                milliseconds: 140,
+                                              ),
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: isActive ? 10 : 7,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isActive
+                                                    ? tokens.surface
+                                                    : tokens.surface.withValues(
+                                                        alpha: 0,
+                                                      ),
+                                                borderRadius: BorderRadius.circular(
+                                                  tokens.radiusSm,
+                                                ),
+                                                border: isActive
+                                                    ? Border.all(
+                                                        color: tokens.borderStrong,
+                                                        width: 1,
+                                                      )
+                                                    : null,
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Tooltip(
+                                                    message: tabTitle,
+                                                    child: Icon(
+                                                      tabIcon,
+                                                      size: isActive ? 14 : 13,
+                                                      color: isActive
+                                                          ? tokens.accent
+                                                          : tokens.textMuted,
+                                                    ),
+                                                  ),
+                                                  if (showLabels || isActive) ...[
+                                                    const SizedBox(width: 5),
+                                                    ConstrainedBox(
+                                                      constraints: BoxConstraints(
+                                                        maxWidth: labelMaxWidth,
+                                                      ),
+                                                      child: Text(
+                                                        isActive
+                                                            ? tabTitle.toUpperCase()
+                                                            : tabTitle,
+                                                        maxLines: 1,
+                                                        softWrap: false,
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                        style: TextStyle(
+                                                          color: isActive
+                                                              ? tokens.textPrimary
+                                                              : tokens.textMuted,
+                                                          fontSize: isActive
+                                                              ? 11.5
+                                                              : 11,
+                                                          fontFamily:
+                                                              tokens.uiFontFamily,
+                                                          fontWeight: isActive
+                                                              ? FontWeight.w600
+                                                              : FontWeight.w500,
+                                                          letterSpacing: 0.3,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                      ],
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   )
                 else ...[
@@ -190,7 +333,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Review Changes',
+                    strings.companionReviewTab,
                     style: TextStyle(
                       color: tokens.textPrimary,
                       fontSize: 11.5,
@@ -222,7 +365,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     ),
                   ),
                 ],
-                const Spacer(),
+                // The tab row takes the free width itself; a Spacer would halve it.
+                if (!showTabs) const Spacer(),
                 // Diff View Mode Toggle Button
                 Tooltip(
                   message: diffMode == DiffViewMode.singleColumn

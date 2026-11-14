@@ -650,7 +650,12 @@ void main() {
                 child: SizedBox(
                   width: 680,
                   height: 480,
-                  child: const CommandPalette(),
+                  child: Consumer(
+                    builder: (context, ref, _) => CommandPalette(
+                      hostContext: context,
+                      hostRef: ref,
+                    ),
+                  ),
                 ),
               ),
             ),

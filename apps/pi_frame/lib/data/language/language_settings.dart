@@ -532,9 +532,8 @@ class AppStrings {
       isItalian ? 'Interrompi risposta' : 'Stop response';
   String get sideCloseTooltip =>
       isItalian ? 'Chiudi conversazione laterale' : 'Close side conversation';
-  String get sideToggleActionTitle => isItalian
-      ? 'Conversazione laterale (Ctrl+Shift+B)'
-      : 'Side conversation (Ctrl+Shift+B)';
+  String get sideToggleActionTitle =>
+      isItalian ? 'Conversazione laterale' : 'Side conversation';
   String get sideToggleActionSubtitle => isItalian
       ? 'Apri o chiudi il pannello laterale di sola lettura'
       : 'Open or toggle read-only side conversation panel';

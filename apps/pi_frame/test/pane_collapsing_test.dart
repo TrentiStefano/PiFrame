@@ -76,8 +76,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Collapsed strip for Git Changes should be visible
-    expect(find.text('GIT CHANGES'), findsOneWidget);
-    final gitExpandBtn = find.byTooltip('Espandi pannello Git Changes');
+    expect(find.text('MODIFICHE GIT'), findsOneWidget);
+    final gitExpandBtn = find.byTooltip('Espandi pannello Modifiche Git');
     expect(gitExpandBtn, findsOneWidget);
 
     // Tap expand button to restore Git Changes pane
@@ -261,7 +261,7 @@ void main() {
           find.byKey(const ValueKey('agent-activity-panel')),
           findsOneWidget,
         );
-        expect(find.byTooltip('Espandi pannello Git Changes'), findsOneWidget);
+        expect(find.byTooltip('Espandi pannello Modifiche Git'), findsOneWidget);
       },
     );
   }

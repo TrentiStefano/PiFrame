@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {
   assertSafeHome,
@@ -10,6 +12,7 @@ import {
   parseSelector,
   seedHarnessHome,
   validateScenarioName,
+  writeFakePiShims,
 } from './pf-harness.mjs';
 
 test('parseSelector handles keys, text, defaults, and matching index', () => {
@@ -74,4 +77,17 @@ test('encodeParams preserves strings and JSON-encodes other values', () => {
   assert.deepEqual(encodeParams({ text: 'hello', index: 2, selector: { type: 'key' }, enabled: false }), {
     text: 'hello', index: '2', selector: '{"type":"key"}', enabled: 'false',
   });
+});
+
+test('writeFakePiShims creates a fresh run home before writing the shims', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-harness-shim-'));
+  try {
+    const home = path.join(base, 'brand-new-run');
+    writeFakePiShims(home);
+    const shim = process.platform === 'win32' ? 'pi.cmd' : 'pi';
+    assert.ok(fs.existsSync(path.join(home, shim)));
+    assert.ok(fs.existsSync(path.join(home, 'node_modules', 'npm', 'bin', 'npm-cli.js')));
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
 });

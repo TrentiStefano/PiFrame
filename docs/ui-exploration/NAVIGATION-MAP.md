@@ -94,7 +94,7 @@ Responsive breakpoints use Flutter viewport width:
 | `≥ 1440` | Resizable multi-pane row using visible pane weights. |
 | `≥ 1560` | Add the persistent Sessions rail. |
 
-Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore`; review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
+Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore` (`~/.piframe/layout.json`): pane visibility, sessions bar collapsed state and width, pane weights, collapsed panes, the compact selected pane and the companion tab. On start, `AppShell` restores these; restored pane weights are clamped so that no companion is narrower than 320 px and the chat pane is narrower than 420 px, and invalid or unknown values fall back to the defaults. Review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
 
 ### Workspace components
 
@@ -130,6 +130,10 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 | Agents | [21-settings-agents.png](21-settings-agents.png) | Default model/thinking and subagent package configuration. |
 
 ## Dialogs, menus, and interaction states
+
+Escape rule (plan task 6.3): one shell-level handler closes the topmost layer, in this order: menu or popover, dialog, drawer (sessions or context), in-pane diff, Review mode, Settings. Menus and dialogs take focus when they open and close themselves first. Escape interrupts the agent only when no layer is open and the composer has focus during a run. Layers register with `escapeLayersProvider` (`lib/ui/escape_layers.dart`); the in-pane diff (Phase 3) should register as `EscapeLayer.diff`.
+
+Keyboard focus order (plan task 6.2): Tab goes title bar, sessions, repository, chat transcript, composer, companion pane, and back. F6 and Shift+F6 move between panes; Ctrl/Cmd+1 to 4 focus sessions, repository, chat (composer) and companion.
 
 Captured representative overlays:
 

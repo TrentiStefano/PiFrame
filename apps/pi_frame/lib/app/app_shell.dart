@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import '../ui/escape_layers.dart';
+import '../ui/frame_icon_action.dart';
 import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
+import 'focus_regions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +18,7 @@ import '../data/daemon/daemon_providers.dart';
 import '../data/daemon/pcp_client.dart';
 import '../data/language/language_settings.dart';
 import '../data/language/strings_shell.dart';
+import '../data/language/strings_workspace.dart';
 import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
 import '../features/sessions_sidebar/session_actions.dart';
@@ -75,6 +79,210 @@ Set<WorkspacePane> narrowCompanionPanes({
   };
 }
 
+/// Minimum width of the chat pane when the layout is restored (plan task 6.6).
+const double kChatMinWidth = 420;
+
+/// Window width from which the sessions rail is docked beside the panes.
+const double kSessionRailMinWidth = 1560;
+
+/// Clamps restored pane weights so that every open companion is at least
+/// [kCompanionMinWidth] wide and the chat pane at least [kChatMinWidth]. Pinned panes
+/// keep their minimum share; the other open panes share what is left, in proportion.
+/// Returns weights summing to 100 over the open panes. A single open pane is untouched.
+Map<WorkspacePane, double> clampRestoredPaneWeights({
+  required List<WorkspacePane> panes,
+  required Set<WorkspacePane> collapsed,
+  required Map<WorkspacePane, double> weights,
+  required double availableWidth,
+}) {
+  final result = {for (final p in panes) p: weights[p] ?? 1.0};
+  final open = panes.where((p) => !collapsed.contains(p)).toList();
+  if (open.length < 2 || availableWidth <= 0) return result;
+  // Flex weights are rounded to whole numbers when laid out, so each minimum gets a
+  // small margin; otherwise a pane could land a few pixels under its minimum.
+  double minShare(WorkspacePane p) =>
+      (p == WorkspacePane.chat ? kChatMinWidth : kCompanionMinWidth) *
+      1.03 /
+      availableWidth;
+
+  final pinned = <WorkspacePane, double>{};
+  var changed = true;
+  while (changed) {
+    changed = false;
+    final free = open.where((p) => !pinned.containsKey(p)).toList();
+    final freeTotal = free.fold<double>(0, (sum, p) => sum + result[p]!);
+    final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
+    for (final p in free) {
+      final share = freeTotal > 0
+          ? result[p]! / freeTotal * budget
+          : budget / free.length;
+      if (share < minShare(p)) {
+        pinned[p] = minShare(p);
+        changed = true;
+      }
+    }
+  }
+
+  final freeTotal = open
+      .where((p) => !pinned.containsKey(p))
+      .fold<double>(0, (sum, p) => sum + result[p]!);
+  final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
+  for (final p in open) {
+    final share = pinned[p] ??
+        (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
+    result[p] = share * 100;
+  }
+  return result;
+}
+
+WorkspacePane? _paneNamed(Object? name) {
+  for (final pane in WorkspacePane.values) {
+    if (pane.name == name) return pane;
+  }
+  return null;
+}
+
+/// Below this window width the title bar shows the connection dot without its label
+/// (plan task 5.4). The dot keeps a tooltip and a semantic label.
+const double kConnectionLabelMinWidth = 920;
+
+/// Window width from which the context drawer button shows its label "Sessione" (plan
+/// task 5.4); below it the button is icon-only.
+const double kContextDrawerLabelMinWidth = 1100;
+
+/// Title bar connection status (plan task 5.4): a dot, with the label from
+/// [kConnectionLabelMinWidth] up. A click opens Diagnostics in Settings.
+class _ConnectionIndicator extends StatelessWidget {
+  const _ConnectionIndicator({
+    required this.connected,
+    required this.label,
+    required this.tooltip,
+    required this.showLabel,
+    required this.onTap,
+  });
+
+  final bool connected;
+  final String label;
+  final String tooltip;
+  final bool showLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        excludeSemantics: true,
+        child: InkWell(
+          key: const ValueKey('shell-connection-indicator'),
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: FrameSize.hitMin,
+              minHeight: FrameSize.hitMin,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: FrameSpace.x2),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: connected ? tokens.success : tokens.warning,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                if (showLabel) ...[
+                  const SizedBox(width: FrameSpace.x2),
+                  Text(
+                    label,
+                    style: FrameText.of(context).caption.copyWith(
+                      color: tokens.textMuted,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: FrameSpace.x2),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Keyboard and screen-reader access for every resizable divider (plan task 6.7): the
+/// divider takes focus, ←/→ move it one step (the same step the Semantics actions use),
+/// and the increase/decrease actions are exposed. The caller owns the drag gestures.
+class _ResizeDividerFocus extends StatefulWidget {
+  const _ResizeDividerFocus({
+    required this.label,
+    required this.value,
+    required this.builder,
+    this.increasedValue,
+    this.decreasedValue,
+    this.onIncrease,
+    this.onDecrease,
+  });
+
+  final String label;
+  final String value;
+  final String? increasedValue;
+  final String? decreasedValue;
+  // Null when the divider cannot move further in that direction.
+  final VoidCallback? onIncrease;
+  final VoidCallback? onDecrease;
+  final Widget Function(BuildContext context, bool focused) builder;
+
+  @override
+  State<_ResizeDividerFocus> createState() => _ResizeDividerFocusState();
+}
+
+class _ResizeDividerFocusState extends State<_ResizeDividerFocus> {
+  bool _focused = false;
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+        widget.onDecrease != null) {
+      widget.onDecrease!();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+        widget.onIncrease != null) {
+      widget.onIncrease!();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      slider: true,
+      label: widget.label,
+      value: widget.value,
+      // Semantics requires both or neither: fall back to the current value.
+      increasedValue: widget.increasedValue ?? widget.value,
+      decreasedValue: widget.decreasedValue ?? widget.value,
+      onIncrease: widget.onIncrease,
+      onDecrease: widget.onDecrease,
+      child: Focus(
+        onKeyEvent: _handleKey,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        child: widget.builder(context, _focused),
+      ),
+    );
+  }
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
   @override
@@ -88,6 +296,9 @@ class _AppShellState extends ConsumerState<AppShell>
   late final bool _handlesNativeClose;
   late final bool _hasWindowListener;
   bool _creating = false;
+  int _settingsEpoch = 0;
+  // Section id for the next Settings open; null means the tab index provider decides.
+  String? _settingsSection;
   WorkspacePane _compactPane = WorkspacePane.chat;
   WorkspacePane _companionPane = WorkspacePane.repository;
   final Map<WorkspacePane, bool> _paneVisibility = {
@@ -107,6 +318,10 @@ class _AppShellState extends ConsumerState<AppShell>
     WorkspacePane.git: 24,
   };
   bool _sidebarCollapsed = false;
+  // Set when weights are restored; they are clamped on the first pane row with a known width.
+  bool _pendingWeightClamp = false;
+  // The session that was active before the current one (Ctrl+Tab target).
+  String? _previousSessionId;
   Widget? _chatSidecar;
   String? _chatSidecarSessionId;
   // Width of the last pane row, used to size a restored companion (task 1.2f).
@@ -119,6 +334,12 @@ class _AppShellState extends ConsumerState<AppShell>
   bool? _preReviewSidebarCollapsed;
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
+  // Focus regions in Tab order (plan task 6.2). Each key is attached once per build.
+  final Map<FocusRegion, GlobalKey> _regionKeys = {
+    for (final region in FocusRegion.values) region: GlobalKey(),
+  };
+  // Escape layers this shell registered (drawers, settings), removed when they close.
+  final Map<String, VoidCallback> _escapeHandles = {};
 
   void _enterReviewMode() {
     _preReviewSidebarCollapsed ??= _sidebarCollapsed;
@@ -167,7 +388,27 @@ class _AppShellState extends ConsumerState<AppShell>
       },
       'sidebarCollapsed': _sidebarCollapsed,
       'sidebarWidth': _sidebarWidth,
+      'paneWeights': {
+        for (final pane in WorkspacePane.values)
+          pane.name: _paneWeights[pane] ?? 1.0,
+      },
+      'collapsedPanes': [
+        for (final pane in WorkspacePane.values)
+          if (_collapsedPanes.contains(pane)) pane.name,
+      ],
+      'compactPane': _compactPane.name,
+      'companionPane': _companionPane.name,
     });
+  }
+
+  void _selectCompanionPane(WorkspacePane pane) {
+    setState(() => _companionPane = pane);
+    _persistLayout();
+  }
+
+  void _selectCompactPane(WorkspacePane pane) {
+    setState(() => _compactPane = pane);
+    _persistLayout();
   }
 
   AppStrings get strings => ref.watch(appStringsProvider);
@@ -194,8 +435,41 @@ class _AppShellState extends ConsumerState<AppShell>
     if (!_paneVisibility.containsValue(true)) {
       _paneVisibility[WorkspacePane.chat] = true;
     }
+    final weights = saved['paneWeights'];
+    if (weights is Map) {
+      for (final pane in WorkspacePane.values) {
+        final value = weights[pane.name];
+        if (value is num && value.isFinite && value > 0) {
+          _paneWeights[pane] = value.clamp(1, 100).toDouble();
+        }
+      }
+      // Clamped against the real row width on the first multi-pane build.
+      _pendingWeightClamp = true;
+    }
+    final collapsed = saved['collapsedPanes'];
+    if (collapsed is List) {
+      _collapsedPanes.clear();
+      for (final name in collapsed) {
+        final pane = _paneNamed(name);
+        if (pane != null && _paneVisibility[pane] == true) {
+          _collapsedPanes.add(pane);
+        }
+      }
+      // Never restore a layout with every visible pane collapsed.
+      if (_collapsedPanes.length >= _visiblePanes().length) {
+        _collapsedPanes.clear();
+      }
+    }
     final remaining = _visiblePanes();
+    final compact = _paneNamed(saved['compactPane']);
+    if (compact != null && remaining.contains(compact)) _compactPane = compact;
     if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
+    final companion = _paneNamed(saved['companionPane']);
+    if (companion != null &&
+        companion != WorkspacePane.chat &&
+        remaining.contains(companion)) {
+      _companionPane = companion;
+    }
     if (!remaining.contains(_companionPane)) {
       _companionPane = remaining.firstWhere(
         (item) => item != WorkspacePane.chat,
@@ -315,18 +589,185 @@ class _AppShellState extends ConsumerState<AppShell>
     if (_hasWindowListener) {
       windowManager.removeListener(this);
     }
+    for (final unregister in _escapeHandles.values) {
+      unregister();
+    }
+    _escapeHandles.clear();
     super.dispose();
+  }
+
+  /// Registers or removes one of the shell's own Escape layers (plan task 6.3). [tag]
+  /// names the layer; a new registration replaces the old one.
+  void _setEscapeLayer(
+    String tag,
+    EscapeLayer layer,
+    bool open,
+    bool Function() close,
+  ) {
+    _escapeHandles.remove(tag)?.call();
+    if (!open) return;
+    _escapeHandles[tag] = ref
+        .read(escapeLayersProvider)
+        .register(layer, close);
+  }
+
+  /// Focuses the first focusable control of [region] in reading order. Returns false
+  /// when the region has nothing to focus (for example, no session is open).
+  bool _focusRegion(FocusRegion region) {
+    for (final part in region.paneRegions) {
+      final nodes = focusableNodesIn(_regionKeys[part]!);
+      if (nodes.isEmpty) continue;
+      nodes.first.requestFocus();
+      return true;
+    }
+    return false;
+  }
+
+  /// F6 and Shift+F6: move focus to the next or previous pane (plan task 6.2).
+  void _cyclePane({required bool backwards}) {
+    final primary = FocusManager.instance.primaryFocus;
+    final panes = FocusRegion.panes;
+    final current = panes.indexWhere(
+      (pane) => pane.paneRegions.any(
+        (part) => focusIsWithin(_regionKeys[part]!, primary),
+      ),
+    );
+    final step = backwards ? -1 : 1;
+    var index = current < 0
+        ? (backwards ? panes.length - 1 : 0)
+        : (current + step + panes.length) % panes.length;
+    // Skip panes with nothing to focus (a closed companion, for example).
+    for (var attempt = 0; attempt < panes.length; attempt++) {
+      if (_focusRegion(panes[index])) return;
+      index = (index + step + panes.length) % panes.length;
+    }
+  }
+
+  /// Opens Settings on Diagnostics (plan task 5.4). [_settingsEpoch] remounts the view,
+  /// because a view that is already open keeps its first tab.
+  void _openDiagnostics() {
+    setState(() {
+      _settingsSection = kSettingsSectionDiagnostics;
+      _settingsEpoch++;
+    });
+    ref.read(showSettingsProvider.notifier).state = true;
   }
 
   void _palette() => CommandPalette.show(
     context,
+    ref: ref,
     onOpenSettings: () => ref.read(showSettingsProvider.notifier).state = true,
+    isPaneVisible: (pane) => _paneVisibility[pane] == true,
+    onTogglePane: _togglePane,
   );
   Future<void> _create() async {
     if (_creating) return;
     setState(() => _creating = true);
     await createSession(context, ref);
     if (mounted) setState(() => _creating = false);
+  }
+
+  /// Shell-level keyboard shortcuts (plan task 6.4). The composer, the editor and the
+  /// integrated terminal handle their own keys first, so this only sees keys they leave
+  /// unhandled. Ctrl/Cmd+S is not here: editor save belongs to Phase 9.
+  KeyEventResult _handleShortcut(KeyEvent event, String? activeId) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final hardware = HardwareKeyboard.instance;
+    final commandKey = hardware.isMetaPressed || hardware.isControlPressed;
+    final shift = hardware.isShiftPressed;
+    final alt = hardware.isAltPressed;
+    final key = event.logicalKey;
+
+    // Escape closes the topmost layer (plan task 6.3). Layers that take focus, such as
+    // menus and dialogs, close themselves before the key reaches the shell. The composer
+    // interrupts a run on Escape only when no layer is open.
+    if (key == LogicalKeyboardKey.escape) {
+      return ref.read(escapeLayersProvider).closeTopmost()
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored;
+    }
+    // F6 / Shift+F6 move between panes (plan task 6.2).
+    if (key == LogicalKeyboardKey.f6 && !commandKey && !alt) {
+      _cyclePane(backwards: shift);
+      return KeyEventResult.handled;
+    }
+    // Ctrl/Cmd+1…4 focus sessions, repository, chat and companion (plan task 6.2).
+    if (commandKey && !shift && !alt) {
+      final number = _pressedDigit(key);
+      final region = number == null ? null : FocusRegion.numbered[number];
+      if (region != null) {
+        return _focusRegion(region)
+            ? KeyEventResult.handled
+            : KeyEventResult.ignored;
+      }
+    }
+
+    if (key == LogicalKeyboardKey.keyK && commandKey) {
+      _palette();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyB && commandKey && shift) {
+      if (activeId != null) {
+        ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+        return KeyEventResult.handled;
+      }
+    }
+    // Ctrl+Tab is the only one that is Ctrl-only; Cmd+Tab belongs to the OS.
+    if (key == LogicalKeyboardKey.tab && hardware.isControlPressed && !shift && !alt) {
+      _switchToPreviousSession();
+      return KeyEventResult.handled;
+    }
+    if (!commandKey || shift || alt) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.keyN) {
+      unawaited(_create());
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.comma) {
+      ref.read(showSettingsProvider.notifier).state = true;
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyB) {
+      _toggleSessionsRail();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// Shows or hides the sessions rail when it is docked; otherwise opens or closes the drawer.
+  void _toggleSessionsRail() {
+    final docked = MediaQuery.sizeOf(context).width >= kSessionRailMinWidth;
+    if (docked) {
+      setState(() => _sidebarCollapsed = !_sidebarCollapsed);
+      _persistLayout();
+      return;
+    }
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold == null) return;
+    if (scaffold.isDrawerOpen) {
+      scaffold.closeDrawer();
+    } else {
+      scaffold.openDrawer();
+    }
+  }
+
+  /// The digit 1…4 of a top-row digit key, or null for any other key.
+  int? _pressedDigit(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.digit1) return 1;
+    if (key == LogicalKeyboardKey.digit2) return 2;
+    if (key == LogicalKeyboardKey.digit3) return 3;
+    if (key == LogicalKeyboardKey.digit4) return 4;
+    return null;
+  }
+
+  /// Switches back to the session that was active before the current one, if it still exists.
+  void _switchToPreviousSession() {
+    final target = _previousSessionId;
+    if (target == null || target == ref.read(activeSessionIdProvider)) return;
+    final listed = ref.read(sessionListProvider).value;
+    if (listed != null && !listed.any((session) => session['id'] == target)) {
+      return;
+    }
+    ref.read(activeSessionIdProvider.notifier).state = target;
   }
 
   @override
@@ -338,6 +779,20 @@ class _AppShellState extends ConsumerState<AppShell>
         _exitReviewMode();
       }
     });
+    ref.listen<String?>(activeSessionIdProvider, (prev, next) {
+      if (prev != null && next != null && prev != next) _previousSessionId = prev;
+    });
+    ref.listen<bool>(showSettingsProvider, (prev, next) {
+      // Closing Settings forgets the section, so a later plain open uses the tab index.
+      if (!next) {
+        _settingsSection = null;
+      }
+      _setEscapeLayer('settings', EscapeLayer.settings, next, () {
+        final wasOpen = ref.read(showSettingsProvider);
+        ref.read(showSettingsProvider.notifier).state = false;
+        return wasOpen;
+      });
+    });
 
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
@@ -347,8 +802,9 @@ class _AppShellState extends ConsumerState<AppShell>
         ref.watch(connectionStateProvider).value ??
         DaemonConnectionState.disconnected;
     final connected = connection == DaemonConnectionState.connected;
+    final connectionLabel = connected ? strings.localPi : strings.disconnected;
     final width = MediaQuery.sizeOf(context).width;
-    final showSessionRail = width >= 1560;
+    final showSessionRail = width >= kSessionRailMinWidth;
     final bannerInRail = showSessionRail && !_sidebarCollapsed && !settings;
     final nativeChrome = ref.watch(desktopChromeProvider);
     Widget workArea() => activeId == null
@@ -360,6 +816,9 @@ class _AppShellState extends ConsumerState<AppShell>
               builder: (context, constraints) => Column(
               children: [
                 Expanded(
+                  child: FocusRegionMarker(
+                  region: FocusRegion.transcript,
+                  regionKey: _regionKeys[FocusRegion.transcript]!,
                   child: Stack(
                     children: [
                       TranscriptView(
@@ -381,41 +840,52 @@ class _AppShellState extends ConsumerState<AppShell>
                       ),
                     ],
                   ),
+                  ),
                 ),
-                Composer(
-                  key: ValueKey('composer_$activeId'),
-                  sessionId: activeId,
-                  availableHeight: constraints.maxHeight,
+                FocusRegionMarker(
+                  region: FocusRegion.composer,
+                  regionKey: _regionKeys[FocusRegion.composer]!,
+                  child: Composer(
+                    key: ValueKey('composer_$activeId'),
+                    sessionId: activeId,
+                    availableHeight: constraints.maxHeight,
+                  ),
                 ),
               ],
             ),
             ),
           );
 
-    return Focus(
+    return FocusTraversalGroup(
+    policy: OrderedTraversalPolicy(),
+    child: Focus(
       autofocus: true,
-      onKeyEvent: (_, event) {
-        if (event is KeyDownEvent) {
-          final isMetaOrControl = HardwareKeyboard.instance.isMetaPressed ||
-              HardwareKeyboard.instance.isControlPressed;
-          if (event.logicalKey == LogicalKeyboardKey.keyK && isMetaOrControl) {
-            _palette();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.keyB &&
-              isMetaOrControl &&
-              HardwareKeyboard.instance.isShiftPressed) {
-            if (activeId != null) {
-              ref.read(sideThreadFamily(activeId).notifier).togglePanel();
-              return KeyEventResult.handled;
-            }
-          }
-        }
-        return KeyEventResult.ignored;
-      },
+      // Only receives keys when nothing inside has focus; it is not a Tab stop.
+      skipTraversal: true,
+      onKeyEvent: (_, event) => _handleShortcut(event, activeId),
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: tokens.background,
+        onDrawerChanged: (open) => _setEscapeLayer(
+          'drawer',
+          EscapeLayer.drawer,
+          open,
+          () {
+            final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeDrawer();
+            return wasOpen;
+          },
+        ),
+        onEndDrawerChanged: (open) => _setEscapeLayer(
+          'endDrawer',
+          EscapeLayer.drawer,
+          open,
+          () {
+            final wasOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeEndDrawer();
+            return wasOpen;
+          },
+        ),
         drawer: Drawer(
           width: _effectiveSidebarWidth(width, inDrawer: true) +
               _sidebarDividerWidth,
@@ -425,35 +895,12 @@ class _AppShellState extends ConsumerState<AppShell>
             ? null
             : Drawer(
                 width: width < 420 ? width - 24 : 320,
+                // The panel draws its own heading. Escape and a tap on the scrim close it
+                // (plan task 6.3), so the shell adds no heading or close button here.
                 child: SafeArea(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                strings.workspaceTitle,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: strings.closeWorkspaceTooltip,
-                              icon: const Icon(Icons.close),
-                              onPressed: () =>
-                                  _scaffoldKey.currentState?.closeEndDrawer(),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: ContextPanel(
-                          key: ValueKey('drawer-context_$activeId'),
-                          sessionId: activeId,
-                        ),
-                      ),
-                    ],
+                  child: ContextPanel(
+                    key: ValueKey('drawer-context_$activeId'),
+                    sessionId: activeId,
                   ),
                 ),
               ),
@@ -470,7 +917,10 @@ class _AppShellState extends ConsumerState<AppShell>
               ),
               child: Column(
                 children: [
-                  Container(
+                  FocusRegionMarker(
+                  region: FocusRegion.titleBar,
+                  regionKey: _regionKeys[FocusRegion.titleBar]!,
+                  child: Container(
                     height: 42,
                     margin: EdgeInsets.fromLTRB(
                       width < 600 ? 12 : 8,
@@ -514,22 +964,16 @@ class _AppShellState extends ConsumerState<AppShell>
                                       child: const BrandWordmark(size: 15),
                                     ),
                                   ),
-                                  if (width > 920) ...[
-                                    const SizedBox(width: 20),
-                                    Icon(
-                                      connected ? Icons.link : Icons.link_off,
-                                      size: 14,
-                                      color: tokens.textMuted,
+                                  const SizedBox(width: 12),
+                                  _ConnectionIndicator(
+                                    connected: connected,
+                                    label: connectionLabel,
+                                    tooltip: strings.connectionIndicatorTooltip(
+                                      connectionLabel,
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      connected ? strings.localPi : strings.disconnected,
-                                      style: TextStyle(
-                                        color: tokens.textMuted,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
+                                    showLabel: width >= kConnectionLabelMinWidth,
+                                    onTap: _openDiagnostics,
+                                  ),
                                 ],
                               ),
                             ),
@@ -560,110 +1004,155 @@ class _AppShellState extends ConsumerState<AppShell>
                               ),
                             ),
                           ),
-                        if (width >= 900 && activeId != null && !settings)
-                          PopupMenuButton<WorkspacePane>(
-                            tooltip: strings.togglePanelsTooltip,
-                            icon: const Icon(
-                              Icons.view_column_outlined,
-                              size: 16,
-                            ),
-                            padding: EdgeInsets.zero,
-                            onSelected: _togglePane,
-                            itemBuilder: (context) => [
-                              for (final pane in WorkspacePane.values)
-                                PopupMenuItem(
-                                  value: pane,
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        _paneVisibility[pane] == true
-                                            ? Icons.check_box_outlined
-                                            : Icons.check_box_outline_blank,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(_paneLabel(pane)),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          tooltip:
-                              Theme.of(context).brightness == Brightness.light
-                              ? strings.darkThemeTooltip
-                              : strings.lightThemeTooltip,
-                          icon: Icon(
-                            Theme.of(context).brightness == Brightness.light
-                                ? Icons.dark_mode_outlined
-                                : Icons.light_mode_outlined,
-                            size: 16,
-                          ),
-                          onPressed: () => ref
-                              .read(activeThemeSpecProvider.notifier)
-                              .setTheme(
-                                Theme.of(context).brightness == Brightness.light
-                                    ? 'piframe-dark'
-                                    : 'piframe-light',
-                              ),
-                        ),
-                        IconButton(
-                          key: const ValueKey('shell-settings-button'),
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                          tooltip: strings.settingsTooltip,
-                          icon: Stack(
-                            clipBehavior: Clip.none,
+                        // Vista: pane layout and theme.
+                        Semantics(
+                          container: true,
+                          label: strings.viewGroupLabel,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.settings_outlined, size: 16),
-                              Positioned(
-                                top: -2,
-                                right: -2,
-                                child: Consumer(
-                                  builder: (context, ref, _) {
-                                    if (!ref.watch(hasUpdateBadgeProvider)) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Container(
-                                      width: 7,
-                                      height: 7,
-                                      decoration: BoxDecoration(
-                                        color: tokens.accent,
-                                        shape: BoxShape.circle,
+                              if (width >= 900 && activeId != null && !settings)
+                                PopupMenuButton<WorkspacePane>(
+                                  key: const ValueKey('shell-layout-button'),
+                                  tooltip: strings.togglePanelsTooltip,
+                                  icon: const Icon(
+                                    Icons.view_column_outlined,
+                                    size: 16,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  onSelected: _togglePane,
+                                  itemBuilder: (context) => [
+                                    for (final pane in WorkspacePane.values)
+                                      PopupMenuItem(
+                                        value: pane,
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              _paneVisibility[pane] == true
+                                                  ? Icons.check_box_outlined
+                                                  : Icons.check_box_outline_blank,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(_paneLabel(pane)),
+                                          ],
+                                        ),
                                       ),
-                                    );
-                                  },
+                                  ],
                                 ),
+                              FrameIconAction(
+                                key: const ValueKey('shell-theme-toggle'),
+                                tooltip:
+                                    Theme.of(context).brightness == Brightness.light
+                                    ? strings.darkThemeTooltip
+                                    : strings.lightThemeTooltip,
+                                icon:
+                                    Theme.of(context).brightness == Brightness.light
+                                    ? Icons.dark_mode_outlined
+                                    : Icons.light_mode_outlined,
+                                onPressed: () => ref
+                                    .read(activeThemeSpecProvider.notifier)
+                                    .setTheme(
+                                      Theme.of(context).brightness == Brightness.light
+                                          ? 'piframe-dark'
+                                          : 'piframe-light',
+                                    ),
                               ),
                             ],
                           ),
-                          onPressed: () =>
-                              ref.read(showSettingsProvider.notifier).state =
-                                  !settings,
                         ),
-                        if (activeId != null && !settings)
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                            tooltip: strings.modelAndSessionActionsTooltip,
-                            icon: const Icon(Icons.tune, size: 16),
-                            onPressed: () =>
-                                _scaffoldKey.currentState?.openEndDrawer(),
+                        Container(
+                          key: const ValueKey('shell-title-divider'),
+                          width: 1,
+                          height: 18,
+                          margin: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                          color: tokens.borderStrong,
+                        ),
+                        // Area di lavoro: session drawer and settings.
+                        Semantics(
+                          container: true,
+                          label: strings.workspaceTitle,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (activeId != null && !settings)
+                                width >= kContextDrawerLabelMinWidth
+                                    ? Tooltip(
+                                        message: strings.sessionDrawerTooltip,
+                                        child: TextButton.icon(
+                                          key: const ValueKey(
+                                            'shell-context-drawer-button',
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            visualDensity: VisualDensity.compact,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: FrameSpace.x2,
+                                              vertical: FrameSpace.x1,
+                                            ),
+                                            foregroundColor: tokens.textSecondary,
+                                          ),
+                                          onPressed: () => _scaffoldKey
+                                              .currentState
+                                              ?.openEndDrawer(),
+                                          icon: const Icon(
+                                            Icons.insights_outlined,
+                                            size: 16,
+                                          ),
+                                          label: Text(
+                                            strings.sessionDrawerLabel,
+                                            style: FrameText.of(context).label,
+                                          ),
+                                        ),
+                                      )
+                                    : FrameIconAction(
+                                        key: const ValueKey(
+                                          'shell-context-drawer-button',
+                                        ),
+                                        icon: Icons.insights_outlined,
+                                        tooltip: strings.sessionDrawerTooltip,
+                                        onPressed: () => _scaffoldKey
+                                            .currentState
+                                            ?.openEndDrawer(),
+                                      ),
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  FrameIconAction(
+                                    key: const ValueKey('shell-settings-button'),
+                                    icon: Icons.settings_outlined,
+                                    tooltip: strings.settingsTooltip,
+                                    shortcut: strings.settingsShortcutLabel,
+                                    onPressed: () =>
+                                        ref
+                                            .read(showSettingsProvider.notifier)
+                                            .state = !settings,
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: IgnorePointer(
+                                      child: Consumer(
+                                        builder: (context, ref, _) {
+                                          if (!ref.watch(hasUpdateBadgeProvider)) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return Container(
+                                            width: 7,
+                                            height: 7,
+                                            decoration: BoxDecoration(
+                                              color: tokens.accent,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
+                        ),
                         if (nativeChrome &&
                             defaultTargetPlatform == TargetPlatform.windows) ...[
                           Container(
@@ -680,6 +1169,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           const SizedBox(width: 6),
                       ],
                     ),
+                  ),
                   ),
                   if (!connected)
                     Container(
@@ -720,8 +1210,10 @@ class _AppShellState extends ConsumerState<AppShell>
                   Expanded(
                     child: settings
                         ? SettingsView(
+                            key: ValueKey('settings-view-$_settingsEpoch'),
                             initialTabIndex:
                                 ref.watch(settingsTabIndexProvider),
+                            initialSection: _settingsSection,
                             onClose: () =>
                                 ref.read(showSettingsProvider.notifier).state =
                                     false,
@@ -729,9 +1221,13 @@ class _AppShellState extends ConsumerState<AppShell>
                         : Row(
                             children: [
                               if (showSessionRail)
-                                _sidebarCollapsed
-                                    ? _collapsedSidebarStrip(tokens)
-                                    : _sessionsSidebar(width),
+                                FocusRegionMarker(
+                                  region: FocusRegion.sessions,
+                                  regionKey: _regionKeys[FocusRegion.sessions]!,
+                                  child: _sidebarCollapsed
+                                      ? _collapsedSidebarStrip(tokens)
+                                      : _sessionsSidebar(width),
+                                ),
                               Expanded(
                                 child: activeId == null
                                     ? RepaintBoundary(child: workArea())
@@ -746,6 +1242,7 @@ class _AppShellState extends ConsumerState<AppShell>
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -785,7 +1282,7 @@ class _AppShellState extends ConsumerState<AppShell>
         onCollapse: () => _collapsePane(WorkspacePane.repository),
         companionTabs: companionTabs,
         activeCompanionTab: selectedCompanion,
-        onSelectCompanionTab: (pane) => setState(() => _companionPane = pane),
+        onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
       ),
       WorkspacePane.chat: chat(),
       WorkspacePane.git: isReviewing
@@ -797,7 +1294,7 @@ class _AppShellState extends ConsumerState<AppShell>
               companionTabs: companionTabs,
               activeCompanionTab: selectedCompanion,
               onSelectCompanionTab: (pane) =>
-                  setState(() => _companionPane = pane),
+                  _selectCompanionPane(pane),
             )
           : (ref.watch(browserPaneSupportedProvider) &&
                   ref.watch(rightPaneModeProvider) == RightPaneMode.browser
@@ -808,7 +1305,7 @@ class _AppShellState extends ConsumerState<AppShell>
                   companionTabs: companionTabs,
                   activeCompanionTab: selectedCompanion,
                   onSelectCompanionTab: (pane) =>
-                      setState(() => _companionPane = pane),
+                      _selectCompanionPane(pane),
                 )
               : GitChangesPane(
                   key: ValueKey('git_$sessionId'),
@@ -817,9 +1314,19 @@ class _AppShellState extends ConsumerState<AppShell>
                   companionTabs: companionTabs,
                   activeCompanionTab: selectedCompanion,
                   onSelectCompanionTab: (pane) =>
-                      setState(() => _companionPane = pane),
+                      _selectCompanionPane(pane),
                 )),
     };
+    // Tab order by region (plan task 6.2). The chat pane's transcript and composer are
+    // marked inside workArea().
+    panes[WorkspacePane.repository] = _regionMarker(
+      FocusRegion.repository,
+      panes[WorkspacePane.repository]!,
+    );
+    panes[WorkspacePane.git] = _regionMarker(
+      FocusRegion.companion,
+      panes[WorkspacePane.git]!,
+    );
 
     if (width < 900) {
       final selected = visible.contains(_compactPane)
@@ -830,7 +1337,7 @@ class _AppShellState extends ConsumerState<AppShell>
           _paneSelector(
             visible,
             selected,
-            (pane) => setState(() => _compactPane = pane),
+            (pane) => _selectCompactPane(pane),
             showLayoutMenu: true,
           ),
           Expanded(
@@ -866,16 +1373,19 @@ class _AppShellState extends ConsumerState<AppShell>
     return order.where((pane) => _paneVisibility[pane] == true).toList();
   }
 
-  String _paneLabel(WorkspacePane pane) => switch (pane) {
-    WorkspacePane.chat => 'Chat',
-    WorkspacePane.repository => 'Repository',
-    WorkspacePane.git => ref.watch(isReviewingChangesProvider)
-        ? 'Review Changes'
-        : (ref.watch(browserPaneSupportedProvider) &&
-                  ref.watch(rightPaneModeProvider) == RightPaneMode.browser
-            ? 'Web Browser'
-            : 'Git Changes'),
-  };
+  String _paneLabel(WorkspacePane pane) {
+    final strings = ref.watch(appStringsProvider);
+    return switch (pane) {
+      WorkspacePane.chat => strings.companionChatTab,
+      WorkspacePane.repository => strings.paletteRepositoryPaneName,
+      WorkspacePane.git => ref.watch(isReviewingChangesProvider)
+          ? strings.companionReviewTab
+          : (ref.watch(browserPaneSupportedProvider) &&
+                    ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+                ? strings.companionWebBrowserTab
+                : strings.paletteGitPaneName),
+    };
+  }
 
   void _togglePane(WorkspacePane pane) {
     final visible = _visiblePanes();
@@ -898,6 +1408,13 @@ class _AppShellState extends ConsumerState<AppShell>
     _persistLayout();
   }
 
+  /// Marks [child] as [region] for Tab order and F6 (see [FocusRegionMarker]).
+  Widget _regionMarker(FocusRegion region, Widget child) => FocusRegionMarker(
+    region: region,
+    regionKey: _regionKeys[region]!,
+    child: child,
+  );
+
   /// Chat keeps the Agents/Workflows column as a sibling card on its right.
   Widget _paneCard(WorkspacePane pane, Widget child) {
     final sidecar = _chatSidecar;
@@ -908,7 +1425,11 @@ class _AppShellState extends ConsumerState<AppShell>
     return AgentSidecarLayout(
       sessionId: sessionId,
       chat: _bentoPane(child),
-      sidecar: sidecar,
+      // The sidecar belongs to the chat pane for Tab order, after the transcript.
+      sidecar: FocusTraversalOrder(
+        order: NumericFocusOrder(FocusRegion.transcript.index.toDouble()),
+        child: sidecar,
+      ),
     );
   }
 
@@ -966,6 +1487,7 @@ class _AppShellState extends ConsumerState<AppShell>
         }
       }
     });
+    _persistLayout();
   }
 
   /// Expands a pane from its strip. A companion the layout collapsed only for being
@@ -1010,6 +1532,7 @@ class _AppShellState extends ConsumerState<AppShell>
         }
       }
     });
+    _persistLayout();
   }
 
   Widget _collapsedPaneStrip(WorkspacePane pane) {
@@ -1114,6 +1637,22 @@ class _AppShellState extends ConsumerState<AppShell>
     _persistLayout();
   }
 
+  /// Keyboard step on the sessions divider (plan task 6.7). Same resize path as a drag.
+  void _stepSidebar(double delta, double windowWidth, {required bool inDrawer}) {
+    _resizeSidebar(delta, windowWidth, inDrawer: inDrawer);
+    _persistLayout();
+  }
+
+  /// The 1 px line drawn inside every divider. It turns accent-coloured while focused.
+  Widget _dividerLine(BuildContext context, bool focused) {
+    final tokens = context.tokens;
+    return Container(
+      width: focused ? 2 : 1,
+      height: 40,
+      color: focused ? tokens.accent : tokens.borderStrong,
+    );
+  }
+
   Widget _sessionsSidebar(double windowWidth, {bool inDrawer = false}) {
     final sidebarWidth = _effectiveSidebarWidth(
       windowWidth,
@@ -1158,24 +1697,18 @@ class _AppShellState extends ConsumerState<AppShell>
         MouseRegion(
           key: const ValueKey('sessions-sidebar-divider'),
           cursor: SystemMouseCursors.resizeLeftRight,
-          child: Semantics(
-            label: 'Larghezza barra sessioni',
-            value: '${sidebarWidth.round()} pixel',
-            increasedValue: '${increasedWidth.round()} pixel',
-            decreasedValue: '${decreasedWidth.round()} pixel',
+          child: _ResizeDividerFocus(
+            label: strings.sessionsSidebarDividerLabel,
+            value: strings.dividerPixelValue(sidebarWidth.round()),
+            increasedValue: strings.dividerPixelValue(increasedWidth.round()),
+            decreasedValue: strings.dividerPixelValue(decreasedWidth.round()),
             onIncrease: increasedWidth > sidebarWidth
-                ? () {
-                    _resizeSidebar(20, windowWidth, inDrawer: inDrawer);
-                    _persistLayout();
-                  }
+                ? () => _stepSidebar(20, windowWidth, inDrawer: inDrawer)
                 : null,
             onDecrease: decreasedWidth < sidebarWidth
-                ? () {
-                    _resizeSidebar(-20, windowWidth, inDrawer: inDrawer);
-                    _persistLayout();
-                  }
+                ? () => _stepSidebar(-20, windowWidth, inDrawer: inDrawer)
                 : null,
-            child: GestureDetector(
+            builder: (context, focused) => GestureDetector(
               behavior: HitTestBehavior.opaque,
               onHorizontalDragStart: (_) =>
                   ref.read(paneDraggingProvider.notifier).state = true,
@@ -1187,15 +1720,11 @@ class _AppShellState extends ConsumerState<AppShell>
               onHorizontalDragEnd: (_) => _finishSidebarResize(),
               onHorizontalDragCancel: _finishSidebarResize,
               child: Tooltip(
-                message: 'Trascina per ridimensionare la barra sessioni',
+                message: strings.sessionsSidebarDividerTooltip,
                 child: SizedBox(
                   width: _sidebarDividerWidth,
                   child: Center(
-                    child: Container(
-                      width: 1,
-                      height: 40,
-                      color: context.tokens.borderStrong,
-                    ),
+                    child: _dividerLine(context, focused),
                   ),
                 ),
               ),
@@ -1282,6 +1811,17 @@ class _AppShellState extends ConsumerState<AppShell>
         final stateCollapsed = panes
             .where((p) => _collapsedPanes.contains(p))
             .length;
+        if (_pendingWeightClamp && openWidth > 0) {
+          _pendingWeightClamp = false;
+          _paneWeights.addAll(
+            clampRestoredPaneWeights(
+              panes: panes,
+              collapsed: _collapsedPanes,
+              weights: _paneWeights,
+              availableWidth: openWidth - collapsedWidth * stateCollapsed,
+            ),
+          );
+        }
         // A companion narrower than kCompanionMinWidth collapses to its tab.
         final narrow = narrowCompanionPanes(
           panes: panes,
@@ -1315,42 +1855,91 @@ class _AppShellState extends ConsumerState<AppShell>
                   ),
                 ),
               if (index < panes.length - 1)
-                MouseRegion(
+                FocusTraversalOrder(
+                order: NumericFocusOrder(_dividerFocusOrder(panes[index])),
+                child: MouseRegion(
                   key: ValueKey(
                     'pane-divider-${panes[index]}-${panes[index + 1]}',
                   ),
                   cursor: SystemMouseCursors.resizeLeftRight,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onHorizontalDragStart: (_) =>
-                        ref.read(paneDraggingProvider.notifier).state = true,
-                    onHorizontalDragEnd: (_) =>
-                        ref.read(paneDraggingProvider.notifier).state = false,
-                    onHorizontalDragCancel: () =>
-                        ref.read(paneDraggingProvider.notifier).state = false,
-                    onHorizontalDragUpdate: (details) => _resizeAdjacent(
+                  child: _ResizeDividerFocus(
+                    label: strings.paneDividerLabel(
+                      _paneLabel(panes[index]),
+                      _paneLabel(panes[index + 1]),
+                    ),
+                    value: strings.dividerPercentValue(
+                      _leftSharePercent(panes[index], panes[index + 1]),
+                    ),
+                    onIncrease: () => _stepAdjacent(
                       panes[index],
                       panes[index + 1],
-                      details.delta.dx,
+                      20,
                       availableWidth,
                     ),
-                    child: SizedBox(
-                      width: dividerWidth,
-                      child: Center(
-                        child: Container(
-                          width: 1,
-                          height: 40,
-                          color: context.tokens.borderStrong,
-                        ),
+                    onDecrease: () => _stepAdjacent(
+                      panes[index],
+                      panes[index + 1],
+                      -20,
+                      availableWidth,
+                    ),
+                    builder: (context, focused) => GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragStart: (_) =>
+                          ref.read(paneDraggingProvider.notifier).state = true,
+                      onHorizontalDragEnd: (_) {
+                        ref.read(paneDraggingProvider.notifier).state = false;
+                        _persistLayout();
+                      },
+                      onHorizontalDragCancel: () {
+                        ref.read(paneDraggingProvider.notifier).state = false;
+                        _persistLayout();
+                      },
+                      onHorizontalDragUpdate: (details) => _resizeAdjacent(
+                        panes[index],
+                        panes[index + 1],
+                        details.delta.dx,
+                        availableWidth,
+                      ),
+                      child: SizedBox(
+                        width: dividerWidth,
+                        child: Center(child: _dividerLine(context, focused)),
                       ),
                     ),
                   ),
+                ),
                 ),
             ],
           ],
         );
       },
     );
+  }
+
+  /// Tab order of the divider after the pane [left] (plan task 6.2): it follows the
+  /// region that ends at the divider, so it sits between two panes, not after all of them.
+  double _dividerFocusOrder(WorkspacePane left) => switch (left) {
+    WorkspacePane.repository => FocusRegion.repository.index + 0.5,
+    WorkspacePane.chat => FocusRegion.composer.index + 0.5,
+    WorkspacePane.git => FocusRegion.companion.index + 0.5,
+  };
+
+  /// Keyboard step on a pane divider (plan task 6.7). Same path as a drag, then saved.
+  void _stepAdjacent(
+    WorkspacePane left,
+    WorkspacePane right,
+    double delta,
+    double availableWidth,
+  ) {
+    _resizeAdjacent(left, right, delta, availableWidth);
+    _persistLayout();
+  }
+
+  /// Share of the two neighbouring panes that the left one occupies, for screen readers.
+  int _leftSharePercent(WorkspacePane left, WorkspacePane right) {
+    final leftWeight = _paneWeights[left] ?? 1;
+    final total = leftWeight + (_paneWeights[right] ?? 1);
+    if (total <= 0) return 50;
+    return (leftWeight / total * 100).round();
   }
 
   void _resizeAdjacent(
@@ -1412,10 +2001,13 @@ class _AppShellState extends ConsumerState<AppShell>
     final isMobile = width < 600;
     final isBrowser = ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
+    final strings = ref.watch(appStringsProvider);
     String label(WorkspacePane pane) => switch (pane) {
-      WorkspacePane.chat => 'Chat',
-      WorkspacePane.repository => 'File',
-      WorkspacePane.git => isBrowser ? 'Web Browser' : 'Git Changes',
+      WorkspacePane.chat => strings.companionChatTab,
+      WorkspacePane.repository => strings.companionFileTab,
+      WorkspacePane.git => isBrowser
+          ? strings.companionWebBrowserTab
+          : strings.paletteGitPaneName,
     };
     return Container(
       height: 44,
@@ -1551,7 +2143,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 border: Border.all(color: tokens.border),
               ),
               child: Text(
-                'Quick Launch',
+                ref.watch(appStringsProvider).companionQuickLaunchBadge,
                 style: TextStyle(
                   color: tokens.accent,
                   fontSize: 10,

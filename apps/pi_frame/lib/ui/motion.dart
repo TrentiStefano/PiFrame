@@ -1,28 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 /// Shared motion timings and curves (DESIGN.md §07 "Motion").
 ///
 /// Reduced motion is decided by `MediaQuery.disableAnimationsOf`. `PiFrameApp`
 /// sets that flag when the user enables "Reduce motion" in Appearance, so
 /// every widget here follows the setting without knowing about it.
+/// Values come from `FrameMotionTokens` in the theme package, which
+/// `FrameTokens` also reads, so the two stay in step.
 abstract final class FrameMotion {
+  /// Zero-duration change.
+  static const instant = FrameMotionTokens.instant;
+
   /// Hover, press and colour changes.
-  static const micro = Duration(milliseconds: 120);
+  static const micro = FrameMotionTokens.micro;
 
   /// Expand/collapse, chips and small state changes.
-  static const small = Duration(milliseconds: 160);
+  static const small = FrameMotionTokens.small;
 
   /// Panes, side panel and entrances.
-  static const panel = Duration(milliseconds: 240);
+  static const panel = FrameMotionTokens.panel;
+
+  /// Exit of small elements.
+  static const smallExit = FrameMotionTokens.smallExit;
+
+  /// Exit of panes and side panels.
+  static const panelExit = FrameMotionTokens.panelExit;
+
+  /// Dialog entrance.
+  static const dialog = FrameMotionTokens.dialog;
+
+  /// Dialog exit.
+  static const dialogExit = FrameMotionTokens.dialogExit;
+
+  /// First-run and onboarding transitions.
+  static const firstRun = FrameMotionTokens.firstRun;
+
+  /// Delay between items in a staggered entrance.
+  static const stagger = FrameMotionTokens.stagger;
 
   /// Cross-fade used in place of movement under reduced motion (≤150ms).
-  static const crossFade = Duration(milliseconds: 120);
+  static const crossFade = FrameMotionTokens.crossFade;
 
   /// Ease-out with a fast start: most UI changes.
-  static const enterCurve = Cubic(0.23, 1, 0.32, 1);
+  static const enterCurve = FrameMotionTokens.enterCurve;
 
   /// Ease-out with a soft landing: larger surfaces moving across the window.
-  static const panelCurve = Cubic(0.32, 0.72, 0, 1);
+  static const panelCurve = FrameMotionTokens.panelCurve;
 
   static bool reduced(BuildContext context) =>
       MediaQuery.disableAnimationsOf(context);

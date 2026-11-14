@@ -302,22 +302,22 @@ void main() {
       } else if (size.width < 900) {
         expect(find.text('Chat'), findsOneWidget);
         expect(find.text('File'), findsOneWidget);
-        expect(find.text('Git Changes'), findsOneWidget);
-        await tester.tap(find.text('Git Changes').first);
+        expect(find.text('Modifiche Git'), findsOneWidget);
+        await tester.tap(find.text('Modifiche Git').first);
         await tester.pumpAndSettle();
         expect(find.text('GIT CHANGES'), findsOneWidget);
         await tester.tap(find.text('Chat').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Git Changes').last);
+        await tester.tap(find.text('Modifiche Git').last);
         await tester.pumpAndSettle();
-        expect(find.text('Git Changes'), findsNothing);
+        expect(find.text('Modifiche Git'), findsNothing);
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Git Changes').last);
+        await tester.tap(find.text('Modifiche Git').last);
         await tester.pumpAndSettle();
-        expect(find.text('Git Changes'), findsOneWidget);
+        expect(find.text('Modifiche Git'), findsOneWidget);
       } else {
         expect(
           find.byKey(const ValueKey('companion-tab-git')),
@@ -337,19 +337,26 @@ void main() {
         expect(find.text('FILE'), findsOneWidget);
       }
 
-      await tester.tap(find.byIcon(Icons.tune));
+      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
       await tester.pumpAndSettle();
-      if (size.width < 1280) {
-        expect(find.text('Area di lavoro'), findsOneWidget);
-      }
-      expect(find.text('Sessione'), findsOneWidget);
+      // The shell draws no heading of its own above the drawer (task 5.4 follow-up).
+      expect(find.text('Area di lavoro'), findsNothing);
+      // The title bar button is labelled "Sessione" too, so check the drawer state.
+      expect(
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
+        isTrue,
+      );
       expect(find.textContaining('File Modificati'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-workspace');
-      await tester.tap(find.byTooltip('Chiudi workspace'));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
+      expect(
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
+        isFalse,
+      );
 
-      await tester.tap(find.byTooltip('Impostazioni'));
+      await tester.tap(find.byTooltip('Impostazioni (Ctrl / Cmd + ,)'));
       await tester.pumpAndSettle();
       for (final tab in [
         'PI CLI',
@@ -522,7 +529,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chat'), findsOneWidget);
     expect(find.text('File'), findsOneWidget);
-    expect(find.text('Git Changes'), findsOneWidget);
+    expect(find.text('Modifiche Git'), findsOneWidget);
     await tester.tap(find.text('File').first);
     await tester.pumpAndSettle();
     expect(find.text('REPOSITORY'), findsOneWidget);
@@ -544,7 +551,7 @@ void main() {
       '$capturePrefix-compact-file',
       outputDirectory: '../../docs/design-evidence',
     );
-    await tester.tap(find.text('Git Changes').first);
+    await tester.tap(find.text('Modifiche Git').first);
     await tester.pumpAndSettle();
     expect(find.text('GIT CHANGES'), findsOneWidget);
     await capture(

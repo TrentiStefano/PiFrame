@@ -38,14 +38,35 @@ import '../../ui/frame_snack_bar.dart';
 /// branch in settings goes through this web-safe helper.
 bool get _isWindowsOs => !kIsWeb && Platform.isWindows;
 
+/// Stable ids for [SettingsView.initialSection]. Callers name a section by id, so
+/// reordering or removing tabs only changes [_sectionTabs].
+const kSettingsSectionDiagnostics = 'diagnostics';
+
+const _sectionTabs = <String, int>{
+  'pi-cli': 0,
+  'packages': 1,
+  'daemon': 2,
+  'appearance': 3,
+  'privacy': 4,
+  kSettingsSectionDiagnostics: 5,
+  'updates': 6,
+  'terminal': 7,
+  'remote': 8,
+  'agents': 9,
+};
+
 class SettingsView extends ConsumerStatefulWidget {
   final VoidCallback onClose;
   final int initialTabIndex;
+
+  /// Opens on this section (an id from [_sectionTabs]) instead of [initialTabIndex].
+  final String? initialSection;
 
   const SettingsView({
     super.key,
     required this.onClose,
     this.initialTabIndex = 0,
+    this.initialSection,
   });
 
   @override
@@ -75,7 +96,8 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     _tabController = TabController(
       length: 10,
       vsync: this,
-      initialIndex: widget.initialTabIndex,
+      initialIndex:
+          _sectionTabs[widget.initialSection] ?? widget.initialTabIndex,
     );
     _fetchDaemonConfig();
     _fetchPiPackages();

@@ -437,6 +437,15 @@ extension WorkspaceStrings on AppStrings {
       ? 'Nessun file modificato in questa sessione.'
       : 'No files modified in this session.';
 
+  // Companion tab labels (session changes pane and app shell).
+  String get companionFileTab => 'File';
+  String get companionReviewTab =>
+      isItalian ? 'Rivedi modifiche' : 'Review Changes';
+  String get companionChatTab => 'Chat';
+  String get companionWebBrowserTab => 'Web Browser';
+  String get companionQuickLaunchBadge =>
+      isItalian ? 'Avvio rapido' : 'Quick Launch';
+
   // ---------------------------------------------------------------------------
   // Browser Pane & Service
   // ---------------------------------------------------------------------------

@@ -175,6 +175,47 @@ Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzio
 - Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
 - Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
 
+## Scorciatoie da tastiera
+
+Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di shell (righe "Shell") valgono quando nessun campo di testo, composer, editor o terminale le gestisce per primo.
+
+| Scorciatoia | Azione | Dove |
+|---|---|---|
+| `Ctrl+N` / `Cmd+N` | Nuova sessione (apre la scelta della cartella) | Shell (nuova in Fase 6) |
+| `Ctrl+,` / `Cmd+,` | Apri Impostazioni | Shell (nuova in Fase 6) |
+| `Ctrl+B` / `Cmd+B` | Mostra o nascondi la barra sessioni; con finestra stretta apre o chiude il cassetto sessioni | Shell (nuova in Fase 6) |
+| `Ctrl+Tab` | Torna alla sessione attiva precedente (se ancora presente) | Shell (nuova in Fase 6) |
+| `F6` / `Shift+F6` | Sposta il focus al pannello successivo o precedente (barra del titolo, sessioni, repository, chat, pannello companion) | Shell (nuovo in Fase 6) |
+| `Ctrl+1` … `Ctrl+4` / `Cmd+1` … `Cmd+4` | Sposta il focus su sessioni, repository, chat (composer) e pannello companion | Shell (nuovo in Fase 6) |
+| `Ctrl+K` / `Cmd+K` | Apri la Command Palette | Shell |
+| `Ctrl+Shift+B` / `Cmd+Shift+B` | Apri o chiudi la conversazione laterale della sessione | Shell |
+| `←` / `→` con il focus su un divisore | Sposta il divisore di 20 px (barra sessioni e divisori tra i pannelli); il divisore riceve il focus con `Tab` | Divisori (nuovo in Fase 6) |
+| `Ctrl+F` / `Cmd+F` | Cerca file nell'editor del pannello repository | Pannello repository |
+| `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia il messaggio; dipende dall'opzione *Invia con Enter* (vedi sopra) | Composer |
+| `Shift+Invio` | Nuova riga nel composer (con *Invia con Enter* attivo) | Composer |
+| `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
+| `↑` / `↓` | Scorre i comandi slash, i file menzionati e i suggerimenti | Composer, selettore file, Command Palette, selettore branch |
+| `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
+| `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme, nuovo in Fase 6) |
+| `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell (nuovo in Fase 6) |
+| `←` / `→` | Sulle schede del pannello companion (File, Review Changes, Chat): seleziona la scheda precedente o successiva; `Invio` o `Spazio` seleziona la scheda con il focus | Pannello companion |
+| `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia nel pannello della conversazione laterale (secondo *Invia con Enter*) | Pannello laterale |
+| `Ctrl+C`, `Ctrl+L`, `Ctrl+V` | Interrompe, pulisce lo schermo, incolla nel terminale | Terminale integrato |
+| Frecce, `Tab`, `Invio`, `Backspace` | Inviati alla shell del terminale integrato | Terminale integrato |
+
+Scorciatoie non ancora presenti: `Ctrl+S` / `Cmd+S` (salvataggio nell'editor) arriverà con la Fase 9.
+
+**Conflitti risolti.** Il composer e i campi di testo gestiscono `Tab` e `Invio` prima della shell, quindi `Ctrl+Tab` non viene usato mentre il menu dei comandi slash è aperto. Il terminale integrato gestisce per primo `Ctrl+C`, `Ctrl+L`, `Ctrl+V` e `Tab`, che quindi restano al terminale. `Ctrl+Shift+B` mantiene il significato esistente (conversazione laterale) e non apre più la barra sessioni: quest'ultima resta su `Ctrl+B`.
+
+### Barra del titolo
+
+La barra del titolo è divisa in due gruppi separati da un filo verticale:
+
+- **Vista**: il menu per mostrare o nascondere i pannelli (da 900 px, con una sessione aperta) e il cambio di tema chiaro/scuro.
+- **Area di lavoro**: il pulsante **Sessione** (modello, contesto e rami della sessione) e **Impostazioni** (`Ctrl+,` / `Cmd+,`). Da 1100 px il pulsante Sessione mostra l'etichetta; sotto questa larghezza è solo un'icona con suggerimento.
+
+Lo stato della connessione al daemon è a sinistra accanto al marchio. Da 920 px mostra il punto e l'etichetta (*Pi locale* o *Non connesso*); sotto 920 px resta solo il punto, con suggerimento e descrizione per lo screen reader. Un clic apre **Impostazioni → Diagnostica**.
+
 ## Pannello Agenti e Workflow
 
 Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
@@ -351,7 +392,8 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
   - **Comandi Slash Built-in**: `/side [domanda]` e `/btw [domanda]` gestiti localmente dal composer (mai inviati come prompt all'agente principale). Presenti nel menu slash con la descrizione *"Conversazione laterale in sola lettura"*.
   - **Scorciatoia da Tastiera & Command Palette**:
     - Scorciatoia globale: `Ctrl+Shift+B` (Linux/Windows) o `Cmd+Shift+B` (macOS) per aprire/chiudere il pannello laterale nella sessione corrente.
-    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale (Ctrl+Shift+B)"*.
+    - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale"*, con il tasto `Ctrl`/`⌘` + `Shift` + `B` mostrato a destra.
+    - La Command Palette raggruppa i comandi in Sessione, Vista, Git e Impostazioni, mostra solo i comandi applicabili (per esempio *"Interrompi agente"* solo mentre l'agente lavora), chiude se stessa prima di eseguire il comando e include *"Vai a sessione…"* con ricerca fuzzy tra le sessioni.
   - **Pannello Laterale Agganciato (Side Panel)**:
     - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
     - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.
