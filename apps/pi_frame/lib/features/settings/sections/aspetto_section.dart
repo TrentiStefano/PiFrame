@@ -345,6 +345,7 @@ class AppearanceSection extends ConsumerWidget {
                           FrameSnackBar.show(
                             context,
                             message: strings.themeImportError(e),
+                            isError: true,
                           );
                         }
                       }

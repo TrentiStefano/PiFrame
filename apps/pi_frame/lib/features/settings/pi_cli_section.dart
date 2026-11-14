@@ -13,6 +13,7 @@ import '../../data/language/strings_settings.dart';
 import '../../data/platform/platform_environment.dart';
 
 import 'mcp_servers_dialog.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
@@ -51,7 +52,7 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
     command: 'pi update',
     args: ['update'],
     description: strings.piCmdUpdateCliDesc,
-    icon: Icons.system_update_alt,
+    icon: Icons.system_update_alt_outlined,
     isRecommended: true,
   ),
   PiCommandItem(
@@ -73,14 +74,14 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
     command: 'pi update --all',
     args: ['update', '--all'],
     description: strings.piCmdUpdateAllDesc,
-    icon: Icons.auto_awesome,
+    icon: Icons.auto_awesome_outlined,
   ),
   PiCommandItem(
     label: strings.piCmdListLabel,
     command: 'pi list',
     args: ['list'],
     description: strings.piCmdListDesc,
-    icon: Icons.list_alt,
+    icon: Icons.list_alt_outlined,
   ),
   PiCommandItem(
     label: strings.piCmdMcpListLabel,
@@ -337,7 +338,7 @@ class _PiCliSectionState extends State<PiCliSection> {
 
     final title = Row(
       children: [
-        Icon(Icons.terminal, color: tokens.accent, size: FrameSize.iconLg),
+        Icon(Icons.terminal_outlined, color: tokens.accent, size: FrameSize.iconLg),
         const SizedBox(width: FrameSpace.x3),
         Text(
           strings.piCliTitle,
@@ -406,7 +407,7 @@ class _PiCliSectionState extends State<PiCliSection> {
             key: const ValueKey('pi-cli-custom-run-btn'),
             style: _outlinedRunStyle(tokens),
             onPressed: _isExecuting ? null : _runCustomCommand,
-            icon: const Icon(Icons.play_arrow, size: FrameSize.icon),
+            icon: const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
             label: Text(strings.piCliRunBtn),
           ),
         ],
@@ -552,14 +553,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     return Row(
       children: [
         if (_isExecuting) ...[
-          SizedBox(
-            width: FrameSize.icon - FrameSpace.x1,
-            height: FrameSize.icon - FrameSpace.x1,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: tokens.accent,
-            ),
-          ),
+          FrameActivityIndicator(size: FrameSize.icon - FrameSpace.x1, strokeWidth: 2, color: tokens.accent),
           const SizedBox(width: FrameSpace.x2),
           Flexible(
             child: Text(
@@ -572,7 +566,7 @@ class _PiCliSectionState extends State<PiCliSection> {
           TextButton.icon(
             style: TextButton.styleFrom(foregroundColor: tokens.danger),
             onPressed: _cancelActiveProcess,
-            icon: const Icon(Icons.stop, size: FrameSize.icon),
+            icon: const Icon(Icons.stop_outlined, size: FrameSize.icon),
             label: Text(strings.piCliStopBtn),
           ),
         ] else ...[
@@ -599,13 +593,13 @@ class _PiCliSectionState extends State<PiCliSection> {
           IconButton(
             visualDensity: VisualDensity.compact,
             tooltip: strings.piCliCopyOutputTooltip,
-            icon: const Icon(Icons.copy, size: FrameSize.icon),
+            icon: const Icon(Icons.copy_outlined, size: FrameSize.icon),
             onPressed: _copyConsoleOutput,
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
             tooltip: strings.piCliClearOutputTooltip,
-            icon: const Icon(Icons.clear_all, size: FrameSize.iconLg),
+            icon: const Icon(Icons.clear_all_outlined, size: FrameSize.iconLg),
             onPressed: _clearConsoleOutput,
           ),
         ],
@@ -683,15 +677,8 @@ class _PiCliSectionState extends State<PiCliSection> {
                 ? null
                 : () => _executeCommand(item.command, item.args),
             icon: isRunning
-                ? SizedBox(
-                    width: FrameSize.icon,
-                    height: FrameSize.icon,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accent,
-                    ),
-                  )
-                : const Icon(Icons.play_arrow, size: FrameSize.icon),
+                ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
             label: Text(
               isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
             ),

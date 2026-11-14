@@ -8,6 +8,7 @@ import '../../data/agents/agents_config_model.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_snack_bar.dart';
 
@@ -65,7 +66,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
 
     if (state.isLoading && state.config == null) {
       return Center(
-        child: CircularProgressIndicator(color: tokens.accent),
+        child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
       );
     }
 
@@ -143,7 +144,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: tokens.info, size: 18),
+                    Icon(Icons.info_outline, color: tokens.info, size: FrameSize.iconLg),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -198,7 +199,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   child: Row(
                     children: [
                       Icon(Icons.error_outline,
-                          color: tokens.danger, size: 18),
+                          color: tokens.danger, size: FrameSize.iconLg),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -237,7 +238,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         title: strings.agentsNoPackagesTitle,
         message: strings.agentsNoPackagesDesc,
         actionLabel: strings.agentsOpenPackagesBtn,
-        actionIcon: Icons.arrow_forward,
+        actionIcon: Icons.arrow_forward_outlined,
         onAction: widget.onOpenPackages,
       );
     }
@@ -251,7 +252,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
       ),
       child: Row(
         children: [
-          Icon(Icons.inventory_2_outlined, color: tokens.accent, size: 18),
+          Icon(Icons.inventory_2_outlined, color: tokens.accent, size: FrameSize.iconLg),
           const SizedBox(width: 10),
           Text(
             strings.agentsPackagesLabel,
@@ -311,8 +312,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
-                  color: tokens.warning, size: 18),
+              Icon(Icons.warning_amber_outlined,
+                  color: tokens.warning, size: FrameSize.iconLg),
               const SizedBox(width: 8),
               Text(
                 strings.agentsWarningsTitle,
@@ -431,7 +432,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt, size: 18),
+                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
                   color: tokens.textMuted,
                   onPressed: !state.isReadOnlyRemote
                       ? () => notifier.resetSessionDefaultModel()
@@ -483,7 +484,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt, size: 18),
+                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
                   color: tokens.textMuted,
                   onPressed: !state.isReadOnlyRemote
                       ? () => notifier.resetSessionDefaultThinking()
@@ -597,7 +598,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt, size: 18),
+                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultFallbackAgent()
@@ -653,7 +654,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt, size: 18),
+                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultModel()
@@ -703,7 +704,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt, size: 18),
+                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultThinking()
@@ -867,7 +868,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             Tooltip(
               message: strings.agentsResetField,
               child: IconButton(
-                icon: const Icon(Icons.restart_alt, size: 16),
+                icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
                 color: tokens.textMuted,
                 onPressed: isEditable
                     ? () => notifier.resetAgentModel(agent.name)
@@ -918,7 +919,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             Tooltip(
               message: strings.agentsResetField,
               child: IconButton(
-                icon: const Icon(Icons.restart_alt, size: 16),
+                icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
                 color: tokens.textMuted,
                 onPressed: isEditable
                     ? () => notifier.resetAgentThinking(agent.name)
@@ -968,7 +969,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt, size: 16),
+                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
                   color: tokens.textMuted,
                   onPressed: isEditable
                       ? () => notifier.resetAgentContextLimit(agent.name)
@@ -1003,7 +1004,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   ),
                   const SizedBox(width: 4),
                   Icon(Icons.help_outline,
-                      size: 13, color: tokens.textMuted),
+                      size: FrameSize.icon, color: tokens.textMuted),
                 ],
               ),
             ),
@@ -1084,7 +1085,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.lock_outline,
-                            size: 11, color: tokens.textMuted),
+                            size: FrameSize.icon, color: tokens.textMuted),
                         const SizedBox(width: 3),
                         Text(
                           agent.readOnlyReason ?? 'read-only',
@@ -1213,8 +1214,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           const SizedBox(height: 2),
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
-                  size: 13, color: tokens.warning),
+              Icon(Icons.warning_amber_outlined,
+                  size: FrameSize.icon, color: tokens.warning),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -1423,15 +1424,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   }
                 : null,
             icon: state.isSaving
-                ? SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accentContrast,
-                    ),
-                  )
-                : const Icon(Icons.check, size: 16),
+                ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
+                : const Icon(Icons.check_outlined, size: FrameSize.icon),
             label: Text(
                 state.isSaving ? strings.agentsSaving : strings.agentsSave),
             style: FilledButton.styleFrom(

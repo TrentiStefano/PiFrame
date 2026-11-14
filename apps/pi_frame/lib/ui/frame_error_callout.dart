@@ -5,6 +5,7 @@ import '../data/language/language_settings.dart';
 import '../data/language/strings_settings.dart';
 import '../domain/errors/user_facing_error.dart';
 import 'frame_callout.dart';
+import 'precision.dart';
 
 /// An error block for a failed load or action, built on [FrameCallout] with
 /// the danger tone.
@@ -61,11 +62,14 @@ class FrameErrorCallout extends StatelessWidget {
         ],
       ),
       action: canRetry
-          ? OutlinedButton.icon(
-              key: ValueKey('$keyPrefix-retry'),
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: FrameSize.icon),
-              label: Text(strings.retryAction),
+          ? PressFeedback(
+              enabled: onRetry != null,
+              child: OutlinedButton.icon(
+                key: ValueKey('$keyPrefix-retry'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
+                label: Text(strings.retryAction),
+              ),
             )
           : null,
       details: error.details,

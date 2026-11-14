@@ -4,7 +4,7 @@ import 'motion.dart';
 
 /// Indeterminate "working" spinner for the composer, transcript and tool
 /// timeline. Under reduced motion (`FrameMotion.reduced`) it is a static
-/// `Icons.sync` glyph in the same square, so nothing loops on screen.
+/// `Icons.sync_outlined` glyph in the same square, so nothing loops on screen.
 class FrameActivityIndicator extends StatelessWidget {
   /// Width and height of the square the indicator occupies.
   final double size;
@@ -35,7 +35,7 @@ class FrameActivityIndicator extends StatelessWidget {
           width: size,
           height: size,
           child: ExcludeSemantics(
-            child: Icon(Icons.sync, size: size, color: color),
+            child: Icon(Icons.sync_outlined, size: size, color: color),
           ),
         ),
       );

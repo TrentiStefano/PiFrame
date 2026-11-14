@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'precision.dart';
+
 /// Centered empty-state block: an [icon], a [title], one [message] sentence,
 /// exactly one [actionLabel] button and an optional [shortcutHint].
 ///
@@ -76,19 +78,21 @@ class FrameEmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: FrameSpace.x4),
-            if (actionIcon == null)
-              FilledButton(
-                key: ValueKey('$keyPrefix-action'),
-                onPressed: onAction,
-                child: Text(actionLabel),
-              )
-            else
-              FilledButton.icon(
-                key: ValueKey('$keyPrefix-action'),
-                onPressed: onAction,
-                icon: Icon(actionIcon, size: FrameSize.icon),
-                label: Text(actionLabel),
-              ),
+            PressFeedback(
+              enabled: onAction != null,
+              child: actionIcon == null
+                  ? FilledButton(
+                      key: ValueKey('$keyPrefix-action'),
+                      onPressed: onAction,
+                      child: Text(actionLabel),
+                    )
+                  : FilledButton.icon(
+                      key: ValueKey('$keyPrefix-action'),
+                      onPressed: onAction,
+                      icon: Icon(actionIcon, size: FrameSize.icon),
+                      label: Text(actionLabel),
+                    ),
+            ),
             if (shortcutHint != null) ...[
               const SizedBox(height: FrameSpace.x2),
               Text(

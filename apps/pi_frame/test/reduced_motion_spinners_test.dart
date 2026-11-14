@@ -30,8 +30,8 @@ void main() {
       ),
     );
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.byIcon(Icons.sync), findsOneWidget);
-    expect(tester.getSize(find.byIcon(Icons.sync)), const Size(14, 14));
+    expect(find.byIcon(Icons.sync_outlined), findsOneWidget);
+    expect(tester.getSize(find.byIcon(Icons.sync_outlined)), const Size(14, 14));
     expect(find.bySemanticsLabel('Working'), findsOneWidget);
   });
 

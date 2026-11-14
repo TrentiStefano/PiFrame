@@ -93,7 +93,7 @@ class PackagesSection extends ConsumerWidget {
                       ? null
                       : onUpdateAll,
                   icon: const Icon(
-                    Icons.system_update_alt,
+                    Icons.system_update_alt_outlined,
                     size: FrameSize.icon,
                   ),
                   label: Text(
@@ -181,7 +181,7 @@ class PackagesSection extends ConsumerWidget {
             onPressed: isWorking || !hasAvailablePiPackageUpdate(package)
                 ? null
                 : () => onUpdatePackage(package),
-            icon: const Icon(Icons.system_update_alt, size: FrameSize.iconLg),
+            icon: const Icon(Icons.system_update_alt_outlined, size: FrameSize.iconLg),
           ),
           if (supportsPin)
             IconButton(
@@ -195,7 +195,7 @@ class PackagesSection extends ConsumerWidget {
             tooltip: strings.removePackageTooltip(name),
             onPressed: isWorking ? null : () => onRemovePackage(package),
             icon: Icon(
-              Icons.delete_outline,
+              Icons.delete_outline_outlined,
               size: FrameSize.iconLg,
               color: tokens.danger,
             ),

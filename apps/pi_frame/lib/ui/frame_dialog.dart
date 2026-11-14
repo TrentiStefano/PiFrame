@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'motion.dart';
+import 'precision.dart';
 
 /// Role of a dialog action. Drives the button style:
 /// [cancel] is a text button, [primary] a filled button in the accent colour
@@ -169,20 +170,26 @@ class FrameDialog<T> extends StatelessWidget {
           child: Text(action.label),
         );
       case FrameDialogActionRole.primary:
-        return FilledButton(
-          key: key,
-          onPressed: onPressed,
-          child: Text(action.label),
+        return PressFeedback(
+          enabled: onPressed != null,
+          child: FilledButton(
+            key: key,
+            onPressed: onPressed,
+            child: Text(action.label),
+          ),
         );
       case FrameDialogActionRole.destructive:
-        return FilledButton(
-          key: key,
-          style: FilledButton.styleFrom(
-            backgroundColor: tokens.danger,
-            foregroundColor: tokens.surface,
+        return PressFeedback(
+          enabled: onPressed != null,
+          child: FilledButton(
+            key: key,
+            style: FilledButton.styleFrom(
+              backgroundColor: tokens.danger,
+              foregroundColor: tokens.surface,
+            ),
+            onPressed: onPressed,
+            child: Text(action.label),
           ),
-          onPressed: onPressed,
-          child: Text(action.label),
         );
     }
   }
