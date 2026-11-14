@@ -140,13 +140,13 @@ Per compilare e generare l'immagine disco installer per macOS (`dist/PiFrame-<ve
 
 ---
 
-## Sessioni omonime e larghezza della barra laterale
+## 4. Sessioni omonime e larghezza della barra laterale
 
 Quando sessioni o repository hanno nomi equivalenti (senza distinguere maiuscole e spazi), PiFrame aggiunge alle etichette le cartelle padre necessarie a distinguere i percorsi. Ad esempio, due cartelle `v1/PiFrame` e `v2/PiFrame` vengono mostrate come **v1 / PiFrame** e **v2 / PiFrame**; se anche il padre coincide, vengono inclusi gli antenati successivi. La distinzione resta visibile nella lista, nelle sessioni fissate, in Quick Launch, nel titolo della chat, nel selettore `/resume` e nelle notifiche. I nomi salvati e i campi di rinomina non vengono modificati; sessioni nella stessa cartella possono continuare ad avere lo stesso nome.
 
 Trascina il separatore sul bordo destro del riquadro **Sessioni** per allargarlo o stringerlo. Funziona sia nella barra laterale degli schermi ampi sia nel pannello aperto con **Apri sessioni**. La larghezza viene salvata insieme al layout in `~/.piframe/layout.json`, resta invariata quando collassi e riapri la barra e viene limitata allo spazio disponibile sugli schermi piccoli. Nel browser la scelta dura per l'apertura corrente, come le altre preferenze del layout.
 
-## Aggiornamento di tutti i pacchetti Pi
+## 5. Aggiornamento di tutti i pacchetti Pi
 
 In **Impostazioni → Pacchetti**, i pulsanti di aggiornamento sono abilitati solo quando è stata verificata una versione più recente installabile. **Aggiorna tutto** si abilita se almeno un pacchetto soddisfa questa condizione e aggiorna in sequenza soltanto quelli con aggiornamenti disponibili, usando il package manager Pi. Pacchetti già aggiornati, versioni bloccate, aggiornamenti incompatibili e versioni non verificate restano esclusi. Dopo la conferma viene mostrato l'avanzamento; i pulsanti di aggiornamento, rimozione e blocco versione restano disabilitati fino alla conclusione. Se un pacchetto non si aggiorna, PiFrame prosegue con gli altri e mostra il riepilogo e gli errori dei pacchetti non riusciti. La lista viene verificata all'apertura e ricaricata al termine: i pulsanti tornano disabilitati quando non rimangono aggiornamenti disponibili. Riavvia Pi per caricare il codice aggiornato. I pacchetti di progetto non vengono modificati.
 
@@ -154,7 +154,7 @@ Il riepilogo distingue gli aggiornamenti realmente installati dai pacchetti già
 
 Prima di proporre una versione npm più recente viene verificata la compatibilità di installazione, comprese le dipendenze obbligatorie, con un dry run senza script. Versioni non supportate dal sistema operativo non generano l'avviso di aggiornamento disponibile; il motivo resta visibile nella pagina dei pacchetti. Anche i comandi di installazione, aggiornamento e rimozione della scheda **Pi CLI** ricontrollano la lista e l'avviso dopo la conclusione.
 
-## Comandi slash di Pi nella chat
+## 6. Comandi slash di Pi nella chat
 
 Nel composer digita `/` per vedere anche i comandi integrati di Pi, oltre a quelli forniti da estensioni, prompt e skill. `/login` e `/logout` mostrano il selettore dei provider e usano il flusso di autenticazione Pi; i campi per chiavi e token sono mascherati. Le credenziali restano nel deposito Pi e queste richieste sono disponibili solo nell’app locale, non dai client remoti. Gli altri comandi TUI non ancora disponibili via RPC mostrano un avviso e non vengono inviati al modello. Aggiorna PiFrame per ricevere il catalogo e l'instradamento aggiornati.
 
@@ -167,7 +167,7 @@ Un comando non è mai testo:
 - `Backspace` a campo vuoto, o la `×` sul chip, rimuove il comando. Senza argomenti, `/nome` torna nel campo come testo modificabile.
 - Il testo che contiene un `/` senza chip (per esempio `perché /reload fallisce?`) parte come messaggio normale.
 
-## Invio dei messaggi con Enter (Invia con Enter)
+## 7. Invio dei messaggi con Enter (Invia con Enter)
 
 Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzione **Invia con Enter** (disattivata per impostazione predefinita):
 - **Disattivato (default)**: premendo `Ctrl+Invio` (o `Cmd+Invio` su macOS) viene inviato il messaggio o applicato lo steer; premendo `Invio` viene inserita una nuova riga nel composer.
@@ -175,22 +175,24 @@ Nelle **Impostazioni** (sezione **Aspetto → Composer**) è disponibile l'opzio
 - Durante la composizione attiva con caratteri IME (es. input CJK), il tasto `Invio` conferma il testo senza inviare la richiesta in entrambe le modalità.
 - Le preferenze vengono salvate in locale in `~/.piframe/composer_settings.json`.
 
-## Scorciatoie da tastiera
+## 8. Scorciatoie da tastiera
 
 Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di shell (righe "Shell") valgono quando nessun campo di testo, composer, editor o terminale le gestisce per primo.
 
 | Scorciatoia | Azione | Dove |
 |---|---|---|
-| `Ctrl+N` / `Cmd+N` | Nuova sessione (apre la scelta della cartella) | Shell (nuova in Fase 6) |
-| `Ctrl+,` / `Cmd+,` | Apri Impostazioni | Shell (nuova in Fase 6) |
-| `Ctrl+B` / `Cmd+B` | Mostra o nascondi la barra sessioni; con finestra stretta apre o chiude il cassetto sessioni | Shell (nuova in Fase 6) |
-| `Ctrl+Tab` | Torna alla sessione attiva precedente (se ancora presente) | Shell (nuova in Fase 6) |
-| `F6` / `Shift+F6` | Sposta il focus al pannello successivo o precedente (barra del titolo, sessioni, repository, chat, pannello companion) | Shell (nuovo in Fase 6) |
-| `Ctrl+1` … `Ctrl+4` / `Cmd+1` … `Cmd+4` | Sposta il focus su sessioni, repository, chat (composer) e pannello companion | Shell (nuovo in Fase 6) |
+| `Ctrl+N` / `Cmd+N` | Nuova sessione (apre la scelta della cartella) | Shell |
+| `Ctrl+,` / `Cmd+,` | Apri Impostazioni | Shell |
+| `Ctrl+B` / `Cmd+B` | Mostra o nascondi la barra sessioni; con finestra stretta apre o chiude il cassetto sessioni | Shell |
+| `Ctrl+Tab` | Torna alla sessione attiva precedente (se ancora presente) | Shell |
+| `F6` / `Shift+F6` | Sposta il focus al pannello successivo o precedente (barra del titolo, sessioni, repository, chat, pannello companion) | Shell |
+| `Ctrl+1` … `Ctrl+4` / `Cmd+1` … `Cmd+4` | Sposta il focus su sessioni, repository, chat (composer) e pannello companion | Shell |
 | `Ctrl+K` / `Cmd+K` | Apri la Command Palette | Shell |
 | `Ctrl+Shift+B` / `Cmd+Shift+B` | Apri o chiudi la conversazione laterale della sessione | Shell |
-| `←` / `→` con il focus su un divisore | Sposta il divisore di 20 px (barra sessioni e divisori tra i pannelli); il divisore riceve il focus con `Tab` | Divisori (nuovo in Fase 6) |
-| `Ctrl+F` / `Cmd+F` | Cerca file nell'editor del pannello repository | Pannello repository |
+| `←` / `→` con il focus su un divisore | Sposta il divisore di 20 px (barra sessioni e divisori tra i pannelli); il divisore riceve il focus con `Tab` | Divisori |
+| `Ctrl+F` / `Cmd+F` | Cerca file nell'editor del pannello repository | Editor (pannello Repository) |
+| `Ctrl+G` / `Cmd+G` | Apre *Vai alla riga* | Editor (pannello Repository) |
+| `Ctrl+S` / `Cmd+S` | Salva il file aperto | Editor (pannello Repository) |
 | `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia il messaggio; dipende dall'opzione *Invia con Enter* (vedi sopra) | Composer |
 | `Shift+Invio` | Nuova riga nel composer (con *Invia con Enter* attivo) | Composer |
 | `Tab` / `Invio` | Accetta il comando slash o il file menzionato selezionato | Composer |
@@ -199,14 +201,12 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Shift+F10` / tasto Menu | Apre il menu contestuale della riga con il focus (o del cursore) nella lista sessioni, nella lista Git e nell'albero file | Sessioni, Git, Repository |
 | `F2` / `Invio` sul titolo della sessione | Rinomina la sessione (come il doppio clic sul titolo) | Intestazione sessione |
 | `Invio` sul messaggio non inviato | Riporta il testo e gli allegati nel composer (come il doppio clic) | Chat |
-| `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme, nuovo in Fase 6) |
-| `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell (nuovo in Fase 6) |
+| `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme) |
+| `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell |
 | `←` / `→` | Sulle schede del pannello companion (File, Review Changes, Chat): seleziona la scheda precedente o successiva; `Invio` o `Spazio` seleziona la scheda con il focus | Pannello companion |
 | `Invio` / `Ctrl+Invio` / `Cmd+Invio` | Invia nel pannello della conversazione laterale (secondo *Invia con Enter*) | Pannello laterale |
 | `Ctrl+C`, `Ctrl+L`, `Ctrl+V` | Interrompe, pulisce lo schermo, incolla nel terminale | Terminale integrato |
 | Frecce, `Tab`, `Invio`, `Backspace` | Inviati alla shell del terminale integrato | Terminale integrato |
-
-Scorciatoie non ancora presenti: `Ctrl+S` / `Cmd+S` (salvataggio nell'editor) arriverà con la Fase 9.
 
 **Conflitti risolti.** Il composer e i campi di testo gestiscono `Tab` e `Invio` prima della shell, quindi `Ctrl+Tab` non viene usato mentre il menu dei comandi slash è aperto. Il terminale integrato gestisce per primo `Ctrl+C`, `Ctrl+L`, `Ctrl+V` e `Tab`, che quindi restano al terminale. `Ctrl+Shift+B` mantiene il significato esistente (conversazione laterale) e non apre più la barra sessioni: quest'ultima resta su `Ctrl+B`.
 
@@ -219,7 +219,7 @@ La barra del titolo è divisa in due gruppi separati da un filo verticale:
 
 Lo stato della connessione al daemon è a sinistra accanto al marchio. Da 920 px mostra il punto e l'etichetta (*Pi locale* o *Non connesso*); sotto 920 px resta solo il punto, con suggerimento e descrizione per lo screen reader. Un clic apre **Impostazioni → Diagnostica**.
 
-## Pannello Agenti e Workflow
+## 9. Pannello Agenti e Workflow
 
 Quando l'agente principale avvia sottoagenti in background (`Agent`) o workflow (`SubagentWorkflow` di `@tintinweb/pi-subagents`), a destra della chat si apre il pannello **Agenti**. Quando il pannello si apre, anche entrando in una sessione dove era già aperto o con agenti al lavoro, il pannello Git Changes/Browser viene minimizzato; durante una review resta visibile. Chiuso, il pannello resta una striscia verticale con il numero di agenti attivi; un clic lo riapre. Il pannello non compare sotto i 900 px di larghezza.
 
@@ -232,7 +232,7 @@ Il daemon legge l'attività dai file di sessione delle sessioni figlie (`~/.pi/a
 
 Nel menu `/agents`, la voce **Workflows (N)** apre questo pannello invece della vista TUI, che non è disponibile in RPC. Nella barra Sessioni, una sessione resta segnata come in corso finché i suoi sottoagenti o workflow in background non terminano.
 
-## Statistiche nerd (Nerd stats) e monitoraggio delle risorse
+## 10. Statistiche tecniche (Technical stats) e monitoraggio delle risorse
 
 Nelle **Impostazioni** (sezione **Aspetto → Statistiche tecniche**, IT: *Statistiche tecniche*, EN: *Technical stats*; in passato *Statistiche nerd*) è disponibile l'opzione per abilitare la telemetria di sistema in tempo reale nella barra del titolo dell'applicazione (disattivata per impostazione predefinita):
 - **Disattivato (default)**: la barra del titolo non mostra metriche hardware né contatori di frame; nessun comando di sottoscrizione viene inviato al daemon.
@@ -251,7 +251,7 @@ Nelle **Impostazioni** (sezione **Aspetto → Statistiche tecniche**, IT: *Stati
   - **Altre schede o ambienti senza probe supportati**: mostra `n/d`.
 - **Zero telemetria (Strict Local-Only)**: Il campionamento delle risorse avviene esclusivamente in locale tramite il protocollo PCP (`system.metrics.subscribe` e `system.metrics`) tra il daemon `pi-agentd` locale e il client Flutter. Nessun dato di metrica o telemetria viene memorizzato permanentemente o inviato all'esterno. Le preferenze vengono salvate localmente in `~/.piframe/nerd_stats_settings.json`.
 
-## Modelli abilitati e limiti di contesto
+## 11. Modelli abilitati e limiti di contesto
 
 In **Area di lavoro → Sessione → Dimensione Contesto** scegli un tier oppure **Custom**. Per GPT-6 Luna le opzioni sono `Custom`, `272k (Tier base)` e `1M (Max / Tier esteso)`, salvo soglie diverse dichiarate dal catalogo del provider. Solo Custom mostra lo slider della finestra massima: **100.000–1.000.000 token**, a passi di **50.000**. Il massimo viene sempre ridotto alla capacità del modello e alla griglia disponibile; sotto 100k Custom non è disponibile. I tier del provider mantengono il loro valore esatto, anche se non sono multipli di 50k.
 
@@ -271,7 +271,7 @@ Il picker GitHub Copilot verifica il catalogo autenticato e le policy dell'organ
 
 ---
 
-## 4. Ciclo di Vita del Daemon (D8, D9)
+## 12. Ciclo di Vita del Daemon (D8, D9)
 
 - **Avvio on-demand**: Il daemon non è un servizio di sistema persistente. La GUI controlla `GET http://127.0.0.1:<porta>/api/health`; se non attivo, avvia il bundle `pi-agentd.cjs` con il runtime Node incluso in modalità `detached`.
 - **Lock e Token**:
@@ -287,14 +287,14 @@ Il picker GitHub Copilot verifica il catalogo autenticato e le policy dell'organ
 
 ---
 
-## 5. Aggiornamenti (Upgrade)
+## 13. Aggiornamenti (Upgrade)
 
 - All'avvio, la GUI legge la versione del daemon attivo tramite `GET /api/health` e la confronta con la versione del binario incluso nel bundle.
 - Qualora le versioni differiscano, la GUI notifica l'utente e propone il riavvio controllato del daemon solo quando non vi sono worker in stato attivo.
 
 ---
 
-## 6. Disinstallazione
+## 14. Disinstallazione
 
 La rimozione di PiFrame è pulita, confinata e reversibile:
 
@@ -319,7 +319,7 @@ La rimozione di PiFrame è pulita, confinata e reversibile:
 
 ---
 
-## 7. Paginazione e Caricamento On-Demand della Cronologia
+## 15. Paginazione e Caricamento On-Demand della Cronologia
 
 Nelle sessioni con cronologia molto estesa (migliaia di messaggi o log di tool voluminosi):
 1. **Snapshot iniziale leggero**: all'apertura, il demone trasferisce una finestra recente delimitata ai 100 messaggi più recenti, garantendo un caricamento istantaneo e azzerando la pressione sulla memoria RAM e sui buffer WebSocket.
@@ -328,7 +328,7 @@ Nelle sessioni con cronologia molto estesa (migliaia di messaggi o log di tool v
 
 ---
 
-## 8. Navigazione e Cambio Branch Git nel Workspace
+## 16. Navigazione e Cambio Branch Git nel Workspace
 
 Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e il cambio controllato dei rami Git (`workspace.listBranches` e `workspace.switchBranch`):
 - **Enumerazione e Tracking**: restituisce tutti i rami locali con indicatore del ramo corrente, stato di tracking upstream (`ahead` / `behind`), data dell'ultimo commit e rilevamento di HEAD staccata (detached HEAD).
@@ -342,7 +342,7 @@ Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e
 
 ---
 
-## 9. Raggruppamento dei Passaggi Intermedi (Step Grouping)
+## 17. Raggruppamento dei Passaggi Intermedi (Step Grouping)
 
 PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dall'assistente durante un turno di conversazione (blocchi di ragionamento / thinking, chiamate agli strumenti / tool calls e testi intermedi), lasciando in risalto la risposta finale:
 
@@ -359,7 +359,7 @@ PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dal
 
 ---
 
-## 10. Gestione Subagenti e Limiti di Contesto (Subagents Settings)
+## 18. Gestione Subagenti e Limiti di Contesto (Subagents Settings)
 
 PiFrame include il supporto nativo per l'ispezione e la configurazione dei subagenti (`pi.agents.get` e `pi.agents.update`):
 - **Auto-Discovery dei Pacchetti e Profili**: rileva automaticamente i pacchetti di subagenti installati (`pi-subagents` di nicobailon e `@tintinweb/pi-subagents`), gli agenti nativi, gli agenti definiti dall'utente in `~/.pi/agent/agents/` e gli agenti di progetto in `.pi/agents/`.
@@ -375,7 +375,7 @@ PiFrame include il supporto nativo per l'ispezione e la configurazione dei subag
 
 ---
 
-## 11. Conversazioni Laterali Read-Only (Side Conversations)
+## 19. Conversazioni Laterali Read-Only (Side Conversations)
 
 PiFrame introduce il supporto per conversazioni laterali effimere e di sola lettura (`side.open`, `side.prompt`, `side.abort`, `side.close`):
 - **Assistente di Consultazione Read-Only**: permette di porre domande di approfondimento o chiarimento ("Spiega questa funzione", "Rivedi i test", "Quali vincoli sono emersi?") operando su uno snapshot immutabile della conversazione principale e consentendo all'assistente di consultare i file del workspace.
@@ -411,24 +411,20 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
     - Azione **"Inserisci nel composer"** per ciascuna risposta dell'assistente che appende il testo alla bozza del composer principale esclusivamente su click esplicito.
     - Gestione delle causali di chiusura thread (`idle`, `parentClosed`, `error`, `user`) con banner di notifica dedicato.
 
-
-
-
-
 ---
 
-## 12. Lingua dell'interfaccia (Italiano / English)
+## 20. Lingua dell'interfaccia (Italiano / English)
 
 In **Impostazioni → Aspetto → Lingua dell'applicazione** puoi scegliere **Italiano** o **English**. La scelta ora vale per tutta l'interfaccia: barra del titolo, barra Sessioni, Repository, chat e passaggi raggruppati, composer, pannello Area di lavoro e selettore del contesto, Git Changes, revisione delle modifiche, browser integrato, terminale, pannello Agenti, conversazioni laterali e Impostazioni. Restano in italiano solo alcuni messaggi di errore e di aggiornamento.
 
 - **App desktop**: la scelta è salvata in `~/.piframe/language_settings.json`. Il valore predefinito resta l'italiano.
 - **Web e telefono (accesso remoto)**: il client web non può leggere `~/.piframe`, quindi salva la scelta nel `localStorage` del browser. Se non hai mai scelto una lingua, il client web usa la lingua del browser: italiano per `it-*`, inglese per le altre lingue.
 
-## 13. Terminale integrato: output di Git allineato
+## 21. Terminale integrato: output di Git allineato
 
 I processi del terminale integrato usano pipe e non una pseudo-console. Strumenti come `git` scrivono righe terminate solo con LF, che venivano mostrate "a scaletta" (ogni riga partiva dalla colonna in cui finiva la precedente). Ora PiFrame converte ogni LF isolato in CRLF prima di scrivere nel terminale, anche per lo stderr e quando un CRLF è diviso tra due blocchi di output. Comandi come `git branch` o `git log --oneline` vengono quindi mostrati allineati.
 
-## 14. Web app mobile: avvio affidabile, tocchi allineati e più veloce
+## 22. Web app mobile: avvio affidabile, tocchi allineati e più veloce
 
 La web app aperta dal telefono (connessione remota) è stata resa più robusta e leggera:
 
@@ -438,7 +434,7 @@ La web app aperta dal telefono (connessione remota) è stata resa più robusta e
 - **Caricamento più rapido**: i file web sono compressi con Brotli/gzip, i frame WebSocket grandi usano `permessage-deflate`, e il daemon non esegue più `tailscale status` in modo sincrono a ogni aggiornamento di stato (bloccava tutti i client).
 - **Tocchi allineati**: la pagina è bloccata (nessuno scroll, nessuno zoom a pizzico/doppio tap) e lo scroll residuo di iOS dopo la tastiera viene azzerato, così i tocchi corrispondono a ciò che è disegnato.
 - **Meno lag su telefono**: su web con schermo stretto sono disattivati l'intro animata e il bordo luminoso animato del composer; la build di rilascio usa `--pwa-strategy=none`.
-- **Composer compatto su telefono**: sotto i 600 px i selettori di modello ed effort mostrano solo l'icona (nome e freccia nascosti, tooltip invariato). L'altezza del campo di testo è limitata a una frazione dello spazio sopra la tastiera, così un messaggio lungo scorre dentro il campo senza spingere fuori schermo ciò che si sta scrivendo; il pulsante "espandi" sovrapposto al testo non compare su telefono.
+- **Composer compatto su telefono**: sotto i 600 px i selettori di modello ed effort mostrano solo l'icona (nome e freccia nascosti, tooltip invariato). Il pulsante "espandi" sovrapposto al testo non compare su telefono.
 - **Drawer sessioni più fluido**: su web a schermo stretto l'indicatore "in lavoro" delle sessioni è statico (niente glow con blur animato che ridisegnava la lista a ogni frame).
 - **Cartella web sempre aggiornata**: app e daemon scelgono la copia della web app costruita più di recente (build/web, accanto all'eseguibile, ~/.piframe/web) invece della prima trovata, per non servire al telefono una build vecchia.
 - **Diagnostica**: aprendo la web app con `?pfdebug=1` compare una striscia con viewport e coordinate dell'ultimo tocco; il daemon registra quanti dispositivi associati ha caricato/scartato e salva `remote_devices.json.bak` alla prima scrittura.
@@ -450,7 +446,7 @@ La web app aperta dal telefono (connessione remota) è stata resa più robusta e
 - **Selezione del testo e cursore su iPhone**: il testo del composer su telefono è a 16px (stessa riga da 21px) in modo che Flutter e il campo nativo nascosto vadano a capo allo stesso modo; prima, con font diversi, il cursore mosso con la barra spaziatrice o la selezione per righe finivano in punti diversi da quelli mostrati. Il colore di selezione è più visibile (opacità 0,4 invece di 0,2) e i movimenti del solo cursore non rieseguono più la logica di slash/@-menzione (setState e richiesta del focus a ogni spostamento).
 - **Riavvio del tunnel**: se all'avvio del daemon il tunnel non parte (es. Tailscale non ancora pronto) il daemon riprova con backoff fino a 60 secondi.
 
-## 15. Movimento ridotto (Riduci animazioni)
+## 23. Movimento ridotto (Riduci animazioni)
 
 Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 
@@ -459,9 +455,9 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Anche l'impostazione del sistema operativo che chiede di *ridurre o rimuovere le animazioni* (macOS: Riduci movimento; Windows: Effetti di animazione disattivati) è rispettata. Le due fonti si combinano: basta una delle due per attivare la modalità ridotta.
 - Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
 
-Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
+Movimento normale: mentre l'agente lavora, l'anello del compositore gira sul bordo in loop (3,6 s per giro) e si ferma quando il lavoro finisce. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
 
-## 15b. Animazione di avvio
+## 24. Animazione di avvio
 
 Impostazioni → **Aspetto** → **Animazione di avvio** (EN: *Startup animation*).
 
@@ -470,18 +466,18 @@ Impostazioni → **Aspetto** → **Animazione di avvio** (EN: *Startup animation
 - La preferenza è salvata in `~/.piframe/startup_animation_settings.json`. Il flag del primo avvio è in `~/.piframe/app_first_run.json`.
 - Con *Riduci animazioni* attivo, l'animazione non viene riprodotta.
 
-## 16. Animazioni dei pannelli e notifiche (snackbar)
+## 25. Animazioni dei pannelli e notifiche (snackbar)
 
 **Pannelli.** Mostrare, nascondere o comprimere un pannello (dalla barra del titolo, menu *Vista*, o dalla scorciatoia) anima la sua larghezza. Il testo delle altre colonne non va a capo durante l'animazione: il layout è stabile e il pannello che entra sfuma nella propria posizione. Con l'interruttore *Riduci animazioni* (sezione 15) o con la preferenza di sistema attiva, il layout cambia subito e il pannello che entra sfuma soltanto, senza movimento.
 
-**Conversazione laterale.** Aprire la conversazione laterale dalla palette comandi (*Conversazione laterale*) divide l'area di chat in due; la divisione segue la stessa regola di animazione dei pannelli.
+**Conversazione laterale.** Aprire la conversazione laterale dalla palette comandi (*Conversazione laterale*) divide l'area di chat in due; la divisione segue la stessa regola di animazione dei pannelli. Dettagli in [sezione 19](#19-conversazioni-laterali-read-only-side-conversations).
 
 **Notifiche (snackbar).**
 - I messaggi di successo compaiono in basso a destra e si chiudono da soli dopo 4 secondi. Un clic sulla card li chiude subito.
 - I messaggi di errore restano visibili finché non li chiudi con la ✕ (vengono anche annunciati agli screen reader).
 - Con *Riduci animazioni* attivo la notifica non scorre: compare con una dissolvenza.
 
-## 17. Editor di file nel workspace
+## 26. Editor di file nel workspace
 
 Aprendo un file dal pannello **Repository** si apre l'editor di codice, in font monospazio (Source Code Pro, 13/20 px) per tutti i tipi di file, Markdown incluso in modalità sorgente.
 
@@ -496,18 +492,19 @@ Aprendo un file dal pannello **Repository** si apre l'editor di codice, in font 
 
 Le scorciatoie `Ctrl/Cmd+G` e `Ctrl/Cmd+S` funzionano quando il cursore è nell'editor.
 
-## Navigazione delle Impostazioni
+## 27. Navigazione delle Impostazioni
 
 Su finestre di almeno 900 px le **Impostazioni** mostrano una colonna di navigazione a sinistra con tre gruppi: **Generale** (Aspetto, Terminale, Aggiornamenti), **Pi** (Pi CLI, Pacchetti, Agenti) e **Sistema** (Daemon, Diagnostica, Accesso remoto; la privacy è in Diagnostica). Su finestre più strette la navigazione diventa una riga di schede scorrevole. Le frecce ↑/↓ spostano la selezione tra le sezioni, Esc chiude le Impostazioni, e l'intestazione mostra lo stato della sessione attiva (per esempio *In esecuzione*) anche quando sei in Impostazioni.
 
-### Modifiche alle Impostazioni (Fase 8)
+### Altre modifiche alle Impostazioni
 
 - **Aspetto → Tema**: un solo controllo con tre scelte, **Sistema**, **Chiaro** e **Scuro**. Con *Sistema* compaiono entrambi i selettori *Tema scuro predefinito* e *Tema chiaro predefinito*; con *Chiaro* o *Scuro* compare solo quello della modalità scelta. Il blocco informativo che ripeteva il tema attivo è stato rimosso. *Statistiche nerd* ora si chiama **Statistiche tecniche** (EN: *Technical stats*).
 - **Privacy** non è più una voce di navigazione: il testo sulla privacy e la nota zero telemetria sono nella sezione **Diagnostica**.
 - **Terminale**: la lista delle applicazioni del terminale nativo è disattivata finché non scegli *Terminale nativo OS*.
 - **Daemon → Riavvia daemon**: sotto il pulsante è scritto che *le sessioni in corso verranno riconnesse*. Se un agente è in esecuzione, PiFrame chiede conferma prima di riavviare.
 - **Pi CLI**: il comando consigliato (`pi update`) è marcato con *Consigliato*; tutti i pulsanti *Esegui* sono contorni. Su finestre larghe l'output del comando è in una colonna a destra; su finestre strette, quando avvii un comando, l'output viene portato in vista.
-## 18. Schermata di benvenuto e nuova sessione
+
+## 28. Schermata di benvenuto e nuova sessione
 
 Quando nessuna sessione è aperta, la schermata di benvenuto è una ripresa del lavoro.
 
@@ -519,7 +516,8 @@ Quando nessuna sessione è aperta, la schermata di benvenuto è una ripresa del 
   - "Cartella trovata": una cartella esistente che non è un repository Git.
   Invio crea la sessione quando il percorso è valido, Esc chiude la finestra. Il pulsante del benvenuto resta fermo finché non si preme **Crea**.
 - Nel browser il percorso non può essere verificato sul computer: il campo accetta qualsiasi percorso non vuoto e mostra il promemoria sul percorso locale. Sul computer la verifica usa il file system dell'app: se app e daemon girano su macchine diverse, il risultato riguarda la macchina dell'app.
-## 19. Composer durante un'esecuzione, review e chat vuota
+
+## 29. Composer durante un'esecuzione, review e chat vuota
 
 **Riga di stato.** Mentre Pi risponde, sopra il campo di input compare una riga alta 28 px con l'indicatore *L'agente sta rispondendo…*, il tempo trascorso e il pulsante **Interrompi**. La riga compare e scompare senza spostare il messaggio in corso di scorrimento. Con il movimento ridotto l'indicatore è un'icona statica.
 
