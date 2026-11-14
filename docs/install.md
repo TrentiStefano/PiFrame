@@ -410,3 +410,18 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
 
 Movimento normale: l'anello del compositore percorre il bordo una volta, rallenta e si ferma, poi riposa fino al passaggio successivo. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
+
+## 16. Editor di file nel workspace
+
+Aprendo un file dal pannello **Repository** si apre l'editor di codice, in font monospazio (Source Code Pro, 13/20 px) per tutti i tipi di file, Markdown incluso in modalità sorgente.
+
+- **Numeri di riga**: la colonna a sinistra (44 px, in tono attenuato) mostra un numero per ogni riga logica, allineato anche quando le righe vanno a capo. La riga del cursore ha numero e sfondo evidenziati.
+- **A capo**: disattivato per il codice, attivo per Markdown e testo semplice. Il pulsante *a capo* nella barra dell'editor cambia la scelta per il file aperto.
+- **Markdown**: il pulsante anteprima/sorgente alterna la vista formattata e il testo sorgente.
+- **Vai alla riga**: `Ctrl+G` (`Cmd+G` su macOS) apre la finestra *Vai alla riga*; inserisci il numero e premi Invio.
+- **Salvataggio**: `Ctrl+S` (`Cmd+S` su macOS) salva il file. Un file con modifiche non salvate mostra un punto `●` accanto al nome e il pulsante *Salva* pieno; con file pulito *Salva* è un pulsante di testo.
+- **Modifiche non salvate**: chiudendo l'editor o cambiando sessione con modifiche non salvate, PiFrame chiede *Salva*, *Non salvare* o *Annulla*.
+- **Aggiungi selezione alla chat**: selezionando del testo e aprendo il menu contestuale (clic destro) compare *Aggiungi alla chat (file:L10–L24)*. Il riferimento usa l'intervallo di righe reale e il percorso completo del file nel composer.
+- **Menu della cartella**: clic destro su una cartella nel pannello Repository per *Nuova sessione qui*, *Aggiungi cartella alla chat* (inserisce `@cartella` nel composer) e *Copia percorso*. Sulle righe dei file compare anche il pulsante *Aggiungi alla chat* al passaggio del mouse o al focus.
+
+Le scorciatoie `Ctrl/Cmd+G` e `Ctrl/Cmd+S` funzionano quando il cursore è nell'editor.
