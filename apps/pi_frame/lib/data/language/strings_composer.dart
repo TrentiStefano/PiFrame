@@ -591,6 +591,9 @@ extension ComposerStrings on AppStrings {
 
   String get sessionTreeEmptyAction => isItalian ? 'Ricarica' : 'Reload';
 
+  String get sessionTreeLoadFailed =>
+      isItalian ? 'Impossibile caricare l\'albero' : 'Could not load the tree';
+
   // --- Context drawer headings ---
   String contextDrawerHeading(String title) =>
       isItalian ? 'Sessione · $title' : 'Session · $title';

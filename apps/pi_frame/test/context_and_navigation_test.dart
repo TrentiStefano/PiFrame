@@ -203,17 +203,29 @@ void main() {
     expect(create.payload['cwd'], 'C:/work/project');
   });
 
-  testWidgets('SessionTreeDialog renders properly in empty state', (
+  testWidgets('SessionTreeDialog opens titled with the session and its id as a detail row', (
     tester,
   ) async {
     await tester.pumpWidget(
-      wrapWithThemeAndScope(const SessionTreeDialog(sessionId: 'sess_test')),
+      wrapWithThemeAndScope(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => SessionTreeDialog.show(context, sessionId: 'sess_test'),
+            child: const Text('open tree'),
+          ),
+        ),
+      ),
     );
-
+    await tester.tap(find.text('open tree'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Albero della sessione'), findsOneWidget);
-    expect(find.text('Sessione: sess_test'), findsOneWidget);
+    // Title is the session title (the id here, as the session is not listed)
+    // and the raw id moves to a copyable detail row.
+    expect(find.text('sess_test'), findsWidgets);
+    expect(find.text('ID sessione'), findsOneWidget);
+    expect(find.byTooltip('Copia ID sessione'), findsOneWidget);
     expect(find.text('Chiudi'), findsOneWidget);
+    // Not connected to a daemon in tests: the error state offers one action.
+    expect(find.byKey(const ValueKey('session-tree-error-action')), findsOneWidget);
   });
 }
