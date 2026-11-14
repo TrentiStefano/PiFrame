@@ -6,6 +6,10 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 
+const _rowExtent = 40.0;
+const _remoteColumnWidth = 150.0;
+const _syncColumnWidth = 64.0;
+
 class BranchPickerDialog extends ConsumerStatefulWidget {
   final String sessionId;
   final PcpClient client;
@@ -94,7 +98,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
       _selectedIndex = (_selectedIndex + delta).clamp(0, count - 1);
     });
     if (_scrollController.hasClients) {
-      final offset = (_selectedIndex * 48.0).clamp(
+      final offset = (_selectedIndex * _rowExtent).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
@@ -141,7 +145,10 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
       },
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 540, maxHeight: 420),
+          constraints: BoxConstraints(
+            maxWidth: 540,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+          ),
           child: Material(
             color: tokens.surface,
             borderRadius: BorderRadius.circular(tokens.radiusLg),
@@ -216,10 +223,11 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                   ),
                   Divider(height: 1, color: tokens.border),
 
-                  // Body
-                  Expanded(
+                  // Body: the list is sized to its rows, capped by the dialog.
+                  Flexible(
                     child: _loading
                         ? Center(
+                            heightFactor: 1,
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -246,6 +254,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                           )
                         : _error != null
                             ? Center(
+                                heightFactor: 1,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Column(
@@ -296,16 +305,21 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                               )
                             : filtered.isEmpty
                                 ? Center(
-                                    child: Text(
+                                    heightFactor: 1,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Text(
                                       strings.branchPickerNoBranches,
                                       style: TextStyle(
                                         color: tokens.textMuted,
                                         fontSize: 13,
                                       ),
                                     ),
+                                    ),
                                   )
                                 : ListView.builder(
                                     key: const ValueKey('branch-picker-list'),
+                                    shrinkWrap: true,
                                     controller: _scrollController,
                                     itemCount: filtered.length,
                                     itemBuilder: (context, index) {
@@ -335,8 +349,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                   : null,
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
-                                            vertical: 10,
                                           ),
+                                          height: _rowExtent,
                                           child: Row(
                                             children: [
                                               Icon(
@@ -354,91 +368,105 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                     : tokens.textMuted,
                                               ),
                                               const SizedBox(width: 10),
+                                              // Branch column: flexible, takes the remaining width.
                                               Expanded(
+                                                child: Row(
+                                                  children: [
+                                                    Flexible(
+                                                      child: Text(
+                                                        branch.name,
+                                                        maxLines: 1,
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                        style: TextStyle(
+                                                          color: isCurrent
+                                                              ? tokens.accent
+                                                              : tokens.textPrimary,
+                                                          fontWeight: isCurrent
+                                                              ? FontWeight.bold
+                                                              : FontWeight.normal,
+                                                          fontSize: 13,
+                                                          fontFamily:
+                                                              tokens.monoFontFamily,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (isCurrent) ...[
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: tokens.accent
+                                                              .withValues(
+                                                            alpha: 0.15,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                            tokens.radiusSm,
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          strings.branchPickerCurrentBranch,
+                                                          style: TextStyle(
+                                                            color: tokens.accent,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                              // Remote column: fixed width, so rows line up.
+                                              const SizedBox(width: 12),
+                                              SizedBox(
+                                                key: const ValueKey(
+                                                  'branch-picker-remote-column',
+                                                ),
+                                                width: _remoteColumnWidth,
                                                 child: Text(
-                                                  branch.name,
+                                                  branch.upstream ?? '',
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: TextStyle(
-                                                    color: isCurrent
-                                                        ? tokens.accent
-                                                        : tokens.textPrimary,
-                                                    fontWeight: isCurrent
-                                                        ? FontWeight.bold
-                                                        : FontWeight.normal,
-                                                    fontSize: 13,
+                                                    color: tokens.textMuted,
+                                                    fontSize: 11,
                                                     fontFamily:
                                                         tokens.monoFontFamily,
                                                   ),
                                                 ),
                                               ),
-                                              if (branch.upstream != null) ...[
-                                                const SizedBox(width: 8),
-                                                Flexible(
-                                                  child: ConstrainedBox(
-                                                    constraints: const BoxConstraints(
-                                                      maxWidth: 160,
-                                                    ),
-                                                    child: Text(
-                                                      branch.upstream!,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        color: tokens.textMuted,
-                                                        fontSize: 11,
-                                                        fontFamily:
-                                                            tokens.monoFontFamily,
-                                                      ),
-                                                    ),
+                                              // Ahead/behind column: fixed width, right aligned.
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                key: const ValueKey(
+                                                  'branch-picker-sync-column',
+                                                ),
+                                                width: _syncColumnWidth,
+                                                child: Text(
+                                                  branch.ahead != null ||
+                                                          branch.behind != null
+                                                      ? '↑${branch.ahead ?? 0} ↓${branch.behind ?? 0}'
+                                                      : '',
+                                                  maxLines: 1,
+                                                  textAlign: TextAlign.right,
+                                                  style: TextStyle(
+                                                    color: (branch.ahead ?? 0) > 0 ||
+                                                            (branch.behind ?? 0) > 0
+                                                        ? tokens.accent
+                                                        : tokens.textMuted,
+                                                    fontSize: 11,
+                                                    fontFamily:
+                                                        tokens.monoFontFamily,
                                                   ),
                                                 ),
-                                                if (branch.ahead != null ||
-                                                    branch.behind != null) ...[
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    '↑${branch.ahead ?? 0} ↓${branch.behind ?? 0}',
-                                                    maxLines: 1,
-                                                    style: TextStyle(
-                                                      color: (branch.ahead ?? 0) > 0 ||
-                                                              (branch.behind ?? 0) > 0
-                                                          ? tokens.accent
-                                                          : tokens.textMuted,
-                                                      fontSize: 11,
-                                                      fontFamily:
-                                                          tokens.monoFontFamily,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                              if (isCurrent) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: tokens.accent.withValues(
-                                                      alpha: 0.15,
-                                                    ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    strings.branchPickerCurrentBranch,
-                                                    style: TextStyle(
-                                                      color: tokens.accent,
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                              ),
                                             ],
                                           ),
                                         ),
