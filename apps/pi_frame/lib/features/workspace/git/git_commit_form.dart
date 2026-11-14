@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -185,11 +186,11 @@ class GitCommitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = Tooltip(
       message: tooltip,
-      child: FilledButton(
+      child: PressFeedback(enabled: (enabled ? onPressed : null) != null, child: FilledButton(
         key: const ValueKey('git-commit-btn'),
         onPressed: enabled ? onPressed : null,
         child: Text(label),
-      ),
+      )),
     );
     if (fullWidth) {
       return SizedBox(width: double.infinity, child: button);

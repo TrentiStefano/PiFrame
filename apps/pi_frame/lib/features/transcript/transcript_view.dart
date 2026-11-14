@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -971,7 +972,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         children: [
                           Icon(
                             Icons.smart_toy_outlined,
-                            size: 15,
+                            size: FrameSize.icon,
                             color: tokens.accent,
                           ),
                           const SizedBox(width: 8),
@@ -1009,8 +1010,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           ),
                           const SizedBox(width: 4),
                           Icon(
-                            Icons.chevron_right,
-                            size: 16,
+                            Icons.chevron_right_outlined,
+                            size: FrameSize.icon,
                             color: tokens.textMuted,
                           ),
                         ],
@@ -1035,7 +1036,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         children: [
                           Icon(
                             Icons.hub_outlined,
-                            size: 15,
+                            size: FrameSize.icon,
                             color: tokens.syntaxFunction,
                           ),
                           const SizedBox(width: 8),
@@ -1073,8 +1074,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           ),
                           const SizedBox(width: 4),
                           Icon(
-                            Icons.chevron_right,
-                            size: 16,
+                            Icons.chevron_right_outlined,
+                            size: FrameSize.icon,
                             color: tokens.textMuted,
                           ),
                         ],
@@ -1093,7 +1094,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               headerActions: [
                 FrameIconAction(
                   key: const ValueKey('cost-breakdown-close-btn'),
-                  icon: Icons.close,
+                  icon: Icons.close_outlined,
                   tooltip: _currentStrings.close,
                   onPressed: () => Navigator.of(dialogCtx).pop(),
                 ),
@@ -1107,7 +1108,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       alignment: Alignment.centerLeft,
                       child: FrameIconAction(
                         key: const ValueKey('cost-breakdown-back-btn'),
-                        icon: Icons.arrow_back,
+                        icon: Icons.arrow_back_outlined,
                         tooltip: _currentStrings.transcriptCancelTooltip,
                         onPressed: () => setDialogState(() => level = 0),
                       ),
@@ -1382,7 +1383,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Center(
-                                child: OutlinedButton.icon(
+                                child: PressFeedback(enabled: true, child: OutlinedButton.icon(
                                   style: OutlinedButton.styleFrom(
                                     visualDensity: VisualDensity.compact,
                                     padding: const EdgeInsets.symmetric(
@@ -1397,7 +1398,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                       ),
                                     ),
                                   ),
-                                  icon: const Icon(Icons.history, size: 14),
+                                  icon: const Icon(Icons.history_outlined, size: FrameSize.icon),
                                   label: Text(
                                     label,
                                     style: TextStyle(fontSize: FrameText.of(context).caption.fontSize),
@@ -1475,7 +1476,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                       _targetAnchorId = null;
                                     });
                                   },
-                                ),
+                                )),
                               ),
                             ),
                           );
@@ -1794,7 +1795,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         _userScrolledUp = false;
                         _scrollToBottom(animate: true);
                       },
-                      child: const Icon(Icons.arrow_downward, size: 18),
+                      child: const Icon(Icons.arrow_downward_outlined, size: FrameSize.iconLg),
                     ),
                   );
                 },
@@ -1952,8 +1953,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             IconButton(
                               key: const ValueKey('session-name-rename-submit'),
                               icon: Icon(
-                                Icons.check,
-                                size: 16,
+                                Icons.check_outlined,
+                                size: FrameSize.icon,
                                 color: tokens.syntaxFunction,
                               ),
                               padding: EdgeInsets.zero,
@@ -1967,8 +1968,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             IconButton(
                               key: const ValueKey('session-name-rename-cancel'),
                               icon: Icon(
-                                Icons.close,
-                                size: 16,
+                                Icons.close_outlined,
+                                size: FrameSize.icon,
                                 color: tokens.textMuted,
                               ),
                               padding: EdgeInsets.zero,
@@ -2095,7 +2096,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       leadingIcon: Icons.monetization_on_outlined,
                       iconColor: tokens.syntaxString,
                       valueColor: tokens.syntaxString,
-                      trailingIcon: Icons.arrow_drop_down,
+                      trailingIcon: Icons.arrow_drop_down_outlined,
                       onTap: (ctx) => _showCostBreakdownDialog(
                         ctx,
                         mainAgentCost,
@@ -2227,8 +2228,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         const SizedBox(width: 3),
                         Icon(
                           _activeBookTab == _ActiveBookTab.todos
-                              ? Icons.keyboard_arrow_up
-                              : Icons.keyboard_arrow_down,
+                              ? Icons.keyboard_arrow_up_outlined
+                              : Icons.keyboard_arrow_down_outlined,
                           size: 13,
                           color: _activeBookTab == _ActiveBookTab.todos
                               ? tokens.accent
@@ -2460,7 +2461,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.call_split,
+                            Icons.call_split_outlined,
                             size: 12,
                             color: tokens.textSecondary,
                           ),
@@ -2563,7 +2564,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     .read(sessionStateFamily(widget.sessionId).notifier)
                     .retryFailedPrompt(entry.id),
               ),
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_outlined),
               color: tokens.danger,
             ),
           ],
@@ -2749,7 +2750,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             ),
             child: Row(
               children: [
-                Icon(Icons.terminal, size: 14, color: tokens.accent),
+                Icon(Icons.terminal_outlined, size: FrameSize.icon, color: tokens.accent),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -2807,7 +2808,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ],
                 const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 13),
+                  icon: const Icon(Icons.copy_outlined, size: 13),
                   tooltip: _currentStrings.transcriptCopyOutput,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
@@ -2865,7 +2866,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       ),
       child: Row(
         children: [
-          Icon(Icons.call_split, size: 14, color: tokens.accent),
+          Icon(Icons.call_split_outlined, size: FrameSize.icon, color: tokens.accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -2904,7 +2905,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       ),
       child: Row(
         children: [
-          Icon(Icons.compress, size: 14, color: tokens.accent),
+          Icon(Icons.compress_outlined, size: FrameSize.icon, color: tokens.accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

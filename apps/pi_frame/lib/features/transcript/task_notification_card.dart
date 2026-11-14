@@ -199,7 +199,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
               children: [
                 Icon(
                   Icons.hub_outlined,
-                  size: 15,
+                  size: FrameSize.icon,
                   color: statusColor,
                 ),
                 const SizedBox(width: 8),
@@ -258,7 +258,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                         padding: const EdgeInsets.only(top: 2),
                         child: Icon(
                           Icons.format_quote_outlined,
-                          size: 14,
+                          size: FrameSize.icon,
                           color: tokens.accent,
                         ),
                       ),
@@ -304,7 +304,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.data_usage, size: 12, color: tokens.textMuted),
+                          Icon(Icons.data_usage_outlined, size: 12, color: tokens.textMuted),
                           const SizedBox(width: 3),
                           Text(
                             '$tokensText tok',
@@ -400,9 +400,9 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                                 const SizedBox(width: 8),
                                 Icon(
                                   _isResultExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  size: 16,
+                                      ? Icons.keyboard_arrow_up_outlined
+                                      : Icons.keyboard_arrow_down_outlined,
+                                  size: FrameSize.icon,
                                   color: tokens.textMuted,
                                 ),
                               ],

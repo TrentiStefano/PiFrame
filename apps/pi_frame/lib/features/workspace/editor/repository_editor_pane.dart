@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -429,7 +430,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
               if (compact)
                 FrameIconAction(
                   key: const ValueKey('repository-editor-back-btn'),
-                  icon: Icons.arrow_back,
+                  icon: Icons.arrow_back_outlined,
                   tooltip: strings.backToFilesTooltip,
                   onPressed: _closeEditor,
                 ),
@@ -462,13 +463,15 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
               Tooltip(
                 message: strings.saveWithShortcutTooltip,
                 child: buffer.dirty
-                    ? FilledButton(
+                    ? PressFeedback(enabled: (writeBlocked
+                            ? null
+                            : () => _saveFile(path)) != null, child: FilledButton(
                         key: const ValueKey('repository-save-btn'),
                         onPressed: writeBlocked
                             ? null
                             : () => _saveFile(path),
                         child: Text(strings.save),
-                      )
+                      ))
                     : TextButton(
                         key: const ValueKey('repository-save-btn'),
                         onPressed: null,
@@ -478,7 +481,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
               const SizedBox(width: FrameSpace.x1),
               FrameIconAction(
                 key: const ValueKey('repository-editor-wrap-btn'),
-                icon: Icons.wrap_text,
+                icon: Icons.wrap_text_outlined,
                 tooltip: strings.wrapLinesTooltip,
                 selected: _wrapLines,
                 onPressed: () => setState(() => _wrapLines = !_wrapLines),
@@ -512,13 +515,13 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                 ),
               FrameIconAction(
                 key: const ValueKey('repository-editor-search-btn'),
-                icon: Icons.search,
+                icon: Icons.search_outlined,
                 tooltip: strings.searchInFileTooltip,
                 selected: _showFileSearch,
                 onPressed: _openFileSearch,
               ),
               FrameIconAction(
-                icon: Icons.close,
+                icon: Icons.close_outlined,
                 tooltip: strings.closeFileTooltip,
                 onPressed: _closeEditor,
               ),
@@ -859,7 +862,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search, size: FrameSize.icon - 2, color: tokens.textMuted),
+            Icon(Icons.search_outlined, size: FrameSize.icon - 2, color: tokens.textMuted),
             const SizedBox(width: FrameSpace.x1 + 2),
             SizedBox(
               width: 170,
@@ -910,7 +913,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
             const SizedBox(width: FrameSpace.x1),
             FrameIconAction(
               key: const ValueKey('repository-file-search-prev'),
-              icon: Icons.keyboard_arrow_up,
+              icon: Icons.keyboard_arrow_up_outlined,
               tooltip: strings.previousMatchTooltip,
               onPressed: _fileSearchMatches.isEmpty
                   ? null
@@ -918,7 +921,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
             ),
             FrameIconAction(
               key: const ValueKey('repository-file-search-next'),
-              icon: Icons.keyboard_arrow_down,
+              icon: Icons.keyboard_arrow_down_outlined,
               tooltip: strings.nextMatchTooltip,
               onPressed: _fileSearchMatches.isEmpty
                   ? null
@@ -926,7 +929,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
             ),
             FrameIconAction(
               key: const ValueKey('repository-file-search-case'),
-              icon: Icons.text_fields,
+              icon: Icons.text_fields_outlined,
               tooltip: strings.matchCaseTooltip,
               selected: _fileSearchCaseSensitive,
               onPressed: () {
@@ -938,7 +941,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
             ),
             FrameIconAction(
               key: const ValueKey('repository-file-search-close'),
-              icon: Icons.close,
+              icon: Icons.close_outlined,
               tooltip: strings.closeFileSearchTooltip,
               onPressed: _closeFileSearch,
             ),

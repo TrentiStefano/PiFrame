@@ -47,7 +47,7 @@ class GitSectionHeader extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              isExpanded ? Icons.expand_more : Icons.chevron_right,
+              isExpanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
               size: FrameSize.icon,
               color: tokens.textMuted,
             ),

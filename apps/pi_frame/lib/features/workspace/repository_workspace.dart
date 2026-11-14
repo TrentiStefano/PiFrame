@@ -195,7 +195,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             SizedBox(
               width: 18,
               height: 18,
-              child: FrameActivityIndicator(size: 18, color: tokens.accent),
+              child: FrameActivityIndicator(size: FrameSize.iconLg, color: tokens.accent),
             ),
             const SizedBox(height: 8),
             Text(
@@ -443,7 +443,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       }
                     },
                     icon: _terminalOpen
-                        ? Icons.terminal
+                        ? Icons.terminal_outlined
                         : Icons.terminal_outlined,
                   ),
                 // Collapse all and expand all are rarely needed, so they sit
@@ -452,7 +452,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   key: const ValueKey('repository-tree-more-btn'),
                   tooltip: strings.repositoryMoreActionsTooltip,
                   icon: Icon(
-                    Icons.more_horiz,
+                    Icons.more_horiz_outlined,
                     size: FrameSize.icon,
                     color: tokens.textSecondary,
                   ),
@@ -493,14 +493,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                                   .notifier,
                             )
                             .loadFiles(),
-                  icon: Icons.refresh,
+                  icon: Icons.refresh_outlined,
                 ),
                 if (widget.onCollapse != null)
                   FrameIconAction(
                     key: const ValueKey('repository-collapse-panel-btn'),
                     tooltip: strings.collapseRepoPanelTooltip,
                     onPressed: widget.onCollapse,
-                    icon: Icons.chevron_left,
+                    icon: Icons.chevron_left_outlined,
                   ),
               ],
             ),
@@ -617,7 +617,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                                 height: 2,
                                 decoration: BoxDecoration(
                                   color: tokens.borderStrong,
-                                  borderRadius: BorderRadius.circular(1),
+                                  // A 2 px grip: any radius at or above 1 px gives the same pill.
+                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                                 ),
                               ),
                             ),
@@ -674,9 +675,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         ),
         child: Row(
           children: [
-            Icon(Icons.keyboard_arrow_up, size: 16, color: tokens.accent),
+            Icon(Icons.keyboard_arrow_up_outlined, size: FrameSize.icon, color: tokens.accent),
             const SizedBox(width: 6),
-            Icon(Icons.terminal, size: 13, color: tokens.displayText),
+            Icon(Icons.terminal_outlined, size: 13, color: tokens.displayText),
             const SizedBox(width: 6),
             Text(
               strings.terminalBadge,
@@ -690,13 +691,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             FrameIconAction(
               key: const ValueKey('repository-terminal-expand-btn'),
               tooltip: strings.expandTerminalTooltip,
-              icon: Icons.unfold_more,
+              icon: Icons.unfold_more_outlined,
               onPressed: () => setState(() => _terminalCollapsed = false),
             ),
             FrameIconAction(
               key: const ValueKey('repository-terminal-close-btn'),
               tooltip: strings.closeTerminalTooltip,
-              icon: Icons.close,
+              icon: Icons.close_outlined,
               onPressed: () => setState(() => _terminalOpen = false),
             ),
           ],
@@ -902,7 +903,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
           strings.addPathToChat,
         ),
       if (node.isDirectory && widget.rootPath != null)
-        _menuItem('session', Icons.add, tokens.accent, strings.newSessionHere),
+        _menuItem('session', Icons.add_outlined, tokens.accent, strings.newSessionHere),
       if (node.isDirectory && widget.onAddToChat != null)
         _menuItem(
           'chat-folder',
@@ -910,7 +911,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
           tokens.accent,
           strings.addFolderToChat,
         ),
-      _menuItem('copy', Icons.copy, tokens.textMuted, strings.copyPath),
+      _menuItem('copy', Icons.copy_outlined, tokens.textMuted, strings.copyPath),
     ];
     showMenu<String>(
       context: context,
@@ -996,8 +997,8 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
                         if (node.isDirectory) ...[
                           Icon(
                             widget.isExpanded
-                                ? Icons.expand_more
-                                : Icons.chevron_right,
+                                ? Icons.expand_more_outlined
+                                : Icons.chevron_right_outlined,
                             size: FrameSize.icon,
                             color: tokens.textMuted,
                           ),

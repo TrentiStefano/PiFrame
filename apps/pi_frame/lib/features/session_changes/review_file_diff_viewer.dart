@@ -58,7 +58,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             SizedBox(
               width: 14,
               height: 14,
-              child: FrameActivityIndicator(size: 14, color: tokens.accent),
+              child: FrameActivityIndicator(size: FrameSize.icon, color: tokens.accent),
             ),
             const SizedBox(width: 8),
             Text(

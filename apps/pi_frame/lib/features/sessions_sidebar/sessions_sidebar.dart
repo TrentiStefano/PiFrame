@@ -415,7 +415,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.refresh, color: tokens.textMuted, size: FrameSize.iconLg),
+                  icon: Icon(Icons.refresh_outlined, color: tokens.textMuted, size: FrameSize.iconLg),
                   tooltip: strings.refreshSessionsTooltip,
                   onPressed: () {
                     ref.invalidate(sessionListProvider);
@@ -426,7 +426,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   },
                 ),
                 IconButton(
-                  icon: Icon(Icons.add, color: tokens.accent, size: FrameSize.iconLg),
+                  icon: Icon(Icons.add_outlined, color: tokens.accent, size: FrameSize.iconLg),
                   tooltip: strings.newSessionTooltip,
                   onPressed: _creating || ref.watch(pcpClientProvider) == null
                       ? null
@@ -441,7 +441,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 if (widget.onCollapse != null)
                   IconButton(
-                    icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: FrameSize.iconLg),
+                    icon: Icon(Icons.chevron_left_outlined, color: tokens.textMuted, size: FrameSize.iconLg),
                     tooltip: strings.collapseSidebarTooltip,
                     onPressed: widget.onCollapse,
                   ),
@@ -471,7 +471,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   fontWeight: FontWeight.w400,
                 ),
                 prefixIcon: Icon(
-                  Icons.search,
+                  Icons.search_outlined,
                   size: FrameSize.icon,
                   color: tokens.textMuted,
                 ),
@@ -482,7 +482,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: Icon(
-                          Icons.clear,
+                          Icons.clear_outlined,
                           size: FrameSize.icon,
                           color: tokens.textMuted,
                         ),
@@ -706,7 +706,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
                     child: Row(
                       children: [
-                        Icon(Icons.push_pin, size: FrameSize.icon, color: tokens.accent),
+                        Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
                         const SizedBox(width: 6),
                         Text(
                           strings.pinnedSessionsHeader(pinnedSessions.length),
@@ -877,7 +877,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               expanded
                                   ? Icons.folder_open_outlined
                                   : Icons.folder_outlined,
-                              size: 16,
+                              size: FrameSize.icon,
                               color: hasWorking
                                   ? tokens.agentWorking
                                   : (hasActive
@@ -930,7 +930,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           children: [
                             FrameIconAction(
                               key: ValueKey('repo-new-session-btn-$folder'),
-                              icon: Icons.add,
+                              icon: Icons.add_outlined,
                               tooltip: strings.newSessionInFolderTooltip,
                               onPressed: () async {
                                 setState(() => _expandedFolders.add(folder));
@@ -940,7 +940,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             ),
                             const SizedBox(width: 2),
                             Icon(
-                              expanded ? Icons.expand_more : Icons.chevron_right,
+                              expanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
                               size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),
@@ -1000,7 +1000,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.add,
+                                      Icons.add_outlined,
                                       size: FrameSize.icon,
                                       color: tokens.accent,
                                     ),
@@ -1027,7 +1027,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.close,
+                                      Icons.close_outlined,
                                       size: FrameSize.icon,
                                       color: tokens.danger,
                                     ),
@@ -1402,7 +1402,7 @@ class _SessionTile extends ConsumerWidget {
       _menuAction(
         context,
         value: 'pin',
-        icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+        icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_outlined,
         iconColor: tokens.accent,
         label: isPinned ? strings.unpinAction : strings.pinAction,
         textColor: tokens.textPrimary,
@@ -1580,7 +1580,7 @@ class _SessionTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isPinned)
-            Icon(Icons.push_pin, size: FrameSize.icon, color: tokens.accent),
+            Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
           if (isPinned && relative != null && !largeText)
             const SizedBox(width: FrameSpace.x1),
           if (relative != null && !largeText)
@@ -1595,7 +1595,7 @@ class _SessionTile extends ConsumerWidget {
           key: ValueKey('session-menu-$id'),
           tooltip: strings.sessionActionsTooltip,
           icon: Icon(
-            Icons.more_horiz,
+            Icons.more_horiz_outlined,
             size: FrameSize.iconLg,
             color: metaColor,
           ),

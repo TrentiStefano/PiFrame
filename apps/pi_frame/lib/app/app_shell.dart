@@ -957,7 +957,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           IconButton(
                             visualDensity: VisualDensity.compact,
                             tooltip: strings.openSessionsTooltip,
-                            icon: const Icon(Icons.menu, size: FrameSize.icon),
+                            icon: const Icon(Icons.menu_outlined, size: FrameSize.icon),
                             onPressed: () =>
                                 _scaffoldKey.currentState?.openDrawer(),
                           ),
@@ -969,13 +969,13 @@ class _AppShellState extends ConsumerState<AppShell>
                               ),
                               child: Row(
                                 children: [
-                                  const PiFrameMark(size: 18),
+                                  const PiFrameMark(size: FrameSize.iconLg),
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
                                       alignment: Alignment.centerLeft,
-                                      child: const BrandWordmark(size: 15),
+                                      child: const BrandWordmark(size: FrameSize.icon),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -1011,7 +1011,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                 ),
                                 foregroundColor: tokens.textSecondary,
                               ),
-                              icon: const Icon(Icons.search, size: FrameSize.icon),
+                              icon: const Icon(Icons.search_outlined, size: FrameSize.icon),
                               label: Text(
                                 strings.commandsButtonLabel,
                                 style: FrameText.of(context).label,
@@ -1045,7 +1045,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                               _paneVisibility[pane] == true
                                                   ? Icons.check_box_outlined
                                                   : Icons.check_box_outline_blank,
-                                              size: 18,
+                                              size: FrameSize.iconLg,
                                             ),
                                             const SizedBox(width: 8),
                                             Text(_paneLabel(pane)),
@@ -1194,7 +1194,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.link_off, size: FrameSize.icon, color: tokens.warning),
+                          Icon(Icons.link_off_outlined, size: FrameSize.icon, color: tokens.warning),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -1606,7 +1606,7 @@ class _AppShellState extends ConsumerState<AppShell>
         isBrowser ? Icons.language_outlined : Icons.source_outlined,
       WorkspacePane.chat => Icons.chat_bubble_outline,
     };
-    final expandIcon = isLeft ? Icons.chevron_right : Icons.chevron_left;
+    final expandIcon = isLeft ? Icons.chevron_right_outlined : Icons.chevron_left_outlined;
     final label = _paneLabel(pane).toUpperCase();
 
     return RepaintBoundary(
@@ -1810,14 +1810,14 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandSessionsSidebarTooltip,
-                icon: Icon(Icons.chevron_right, size: FrameSize.iconLg, color: tokens.accent),
+                icon: Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg, color: tokens.accent),
                 onPressed: () {
                   setState(() => _sidebarCollapsed = false);
                   _persistLayout();
                 },
               ),
               const SizedBox(height: 8),
-              const PiFrameMark(size: 20),
+              const PiFrameMark(size: FrameSize.iconLg),
               const SizedBox(height: 12),
               Icon(
                 Icons.chat_bubble_outline,
@@ -2280,7 +2280,7 @@ class _AppShellState extends ConsumerState<AppShell>
                           _paneVisibility[pane] == true
                               ? Icons.check_box_outlined
                               : Icons.check_box_outline_blank,
-                          size: 18,
+                          size: FrameSize.iconLg,
                         ),
                         const SizedBox(width: 8),
                         Text(_paneLabel(pane)),

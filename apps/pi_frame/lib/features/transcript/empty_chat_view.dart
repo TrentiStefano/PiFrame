@@ -101,7 +101,7 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.call_split,
+                        Icons.call_split_outlined,
                         size: FrameSize.icon,
                         color: tokens.textMuted,
                       ),

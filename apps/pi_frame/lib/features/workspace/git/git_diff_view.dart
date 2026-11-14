@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -214,13 +215,13 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
             actions: [
               FrameIconAction(
                 key: const ValueKey('git-diff-prev-btn'),
-                icon: Icons.keyboard_arrow_up,
+                icon: Icons.keyboard_arrow_up_outlined,
                 tooltip: strings.gitDiffPreviousFile,
                 onPressed: index > 0 ? () => _step(-1, keyboard: false) : null,
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-next-btn'),
-                icon: Icons.keyboard_arrow_down,
+                icon: Icons.keyboard_arrow_down_outlined,
                 tooltip: strings.gitDiffNextFile,
                 onPressed: index < widget.targets.length - 1
                     ? () => _step(1, keyboard: false)
@@ -230,7 +231,7 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
                 key: const ValueKey('git-diff-stage-btn'),
                 icon: target.stagedOnly
                     ? Icons.remove_circle_outline
-                    : Icons.add,
+                    : Icons.add_outlined,
                 tooltip: target.stagedOnly
                     ? strings.unstageFileTooltip(target.path)
                     : strings.stageFileTooltip(target.path),
@@ -240,7 +241,7 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-discard-btn'),
-                icon: Icons.undo,
+                icon: Icons.undo_outlined,
                 tooltip: strings.discardFileTooltip(target.path),
                 onPressed: widget.writesOff
                     ? null
@@ -248,7 +249,7 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-window-btn'),
-                icon: Icons.open_in_new,
+                icon: Icons.open_in_new_outlined,
                 tooltip: strings.gitDiffOpenWindow,
                 onPressed: () => showGitDiffWindowDialog(
                   context: context,
@@ -265,7 +266,7 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
                   TextButton.icon(
                     key: const ValueKey('git-diff-back-btn'),
                     onPressed: widget.onBack,
-                    icon: const Icon(Icons.arrow_back, size: FrameSize.icon),
+                    icon: const Icon(Icons.arrow_back_outlined, size: FrameSize.icon),
                     label: Text(strings.gitBackToChanges, style: text.label),
                   ),
                   const Spacer(),
@@ -418,7 +419,7 @@ Future<bool?> showGitDiscardDialog({
           onPressed: () => Navigator.pop(dialogContext, false),
           child: Text(strings.cancel),
         ),
-        FilledButton(
+        PressFeedback(enabled: true, child: FilledButton(
           key: const ValueKey('discard-file-confirm-btn'),
           style: FilledButton.styleFrom(
             backgroundColor: dialogContext.tokens.danger,
@@ -426,7 +427,7 @@ Future<bool?> showGitDiscardDialog({
           ),
           onPressed: () => Navigator.pop(dialogContext, true),
           child: Text(strings.discardChangesBtn),
-        ),
+        )),
       ],
     ),
   );

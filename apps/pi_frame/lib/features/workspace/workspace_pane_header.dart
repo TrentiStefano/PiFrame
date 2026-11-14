@@ -109,11 +109,10 @@ Widget workspacePaneHeader(
                                       isActive
                                           ? tabTitle.toUpperCase()
                                           : tabTitle,
-                                      style: TextStyle(
+                                      style: FrameText.of(context).label.copyWith(
                                         color: isActive
                                             ? tokens.accent
                                             : tokens.textMuted,
-                                        fontSize: 11.5,
                                         fontFamily: tokens.uiFontFamily,
                                         fontWeight: isActive
                                             ? FontWeight.w600
@@ -138,14 +137,13 @@ Widget workspacePaneHeader(
         else if (titleWidget != null) ...[
           Expanded(child: titleWidget),
         ] else ...[
-          Icon(icon, size: 16, color: tokens.accent),
+          Icon(icon, size: FrameSize.icon, color: tokens.accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               title.toUpperCase(),
-              style: TextStyle(
+              style: FrameText.of(context).label.copyWith(
                 color: tokens.textPrimary,
-                fontSize: 11.5,
                 fontFamily: tokens.uiFontFamily,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.4,

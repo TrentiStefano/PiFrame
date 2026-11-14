@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -104,14 +105,14 @@ Future<void> deleteSessionWithConfirmation(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(strings.cancel),
           ),
-          FilledButton(
+          PressFeedback(enabled: true, child: FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: tokens.danger,
               foregroundColor: tokens.surface,
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(strings.deleteAction),
-          ),
+          )),
         ],
       );
     },
@@ -402,14 +403,14 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
           onPressed: () => Navigator.pop(context, false),
           child: Text(strings.cancel),
         ),
-        FilledButton(
+        PressFeedback(enabled: (canDelete ? () => Navigator.pop(context, true) : null) != null, child: FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: tokens.danger,
             foregroundColor: tokens.surface,
           ),
           onPressed: canDelete ? () => Navigator.pop(context, true) : null,
           child: Text(strings.deleteAllAction),
-        ),
+        )),
       ],
     );
   }

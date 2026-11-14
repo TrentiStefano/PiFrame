@@ -329,7 +329,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                 else ...[
                   Icon(
                     Icons.rate_review_outlined,
-                    size: 16,
+                    size: FrameSize.icon,
                     color: tokens.accent,
                   ),
                   const SizedBox(width: 8),
@@ -399,7 +399,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                             diffMode == DiffViewMode.singleColumn
                                 ? Icons.view_column_outlined
                                 : Icons.table_rows_outlined,
-                            size: 15,
+                            size: FrameSize.icon,
                             color: tokens.accent,
                           ),
                           const SizedBox(width: 4),
@@ -427,7 +427,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     minWidth: 26,
                     minHeight: 26,
                   ),
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                   tooltip: strings.refreshSessionChangesTooltip,
                   onPressed: () {
                     ref
@@ -446,7 +446,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                       minWidth: 26,
                       minHeight: 26,
                     ),
-                    icon: const Icon(Icons.close, size: 16),
+                    icon: const Icon(Icons.close_outlined, size: FrameSize.icon),
                     tooltip: strings.closeReviewTooltip,
                     onPressed: widget.onClose,
                   ),
@@ -586,8 +586,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
             const SizedBox(width: 8),
             // Expand or minimize icon
             Icon(
-              isExpanded ? Icons.keyboard_arrow_down : Icons.chevron_right,
-              size: 16,
+              isExpanded ? Icons.keyboard_arrow_down_outlined : Icons.chevron_right_outlined,
+              size: FrameSize.icon,
               color: tokens.textMuted,
             ),
           ],
@@ -667,7 +667,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       default:
         return Icon(
           Icons.insert_drive_file_outlined,
-          size: 15,
+          size: FrameSize.icon,
           color: tokens.textMuted,
         );
     }
@@ -708,7 +708,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
         color: tokens.accent,
         borderRadius: BorderRadius.circular(3),
       ),
-      child: Icon(Icons.flutter_dash, size: 13, color: tokens.accentContrast),
+      child: Icon(Icons.flutter_dash_outlined, size: 13, color: tokens.accentContrast),
     );
   }
 }

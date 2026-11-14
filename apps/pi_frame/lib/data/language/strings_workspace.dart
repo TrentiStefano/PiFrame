@@ -35,6 +35,9 @@ extension WorkspaceStrings on AppStrings {
   String get terminalNewPowerShellTab =>
       isItalian ? 'Nuovo terminale (PowerShell)' : 'New terminal (PowerShell)';
 
+  String get terminalNewCmdTab =>
+      isItalian ? 'Prompt dei comandi (cmd)' : 'Command Prompt (cmd)';
+
   String get terminalInterruptTooltip =>
       isItalian ? 'Interrompi processo (Ctrl+C)' : 'Stop process (Ctrl+C)';
 

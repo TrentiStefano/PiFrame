@@ -394,7 +394,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                icon: const Icon(Icons.keyboard_double_arrow_down, size: 16),
+                icon: const Icon(Icons.keyboard_double_arrow_down_outlined, size: FrameSize.icon),
                 label: Text(
                   strings.stepGroupShowAllSteps(widget.block.steps.length),
                 ),
@@ -447,7 +447,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       statusIcon = SizedBox(
         width: 14,
         height: 14,
-        child: FrameActivityIndicator(size: 14, 
+        child: FrameActivityIndicator(size: FrameSize.icon, 
           strokeWidth: 2,
           color: tokens.agentWorking,
         ),
@@ -458,14 +458,14 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     } else if (aborted) {
       statusIcon = Icon(
         Icons.stop_circle_outlined,
-        size: 15,
+        size: FrameSize.icon,
         color: tokens.textMuted,
       );
       headerLabel = strings.stepGroupStopped(stepCount);
     } else if (failed) {
       statusIcon = Icon(
         Icons.error_outline,
-        size: 15,
+        size: FrameSize.icon,
         color: tokens.danger,
       );
       headerLabel = strings.stepGroupStoppedWithErrors(stepCount);
@@ -478,13 +478,13 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               child: Icon(
                 Icons.error_outline,
                 key: const ValueKey('step_group_steps_failed_icon'),
-                size: 15,
+                size: FrameSize.icon,
                 color: tokens.warning,
               ),
             )
           : Icon(
               Icons.check_circle_outline,
-              size: 15,
+              size: FrameSize.icon,
               color: tokens.agentSettled,
             );
       if (widget.block.elapsed != null) {
@@ -533,7 +533,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               ),
               const SizedBox(width: 8),
               Icon(
-                expanded ? Icons.expand_less : Icons.expand_more,
+                expanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
                 size: FrameSize.icon,
                 color: tokens.textSecondary,
               ),
@@ -630,7 +630,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                   children: [
                     Icon(
                       Icons.psychology_outlined,
-                      size: 14,
+                      size: FrameSize.icon,
                       color: tokens.thinking,
                     ),
                     const SizedBox(width: 6),
@@ -667,9 +667,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     const SizedBox(width: 4),
                     Icon(
                       effectiveExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 15,
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
                       color: tokens.textSecondary,
                     ),
                   ],
@@ -770,7 +770,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                   children: [
                     Icon(
                       getToolIcon(step.toolName),
-                      size: 14,
+                      size: FrameSize.icon,
                       color: isError
                           ? tokens.agentError
                           : isRunning
@@ -862,19 +862,19 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     else if (isError)
                       Icon(
                         Icons.error_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentError,
                       )
                     else
                       Icon(
                         Icons.check_circle_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentSettled,
                       ),
                     const SizedBox(width: 4),
                     Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 14,
+                      isExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
                       color: tokens.textMuted,
                     ),
                   ],

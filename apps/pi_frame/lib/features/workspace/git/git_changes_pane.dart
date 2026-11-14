@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -333,7 +334,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     return Expanded(
       child: Tooltip(
         message: tooltip,
-        child: OutlinedButton(
+        child: PressFeedback(enabled: (enabled ? () => _action(action, const []) : null) != null, child: OutlinedButton(
           key: ValueKey('git-$action-btn'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(
@@ -360,7 +361,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }
@@ -528,7 +529,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             style: text.bodyLarge.copyWith(color: tokens.textMuted),
           ),
           actions: [
-            OutlinedButton(
+            PressFeedback(enabled: true, child: OutlinedButton(
               key: const ValueKey('git-cancel-switch-btn'),
               autofocus: true,
               style: OutlinedButton.styleFrom(
@@ -540,8 +541,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
               onPressed: () => popOnce(dialogContext, false),
               child: Text(strings.cancel),
-            ),
-            FilledButton(
+            )),
+            PressFeedback(enabled: true, child: FilledButton(
               key: const ValueKey('git-stash-and-switch-btn'),
               style: FilledButton.styleFrom(
                 backgroundColor: tokens.accent,
@@ -552,7 +553,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
               onPressed: () => popOnce(dialogContext, true),
               child: Text(strings.stashAndSwitchBtn),
-            ),
+            )),
           ],
         );
       },
@@ -589,7 +590,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           title: Row(
             children: [
-              Icon(Icons.error_outline, color: tokens.danger, size: 20),
+              Icon(Icons.error_outline, color: tokens.danger, size: FrameSize.iconLg),
               const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Text(
@@ -623,7 +624,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           Icon(
                             Icons.info_outline,
                             color: tokens.warning,
-                            size: 18,
+                            size: FrameSize.iconLg,
                           ),
                           const SizedBox(width: FrameSpace.x2),
                           Expanded(
@@ -659,7 +660,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             ),
           ),
           actions: [
-            FilledButton(
+            PressFeedback(enabled: true, child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: tokens.accent,
                 foregroundColor: tokens.surface,
@@ -669,7 +670,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               ),
               onPressed: () => popOnce(dialogContext),
               child: Text(strings.close),
-            ),
+            )),
           ],
         );
       },
@@ -987,7 +988,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           value: 'toggle',
           enabled: !writesOff,
           child: item(
-            isStaged ? Icons.remove_circle_outline : Icons.add,
+            isStaged ? Icons.remove_circle_outline : Icons.add_outlined,
             isStaged ? strings.gitMenuUnstage : strings.gitMenuStage,
             tokens.textMuted,
           ),
@@ -996,12 +997,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           key: const ValueKey('git-menu-discard'),
           value: 'discard',
           enabled: !writesOff,
-          child: item(Icons.undo, strings.gitMenuDiscard, tokens.danger),
+          child: item(Icons.undo_outlined, strings.gitMenuDiscard, tokens.danger),
         ),
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-copy-path'),
           value: 'copy',
-          child: item(Icons.copy, strings.copyPath, tokens.textMuted),
+          child: item(Icons.copy_outlined, strings.copyPath, tokens.textMuted),
         ),
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-add-chat'),
@@ -1226,7 +1227,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   child: FrameIconAction(
                     key: const ValueKey('git-stage-all-btn'),
                     tooltip: strings.stageAllTooltip,
-                    icon: Icons.add,
+                    icon: Icons.add_outlined,
                     onPressed: () => _action(
                       'stage',
                       unstagedFiles.map((f) => f['path'].toString()).toList(),
@@ -1286,7 +1287,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  Icon(Icons.source_outlined, size: 16, color: tokens.accent),
+                  Icon(Icons.source_outlined, size: FrameSize.icon, color: tokens.accent),
                   const SizedBox(width: FrameSpace.x2),
                   Text(
                     strings.gitChangesLabel.toUpperCase(),
@@ -1319,7 +1320,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.language,
+                              Icons.language_outlined,
                               size: 12,
                               color: tokens.textMuted,
                             ),
@@ -1356,7 +1357,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       ref.read(rightPaneModeProvider.notifier).state =
                           RightPaneMode.browser;
                     },
-                    icon: const Icon(Icons.language, size: 16),
+                    icon: const Icon(Icons.language_outlined, size: FrameSize.icon),
                   ),
                 IconButton(
                   tooltip: strings.refreshGitStatusTooltip,
@@ -1367,7 +1368,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     minHeight: 26,
                   ),
                   onPressed: _loading ? null : _refresh,
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                 ),
                 if (widget.onCollapse != null) ...[
                   const SizedBox(width: FrameSpace.x1),
@@ -1377,7 +1378,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     constraints: const BoxConstraints(),
                     tooltip: strings.collapseGitPanelTooltip,
                     onPressed: widget.onCollapse,
-                    icon: const Icon(Icons.chevron_right, size: 18),
+                    icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg),
                   ),
                 ],
               ],
@@ -1465,7 +1466,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
-                                                Icons.fork_right,
+                                                Icons.fork_right_outlined,
                                                 size: 13,
                                                 color: branchDisabled
                                                     ? tokens.textMuted
@@ -1606,7 +1607,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                         _status?['branch']?.toString() ?? '—',
                                       ),
                                       actionLabel: strings.gitRefreshAction,
-                                      actionIcon: Icons.refresh,
+                                      actionIcon: Icons.refresh_outlined,
                                       onAction: _loading
                                           ? null
                                           : () => _refresh(),
@@ -1640,6 +1641,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             LinearProgressIndicator(
                               key: const ValueKey('git-working-progress'),
                               minHeight: 2,
+                              // Reduced motion: a static full bar instead of the sweep.
+                              value: FrameMotion.reduced(context) ? 1 : null,
                               color: tokens.accent,
                               backgroundColor: tokens.surface,
                             ),
@@ -1714,19 +1717,19 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                       ),
                                       (
                                         'pull',
-                                        Icons.arrow_downward,
+                                        Icons.arrow_downward_outlined,
                                         strings.gitPullLabel,
                                         strings.gitPullTooltip,
                                       ),
                                       (
                                         'push',
-                                        Icons.arrow_upward,
+                                        Icons.arrow_upward_outlined,
                                         strings.gitPushLabel,
                                         strings.gitPushTooltip,
                                       ),
                                       (
                                         'sync',
-                                        Icons.sync,
+                                        Icons.sync_outlined,
                                         strings.gitSyncLabel,
                                         strings.gitSyncTooltip,
                                       ),

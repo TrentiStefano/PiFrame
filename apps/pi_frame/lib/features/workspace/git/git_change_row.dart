@@ -200,7 +200,7 @@ class GitChangeRow extends StatelessWidget {
         ExcludeFocus(
           child: FrameIconAction(
             key: ValueKey('git-$section-toggle-$path'),
-            icon: isStaged ? Icons.remove_circle_outline : Icons.add,
+            icon: isStaged ? Icons.remove_circle_outline : Icons.add_outlined,
             tooltip: isStaged
                 ? strings.unstageFileTooltip(path)
                 : strings.stageFileTooltip(path),
@@ -214,7 +214,7 @@ class GitChangeRow extends StatelessWidget {
         ExcludeFocus(
           child: FrameIconAction(
             key: ValueKey('git-$section-discard-$path'),
-            icon: Icons.undo,
+            icon: Icons.undo_outlined,
             tooltip: strings.discardFileTooltip(path),
             onPressed: actionsBlocked ? null : () => onDiscard(path),
           ),

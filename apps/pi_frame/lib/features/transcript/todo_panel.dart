@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -136,7 +137,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               children: [
                 Icon(
                   Icons.checklist_rtl_outlined,
-                  size: 15,
+                  size: FrameSize.icon,
                   color: tokens.accent,
                 ),
                 const SizedBox(width: 8),
@@ -202,8 +203,8 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                   icon: Icon(
-                    _isAdding ? Icons.close : Icons.add_circle_outline,
-                    size: 15,
+                    _isAdding ? Icons.close_outlined : Icons.add_circle_outline,
+                    size: FrameSize.icon,
                     color: tokens.accent,
                   ),
                   onPressed: () => setState(() => _isAdding = !_isAdding),
@@ -214,7 +215,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                  icon: Icon(Icons.keyboard_arrow_up, size: 16, color: tokens.textMuted),
+                  icon: Icon(Icons.keyboard_arrow_up_outlined, size: FrameSize.icon, color: tokens.textMuted),
                   onPressed: _handleToggle,
                 ),
               ],
@@ -244,7 +245,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       ),
                     ),
                   ),
-                  FilledButton(
+                  PressFeedback(enabled: true, child: FilledButton(
                     key: const ValueKey('todo-add-task-submit'),
                     style: FilledButton.styleFrom(
                       visualDensity: VisualDensity.compact,
@@ -252,7 +253,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     ),
                     onPressed: _submitNewTask,
                     child: Text(strings.todoAddButton, style: TextStyle(fontSize: FrameText.of(context).caption.fontSize)),
-                  ),
+                  )),
                 ],
               ),
             ),
@@ -355,9 +356,9 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                               const SizedBox(width: 4),
                               Icon(
                                 isExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                size: 14,
+                                    ? Icons.keyboard_arrow_up_outlined
+                                    : Icons.keyboard_arrow_down_outlined,
+                                size: FrameSize.icon,
                                 color: hasDescription
                                     ? tokens.textSecondary
                                     : tokens.textMuted.withValues(alpha: 0.4),
@@ -465,7 +466,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       ),
                       const SizedBox(width: 2),
                       Icon(
-                        Icons.keyboard_arrow_down,
+                        Icons.keyboard_arrow_down_outlined,
                         size: 12,
                         color: tokens.textMuted,
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/daemon/daemon_providers.dart';
@@ -138,10 +139,10 @@ Future<void> saveRepositoryFile(
             onPressed: () => Navigator.pop(dialogContext, 'reload'),
             child: Text(strings.reloadFromDisk),
           ),
-          FilledButton(
+          PressFeedback(enabled: true, child: FilledButton(
             onPressed: () => Navigator.pop(dialogContext, 'overwrite'),
             child: Text(strings.overwriteExplicitly),
-          ),
+          )),
         ],
       ),
     );

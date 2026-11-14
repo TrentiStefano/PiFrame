@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -574,7 +575,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: FrameSize.iconLg, color: tokens.textMuted),
+                    icon: Icon(Icons.close_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                     tooltip: strings.close,
                     onPressed: () => Navigator.of(context).pop(),
                   ),
@@ -791,7 +792,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     child: Text(strings.close),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton.icon(
+                  PressFeedback(enabled: !(_generating || _saving), child: OutlinedButton.icon(
                     key: const ValueKey('instruction-generate-pi-btn'),
                     onPressed: _generating || _saving ? null : _generateWithPi,
                     style: OutlinedButton.styleFrom(
@@ -813,14 +814,14 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                               color: tokens.accent,
                             ),
                           )
-                        : Icon(Icons.auto_awesome, size: FrameSize.icon, color: tokens.accent),
+                        : Icon(Icons.auto_awesome_outlined, size: FrameSize.icon, color: tokens.accent),
                     label: Text(
                       _generating ? strings.generatingStatus : strings.generateWithPiAction,
                       style: FrameText.of(context).label.copyWith(color: tokens.accent,
                         
                         fontWeight: FontWeight.bold),
                     ),
-                  ),
+                  )),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     key: const ValueKey('instruction-save-btn'),

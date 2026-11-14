@@ -76,7 +76,7 @@ class AssistantTurnFrame extends StatelessWidget {
                         // control icon.
                         Icon(
                           Icons.smart_toy_outlined,
-                          size: 14,
+                          size: FrameSize.icon,
                           color: tokens.textSecondary,
                         ),
                         const SizedBox(width: FrameSpace.x1),

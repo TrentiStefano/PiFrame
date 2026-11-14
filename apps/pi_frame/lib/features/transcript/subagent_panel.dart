@@ -5,6 +5,7 @@ import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -179,9 +180,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
               child: Column(
                 children: [
                   const SizedBox(height: 8),
-                  Icon(Icons.chevron_left, size: 18, color: tokens.accent),
+                  Icon(Icons.chevron_left_outlined, size: FrameSize.iconLg, color: tokens.accent),
                   const SizedBox(height: 6),
-                  Icon(Icons.hub_outlined, size: 15, color: tokens.syntaxFunction),
+                  Icon(Icons.hub_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
                   const SizedBox(height: 6),
                   SubagentStatusDot(running: running > 0),
                   const SizedBox(height: 12),
@@ -261,7 +262,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
           ),
           child: Row(
             children: [
-              Icon(Icons.hub_outlined, size: 15, color: tokens.syntaxFunction),
+              Icon(Icons.hub_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
               const SizedBox(width: 8),
               Text(
                 strings.subagentsPanelTitle,
@@ -301,7 +302,7 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   padding: EdgeInsets.zero,
                   tooltip: strings.subagentsCloseTooltip,
-                  icon: Icon(Icons.chevron_right, size: 18, color: tokens.textMuted),
+                  icon: Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                   onPressed: widget.onClose,
                 ),
             ],
@@ -452,10 +453,10 @@ Color _typeColor(FrameTokens tokens, String? type) {
 
 IconData _typeIcon(String? type) {
   final key = (type ?? '').toLowerCase();
-  if (key.contains('explore') || key.contains('locator') || key.contains('scout')) return Icons.travel_explore;
+  if (key.contains('explore') || key.contains('locator') || key.contains('scout')) return Icons.travel_explore_outlined;
   if (key.contains('review') || key.contains('verif') || key.contains('audit')) return Icons.fact_check_outlined;
-  if (key.contains('plan') || key.contains('architect')) return Icons.architecture;
-  if (key.contains('research') || key.contains('web')) return Icons.public;
+  if (key.contains('plan') || key.contains('architect')) return Icons.architecture_outlined;
+  if (key.contains('research') || key.contains('web')) return Icons.public_outlined;
   if (key.contains('analy')) return Icons.insights_outlined;
   if (key.contains('worker') || key.contains('builder')) return Icons.construction_outlined;
   return Icons.smart_toy_outlined;
@@ -463,13 +464,13 @@ IconData _typeIcon(String? type) {
 
 IconData _toolIcon(String tool) {
   final key = tool.toLowerCase();
-  if (key.contains('shell') || key == 'bash' || key.contains('terminal')) return Icons.terminal;
+  if (key.contains('shell') || key == 'bash' || key.contains('terminal')) return Icons.terminal_outlined;
   if (key.contains('read')) return Icons.description_outlined;
   if (key.contains('edit') || key.contains('write')) return Icons.edit_outlined;
   if (key.contains('grep') || key.contains('find') || key.contains('ls') || key.contains('search')) {
-    return Icons.search;
+    return Icons.search_outlined;
   }
-  if (key.contains('web') || key.contains('fetch')) return Icons.public;
+  if (key.contains('web') || key.contains('fetch')) return Icons.public_outlined;
   if (key.contains('agent')) return Icons.hub_outlined;
   return Icons.bolt_outlined;
 }
@@ -967,9 +968,9 @@ class _NodeAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final (badgeIcon, badgeColor) = switch (status) {
-      'error' => (Icons.priority_high, tokens.agentError),
-      'stopped' => (Icons.stop, tokens.textMuted),
-      'completed' || 'steered' => (Icons.check, tokens.success),
+      'error' => (Icons.priority_high_outlined, tokens.agentError),
+      'stopped' => (Icons.stop_outlined, tokens.textMuted),
+      'completed' || 'steered' => (Icons.check_outlined, tokens.success),
       _ => (null, null),
     };
     return SizedBox(
@@ -1066,7 +1067,7 @@ class _StatusChip extends StatelessWidget {
               ),
           ],
         ),
-        Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 15, color: tokens.textMuted),
+        Icon(expanded ? Icons.keyboard_arrow_up_outlined : Icons.keyboard_arrow_down_outlined, size: FrameSize.icon, color: tokens.textMuted),
       ],
     );
   }
@@ -1096,7 +1097,7 @@ class _ActivityLine extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 1),
             child: Icon(
-              tool != null ? _toolIcon(tool.group(1)!) : (running ? Icons.chat_bubble_outline : Icons.notes),
+              tool != null ? _toolIcon(tool.group(1)!) : (running ? Icons.chat_bubble_outline : Icons.notes_outlined),
               size: 11,
               color: running ? color : tokens.textMuted,
             ),
@@ -1415,7 +1416,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                   ),
                   onPressed: agent.isRunning ? widget.onToggleSteeringBox : null,
-                  icon: Icon(Icons.alt_route, size: 13, color: tokens.syntaxFunction),
+                  icon: Icon(Icons.alt_route_outlined, size: 13, color: tokens.syntaxFunction),
                   label: Text(
                     agent.isSteeringOpen ? strings.subagentSteerClose : strings.subagentSteer,
                     style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
@@ -1470,7 +1471,7 @@ class _AgentDetailsState extends State<_AgentDetails> {
                 IconButton(
                   key: ValueKey('subagent-steer-send-${agent.id}'),
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.send, size: 16, color: tokens.syntaxFunction),
+                  icon: Icon(Icons.send_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
                   onPressed: _submit,
                 ),
               ],
@@ -1623,8 +1624,8 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                   ),
                   const SizedBox(width: 4),
                   Icon(
-                    widget.isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    size: 16,
+                    widget.isExpanded ? Icons.keyboard_arrow_up_outlined : Icons.keyboard_arrow_down_outlined,
+                    size: FrameSize.icon,
                     color: tokens.textMuted,
                   ),
                 ],
@@ -1650,8 +1651,8 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                         key: ValueKey('subagent-steer-btn-${sub.id}'),
                         style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                         icon: Icon(
-                          sub.isSteeringOpen ? Icons.close : Icons.navigation_outlined,
-                          size: 14,
+                          sub.isSteeringOpen ? Icons.close_outlined : Icons.navigation_outlined,
+                          size: FrameSize.icon,
                           color: sub.isSteeringOpen ? tokens.textMuted : tokens.syntaxFunction,
                         ),
                         label: Text(
@@ -1668,7 +1669,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                         style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                         icon: Icon(
                           Icons.stop_circle_outlined,
-                          size: 15,
+                          size: FrameSize.icon,
                           color: sub.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
                         ),
                         label: Text(
@@ -1762,7 +1763,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              FilledButton.icon(
+                              PressFeedback(enabled: true, child: FilledButton.icon(
                                 key: ValueKey('subagent-steer-send-${sub.id}'),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: tokens.syntaxFunction,
@@ -1773,11 +1774,11 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                   ),
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                icon: const Icon(Icons.send, size: 12),
+                                icon: const Icon(Icons.send_outlined, size: 12),
                                 label: Text(strings.subagentSendButton,
                                     style: TextStyle(fontSize: FrameText.of(context).caption.fontSize)),
                                 onPressed: _submitSteer,
-                              ),
+                              )),
                             ],
                           ),
                         ],
@@ -1851,13 +1852,13 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
     switch (status) {
       case 'running':
         color = tokens.syntaxKeyword;
-        icon = Icons.refresh;
+        icon = Icons.refresh_outlined;
         label = strings.subagentStatusInProgress;
         break;
       case 'steering':
       case 'steered':
         color = tokens.syntaxFunction;
-        icon = Icons.alt_route;
+        icon = Icons.alt_route_outlined;
         label = strings.subagentStatusSteered;
         break;
       case 'stopped':

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -179,7 +180,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.search,
+                          Icons.search_outlined,
                           size: FrameSize.iconLg,
                           color: tokens.textMuted,
                         ),
@@ -298,7 +299,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                         ),
                                       ),
                                       const SizedBox(height: FrameSpace.x3),
-                                      OutlinedButton(
+                                      PressFeedback(enabled: true, child: OutlinedButton(
                                         onPressed: _loadBranches,
                                         style: OutlinedButton.styleFrom(
                                           side: BorderSide(color: tokens.border),
@@ -309,7 +310,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                             color: tokens.textPrimary,
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ],
                                   ),
                                 ),
@@ -365,8 +366,8 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                             children: [
                                               Icon(
                                                 isCurrent
-                                                    ? Icons.check
-                                                    : Icons.fork_right,
+                                                    ? Icons.check_outlined
+                                                    : Icons.fork_right_outlined,
                                                 key: isCurrent
                                                     ? const ValueKey(
                                                         'branch-picker-current-check',

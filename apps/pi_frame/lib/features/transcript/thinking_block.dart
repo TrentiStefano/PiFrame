@@ -95,7 +95,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                 children: [
                   Icon(
                     Icons.psychology_outlined,
-                    size: 14,
+                    size: FrameSize.icon,
                     color: tokens.thinking,
                   ),
                   const SizedBox(width: 6),
@@ -121,8 +121,8 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                   ] else
                     const Spacer(),
                   Icon(
-                    _effectiveExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 15,
+                    _effectiveExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
+                    size: FrameSize.icon,
                     color: tokens.textSecondary,
                   ),
                 ],

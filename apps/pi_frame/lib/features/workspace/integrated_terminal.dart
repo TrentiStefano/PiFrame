@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -507,18 +508,18 @@ class _IntegratedTerminalPanelState
             children: [
               Text(
                 strings.terminalNoOpenTerminals,
-                style: TextStyle(color: tokens.textMuted, fontSize: 13),
+                style: FrameText.of(context).body.copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: 8),
-              FilledButton.icon(
+              PressFeedback(enabled: true, child: FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.surface,
                 ),
                 onPressed: () => _createNewTab(),
-                icon: const Icon(Icons.add, size: 16),
+                icon: const Icon(Icons.add_outlined, size: FrameSize.icon),
                 label: Text(strings.terminalOpenNew),
-              ),
+              )),
             ],
           ),
         ),
@@ -580,8 +581,8 @@ class _IntegratedTerminalPanelState
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.terminal,
-                                size: 14,
+                                Icons.terminal_outlined,
+                                size: FrameSize.icon,
                                 color: isSelected
                                     ? tokens.accent
                                     : tokens.textMuted,
@@ -589,11 +590,10 @@ class _IntegratedTerminalPanelState
                               const SizedBox(width: 6),
                               Text(
                                 tab.title,
-                                style: TextStyle(
+                                style: FrameText.of(context).caption.copyWith(
                                   color: isSelected
                                       ? tokens.displayText
                                       : tokens.textMuted,
-                                  fontSize: 11,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
@@ -606,7 +606,7 @@ class _IntegratedTerminalPanelState
                                 child: Padding(
                                   padding: const EdgeInsets.all(2.0),
                                   child: Icon(
-                                    Icons.close,
+                                    Icons.close_outlined,
                                     size: 13,
                                     color: tokens.textMuted,
                                   ),
@@ -623,7 +623,7 @@ class _IntegratedTerminalPanelState
                 // "+" Add Tab Button
                 PopupMenuButton<String>(
                   tooltip: strings.terminalNewTabTooltip,
-                  icon: Icon(Icons.add, size: 16, color: tokens.displayText),
+                  icon: Icon(Icons.add_outlined, size: FrameSize.icon, color: tokens.displayText),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                   onSelected: (val) {
@@ -641,7 +641,7 @@ class _IntegratedTerminalPanelState
                           value: 'wsl',
                           child: Row(
                             children: [
-                              const Icon(Icons.terminal, size: 15),
+                              const Icon(Icons.terminal_outlined, size: FrameSize.icon),
                               const SizedBox(width: 8),
                               Text(strings.terminalNewWslTab(wslInfo['distro']!)),
                             ],
@@ -651,7 +651,7 @@ class _IntegratedTerminalPanelState
                         value: 'default',
                         child: Row(
                           children: [
-                            const Icon(Icons.terminal, size: 15),
+                            const Icon(Icons.terminal_outlined, size: FrameSize.icon),
                             const SizedBox(width: 8),
                             Text(
                               Platform.isWindows
@@ -662,13 +662,13 @@ class _IntegratedTerminalPanelState
                         ),
                       ),
                       if (Platform.isWindows)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'cmd',
                           child: Row(
                             children: [
-                              Icon(Icons.terminal, size: 15),
+                              Icon(Icons.terminal_outlined, size: FrameSize.icon),
                               SizedBox(width: 8),
-                              Text('Command Prompt (cmd)'),
+                              Text(strings.terminalNewCmdTab),
                             ],
                           ),
                         ),
@@ -684,7 +684,7 @@ class _IntegratedTerminalPanelState
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                   tooltip: strings.terminalInterruptTooltip,
-                  icon: Icon(Icons.stop_circle_outlined, size: 15, color: tokens.danger),
+                  icon: Icon(Icons.stop_circle_outlined, size: FrameSize.icon, color: tokens.danger),
                   onPressed: _sendInterrupt,
                 ),
 
@@ -696,7 +696,7 @@ class _IntegratedTerminalPanelState
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                   tooltip: strings.terminalClearTooltip,
-                  icon: const Icon(Icons.block, size: 14),
+                  icon: const Icon(Icons.block_outlined, size: FrameSize.icon),
                   onPressed: _clearScreen,
                 ),
 
@@ -708,7 +708,7 @@ class _IntegratedTerminalPanelState
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                   tooltip: strings.terminalNativeAppTooltip,
-                  icon: const Icon(Icons.open_in_new, size: 14),
+                  icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
                   onPressed: _openInNativeTerminal,
                 ),
 
@@ -720,7 +720,7 @@ class _IntegratedTerminalPanelState
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                   tooltip: strings.terminalCollapseTooltip,
-                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                  icon: const Icon(Icons.keyboard_arrow_down_outlined, size: FrameSize.iconLg),
                   onPressed: widget.onCollapseDownward,
                 ),
 
@@ -732,7 +732,7 @@ class _IntegratedTerminalPanelState
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(),
                   tooltip: strings.terminalCloseTooltip,
-                  icon: const Icon(Icons.close, size: 16),
+                  icon: const Icon(Icons.close_outlined, size: FrameSize.icon),
                   onPressed: widget.onClose,
                 ),
                 const SizedBox(width: 4),
@@ -755,7 +755,7 @@ class _IntegratedTerminalPanelState
                   focusNode: _terminalFocusNode,
                   theme: _buildTerminalTheme(tokens),
                   textStyle: TerminalStyle(
-                    fontSize: 12,
+                    fontSize: FrameText.of(context).mono.fontSize!,
                     fontFamily: tokens.monoFontFamily,
                   ),
                   autofocus: true,

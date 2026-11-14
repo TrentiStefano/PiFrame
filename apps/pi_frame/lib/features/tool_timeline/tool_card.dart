@@ -361,7 +361,7 @@ class _ToolCardState extends State<ToolCard> {
                   children: [
                     Icon(
                       _getToolIcon(tool.toolName),
-                      size: 14,
+                      size: FrameSize.icon,
                       color: tool.isError
                           ? tokens.agentError
                           : tool.isRunning
@@ -518,20 +518,20 @@ class _ToolCardState extends State<ToolCard> {
                     else if (tool.isError)
                       Icon(
                         Icons.error_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentError,
                       )
                     else
                       Icon(
                         Icons.check_circle_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentSettled,
                       ),
                     const SizedBox(width: 4),
                     if (canExpand)
                       Icon(
-                        _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 15,
+                        _isExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
+                        size: FrameSize.icon,
                         color: tokens.textMuted,
                       )
                     else
@@ -573,7 +573,7 @@ class _ToolCardState extends State<ToolCard> {
                       Row(
                         children: [
                           Icon(
-                            Icons.terminal,
+                            Icons.terminal_outlined,
                             size: 13,
                             color: tokens.syntaxNumber,
                           ),
@@ -646,7 +646,7 @@ class _ToolCardState extends State<ToolCard> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons.copy,
+                                    Icons.copy_outlined,
                                     size: 11,
                                     color: tokens.textMuted,
                                   ),
@@ -702,7 +702,7 @@ class _ToolCardState extends State<ToolCard> {
                           child: Row(
                             children: [
                               Icon(
-                                Icons.check,
+                                Icons.check_outlined,
                                 size: 13,
                                 color: tokens.syntaxString,
                               ),

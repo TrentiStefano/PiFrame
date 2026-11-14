@@ -124,17 +124,17 @@ class _DesktopCaptionButtonsState
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        button(strings.captionMinimize, Icons.remove, () => windowManager.minimize()),
+        button(strings.captionMinimize, Icons.remove_outlined, () => windowManager.minimize()),
         button(
           _maximized ? strings.captionRestore : strings.captionMaximize,
-          _maximized ? Icons.filter_none : Icons.crop_square,
+          _maximized ? Icons.filter_none_outlined : Icons.crop_square_outlined,
           () => _maximized
               ? windowManager.unmaximize()
               : windowManager.maximize(),
         ),
         button(
           strings.captionClose,
-          Icons.close,
+          Icons.close_outlined,
           () => windowManager.close(),
           close: true,
         ),
