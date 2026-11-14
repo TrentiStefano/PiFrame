@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -183,6 +184,52 @@ void main() {
     expect(
       container.read(composerAttachmentsProvider('restore')),
       containsAll([failedAttachment, existingAttachment]),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Enter on the focused failed bubble restores it to the composer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final session = SessionStateNotifier('restore_key', null)
+      ..state = const SessionState(
+        sessionId: 'restore_key',
+        cwd: '/repo',
+        entries: [
+          SessionEntry(
+            id: 'failed_key',
+            role: 'user',
+            text: 'Retry from keyboard',
+            timestamp: 1,
+            metadata: {'sendError': 'Connection lost'},
+          ),
+        ],
+      );
+    await tester.pumpWidget(_app(session));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Composer)),
+    );
+    // Focus the bubble through its focus scope, then press Enter.
+    final bubble = find.byKey(const ValueKey('failed-user-message-failed_key'));
+    final wrapper = Focus.of(tester.element(bubble));
+    (wrapper.canRequestFocus
+            ? wrapper
+            : wrapper.descendants.firstWhere((n) => n.canRequestFocus))
+        .requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(session.state.entries, isEmpty);
+    expect(
+      container.read(composerDraftProvider('restore_key')),
+      'Retry from keyboard',
     );
     expect(tester.takeException(), isNull);
   });

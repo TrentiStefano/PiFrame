@@ -255,4 +255,56 @@ void main() {
     expect(find.text('Keep This Name'), findsOneWidget);
     expect(notifier.state.sessionName, 'Keep This Name');
   });
+
+  testWidgets('F2 and Enter on the focused title start rename', (tester) async {
+    final notifier = SessionStateNotifier('session_keys', null)
+      ..state = const SessionState(
+        sessionId: 'session_keys',
+        sessionName: 'Keyboard Title',
+        cwd: '/test/repo',
+        entries: [],
+      );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          sessionStateFamily('session_keys').overrideWith((ref) => notifier),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const Scaffold(body: TranscriptView(sessionId: 'session_keys')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Focus the title through its key observer, then press F2.
+    final title = find.byKey(const ValueKey('session-name-title'));
+    final observer = Focus.of(tester.element(title));
+    (observer.canRequestFocus
+            ? observer
+            : observer.descendants.firstWhere((n) => n.canRequestFocus))
+        .requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f2);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('session-name-rename-field')), findsOneWidget);
+
+    // Cancel, refocus and rename with Enter instead.
+    await tester.tap(find.byKey(const ValueKey('session-name-rename-cancel')));
+    await tester.pumpAndSettle();
+    final observerAgain = Focus.of(
+      tester.element(find.byKey(const ValueKey('session-name-title'))),
+    );
+    (observerAgain.canRequestFocus
+            ? observerAgain
+            : observerAgain.descendants.firstWhere((n) => n.canRequestFocus))
+        .requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('session-name-rename-field')), findsOneWidget);
+  });
 }

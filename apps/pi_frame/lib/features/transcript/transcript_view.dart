@@ -1983,8 +1983,29 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         ),
                       );
         } else {
-          titleWidget = 
-                      InkWell(
+          titleWidget =
+                      Focus(
+                        // Keyboard path to the double-tap rename: F2, or Enter,
+                        // on the focused title. Observes keys only, so the
+                        // title InkWell stays the one Tab stop.
+                        canRequestFocus: false,
+                        skipTraversal: true,
+                        onKeyEvent: (node, event) {
+                          if (event is! KeyDownEvent) {
+                            return KeyEventResult.ignored;
+                          }
+                          final key = event.logicalKey;
+                          if (key == LogicalKeyboardKey.f2 ||
+                              key == LogicalKeyboardKey.enter ||
+                              key == LogicalKeyboardKey.numpadEnter) {
+                            _startRenaming(
+                              sessionState.sessionName ?? widget.sessionId,
+                            );
+                            return KeyEventResult.handled;
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                        child: InkWell(
                         key: const ValueKey('session-name-title'),
                         onDoubleTap: () => _startRenaming(
                           sessionState.sessionName ?? widget.sessionId,
@@ -2022,6 +2043,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               ],
                             ),
                           ),
+                        ),
                         ),
                       );
         }
@@ -2510,10 +2532,26 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             Expanded(
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: InkWell(
-                  key: ValueKey('failed-user-message-${entry.id}'),
-                  onDoubleTap: () => _restoreFailedPrompt(entry.id),
-                  child: bubble,
+                child: Focus(
+                  // Keyboard path to the double-tap restore: Enter on the
+                  // focused bubble. Keys only; the InkWell keeps the Tab stop.
+                  canRequestFocus: false,
+                  skipTraversal: true,
+                  onKeyEvent: (node, event) {
+                    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                    final key = event.logicalKey;
+                    if (key == LogicalKeyboardKey.enter ||
+                        key == LogicalKeyboardKey.numpadEnter) {
+                      _restoreFailedPrompt(entry.id);
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: InkWell(
+                    key: ValueKey('failed-user-message-${entry.id}'),
+                    onDoubleTap: () => _restoreFailedPrompt(entry.id),
+                    child: bubble,
+                  ),
                 ),
               ),
             ),
