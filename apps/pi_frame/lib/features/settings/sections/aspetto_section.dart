@@ -17,6 +17,7 @@ import '../../../ui/frame_snack_bar.dart';
 
 import 'settings_common.dart';
 import '../theme_editor_dialog.dart';
+import '../../../ui/precision.dart';
 
 /// The one "Tema" choice: follow the system, or always light or always dark.
 enum _ThemeChoice { system, light, dark }
@@ -269,87 +270,91 @@ class AppearanceSection extends ConsumerWidget {
                 spacing: FrameSpace.x3,
                 runSpacing: FrameSpace.x2,
                 children: [
-                  OutlinedButton.icon(
-                    key: const ValueKey('settings-open-theme-editor-btn'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: tokens.accent),
-                      minimumSize: const Size(0, FrameSize.rowForm),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x4,
+                  PressFeedback(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('settings-open-theme-editor-btn'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: tokens.accent),
+                        minimumSize: const Size(0, FrameSize.rowForm),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FrameSpace.x4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      icon: Icon(
+                        Icons.palette_outlined,
+                        size: FrameSize.icon,
+                        color: tokens.accent,
                       ),
+                      label: Text(
+                        strings.openThemeEditorBtn,
+                        style: text.label.copyWith(color: tokens.accent),
+                      ),
+                      onPressed: () {
+                        ThemeEditorDialog.show(context);
+                      },
                     ),
-                    icon: Icon(
-                      Icons.palette_outlined,
-                      size: FrameSize.icon,
-                      color: tokens.accent,
-                    ),
-                    label: Text(
-                      strings.openThemeEditorBtn,
-                      style: text.label.copyWith(color: tokens.accent),
-                    ),
-                    onPressed: () {
-                      ThemeEditorDialog.show(context);
-                    },
                   ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('settings-import-theme-btn'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: tokens.borderStrong),
-                      minimumSize: const Size(0, FrameSize.rowForm),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x4,
+                  PressFeedback(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('settings-import-theme-btn'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: tokens.borderStrong),
+                        minimumSize: const Size(0, FrameSize.rowForm),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: FrameSpace.x4,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      icon: Icon(
+                        Icons.file_upload_outlined,
+                        size: FrameSize.icon,
+                        color: tokens.accent,
                       ),
-                    ),
-                    icon: Icon(
-                      Icons.file_upload_outlined,
-                      size: FrameSize.icon,
-                      color: tokens.accent,
-                    ),
-                    label: Text(
-                      strings.importThemeBtn,
-                      style: text.label.copyWith(color: tokens.textPrimary),
-                    ),
-                    onPressed: () async {
-                      try {
-                        final file = await openFile(
-                          acceptedTypeGroups: [
-                            XTypeGroup(
-                              label: strings.themeJsonFilterLabel,
-                              extensions: const ['json'],
-                            ),
-                          ],
-                        );
-                        if (file == null || !context.mounted) {
-                          return;
-                        }
-                        final content = await file.readAsString();
-                        final importedSpec = await ref
-                            .read(activeThemeSpecProvider.notifier)
-                            .importThemeFromJson(content);
-                        if (context.mounted) {
-                          FrameSnackBar.show(
-                            context,
-                            message: strings.themeImportSuccess(
-                              importedSpec.name,
-                            ),
+                      label: Text(
+                        strings.importThemeBtn,
+                        style: text.label.copyWith(color: tokens.textPrimary),
+                      ),
+                      onPressed: () async {
+                        try {
+                          final file = await openFile(
+                            acceptedTypeGroups: [
+                              XTypeGroup(
+                                label: strings.themeJsonFilterLabel,
+                                extensions: const ['json'],
+                              ),
+                            ],
                           );
+                          if (file == null || !context.mounted) {
+                            return;
+                          }
+                          final content = await file.readAsString();
+                          final importedSpec = await ref
+                              .read(activeThemeSpecProvider.notifier)
+                              .importThemeFromJson(content);
+                          if (context.mounted) {
+                            FrameSnackBar.show(
+                              context,
+                              message: strings.themeImportSuccess(
+                                importedSpec.name,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            FrameSnackBar.show(
+                              context,
+                              message: strings.themeImportError(e),
+                              isError: true,
+                            );
+                          }
                         }
-                      } catch (e) {
-                        if (context.mounted) {
-                          FrameSnackBar.show(
-                            context,
-                            message: strings.themeImportError(e),
-                            isError: true,
-                          );
-                        }
-                      }
-                    },
+                      },
+                    ),
                   ),
                 ],
               ),

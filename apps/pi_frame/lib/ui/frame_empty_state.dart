@@ -86,11 +86,14 @@ class FrameEmptyState extends StatelessWidget {
                       onPressed: onAction,
                       child: Text(actionLabel),
                     )
-                  : FilledButton.icon(
-                      key: ValueKey('$keyPrefix-action'),
-                      onPressed: onAction,
-                      icon: Icon(actionIcon, size: FrameSize.icon),
-                      label: Text(actionLabel),
+                  : PressFeedback(
+                      enabled: (onAction) != null,
+                      child: FilledButton.icon(
+                        key: ValueKey('$keyPrefix-action'),
+                        onPressed: onAction,
+                        icon: Icon(actionIcon, size: FrameSize.icon),
+                        label: Text(actionLabel),
+                      ),
                     ),
             ),
             if (shortcutHint != null) ...[

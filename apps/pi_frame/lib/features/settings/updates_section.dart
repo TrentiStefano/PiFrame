@@ -16,6 +16,7 @@ import '../../data/language/strings_settings.dart';
 import '../../data/update/update_providers.dart';
 import '../../domain/update/update_models.dart';
 import 'sections/settings_common.dart';
+import '../../ui/precision.dart';
 
 /// Aggiornamenti tab: installed version and check, release details, the
 /// periodic check preference and the privacy note. Each block is one
@@ -87,25 +88,31 @@ class UpdatesSection extends ConsumerWidget {
     final isUpdateAvailable =
         updateState.status == UpdateStatus.updateAvailable;
 
-    final checkButton = FilledButton.icon(
-      key: const ValueKey('check_for_updates_button'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(0, FrameSize.rowForm),
-      ),
-      onPressed: updateState.isChecking || updateState.isDownloading
-          ? null
-          : () {
-              ref
-                  .read(updateControllerProvider.notifier)
-                  .checkForUpdates(isManual: true);
-            },
-      icon: updateState.isChecking
-          ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.textPrimary)
-          : const Icon(Icons.refresh_outlined, size: FrameSize.icon),
-      label: Text(
-        updateState.isChecking
-            ? strings.updatesChecking
-            : strings.updatesCheckBtn,
+    final checkButton = PressFeedback(
+      child: FilledButton.icon(
+        key: const ValueKey('check_for_updates_button'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, FrameSize.rowForm),
+        ),
+        onPressed: updateState.isChecking || updateState.isDownloading
+            ? null
+            : () {
+                ref
+                    .read(updateControllerProvider.notifier)
+                    .checkForUpdates(isManual: true);
+              },
+        icon: updateState.isChecking
+            ? FrameActivityIndicator(
+                size: FrameSize.icon,
+                strokeWidth: 2,
+                color: tokens.textPrimary,
+              )
+            : const Icon(Icons.refresh_outlined, size: FrameSize.icon),
+        label: Text(
+          updateState.isChecking
+              ? strings.updatesChecking
+              : strings.updatesCheckBtn,
+        ),
       ),
     );
 
@@ -304,15 +311,20 @@ class UpdatesSection extends ConsumerWidget {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, FrameSize.rowForm),
+            child: PressFeedback(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, FrameSize.rowForm),
+                ),
+                onPressed: () {
+                  ref.read(updateControllerProvider.notifier).openReleasePage();
+                },
+                icon: const Icon(
+                  Icons.open_in_new_outlined,
+                  size: FrameSize.icon,
+                ),
+                label: Text(strings.updatesNotesOnGithub),
               ),
-              onPressed: () {
-                ref.read(updateControllerProvider.notifier).openReleasePage();
-              },
-              icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
-              label: Text(strings.updatesNotesOnGithub),
             ),
           ),
 
@@ -375,14 +387,19 @@ class UpdatesSection extends ConsumerWidget {
               spacing: FrameSpace.x3,
               runSpacing: FrameSpace.x2,
               children: [
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, FrameSize.rowForm),
+                PressFeedback(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, FrameSize.rowForm),
+                    ),
+                    onPressed: () =>
+                        _confirmAndInstall(context, ref, asset?.name),
+                    icon: const Icon(
+                      Icons.install_desktop_outlined,
+                      size: FrameSize.icon,
+                    ),
+                    label: Text(strings.installAndRestartBtn),
                   ),
-                  onPressed: () =>
-                      _confirmAndInstall(context, ref, asset?.name),
-                  icon: const Icon(Icons.install_desktop_outlined, size: FrameSize.icon),
-                  label: Text(strings.installAndRestartBtn),
                 ),
                 FrameStatusTag(
                   label: strings.updatesReadyToInstall,
@@ -393,7 +410,11 @@ class UpdatesSection extends ConsumerWidget {
           ] else if (isInstalling) ...[
             Row(
               children: [
-                FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent),
+                FrameActivityIndicator(
+                  size: FrameSize.icon,
+                  strokeWidth: 2,
+                  color: tokens.accent,
+                ),
                 const SizedBox(width: FrameSpace.x3),
                 Text(
                   strings.updatesLaunchingInstaller,
@@ -403,28 +424,40 @@ class UpdatesSection extends ConsumerWidget {
             ),
           ] else ...[
             if (asset != null)
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, FrameSize.rowForm),
+              PressFeedback(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                  ),
+                  onPressed: () {
+                    ref
+                        .read(updateControllerProvider.notifier)
+                        .downloadUpdate(assetOverride: asset);
+                  },
+                  icon: const Icon(
+                    Icons.download_outlined,
+                    size: FrameSize.icon,
+                  ),
+                  label: Text(strings.updatesDownloadBtn),
                 ),
-                onPressed: () {
-                  ref
-                      .read(updateControllerProvider.notifier)
-                      .downloadUpdate(assetOverride: asset);
-                },
-                icon: const Icon(Icons.download_outlined, size: FrameSize.icon),
-                label: Text(strings.updatesDownloadBtn),
               )
             else
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, FrameSize.rowForm),
+              PressFeedback(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                  ),
+                  onPressed: () {
+                    ref
+                        .read(updateControllerProvider.notifier)
+                        .openReleasePage();
+                  },
+                  icon: const Icon(
+                    Icons.open_in_browser_outlined,
+                    size: FrameSize.icon,
+                  ),
+                  label: Text(strings.updatesDownloadManuallyBtn),
                 ),
-                onPressed: () {
-                  ref.read(updateControllerProvider.notifier).openReleasePage();
-                },
-                icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.icon),
-                label: Text(strings.updatesDownloadManuallyBtn),
               ),
           ],
         ],

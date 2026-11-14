@@ -11,6 +11,7 @@ import '../../../ui/frame_dialog.dart';
 import '../../../ui/frame_section.dart';
 import '../../../ui/frame_status_tag.dart';
 import 'settings_common.dart';
+import '../../../ui/precision.dart';
 
 /// Daemon tab: connection status, restart action, idle timeout, notifications.
 /// The daemon status uses the same tag vocabulary as Diagnostica.
@@ -132,24 +133,33 @@ class DaemonSection extends ConsumerWidget {
               const SizedBox(height: FrameSpace.x4),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  key: const ValueKey('settings-restart-daemon-btn'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: tokens.textPrimary,
-                    side: BorderSide(color: tokens.borderStrong),
-                    minimumSize: const Size(0, FrameSize.rowForm),
+                child: PressFeedback(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('settings-restart-daemon-btn'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: tokens.textPrimary,
+                      side: BorderSide(color: tokens.borderStrong),
+                      minimumSize: const Size(0, FrameSize.rowForm),
+                    ),
+                    icon: isRestartingDaemon
+                        ? FrameActivityIndicator(
+                            size: FrameSize.icon,
+                            strokeWidth: 2,
+                            color: tokens.accent,
+                          )
+                        : const Icon(
+                            Icons.restart_alt_outlined,
+                            size: FrameSize.icon,
+                          ),
+                    label: Text(
+                      isRestartingDaemon
+                          ? strings.restartingDaemonStatus
+                          : strings.restartDaemonBtn,
+                    ),
+                    onPressed: isRestartingDaemon
+                        ? null
+                        : () => _requestRestart(context),
                   ),
-                  icon: isRestartingDaemon
-                      ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
-                      : const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
-                  label: Text(
-                    isRestartingDaemon
-                        ? strings.restartingDaemonStatus
-                        : strings.restartDaemonBtn,
-                  ),
-                  onPressed: isRestartingDaemon
-                      ? null
-                      : () => _requestRestart(context),
                 ),
               ),
               const SizedBox(height: FrameSpace.x2),
@@ -168,7 +178,11 @@ class DaemonSection extends ConsumerWidget {
           child: isLoadingConfig
               ? Align(
                   alignment: Alignment.centerLeft,
-                  child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
+                  child: FrameActivityIndicator(
+                    size: FrameSize.iconLg,
+                    strokeWidth: 2,
+                    color: tokens.accent,
+                  ),
                 )
               : Wrap(
                   spacing: FrameSpace.x4,

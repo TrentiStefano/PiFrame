@@ -11,6 +11,7 @@ import '../../../data/terminal/terminal_settings.dart';
 import '../../../ui/frame_section.dart';
 import '../../../ui/frame_snack_bar.dart';
 import 'settings_common.dart';
+import '../../../ui/precision.dart';
 
 /// Terminal tab: preferred execution mode and native terminal app.
 /// Each choice group is one [FrameSection]; the radio rows sit in a
@@ -186,31 +187,33 @@ class TerminalSection extends ConsumerWidget {
                                       ),
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
-                                    OutlinedButton.icon(
-                                      icon: const Icon(
-                                        Icons.folder_open_outlined,
-                                        size: FrameSize.icon,
+                                    PressFeedback(
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(
+                                          Icons.folder_open_outlined,
+                                          size: FrameSize.icon,
+                                        ),
+                                        label: Text(strings.terminalBrowseBtn),
+                                        onPressed: () async {
+                                          final file = await openFile(
+                                            acceptedTypeGroups: [
+                                              XTypeGroup(
+                                                label: strings
+                                                    .terminalExecutableFilterLabel,
+                                                extensions: const [
+                                                  'exe',
+                                                  'bat',
+                                                  'cmd',
+                                                  'sh',
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                          if (file != null) {
+                                            notifier.setCustomPath(file.path);
+                                          }
+                                        },
                                       ),
-                                      label: Text(strings.terminalBrowseBtn),
-                                      onPressed: () async {
-                                        final file = await openFile(
-                                          acceptedTypeGroups: [
-                                            XTypeGroup(
-                                              label: strings
-                                                  .terminalExecutableFilterLabel,
-                                              extensions: const [
-                                                'exe',
-                                                'bat',
-                                                'cmd',
-                                                'sh',
-                                              ],
-                                            ),
-                                          ],
-                                        );
-                                        if (file != null) {
-                                          notifier.setCustomPath(file.path);
-                                        }
-                                      },
                                     ),
                                   ],
                                 ),
@@ -227,31 +230,36 @@ class TerminalSection extends ConsumerWidget {
         const SizedBox(height: FrameSpace.x6),
         Align(
           alignment: Alignment.centerLeft,
-          child: FilledButton.icon(
-            key: const ValueKey('settings-terminal-test-btn'),
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.accent,
-              foregroundColor: tokens.surface,
-              minimumSize: const Size(0, FrameSize.rowForm),
-            ),
-            icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
-            label: Text(strings.terminalTestBtn),
-            onPressed: () async {
-              final launched = await launchNativeTerminal(
-                cwd: Directory.current.path,
-                nativeApp: termSettings.nativeApp,
-                customPath: termSettings.customPath,
-              );
-              if (context.mounted) {
-                FrameSnackBar.show(
-                  context,
-                  message: launched
-                      ? strings.terminalTestSuccess
-                      : strings.terminalTestFailed,
-                  isError: !launched,
+          child: PressFeedback(
+            child: FilledButton.icon(
+              key: const ValueKey('settings-terminal-test-btn'),
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.surface,
+                minimumSize: const Size(0, FrameSize.rowForm),
+              ),
+              icon: const Icon(
+                Icons.open_in_new_outlined,
+                size: FrameSize.icon,
+              ),
+              label: Text(strings.terminalTestBtn),
+              onPressed: () async {
+                final launched = await launchNativeTerminal(
+                  cwd: Directory.current.path,
+                  nativeApp: termSettings.nativeApp,
+                  customPath: termSettings.customPath,
                 );
-              }
-            },
+                if (context.mounted) {
+                  FrameSnackBar.show(
+                    context,
+                    message: launched
+                        ? strings.terminalTestSuccess
+                        : strings.terminalTestFailed,
+                    isError: !launched,
+                  );
+                }
+              },
+            ),
           ),
         ),
       ],

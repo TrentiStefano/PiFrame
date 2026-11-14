@@ -19,6 +19,7 @@ import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
 import '../../ui/motion.dart';
 import 'sections/settings_common.dart';
+import '../../ui/precision.dart';
 
 class PiCommandItem {
   final String label;
@@ -338,7 +339,11 @@ class _PiCliSectionState extends State<PiCliSection> {
 
     final title = Row(
       children: [
-        Icon(Icons.terminal_outlined, color: tokens.accent, size: FrameSize.iconLg),
+        Icon(
+          Icons.terminal_outlined,
+          color: tokens.accent,
+          size: FrameSize.iconLg,
+        ),
         const SizedBox(width: FrameSpace.x3),
         Text(
           strings.piCliTitle,
@@ -403,12 +408,15 @@ class _PiCliSectionState extends State<PiCliSection> {
             ),
           ),
           const SizedBox(width: FrameSpace.x2),
-          OutlinedButton.icon(
-            key: const ValueKey('pi-cli-custom-run-btn'),
-            style: _outlinedRunStyle(tokens),
-            onPressed: _isExecuting ? null : _runCustomCommand,
-            icon: const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
-            label: Text(strings.piCliRunBtn),
+          PressFeedback(
+            enabled: (_isExecuting ? null : _runCustomCommand) != null,
+            child: OutlinedButton.icon(
+              key: const ValueKey('pi-cli-custom-run-btn'),
+              style: _outlinedRunStyle(tokens),
+              onPressed: _isExecuting ? null : _runCustomCommand,
+              icon: const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
+              label: Text(strings.piCliRunBtn),
+            ),
           ),
         ],
       ),
@@ -473,12 +481,15 @@ class _PiCliSectionState extends State<PiCliSection> {
           ),
         ),
         if (widget.onRecheck != null)
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, FrameSize.rowForm),
+          PressFeedback(
+            enabled: (widget.onRecheck) != null,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, FrameSize.rowForm),
+              ),
+              onPressed: widget.onRecheck,
+              child: Text(strings.piCliRecheckBtn),
             ),
-            onPressed: widget.onRecheck,
-            child: Text(strings.piCliRecheckBtn),
           ),
       ],
     );
@@ -553,7 +564,11 @@ class _PiCliSectionState extends State<PiCliSection> {
     return Row(
       children: [
         if (_isExecuting) ...[
-          FrameActivityIndicator(size: FrameSize.icon - FrameSpace.x1, strokeWidth: 2, color: tokens.accent),
+          FrameActivityIndicator(
+            size: FrameSize.icon - FrameSpace.x1,
+            strokeWidth: 2,
+            color: tokens.accent,
+          ),
           const SizedBox(width: FrameSpace.x2),
           Flexible(
             child: Text(
@@ -657,30 +672,38 @@ class _PiCliSectionState extends State<PiCliSection> {
           ),
           const SizedBox(width: FrameSpace.x2),
           if (isMcpRow) ...[
-            OutlinedButton(
-              key: const ValueKey('btn-manage-mcp-servers'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: tokens.textPrimary,
-                side: BorderSide(color: tokens.borderStrong),
-                minimumSize: const Size(0, FrameSize.hitMin),
+            PressFeedback(
+              child: OutlinedButton(
+                key: const ValueKey('btn-manage-mcp-servers'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: tokens.textPrimary,
+                  side: BorderSide(color: tokens.borderStrong),
+                  minimumSize: const Size(0, FrameSize.hitMin),
+                ),
+                onPressed: () =>
+                    McpServersDialog.show(context, tokens, strings: strings),
+                child: Text(strings.piCliManageMcpBtn),
               ),
-              onPressed: () =>
-                  McpServersDialog.show(context, tokens, strings: strings),
-              child: Text(strings.piCliManageMcpBtn),
             ),
             const SizedBox(width: FrameSpace.x2),
           ],
-          OutlinedButton.icon(
-            key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
-            style: _outlinedRunStyle(tokens),
-            onPressed: _isExecuting
-                ? null
-                : () => _executeCommand(item.command, item.args),
-            icon: isRunning
-                ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
-                : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
-            label: Text(
-              isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
+          PressFeedback(
+            child: OutlinedButton.icon(
+              key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
+              style: _outlinedRunStyle(tokens),
+              onPressed: _isExecuting
+                  ? null
+                  : () => _executeCommand(item.command, item.args),
+              icon: isRunning
+                  ? FrameActivityIndicator(
+                      size: FrameSize.icon,
+                      strokeWidth: 2,
+                      color: tokens.accent,
+                    )
+                  : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
+              label: Text(
+                isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
+              ),
             ),
           ),
         ],

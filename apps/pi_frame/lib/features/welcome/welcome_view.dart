@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -213,13 +214,15 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                       ),
                     ),
                   ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('browse-sessions-button'),
-                    onPressed: widget.narrow
-                        ? widget.onOpenSessionsDrawer
-                        : widget.onOpenCommandPalette,
-                    icon: const Icon(Icons.search, size: FrameSize.iconLg),
-                    label: Text(strings.browseSessionsAction),
+                  PressFeedback(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('browse-sessions-button'),
+                      onPressed: widget.narrow
+                          ? widget.onOpenSessionsDrawer
+                          : widget.onOpenCommandPalette,
+                      icon: const Icon(Icons.search, size: FrameSize.iconLg),
+                      label: Text(strings.browseSessionsAction),
+                    ),
                   ),
                 ],
               ),

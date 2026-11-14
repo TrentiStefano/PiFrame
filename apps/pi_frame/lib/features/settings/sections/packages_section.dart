@@ -11,6 +11,7 @@ import '../../../ui/frame_linear_progress.dart';
 import '../../../ui/frame_list_row.dart';
 import '../../../ui/frame_section.dart';
 import '../package_load_states.dart';
+import '../../../ui/precision.dart';
 
 /// Pi packages tab: installed packages list, update, pin and remove actions.
 /// Loading and error state live in SettingsView and are passed in.
@@ -84,23 +85,30 @@ class PackagesSection extends ConsumerWidget {
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  key: const ValueKey('update-all-pi-packages'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, FrameSize.rowForm),
-                  ),
-                  onPressed:
-                      isWorking || !packages.any(hasAvailablePiPackageUpdate)
-                      ? null
-                      : onUpdateAll,
-                  icon: const Icon(
-                    Icons.system_update_alt_outlined,
-                    size: FrameSize.icon,
-                  ),
-                  label: Text(
-                    updateProgress == null
-                        ? strings.updateAllPackages
-                        : strings.updatingPackages,
+                child: PressFeedback(
+                  enabled:
+                      (isWorking || !packages.any(hasAvailablePiPackageUpdate)
+                          ? null
+                          : onUpdateAll) !=
+                      null,
+                  child: FilledButton.icon(
+                    key: const ValueKey('update-all-pi-packages'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, FrameSize.rowForm),
+                    ),
+                    onPressed:
+                        isWorking || !packages.any(hasAvailablePiPackageUpdate)
+                        ? null
+                        : onUpdateAll,
+                    icon: const Icon(
+                      Icons.system_update_alt_outlined,
+                      size: FrameSize.icon,
+                    ),
+                    label: Text(
+                      updateProgress == null
+                          ? strings.updateAllPackages
+                          : strings.updatingPackages,
+                    ),
                   ),
                 ),
               ),
@@ -182,7 +190,10 @@ class PackagesSection extends ConsumerWidget {
             onPressed: isWorking || !hasAvailablePiPackageUpdate(package)
                 ? null
                 : () => onUpdatePackage(package),
-            icon: const Icon(Icons.system_update_alt_outlined, size: FrameSize.iconLg),
+            icon: const Icon(
+              Icons.system_update_alt_outlined,
+              size: FrameSize.iconLg,
+            ),
           ),
           if (supportsPin)
             IconButton(
