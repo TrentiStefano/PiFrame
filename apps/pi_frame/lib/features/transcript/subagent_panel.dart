@@ -19,6 +19,56 @@ bool get _isTestBinding =>
 /// The Agents/Workflows column beside the chat card: a slim strip while
 /// closed, the full [AgentActivityPanel] while open, nothing when the session
 /// never delegated work.
+/// Width of the open Agents panel, its 360 px card plus the 3 px padding on each side.
+const double kAgentSidecarOpenWidth = 366;
+
+/// Chat pane minimum width (audit R2). When an open Agents panel would leave the
+/// chat narrower than this, the panel floats over the chat instead of squeezing it.
+const double kChatPaneMinWidth = 420;
+
+/// Places the Agents sidecar beside the chat pane. Wide: a sibling column.
+/// Narrow with the panel open: an overlay sheet inside the chat pane.
+class AgentSidecarLayout extends ConsumerWidget {
+  final String sessionId;
+  final Widget chat;
+  final Widget sidecar;
+
+  const AgentSidecarLayout({
+    super.key,
+    required this.sessionId,
+    required this.chat,
+    required this.sidecar,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasItems = ref.watch(subagentsFamily(sessionId)).isNotEmpty ||
+        ref.watch(workflowsFamily(sessionId)).isNotEmpty;
+    final open = hasItems && ref.watch(agentActivityPanelOpenProvider(sessionId));
+
+    Widget row() => Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [Expanded(child: chat), sidecar],
+        );
+    if (!open) return row();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final floats =
+            constraints.maxWidth - kAgentSidecarOpenWidth < kChatPaneMinWidth;
+        if (!floats) return row();
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            chat,
+            Positioned(top: 0, bottom: 0, right: 0, child: sidecar),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class AgentActivitySidecar extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -74,18 +124,21 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
       child = Padding(
         key: const ValueKey('agent-activity-open'),
         padding: const EdgeInsets.all(3),
-        child: Container(
-          width: 360,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            border: Border.all(color: tokens.border),
-            borderRadius: BorderRadius.circular(tokens.radiusLg),
-          ),
-          child: AgentActivityPanel(
-            sessionId: sessionId,
-            onClose: () =>
-                ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false,
+        // Never wider than the slot it is given (an overlay on a narrow chat pane).
+        child: LayoutBuilder(
+          builder: (context, constraints) => Container(
+            width: constraints.maxWidth < 360 ? constraints.maxWidth : 360,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: tokens.surface,
+              border: Border.all(color: tokens.border),
+              borderRadius: BorderRadius.circular(tokens.radiusLg),
+            ),
+            child: AgentActivityPanel(
+              sessionId: sessionId,
+              onClose: () =>
+                  ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false,
+            ),
           ),
         ),
       );

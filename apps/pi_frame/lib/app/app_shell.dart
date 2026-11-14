@@ -82,6 +82,7 @@ class _AppShellState extends ConsumerState<AppShell>
   };
   bool _sidebarCollapsed = false;
   Widget? _chatSidecar;
+  String? _chatSidecarSessionId;
   static const _defaultSidebarWidth = 280.0;
   static const _minimumSidebarWidth = 220.0;
   static const _maximumSidebarWidth = 560.0;
@@ -719,6 +720,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
+    _chatSidecarSessionId = width < 900 ? null : sessionId;
     _chatSidecar = width < 900
         ? null
         : AgentActivitySidecar(
@@ -869,10 +871,14 @@ class _AppShellState extends ConsumerState<AppShell>
   /// Chat keeps the Agents/Workflows column as a sibling card on its right.
   Widget _paneCard(WorkspacePane pane, Widget child) {
     final sidecar = _chatSidecar;
-    if (pane != WorkspacePane.chat || sidecar == null) return _bentoPane(child);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [Expanded(child: _bentoPane(child)), sidecar],
+    final sessionId = _chatSidecarSessionId;
+    if (pane != WorkspacePane.chat || sidecar == null || sessionId == null) {
+      return _bentoPane(child);
+    }
+    return AgentSidecarLayout(
+      sessionId: sessionId,
+      chat: _bentoPane(child),
+      sidecar: sidecar,
     );
   }
 

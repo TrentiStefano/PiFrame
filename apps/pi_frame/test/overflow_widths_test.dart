@@ -13,6 +13,9 @@ import 'package:pi_frame/data/transcript/step_grouping_settings.dart';
 import 'package:pi_frame/domain/session/snapshot_reducer.dart';
 import 'package:pi_frame/domain/session/transcript_grouping.dart';
 import 'package:pi_frame/features/transcript/task_notification_card.dart';
+import 'package:pi_frame/features/transcript/subagent_panel.dart';
+import 'package:pi_frame/features/transcript/subagents_provider.dart';
+import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 
 /// Narrow widths that every companion/transcript widget must survive without
@@ -45,6 +48,7 @@ Widget _themed({required Widget child, List<Override> overrides = const []}) {
 void main() {
   _todoTests();
   _transcriptTests();
+  _subagentTests();
   group('Browser companion fits narrow widths (task 1.2a)', () {
     for (final width in kNarrowWidths) {
       testWidgets('toolbar and header do not overflow at ${width.toInt()} px',
@@ -262,4 +266,90 @@ void _transcriptTests() {
       });
     }
   });
+}
+
+class _FixedSubagentsNotifier extends SubagentsNotifier {
+  _FixedSubagentsNotifier(super.ref, super.sessionId, List<SubagentItem> initial) {
+    state = initial;
+  }
+}
+
+void _subagentTests() {
+  group('Agents sidecar keeps the chat usable (task 1.2d)', () {
+    const sessionId = 'overflow-agents';
+    final agents = [
+      const SubagentItem(
+        id: 'sub-1',
+        name: 'Explore Agent with a long name for the narrow layout',
+        model: 'gpt-6-luna',
+        cost: 0.0175,
+        output: 'Found 4 files',
+        status: 'completed',
+        description: 'Search for authentication files in the repository',
+      ),
+    ];
+
+    Widget host(double width, {required double height}) => ProviderScope(
+          overrides: [
+            subagentsFamily(sessionId).overrideWith(
+              (ref) => _FixedSubagentsNotifier(ref, sessionId, agents),
+            ),
+          ],
+          child: _themed(
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: AgentSidecarLayout(
+                sessionId: sessionId,
+                chat: const SizedBox.expand(
+                  key: ValueKey('overflow-chat-body'),
+                ),
+                sidecar: const AgentActivitySidecar(sessionId: sessionId),
+              ),
+            ),
+          ),
+        );
+
+    for (final width in kNarrowWidths) {
+      testWidgets(
+          'open Agents panel floats over the chat at ${width.toInt()} px',
+          (tester) async {
+        await tester.pumpWidget(host(width, height: 700));
+        await _openPanel(tester, sessionId);
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        // The chat keeps the full pane width; the panel is an overlay.
+        expect(
+          tester.getSize(find.byKey(const ValueKey('overflow-chat-body'))).width,
+          width,
+        );
+        expect(
+          find.byKey(const ValueKey('agent-activity-open')),
+          findsOneWidget,
+        );
+      });
+    }
+
+    testWidgets('open Agents panel sits beside a chat of at least 420 px',
+        (tester) async {
+      await tester.pumpWidget(host(900, height: 700));
+      await _openPanel(tester, sessionId);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('overflow-chat-body'))).width,
+        greaterThanOrEqualTo(kChatPaneMinWidth),
+      );
+    });
+  });
+}
+
+Future<void> _openPanel(WidgetTester tester, String sessionId) async {
+  final element = tester.element(find.byKey(const ValueKey('overflow-chat-body')));
+  ProviderScope.containerOf(element)
+      .read(agentActivityPanelOpenProvider(sessionId).notifier)
+      .state = true;
+  await tester.pump();
 }
