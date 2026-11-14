@@ -75,7 +75,11 @@ Future<void> showGitDiffWindowDialog({
     );
   } catch (error) {
     if (context.mounted) {
-      FrameSnackBar.show(context, message: strings.diffUnavailable(error));
+      FrameSnackBar.show(
+        context,
+        message: strings.diffUnavailable(error),
+        isError: true,
+      );
     }
   }
 }

@@ -6,6 +6,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../ui/frame_focus.dart';
+import '../../ui/frame_activity_indicator.dart';
 
 // Layout constants with no matching token in FrameSpace / FrameSize.
 const _dialogMaxWidth = 540.0;
@@ -252,12 +253,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                 SizedBox(
                                   width: FrameSpace.x6,
                                   height: FrameSpace.x6,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      tokens.accent,
-                                    ),
-                                  ),
+                                  child: FrameActivityIndicator(size: FrameSpace.x6, strokeWidth: 2.5, color: tokens.accent),
                                 ),
                                 const SizedBox(height: FrameSpace.x3),
                                 Text(

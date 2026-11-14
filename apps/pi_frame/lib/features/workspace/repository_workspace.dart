@@ -22,6 +22,7 @@ import 'repository_error_callout.dart';
 import 'repository_state.dart';
 import 'workspace_pane.dart';
 import 'workspace_pane_header.dart';
+import '../../ui/frame_activity_indicator.dart';
 
 export 'editor/repository_file_save.dart';
 export 'git/git_changes_pane.dart';
@@ -193,10 +194,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: tokens.accent,
-              ),
+              child: FrameActivityIndicator(size: 18, color: tokens.accent),
             ),
             const SizedBox(height: 8),
             Text(

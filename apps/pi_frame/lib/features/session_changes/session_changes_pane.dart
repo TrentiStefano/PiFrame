@@ -10,6 +10,7 @@ import '../../ui/frame_focus.dart';
 import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
+import '../../ui/frame_activity_indicator.dart';
 
 /// Below this width for the companion tab row, inactive tabs show only their icon
 /// (the active tab keeps its label, ellipsised). Labels stay in semantics and tooltips.
@@ -359,7 +360,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                       '${changes.files.length}',
                       style: TextStyle(
                         color: tokens.textSecondary,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -406,7 +407,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                             diffMode == DiffViewMode.singleColumn ? '00' : '1',
                             style: TextStyle(
                               fontFamily: tokens.monoFontFamily,
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: tokens.displayText,
                             ),
@@ -458,10 +459,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
           Expanded(
             child: changes.isLoading && changes.files.isEmpty
                 ? Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tokens.accent,
-                    ),
+                    child: FrameActivityIndicator(size: FrameSpace.x6, color: tokens.accent),
                   )
                 : changes.files.isEmpty
                 ? Center(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-/// Renders a distinctive, colorful file/folder icon based on file type and
-/// Catppuccin semantic palette colors, matching the VS Code experience.
+/// Renders a file/folder icon based on file type, using the active theme's
+/// semantic palette colors. Outlined Material glyphs at [FrameSize.icon].
 class FileIcon extends StatelessWidget {
   final String path;
   final double size;
@@ -12,7 +12,7 @@ class FileIcon extends StatelessWidget {
   const FileIcon({
     super.key,
     required this.path,
-    this.size = 15,
+    this.size = FrameSize.icon,
     this.isDirectory = false,
     this.isExpanded = false,
   });
@@ -22,7 +22,7 @@ class FileIcon extends StatelessWidget {
     final tokens = context.tokens;
     if (isDirectory) {
       return Icon(
-        isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
+        isExpanded ? Icons.folder_open_outlined : Icons.folder_outlined,
         size: size,
         color: tokens.warning,
       );
@@ -57,8 +57,8 @@ class FileIcon extends StatelessWidget {
       icon = Icons.lock_outline;
       color = tokens.textMuted;
     } else if (lower.contains('.git')) {
-      icon = Icons.merge_type;
-      color = tokens.danger;
+      icon = Icons.merge_type_outlined;
+      color = tokens.textMuted;
     } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
       icon = Icons.html;
       color = tokens.syntaxNumber;
