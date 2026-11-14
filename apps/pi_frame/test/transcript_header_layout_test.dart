@@ -116,4 +116,49 @@ void main() {
       },
     );
   }
+
+  for (final width in [480.0, 800.0, 1200.0, 1584.0]) {
+    testWidgets(
+      'status pill and chips never intersect, chips start after the pill at ${width.toInt()} px',
+      (tester) async {
+        await _pumpHeader(tester, width);
+
+        final statusRect = tester.getRect(
+          find.byKey(const ValueKey('session-header-status')),
+        );
+        final firstChipFinder = find.byKey(
+          const ValueKey('session-header-context-chip'),
+        );
+        final firstChipRect = tester.getRect(firstChipFinder);
+        // The chips sit in a clipped horizontal scroll view; its viewport
+        // must start after the pill as well.
+        final chipViewportRect = tester.getRect(
+          find
+              .ancestor(
+                of: firstChipFinder,
+                matching: find.byType(SingleChildScrollView),
+              )
+              .first,
+        );
+
+        expect(
+          statusRect.overlaps(firstChipRect),
+          isFalse,
+          reason: 'status $statusRect overlaps first chip $firstChipRect',
+        );
+        expect(
+          firstChipRect.left >= statusRect.right - 0.5,
+          isTrue,
+          reason: 'first chip $firstChipRect starts under status $statusRect',
+        );
+        expect(
+          chipViewportRect.left >= statusRect.right - 0.5,
+          isTrue,
+          reason:
+              'chip viewport $chipViewportRect starts under status $statusRect',
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }

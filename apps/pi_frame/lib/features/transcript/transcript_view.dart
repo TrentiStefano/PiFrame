@@ -2051,7 +2051,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Flexible(
                     child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                reverse: true,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
