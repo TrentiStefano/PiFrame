@@ -7,7 +7,8 @@ import 'frame_middle_ellipsis.dart';
 /// optional [secondary] line (a path, truncated in the middle), an optional
 /// [trailing] badge, and [actions].
 ///
-/// Height is at least `FrameSize.rowList` and grows with text scale.
+/// Height is at least [minHeight] (default `FrameSize.rowList`) and grows with
+/// text scale.
 /// [actions] are always in the tree and stay focusable with Tab. They are
 /// visible on hover or while focus is inside the row, and otherwise only
 /// their opacity changes, so the row does not shift.
@@ -25,6 +26,10 @@ class FrameListRow extends StatefulWidget {
   final VoidCallback? onTap;
   final ValueChanged<Offset>? onSecondaryTap;
 
+  /// Smallest row height. Defaults to `FrameSize.rowList`; dense lists such as
+  /// the sessions rail pass a smaller value.
+  final double minHeight;
+
   const FrameListRow({
     super.key,
     required this.name,
@@ -35,6 +40,7 @@ class FrameListRow extends StatefulWidget {
     this.selected = false,
     this.onTap,
     this.onSecondaryTap,
+    this.minHeight = FrameSize.rowList,
   });
 
   @override
@@ -81,7 +87,7 @@ class _FrameListRowState extends State<FrameListRow> {
             hoverColor: transparent,
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: FrameSize.rowList),
+              constraints: BoxConstraints(minHeight: widget.minHeight),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: FrameSpace.x2,

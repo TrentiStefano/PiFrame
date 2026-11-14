@@ -22,6 +22,9 @@ import '../../data/language/strings_shell.dart';
 import '../../domain/session/session_labels.dart';
 import '../../data/update/update_providers.dart';
 
+/// Session rows in the rail are denser than the shared list row (plan 5.1).
+const double _railRowMinHeight = 32;
+
 bool _isSubsession(Map<String, dynamic> session) {
   if (session['isSubsession'] == true) return true;
   final parentSession = (session['parentSession'] ?? '').toString().trim();
@@ -1537,6 +1540,7 @@ class _SessionTile extends ConsumerWidget {
       key: ValueKey('session-row-$id'),
       name: title,
       selected: isSelected,
+      minHeight: _railRowMinHeight,
       leading: isWorking
           ? _WorkingDot(color: tokens.agentWorking)
           : Container(
