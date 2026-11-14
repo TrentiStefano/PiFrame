@@ -421,9 +421,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         children: [
           workspacePaneHeader(
             context,
-            'Repository',
+            strings.repositoryPaneLabel,
             Icons.folder_outlined,
             companionTabs: widget.companionTabs,
+            companionTabLabels: workspaceCompanionTabLabels(strings),
             activeCompanionTab:
                 widget.activeCompanionTab ?? WorkspacePane.repository,
             onSelectCompanionTab: widget.onSelectCompanionTab,

@@ -33,11 +33,13 @@ class _DiffBlockState extends State<DiffBlock> {
     for (final line in lines) {
       final trimmed = line.trimLeft();
       if ((line.startsWith('+') && !line.startsWith('+++')) ||
-          (trimmed.startsWith('+') && !trimmed.startsWith('+++')))
+          (trimmed.startsWith('+') && !trimmed.startsWith('+++'))) {
         additions++;
+      }
       if ((line.startsWith('-') && !line.startsWith('---')) ||
-          (trimmed.startsWith('-') && !trimmed.startsWith('---')))
+          (trimmed.startsWith('-') && !trimmed.startsWith('---'))) {
         deletions++;
+      }
     }
     _cachedLines = lines;
     _cachedAdditions = additions;

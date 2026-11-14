@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_workspace.dart';
 import 'workspace_pane.dart';
+
+/// Localized labels for the companion tabs shown in a workspace pane header.
+Map<WorkspacePane, String> workspaceCompanionTabLabels(AppStrings strings) => {
+  WorkspacePane.repository: strings.filePaneLabel,
+  WorkspacePane.git: strings.gitChangesLabel,
+  WorkspacePane.chat: strings.chatPaneLabel,
+};
 
 Widget workspacePaneHeader(
   BuildContext context,
@@ -12,6 +21,7 @@ Widget workspacePaneHeader(
   List<WorkspacePane>? companionTabs,
   WorkspacePane? activeCompanionTab,
   ValueChanged<WorkspacePane>? onSelectCompanionTab,
+  required Map<WorkspacePane, String> companionTabLabels,
 }) {
   final tokens = context.tokens;
   final hasTabs = companionTabs != null && companionTabs.length > 1;
@@ -38,19 +48,11 @@ Widget workspacePaneHeader(
                     Builder(
                       builder: (context) {
                         final isActive = tab == activeCompanionTab;
-                        final (tabTitle, tabIcon) = switch (tab) {
-                          WorkspacePane.repository => (
-                            'File',
-                            Icons.folder_outlined,
-                          ),
-                          WorkspacePane.git => (
-                            'Git Changes',
-                            Icons.source_outlined,
-                          ),
-                          WorkspacePane.chat => (
-                            'Chat',
-                            Icons.chat_bubble_outline,
-                          ),
+                        final tabTitle = companionTabLabels[tab]!;
+                        final tabIcon = switch (tab) {
+                          WorkspacePane.repository => Icons.folder_outlined,
+                          WorkspacePane.git => Icons.source_outlined,
+                          WorkspacePane.chat => Icons.chat_bubble_outline,
                         };
                         return MouseRegion(
                           cursor: isActive

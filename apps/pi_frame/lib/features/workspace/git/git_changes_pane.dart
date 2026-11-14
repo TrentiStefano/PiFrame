@@ -1130,9 +1130,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         children: [
           workspacePaneHeader(
             context,
-            'Git Changes',
+            strings.gitChangesLabel,
             Icons.source_outlined,
             companionTabs: widget.companionTabs,
+            companionTabLabels: workspaceCompanionTabLabels(strings),
             activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.git,
             onSelectCompanionTab: widget.onSelectCompanionTab,
             titleWidget: SingleChildScrollView(
@@ -1142,7 +1143,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   Icon(Icons.source_outlined, size: 16, color: tokens.accent),
                   const SizedBox(width: FrameSpace.x2),
                   Text(
-                    'GIT CHANGES',
+                    strings.gitChangesLabel.toUpperCase(),
                     style: text.label.copyWith(
                       color: tokens.textPrimary,
                       fontWeight: FontWeight.w600,
@@ -1178,7 +1179,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             ),
                             const SizedBox(width: FrameSpace.x1),
                             Text(
-                              'Browser',
+                              strings.browserPaneLabel,
                               style: text.caption.copyWith(
                                 color: tokens.textMuted,
                                 fontWeight: FontWeight.w500,

@@ -205,6 +205,16 @@ extension WorkspaceStrings on AppStrings {
   // ---------------------------------------------------------------------------
   // Git Changes Pane
   // ---------------------------------------------------------------------------
+  String get gitChangesLabel => isItalian ? 'Modifiche Git' : 'Git Changes';
+
+  String get browserPaneLabel => isItalian ? 'Browser' : 'Browser';
+
+  String get repositoryPaneLabel => 'Repository';
+
+  String get filePaneLabel => isItalian ? 'File' : 'File';
+
+  String get chatPaneLabel => isItalian ? 'Chat' : 'Chat';
+
   String gitOperationFailed(Object error) => isItalian
       ? failureText(this, 'Operazione Git non riuscita', error)
       : failureText(this, 'Git operation failed', error);

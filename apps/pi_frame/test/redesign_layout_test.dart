@@ -280,7 +280,7 @@ void main() {
       expect(layoutError, isNull);
       if (size.width >= 1440) {
         expect(find.text('REPOSITORY'), findsOneWidget);
-        expect(find.text('GIT CHANGES'), findsOneWidget);
+        expect(find.text('MODIFICHE GIT'), findsOneWidget);
         final divider = find.byKey(
           const ValueKey(
             'pane-divider-WorkspacePane.repository-WorkspacePane.chat',
@@ -305,7 +305,7 @@ void main() {
         expect(find.text('Git Changes'), findsOneWidget);
         await tester.tap(find.text('Git Changes').first);
         await tester.pumpAndSettle();
-        expect(find.text('GIT CHANGES'), findsOneWidget);
+        expect(find.text('MODIFICHE GIT'), findsOneWidget);
         await tester.tap(find.text('Chat').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
@@ -325,7 +325,7 @@ void main() {
         );
         await tester.tap(find.byKey(const ValueKey('companion-tab-git')));
         await tester.pumpAndSettle();
-        expect(find.text('GIT CHANGES'), findsOneWidget);
+        expect(find.text('MODIFICHE GIT'), findsOneWidget);
         expect(
           find.byKey(const ValueKey('companion-tab-repository')),
           findsOneWidget,
@@ -503,7 +503,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('REPOSITORY'), findsOneWidget);
-    expect(find.text('GIT CHANGES'), findsOneWidget);
+    expect(find.text('MODIFICHE GIT'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await capture(
       tester,
@@ -546,7 +546,7 @@ void main() {
     );
     await tester.tap(find.text('Git Changes').first);
     await tester.pumpAndSettle();
-    expect(find.text('GIT CHANGES'), findsOneWidget);
+    expect(find.text('MODIFICHE GIT'), findsOneWidget);
     await capture(
       tester,
       boundaryKey,
