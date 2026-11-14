@@ -28,7 +28,9 @@ import 'file_mention_menu.dart';
 import 'slash_menu.dart';
 import 'command_chip.dart';
 import 'composer_focus_provider.dart';
+import 'composer_review_button.dart';
 import 'composer_status_line.dart';
+import 'thinking_level_bars.dart';
 import '../../ui/precision.dart';
 import '../../ui/shimmer_border.dart';
 import '../dialogs/extension_ui_dialog.dart';
@@ -38,6 +40,7 @@ import '../workspace/repository_workspace.dart';
 import '../workspace/pane_drag_state.dart';
 import '../session_changes/session_changes_provider.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/frame_icon_action.dart';
 import '../../ui/motion.dart';
 import '../context_panel/context_window_selector.dart';
 import '../side/side_provider.dart';
@@ -65,12 +68,25 @@ class _ComposerSizeAnimator extends ConsumerWidget {
   }
 }
 
-/// Width of the composer chip row (audit R2). Below kComposerChipNameFullWidth the
-/// model name is truncated to kComposerChipNameNarrowWidth; below
-/// kComposerChipLabelsMinWidth the chip labels drop to icon + tooltip.
-const double kComposerChipNameFullWidth = 300;
-const double kComposerChipNameNarrowWidth = 48;
-const double kComposerChipLabelsMinWidth = 180;
+/// Chip row budget (audit R2 and the chip-overlap regression, plan 4.4), in logical px. The chip
+/// row gets the width left after the send, attach, enlarge and review controls. Inside it the
+/// model name takes whatever the other chips leave (clamped to the min and max below), and the
+/// thinking label is dropped before the name is. Widths are estimates of the chips' fixed parts.
+const double kComposerChipGap = 4;
+const double kComposerModelChipMinWidth = 48;
+const double kComposerModelChipMaxWidth = 200;
+const double kComposerThinkingChipWidth = 40;
+const double kComposerThinkingLabelWidth = 56;
+const double kComposerThinkingLabelMinBox = 300;
+const double kComposerContextChipWidth = 76;
+const double kComposerContextIconChipWidth = 44;
+const double kComposerChipArrowWidth = 15;
+
+/// Below this chip-row width the picker chips drop their arrows and the context chip its label.
+const double kComposerCompactChipBox = 200;
+
+/// The review control shows its "Rivedi modifiche (n)" label from this width of the whole row.
+const double kComposerReviewLabelMinRowWidth = 520;
 
 class Composer extends ConsumerStatefulWidget {
   final String sessionId;
@@ -1275,7 +1291,7 @@ class _ComposerState extends ConsumerState<Composer> {
                     if (m['provider'] != null)
                       Text(
                         m['provider'].toString(),
-                        style: TextStyle(color: tokens.textMuted, fontSize: 10),
+                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
                       ),
                   ],
                 ),
@@ -1331,14 +1347,14 @@ class _ComposerState extends ConsumerState<Composer> {
       items: effectiveLevels.map((lvl) {
         final isCurrent = lvl.toLowerCase() == (current ?? '').toLowerCase();
         return PopupMenuItem<String>(
+          key: ValueKey('thinking-level-option-$lvl'),
           value: lvl,
           height: 34,
           child: Row(
             children: [
-              Icon(
-                Icons.bolt_outlined,
-                size: 14,
-                color: isCurrent ? tokens.thinking : tokens.textMuted,
+              ThinkingLevelBars(
+                level: lvl,
+                litColor: isCurrent ? tokens.thinking : tokens.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1732,6 +1748,14 @@ class _ComposerState extends ConsumerState<Composer> {
         )
         .toList();
 
+    final isReviewing = ref.watch(isReviewingChangesProvider);
+    final hasModifiedFiles = ref.watch(
+      sessionHasModifiedFilesProvider(widget.sessionId),
+    );
+    final changeCount = ref.watch(
+      sessionChangesProvider(widget.sessionId).select((s) => s.files.length),
+    );
+
     final isShimmerActive =
         isSending ||
         isStreaming ||
@@ -1960,7 +1984,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                             'STEER #${i + 1}',
                                             style: TextStyle(
                                               color: tokens.accent,
-                                              fontSize: 10,
+                                              fontSize: 11,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -2468,7 +2492,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                                         ? tokens.accent
                                                         : tokens
                                                               .textSecondary,
-                                                    fontSize: 10,
+                                                    fontSize: 11,
                                                     fontWeight:
                                                         FontWeight.w600,
                                                   ),
@@ -2482,312 +2506,341 @@ class _ComposerState extends ConsumerState<Composer> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Row(
+                              LayoutBuilder(
+                                builder: (context, rowBox) => Row(
                                 children: [
                                   Expanded(
-                                    // Chip labels step down as the row narrows: the model name
-                                    // truncates first, then labels drop to icon + tooltip.
+                                    // Chip budget (plan 4.4). The model name takes the width the other
+                                    // chips leave. The thinking label drops before the name does. The
+                                    // scroll view is only a last resort below the chips' floor width.
                                     child: LayoutBuilder(
-                                      builder: (context, chipBox) =>
-                                          SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Builder(
-                                            builder: (chipCtx) => Tooltip(
-                                              message: strings.composerChangeModelTooltip,
-                                              child: InkWell(
-                                                key: const ValueKey(
-                                                  'composer-model-picker-btn',
+                                      builder: (context, chipBox) {
+                                        final showThinkingLabel =
+                                            chipBox.maxWidth >=
+                                            kComposerThinkingLabelMinBox;
+                                        // Compact: no picker arrows, and the context chip shows its icon only.
+                                        final compact =
+                                            chipBox.maxWidth <
+                                            kComposerCompactChipBox;
+                                        final thinkingWidth =
+                                            (kComposerThinkingChipWidth -
+                                                (compact
+                                                    ? kComposerChipArrowWidth
+                                                    : 0)) +
+                                            (showThinkingLabel
+                                                ? kComposerThinkingLabelWidth
+                                                : 0);
+                                        final showContextLabel = !compact;
+                                        final contextWidth = isVariablePricing
+                                            ? kComposerChipGap +
+                                                  (showContextLabel
+                                                      ? kComposerContextChipWidth
+                                                      : kComposerContextIconChipWidth -
+                                                            kComposerChipArrowWidth)
+                                            : 0.0;
+                                        final modelWidth =
+                                            (chipBox.maxWidth -
+                                                    thinkingWidth -
+                                                    contextWidth -
+                                                    kComposerChipGap)
+                                                .clamp(
+                                                  kComposerModelChipMinWidth,
+                                                  kComposerModelChipMaxWidth,
+                                                )
+                                                .toDouble();
+                                        return SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                  maxWidth: modelWidth,
                                                 ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                                onTap: () => _guardPicker(
-                                                  () => _showModelPicker(
-                                                    chipCtx,
-                                                  ),
-                                                ),
-                                                child: Container(
-                                                  height: 26,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 7,
-                                                        vertical: 3,
+                                                child: Builder(
+                                                  builder: (chipCtx) => Tooltip(
+                                                    message: strings.composerChangeModelTooltip,
+                                                    child: InkWell(
+                                                      key: const ValueKey(
+                                                        'composer-model-picker-btn',
                                                       ),
-                                                  decoration: BoxDecoration(
-                                                    color: tokens
-                                                        .surfaceElevated,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: tokens.border,
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .smart_toy_outlined,
-                                                        size: 13,
-                                                        color:
-                                                            tokens.accent,
-                                                      ),
-                                                      // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
-                                                        width: 4,
-                                                      ),
-                                                      ConstrainedBox(
-                                                        constraints: BoxConstraints(
-                                                          maxWidth:
-                                                              chipBox.maxWidth <
-                                                                  kComposerChipNameFullWidth
-                                                              ? kComposerChipNameNarrowWidth
-                                                              : MediaQuery.sizeOf(
-                                                                    context,
-                                                                  ).width <
-                                                                  500
-                                                              ? 80
-                                                              : 130,
-                                                        ),
-                                                        child: Text(
-                                                          currentModel ??
-                                                              strings.composerModelDefaultLabel,
-                                                          maxLines: 1,
-                                                          overflow:
-                                                              TextOverflow
-                                                                  .ellipsis,
-                                                          style: TextStyle(
-                                                            color: tokens
-                                                                .textSecondary,
-                                                            fontSize: 11,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w500,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 2,
-                                                      ),
-                                                      Icon(
-                                                        Icons
-                                                            .keyboard_arrow_down,
-                                                        size: 13,
-                                                        color: tokens
-                                                            .textMuted,
-                                                      ),],
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Builder(
-                                            builder: (chipCtx) => Tooltip(
-                                              message: strings.composerThinkingLevelTooltip,
-                                              child: InkWell(
-                                                key: const ValueKey(
-                                                  'composer-thinking-picker-btn',
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                                onTap: () => _guardPicker(
-                                                  () => _showThinkingPicker(
-                                                    chipCtx,
-                                                  ),
-                                                ),
-                                                child: Container(
-                                                  height: 26,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 3,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: tokens
-                                                        .surfaceElevated,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: tokens.border,
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.bolt_outlined,
-                                                        size: 13,
-                                                        color:
-                                                            tokens.thinking,
-                                                      ),
-                                                      // Compact (phone) layout: icon only, so the chips never get cut off.
- if (!isMobile && chipBox.maxWidth >= kComposerChipLabelsMinWidth) ...[const SizedBox(
-                                                        width: 3,
-                                                      ),
-                                                      Text(
-                                                        strings.thinkingLevelLabel(currentThinkingLevel ?? 'medium'),
-                                                        style: TextStyle(
-                                                          color: tokens
-                                                              .textSecondary,
-                                                          fontSize: 10.5,
-                                                          fontWeight:
-                                                              FontWeight
-                                                                  .w500,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 2,
-                                                      ),
-                                                      Icon(
-                                                        Icons
-                                                            .keyboard_arrow_down,
-                                                        size: 13,
-                                                        color: tokens
-                                                            .textMuted,
-                                                      ),],
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          if (isVariablePricing) ...[
-                                            const SizedBox(width: 4),
-                                            Builder(
-                                              builder: (chipCtx) => Tooltip(
-                                                message: strings.composerVariablePricingContextTooltip,
-                                                child: InkWell(
-                                                  key: const ValueKey(
-                                                    'composer-context-size-picker-btn',
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                  onTap:
-                                                      _showContextSizePicker,
-                                                  child: Container(
-                                                    height: 26,
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 7,
-                                                          vertical: 3,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: tokens
-                                                          .surfaceElevated,
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                             tokens.radiusSm,
                                                           ),
-                                                      border: Border.all(
-                                                        color: tokens.accent
-                                                            .withValues(
-                                                              alpha: 0.35,
-                                                            ),
+                                                      onTap: () => _guardPicker(
+                                                        () => _showModelPicker(
+                                                          chipCtx,
+                                                        ),
                                                       ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        if (_isContextPickerLoading)
-                                                          SizedBox(
-                                                            width: 12,
-                                                            height: 12,
-                                                            child: CircularProgressIndicator(
-                                                              strokeWidth:
-                                                                  1.5,
-                                                              color: tokens
-                                                                  .accent,
+                                                      child: Container(
+                                                        height: 26,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 7,
+                                                              vertical: 3,
                                                             ),
-                                                          )
-                                                        else
-                                                          Icon(
-                                                            Icons.tune,
-                                                            size: 12,
-                                                            color: tokens
-                                                                .accent,
-                                                          ),
-                                                        const SizedBox(
-                                                          width: 3,
-                                                        ),
-                                                        Text(
-                                                          formatTokens(
-                                                            effectiveContextWindow,
-                                                          ),
-                                                          style: TextStyle(
-                                                            color: tokens
-                                                                .accent,
-                                                            fontSize: 10.5,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 2,
-                                                        ),
-                                                        Icon(
-                                                          Icons
-                                                              .keyboard_arrow_down,
-                                                          size: 12,
+                                                        decoration: BoxDecoration(
                                                           color: tokens
-                                                              .textMuted,
+                                                              .surfaceElevated,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                tokens.radiusSm,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: tokens.border,
+                                                          ),
                                                         ),
-                                                      ],
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Icon(
+                                                              Icons.smart_toy_outlined,
+                                                              size: 13,
+                                                              color: tokens.accent,
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 4,
+                                                            ),
+                                                            // The name truncates to the chip's budget; it is never hidden.
+                                                            Flexible(
+                                                              child: Text(
+                                                                currentModel ??
+                                                                    strings.composerModelDefaultLabel,
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                style: TextStyle(
+                                                                  color: tokens
+                                                                      .textSecondary,
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 2,
+                                                            ),
+                                                            Icon(
+                                                              Icons
+                                                                  .keyboard_arrow_down,
+                                                              size: 13,
+                                                              color: tokens
+                                                                  .textMuted,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
+                                              const SizedBox(
+                                                width: kComposerChipGap,
+                                              ),
+                                              Builder(
+                                                builder: (chipCtx) => Tooltip(
+                                                  message: strings.composerThinkingLevelTooltip,
+                                                  child: InkWell(
+                                                    key: const ValueKey(
+                                                      'composer-thinking-picker-btn',
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                    onTap: () => _guardPicker(
+                                                      () => _showThinkingPicker(
+                                                        chipCtx,
+                                                      ),
+                                                    ),
+                                                    child: Container(
+                                                      height: 26,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 3,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: tokens
+                                                            .surfaceElevated,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              tokens.radiusSm,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: tokens.border,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          // The bars show the level in four steps. The label drops first when space is short.
+                                                          ThinkingLevelBars(
+                                                            level: currentThinkingLevel,
+                                                            litColor: tokens.thinking,
+                                                          ),
+                                                          if (showThinkingLabel) ...[
+                                                            const SizedBox(
+                                                              width: 3,
+                                                            ),
+                                                            Text(
+                                                              strings.thinkingLevelLabel(
+                                                                currentThinkingLevel ??
+                                                                    'medium',
+                                                              ),
+                                                              maxLines: 1,
+                                                              style: TextStyle(
+                                                                color: tokens
+                                                                    .textSecondary,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                          if (!compact) ...[
+                                                          const SizedBox(
+                                                            width: 2,
+                                                          ),
+                                                          Icon(
+                                                            Icons
+                                                                .keyboard_arrow_down,
+                                                            size: 13,
+                                                            color: tokens
+                                                                .textMuted,
+                                                          ),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isVariablePricing) ...[
+                                                const SizedBox(
+                                                  width: kComposerChipGap,
+                                                ),
+                                                Builder(
+                                                  builder: (chipCtx) => Tooltip(
+                                                    message: strings.composerVariablePricingContextTooltip,
+                                                    child: InkWell(
+                                                      key: const ValueKey(
+                                                        'composer-context-size-picker-btn',
+                                                      ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            tokens.radiusSm,
+                                                          ),
+                                                      onTap:
+                                                          _showContextSizePicker,
+                                                      child: Container(
+                                                        height: 26,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 7,
+                                                              vertical: 3,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: tokens
+                                                              .surfaceElevated,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                tokens.radiusSm,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: tokens.accent
+                                                                .withValues(
+                                                                  alpha: 0.35,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            if (_isContextPickerLoading)
+                                                              SizedBox(
+                                                                width: 12,
+                                                                height: 12,
+                                                                child: CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      1.5,
+                                                                  color: tokens
+                                                                      .accent,
+                                                                ),
+                                                              )
+                                                            else
+                                                              Icon(
+                                                                Icons.tune,
+                                                                size: 12,
+                                                                color: tokens
+                                                                    .accent,
+                                                              ),
+                                                            if (showContextLabel) ...[
+                                                              const SizedBox(
+                                                                width: 3,
+                                                              ),
+                                                              Text(
+                                                                formatTokens(
+                                                                  effectiveContextWindow,
+                                                                ),
+                                                                maxLines: 1,
+                                                                style: TextStyle(
+                                                                  color: tokens
+                                                                      .accent,
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                            if (!compact) ...[
+                                                            const SizedBox(
+                                                              width: 2,
+                                                            ),
+                                                            Icon(
+                                                              Icons
+                                                                  .keyboard_arrow_down,
+                                                              size: 12,
+                                                              color: tokens
+                                                                  .textMuted,
+                                                            ),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
-                                  Tooltip(
-                                    message: strings.composerEnlargeTooltip(_isInputEnlarged),
-                                    child: IconButton(
-                                      key: const ValueKey(
-                                        'composer-enlarge-toggle-btn',
-                                      ),
-                                      icon: Icon(
-                                        _isInputEnlarged
-                                            ? Icons.close_fullscreen
-                                            : Icons.open_in_full,
-                                        size: 15,
-                                        color:
-                                            (_isInputEnlarged ||
-                                                isLongPrompt)
-                                            ? tokens.accent
-                                            : tokens.textMuted,
-                                      ),
-                                      visualDensity: VisualDensity.compact,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 28,
-                                        minHeight: 28,
-                                      ),
-                                      onPressed: () => setState(
-                                        () => _isInputEnlarged =
-                                            !_isInputEnlarged,
-                                      ),
+                                  // A 28 px target like the other row controls (the padded IconButton is 40).
+                                  FrameIconAction(
+                                    key: const ValueKey(
+                                      'composer-enlarge-toggle-btn',
+                                    ),
+                                    icon: _isInputEnlarged
+                                        ? Icons.close_fullscreen
+                                        : Icons.open_in_full,
+                                    tooltip: strings.composerEnlargeTooltip(
+                                      _isInputEnlarged,
+                                    ),
+                                    selected: _isInputEnlarged || isLongPrompt,
+                                    onPressed: () => setState(
+                                      () => _isInputEnlarged = !_isInputEnlarged,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
@@ -2932,96 +2985,26 @@ class _ComposerState extends ConsumerState<Composer> {
                                       ),
                                     ),
                                   ] else ...[
-                                    if (ref.watch(
-                                      sessionHasModifiedFilesProvider(
-                                        widget.sessionId,
+                                    ComposerReviewButton(
+                                      label: strings.composerReviewChangesLabel(
+                                        changeCount,
                                       ),
-                                    )) ...[
-                                      Tooltip(
-                                        message: strings.composerReviewChangesTooltip(
-                                          ref.watch(isReviewingChangesProvider),
-                                        ),
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          margin: const EdgeInsets.only(
-                                            right: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                ref.watch(
-                                                  isReviewingChangesProvider,
-                                                )
-                                                ? tokens.accent.withValues(
-                                                    alpha: 0.15,
-                                                  )
-                                                : tokens.surfaceElevated,
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                  tokens.radiusSm,
-                                                ),
-                                            border: Border.all(
-                                              color:
-                                                  ref.watch(
-                                                    isReviewingChangesProvider,
-                                                  )
-                                                  ? tokens.accent
-                                                  : tokens.border,
-                                            ),
-                                          ),
-                                          child: IconButton(
-                                            key: const ValueKey(
-                                              'review-changes-btn',
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                            icon: Stack(
-                                              alignment: Alignment.center,
-                                              children: [
-                                                Icon(
-                                                  ref.watch(
-                                                        isReviewingChangesProvider,
-                                                      )
-                                                      ? Icons.rate_review
-                                                      : Icons
-                                                            .rate_review_outlined,
-                                                  size: 15,
-                                                  color:
-                                                      ref.watch(
-                                                        isReviewingChangesProvider,
-                                                      )
-                                                      ? tokens.accent
-                                                      : tokens
-                                                            .textSecondary,
-                                                ),
-                                                SizedBox(
-                                                  width: 0,
-                                                  height: 0,
-                                                  child: Text(
-                                                    'Review changes',
-                                                    style: TextStyle(
-                                                      fontSize: 0,
-                                                      color: tokens
-                                                          .background
-                                                          .withValues(
-                                                            alpha: 0,
-                                                          ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            onPressed: () {
-                                              ref
-                                                  .read(
-                                                    isReviewingChangesProvider
-                                                        .notifier,
-                                                  )
-                                                  .update((v) => !v);
-                                            },
-                                          ),
-                                        ),
+                                      showLabel:
+                                          rowBox.maxWidth >=
+                                          kComposerReviewLabelMinRowWidth,
+                                      reviewing: isReviewing,
+                                      enabledTooltip: strings.composerReviewChangesTooltip(
+                                        isReviewing,
                                       ),
-                                    ],
+                                      disabledTooltip:
+                                          strings.composerReviewChangesNoneTooltip,
+                                      onPressed: !hasModifiedFiles
+                                          ? null
+                                          : () => ref
+                                                .read(isReviewingChangesProvider.notifier)
+                                                .update((v) => !v),
+                                    ),
+                                    const SizedBox(width: 4),
                                     Tooltip(
                                       key: const ValueKey('composer-send'),
                                       message: strings.composerSendTooltip(
@@ -3103,7 +3086,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                     ),
                                   ],
                                 ],
-                              ),
+                              )),
                             ],
                           ),
                         ),

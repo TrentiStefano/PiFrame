@@ -401,12 +401,72 @@ void _composerTests() {
           find.byKey(const ValueKey('composer-thinking-picker-btn')),
         );
         expect(model.overlaps(thinking), isFalse);
-        // Below the icon-only threshold the long model name is not drawn.
+        // Compact widths truncate the model name; they never hide it (plan 4.4).
         expect(find.text('An unusually long model name for the chip'),
-            findsNothing);
+            findsOneWidget);
+      });
+    }
+
+    // Plan 4.4 chip-overlap regression: at ~380 px the "128k" context chip was clipped under the
+    // expand icon. Every chip must end before the next control starts, at each of these widths.
+    for (final width in kChipOverlapWidths) {
+      testWidgets(
+          'context, thinking and model chips do not overlap the expand control at ${width.toInt()} px',
+          (tester) async {
+        await _pumpComposer(tester, width, model: 'gpt-6-luna');
+        expect(tester.takeException(), isNull);
+
+        Rect rectOf(String key) =>
+            tester.getRect(find.byKey(ValueKey(key)));
+        final model = rectOf('composer-model-picker-btn');
+        final thinking = rectOf('composer-thinking-picker-btn');
+        final context = rectOf('composer-context-size-picker-btn');
+        final expand = rectOf('composer-enlarge-toggle-btn');
+
+        expect(model.right, lessThanOrEqualTo(thinking.left + 0.5));
+        expect(thinking.right, lessThanOrEqualTo(context.left + 0.5));
+        expect(context.right, lessThanOrEqualTo(expand.left + 0.5));
+        expect(expand.left, greaterThanOrEqualTo(context.left));
       });
     }
   });
+}
+
+/// Widths for the chip-row overlap regression (plan 4.4). 380 is the reported chat width.
+const List<double> kChipOverlapWidths = [320, 380, 420];
+
+Future<void> _pumpComposer(
+  WidgetTester tester,
+  double width, {
+  required String model,
+}) async {
+  const sessionId = 'overflow-composer';
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        daemonEndpointProvider.overrideWith((ref) async => null),
+        sessionStateFamily(sessionId).overrideWith(
+          (ref) => SessionStateNotifier(sessionId, null)
+            ..state = SessionState(
+              sessionId: sessionId,
+              cwd: '/fixture',
+              currentModel: model,
+            ),
+        ),
+      ],
+      child: _themed(
+        child: SizedBox(
+          width: width,
+          height: 300,
+          child: const Align(
+            alignment: Alignment.bottomCenter,
+            child: Composer(sessionId: sessionId),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 void _companionTests() {

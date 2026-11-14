@@ -78,6 +78,16 @@ extension ComposerStrings on AppStrings {
       ? (isItalian ? 'Chiudi revisione modifiche' : 'Close review changes')
       : (isItalian ? 'Rivedi modifiche ai file' : 'Review file changes');
 
+  /// "Rivedi modifiche (3)"; the count is left out when there is nothing to review.
+  String composerReviewChangesLabel(int count) {
+    final base = isItalian ? 'Rivedi modifiche' : 'Review changes';
+    return count > 0 ? '$base ($count)' : base;
+  }
+
+  String get composerReviewChangesNoneTooltip => isItalian
+      ? 'Nessuna modifica da rivedere: il pulsante si attiva quando Pi modifica dei file'
+      : 'No changes to review: this turns on when Pi edits files';
+
   String get composerSendLabel => isItalian ? 'Invia' : 'Send';
 
   String get composerAgentAnswering => isItalian
@@ -143,6 +153,9 @@ extension ComposerStrings on AppStrings {
 
   String get composerRemoveCommandTooltip =>
       isItalian ? 'Rimuovi comando (Backspace)' : 'Remove command (Backspace)';
+
+  String get composerRemoveAttachmentTooltip =>
+      isItalian ? 'Rimuovi allegato' : 'Remove attachment';
 
   String composerCommandArgsHint(String name, String argumentHint) => isItalian
       ? '${argumentHint.isEmpty ? 'Nessun argomento richiesto' : argumentHint} · Invio esegue /$name'
