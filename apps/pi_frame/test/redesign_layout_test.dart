@@ -412,7 +412,7 @@ void main() {
       container.read(showSettingsProvider.notifier).state = false;
       container.read(activeSessionIdProvider.notifier).state = null;
       await tester.pumpAndSettle();
-      expect(find.text('Nuova\nsessione.'), findsOneWidget);
+      expect(find.text('Riprendi il lavoro'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-empty');
       await tester.pumpWidget(const SizedBox());

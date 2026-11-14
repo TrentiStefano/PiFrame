@@ -1,5 +1,3 @@
-import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
@@ -13,100 +11,12 @@ import 'removed_repos_provider.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../dialogs/new_session_dialog.dart';
 
 Future<String?> _chooseSessionDirectory(
   BuildContext context,
   String initialDirectory,
-) => showDialog<String>(
-  context: context,
-  builder: (_) => _SessionDirectoryDialog(initialDirectory: initialDirectory),
-);
-
-class _SessionDirectoryDialog extends ConsumerStatefulWidget {
-  const _SessionDirectoryDialog({required this.initialDirectory});
-  final String initialDirectory;
-
-  @override
-  ConsumerState<_SessionDirectoryDialog> createState() =>
-      _SessionDirectoryDialogState();
-}
-
-class _SessionDirectoryDialogState extends ConsumerState<_SessionDirectoryDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialDirectory,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDirectory() async {
-    try {
-      final directory = await getDirectoryPath();
-      if (mounted && directory != null) {
-        setState(() => _controller.text = directory);
-      }
-    } catch (error) {
-      if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: ref.read(appStringsProvider).directoryNotAvailable(error),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final strings = ref.watch(appStringsProvider);
-    return AlertDialog(
-      title: Text(strings.newSessionDialogTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            key: const ValueKey('new-session-cwd'),
-            controller: _controller,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: strings.workingDirectoryLabel,
-              hintText: 'C:\\Projects\\my-project',
-            ),
-          ),
-          if (kIsWeb) ...[
-            const SizedBox(height: 8),
-            Text(
-              strings.browserPathNotice,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        if (!kIsWeb)
-          TextButton.icon(
-            onPressed: _pickDirectory,
-            icon: const Icon(Icons.folder_open_outlined),
-            label: Text(strings.chooseFolderAction),
-          ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(strings.cancel),
-        ),
-        FilledButton(
-          onPressed: _controller.text.trim().isEmpty
-              ? null
-              : () => Navigator.pop(context, _controller.text.trim()),
-          child: Text(strings.createAction),
-        ),
-      ],
-    );
-  }
-}
+) => showNewSessionDialog(context, initialDirectory: initialDirectory);
 
 Future<void> createSession(
   BuildContext context,
