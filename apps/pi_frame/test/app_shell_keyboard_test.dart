@@ -9,9 +9,60 @@ import 'package:pi_frame/app/desktop_chrome.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/layout/layout_store.dart';
+import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/session_changes/session_changes_provider.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
+
+/// Records the commands sent to the daemon, so a test can tell whether Escape interrupted.
+class _InterruptRecordingClient extends PcpClient {
+  _InterruptRecordingClient() : super(port: 1, token: 'test');
+
+  final List<String> commandTypes = [];
+
+  @override
+  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async {
+    commandTypes.add(command.type);
+    if (command.type == 'agent.interrupt') {
+      return {
+        'data': {
+          'interrupted': true,
+          'queue': {'steering': <String>[], 'followUp': <String>[]},
+        },
+      };
+    }
+    return {'data': {}};
+  }
+}
+
+/// A session that is streaming a run, so Escape has something to interrupt.
+ProviderContainer _streamingContainer(PcpClient client) {
+  final notifier = SessionStateNotifier('session_1', client)
+    ..state = SessionState(
+      sessionId: 'session_1',
+      cwd: 'C:/repo',
+      agentStatus: AgentStatus.working,
+      streamingTextBlocks: const {0: 'Generating...'},
+      // A queued steer keeps the composer expanded, so its input can take focus.
+      steeringQueue: const ['Queued steer'],
+    );
+  return ProviderContainer(
+    overrides: [
+      desktopWindowLifecycleProvider.overrideWithValue(false),
+      desktopChromeProvider.overrideWithValue(false),
+      pcpClientProvider.overrideWithValue(client),
+      activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+      connectionStateProvider.overrideWith(
+        (ref) => Stream.value(DaemonConnectionState.connected),
+      ),
+      sessionListProvider.overrideWith((ref) async => const []),
+      sessionStateFamily('session_1').overrideWith((ref) => notifier),
+      repositoryStateProvider('session_1')
+          .overrideWith((ref) => RepositoryController('session_1', () => null)),
+    ],
+  );
+}
 
 ProviderContainer _container() => ProviderContainer(
   overrides: [
@@ -201,7 +252,9 @@ void main() {
       addTearDown(container.dispose);
       await pumpShell(tester, container);
 
-      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+      await tester.tap(
+        find.byKey(const ValueKey('shell-context-drawer-button')),
+      );
       await tester.pump(const Duration(milliseconds: 500));
       expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
@@ -228,7 +281,9 @@ void main() {
       addTearDown(container.dispose);
       await pumpShell(tester, container);
 
-      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+      await tester.tap(
+        find.byKey(const ValueKey('shell-context-drawer-button')),
+      );
       await tester.pump(const Duration(milliseconds: 500));
       expect(scaffold(tester).isEndDrawerOpen, isTrue);
       // The shell no longer draws its own "Area di lavoro" heading or close button.
@@ -239,7 +294,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
       expect(scaffold(tester).isEndDrawerOpen, isFalse);
 
-      await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+      await tester.tap(
+        find.byKey(const ValueKey('shell-context-drawer-button')),
+      );
       await tester.pump(const Duration(milliseconds: 500));
       expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
@@ -264,4 +321,60 @@ void main() {
     expect(container.read(showSettingsProvider), isFalse);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Escape interrupts a streaming run only when the composer is focused and no layer is open',
+    (tester) async {
+      final client = _InterruptRecordingClient();
+      final container = _streamingContainer(client);
+      addTearDown(container.dispose);
+      await pumpShell(tester, container);
+      await focusComposer(tester);
+      expect(client.commandTypes, isNot(contains('agent.interrupt')));
+
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(client.commandTypes, contains('agent.interrupt'));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'with the end drawer open, Escape closes the drawer and does not interrupt',
+    (tester) async {
+      final client = _InterruptRecordingClient();
+      final container = _streamingContainer(client);
+      addTearDown(container.dispose);
+      await pumpShell(tester, container);
+      await focusComposer(tester);
+
+      scaffold(tester).openEndDrawer();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+      // Opening the drawer moves focus away from the composer. Return focus to the composer
+      // while the drawer stays open, so Escape reaches the composer with a layer open.
+      final input = tester.state<EditableTextState>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('focus-region-composer')),
+              matching: find.byType(EditableText),
+            )
+            .first,
+      );
+      input.widget.focusNode.requestFocus();
+      await tester.pump();
+      expect(_regionOf(_primary), 'composer');
+
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(scaffold(tester).isEndDrawerOpen, isFalse);
+      expect(client.commandTypes, isNot(contains('agent.interrupt')));
+
+      // With nothing open, the same key interrupts.
+      await sendKey(tester, LogicalKeyboardKey.escape);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(client.commandTypes, contains('agent.interrupt'));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
