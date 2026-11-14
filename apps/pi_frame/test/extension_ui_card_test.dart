@@ -558,7 +558,8 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
       await tester.pumpAndSettle();
       expect(dismissed, 0);
-      expect(find.textContaining('boom'), findsOneWidget);
+      expect(find.textContaining('boom'), findsNothing);
+      expect(find.text('Operazione non riuscita'), findsOneWidget);
       final send = tester.widget<ElevatedButton>(
         find.widgetWithText(ElevatedButton, 'Invia'),
       );

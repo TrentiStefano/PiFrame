@@ -369,7 +369,8 @@ void main() {
         .data!;
     expect(error, contains('Pacchetti aggiornati: 1.'));
     expect(error, contains('Aggiornamenti non riusciti: 1.'));
-    expect(error, contains('npm:broken: Bad state: Package download failed'));
+    expect(error, contains('npm:broken: Operazione non riuscita'));
+    expect(error, isNot(contains('Package download failed')));
     expect(
       find.textContaining('Tutti i 2 pacchetti sono stati aggiornati.'),
       findsNothing,
@@ -491,7 +492,9 @@ void main() {
       final error = tester
           .widget<Text>(find.byKey(const ValueKey('pi-package-update-error')))
           .data!;
-      expect(error, contains('installed 0.1.15, expected 1.2.0'));
+      // Raw daemon text is not shown inline; the generic title is.
+      expect(error, contains('npm:pi-caveman: Operazione non riuscita'));
+      expect(error, isNot(contains('installed 0.1.15')));
       expect(client.updateChecks, 1);
       expect(client.listRequests, 2);
     },

@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/session/agent_status.dart';
 import 'language_settings.dart';
 
@@ -59,11 +60,11 @@ extension ShellStrings on AppStrings {
   String sessionRenamedNotice(String newName) =>
       isItalian ? 'Sessione rinominata in "$newName"' : 'Session renamed to "$newName"';
   String renameErrorNotice(Object e) =>
-      isItalian ? 'Errore rinomina: $e' : 'Rename error: $e';
+      isItalian ? failureText(this, 'Errore rinomina', e) : failureText(this, 'Rename error', e);
   String sessionDuplicatedNotice(String newSid) =>
       isItalian ? 'Sessione duplicata: $newSid' : 'Session duplicated: $newSid';
   String duplicateErrorNotice(Object e) =>
-      isItalian ? 'Errore duplicazione: $e' : 'Duplicate error: $e';
+      isItalian ? failureText(this, 'Errore duplicazione', e) : failureText(this, 'Duplicate error', e);
   String get sidebarTitle => isItalian ? 'Sessioni' : 'Sessions';
   String get refreshSessionsTooltip =>
       isItalian ? 'Aggiorna sessioni' : 'Refresh sessions';
@@ -91,7 +92,7 @@ extension ShellStrings on AppStrings {
   String get removeRepoFromSidebarAction =>
       isItalian ? 'Rimuovi repository dal riquadro' : 'Remove repository from sidebar';
   String sidebarErrorNotice(Object err) =>
-      isItalian ? 'Errore: $err' : 'Error: $err';
+      isItalian ? failureText(this, 'Errore', err) : failureText(this, 'Error', err);
   String get settingsLabel => isItalian ? 'Impostazioni' : 'Settings';
   String get commandPaletteTooltip =>
       isItalian ? 'Comandi (Ctrl+K)' : 'Command Palette (Ctrl+K)';
@@ -107,7 +108,7 @@ extension ShellStrings on AppStrings {
 
   // Session Actions & Dialogs
   String directoryNotAvailable(Object e) =>
-      isItalian ? 'Cartella non disponibile: $e' : 'Directory not available: $e';
+      isItalian ? failureText(this, 'Cartella non disponibile', e) : failureText(this, 'Directory not available', e);
   String get newSessionDialogTitle =>
       isItalian ? 'Nuova sessione' : 'New session';
   String get workingDirectoryLabel =>
@@ -119,7 +120,7 @@ extension ShellStrings on AppStrings {
       isItalian ? 'Scegli cartella' : 'Choose folder';
   String get createAction => isItalian ? 'Crea' : 'Create';
   String creationFailedNotice(Object e) =>
-      isItalian ? 'Creazione non riuscita: $e' : 'Creation failed: $e';
+      isItalian ? failureText(this, 'Creazione non riuscita', e) : failureText(this, 'Creation failed', e);
   String get deleteSessionDialogTitle =>
       isItalian ? 'Elimina sessione' : 'Delete session';
   String deleteSessionConfirmBody(String sessionName) => isItalian
@@ -131,7 +132,7 @@ extension ShellStrings on AppStrings {
   String sessionDeletedNotice(String sessionName) =>
       isItalian ? 'Sessione "$sessionName" eliminata.' : 'Session "$sessionName" deleted.';
   String deletionFailedNotice(Object e) =>
-      isItalian ? 'Eliminazione non riuscita: $e' : 'Deletion failed: $e';
+      isItalian ? failureText(this, 'Eliminazione non riuscita', e) : failureText(this, 'Deletion failed', e);
   String removeRepoDialogTitle(String repoName) =>
       isItalian ? 'Rimuovi repository "$repoName"' : 'Remove repository "$repoName"';
   String repoSessionsCountNotice(int count) => isItalian
@@ -156,7 +157,9 @@ extension ShellStrings on AppStrings {
       ? 'Tutte le sessioni di "$repoName" sono state eliminate.'
       : 'All sessions for "$repoName" have been deleted.';
   String deletionErrorNotice(Object e) =>
-      isItalian ? 'Errore durante l\'eliminazione: $e' : 'Error during deletion: $e';
+      isItalian
+          ? failureText(this, 'Errore durante l\'eliminazione', e)
+          : failureText(this, 'Error during deletion', e);
   String get warningDeletionTitle =>
       isItalian ? 'ATTENZIONE: Eliminazione' : 'WARNING: Deletion';
   String deleteRepoWarningBody(int count, String folder) => isItalian
@@ -172,7 +175,7 @@ extension ShellStrings on AppStrings {
 
   // Instruction File Dialog
   String fileScanErrorNotice(Object e) =>
-      isItalian ? 'Errore scansione file: $e' : 'File scan error: $e';
+      isItalian ? failureText(this, 'Errore scansione file', e) : failureText(this, 'File scan error', e);
   String get unsavedChangesTitle =>
       isItalian ? 'Modifiche non salvate' : 'Unsaved changes';
   String unsavedChangesDiscardBody(String selectedFile, String fileName) => isItalian
@@ -183,7 +186,7 @@ extension ShellStrings on AppStrings {
   String fileSavedNotice(String selectedFile) =>
       isItalian ? 'File $selectedFile salvato con successo' : 'File $selectedFile saved successfully';
   String saveErrorNotice(Object e) =>
-      isItalian ? 'Errore salvataggio: $e' : 'Save error: $e';
+      isItalian ? failureText(this, 'Errore salvataggio', e) : failureText(this, 'Save error', e);
   String generateInstructionsPrompt(String selectedFile) => isItalian
       ? 'Analizza la struttura del repository in questa cartella e genera il contenuto completo per il file $selectedFile.\n'
           'Includi: Panoramica dell\'architettura, Comandi di build, test e linting, Convenzioni di codice e Linee guida operative per gli agenti.\n'
@@ -195,7 +198,7 @@ extension ShellStrings on AppStrings {
       ? 'Istruzioni per $selectedFile generate con successo dall\'agente Pi'
       : 'Instructions for $selectedFile generated successfully by Pi agent';
   String generateInstructionsErrorNotice(Object e) =>
-      isItalian ? 'Errore generazione con Pi: $e' : 'Pi generation error: $e';
+      isItalian ? failureText(this, 'Errore generazione con Pi', e) : failureText(this, 'Pi generation error', e);
   String get presentOnDiskBadge =>
       isItalian ? 'Presente sul disco' : 'Present on disk';
   String get newFileBadge =>
@@ -283,7 +286,7 @@ extension ShellStrings on AppStrings {
 
   // Command Palette
   String actionFailedNotice(Object error) =>
-      isItalian ? 'Azione non riuscita: $error' : 'Action failed: $error';
+      isItalian ? failureText(this, 'Azione non riuscita', error) : failureText(this, 'Action failed', error);
   String get paletteNewSessionTitle =>
       isItalian ? 'Crea nuova sessione' : 'Create new session';
   String get paletteNewSessionSubtitle =>

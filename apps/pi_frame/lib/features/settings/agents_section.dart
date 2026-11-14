@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -188,7 +189,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          state.errorMessage!,
+                          describeError(state.errorMessage!, strings).summary,
                           style: TextStyle(
                             color: tokens.danger,
                             fontSize: 12,

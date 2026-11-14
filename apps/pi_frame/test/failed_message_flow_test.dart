@@ -95,7 +95,8 @@ void main() {
     await tester.pumpWidget(_app(session));
     await tester.pumpAndSettle();
 
-    expect(find.text('Invio non riuscito: Model unavailable'), findsOneWidget);
+    // Raw text is no longer shown in the transcript; see user_facing_error.dart.
+    expect(find.text('Invio non riuscito.'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('retry-user-message-failed_1')),
       findsOneWidget,

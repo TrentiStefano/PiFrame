@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -646,7 +647,9 @@ class _ComposerState extends ConsumerState<Composer> {
     if (state.files.isEmpty) {
       FrameSnackBar.show(
         context,
-        message: state.error ?? strings.composerNoFilesAvailable,
+        message: state.error == null
+            ? strings.composerNoFilesAvailable
+            : describeError(state.error!, strings).summary,
       );
       return;
     }

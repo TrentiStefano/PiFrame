@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/update/update_models.dart';
 import 'language_settings.dart';
 
@@ -10,7 +11,7 @@ extension SettingsStrings on AppStrings {
   String get daemonRestartFailed =>
       isItalian ? 'Riavvio daemon non riuscito' : 'Daemon restart failed';
   String daemonRestartError(Object error) =>
-      isItalian ? 'Errore durante il riavvio: $error' : 'Error during restart: $error';
+      isItalian ? failureText(this, 'Errore durante il riavvio', error) : failureText(this, 'Error during restart', error);
   /// Localized label for a daemon connection state (enum name, e.g. "connected").
   String daemonConnectionStateLabel(String state) => switch (state) {
         'disconnected' => isItalian ? 'Non connesso' : 'Disconnected',
@@ -64,8 +65,8 @@ extension SettingsStrings on AppStrings {
       ? '$successMessage: $source. Riavvia Pi per applicare le modifiche.'
       : '$successMessage: $source. Restart Pi to apply changes.';
   String packageActionFailedNotice(Object error) => isItalian
-      ? 'Operazione sul pacchetto non riuscita: $error'
-      : 'Package operation failed: $error';
+      ? failureText(this, 'Operazione sul pacchetto non riuscita', error)
+      : failureText(this, 'Package operation failed', error);
 
   String get retryAction =>
       isItalian ? 'Riprova' : 'Retry';
@@ -124,7 +125,7 @@ extension SettingsStrings on AppStrings {
   String get timeoutUpdatedStatus =>
       isItalian ? 'Timeout aggiornato con successo!' : 'Timeout updated successfully!';
   String timeoutErrorStatus(Object error) =>
-      isItalian ? 'Errore: $error' : 'Error: $error';
+      isItalian ? failureText(this, 'Errore', error) : failureText(this, 'Error', error);
 
   String get timeoutNever =>
       isItalian ? 'Mai (0 min)' : 'Never (0 min)';
@@ -163,8 +164,8 @@ extension SettingsStrings on AppStrings {
       ? 'Tema "$name" importato e attivato con successo!'
       : 'Theme "$name" imported and applied successfully!';
   String themeImportError(Object error) => isItalian
-      ? 'Errore durante l\'importazione del tema: $error'
-      : 'Error importing theme: $error';
+      ? failureText(this, 'Errore durante l\'importazione del tema', error)
+      : failureText(this, 'Error importing theme', error);
 
   String get labelActiveTheme =>
       isItalian ? 'Tema attivo' : 'Active theme';
@@ -248,8 +249,8 @@ extension SettingsStrings on AppStrings {
       ? 'Bundle diagnostico copiato negli appunti!'
       : 'Diagnostic bundle copied to clipboard!';
   String diagExportError(Object error) => isItalian
-      ? 'Errore durante esportazione: $error'
-      : 'Error during export: $error';
+      ? failureText(this, 'Errore durante esportazione', error)
+      : failureText(this, 'Error during export', error);
   String get diagTitle => isItalian
       ? 'Diagnostica locale & Stato di sistema'
       : 'Local Diagnostics & System State';
@@ -399,11 +400,11 @@ extension SettingsStrings on AppStrings {
       ? 'La configurazione MCP è disponibile solo su desktop.'
       : 'MCP configuration is available on desktop only.';
   String mcpLoadError(Object error) => isItalian
-      ? 'Impossibile caricare i server MCP: $error'
-      : 'Failed to load MCP servers: $error';
+      ? failureText(this, 'Impossibile caricare i server MCP', error)
+      : failureText(this, 'Failed to load MCP servers', error);
   String mcpSaveError(Object error) => isItalian
-      ? 'Errore nel salvataggio: $error'
-      : 'Error saving changes: $error';
+      ? failureText(this, 'Errore nel salvataggio', error)
+      : failureText(this, 'Error saving changes', error);
   String get mcpDialogTitle =>
       isItalian ? 'Server MCP Disponibili' : 'Available MCP Servers';
   String get mcpDialogSubtitle => isItalian
@@ -621,20 +622,20 @@ extension SettingsStrings on AppStrings {
       ? 'cloudflared scaricato e pronto in $path!'
       : 'cloudflared downloaded and ready at $path!';
   String remoteCloudflaredInstallError(Object error) => isItalian
-      ? 'Errore durante l\'installazione di cloudflared: $error'
-      : 'Error installing cloudflared: $error';
+      ? failureText(this, 'Errore durante l\'installazione di cloudflared', error)
+      : failureText(this, 'Error installing cloudflared', error);
   String get remoteTailscaleInstallDefaultToast => isItalian
       ? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.'
       : 'Tailscale installation started! Confirm the system prompt.';
   String remoteTailscaleInstallError(Object error) => isItalian
-      ? 'Errore durante l\'installazione di Tailscale: $error'
-      : 'Error installing Tailscale: $error';
+      ? failureText(this, 'Errore durante l\'installazione di Tailscale', error)
+      : failureText(this, 'Error installing Tailscale', error);
   String remoteTailscaleDomainUpdatedToast(String domain) => isItalian
       ? 'Nome host Tailscale aggiornato! Nuovo dominio: $domain'
       : 'Tailscale hostname updated! New domain: $domain';
   String remoteTailscaleRenameError(Object error) => isItalian
-      ? 'Errore durante la ridenominazione: $error'
-      : 'Error during rename: $error';
+      ? failureText(this, 'Errore durante la ridenominazione', error)
+      : failureText(this, 'Error during rename', error);
   String get remoteTailscaleMissingDialogTitle => isItalian
       ? 'Tailscale non installato'
       : 'Tailscale not installed';
@@ -672,8 +673,8 @@ extension SettingsStrings on AppStrings {
       ? 'Tema "$name" salvato e attivato con successo!'
       : 'Theme "$name" saved and applied successfully!';
   String themeEditorSaveError(Object error) => isItalian
-      ? 'Errore durante il salvataggio: $error'
-      : 'Error during saving: $error';
+      ? failureText(this, 'Errore durante il salvataggio', error)
+      : failureText(this, 'Error during saving', error);
   String get themeEditorPreviewWorking =>
       isItalian ? 'In corso' : 'Working';
   String get themeEditorPreviewBentoCard =>

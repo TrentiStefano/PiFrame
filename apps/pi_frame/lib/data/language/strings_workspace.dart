@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'language_settings.dart';
 
 /// Workspace, session changes, browser, and metrics internationalized strings.
@@ -96,8 +97,8 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Sovrascrivi esplicitamente' : 'Overwrite explicitly';
 
   String saveFailed(Object error) => isItalian
-      ? 'Salvataggio non riuscito: $error'
-      : 'Save failed: $error';
+      ? failureText(this, 'Salvataggio non riuscito', error)
+      : failureText(this, 'Save failed', error);
 
   String get loadingFiles =>
       isItalian ? 'Caricamento file...' : 'Loading files...';
@@ -220,8 +221,8 @@ extension WorkspaceStrings on AppStrings {
   // Git Changes Pane
   // ---------------------------------------------------------------------------
   String gitOperationFailed(Object error) => isItalian
-      ? 'Operazione Git non riuscita: $error'
-      : 'Git operation failed: $error';
+      ? failureText(this, 'Operazione Git non riuscita', error)
+      : failureText(this, 'Git operation failed', error);
 
   String get closeDiffTooltip =>
       isItalian ? 'Chiudi diff' : 'Close diff';
@@ -230,8 +231,8 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Nessuna differenza trovata.' : 'No differences found.';
 
   String diffUnavailable(Object error) => isItalian
-      ? 'Diff non disponibile: $error'
-      : 'Diff unavailable: $error';
+      ? failureText(this, 'Diff non disponibile', error)
+      : failureText(this, 'Diff unavailable', error);
 
   String get diffUnavailableShort =>
       isItalian ? 'Diff non disponibile.' : 'Diff unavailable.';
@@ -450,8 +451,8 @@ extension WorkspaceStrings on AppStrings {
       isItalian ? 'Caricamento...' : 'Loading...';
 
   String cannotOpenSystemBrowser(Object error) => isItalian
-      ? 'Impossibile aprire il browser di sistema: $error'
-      : 'Cannot open system browser: $error';
+      ? failureText(this, 'Impossibile aprire il browser di sistema', error)
+      : failureText(this, 'Cannot open system browser', error);
 
   String get pageLinkAddedToComposer => isItalian
       ? 'Link della pagina aggiunto al prompt del composer.'

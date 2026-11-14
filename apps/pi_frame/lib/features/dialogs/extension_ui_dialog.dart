@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -310,7 +311,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         _isResponding = false;
         _responseError = error is TimeoutException
             ? strings.extUiNoDaemonResponse
-            : error.toString();
+            : describeError(error, strings).summary;
       });
     }
   }

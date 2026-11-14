@@ -20,6 +20,7 @@ import '../../data/composer/composer_settings.dart';
 import '../../data/metrics/nerd_stats_settings.dart';
 import '../../data/motion/reduced_motion_settings.dart';
 import '../../data/transcript/step_grouping_settings.dart';
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/session/transcript_grouping.dart';
 import '../../data/update/startup_updates_provider.dart';
 import '../../domain/update/semver.dart';
@@ -30,6 +31,7 @@ import 'updates_section.dart';
 import 'theme_editor_dialog.dart';
 import 'agents_section.dart';
 import 'package_load_states.dart';
+import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_snack_bar.dart';
 
 /// `dart:io` Platform throws `UnsupportedError` on the web build, so every OS
@@ -268,7 +270,10 @@ class _SettingsViewState extends ConsumerState<SettingsView>
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _packageUpdateError = '$source: $error');
+        setState(
+          () => _packageUpdateError =
+              '$source: ${describeError(error, strings).summary}',
+        );
         FrameSnackBar.show(
           context,
           message: strings.packageActionFailedNotice(error),
@@ -302,12 +307,12 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     final result = await client.updatePiPackage(source);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     if (!const {'updated', 'current', 'pinned'}.contains(data['status'])) {
-      throw StateError(strings.packageUpdateNotVerified);
+      throw UserMessageException(strings.packageUpdateNotVerified);
     }
     if (source.startsWith('npm:') &&
         data['status'] != 'pinned' &&
         SemVer.tryParse(data['version']?.toString()) == null) {
-      throw StateError(strings.packageUpdateNotVerified);
+      throw UserMessageException(strings.packageUpdateNotVerified);
     }
     return data;
   }
@@ -416,7 +421,7 @@ class _SettingsViewState extends ConsumerState<SettingsView>
               updated++;
           }
         } catch (error) {
-          failures.add('$source: $error');
+          failures.add('$source: ${describeError(error, strings).summary}');
         }
         if (mounted) {
           setState(() => _packageUpdateProgress = (index + 1) / sources.length);
@@ -535,12 +540,13 @@ class _SettingsViewState extends ConsumerState<SettingsView>
     }
     if (_packageError != null) {
       return ListView(
+        padding: const EdgeInsets.all(24),
         children: [
-          PackageLoadErrorCallout(
-            tokens: tokens,
-            strings: strings,
+          FrameErrorCallout(
+            keyPrefix: 'packages-load',
             title: strings.packagesLoadFailed,
-            details: _packageError!,
+            error: describeError(_packageError!, strings),
+            strings: strings,
             onRetry: _fetchPiPackages,
           ),
         ],

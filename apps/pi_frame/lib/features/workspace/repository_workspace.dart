@@ -6,6 +6,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import '../composer/composer_draft.dart';
@@ -15,12 +16,14 @@ import '../../data/terminal/terminal_settings.dart';
 import 'integrated_terminal.dart';
 import '../../ui/code/file_icon.dart';
 import '../transcript/rich_content.dart';
+import '../../ui/frame_error_callout.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 import '../browser/browser_controller.dart';
 import '../browser/browser_models.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/language/strings_errors.dart';
 import '../session_changes/session_changes_provider.dart';
 import 'branch_picker_dialog.dart';
 
@@ -37,15 +40,6 @@ final gitStagedExpandedProvider = StateProvider.family<bool, String>(
 final gitUnstagedExpandedProvider = StateProvider.family<bool, String>(
   (ref, sessionId) => false,
 );
-
-String _repositoryLoadError(Object error, [AppStrings? strings]) {
-  final message = error.toString();
-  if (message.contains('Unsupported command type: workspace.listFiles')) {
-    return strings?.repositoryDaemonOutdatedError ??
-        'Daemon obsoleto: esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon solo quando nessun worker Pi è attivo.';
-  }
-  return message;
-}
 
 Set<String> piTouchedPaths(SessionState session) {
   final paths = <String>{};
@@ -199,7 +193,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
         selectedPath: state.selectedPath,
         buffers: state.buffers,
         manualSavedPaths: state.manualSavedPaths,
-        error: _repositoryLoadError(error, _readStrings?.call()),
+        error: error.toString(),
       );
     }
   }
@@ -790,6 +784,20 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     return result;
   }
 
+  Widget _repoErrorCallout(AppStrings strings, String raw, String title) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
+        child: FrameErrorCallout(
+          keyPrefix: 'repo-files-error',
+          title: title,
+          error: describeError(raw, strings),
+          strings: strings,
+        ),
+      ),
+    );
+  }
+
   Widget _fileList(
     FrameTokens tokens,
     RepositoryState repo,
@@ -827,14 +835,16 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     }
     final strings = _getStrings();
     if (repo.files.isEmpty) {
-      return Center(
-        child: Text(
-          repo.error ?? strings.noFilesAvailable,
-          style: TextStyle(
-            color: repo.error == null ? tokens.textMuted : tokens.danger,
+      final error = repo.error;
+      if (error == null) {
+        return Center(
+          child: Text(
+            strings.noFilesAvailable,
+            style: TextStyle(color: tokens.textMuted),
           ),
-        ),
-      );
+        );
+      }
+      return _repoErrorCallout(strings, error, strings.filesLoadFailed);
     }
 
     final expandedDirs = ref.watch(repoExpandedDirsProvider(widget.sessionId));
@@ -999,14 +1009,16 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       );
     }
     if (buffer == null) {
-      return Center(
-        child: Text(
-          repo.error ?? strings.loadingFiles,
-          style: TextStyle(
-            color: repo.error == null ? tokens.textMuted : tokens.danger,
+      final error = repo.error;
+      if (error == null) {
+        return Center(
+          child: Text(
+            strings.loadingFiles,
+            style: TextStyle(color: tokens.textMuted),
           ),
-        ),
-      );
+        );
+      }
+      return _repoErrorCallout(strings, error, strings.filesLoadFailed);
     }
     return Column(
       children: [
@@ -2095,7 +2107,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         FrameSnackBar.show(context, message: strings.branchNotFound);
         await _refresh();
       } else {
-        FrameSnackBar.show(context, message: msg);
+        FrameSnackBar.show(
+          context,
+          message: failureText(strings, strings.branchSwitchFailedTitle, error),
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -3005,14 +3020,26 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   );
                 }
 
+                if (rawError == null) {
+                  return Expanded(
+                    child: Center(
+                      child: Text(
+                        strings.noGitRepository,
+                        style: TextStyle(color: tokens.textMuted),
+                      ),
+                    ),
+                  );
+                }
                 return Expanded(
                   child: Center(
-                    child: Text(
-                      rawError ?? strings.noGitRepository,
-                      style: TextStyle(
-                        color: rawError == null
-                            ? tokens.textMuted
-                            : tokens.danger,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: FrameErrorCallout(
+                        keyPrefix: 'git-status-error',
+                        title: strings.gitStatusLoadFailed,
+                        error: describeError(rawError, strings),
+                        strings: strings,
+                        onRetry: _refresh,
                       ),
                     ),
                   ),

@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -310,7 +311,9 @@ class UpdatesSection extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        updateState.errorMessage ?? strings.updatesUnexpectedError,
+                        updateState.errorMessage == null
+                            ? strings.updatesUnexpectedError
+                            : describeError(updateState.errorMessage!, strings).summary,
                         style: TextStyle(
                           color: tokens.textMuted,
                           fontSize: 11,

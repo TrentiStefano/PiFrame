@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -156,7 +157,7 @@ extension TranscriptStrings on AppStrings {
 
   // Transcript view
   String transcriptRenameError(String e) =>
-      isItalian ? 'Errore durante la rinomina: $e' : 'Error renaming session: $e';
+      isItalian ? failureText(this, 'Errore durante la rinomina', e) : failureText(this, 'Error renaming session', e);
   String get transcriptNotification => isItalian ? 'Notifica' : 'Notification';
   String get transcriptContextTokensTitle =>
       isItalian ? 'Contesto & Token' : 'Context & Tokens';
@@ -176,7 +177,7 @@ extension TranscriptStrings on AppStrings {
   String get transcriptCompactionCompleted =>
       isItalian ? 'Compattazione completata!' : 'Compaction completed!';
   String transcriptCompactionError(String e) =>
-      isItalian ? 'Errore compattazione: $e' : 'Compaction error: $e';
+      isItalian ? failureText(this, 'Errore compattazione', e) : failureText(this, 'Compaction error', e);
   String get transcriptAgentModelCosts =>
       isItalian ? 'Costi modelli agente' : 'Agent Model Costs';
   String get transcriptCostReportedByPi =>
@@ -229,14 +230,14 @@ extension TranscriptStrings on AppStrings {
   String transcriptNewBranchStarted(String sid) =>
       isItalian ? 'Nuovo ramo avviato: $sid' : 'New branch started: $sid';
   String transcriptForkError(String e) =>
-      isItalian ? 'Errore fork: $e' : 'Fork error: $e';
+      isItalian ? failureText(this, 'Errore fork', e) : failureText(this, 'Fork error', e);
   String get transcriptYou => isItalian ? 'Tu' : 'You';
   String get transcriptRestartFromHere =>
       isItalian ? 'Riparti da qui' : 'Restart from here';
   String transcriptSendFailed(String err) =>
-      isItalian ? 'Invio non riuscito: $err' : 'Send failed: $err';
+      isItalian ? failureText(this, 'Invio non riuscito', err) : failureText(this, 'Send failed', err);
   String transcriptTurnFailed(String err) =>
-      isItalian ? 'Risposta interrotta da un errore: $err' : 'Reply stopped by an error: $err';
+      isItalian ? failureText(this, 'Risposta interrotta da un errore', err) : failureText(this, 'Reply stopped by an error', err);
   String get transcriptRetrySend => isItalian ? 'Riprova invio' : 'Retry send';
   String get transcriptAssistant => isItalian ? 'Assistente' : 'Assistant';
   String get transcriptCopyMessage =>

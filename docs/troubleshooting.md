@@ -909,3 +909,17 @@ Quando il provider rifiuta la richiesta (per esempio limite di frequenza, autent
 
 ### Risoluzione
 Il motivo dell'errore viene ora registrato sul messaggio dell'utente, che appare con il bordo di errore, il testo «Invio non riuscito: …» e il pulsante «Riprova invio». Se la risposta è iniziata e poi si è interrotta, il testo «Risposta interrotta da un errore: …» compare sotto il messaggio assistente. Una richiesta interrotta dall'utente non viene segnalata come errore. Aggiorna PiFrame per ricevere la correzione.
+
+## Errore con un messaggio generico: dove trovare il dettaglio tecnico
+
+### Sintomi
+
+Git, la lista dei file, la lista dei pacchetti o un'altra schermata mostra un messaggio breve come "Operazione non riuscita" o "Impossibile caricare i pacchetti", senza il testo tecnico dell'errore.
+
+### Causa
+
+PiFrame traduce gli errori tecnici (daemon non raggiungibile, Git non installato, permessi negati, timeout e altri) in un titolo e un suggerimento comprensibili. Gli errori non riconosciuti mostrano solo il titolo generico, e il testo grezzo non compare più nei messaggi a comparsa.
+
+### Risoluzione
+
+Apri il riquadro dell'errore e premi **Dettagli**: il testo tecnico originale è selezionabile e si può copiare nella segnalazione. Se l'errore è recuperabile, **Riprova** ripete l'operazione. Se il suggerimento indica un daemon obsoleto, esegui `pnpm run build:agentd`, ricostruisci PiFrame e riavvia il daemon quando nessun worker Pi è attivo.

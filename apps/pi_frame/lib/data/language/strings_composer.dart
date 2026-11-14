@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'language_settings.dart';
 
 extension ComposerStrings on AppStrings {
@@ -140,10 +141,10 @@ extension ComposerStrings on AppStrings {
       : '${argumentHint.isEmpty ? 'No arguments needed' : argumentHint} · Enter runs /$name';
 
   String composerCommandFailed(Object error) =>
-      isItalian ? 'Comando non riuscito: $error' : 'Command failed: $error';
+      isItalian ? failureText(this, 'Comando non riuscito', error) : failureText(this, 'Command failed', error);
 
   String composerSendFailed(Object error) =>
-      isItalian ? 'Invio non riuscito: $error' : 'Send failed: $error';
+      isItalian ? failureText(this, 'Invio non riuscito', error) : failureText(this, 'Send failed', error);
 
   String get composerVerifySessionTitle =>
       isItalian ? 'Verifica la sessione Pi' : 'Verify Pi session';
@@ -156,10 +157,10 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Continua qui' : 'Continue here';
 
   String composerResumeFailed(Object error) =>
-      isItalian ? 'Ripresa non riuscita: $error' : 'Resume failed: $error';
+      isItalian ? failureText(this, 'Ripresa non riuscita', error) : failureText(this, 'Resume failed', error);
 
   String composerActionFailed(Object error) =>
-      isItalian ? 'Azione non riuscita: $error' : 'Action failed: $error';
+      isItalian ? failureText(this, 'Azione non riuscita', error) : failureText(this, 'Action failed', error);
 
   String get composerNoFilesAvailable => isItalian
       ? 'Nessun file disponibile nella sessione.'
@@ -169,7 +170,7 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Immagini' : 'Images';
 
   String composerInterruptFailed(Object error) =>
-      isItalian ? 'Interruzione non riuscita: $error' : 'Interrupt failed: $error';
+      isItalian ? failureText(this, 'Interruzione non riuscita', error) : failureText(this, 'Interrupt failed', error);
 
   String get composerAgentInterrupted => isItalian
       ? 'Agente interrotto. La coda di messaggi è stata cancellata.'
@@ -259,8 +260,8 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Dimensione contesto' : 'Context size';
 
   String composerContextSelectionFailed(Object error) => isItalian
-      ? 'Selezione contesto non riuscita: $error'
-      : 'Context selection failed: $error';
+      ? failureText(this, 'Selezione contesto non riuscita', error)
+      : failureText(this, 'Context selection failed', error);
 
   String get composerAttachTooltip => isItalian
       ? 'Allega file, link o immagine'
@@ -290,8 +291,8 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Duplica e continua' : 'Duplicate and continue';
 
   String composerDuplicationFailed(Object error) => isItalian
-      ? 'Duplicazione non riuscita: $error'
-      : 'Duplication failed: $error';
+      ? failureText(this, 'Duplicazione non riuscita', error)
+      : failureText(this, 'Duplication failed', error);
 
   String get composerDaemonNotConnected =>
       isItalian ? 'Daemon non connesso' : 'Daemon not connected';
@@ -458,8 +459,8 @@ extension ComposerStrings on AppStrings {
           : 'Tokens before: $before\nTokens after: $after\n${cost.isNotEmpty ? "Cost: $cost" : ""}';
 
   String contextLimitNotApplied(Object error) => isItalian
-      ? 'Limite non applicato: $error'
-      : 'Limit not applied: $error';
+      ? failureText(this, 'Limite non applicato', error)
+      : failureText(this, 'Limit not applied', error);
 
   String get contextMaxNotAvailable =>
       isItalian ? 'Massimo non disponibile' : 'Max not available';
@@ -482,20 +483,20 @@ extension ComposerStrings on AppStrings {
       : '100k–$maxFormatted · Step 50k';
 
   String compactionMarginNotApplied(Object error) => isItalian
-      ? 'Margine non applicato: $error'
-      : 'Margin not applied: $error';
+      ? failureText(this, 'Margine non applicato', error)
+      : failureText(this, 'Margin not applied', error);
 
   String compactionFailed(Object error) => isItalian
-      ? 'Compattazione non riuscita: $error'
-      : 'Compaction failed: $error';
+      ? failureText(this, 'Compattazione non riuscita', error)
+      : failureText(this, 'Compaction failed', error);
 
   String actionFailed(Object error) => composerActionFailed(error);
 
   String duplicationFailed(Object error) => composerDuplicationFailed(error);
 
   String modelsNotAvailable(Object error) => isItalian
-      ? 'Modelli non disponibili: $error'
-      : 'Models not available: $error';
+      ? failureText(this, 'Modelli non disponibili', error)
+      : failureText(this, 'Models not available', error);
 
   // --- Section 7: Dialogs ---
   String get piInstallTitle => isItalian
@@ -591,7 +592,7 @@ extension ComposerStrings on AppStrings {
       isItalian ? 'Ricarica' : 'Reload';
 
   String sessionTreeError(String err) =>
-      isItalian ? 'Errore: $err' : 'Error: $err';
+      isItalian ? failureText(this, 'Errore', err) : failureText(this, 'Error', err);
 
   String get sessionTreeNoBranches => isItalian
       ? 'Nessun ramo secondario per questa sessione.'

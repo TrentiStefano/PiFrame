@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -158,8 +159,8 @@ class AppStrings {
       ? 'Il daemon non ha verificato la versione installata. Riavvia il daemon aggiornato prima di riprovare.'
       : 'The daemon did not verify the installed version. Restart the updated daemon before trying again.';
   String packageUpdateCheckFailed(String error) => isItalian
-      ? 'Impossibile ricontrollare gli aggiornamenti: $error'
-      : 'Unable to recheck updates: $error';
+      ? failureText(this, 'Impossibile ricontrollare gli aggiornamenti', error)
+      : failureText(this, 'Unable to recheck updates', error);
   String packageUpdateUnavailable(String version, String error) => isItalian
       ? 'Aggiornamento $version non compatibile con questa piattaforma. $error'
       : 'Update $version is not compatible with this platform. $error';

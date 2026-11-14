@@ -6,6 +6,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/data/language/language_settings.dart';
+import 'package:pi_frame/domain/errors/user_facing_error.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/composer/composer_draft.dart';
@@ -167,6 +169,13 @@ void main() {
           .loadFiles();
       expect(
         container.read(repositoryStateProvider('session-a')).error,
+        isNotNull,
+      );
+      expect(
+        describeError(
+          container.read(repositoryStateProvider('session-a')).error!,
+          const AppStrings(AppLanguage.it),
+        ).hint,
         contains('riavvia il daemon solo quando nessun worker Pi è attivo'),
       );
     },

@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +20,8 @@ class RemoteSection extends ConsumerStatefulWidget {
 }
 
 class _RemoteSectionState extends ConsumerState<RemoteSection> {
+  String _describe(Object e) => describeError(e, ref.read(appStringsProvider)).summary;
+
   bool _isLoading = true;
   bool _isToggling = false;
   String? _errorMessage;
@@ -113,7 +116,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       }
 
       _localPort = data['localPort'] as int?;
-      _errorMessage = data['error'] as String?;
+      _errorMessage = (data['error'] as String?) == null ? null : _describe(data['error'] as String);
 
       final pairing = data['pairingPending'] as Map<String, dynamic>?;
       _pairingUrl = pairing?['url'] as String?;
@@ -147,7 +150,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = _describe(e);
           _isLoading = false;
         });
       }
@@ -333,7 +336,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _errorMessage = e.toString());
+        setState(() => _errorMessage = _describe(e));
       }
     } finally {
       if (mounted) {
@@ -356,7 +359,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = _describe(e));
     }
   }
 
@@ -386,7 +389,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.revokeRemoteDevice(deviceId);
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = _describe(e));
     }
   }
 
@@ -416,7 +419,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.revokeAllRemoteDevices();
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = _describe(e));
     }
   }
 
@@ -428,7 +431,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       _applyStatusData(data);
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = _describe(e));
     }
   }
 
@@ -461,7 +464,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       await client.setRemoteDeviceMode(deviceId: deviceId, mode: newMode);
       await _fetchStatus();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = _describe(e));
     }
   }
 

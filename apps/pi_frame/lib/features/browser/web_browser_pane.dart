@@ -1,3 +1,4 @@
+import '../../domain/errors/user_facing_error.dart';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -948,7 +949,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               ),
               const SizedBox(height: 8),
               Text(
-                activeTab.errorMessage!,
+                describeError(activeTab.errorMessage!, strings).summary,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: tokens.textMuted, fontSize: 11.5),
               ),
