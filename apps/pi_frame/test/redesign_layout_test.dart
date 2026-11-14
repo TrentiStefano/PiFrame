@@ -342,7 +342,8 @@ void main() {
       if (size.width < 1280) {
         expect(find.text('Area di lavoro'), findsOneWidget);
       }
-      expect(find.text('Sessione'), findsOneWidget);
+      // Context drawer heading: "Sessione · <session title>"
+      expect(find.textContaining('Sessione · '), findsOneWidget);
       expect(find.textContaining('File Modificati'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-workspace');
