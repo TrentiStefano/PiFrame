@@ -395,6 +395,8 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
     - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale"*, con il tasto `Ctrl`/`⌘` + `Shift` + `B` mostrato a destra.
     - La Command Palette raggruppa i comandi in Sessione, Vista, Git e Impostazioni, mostra solo i comandi applicabili (per esempio *"Interrompi agente"* solo mentre l'agente lavora), chiude se stessa prima di eseguire il comando e include *"Vai a sessione…"* con ricerca fuzzy tra le sessioni.
   - **Pannello Laterale Agganciato (Side Panel)**:
+    - Il thread laterale si affianca alla chat (task 10.1): occupa il 40 % dell'area, con un minimo di 320 px per lato. Il separatore si trascina; la chat non scende sotto 720 px. Sotto questa soglia il thread occupa tutta l'area e il pulsante indietro torna alla chat senza chiudere il thread.
+    - Escape chiude il thread (come la X). La conferma compare solo se il mini composer contiene una bozza. Ctrl+Shift+B apre o chiude senza animazione; con "Riduci movimento" la transizione è una dissolvenza breve.
     - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
     - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.
     - Mini transcript che riusa i componenti `RichContent`, `ThinkingBlock` e `ToolCard`.

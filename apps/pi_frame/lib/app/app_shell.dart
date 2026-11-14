@@ -42,8 +42,8 @@ import '../features/session_changes/session_changes_provider.dart';
 import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
-import '../features/side/side_panel.dart';
 import '../features/side/side_provider.dart';
+import '../features/side/side_split.dart';
 import '../data/metrics/nerd_stats_settings.dart';
 import '../data/metrics/system_metrics_controller.dart';
 import '../features/metrics/nerd_stats_bar.dart';
@@ -730,7 +730,7 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     if (key == LogicalKeyboardKey.keyB && commandKey && shift) {
       if (activeId != null) {
-        ref.read(sideThreadFamily(activeId).notifier).togglePanel();
+        ref.read(sideThreadFamily(activeId).notifier).togglePanel(instant: true);
         return KeyEventResult.handled;
       }
     }
@@ -841,26 +841,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: FocusRegionMarker(
                   region: FocusRegion.transcript,
                   regionKey: _regionKeys[FocusRegion.transcript]!,
-                  child: Stack(
-                    children: [
-                      TranscriptView(
-                        key: ValueKey('transcript_$activeId'),
-                        sessionId: activeId,
-                      ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: FrameEnter(
-                          horizontal: true,
-                          offset: 24,
-                          child: SidePanel(
-                            key: ValueKey('side_panel_$activeId'),
-                            sessionId: activeId,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: SideSplit(
+                    sessionId: activeId,
+                    main: TranscriptView(
+                      key: ValueKey('transcript_$activeId'),
+                      sessionId: activeId,
+                    ),
                   ),
                   ),
                 ),
@@ -2189,6 +2175,10 @@ class _AppShellState extends ConsumerState<AppShell>
     final isBrowser = ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final strings = ref.watch(appStringsProvider);
+    // The run status rides on the Chat tab as a dot (task 10.3).
+    final activeId = ref.watch(activeSessionIdProvider);
+    final running = activeId != null &&
+        ref.watch(sessionStateFamily(activeId)).isStreaming;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => strings.companionChatTab,
       WorkspacePane.repository => strings.companionFileTab,
@@ -2212,30 +2202,57 @@ class _AppShellState extends ConsumerState<AppShell>
                 child: Semantics(
                   button: true,
                   selected: pane == selected,
+                  label: pane == WorkspacePane.chat && running
+                      ? '${label(pane)}, ${strings.companionChatRunningLabel}'
+                      : null,
                   child: TextButton(
                     style: TextButton.styleFrom(
                       minimumSize: const Size(0, 36),
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       foregroundColor: pane == selected
-                          ? tokens.displayText
+                          ? tokens.accent
                           : tokens.textPrimary,
-                      backgroundColor: pane == selected
-                          ? tokens.displaySurface
-                          : tokens.chassis,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        side: BorderSide(
-                          color: pane == selected
-                              ? tokens.borderStrong
-                              : tokens.border,
-                        ),
-                      ),
+                      backgroundColor: tokens.chassis,
+                      shape: const RoundedRectangleBorder(),
                     ),
                     onPressed: () => onSelected(pane),
-                    child: Text(
-                      label(pane),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Container(
+                      // Selected tab: accent text and a 2 px accent underline.
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: pane == selected
+                                ? tokens.accent
+                                : tokens.chassis,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              label(pane),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (pane == WorkspacePane.chat && running) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              key: const ValueKey('compact-chat-run-dot'),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: tokens.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

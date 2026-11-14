@@ -337,8 +337,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(tokens),
-          _buildTabBar(tokens, browserState),
+          _buildHeader(tokens, browserState),
           _buildOmniboxBar(tokens, browserState, activeTab),
           if (activeTab.isLoading)
             LinearProgressIndicator(
@@ -354,21 +353,31 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     );
   }
 
-  Widget _buildHeader(FrameTokens tokens) {
+  /// The companion title bar: the Git/Browser switch and actions on the first row,
+  /// the browser tab strip below it (plan task 10.2). Tabs no longer take a row of
+  /// their own, so the page starts one bar higher.
+  Widget _buildHeader(FrameTokens tokens, WebBrowserState browserState) {
     final strings = _getStrings();
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < kCompactCompanionWidth;
         return Container(
-          height: 40,
           margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: tokens.surfaceElevated,
             borderRadius: BorderRadius.circular(tokens.radiusMd),
             border: Border.all(color: tokens.borderStrong),
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                child: SizedBox(
+                  height: 34,
+                  child: Row(
             children: [
               // Segmented Switcher: [ Git Changes ] [ Web Browser ]
               Flexible(
@@ -514,11 +523,15 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
               ],
             ],
           ),
+                ),
+              ),
+              _buildTabBar(tokens, browserState),
+            ],
+          ),
         );
       },
     );
   }
-
 
   Widget _buildSegmentButton({
     required Key key,
@@ -575,7 +588,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     final strings = _getStrings();
     return Container(
       height: 32,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: tokens.border, width: 0.8)),
       ),

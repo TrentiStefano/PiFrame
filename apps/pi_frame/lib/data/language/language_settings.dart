@@ -532,6 +532,7 @@ class AppStrings {
       isItalian ? 'Interrompi risposta' : 'Stop response';
   String get sideCloseTooltip =>
       isItalian ? 'Chiudi conversazione laterale' : 'Close side conversation';
+  String get sideBackTooltip => isItalian ? 'Torna alla chat' : 'Back to chat';
   String get sideToggleActionTitle =>
       isItalian ? 'Conversazione laterale' : 'Side conversation';
   String get sideToggleActionSubtitle => isItalian
