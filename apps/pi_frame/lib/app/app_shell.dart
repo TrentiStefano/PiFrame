@@ -710,7 +710,8 @@ class _AppShellState extends ConsumerState<AppShell>
                 ],
               ),
             ),
-            const StartupUpdateBanner(),
+            // Below the 42 px title bar (inside the safe area, with its top margin and a gap).
+            StartupUpdateBanner(top: MediaQuery.paddingOf(context).top + 56),
           ],
         ),
       ),

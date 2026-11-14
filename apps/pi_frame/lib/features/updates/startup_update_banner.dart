@@ -7,7 +7,12 @@ import '../../data/language/language_settings.dart';
 import '../../data/update/startup_updates_provider.dart';
 
 class StartupUpdateBanner extends ConsumerWidget {
-  const StartupUpdateBanner({super.key});
+  /// Distance from the top of the enclosing Stack. The shell passes the offset
+  /// below the title bar, so the banner never covers the composer or the
+  /// title-bar controls.
+  const StartupUpdateBanner({super.key, this.top = 56});
+
+  final double top;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,23 +41,22 @@ class StartupUpdateBanner extends ConsumerWidget {
     }
 
     return Positioned(
-      bottom: 16,
-      left: 20,
-      right: 20,
-      child: Center(
+      top: top,
+      left: 12,
+      right: 12,
+      child: Align(
+        alignment: Alignment.topRight,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Material(
-            elevation: 8,
-            shadowColor: tokens.chassis.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            elevation: 0,
             color: tokens.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusMd),
+              side: BorderSide(color: tokens.border),
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                border: Border.all(color: tokens.borderStrong),
-              ),
               child: Row(
                 children: [
                   Container(
