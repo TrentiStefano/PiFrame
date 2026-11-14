@@ -195,8 +195,9 @@ function writeScenarioControlFile(home, scenario) {
   fs.writeFileSync(path.join(safeHome, 'fake-pi-scenario'), `${scenario}\n`, { mode: 0o600 });
 }
 
-function writeFakePiShims(home) {
+export function writeFakePiShims(home) {
   const safeHome = assertSafeHome(home);
+  fs.mkdirSync(safeHome, { recursive: true });
   const fakeEntrypoint = path.join(ROOT, 'tools', 'fake-pi', 'dist', 'index.js');
   const piShim = process.platform === 'win32' ? path.join(safeHome, 'pi.cmd') : path.join(safeHome, 'pi');
   if (process.platform === 'win32') {
@@ -624,6 +625,7 @@ async function launchSupervisor(home, state) {
 async function startCommand(options) {
   const runName = options.run || 'default';
   const home = runDir(runName);
+  fs.mkdirSync(home, { recursive: true });
   writeFakePiShims(home);
   const device = options.device || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
   const size = options.size || '1280x800';
