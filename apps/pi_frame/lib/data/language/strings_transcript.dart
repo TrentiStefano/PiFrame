@@ -240,6 +240,7 @@ extension TranscriptStrings on AppStrings {
       isItalian ? failureText(this, 'Risposta interrotta da un errore', err) : failureText(this, 'Reply stopped by an error', err);
   String get transcriptRetrySend => isItalian ? 'Riprova invio' : 'Retry send';
   String get transcriptAssistant => isItalian ? 'Assistente' : 'Assistant';
+  String get transcriptAbortedBadge => isItalian ? 'Interrotto' : 'Interrupted';
   String get transcriptCopyMessage =>
       isItalian ? 'Copia messaggio' : 'Copy message';
   String get transcriptMessageCopied => isItalian

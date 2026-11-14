@@ -2902,6 +2902,31 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (entry.metadata?['stopReason'] == 'aborted') ...[
+                            Container(
+                              key: ValueKey('entry_aborted_${entry.id}'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusSm,
+                                ),
+                                border: Border.all(color: tokens.border),
+                              ),
+                              child: Text(
+                                _currentStrings.transcriptAbortedBadge,
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
                           if (elapsedSeconds != null &&
                               elapsedSeconds >= 5) ...[
                             Container(

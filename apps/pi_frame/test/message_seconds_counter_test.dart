@@ -105,5 +105,55 @@ void main() {
 
       expect(find.byKey(const ValueKey('entry_timer_asst_2')), findsNothing);
     });
+
+    testWidgets('marks an aborted assistant turn with a neutral Interrotto tag', (tester) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final entries = [
+        SessionEntry(
+          id: 'user_a',
+          role: 'user',
+          text: 'Scrivi una lunga risposta',
+          timestamp: now - 9000,
+        ),
+        SessionEntry(
+          id: 'asst_aborted',
+          role: 'assistant',
+          text: 'Risposta parziale...',
+          timestamp: now - 2000,
+          metadata: const {'stopReason': 'aborted'},
+        ),
+        SessionEntry(
+          id: 'user_b',
+          role: 'user',
+          text: 'Continua',
+          timestamp: now - 1500,
+        ),
+        SessionEntry(
+          id: 'asst_done',
+          role: 'assistant',
+          text: 'Risposta completa.',
+          timestamp: now - 1000,
+          metadata: const {'stopReason': 'stop'},
+        ),
+      ];
+
+      final state = SessionState(
+        sessionId: 's_timer_test',
+        cwd: '/test',
+        entries: entries,
+        agentStatus: AgentStatus.settled,
+      );
+
+      await tester.pumpWidget(wrapTranscript(state: state));
+      await tester.pumpAndSettle();
+
+      final abortedTagFinder = find.byKey(const ValueKey('entry_aborted_asst_aborted'));
+      expect(abortedTagFinder, findsOneWidget);
+      expect(
+        find.descendant(of: abortedTagFinder, matching: find.text('Interrotto')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('entry_aborted_asst_done')), findsNothing);
+    });
   });
 }
