@@ -104,4 +104,30 @@ void main() {
     final tabsTop = tester.getTopLeft(find.byKey(const ValueKey('tabs'))).dy;
     expect(tabsTop > headerTop + FrameSize.paneHeader - 1, isTrue);
   });
+
+  testWidgets('titleWidget replaces the title text and keeps the header height', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const FramePaneHeader(
+          key: _headerKey,
+          title: 'Sessioni',
+          titleWidget: Text('Nome personalizzato', key: ValueKey('custom-title')),
+        ),
+      ),
+    );
+
+    expect(find.text('Sessioni'), findsNothing);
+    expect(find.byKey(const ValueKey('custom-title')), findsOneWidget);
+    final height = tester.getSize(find.byKey(_headerKey)).height;
+    expect(height >= FrameSize.paneHeader, isTrue, reason: 'height $height');
+  });
+
+  testWidgets('without titleWidget the title text is used', (tester) async {
+    await tester.pumpWidget(
+      _host(const FramePaneHeader(key: _headerKey, title: 'Sessioni')),
+    );
+    expect(find.text('Sessioni'), findsOneWidget);
+  });
 }

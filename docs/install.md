@@ -507,3 +507,16 @@ Quando nessuna sessione è aperta, la schermata di benvenuto è una ripresa del 
   - "Cartella trovata": una cartella esistente che non è un repository Git.
   Invio crea la sessione quando il percorso è valido, Esc chiude la finestra. Il pulsante del benvenuto resta fermo finché non si preme **Crea**.
 - Nel browser il percorso non può essere verificato sul computer: il campo accetta qualsiasi percorso non vuoto e mostra il promemoria sul percorso locale. Sul computer la verifica usa il file system dell'app: se app e daemon girano su macchine diverse, il risultato riguarda la macchina dell'app.
+## 19. Composer durante un'esecuzione, review e chat vuota
+
+**Riga di stato.** Mentre Pi risponde, sopra il campo di input compare una riga alta 28 px con l'indicatore *L'agente sta rispondendo…*, il tempo trascorso e il pulsante **Interrompi**. La riga compare e scompare senza spostare il messaggio in corso di scorrimento. Con il movimento ridotto l'indicatore è un'icona statica.
+
+**Tasti durante un'esecuzione.**
+- `Esc` interrompe l'esecuzione.
+- Con **Invia con Enter** attivo, `Invio` applica uno *steer* (indirizza l'agente senza fermarlo); `Shift+Invio` va a capo.
+- Con **Invia con Enter** disattivo, `Ctrl+Invio` (o `Cmd+Invio`) applica lo steer; `Invio` va a capo.
+- Per un messaggio da inviare dopo la risposta in corso usa il pulsante **Follow-up: metti in coda** per accodare un messaggio da inviare dopo la risposta.
+
+**Pulsante di revisione.** Quando Pi modifica dei file, il compositore mostra il pulsante **Rivedi modifiche (n)** con il numero di file cambiati. Premendolo si apre la revisione delle modifiche della sessione; premendolo di nuovo la si chiude. Senza modifiche il pulsante è un'icona disattivata con la nota che si attiva quando Pi modifica file.
+
+**Chat vuota.** Una sessione senza messaggi mostra il nome della cartella di lavoro, il ramo Git (se presente) e tre suggerimenti: `/` per i comandi, `@` per allegare un file, `Ctrl/Cmd+K` per la palette comandi. Il campo di input riceve il focus appena compare, così puoi scrivere subito.

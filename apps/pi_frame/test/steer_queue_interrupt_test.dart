@@ -108,8 +108,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // A queued steer keeps the composer expanded
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      // A queued steer keeps the field visible next to the status line
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
 
       // Verify stop button is visible
       final stopBtn = find.byIcon(Icons.stop_circle_outlined);

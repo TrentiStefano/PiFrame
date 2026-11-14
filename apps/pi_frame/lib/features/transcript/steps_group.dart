@@ -13,6 +13,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -255,17 +256,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
 
     final latestStepLabel = _formatLatestStep(widget.block.latestStep, strings);
 
+    // Borderless (plan 4.2): the summary row reads like a tool row, and the
+    // expanded steps keep their left rule.
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(
-          color: widget.block.failed
-              ? tokens.danger.withValues(alpha: 0.6)
-              : tokens.borderStrong,
-        ),
-      ),
+      margin: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -453,7 +447,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       statusIcon = SizedBox(
         width: 14,
         height: 14,
-        child: CircularProgressIndicator(
+        child: FrameActivityIndicator(size: 14, 
           strokeWidth: 2,
           color: tokens.agentWorking,
         ),
@@ -511,10 +505,12 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       label: headerLabel,
       child: InkWell(
         key: ValueKey('step_group_header_${widget.block.groupId}'),
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: SizedBox(
+          height: FrameSize.rowList,
+          child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
           child: Row(
             children: [
               statusIcon,
@@ -538,11 +534,12 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               const SizedBox(width: 8),
               Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
+                size: FrameSize.icon,
                 color: tokens.textSecondary,
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -661,7 +658,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 10,
                         height: 10,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(size: 10, 
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),
@@ -857,7 +854,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(size: 12, 
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),

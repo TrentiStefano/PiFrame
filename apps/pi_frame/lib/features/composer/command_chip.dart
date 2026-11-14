@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../ui/frame_icon_action.dart';
+
 /// A Pi slash command staged in the composer. It is a separate token, never text: what is left in
 /// the text field is only the command's arguments.
 class ComposerCommandChip extends StatefulWidget {
@@ -38,7 +40,6 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
     parent: _intro,
     curve: const Interval(0.15, 1, curve: Curves.easeOut),
   );
-  bool _hoverRemove = false;
 
   @override
   void didChangeDependencies() {
@@ -85,7 +86,8 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.fromLTRB(6, 3, 3, 3),
+          // No vertical padding: the 28 px remove control sets the chip height.
+          padding: const EdgeInsets.fromLTRB(6, 0, 2, 0),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -143,45 +145,19 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                   widget.sourceLabel,
                   style: TextStyle(
                     color: tokens.accent,
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.3,
                   ),
                 ),
               ),
               const SizedBox(width: 2),
-              Tooltip(
-                message: widget.removeTooltip,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  onEnter: (_) => setState(() => _hoverRemove = true),
-                  onExit: (_) => setState(() => _hoverRemove = false),
-                  child: GestureDetector(
-                    key: const ValueKey('composer-command-chip-remove'),
-                    onTap: widget.running ? null : widget.onRemove,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: _hoverRemove
-                            ? tokens.accent.withValues(alpha: 0.22)
-                            : tokens.accent.withValues(alpha: 0),
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
-                      child: AnimatedRotation(
-                        turns: _hoverRemove ? 0.25 : 0,
-                        duration: const Duration(milliseconds: 160),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 13,
-                          color: _hoverRemove
-                              ? tokens.textPrimary
-                              : tokens.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              // A focusable 28 px control (plan 6.1, 2.6): reachable by Tab and Enter.
+              FrameIconAction(
+                key: const ValueKey('composer-command-chip-remove'),
+                icon: Icons.close_rounded,
+                tooltip: widget.removeTooltip,
+                onPressed: widget.running ? null : widget.onRemove,
               ),
             ],
           ),

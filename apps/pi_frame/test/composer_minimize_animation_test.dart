@@ -1,7 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame/data/composer/composer_settings.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
@@ -10,6 +11,25 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame/features/composer/composer_draft.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+/// Records what the composer sends. The field itself is real.
+class _RecordingSession extends SessionStateNotifier {
+  _RecordingSession(String sessionId, SessionState initial) : super(sessionId, null) {
+    state = initial;
+  }
+
+  final List<String> sent = [];
+  final List<String?> behaviors = [];
+
+  @override
+  Future<void> sendPrompt(String text, {String? streamingBehavior}) async {
+    sent.add(text);
+    behaviors.add(streamingBehavior);
+  }
+}
+
+/// Plan 4.3: the field stays visible for the whole run. While Pi answers, a 28 px status line
+/// sits above it with the elapsed time and Interrompi. (This file replaced the old collapse-to-bar
+/// behaviour, so its name is kept for history.)
 void main() {
   Widget wrapComposer({required SessionState state}) {
     return ProviderScope(
@@ -32,8 +52,8 @@ void main() {
     );
   }
 
-  group('Composer minimize and maximize behavior when agent is answering', () {
-    testWidgets('minimizes chat input window when agent is streaming / answering', (tester) async {
+  group('Composer stays visible while the agent answers', () {
+    testWidgets('field and status line are both shown while the agent is streaming', (tester) async {
       final state = const SessionState(
         sessionId: 's_min_test',
         cwd: '/test',
@@ -44,14 +64,51 @@ void main() {
       await tester.pumpWidget(wrapComposer(state: state));
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Should be minimized with compact bar
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      expect(find.textContaining('L\'agente sta rispondendo'), findsOneWidget);
-      // The full text field input area is minimized
-      expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
+      expect(find.text('L\'agente sta rispondendo…'), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-status-interrupt')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-text-field')), findsOneWidget);
     });
 
-    testWidgets('stays expanded while a steer is queued and minimizes once it is delivered', (tester) async {
+    testWidgets('status line takes no space while idle', (tester) async {
+      await tester.pumpWidget(wrapComposer(
+        state: const SessionState(sessionId: 's_min_test', cwd: '/test', agentStatus: AgentStatus.settled),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('composer-status-line')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-status-idle')), findsOneWidget);
+      expect(tester.getSize(find.byKey(const ValueKey('composer-status-idle'))).height, 0);
+    });
+
+    testWidgets('status line appears while running and is gone once the run settles', (tester) async {
+      // The enter and exit timing is covered in composer_status_line_test.dart.
+      final notifier = SessionStateNotifier('s_min_test', null)
+        ..state = const SessionState(sessionId: 's_min_test', cwd: '/test', agentStatus: AgentStatus.settled);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sessionStateFamily('s_min_test').overrideWith((ref) => notifier)],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: Composer(sessionId: 's_min_test')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-status-line')), findsNothing);
+
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
+
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.settled);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('composer-status-line')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+    });
+
+    testWidgets('queued steer keeps the status line and the field together', (tester) async {
       final notifier = SessionStateNotifier('s_min_test', null)
         ..state = const SessionState(
           sessionId: 's_min_test',
@@ -76,12 +133,55 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
       expect(find.byKey(const ValueKey('steer-queue-item-0')), findsOneWidget);
 
       notifier.state = notifier.state.copyWith(steeringQueue: const []);
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      expect(find.byKey(const ValueKey('steer-queue-item-0')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+    });
+
+    testWidgets('keyboard only: Tab reaches the field during a run, and Enter steers', (tester) async {
+      final session = _RecordingSession(
+        's_min_test',
+        const SessionState(
+          sessionId: 's_min_test',
+          cwd: '/test',
+          agentStatus: AgentStatus.working,
+          streamingTextBlocks: {0: 'Generating answer...'},
+        ),
+      );
+      final settings = ComposerSettingsNotifier()..setSendWithEnter(true);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionStateFamily('s_min_test').overrideWith((ref) => session),
+            composerSettingsProvider.overrideWith((ref) => settings),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: Composer(sessionId: 's_min_test')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(const ValueKey('composer-text-field'));
+      bool hasFocus() => tester.widget<TextField>(field).focusNode!.hasFocus;
+      for (var i = 0; i < 12 && !hasFocus(); i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(hasFocus(), isTrue, reason: 'Tab must reach the field while Pi runs');
+
+      await tester.enterText(field, 'cambia approccio');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(session.sent, ['cambia approccio']);
+      expect(session.behaviors, ['steer']);
     });
 
     testWidgets('hides and restores unsent draft while an agent question is pending', (tester) async {
@@ -119,9 +219,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
       final composerField = find.byKey(const ValueKey('composer-text-field'));
+      await tester.tap(composerField);
+      await tester.pumpAndSettle();
       await tester.enterText(composerField, draft);
       await tester.pump();
       expect(container.read(composerDraftProvider('s_min_test')), draft);
@@ -159,71 +259,7 @@ void main() {
       expect(container.read(composerDraftProvider('s_min_test')), draft);
     });
 
-    testWidgets('shows glowing pointer effect and keeps chat input window minimized during hover < 5s, then expands at >= 5s', (tester) async {
-      final state = const SessionState(
-        sessionId: 's_min_test',
-        cwd: '/test',
-        agentStatus: AgentStatus.working,
-        streamingTextBlocks: {0: 'Generating answer...'},
-      );
-
-      await tester.pumpWidget(wrapComposer(state: state));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Initially minimized
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-
-      // Simulate mouse hover
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(Composer)));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // At 300ms hover, it is STILL minimized (with glowing pointer effect)!
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
-
-      // After 5 seconds of keeping pointer over it, it expands
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pump(const Duration(milliseconds: 350));
-
-      // Now maximized: full text field and steer/interrupt controls are visible
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.text('Steer'), findsOneWidget);
-
-      // Moving mouse away: during grace period (300ms) it stays open
-      await gesture.moveTo(const Offset(10, 10)); // outside composer
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
-
-      // After grace period (600ms + animation) expires, it minimizes back
-      await tester.pump(const Duration(milliseconds: 700));
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-    });
-
-    testWidgets('expands chat input window immediately when user clicks on minimized bar', (tester) async {
-      final state = const SessionState(
-        sessionId: 's_min_test',
-        cwd: '/test',
-        agentStatus: AgentStatus.working,
-        streamingTextBlocks: {0: 'Generating answer...'},
-      );
-
-      await tester.pumpWidget(wrapComposer(state: state));
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-
-      // Tap on minimized bar expands immediately
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-    });
-
-    testWidgets('minimized chat interrupt button and text use signalDanger color matching maximized stop button', (tester) async {
+    testWidgets('status line interrupt uses signalDanger colour', (tester) async {
       final state = const SessionState(
         sessionId: 's_min_test',
         cwd: '/test',
@@ -236,13 +272,13 @@ void main() {
 
       final interruptIcon = tester.widget<Icon>(
         find.descendant(
-          of: find.byKey(const ValueKey('composer-minimized-interrupt')),
-          matching: find.byIcon(Icons.stop_circle_outlined),
+          of: find.byKey(const ValueKey('composer-status-interrupt')),
+          matching: find.byIcon(Icons.stop_rounded),
         ),
       );
       final interruptText = tester.widget<Text>(
         find.descendant(
-          of: find.byKey(const ValueKey('composer-minimized-interrupt')),
+          of: find.byKey(const ValueKey('composer-status-interrupt')),
           matching: find.text('Interrompi'),
         ),
       );
@@ -251,9 +287,8 @@ void main() {
       expect(interruptText.style?.color, FrameTokens.dark.signalDanger);
     });
 
-    testWidgets('does not minimize if text has been inputted even if user clicks away while model is generating', (tester) async {
-      // Start with settled session
-      var sessionNotifier = SessionStateNotifier('s_min_test', null)
+    testWidgets('keeps typed text in the field while the agent runs, even after focus is lost', (tester) async {
+      final sessionNotifier = SessionStateNotifier('s_min_test', null)
         ..state = const SessionState(
           sessionId: 's_min_test',
           cwd: '/test',
@@ -280,74 +315,23 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Enter some text into the composer
       await tester.enterText(find.byKey(const ValueKey('composer-text-field')), 'I have written some instructions here');
       await tester.pumpAndSettle();
-
-      // User unfocuses / clicks away (e.g. tap elsewhere)
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
 
-      // Model starts generating / answering
       sessionNotifier.state = sessionNotifier.state.copyWith(
         agentStatus: AgentStatus.working,
         streamingTextBlocks: {0: 'Generating answer while text was entered...'},
       );
-      // Wait past any grace periods / animations
       await tester.pump(const Duration(milliseconds: 1000));
 
-      // Should NOT be minimized because the user wrote text!
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
       expect(find.text('I have written some instructions here'), findsOneWidget);
     });
 
-    testWidgets('does not minimize if the input box is focused', (tester) async {
-      // Start with settled session
-      var sessionNotifier = SessionStateNotifier('s_min_test', null)
-        ..state = const SessionState(
-          sessionId: 's_min_test',
-          cwd: '/test',
-          agentStatus: AgentStatus.settled,
-        );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-            home: const Scaffold(
-              body: Column(
-                children: [
-                  Expanded(child: SizedBox()),
-                  Composer(sessionId: 's_min_test'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Focus the text field
-      await tester.tap(find.byKey(const ValueKey('composer-text-field')));
-      await tester.pumpAndSettle();
-
-      // Now agent starts answering / working
-      sessionNotifier.state = sessionNotifier.state.copyWith(
-        agentStatus: AgentStatus.working,
-        streamingTextBlocks: {0: 'Streaming while focused...'},
-      );
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Because input box is focused, it should NOT minimize!
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
-    });
-
-    testWidgets('transcript scroll stays locked and scrolls synchronously as composer expands', (tester) async {
+    testWidgets('transcript stays pinned to the bottom as the status line appears and leaves', (tester) async {
       tester.view.physicalSize = const Size(800, 600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -392,41 +376,16 @@ void main() {
       await tester.pumpAndSettle();
 
       final scrollController = tester.widget<ListView>(find.byKey(const ValueKey('transcript-scroll'))).controller!;
-      final initialOffset = scrollController.offset;
-      final initialMax = scrollController.position.maxScrollExtent;
-      expect((initialMax - initialOffset).abs(), lessThan(5.0));
+      expect((scrollController.position.maxScrollExtent - scrollController.offset).abs(), lessThan(5.0));
 
-      // Now agent starts working -> composer minimizes
       sessionNotifier.state = sessionNotifier.state.copyWith(
         agentStatus: AgentStatus.working,
         streamingTextBlocks: {0: 'Thinking...'},
       );
-      await tester.pumpAndSettle();
-
-      // Minimized bar is visible
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      final minimizedOffset = scrollController.offset;
-      final minimizedMax = scrollController.position.maxScrollExtent;
-      expect((minimizedMax - minimizedOffset).abs(), lessThan(5.0));
-
-      // Tap to expand
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-
-      // Pump mid-animation frame (140ms into 280ms)
       await tester.pump(const Duration(milliseconds: 140));
-      final midOffset = scrollController.offset;
-      final midMax = scrollController.position.maxScrollExtent;
-      // During expansion, scroll position stays glued to the bottom without snapping
-      expect((midMax - midOffset).abs(), lessThan(5.0));
-
-      // Complete expansion
+      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      final finalOffset = scrollController.offset;
-      final finalMax = scrollController.position.maxScrollExtent;
-      expect((finalMax - finalOffset).abs(), lessThan(5.0));
-      expect(finalOffset, greaterThanOrEqualTo(midOffset));
+      expect((scrollController.position.maxScrollExtent - scrollController.offset).abs(), lessThan(5.0));
     });
   });
 }
-

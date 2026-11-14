@@ -274,7 +274,8 @@ index ccb1dd3..d31323b 100644
         // The "Review changes" button should be visible on the left side of the "Invia" button
         final reviewBtnFinder = find.byKey(const ValueKey('review-changes-btn'));
         expect(reviewBtnFinder, findsOneWidget);
-        expect(find.text('Review changes'), findsOneWidget);
+        // Narrow rows show the icon; the tooltip names the action (the label appears on wide rows).
+        expect(find.byTooltip('Rivedi modifiche ai file'), findsOneWidget);
         expect(find.text('Invia'), findsOneWidget);
 
         // Verify button position: Review changes button should be to the left of Invia

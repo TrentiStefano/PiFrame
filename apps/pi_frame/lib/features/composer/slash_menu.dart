@@ -156,7 +156,7 @@ class SlashMenu extends StatelessWidget {
                         sourceLabel(source),
                         style: TextStyle(
                           color: tokens.textMuted,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontStyle: FontStyle.italic,
                         ),
                       ),

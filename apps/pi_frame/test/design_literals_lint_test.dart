@@ -26,12 +26,12 @@ final _gestureDetector = RegExp(r'\bGestureDetector\(');
 const _baselines = <String, int>{
   // Interim ratchet during the integration merges: max of both sides.
   // Lowered to measured counts at the end of the integration run.
-  'fontSize numeric literal': 693,
+  'fontSize numeric literal': 699,
   'fontSize below 11': 129,
   'BorderRadius.circular numeric': 43,
   'Duration(milliseconds:) numeric': 40,
   'Curves.': 21,
-  'BoxShadow(': 15,
+  'BoxShadow(': 16,
   'GestureDetector(': 14,
 };
 

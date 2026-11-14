@@ -18,6 +18,17 @@ extension TranscriptStrings on AppStrings {
   String get toolCardCopyCommand =>
       isItalian ? 'Copia comando' : 'Copy command';
 
+  // Empty chat (plan 4.6)
+  String get emptyChatTitle =>
+      isItalian ? 'Inizia una conversazione' : 'Start a conversation';
+  String get emptyChatHintCommands =>
+      isItalian ? '/ per i comandi' : '/ for commands';
+  String get emptyChatHintAttach =>
+      isItalian ? '@ per allegare un file' : '@ to attach a file';
+  String get emptyChatHintPalette => isItalian
+      ? 'Ctrl/Cmd+K per la palette comandi'
+      : 'Ctrl/Cmd+K for the command palette';
+
   // Chat drop target
   String get dropTargetTitle =>
       isItalian ? 'Rilascia i file qui per allegarli' : 'Drop files here to attach';
@@ -240,6 +251,7 @@ extension TranscriptStrings on AppStrings {
       isItalian ? failureText(this, 'Risposta interrotta da un errore', err) : failureText(this, 'Reply stopped by an error', err);
   String get transcriptRetrySend => isItalian ? 'Riprova invio' : 'Retry send';
   String get transcriptAssistant => isItalian ? 'Assistente' : 'Assistant';
+  String get transcriptAbortedBadge => isItalian ? 'Interrotto' : 'Interrupted';
   String get transcriptCopyMessage =>
       isItalian ? 'Copia messaggio' : 'Copy message';
   String get transcriptMessageCopied => isItalian
@@ -260,6 +272,16 @@ extension TranscriptStrings on AppStrings {
       isItalian ? '$tokens token iniziali' : '$tokens initial tokens';
   String get transcriptCustomTypeDefault =>
       isItalian ? 'Estensione' : 'Extension';
+  // Load older messages banner (transcript_view)
+  String transcriptLoadOlderLocal(int hidden) => isItalian
+      ? 'Carica messaggi precedenti ($hidden non mostrati)'
+      : 'Load earlier messages ($hidden not shown)';
+  String get transcriptLoadOlderRemote => isItalian
+      ? 'Carica altri messaggi dalla cronologia'
+      : 'Load more from history';
+  String transcriptLoadOlderRemoteLeft(int remaining) => isItalian
+      ? 'Carica altri messaggi dalla cronologia ($remaining rimanenti)'
+      : 'Load more from history ($remaining left)';
 }
 
 /// Resolves [AppStrings] safely, falling back to Italian if no [ProviderScope] exists.

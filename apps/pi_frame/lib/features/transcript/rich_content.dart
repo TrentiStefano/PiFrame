@@ -11,6 +11,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
+import '../../ui/frame_focus.dart';
 import 'task_notification_card.dart';
 
 Future<void> _openUrl(String url) async {
@@ -261,6 +262,102 @@ class RichContent extends StatefulWidget {
     return segments;
   }
 
+  static final RegExp _tableSeparatorRegex = RegExp(
+    r'^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$',
+  );
+
+  /// A table row is any line with a pipe; the header is the first such line
+  /// followed directly by a `|---|` separator row.
+  static bool _isTableRow(String line) => line.trim().contains('|');
+
+  static bool _isTableHeaderAt(List<String> lines, int index) {
+    if (index + 1 >= lines.length || !_isTableRow(lines[index])) return false;
+    final separator = lines[index + 1].trim();
+    return separator.contains('-') && _tableSeparatorRegex.hasMatch(separator);
+  }
+
+  static List<String> _splitTableRow(String line) {
+    var content = line.trim();
+    if (content.startsWith('|')) content = content.substring(1);
+    if (content.endsWith('|')) content = content.substring(0, content.length - 1);
+    return content.split(RegExp(r'(?<!\\)\|')).map((c) => c.trim()).toList();
+  }
+
+  /// Renders a Markdown table. [rows] holds the header, the separator and the body rows.
+  /// The table is as wide as its content and scrolls horizontally inside the block.
+  static Widget _buildMarkdownTable(
+    List<String> rows,
+    FrameTokens tokens, {
+    String? cwd,
+    AppStrings? strings,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+  }) {
+    final header = _splitTableRow(rows.first);
+    final columnCount = header.length;
+    List<String> normalize(List<String> cells) => List.generate(
+          columnCount,
+          (c) => c < cells.length ? cells[c] : '',
+        );
+
+    Widget cell(String content, {required bool isHeader}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text.rich(
+          _parseInlineSpans(
+            content,
+            tokens,
+            cwd: cwd,
+            strings: strings,
+            createTapRecognizer: createTapRecognizer,
+          ),
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: 12.5,
+            height: 1.45,
+            fontWeight: isHeader ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      );
+    }
+
+    final tableRows = <TableRow>[
+      TableRow(
+        decoration: BoxDecoration(color: tokens.surfaceElevated),
+        children: [
+          for (final c in normalize(header)) cell(c, isHeader: true),
+        ],
+      ),
+      for (final row in rows.skip(2))
+        TableRow(
+          children: [
+            for (final c in normalize(_splitTableRow(row)))
+              cell(c, isHeader: false),
+          ],
+        ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              border: TableBorder.all(
+                color: tokens.border,
+                width: 1,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              children: tableRows,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   static Widget _buildMarkdownText(
     String text,
     FrameTokens tokens, {
@@ -303,9 +400,26 @@ class RichContent extends StatefulWidget {
       }
     }
 
-    for (final line in rawLines) {
+    for (var i = 0; i < rawLines.length; i++) {
+      final line = rawLines[i];
       final trimmed = line.trim();
-      if (trimmed.startsWith('# ') ||
+      if (_isTableHeaderAt(rawLines, i)) {
+        flushPara();
+        var end = i + 2;
+        while (end < rawLines.length && _isTableRow(rawLines[end])) {
+          end++;
+        }
+        widgets.add(
+          _buildMarkdownTable(
+            rawLines.sublist(i, end),
+            tokens,
+            cwd: cwd,
+            strings: strings,
+            createTapRecognizer: createTapRecognizer,
+          ),
+        );
+        i = end - 1;
+      } else if (trimmed.startsWith('# ') ||
           trimmed.startsWith('## ') ||
           trimmed.startsWith('### ')) {
         flushPara();
@@ -727,26 +841,35 @@ class RichContent extends StatefulWidget {
                   'CTRL+clic per aprire in Esplora file',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: openFile,
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 3),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
+                // Focusable link (plan 6.1): reachable by Tab, activated by
+                // Enter or Space, announced as a link.
+                child: Semantics(
+                  link: true,
+                  label: displayText,
+                  child: FrameFocusRing(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: tokens.accent.withValues(alpha: 0.5),
+                      onTap: openFile,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(
+                            color: tokens.accent.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.insert_drive_file_outlined,
+                          size: 11,
+                          color: tokens.accent,
+                        ),
                       ),
-                    ),
-                    child: Icon(
-                      Icons.insert_drive_file_outlined,
-                      size: 11,
-                      color: tokens.accent,
                     ),
                   ),
                 ),

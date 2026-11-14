@@ -261,7 +261,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                       textAlign: TextAlign.end,
                       style: TextStyle(
                         color: tokens.textMuted,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontFamily: tokens.monoFontFamily,
                       ),
                     ),
@@ -345,7 +345,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                       _formatBytes(file['sizeBytes']),
                                       style: TextStyle(
                                         color: tokens.textMuted,
-                                        fontSize: 10,
+                                        fontSize: 11,
                                         fontFamily: tokens.monoFontFamily,
                                       ),
                                     ),
@@ -362,7 +362,7 @@ class _CopilotFilePickerState extends State<CopilotFilePicker> {
                                         ),
                                       ),
                                       onPressed: () => _selectFile(path, CopilotFileActionType.mention),
-                                      child: Text(strings.copilotLinkAtAction, style: const TextStyle(fontSize: 10.5)),
+                                      child: Text(strings.copilotLinkAtAction, style: const TextStyle(fontSize: 11)),
                                     ),
                                   ],
                                 ),

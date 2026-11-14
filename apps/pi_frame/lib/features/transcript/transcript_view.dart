@@ -10,8 +10,11 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
+import '../../ui/frame_pane_header.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/attachment_model.dart';
 import '../../domain/session/context_usage_tone.dart';
@@ -22,6 +25,9 @@ import '../composer/composer_draft.dart';
 import '../status/agent_status_badge.dart';
 import '../tool_timeline/tool_timeline.dart';
 import '../workspace/repository_workspace.dart';
+import 'assistant_turn_frame.dart';
+import 'empty_chat_view.dart';
+import 'entry_elapsed.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
 import 'subagents_provider.dart';
@@ -483,8 +489,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     Color? valueColor,
     void Function(BuildContext)? onTap,
     IconData? trailingIcon,
+    Key? key,
   }) {
     return Builder(
+      key: key,
       builder: (chipContext) {
         final chip = Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -504,25 +512,27 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 ),
                 const SizedBox(width: 4),
               ],
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$label · ',
-                      style: TextStyle(color: tokens.textMuted, fontSize: 10),
-                    ),
-                    TextSpan(
-                      text: value,
-                      style: TextStyle(
-                        color: valueColor ?? tokens.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
+              Flexible(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$label · ',
+                        style: TextStyle(color: tokens.textMuted, fontSize: 10),
                       ),
-                    ),
-                  ],
+                      TextSpan(
+                        text: value,
+                        style: TextStyle(
+                          color: valueColor ?? tokens.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
               if (trailingIcon != null) ...[
                 const SizedBox(width: 3),
@@ -540,233 +550,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           child: chip,
         );
       },
-    );
-  }
-
-  Future<void> _showContextDialog(
-    BuildContext chipContext,
-    Map? contextUsage,
-    Map? stats,
-    num? cost,
-  ) async {
-    final tokens = context.tokens;
-    final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-
-    await showDialog(
-      context: context,
-      builder: (dialogCtx) {
-        bool compacting = false;
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            final strings = ref.watch(appStringsProvider);
-            final currentSession = ref.watch(
-              sessionStateFamily(widget.sessionId),
-            );
-            final currentStats = currentSession.sessionStats;
-            final currentUsage =
-                currentStats?['contextUsage'] as Map? ??
-                currentSession.usage?['contextUsage'] as Map?;
-            // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
-            final tokensUsed = currentUsage != null
-                ? currentUsage['tokens'] ?? '—'
-                : currentSession.usage?['totalTokens'] ?? '—';
-            final maxWindow = currentSession.contextWindowOverride ?? currentUsage?['contextWindow'] ?? '—';
-            final pct = (currentSession.contextWindowOverride != null && tokensUsed is num && currentSession.contextWindowOverride! > 0)
-                ? (tokensUsed.toDouble() / currentSession.contextWindowOverride! * 100.0)
-                : ((currentUsage?['percent'] as num?)?.toDouble() ?? 0.0);
-            final inTokens =
-                currentSession.usage?['inputTokens'] ??
-                currentStats?['inputTokens'] ??
-                '—';
-            final outTokens =
-                currentSession.usage?['outputTokens'] ??
-                currentStats?['outputTokens'] ??
-                '—';
-            final cacheTokens =
-                currentSession.usage?['cacheReadTokens'] ??
-                currentStats?['cacheReadTokens'] ??
-                '—';
-
-            return Dialog(
-              backgroundColor: tokens.surfaceElevated,
-              alignment: const Alignment(0.0, -0.45),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                side: BorderSide(color: tokens.borderStrong),
-              ),
-              child: SizedBox(
-                width: 330,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.pie_chart_outline,
-                                size: 16,
-                                color: tokens.syntaxFunction,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                strings.transcriptContextTokensTitle,
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.close,
-                              size: 16,
-                              color: tokens.textMuted,
-                            ),
-                            onPressed: () => Navigator.of(dialogCtx).pop(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            strings.transcriptUsageLabel,
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                          Text(
-                            '${pct.toStringAsFixed(1)}% (${_formatTokens(tokensUsed)} / ${_formatTokens(maxWindow)})',
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        child: LinearProgressIndicator(
-                          value: (pct / 100.0).clamp(0.0, 1.0),
-                          backgroundColor: tokens.surface,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            pct > 85
-                                ? tokens.danger
-                                : pct > 65
-                                ? tokens.warning
-                                : tokens.syntaxFunction,
-                          ),
-                          minHeight: 6,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Divider(color: tokens.border, height: 1),
-                      const SizedBox(height: 8),
-                      _tokenRow(strings.transcriptTokenInput, inTokens.toString(), tokens),
-                      _tokenRow(strings.transcriptTokenOutput, outTokens.toString(), tokens),
-                      _tokenRow(strings.transcriptTokenCache, cacheTokens.toString(), tokens),
-                      _tokenRow(
-                        strings.transcriptEstimatedCost,
-                        cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
-                        tokens,
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: tokens.accent,
-                          foregroundColor: tokens.accentContrast,
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
-                          ),
-                        ),
-                        icon: compacting
-                            ? SizedBox(
-                                width: 13,
-                                height: 13,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: tokens.accentContrast,
-                                ),
-                              )
-                            : const Icon(Icons.compress, size: 15),
-                        label: Text(
-                          compacting ? strings.transcriptCompacting : strings.transcriptCompactContext,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        onPressed: compacting || currentSession.readOnly
-                            ? null
-                            : () async {
-                                setDialogState(() => compacting = true);
-                                try {
-                                  await notifier.compact();
-                                  if (mounted && ctx.mounted) {
-                                    FrameSnackBar.show(
-                                      context,
-                                      message: strings.transcriptCompactionCompleted,
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (mounted && ctx.mounted) {
-                                    FrameSnackBar.show(
-                                      context,
-                                      message: strings.transcriptCompactionError('$e'),
-                                    );
-                                  }
-                                } finally {
-                                  setDialogState(() => compacting = false);
-                                }
-                              },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _tokenRow(String label, String value, FrameTokens tokens) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: tokens.textMuted, fontSize: 12)),
-          Text(
-            value,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontFamily: tokens.monoFontFamily,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1383,7 +1166,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     _currentStrings = ref.watch(appStringsProvider);
-    final strings = _currentStrings;
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
     final stats = sessionState.sessionStats;
     final contextUsage =
@@ -1395,11 +1177,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final effectivePercent = (sessionState.contextWindowOverride != null && effectiveTokens is num && sessionState.contextWindowOverride! > 0)
         ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
         : (contextUsage?['percent'] as num?);
-    final contextLabel = contextUsage == null
-        ? strings.transcriptUnavailable
-        : effectivePercent == null
-        ? '${strings.transcriptPostCompaction} · —/${_formatTokens(effectiveContextWindow)}'
-        : '${effectivePercent.toStringAsFixed(1)}% · ${_formatTokens(effectiveTokens)}/${_formatTokens(effectiveContextWindow)}';
+    // "12k / 128k (1.2%)" when usage is known, "— / 128k" when it is not.
+    final contextWindowLabel = _formatTokens(effectiveContextWindow);
+    final contextLabel = effectivePercent == null || effectiveTokens is! num
+        ? '— / $contextWindowLabel'
+        : '${_formatTokens(effectiveTokens)} / $contextWindowLabel '
+            '(${effectivePercent.toStringAsFixed(1)}%)';
     final contextTone = contextUsage == null || effectivePercent == null
         ? ContextUsageTone.muted
         : contextUsageTone(
@@ -1625,10 +1408,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                       )
                                   : null;
                           final label = isLocalHidden
-                              ? 'Carica messaggi precedenti ($hiddenCount non mostrati)'
+                              ? _currentStrings.transcriptLoadOlderLocal(
+                                  hiddenCount,
+                                )
                               : (remainingRemote != null && remainingRemote > 0
-                                  ? 'Carica altri messaggi dalla cronologia ($remainingRemote rimanenti)'
-                                  : 'Carica altri messaggi dalla cronologia');
+                                  ? _currentStrings.transcriptLoadOlderRemoteLeft(
+                                      remainingRemote,
+                                    )
+                                  : _currentStrings.transcriptLoadOlderRemote);
 
                           return _MeasureSize(
                             onSizeChange: (s) => _entryHeights['banner'] = s.height,
@@ -1740,14 +1527,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             final entry = visibleEntries[entryIndex];
                             int? elapsedSeconds;
                             if (entry.role != 'user') {
-                              final cleanIdx = hiddenCount + entryIndex;
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs = entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                hiddenCount + entryIndex,
+                              );
                               if (elapsedSeconds == null &&
                                   entry.toolCalls.isNotEmpty) {
                                 int totalToolMs = 0;
@@ -1839,17 +1622,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           final block = blocks[blockIndex];
                           switch (block) {
                             case EntryBlock():
-                              int? elapsedSeconds;
-                              final cleanIdx = cleanEntries
-                                  .indexWhere((e) => e.id == block.entry.id);
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs =
-                                    block.entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              final elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                cleanEntries.indexWhere(
+                                  (e) => e.id == block.entry.id,
+                                ),
+                              );
                               final firstVisibleId = _targetAnchorId ??
                                   (itemKeys.length > (hasLoadBanner ? 1 : 0)
                                       ? itemKeys[hasLoadBanner ? 1 : 0]
@@ -1945,17 +1723,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               );
 
                             case FinalTextBlock():
-                              int? elapsedSeconds;
-                              final cleanIdx = cleanEntries
-                                  .indexWhere((e) => e.id == block.entry.id);
-                              if (cleanIdx > 0 && cleanIdx < cleanEntries.length) {
-                                final prev = cleanEntries[cleanIdx - 1];
-                                final diffMs =
-                                    block.entry.timestamp - prev.timestamp;
-                                if (diffMs >= 5000) {
-                                  elapsedSeconds = (diffMs / 1000).round();
-                                }
-                              }
+                              final elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                cleanEntries.indexWhere(
+                                  (e) => e.id == block.entry.id,
+                                ),
+                              );
                               final firstVisibleId = _targetAnchorId ??
                                   (itemKeys.length > (hasLoadBanner ? 1 : 0)
                                       ? itemKeys[hasLoadBanner ? 1 : 0]
@@ -2066,6 +1839,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   );
                 },
               ),
+              if (cleanEntries.isEmpty && !sessionState.isStreaming)
+                Positioned.fill(
+                  child: EmptyChatView(
+                    sessionId: widget.sessionId,
+                    cwd: sessionState.cwd,
+                  ),
+                ),
             ],
           ),
         ),
@@ -2122,29 +1902,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _cachedHeaderStrings = _currentStrings;
     _cachedHeaderExtStatuses = extensionStatuses;
 
-    _cachedBentoHeader = Container(
-      margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-      padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 10 : 12,
-        vertical: isCompact ? 5 : 6,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(color: tokens.borderStrong),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_isRenaming)
+    // Flat pane header (plan 4.5), built on the shared FramePaneHeader: the
+    // session name (double-tap to rename) and cwd on the left, the agent
+    // status and metric chips on the right. No inner card, no elevation.
+    _cachedBentoHeader = LayoutBuilder(
+      builder: (context, box) {
+        final Widget titleWidget;
+        if (_isRenaming) {
+          titleWidget = 
                       Padding(
                         padding: const EdgeInsets.only(bottom: 2),
                         child: Row(
@@ -2256,8 +2021,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                           ],
                         ),
-                      )
-                    else
+                      );
+        } else {
+          titleWidget = 
                       GestureDetector(
                         key: const ValueKey('session-name-title'),
                         behavior: HitTestBehavior.opaque,
@@ -2298,88 +2064,80 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             ),
                           ),
                         ),
+                      );
+        }
+        return FramePaneHeader(
+          title: effectiveSessionName,
+          titleWidget: titleWidget,
+          subtitle: sessionState.cwd.isNotEmpty
+              ? sessionState.cwd
+              : _currentStrings.transcriptNoFolderOpened,
+          actions: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Status scrolls with the chips, so it can never overflow
+                    // the title row at narrow widths.
+                    AgentStatusBadge(
+                      status: sessionState.agentStatus,
+                      onDisplay: false,
+                    ),
+                    const SizedBox(width: FrameSpace.x2),
+                    // Opens the context drawer, where usage and compaction live.
+                    _metricChip(
+                      tokens,
+                      _currentStrings.transcriptContext,
+                      contextLabel,
+                      key: const ValueKey('session-header-context-chip'),
+                      leadingIcon: Icons.pie_chart_outline,
+                      iconColor: contextIconColor,
+                      onTap: (ctx) => Scaffold.maybeOf(ctx)?.openEndDrawer(),
+                    ),
+                    const SizedBox(width: FrameSpace.x2 - 2),
+                    _metricChip(
+                      tokens,
+                      _currentStrings.transcriptCost,
+                      cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
+                      key: const ValueKey('session-header-cost-chip'),
+                      leadingIcon: Icons.monetization_on_outlined,
+                      iconColor: tokens.syntaxString,
+                      valueColor: tokens.syntaxString,
+                      trailingIcon: Icons.arrow_drop_down,
+                      onTap: (ctx) => _showCostBreakdownDialog(
+                        ctx,
+                        mainAgentCost,
+                        sessionState,
                       ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.folder_outlined,
-                          size: 12,
-                          color: tokens.syntaxFunction,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            sessionState.cwd.isNotEmpty
-                                ? sessionState.cwd
-                                : _currentStrings.transcriptNoFolderOpened,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: 11,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
+                    ),
+                    for (final status in extensionStatuses) ...[
+                      const SizedBox(width: FrameSpace.x2 - 2),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 200),
+                        child: Tooltip(
+                          message:
+                              '${status.key}: ${_cleanStatusValue(status.value)}',
+                          child: _metricChip(
+                            tokens,
+                            status.key,
+                            _cleanStatusValue(status.value),
+                            leadingIcon: Icons.extension_outlined,
+                            iconColor: tokens.syntaxKeyword,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              AgentStatusBadge(
-                status: sessionState.agentStatus,
-                onDisplay: false,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _metricChip(
-                  tokens,
-                  _currentStrings.transcriptContext,
-                  contextLabel,
-                  leadingIcon: Icons.pie_chart_outline,
-                  iconColor: contextIconColor,
-                  trailingIcon: Icons.info_outline,
-                  onTap: (ctx) =>
-                      _showContextDialog(ctx, contextUsage, stats, cost),
-                ),
-                const SizedBox(width: 6),
-                _metricChip(
-                  tokens,
-                  _currentStrings.transcriptCost,
-                  cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
-                  leadingIcon: Icons.monetization_on_outlined,
-                  iconColor: tokens.syntaxString,
-                  valueColor: tokens.syntaxString,
-                  trailingIcon: Icons.arrow_drop_down,
-                  onTap: (ctx) => _showCostBreakdownDialog(
-                    ctx,
-                    mainAgentCost,
-                    sessionState,
-                  ),
-                ),
-                for (final status in extensionStatuses) ...[
-                  const SizedBox(width: 6),
-                  _metricChip(
-                    tokens,
-                    status.key,
-                    _cleanStatusValue(status.value),
-                    leadingIcon: Icons.extension_outlined,
-                    iconColor: tokens.syntaxKeyword,
-                  ),
-                ],
-              ],
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
     return _cachedBentoHeader!;
   }
@@ -2510,85 +2268,81 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         !hasLiveThinking &&
         !hasActiveTools;
 
+    // Same frame and body order as a settled turn (plan 4.1): the meta line is
+    // laid out from the first token and holds the live timer.
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (hasLiveThinking) ...[
-            ThinkingBlock(
-              key: ValueKey('thinking_live_${widget.sessionId}'),
-              thinkingText: liveThinking,
-              isStreaming: sessionState.isStreaming,
-              isExpanded: _expandedThinkingBlocks.contains(
-                'live_${widget.sessionId}',
-              ),
-              onExpansionChanged: (expanded) {
-                setState(() {
-                  if (expanded) {
-                    _expandedThinkingBlocks.add('live_${widget.sessionId}');
-                  } else {
-                    _expandedThinkingBlocks.remove('live_${widget.sessionId}');
-                  }
-                });
-              },
-            ),
-            if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator)
-              const SizedBox(height: 6),
-          ],
-          if (liveTools.isNotEmpty) ...[
-            ToolTimeline(
-              toolCalls: liveTools,
-              onCardExpansionChanged: _pauseStreamFollowing,
-            ),
-            if (hasLiveText || hasLoadingIndicator)
-              const SizedBox(height: 6),
-          ],
-          if (hasLiveText) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(color: tokens.borderStrong),
-              ),
-              child: RichContent(text: liveText, cwd: sessionState.cwd),
-            ),
-            const SizedBox(height: 6),
-          ] else if (hasLoadingIndicator) ...[
-            Row(
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    color: tokens.agentWorking,
-                    strokeWidth: 2,
-                  ),
+      child: AssistantTurnFrame(
+        key: ValueKey('assistant_turn_live_${widget.sessionId}'),
+        label: _currentStrings.transcriptAssistant,
+        elapsedChip: _LiveTurnTimerWidget(
+          startTime: sessionState.runStartedAt == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(sessionState.runStartedAt!),
+          tokens: tokens,
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (hasLiveThinking) ...[
+              ThinkingBlock(
+                key: ValueKey('thinking_live_${widget.sessionId}'),
+                thinkingText: liveThinking,
+                isStreaming: sessionState.isStreaming,
+                isExpanded: _expandedThinkingBlocks.contains(
+                  'live_${widget.sessionId}',
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  _currentStrings.transcriptProcessing,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                onExpansionChanged: (expanded) {
+                  setState(() {
+                    if (expanded) {
+                      _expandedThinkingBlocks.add('live_${widget.sessionId}');
+                    } else {
+                      _expandedThinkingBlocks.remove('live_${widget.sessionId}');
+                    }
+                  });
+                },
+              ),
+              if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator)
+                const SizedBox(height: 6),
+            ],
+            if (liveTools.isNotEmpty) ...[
+              ToolTimeline(
+                toolCalls: liveTools,
+                onCardExpansionChanged: _pauseStreamFollowing,
+              ),
+              if (hasLiveText || hasLoadingIndicator)
+                const SizedBox(height: 6),
+            ],
+            if (hasLiveText)
+              RichContent(text: liveText, cwd: sessionState.cwd)
+            else if (hasLoadingIndicator)
+              Row(
+                children: [
+                  SizedBox(
+                    width: FrameSize.icon - 2,
+                    height: FrameSize.icon - 2,
+                    child: FrameActivityIndicator(size: FrameSize.icon - 2, 
+                      color: tokens.agentWorking,
+                      strokeWidth: 2,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
+                  const SizedBox(width: FrameSpace.x2),
+                  Text(
+                    _currentStrings.transcriptProcessing,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
           ],
-          // Seconds counter for live turn taking >= 5s
-          _LiveTurnTimerWidget(
-            startTime: sessionState.runStartedAt == null ? null :
-                DateTime.fromMillisecondsSinceEpoch(sessionState.runStartedAt!),
-            tokens: tokens,
-          ),
-        ],
+        ),
       ),
     );
   }
+
 
   Future<void> _handleFork(String entryId) async {
     final client = ref.read(pcpClientProvider);
@@ -2664,7 +2418,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       final (cleanText, attachments) = parseAttachmentsFromText(entry.text);
       final sendError = entry.metadata?['sendError'] as String?;
       final screenWidth = MediaQuery.sizeOf(context).width;
-      final bubble = Container(
+      final bubble = HoverRevealBuilder(
+        builder: (context, revealed) => Container(
         key: sendError == null
             ? null
             : ValueKey('failed-message-bubble-${entry.id}'),
@@ -2699,7 +2454,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ],
                 ),
                 Flexible(
-                  child: InkWell(
+                  child: AnimatedOpacity(
+                    opacity: revealed ? 1 : 0,
+                    duration: FrameMotion.micro,
+                    child: InkWell(
                     borderRadius: BorderRadius.circular(4),
                     onTap: () => _handleFork(entry.id),
                     child: Padding(
@@ -2732,6 +2490,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       ),
                     ),
                   ),
+                  ),
                 ),
               ],
             ),
@@ -2757,6 +2516,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             ],
           ],
         ),
+      ),
       );
 
       if (sendError == null) {
@@ -2820,172 +2580,123 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       return _buildCustomItem(entry, tokens);
     }
 
-    // Assistant entry
+    // Assistant entry. Streaming and settled turns share AssistantTurnFrame,
+    // so the body keeps its position while the turn runs (plan 4.1).
     final isToolOnly = entry.text.trim().isEmpty &&
         (entry.toolCalls.isNotEmpty ||
             (entry.thinking != null && entry.thinking!.trim().isNotEmpty));
+    final hasText = entry.text.isNotEmpty;
+    final turnBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Thinking block if present
+        if (entry.thinking != null && entry.thinking!.trim().isNotEmpty) ...[
+          ThinkingBlock(
+            key: ValueKey('thinking_${entry.id}'),
+            thinkingText: entry.thinking!.trim(),
+            isExpanded: _expandedThinkingBlocks.contains(entry.id),
+            onExpansionChanged: (expanded) {
+              setState(() {
+                if (expanded) {
+                  _expandedThinkingBlocks.add(entry.id);
+                } else {
+                  _expandedThinkingBlocks.remove(entry.id);
+                }
+              });
+            },
+          ),
+          if (entry.toolCalls.isNotEmpty || hasText)
+            const SizedBox(height: 6),
+        ],
+
+        // Tool calls timeline if present
+        if (entry.toolCalls.isNotEmpty) ...[
+          ToolTimeline(
+            toolCalls: entry.toolCalls,
+            onCardExpansionChanged: _pauseStreamFollowing,
+          ),
+          if (hasText) const SizedBox(height: 6),
+        ],
+
+        // Message content
+        if (hasText)
+          Builder(
+            builder: (context) {
+              final (cleanText, attachments) = parseAttachmentsFromText(entry.text);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (attachments.isNotEmpty) ...[
+                    AttachmentListBar(
+                      key: ValueKey('asst-attachments-${entry.id}'),
+                      attachments: attachments,
+                      isEditable: false,
+                    ),
+                    if (cleanText.isNotEmpty) const SizedBox(height: 8),
+                  ],
+                  if (cleanText.isNotEmpty)
+                    RichContent(text: cleanText, cwd: cwd),
+                ],
+              );
+            },
+          ),
+      ],
+    );
+
+    final isAborted = entry.metadata?['stopReason'] == 'aborted';
+    final elapsedChip = elapsedSeconds != null && elapsedSeconds >= 5
+        ? AssistantMetaChip(
+            chipKey: ValueKey('entry_timer_${entry.id}'),
+            icon: Icons.timer_outlined,
+            label: '${elapsedSeconds}s',
+          )
+        : null;
+
     return Container(
       margin: EdgeInsets.only(bottom: isToolOnly ? 6 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Thinking block if present
-          if (entry.thinking != null && entry.thinking!.trim().isNotEmpty) ...[
-            ThinkingBlock(
-              key: ValueKey('thinking_${entry.id}'),
-              thinkingText: entry.thinking!.trim(),
-              isExpanded: _expandedThinkingBlocks.contains(entry.id),
-              onExpansionChanged: (expanded) {
-                setState(() {
-                  if (expanded) {
-                    _expandedThinkingBlocks.add(entry.id);
-                  } else {
-                    _expandedThinkingBlocks.remove(entry.id);
-                  }
-                });
-              },
-            ),
-            if (entry.toolCalls.isNotEmpty || entry.text.isNotEmpty)
-              const SizedBox(height: 6),
-          ],
-
-          // Tool calls timeline if present
-          if (entry.toolCalls.isNotEmpty) ...[
-            ToolTimeline(
-              toolCalls: entry.toolCalls,
-              onCardExpansionChanged: _pauseStreamFollowing,
-            ),
-            if (entry.text.isNotEmpty)
-              const SizedBox(height: 6),
-          ],
-
-          // Message content
-          if (entry.text.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: tokens.surface,
-                borderRadius: BorderRadius.circular(tokens.radiusMd),
-                border: Border.all(color: tokens.borderStrong),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.smart_toy_outlined,
-                              size: 14,
-                              color: tokens.textSecondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                _currentStrings.transcriptAssistant,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: tokens.textSecondary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+          if (hasText)
+            AssistantTurnFrame(
+              key: ValueKey('assistant_turn_${entry.id}'),
+              label: _currentStrings.transcriptAssistant,
+              statusTag: isAborted
+                  ? Container(
+                      key: ValueKey('entry_aborted_${entry.id}'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x2 - 2,
+                        vertical: FrameSpace.x1 / 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: Text(
+                        _currentStrings.transcriptAbortedBadge,
+                        style: FrameText.of(context).caption.copyWith(
+                          color: tokens.textMuted,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (elapsedSeconds != null &&
-                              elapsedSeconds >= 5) ...[
-                            Container(
-                              key: ValueKey('entry_timer_${entry.id}'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusSm,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.timer_outlined,
-                                    size: 11,
-                                    color: tokens.textMuted,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '${elapsedSeconds}s',
-                                    style: TextStyle(
-                                      color: tokens.textMuted,
-                                      fontSize: 10,
-                                      fontFamily: tokens.monoFontFamily,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                          ],
-                          IconButton(
-                            tooltip: _currentStrings.transcriptCopyMessage,
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: entry.text));
-                              FrameSnackBar.show(
-                                context,
-                                message: _currentStrings.transcriptMessageCopied,
-                                duration: const Duration(seconds: 1),
-                              );
-                            },
-                            icon: Icon(
-                              Icons.copy_outlined,
-                              size: 16,
-                              color: tokens.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Builder(
-                    builder: (context) {
-                      final (cleanText, attachments) =
-                          parseAttachmentsFromText(entry.text);
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (attachments.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            AttachmentListBar(
-                              key: ValueKey('asst-attachments-${entry.id}'),
-                              attachments: attachments,
-                              isEditable: false,
-                            ),
-                          ],
-                          if (cleanText.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            RichContent(text: cleanText, cwd: cwd),
-                          ],
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+                    )
+                  : null,
+              elapsedChip: elapsedChip,
+              copyKey: ValueKey('entry_copy_${entry.id}'),
+              copyTooltip: _currentStrings.transcriptCopyMessage,
+              onCopy: () {
+                Clipboard.setData(ClipboardData(text: entry.text));
+                FrameSnackBar.show(
+                  context,
+                  message: _currentStrings.transcriptMessageCopied,
+                  duration: const Duration(seconds: 1),
+                );
+              },
+              body: turnBody,
+            )
+          else
+            turnBody,
           if (entry.metadata?['stopReason'] == 'error' &&
               (entry.metadata?['errorMessage']?.toString() ?? '').isNotEmpty)
             Padding(
@@ -3318,40 +3029,33 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
     }
 
     final tokens = widget.tokens;
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
+    return Container(
+      key: const ValueKey('livestream-seconds-counter'),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: tokens.agentWorking.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(
+          color: tokens.agentWorking.withValues(alpha: 0.35),
+          width: 0.8,
+        ),
+      ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            key: const ValueKey('livestream-seconds-counter'),
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: tokens.agentWorking.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border.all(
-                color: tokens.agentWorking.withValues(alpha: 0.35),
-                width: 0.8,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.timer_outlined,
-                  size: 12,
-                  color: tokens.agentWorking,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${liveElapsedSec}s',
-                  style: TextStyle(
-                    color: tokens.agentWorking,
-                    fontSize: 11,
-                    fontFamily: tokens.monoFontFamily,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+          Icon(
+            Icons.timer_outlined,
+            size: 12,
+            color: tokens.agentWorking,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${liveElapsedSec}s',
+            style: TextStyle(
+              color: tokens.agentWorking,
+              fontSize: 11,
+              fontFamily: tokens.monoFontFamily,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

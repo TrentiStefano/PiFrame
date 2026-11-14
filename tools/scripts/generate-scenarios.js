@@ -385,7 +385,7 @@ writeScenarioWithIndex('ui-status-widgets', 'Sends non-blocking notifications an
     { event: { type: 'message_start', message: { role: 'assistant', content: [] } } },
     { event: { type: 'message_update', assistantMessageEvent: { type: 'text_start', contentIndex: 0 } } },
     { event: { type: 'message_update', assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: text } } },
-    { event: { type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text }, { type: 'image', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l2sAAAAASUVORK5CYII=', mimeType: 'image/png' }] } } }
+    { event: { type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text }, { type: 'image', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', mimeType: 'image/png' }] } } }
   );
   writeScenarioWithIndex('rich-content', 'Markdown, fenced code, links, path mention and a valid tiny PNG image block.', ['markdown', 'code blocks', 'image content'], { events: finish(events, 'Here is the requested content overview.') });
 }

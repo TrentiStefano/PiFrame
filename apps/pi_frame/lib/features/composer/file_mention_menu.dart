@@ -94,7 +94,7 @@ class FileMentionMenu extends StatelessWidget {
                     appStrings.mentionLinkFileHeader,
                     style: TextStyle(
                       color: tokens.textSecondary,
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -103,7 +103,7 @@ class FileMentionMenu extends StatelessWidget {
                     appStrings.mentionTabEnterComplete,
                     style: TextStyle(
                       color: tokens.textMuted,
-                      fontSize: 9.5,
+                      fontSize: 11,
                       fontFamily: tokens.monoFontFamily,
                     ),
                   ),
@@ -164,7 +164,7 @@ class FileMentionMenu extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: tokens.textMuted,
-                                        fontSize: 10.5,
+                                        fontSize: 11,
                                       ),
                                     ),
                                   ),
@@ -177,7 +177,7 @@ class FileMentionMenu extends StatelessWidget {
                             _formatBytes(file['sizeBytes']),
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10,
+                              fontSize: 11,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
