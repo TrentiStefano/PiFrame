@@ -1097,11 +1097,11 @@ Items marked "verified in code" were checked against the source in this pass. Ot
 | P1-6 | Done | Layout fix (phase report). | 4.3 / #34 |
 | P1-7 | Done | Layout fix (phase report). | 4.1 / #34 |
 | P1-8 | Done | Editor and repository work. | 9.1 / #28 |
-| P1-9 | Changed | Loops stop under reduced motion for the composer, sessions and working dot (verified). The planned `FrameLinearProgress` wrapper was not built: the page-load bar and the Git changes bar check reduced motion, but the indeterminate bars in `packages_section.dart` and `updates_section.dart` still loop. Follow-up needed. | done earlier; Phases 4, 11, 12 |
+| P1-9 | Done | Loops stop under reduced motion: the composer shimmer, the sessions working dot, every spinner (`FrameActivityIndicator`, a static glyph) and every indeterminate bar. The Settings Packages and Updates bars now use the shared `FrameLinearProgress` wrapper, which is a static full bar under reduced motion (verified in code). The page-load and Git changes bars check it inline. | done earlier; wrapper verified in code |
 | P1-10 | Done | Keyboard focus ring (`FrameFocusRing`, verified). | 2.2, 6.1 / #27, #30 |
 | P1-11 | Done | Small-target and narrow-width fixes. | 1.5 / #26 |
 | P1-12 | Done | Raw Dart exceptions map to a title with a "Dettagli" toggle (verified in `FrameErrorCallout`). Pi and daemon messages are shown as they arrive. | 1.6 / #26 |
-| P1-13 | Changed | Literal migration done for font sizes, radii, durations, curves, shadows and gesture detectors, with a ratchet test. Remaining literals are listed in `DESIGN.md` section 07. | 2.1, 2.5 / #27; Phase 11 sweep |
+| P1-13 | Changed | Literal migration done for font sizes, radii, durations, curves, shadows and gesture detectors, with a ratchet test. Remaining literals are counted by the ratchet test `apps/pi_frame/test/design_literals_lint_test.dart` (see `DESIGN.md` section 07). | 2.1, 2.5 / #27; Phase 11 sweep |
 | P1-14 | Done | Shared widgets in `ui/` (verified in `DESIGN.md` section 07). | 2.3 / #27 |
 | P1-15 | Done | Session and Git list rows. | 5.1 / #32 |
 | P1-16 | Done | Settings and pane layout. | 7.3, 3.2, 10.1 / #35, #31, #33 |
@@ -1140,17 +1140,17 @@ Items marked "verified in code" were checked against the source in this pass. Ot
 
 | ID | Status | Detail | Task / PR |
 |---|---|---|---|
-| P3-1 | Changed | Icons are outlined. `FrameSize.iconSm` 14 px for dense chips and toolbars is planned but is not yet defined in `theme_scale.dart` (verified). | 12.x-4..6 |
+| P3-1 | Done | Icons are outlined. `FrameSize.iconSm` 14 px is defined in `theme_scale.dart` and used by the browser toolbar, attachment and command chips and tool cards (verified in code). | 12.x-4..6 |
 | P3-2 | Done | Concentric radius for pane headers. | commit 92057b0 |
 | P3-3 | Done | Keyboard and focus behaviour. | 9.3 / #28 |
 | P3-4 | Done | Switch control. | 2.4 / #27 |
 | P3-5 | Done | Dialogs share `FrameDialog`. The two remaining `showDialog` callers (command palette and extension UI) keep instant transitions by design (see M-8). | 7.5 / #35 |
 | P3-6 | Done | Shift+F10 and the Menu key open the row menu (verified in `row_context_menu.dart`). | 3.6 / #31 |
-| P3-7 | Not verified | Chip close rotation and mixed dialog transitions. Dialog transitions are covered by P3-5. Chip rotation was not confirmed in this pass. | none |
+| P3-7 | Done | Chip close rotation: no rotation animation remains on any chip close control (composer, attachment and command chips); the only `RotatedBox` uses are static vertical labels (verified in code). Mixed dialog transitions are covered by P3-5. | none |
 | P3-8 | Changed | Stale comment fixed. The four legacy built-in themes are kept (plan decision D-4). | D-4 |
 | P3-9 | Done | Privacy merged into Diagnostics (verified in `diagnostics.dart`). Terminal options are disabled until "Terminale nativo OS" is chosen (per `install.md`, not re-verified in code). | Settings phase |
 | P3-10 | Done | List and row behaviour. | 5.2 / #32 |
-| P3-11 | Done | Minimum heights checked at text scale 1.4 and 2.0. | integration branch |
+| P3-11 | Done | Minimum heights checked at text scale 1.4 and 2.0. Icon actions (`FrameIconAction`) grow with the text scale up to 1.5× (`frameControlScale`, verified in code), so 2.0 does not enlarge them further. | integration branch |
 
 ### 17.4 Narrow layout and rendering defects (R1–R9)
 
@@ -1190,7 +1190,7 @@ Items marked "verified in code" were checked against the source in this pass. Ot
 
 | ID | Status | Detail | Task / PR |
 |---|---|---|---|
-| M-1 | Changed | See P1-9. | done earlier |
+| M-1 | Done | See P1-9. | done earlier |
 | M-2 | Done | Earlier round. | earlier |
 | M-3 | Done | Earlier round. | earlier |
 | M-4 | Done | Tool cards and steps use `FrameExpandable` (round 3); the rest is covered by P2-21. | 7.2, 7.7 / #35 |
@@ -1199,12 +1199,11 @@ Items marked "verified in code" were checked against the source in this pass. Ot
 | M-7 | Not a defect | Corrected in round 3 (§14.3). | none |
 | M-8 | Done | Dialog transitions on `FrameDialog`. The command palette and extension UI stay instant by design. | 7.5 / #35 |
 | M-9 | Done | Motion tokens and reduced-motion handling. | 7.7 / #35 |
-| M-10 | Not verified | Indeterminate spinners on tiny icons. Not covered in the phase reports, so not checked. | none |
+| M-10 | Done | Indeterminate spinners on tiny icons (9 to 14 px in tool cards, steps and the subagent panel). All spinners go through `FrameActivityIndicator`, which under reduced motion is a static `sync` glyph in the same square (verified in code). | none |
 
 ### 17.7 Deferred and open after round 7
 
 - **P2-19** (full triptych at 1280 px): deferred by decision D-1.
-- **P1-9 / M-1**: the indeterminate bars in `packages_section.dart` and `updates_section.dart` still loop under reduced motion; a shared `FrameLinearProgress` wrapper was not built.
-- **P1-13**: the literal migration leaves the exceptions listed in `DESIGN.md` section 07.
-- **P3-1**: `FrameSize.iconSm` (14 px) is not yet in the code.
-- **P3-7, M-10**: not verified in this pass.
+- **P1-13**: the literal migration leaves the exceptions counted by the ratchet test `design_literals_lint_test.dart`. Known remaining literals include a 140 ms transition in `session_changes_pane.dart` and the working-dot pulse in `sessions_sidebar.dart` (1400 ms, same value as `FrameMotionTokens.pulseLoop`).
+
+No other item in section 17 is open. P1-9 / M-1, P3-1, P3-7 and M-10 were closed in the docs pass after checking the code.
