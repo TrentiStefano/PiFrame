@@ -170,7 +170,7 @@ class CodeEditorController extends TextEditingController {
       final matchText = line.substring(m.start, m.end);
       final matchHighlightBg = m.isCurrent
           ? tokens.accent
-          : tokens.warning.withValues(alpha: 0.35);
+          : tokens.accent.withValues(alpha: 0.25);
       final matchTextColor = m.isCurrent
           ? tokens.background
           : tokens.textPrimary;

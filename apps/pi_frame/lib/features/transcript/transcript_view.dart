@@ -2769,15 +2769,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: tokens.warning.withValues(alpha: 0.15),
+                      color: tokens.textMuted.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(color: tokens.warning.withValues(alpha: 0.3)),
+                      border: Border.all(color: tokens.textMuted.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _currentStrings.transcriptCancelledBadge,
                       style: TextStyle(
                         fontSize: FrameText.of(context).caption.fontSize,
-                        color: tokens.warning,
+                        color: tokens.textSecondary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

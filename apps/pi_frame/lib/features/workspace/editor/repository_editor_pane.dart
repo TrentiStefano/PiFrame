@@ -901,11 +901,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                         _fileSearchMatches.length,
                       ),
                 style: text.caption.copyWith(
-                  color:
-                      _fileSearchMatches.isEmpty &&
-                          _fileSearchQueryController.text.isNotEmpty
-                      ? tokens.danger
-                      : tokens.textMuted,
+                  color: tokens.textMuted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
