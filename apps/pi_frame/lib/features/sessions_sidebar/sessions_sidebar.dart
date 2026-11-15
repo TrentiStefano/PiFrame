@@ -153,6 +153,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     super.dispose();
   }
 
+  Future<void> _startNewSession() async {
+    if (_creating || ref.read(pcpClientProvider) == null) return;
+    setState(() => _creating = true);
+    await createSession(context, ref);
+    if (mounted) {
+      setState(() => _creating = false);
+      widget.onSessionSelected?.call();
+    }
+  }
+
   bool _isFolderExpanded(String folder) {
     if (_searchQuery.isNotEmpty) return true;
     if (_expandedFolders.contains(folder)) return true;
@@ -610,15 +620,53 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 }).toList();
 
                 if (filtered.isEmpty) {
+                  // One action per empty state: clear the search when a
+                  // search has no match, show all when only the mode filter
+                  // hides everything, otherwise start a new session.
+                  final String message;
+                  final String actionLabel;
+                  final Key actionKey;
+                  final VoidCallback? onAction;
+                  if (_searchQuery.isNotEmpty) {
+                    message = strings.noSessionsMatchFilters;
+                    actionLabel = strings.clearSearchAction;
+                    actionKey = const ValueKey('sessions-empty-clear-search');
+                    onAction = () => _searchController.clear();
+                  } else if (_filterMode != 'all') {
+                    message = strings.noSessionsMatchFilters;
+                    actionLabel = strings.showAllSessionsAction;
+                    actionKey = const ValueKey('sessions-empty-show-all');
+                    onAction = () => setState(() => _filterMode = 'all');
+                  } else {
+                    message = strings.noSessionsFound;
+                    actionLabel = strings.newSessionAction;
+                    actionKey = const ValueKey('sessions-empty-new-session');
+                    onAction =
+                        _creating || ref.watch(pcpClientProvider) == null
+                        ? null
+                        : _startNewSession;
+                  }
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(FrameSpace.x4),
-                      child: Text(
-                        _searchQuery.isNotEmpty || _filterMode != 'all'
-                            ? strings.noSessionsMatchFilters
-                            : strings.noSessionsFound,
-                        style: text.label.copyWith(color: tokens.textMuted),
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            message,
+                            style: text.label.copyWith(color: tokens.textMuted),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: FrameSpace.x2),
+                          TextButton(
+                            key: actionKey,
+                            style: TextButton.styleFrom(
+                              foregroundColor: tokens.accent,
+                            ),
+                            onPressed: onAction,
+                            child: Text(actionLabel),
+                          ),
+                        ],
                       ),
                     ),
                   );

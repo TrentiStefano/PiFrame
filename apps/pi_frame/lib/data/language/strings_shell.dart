@@ -105,6 +105,10 @@ extension ShellStrings on AppStrings {
       isItalian ? 'Nessuna sessione corrisponde ai filtri' : 'No sessions match filters';
   String get noSessionsFound =>
       isItalian ? 'Nessuna sessione trovata' : 'No sessions found';
+  String get clearSearchAction =>
+      isItalian ? 'Cancella ricerca' : 'Clear search';
+  String get showAllSessionsAction =>
+      isItalian ? 'Mostra tutte' : 'Show all';
   String pinnedSessionsHeader(int count) =>
       isItalian ? 'FISSATE ($count)' : 'PINNED ($count)';
   String get unknownFolderLabel =>
