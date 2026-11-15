@@ -739,6 +739,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(client.gitActions.last['action'], action);
       expect(client.gitActions.last['paths'], isEmpty);
+      // A successful remote action ends in a visible confirmation.
+      // The app starts in Italian ("Fetch completato.").
+      expect(find.textContaining('completato.'), findsWidgets);
     }
     expect(client.gitActions, hasLength(4));
   });

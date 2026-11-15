@@ -433,6 +433,18 @@ extension WorkspaceStrings on AppStrings {
             ? 'Commit $shortHash creato.'
             : 'Commit $shortHash created.');
 
+  /// Snackbar after a remote action (fetch, pull, push, sync) succeeds. A
+  /// remote action with nothing new changes no list, so this is its only sign.
+  String gitRemoteActionDone(String action) {
+    final name = switch (action) {
+      'pull' => gitPullLabel,
+      'push' => gitPushLabel,
+      'sync' => gitSyncLabel,
+      _ => gitFetchLabel,
+    };
+    return isItalian ? '$name completato.' : '$name completed.';
+  }
+
   String get addPathToChat => isItalian ? 'Aggiungi alla chat' : 'Add to chat';
 
   String get copyPath => isItalian ? 'Copia percorso' : 'Copy path';

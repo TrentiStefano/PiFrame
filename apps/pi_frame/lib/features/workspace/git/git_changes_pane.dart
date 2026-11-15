@@ -294,6 +294,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           'message': ?message,
         },
       );
+      if (_remoteActions.contains(action) && mounted) {
+        FrameSnackBar.show(
+          context,
+          message: ref.read(appStringsProvider).gitRemoteActionDone(action),
+        );
+      }
       if (action == 'discard' || action == 'commit') {
         ref
             .read(repositoryStateProvider(widget.sessionId).notifier)
