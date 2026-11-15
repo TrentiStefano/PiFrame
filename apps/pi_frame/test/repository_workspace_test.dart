@@ -1004,6 +1004,7 @@ void main() {
     WidgetTester tester,
     _StagedCommitClient client, {
     Size size = const Size(1280, 800),
+    double textScale = 1.0,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -1023,6 +1024,12 @@ void main() {
         child: MaterialApp(
           theme: ThemeData.light().copyWith(
             extensions: const [FrameTokens.light],
+          ),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: child!,
           ),
           home: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
         ),
@@ -1153,6 +1160,26 @@ void main() {
     expect(
       tester.getTopLeft(commitButton).dy,
       greaterThan(tester.getBottomLeft(fetch).dy),
+    );
+  });
+
+  testWidgets('Git header Browser chip does not clip at text scale 1.4', (
+    tester,
+  ) async {
+    await pumpCommitPane(
+      tester,
+      _StagedCommitClient(),
+      size: const Size(420, 700),
+      textScale: 1.4,
+    );
+    expect(tester.takeException(), isNull);
+    final chip = find.byKey(const ValueKey('right-pane-switch-browser-chip'));
+    final trailing = find.byKey(const ValueKey('git-switch-to-browser-btn'));
+    expect(chip, findsOneWidget);
+    // The chip shrinks or ellipsizes; it never runs under the trailing button.
+    expect(
+      tester.getTopRight(chip).dx,
+      lessThanOrEqualTo(tester.getTopLeft(trailing).dx + 0.5),
     );
   });
 
