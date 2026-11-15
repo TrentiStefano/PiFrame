@@ -213,8 +213,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     }
 
     // AnimatedSize clips while it resizes, so the panel never lays out squeezed.
+    // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
     return AnimatedSize(
-      duration: FrameMotion.move(context, FrameMotion.panel),
+      duration: FrameMotion.fade(context, FrameMotion.panel),
       curve: FrameMotion.enterCurve,
       alignment: Alignment.centerLeft,
       child: child,

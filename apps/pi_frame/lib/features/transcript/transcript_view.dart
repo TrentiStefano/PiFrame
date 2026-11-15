@@ -1766,7 +1766,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 left: 0,
                 right: 0,
                 child: AnimatedSize(
-                  duration: FrameMotion.move(context, FrameMotion.small),
+                  // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
+                  duration: FrameMotion.fade(context, FrameMotion.small),
                   curve: FrameMotion.enterCurve,
                   alignment: Alignment.topCenter,
                   child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
