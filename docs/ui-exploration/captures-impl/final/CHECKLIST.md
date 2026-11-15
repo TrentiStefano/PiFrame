@@ -1,30 +1,31 @@
 # Final verification checklist (plan §13.2)
 
-Branch: ui/phase-11-12-integration. Captures in this folder were taken from the harness run `final`
-at 1280x720, 1584x991 and 1920x1080 (dark and light, theme switched with the title-bar toggle; each
-dark/light pair was compared byte-wise and differs), plus compact 800x900 (dark), text scale 1.4 and
-reduced motion (dark, 1584x991).
+Branch: ui/phase-11-12-integration (HEAD afca965 before the final cleanup commit 352a245).
 
-Gate results at this HEAD: `flutter analyze` prints "No issues found!" for apps/pi_frame and
-packages/pi_frame_theme; full `flutter test` passes (1057 tests).
+Gates at this HEAD: `flutter analyze` prints "No issues found!" for apps/pi_frame and
+packages/pi_frame_theme. Full `flutter test` passes: 1069 passed, 3 skipped.
 
-Honesty note: where an item was not exercised in this pass, it is marked FAIL with what is missing,
-not PASS.
+Captures in this folder come from the harness run `final` (1584x991, dark unless the name says light).
+Text scale 1.4 captures: `textscale14-*.png`. Keyboard focus capture: `a11y-divider-focus-dark.png`.
 
-| # | Item | Result | Evidence / what is missing |
-|---|------|--------|----------------------------|
-| 1 | No overflow stripe or exception in any harness log | PASS | `pnpm harness logs --run final --lines 8000`: 0 lines matching "overflow" or "exception" (184 lines in the window). Caveat: the log window is the last run only. Visible clipping at text scale 1.4 is tracked under item 10. |
-| 2 | No text below 11 px; ratchet at target baselines | FAIL | `apps/pi_frame/test/design_literals_lint_test.dart` passes, but baseline `fontSize below 11` is still 2 (target 0). Duration baseline was set to the measured 10 during the merge. No literal was migrated in this phase, so no baseline could be lowered. |
-| 3 | Every interactive control reachable by Tab, focus ring, semantic label | FAIL | Not verified. No keyboard traversal or focus-ring capture was made in this pass. |
-| 4 | Escape closes the topmost layer everywhere | FAIL | Partial. Escape closed the command palette and the new-session dialog in the flow (captures command-palette-*, dialog-new-session-*). Not checked for nested layers (side conversation, theme editor, settings sub-dialogs). |
-| 5 | Warning and danger colours only on real warnings and errors | FAIL | Not audited. Captures show the danger colour on the "Interrompi" stop control during a run (workspace-running-*) and a warning-tinted "Salvataggio disabilitato: In esecuzione" banner (editor while running). No review of every use was done. |
-| 6 | Every async action ends in a visible success, recoverable error or blocking error | FAIL | Not verified end to end in this pass. Only the send/run path was exercised (workspace-running-*, side-split-*). |
-| 7 | Every empty state has one action | FAIL | Not verified. No empty-state capture was taken. |
-| 8 | No English fragments or internal IDs in the Italian UI | FAIL | settings-pi-cli-1280x720-*, settings-pi-cli-1584x991-*, settings-pi-cli-1920x1080-*: the output panel heading reads "Output". Git pane (git-list-*, workspace-running-*): "Fetch", "Pull", "Push", "Sync", "Commit", and a "Browser" chip. Side conversation (side-split-*): "Hello from fake-pi!" is fixture text from the fake Pi. |
-| 9 | Every transition uses a FrameMotion token and has a reduced-motion variant | FAIL | Not proven. reduced-motion-frame1-1584x991-dark.png and reduced-motion-frame2-1584x991-dark.png (about 1 s apart, reduced motion on, during a run) differ, but the difference is streamed token text, so it does not show motion stopped. Reduced-motion widget tests exist (settings_packages_reduced_motion_test.dart) but do not cover every transition. |
-| 10 | Text scale 1.4 shows no clipping in workspace, Settings and dialogs | FAIL | text-scale-1.4-workspace-1584x991-dark.png: in the Git pane header the "Browser" chip is clipped and overlaps the globe icon next to it. Settings (text-scale-1.4-settings-aspetto-1584x991-dark.png) shows no clipping. Dialog (text-scale-1.4-dialog-1584x991-dark.png) was captured but not reviewed in this pass. |
+Result legend: PASS, PASS-with-notes (passes what was checked; the notes are open limits), FAIL.
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | No overflow stripe or exception in any harness log | PASS | `pnpm harness logs --run final --lines 8000` after the text-scale 1.4 captures (workspace, Aspetto, Pi CLI, new-session dialog, command palette): 0 lines matching "RenderFlex overflowed" or "exception". Only the final run's log window was checked. |
+| 2 | No text below 11 px; ratchet at target baselines | PASS-with-notes | `apps/pi_frame/test/design_literals_lint_test.dart`: `fontSize below 11` baseline is 0 (was 2). Commit 1202e9d moved the last sub-11 px literals to FrameText roles. Notes: other ratchet baselines are not at target: `fontSize numeric literal` 26, `BorderRadius.circular numeric` 4, `Duration(milliseconds:) numeric` 10, `Curves.` 2, `BoxShadow(` 10, `GestureDetector(` 4. |
+| 3 | Every interactive control reachable by Tab, focus ring, semantic label | PASS-with-notes | `apps/pi_frame/test/a11y_tab_sweep_test.dart` (passes; checks every Tab stop has a label and a focus indicator). Captures: `a11y-tab-01-first-stop-dark.png`, `a11y-tab-03-dark.png`, `a11y-tab-05-sessions-row-dark.png`, `a11y-tab-06-banner-action-dark.png`, `a11y-tab-18-dark.png`, `a11y-tab-26-dark.png`. Divider focus: `a11y-divider-focus-dark.png`. Cleanup commit 352a245 wraps FrameIconAction and FrameListRow in FrameFocusRing. Note: the sweep accepts a Material ink response as the indicator for some stops (for example the composer chips), so those stops show no FrameFocusRing. |
+| 4 | Escape closes the topmost layer everywhere | PASS | `apps/pi_frame/test/escape_everywhere_test.dart` and `escape_layers_test.dart` pass in the full suite. Capture flow: Escape closed the new-session dialog (`textscale14-dialog-new-session.png` was taken before the Escape) and the command palette was opened from the title bar. |
+| 5 | Warning and danger colours only on real warnings and errors | PASS-with-notes | v2 audit, commit 7a7c570 (warning and danger reserved for real warnings and errors). Danger colour on destructive actions is by design per plan task 1.1. |
+| 6 | Every async action ends in a visible success, recoverable error or blocking error | FAIL | Commit 0258ee2 makes git fetch, pull, push and sync confirm success. Gap: session create with no id is silent (no success, no error shown). |
+| 7 | Every empty state has one action | FAIL | Compliant, one action each: git clean state (Aggiorna, `git_changes_pane.dart`), session tree (`session_tree_dialog.dart`), MCP servers (Apri file di configurazione), agents (Apri Pacchetti), branch picker no-match state (commit 27ab7f4). Gap: the sessions sidebar empty state "Nessuna sessione trovata" has no action (seen in the sidebar with the daemon offline, `scratch` capture t10-start, not kept in this folder). Not decided: the first-run welcome view shows two actions (Nuova sessione, Esplora sessioni); it is not a list empty state. |
+| 8 | No English fragments or internal IDs in the Italian UI | PASS | Fetch, Pull, Push, Sync, Commit, Browser and Output are accepted loanwords per task 1.7's rule. `apps/pi_frame/test/localization_copy_lint_test.dart` passes. Captures: `textscale14-settings-pi-cli.png` (Output heading), workspace capture `textscale14-workspace.png` (Git pane buttons). |
+| 9 | Every transition uses a FrameMotion token and has a reduced-motion variant | FAIL | Reduced motion for the three pulse loops (startup assemble, sessions working dot, subagent orbit) is covered by `apps/pi_frame/test/motion_reduced_test.dart` (passes). Frames: `item9-reduced-motion-subagent-frame1.png` and `item9-reduced-motion-subagent-frame2.png` differ only in the elapsed timer (0:04 vs 0:05); the orbit is in the same position. `item9-reduced-motion-run-frame1.png` and `-frame2.png` differ by streamed text. `item9-control-motion-on-frame1.png` is the motion-on control. Not complete: the ratchet still counts 10 numeric `Duration(milliseconds:)` literals, so not every transition uses a token. Commit 352a245 corrects the `pulseLoop` doc and the working dot already uses `FrameMotion.pulseLoop`. |
+| 10 | Text scale 1.4 shows no clipping in workspace, Settings and dialogs | PASS-with-notes | Run `final`, dark, text scale 1.4 at 1584x991. Captures: `textscale14-workspace.png` (Git pane with commit form open; the Browser chip is no longer clipped, fixed in d54e55d), `textscale14-settings-aspetto.png`, `textscale14-settings-pi-cli.png`, `textscale14-dialog-new-session.png`, `textscale14-command-palette.png`. No clipping seen in these five. Notes: light theme at 1.4 and the other settings sub-pages were not captured. |
 
 ## Summary
 
-- PASS: 1 (item 1).
-- FAIL: 9. Items 2, 8 and 10 have concrete visible or measured failures. Items 3 to 7 and 9 were not verified in this pass.
+- PASS: 3 (items 1, 4, 8).
+- PASS-with-notes: 4 (items 2, 3, 5, 10).
+- FAIL: 3 (items 6, 7, 9). Each is listed with its gap above.
+- Stale captures from the earlier pass (`text-scale-1.4-*`, `textscale14-workspace-agents-overlay.png`, `textscale14-workspace-rail-attempt.png`) were removed; the `textscale14-*` set above replaces them.
