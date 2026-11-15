@@ -158,6 +158,9 @@ extension ShellStrings on AppStrings {
   String get createAction => isItalian ? 'Crea' : 'Create';
   String creationFailedNotice(Object e) =>
       isItalian ? failureText(this, 'Creazione non riuscita', e) : failureText(this, 'Creation failed', e);
+  String get sessionCreateNoIdNotice => isItalian
+      ? 'Creazione non riuscita: il daemon non ha restituito una sessione.'
+      : 'Creation failed: the daemon returned no session.';
   String get deleteSessionDialogTitle =>
       isItalian ? 'Elimina sessione' : 'Delete session';
   String deleteSessionConfirmBody(String sessionName) => isItalian

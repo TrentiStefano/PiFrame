@@ -66,6 +66,14 @@ Future<void> createSession(
     if (id != null) {
       if (!await switchSessionSafely(context, ref, id)) return;
       ref.invalidate(sessionListProvider);
+    } else {
+      // The daemon accepted the command but returned no session: say so
+      // instead of leaving the user with no feedback.
+      FrameSnackBar.show(
+        context,
+        message: ref.read(appStringsProvider).sessionCreateNoIdNotice,
+        isError: true,
+      );
     }
   } catch (error) {
     if (context.mounted) {
