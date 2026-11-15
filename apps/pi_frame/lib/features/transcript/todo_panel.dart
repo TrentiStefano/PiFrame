@@ -483,7 +483,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     }
 
     return AnimatedSize(
-      duration: FrameMotion.small,
+      duration: FrameMotion.move(context, FrameMotion.small),
       curve: FrameMotion.enterCurve,
       alignment: Alignment.topCenter,
       child: panelContent,

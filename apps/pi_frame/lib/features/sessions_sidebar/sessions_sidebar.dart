@@ -14,6 +14,7 @@ import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/shimmer_border.dart';
+import '../../ui/motion.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../transcript/workflows_provider.dart';
 import '../workspace/repository_workspace.dart';
@@ -1266,9 +1267,9 @@ class _WorkingDot extends StatefulWidget {
   State<_WorkingDot> createState() => _WorkingDotState();
 }
 
-/// Period of the working-dot pulse. No FrameMotion token fits a looping
-/// ambient pulse, so it is named here.
-const Duration _workingPulsePeriod = Duration(milliseconds: 1400);
+/// Period of the working-dot pulse: the FrameMotion loop token. The loop stops
+/// under reduced motion (see didChangeDependencies).
+const Duration _workingPulsePeriod = FrameMotion.pulseLoop;
 
 /// Easing of the working-dot pulse (ease-in-out, unlike FrameMotion's ease-out).
 const Curve _workingPulseCurve = Curves.easeInOut;

@@ -1766,7 +1766,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 left: 0,
                 right: 0,
                 child: AnimatedSize(
-                  duration: FrameMotion.small,
+                  duration: FrameMotion.move(context, FrameMotion.small),
                   curve: FrameMotion.enterCurve,
                   alignment: Alignment.topCenter,
                   child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
@@ -2448,7 +2448,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 Flexible(
                   child: AnimatedOpacity(
                     opacity: revealed ? 1 : 0,
-                    duration: FrameMotion.micro,
+                    duration: FrameMotion.fade(context, FrameMotion.micro),
                     child: InkWell(
                     borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                     onTap: () => _handleFork(entry.id),

@@ -68,11 +68,11 @@ class _ChatDropTargetState extends ConsumerState<ChatDropTarget> {
               ignoring: !_isDragging,
               child: AnimatedOpacity(
                 key: const ValueKey('chat-drop-overlay-opacity'),
-                duration: FrameMotion.small,
+                duration: FrameMotion.fade(context, FrameMotion.small),
                 curve: _isDragging ? FrameMotion.enterCurve : FrameMotion.panelCurve,
                 opacity: _isDragging ? 1.0 : 0.0,
                 child: AnimatedScale(
-                  duration: FrameMotion.small,
+                  duration: FrameMotion.move(context, FrameMotion.small),
                   curve: _isDragging ? FrameMotion.enterCurve : FrameMotion.panelCurve,
                   scale: _isDragging ? 1.0 : 0.96,
                   child: Container(

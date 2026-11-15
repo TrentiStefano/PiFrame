@@ -65,6 +65,16 @@ abstract final class FrameMotion {
 
   static bool reduced(BuildContext context) =>
       MediaQuery.disableAnimationsOf(context);
+
+  /// Duration for a fade or colour change: [token], or the cross-fade under
+  /// reduced motion.
+  static Duration fade(BuildContext context, Duration token) =>
+      reduced(context) ? crossFade : token;
+
+  /// Duration for movement, resizing or scaling: [token], or instant under
+  /// reduced motion.
+  static Duration move(BuildContext context, Duration token) =>
+      reduced(context) ? instant : token;
 }
 
 /// Fades a newly mounted subtree in and settles it from [offset] pixels below.
