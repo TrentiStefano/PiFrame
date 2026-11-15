@@ -162,7 +162,10 @@ Other code-defined dialog/menu flows to inspect when their preconditions are ava
 | Composer expand/collapse | `features/composer/composer.dart` (`AnimatedSize`, switchers) | Prompt/attachment/command area changes size as content or mode changes. |
 | Drop target | `features/transcript/chat_drop_target.dart` | Opacity/scale feedback while dragging files over chat. |
 | Agent sidecar | `features/transcript/subagent_panel.dart` | Entrance/size changes and activity pulse. |
-| Active outlines | Composer and sessions sidebar | `ShimmerBorder` around active/in-progress affordances. |
+| Active outlines | Composer and sessions sidebar | `ShimmerBorder` around active/in-progress affordances. 3.6 s loop; static under reduced motion. |
+| Working spinners | `ui/frame_activity_indicator.dart` (`FrameActivityIndicator`) | Every spinner in the app, including tiny ones in tool cards and the subagent panel. Static `sync` glyph under reduced motion. |
+| Indeterminate progress bars | `ui/frame_linear_progress.dart` (`FrameLinearProgress`), used by Settings Packages and Updates | Known value: fraction shown in both modes. Unknown value: static full bar under reduced motion. Page-load and Git changes bars check reduced motion inline. |
+| Working session dot | `features/sessions_sidebar/sessions_sidebar.dart` | 1400 ms pulse; static under reduced motion and on phone-width web. |
 | Pane resizing | `app/app_shell.dart` | Pointer drag adjusts adjacent pane widths; state/layout transitions update visible panes. |
 | Command palette / branch picker | `features/command_palette/command_palette.dart`, `features/workspace/branch_picker_dialog.dart` | Dialog transitions explicitly disabled. |
 | Web navigation / terminal | `features/browser/web_browser_pane.dart`, `features/workspace/integrated_terminal.dart` | Tab and navigation state changes; shell output streams in the terminal. |
