@@ -832,27 +832,32 @@ Only create or expand abstractions that have a clear shared intent.
 ## Tokens
 
 ### Code tokens (`packages/pi_frame_theme`, app wrappers in `lib/ui/motion.dart`)
-- `FrameSpace` x1 4, x2 8, x3 12, x4 16, x6 24, x8 32: gaps and paddings. Use these instead of literal spacing where a value matches.
-- `FrameSize` rowList 28, rowForm 40, hitMin 28, icon 16, iconLg 20, paneHeader 40: row heights, hit targets and icons.
+- `FrameSpace` x1 4, x2 8, x3 12, x4 16, x6 24, x8 32, x12 48 (page gutter on wide layouts such as the welcome view): gaps and paddings. Use these instead of literal spacing where a value matches.
+- `FrameSize` rowList 28, rowForm 40, hitMin 28, icon 16, iconLg 20, paneHeader 40: row heights, hit targets and icons. `iconSm` 14 is defined in `theme_scale.dart` for dense chips and toolbars only (in use: the browser toolbar, attachment and command chips, tool cards); use `icon` everywhere else.
 - `FrameText.of(context)` caption 11/16, label 12/16 w500, body 13/20, bodyLarge 14/20, title 16/22 w600, heading 20/26 w600, display 28/32 w600, mono 12/18, monoBody 13/20: the only source of font sizes. Anything below 11 px becomes caption.
-- `FrameMotion` / `FrameMotionTokens`: instant 0, micro 120, small 160, panel 240, smallExit 120, panelExit 180, dialog 180, dialogExit 120, firstRun 300, stagger 100, crossFade 120 ms; curves enterCurve and panelCurve. Use these for every duration and curve.
-- `FrameTokens` radiusSm 6, radiusMd 10, radiusLg 14, radiusPill 999; inputBorder; focusRing: radii, field outlines and focus.
+- `FrameMotion` / `FrameMotionTokens`: instant 0, micro 120, small 160, panel 240, smallExit 120, panelExit 180, dialog 180, dialogExit 120, firstRun 300, stagger 100, crossFade 120, debounce 300, tooltipWait 300, pulseLoop 1400, shimmerLoop 3600, launchReveal 620 ms; curves enterCurve and panelCurve. Use these for every duration and curve. The loop and launch-reveal tokens are listed under Motion.
+- `FrameTokens` radiusSm 6, radiusMd 10, radiusLg 14, radiusPill 999; inputBorder (at least 3:1 against `surface`, see `docs/theming.md`); focusRing: radii, field outlines and focus.
 - Literals that remain are listed in the ratchet test (`apps/pi_frame/test/design_literals_lint_test.dart`), which fails if a count rises.
 
-### Shared widgets (`apps/pi_frame/lib/ui/frame_*.dart`)
-- `FrameCallout` (`FrameCalloutTone`): inline info, warning or danger notice with an optional details toggle.
-- `FrameDialog` (`FrameDialogAction`, `FrameDialogActionRole`): dialog shell with cancel, primary and destructive actions; scrolls above 80 % of the window height.
+### Shared widgets (`apps/pi_frame/lib/ui/`)
+- `FrameCallout` (`FrameCalloutTone` info, warning, danger): inline notice with an optional details toggle.
+- `FrameDialog` (`FrameDialogAction`, `FrameDialogActionRole` cancel, primary, destructive): dialog shell; scrolls above 80 % of the window height. Opened with `showFrameDialog` and `showFrameDialogBuilder`.
 - `FrameEmptyState`: centred icon, title, message and one action button.
-- `FrameErrorCallout`: failed load or action, with a retry button when the error is retryable and a details toggle.
+- `FrameErrorCallout`: failed load or action, with a retry button when the error is retryable and a "Dettagli" toggle for the raw text.
 - `FrameFocusRing`: 2 px `focusRing` outline, shown only for keyboard focus.
-- `FrameIconAction`: 16 px icon in a 28 x 28 target; the tooltip is required and is the accessible name.
-- `FrameListRow`: compact selectable row (at least `rowList` high) with actions revealed on hover or focus.
+- `FrameIconAction`: 16 px icon in a 28 x 28 target at text scale 1.0. Both grow with the system text scale through `frameControlScale` (`ui/frame_control_scale.dart`), capped at `frameControlScaleCap` = 1.5×, so a 2.0 text scale does not inflate toolbars. The tooltip is required and is the accessible name.
+- `FrameListRow`: compact selectable row (at least `rowList` high) with actions revealed on hover or focus; they stay in the tab order.
 - `FrameMiddleEllipsis`: truncates a path in the middle so the file name stays visible.
 - `FramePaneHeader`: pane heading (Barlow Condensed title, mono subtitle, actions, optional tabs) at `paneHeader` height, flat.
 - `FrameSearchField`: 32 px search input with `inputBorder`, clear button and Escape handling.
 - `FrameSection`: settings or dialog block with a title, optional description and one border level.
-- `FrameSnackBar`: floating bottom-right notice, 280 to 460 px wide, dismissed by a tap.
-- `FrameStatusTag` (`FrameStatusTone`): coloured dot with a label, no background or border.
+- `FrameSnackBar`: floating bottom-right notice, 280 to 460 px wide; activating it (click, Enter or Space) dismisses it.
+- `FrameStatusTag` (`FrameStatusTone` neutral, info, success, warning, danger): coloured dot with a label, no background or border.
+- `FrameActivityIndicator` (`ui/frame_activity_indicator.dart`): the indeterminate "working" spinner for the composer, transcript, tool timeline and Settings. Every spinner in the app goes through it, including the 9 to 14 px ones in tool cards and the subagent panel. Under reduced motion it is a static `sync` glyph in the same square.
+- `FrameMotion`, `FrameEnter`, `FrameExpandable`, `FrameSwitcher` (`ui/motion.dart`): the motion wrappers. `FrameEnter` fades in and settles a new subtree; `FrameExpandable` animates height open and closed; `FrameSwitcher` swaps a keyed child (list to detail) with a fade and slide, and `animate: false` for keyboard-driven changes.
+- `PressFeedback` (`ui/precision.dart`): pointer-only press scale (0.97) on filled and outlined buttons, `pressDuration` from `FrameTokens`. It is applied at each `FilledButton` and `OutlinedButton` call site rather than in a shared button widget, so a new button needs the wrapper too. It never delays or animates keyboard activation, it is off for disabled controls, and it does not scale under reduced motion.
+- `EscapeLayers` (`ui/escape_layers.dart`): registry of open layers that Escape closes, topmost first. Layer order: menu, dialog, drawer, diff, review, settings. Menus and dialogs close through Flutter's own dismiss action and are not registered.
+- `FrameLinearProgress` (`ui/frame_linear_progress.dart`): a `LinearProgressIndicator` wrapper for the Settings bars (Packages in `packages_section.dart`, download in `updates_section.dart`). With a known value it shows that fraction in both modes. With no value, under reduced motion it is a static full bar in the given colour, so nothing loops. The page-load bar (`web_browser_pane.dart`) and the Git changes bar (`git_changes_pane.dart`) check reduced motion inline the same way. The context-usage bar in `context_panel.dart` always has a value and never loops.
 
 ### Semantic colors
 `piframe-light.json` / `piframe-dark.json` define the normative hex values for `background/chassis`, `surface/displaySurface`, text/subtext, `accent/focusRing`, `success/warning/danger/info`, `agent*`, syntax and diff roles.
@@ -866,7 +871,7 @@ Only create or expand abstractions that have a clear shared intent.
 Keep bundled Schibsted Grotesk for UI/body (14px base, 1.5 line-height); Barlow Condensed for brand and pane headings; Source Code Pro for code, file paths, commit messages and diffs. Roles are `FrameText` (caption 11, label 12, body 13, bodyLarge 14, title 16, heading 20, display 28; mono 12 and 13), with 400/500/600 weights. Preserve text scaling and avoid condensed type for long reading.
 
 ### Spacing scale
-4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32px inner spacing (`FrameSpace`). Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
+4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32px inner spacing (`FrameSpace`) and a 48px page gutter (`FrameSpace.x12`) on wide layouts only. Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
 
 ### Radii / shape
 Use 1px subtle borders and 6/10/14px semantic radii (`radiusSm`/`radiusMd`/`radiusLg`). Apply to panes and non-pane functional surfaces; keep list rows compact and avoid giant cards or pill treatment.
@@ -875,7 +880,18 @@ Use 1px subtle borders and 6/10/14px semantic radii (`radiusSm`/`radiusMd`/`radi
 Use aligned surfaces, thin 1px borders (`#2e3c53` Dark / `#d3dae4` Light) and small gaps to separate compartments; avoid heavy shadows. Reserve native elevation for menus/dialogs.
 
 ### Motion
-All durations and curves come from `FrameMotion` (see Code tokens). Current values by use: 120ms pointer press feedback and list highlight; 140ms menu entrance; 150–180ms chip insert/remove (fade, scale and width); about 520ms one-shot chip confirmation glow; 240ms pane movement with drawer curve; 280ms composer minimize/expand. Keyboard actions stay immediate. Respect reduced motion (`MediaQuery.disableAnimationsOf`); no decorative launch or streaming animations.
+All durations and curves come from `FrameMotion` (see Code tokens). Main uses: `micro` 120 ms for pointer press feedback and hover; `small` 160 ms for expand/collapse and chips; `panel` 240 ms for panes and the side panel, with `panelCurve`; `dialog` 180 ms in and `dialogExit` 120 ms out; `enterCurve` for most other changes. Keyboard actions stay immediate.
+
+Reduced motion follows `MediaQuery.disableAnimationsOf`. `PiFrameApp` sets it from the "Movimento ridotto" (Reduce motion) setting in Appearance, or from the operating system. Under it, movement becomes a `crossFade` (120 ms) or a static state, and no loop runs: spinners (`FrameActivityIndicator`) become a static glyph, indeterminate bars (`FrameLinearProgress`) become a static full bar, and the shimmer, pulse and startup assemble stop.
+
+Decorative motion, with its tokens:
+- Startup intro: a 1.4 s assemble overlay (`FrameMotionTokens.pulseLoop`, 1400 ms, `ui/startup_assemble_animation.dart`) on the first run, and on every launch when "Animazione di avvio" is on (Settings → Aspetto, off by default; skipped under reduced motion). Other launches get a 620 ms reveal (`FrameMotionTokens.launchReveal`, `LaunchReveal` in `ui/precision.dart`) that the first input finishes at once.
+- Shimmer border on the composer and on working session rows: a 3.6 s loop (`FrameMotionTokens.shimmerLoop`, `ShimmerBorder`), static under reduced motion.
+- Working dot on working session rows: a 1400 ms pulse period in `sessions_sidebar.dart` (`_workingPulsePeriod`). It has the same value as `pulseLoop` but is a local constant, not the token.
+- Hover wait before a tooltip opens: `FrameMotionTokens.tooltipWait`, 300 ms (used by the nerd stats bar).
+- Literal durations with no token yet: a 140 ms transition in `session_changes_pane.dart`.
+
+No streaming or decorative animation is added beyond this list.
 
 ### Breakpoints / size classes
 Use current content-driven classes: compact <900px; medium 900–1439px; expanded ≥1440px. Compact: chat default + explicit Repository/Git Changes switcher. Medium: chat + one companion pane. Expanded: Bento Triptych visible; collapse session navigation before shrinking work panes. Revalidate exact widths with rendered layouts.

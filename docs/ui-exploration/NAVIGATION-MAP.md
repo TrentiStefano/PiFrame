@@ -60,7 +60,7 @@ These captures exercise the responsive web UI and remote pairing flow, but canno
   │   ├─ Repository pane
   │   ├─ Chat: transcript + composer + optional side conversation
   │   └─ Companion: Git Changes | Web Browser | Review Changes
-  └─ Settings → one of 10 tabs → back to previous shell state
+  └─ Settings → one of 9 sections (3 groups) → back to previous shell state
 ```
 
 ### Main transitions
@@ -74,7 +74,8 @@ These captures exercise the responsive web UI and remote pairing flow, but canno
 | Workspace | Command palette action “Show Web Browser” | Web Browser companion |
 | Workspace | Review changes button (available when eligible changes exist) | Review Changes replaces the Git companion; pane/sidebar layout is restored on exit |
 | Workspace | Model/context toolbar action | End drawer with model, thinking, context size, reserve, compaction, clone, and session tree controls |
-| Workspace | `Ctrl/Cmd+Shift+B` | Toggle read-only side conversation |
+| Workspace | Git Changes file row (click or Enter) | Diff replaces the file list inside the Git Changes pane; the chat stays visible above it. Alt+↓ / Alt+↑ step between files, Alt+← or Escape returns to the list |
+| Workspace | `Ctrl/Cmd+Shift+B` | Toggle read-only side conversation, docked beside the chat |
 | Any shell state | `Ctrl/Cmd+K` | Command palette |
 
 ## Workspace and responsive behavior
@@ -94,7 +95,7 @@ Responsive breakpoints use Flutter viewport width:
 | `≥ 1440` | Resizable multi-pane row using visible pane weights. |
 | `≥ 1560` | Add the persistent Sessions rail. |
 
-Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore` (`~/.piframe/layout.json`): pane visibility, sessions bar collapsed state and width, pane weights, collapsed panes, the compact selected pane and the companion tab. On start, `AppShell` restores these; restored pane weights are clamped so that no companion is narrower than 320 px and the chat pane is narrower than 420 px, and invalid or unknown values fall back to the defaults. Review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
+Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_togglePane`, `_collapsePane`, `_expandPane`, `_resizeAdjacent`). User layout is persisted by `LayoutStore` (`~/.piframe/layout.json`): pane visibility, sessions bar collapsed state and width, pane weights, collapsed panes, the compact selected pane and the companion tab. On start, `AppShell` restores these; restored pane weights are clamped so that no companion is narrower than 320 px and the chat pane is narrower than 420 px, and invalid or unknown values fall back to the defaults. A pane that was collapsed automatically because the window was too narrow reopens at 320 px after a restart. Review mode snapshots and restores layout instead of saving its temporary arrangement. The repository pane includes the file browser/editor and can host the integrated terminal below it. The chat pane contains transcript and composer; the `AgentActivitySidecar` appears on wider layouts.
 
 ### Workspace components
 
@@ -108,13 +109,15 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 | Git Changes | `features/workspace/repository_workspace.dart` (`GitChangesPane`) | Staged and unstaged groups, stage/unstage/discard, branch switching, fetch/pull/push/sync/commit. |
 | Browser | `features/browser/web_browser_pane.dart` | Tabs, address/search, navigation, bookmarks/shortcuts, send-to-chat/devtools controls. |
 | Review Changes | `features/session_changes/session_changes_pane.dart` | Agent/session workspace diff list and per-file diff view; only available when eligible session changes exist. |
-| Side conversation | `features/side/side_panel.dart` | Read-only separate thread, opened by the command palette or shortcut. |
+| Side conversation | `features/side/side_panel.dart`, `features/side/side_split.dart` | Read-only separate thread, opened by the command palette or `Ctrl/Cmd+Shift+B`. It docks beside the chat: 40 % of the width, at least 320 px; the chat keeps at least 720 px, and below that the thread fills the area with a back button. Escape closes it. |
 | Context/model drawer | `features/context_panel/context_panel.dart` | Session model, thinking, context size/reserve, usage, compaction, clone, session branch tree. |
 | Integrated terminal | `features/workspace/integrated_terminal.dart` | Embedded shell panel under Repository; configurable to use a native terminal instead. |
 
 ## Settings
 
-`features/settings/settings_view.dart` uses a non-swipeable `TabBarView`; tabs are selected through the horizontal tab strip, not page swipes. All ten tabs were captured at desktop width.
+`features/settings/settings_view.dart` shows nine sections in three navigation groups: **Generale** (Appearance, Terminal, Updates), **Pi** (Pi CLI, Packages, Agents) and **Sistema** (Daemon, Diagnostics, Remote). From 900 px the groups sit in a left column; narrower windows show a horizontal row of section tabs. Sections are not swipeable pages. Arrow keys move the selection, Escape closes Settings, and the header keeps showing the active session state.
+
+Privacy is no longer a section: its text and the zero-telemetry note are in **Diagnostics**. The captures below were taken before the regrouping. They show the older ten-tab layout, including the Privacy tab.
 
 | Tab | Screenshot | Main content |
 |---|---|---|
@@ -122,7 +125,7 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 | Packages | [13-settings-packages.png](13-settings-packages.png) | Installed Pi packages and package actions. Capture remained loading under fake-pi. |
 | Daemon | [14-settings-daemon.png](14-settings-daemon.png) | Endpoint/protocol status, worker idle timeout, daemon restart, notifications. |
 | Appearance | [15-settings-appearance.png](15-settings-appearance.png), [23-settings-appearance-lower.png](23-settings-appearance-lower.png) | Language, theme selection/editor/import, composer submit, Nerd Stats, transcript-step grouping. |
-| Privacy | [16-settings-privacy.png](16-settings-privacy.png) | Local data and telemetry/privacy statements. |
+| Privacy (now inside Diagnostics) | [16-settings-privacy.png](16-settings-privacy.png) | Local data and telemetry/privacy statements. Old capture. |
 | Diagnostics | [17-settings-diagnostics.png](17-settings-diagnostics.png) | Runtime health and exportable diagnostic bundle. |
 | Updates | [18-settings-updates.png](18-settings-updates.png) | Version check and automatic update preferences. |
 | Terminal | [19-settings-terminal.png](19-settings-terminal.png) | Integrated/native terminal mode and native shell selection. |
@@ -131,16 +134,16 @@ Pane visibility, collapse/expand, and divider drag are owned by `AppShell` (`_to
 
 ## Dialogs, menus, and interaction states
 
-Escape rule (plan task 6.3): one shell-level handler closes the topmost layer, in this order: menu or popover, dialog, drawer (sessions or context), in-pane diff, Review mode, Settings. Menus and dialogs take focus when they open and close themselves first. Escape interrupts the agent only when no layer is open and the composer has focus during a run. Layers register with `escapeLayersProvider` (`lib/ui/escape_layers.dart`); the in-pane diff (Phase 3) should register as `EscapeLayer.diff`.
+Escape rule (plan task 6.3): one shell-level handler closes the topmost layer, in this order: menu or popover, dialog, drawer (sessions or context), in-pane diff, Review mode, Settings. Menus and dialogs take focus when they open and close themselves first. Layers register with `escapeLayersProvider` (`lib/ui/escape_layers.dart`, enum `EscapeLayer`); the in-pane Git diff registers as `EscapeLayer.diff`, so Escape closes the diff before it reaches Review mode or Settings. Escape interrupts the agent only when no layer is open and the composer has focus during a run.
 
-Keyboard focus order (plan task 6.2): Tab goes title bar, sessions, repository, chat transcript, composer, companion pane, and back. F6 and Shift+F6 move between panes; Ctrl/Cmd+1 to 4 focus sessions, repository, chat (composer) and companion.
+Keyboard focus order (plan task 6.2): Tab goes title bar, sessions, repository, chat transcript, composer, companion pane, and back. F6 and Shift+F6 move between panes. Ctrl/Cmd+1 to 4 focus sessions, repository, chat (composer) and companion. These shortcuts are handled in `AppShell._handleShortcut`, which only sees keys that the composer, editor and terminal leave unhandled.
 
 Captured representative overlays:
 
 - New session / working directory: [03-new-session-dialog.png](03-new-session-dialog.png), [04-new-session-dialog-wide.png](04-new-session-dialog-wide.png) (busy/disabled Create state; see caveats above).
 - Command palette: [24-command-palette.png](24-command-palette.png). Open from header or `Ctrl/Cmd+K`; arrow keys move selection, Enter runs the command, Escape closes. It is presented without a dialog transition.
 - Branch picker: [28-branch-picker.png](28-branch-picker.png). Search/filter branches; arrow keys and Enter choose, Escape closes. Its dialog transition is disabled.
-- Git diff and commit flow: [44-git-file-diff.png](44-git-file-diff.png), [46-commit-dialog.png](46-commit-dialog.png). The commit dialog was canceled; no commit was made.
+- Git diff and commit flow: [44-git-file-diff.png](44-git-file-diff.png), [46-commit-dialog.png](46-commit-dialog.png). Both captures predate two changes. The diff is now shown in place of the file list inside the Git Changes pane, not as an overlay. The commit message is now an inline form above Fetch/Pull/Push/Sync, not a dialog. The commit dialog was canceled; no commit was made.
 - Session tree: [31-session-tree-dialog.png](31-session-tree-dialog.png). Shows child/side branch hierarchy; empty state is represented.
 - Theme editor: [22-theme-editor-dialog.png](22-theme-editor-dialog.png). Preview and edit theme tokens, then cancel/apply.
 - MCP server manager: [32-mcp-manager-dialog.png](32-mcp-manager-dialog.png). Harness config has no configured MCP servers.
@@ -159,7 +162,10 @@ Other code-defined dialog/menu flows to inspect when their preconditions are ava
 | Composer expand/collapse | `features/composer/composer.dart` (`AnimatedSize`, switchers) | Prompt/attachment/command area changes size as content or mode changes. |
 | Drop target | `features/transcript/chat_drop_target.dart` | Opacity/scale feedback while dragging files over chat. |
 | Agent sidecar | `features/transcript/subagent_panel.dart` | Entrance/size changes and activity pulse. |
-| Active outlines | Composer and sessions sidebar | `ShimmerBorder` around active/in-progress affordances. |
+| Active outlines | Composer and sessions sidebar | `ShimmerBorder` around active/in-progress affordances. 3.6 s loop; static under reduced motion. |
+| Working spinners | `ui/frame_activity_indicator.dart` (`FrameActivityIndicator`) | Every spinner in the app, including tiny ones in tool cards and the subagent panel. Static `sync` glyph under reduced motion. |
+| Indeterminate progress bars | `ui/frame_linear_progress.dart` (`FrameLinearProgress`), used by Settings Packages and Updates | Known value: fraction shown in both modes. Unknown value: static full bar under reduced motion. Page-load and Git changes bars check reduced motion inline. |
+| Working session dot | `features/sessions_sidebar/sessions_sidebar.dart` | 1400 ms pulse; static under reduced motion and on phone-width web. |
 | Pane resizing | `app/app_shell.dart` | Pointer drag adjusts adjacent pane widths; state/layout transitions update visible panes. |
 | Command palette / branch picker | `features/command_palette/command_palette.dart`, `features/workspace/branch_picker_dialog.dart` | Dialog transitions explicitly disabled. |
 | Web navigation / terminal | `features/browser/web_browser_pane.dart`, `features/workspace/integrated_terminal.dart` | Tab and navigation state changes; shell output streams in the terminal. |
