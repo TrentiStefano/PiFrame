@@ -175,7 +175,7 @@ class _DiffBlockState extends State<DiffBlock> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            _copied ? Icons.check : Icons.copy,
+                            _copied ? Icons.check_outlined : Icons.copy_outlined,
                             size: 12,
                             color: _copied
                                 ? tokens.success

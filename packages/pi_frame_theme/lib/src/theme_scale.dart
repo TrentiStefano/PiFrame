@@ -24,6 +24,9 @@ abstract final class FrameSize {
   /// Smallest allowed hit target edge.
   static const double hitMin = 28;
 
+  /// Small icon size for dense chips and toolbars.
+  static const double iconSm = 14;
+
   /// Default icon size.
   static const double icon = 16;
 

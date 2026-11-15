@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -11,6 +12,7 @@ import '../../data/language/strings_settings.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/precision.dart';
 
 // Daemon warning text for a missing subagent package (AgentsService.ts).
 const _noSubagentPackageWarning = 'No subagent package installed';
@@ -23,8 +25,8 @@ String formatContextTier(int tokens, int? modelContextWindow) {
     final clean = formatted.endsWith('.00')
         ? formatted.substring(0, formatted.length - 3)
         : (formatted.endsWith('0')
-            ? formatted.substring(0, formatted.length - 1)
-            : formatted);
+              ? formatted.substring(0, formatted.length - 1)
+              : formatted);
     base = '${clean}M';
   } else if (tokens >= 1000) {
     final k = (tokens / 1000.0).round();
@@ -66,13 +68,18 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
 
     if (state.isLoading && state.config == null) {
       return Center(
-        child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
+        child: FrameActivityIndicator(
+          size: FrameSize.iconLg,
+          strokeWidth: 2,
+          color: tokens.accent,
+        ),
       );
     }
 
     final config = state.config ?? const PiAgentsConfig();
-    final installedPackages =
-        config.packages.where((p) => p.installed).toList();
+    final installedPackages = config.packages
+        .where((p) => p.installed)
+        .toList();
     // The empty state already says that no subagent package is installed, so
     // the daemon warning with the same fact is not repeated.
     final visibleWarnings = installedPackages.isEmpty
@@ -115,14 +122,16 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.lock_outline, color: tokens.warning, size: 20),
+                      Icon(Icons.lock_outlined, color: tokens.warning, size: FrameSize.iconLg),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           strings.agentsReadOnlyNotice,
                           style: TextStyle(
                             color: tokens.textPrimary,
-                            fontSize: FrameText.fromTokens(tokens).label.fontSize,
+                            fontSize: FrameText.fromTokens(tokens)
+                                .label
+                                .fontSize,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -144,7 +153,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, color: tokens.info, size: FrameSize.iconLg),
+                    Icon(
+                      Icons.info_outlined,
+                      color: tokens.info,
+                      size: FrameSize.iconLg,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -171,13 +184,24 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               ],
 
               // Defaults for new sessions card
-              _buildSessionDefaultsCard(tokens, strings, state, config, notifier),
+              _buildSessionDefaultsCard(
+                tokens,
+                strings,
+                state,
+                config,
+                notifier,
+              ),
               const SizedBox(height: 20),
 
               // Subagent defaults card (only if packages installed)
               if (installedPackages.isNotEmpty) ...[
                 _buildSubagentDefaultsCard(
-                    tokens, strings, state, config, notifier),
+                  tokens,
+                  strings,
+                  state,
+                  config,
+                  notifier,
+                ),
                 const SizedBox(height: 20),
               ],
 
@@ -198,15 +222,20 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
-                          color: tokens.danger, size: FrameSize.iconLg),
+                      Icon(
+                        Icons.error_outlined,
+                        color: tokens.danger,
+                        size: FrameSize.iconLg,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           describeError(state.errorMessage!, strings).summary,
                           style: TextStyle(
                             color: tokens.danger,
-                            fontSize: FrameText.fromTokens(tokens).label.fontSize,
+                            fontSize: FrameText.fromTokens(tokens)
+                                .label
+                                .fontSize,
                           ),
                         ),
                       ),
@@ -252,7 +281,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
       ),
       child: Row(
         children: [
-          Icon(Icons.inventory_2_outlined, color: tokens.accent, size: FrameSize.iconLg),
+          Icon(
+            Icons.inventory_2_outlined,
+            color: tokens.accent,
+            size: FrameSize.iconLg,
+          ),
           const SizedBox(width: 10),
           Text(
             strings.agentsPackagesLabel,
@@ -268,11 +301,14 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               spacing: 8,
               runSpacing: 4,
               children: installedPackages.map((pkg) {
-                final versionText =
-                    pkg.version != null ? ' (v${pkg.version})' : '';
+                final versionText = pkg.version != null
+                    ? ' (v${pkg.version})'
+                    : '';
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: tokens.surface,
                     borderRadius: BorderRadius.circular(tokens.radiusPill),
@@ -312,8 +348,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_outlined,
-                  color: tokens.warning, size: FrameSize.iconLg),
+              Icon(
+                Icons.warning_amber_outlined,
+                color: tokens.warning,
+                size: FrameSize.iconLg,
+              ),
               const SizedBox(width: 8),
               Text(
                 strings.agentsWarningsTitle,
@@ -331,7 +370,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               padding: const EdgeInsets.only(left: 26, bottom: 2),
               child: Text(
                 '• $w',
-                style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textSecondary),
+                style: FrameText.fromTokens(tokens).caption
+                    .copyWith(color: tokens.textSecondary),
               ),
             ),
           ),
@@ -352,13 +392,13 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final modelError = state.getValidationError('model');
     final thinkingError = state.getValidationError('thinking');
 
-    final selectedModelObj = config.availableModels.cast<PiAvailableModel?>().firstWhere(
-          (m) => m?.id == effectiveModel,
-          orElse: () => null,
-        );
+    final selectedModelObj = config.availableModels
+        .cast<PiAvailableModel?>()
+        .firstWhere((m) => m?.id == effectiveModel, orElse: () => null);
     final isReasoningDisabled =
         selectedModelObj != null && selectedModelObj.reasoning == false;
-    final isModelUnavailable = effectiveModel != null &&
+    final isModelUnavailable =
+        effectiveModel != null &&
         (state.config?.sessionDefaults.modelAvailable == false ||
             (config.availableModels.isNotEmpty &&
                 !config.availableModels.any((m) => m.id == effectiveModel)));
@@ -384,7 +424,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           const SizedBox(height: 4),
           Text(
             strings.agentsSessionDefaultsSubtitle,
-            style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
+            style: FrameText.fromTokens(tokens).caption
+                .copyWith(color: tokens.textMuted),
           ),
           const SizedBox(height: 14),
 
@@ -421,8 +462,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           modelError,
-                          style:
-                              FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                          style: FrameText.fromTokens(tokens).caption
+                              .copyWith(color: tokens.danger),
                         ),
                       ),
                   ],
@@ -432,7 +473,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
+                  icon: const Icon(
+                    Icons.restart_alt_outlined,
+                    size: FrameSize.iconLg,
+                  ),
                   color: tokens.textMuted,
                   onPressed: !state.isReadOnlyRemote
                       ? () => notifier.resetSessionDefaultModel()
@@ -473,8 +517,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           thinkingError,
-                          style:
-                              FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                          style: FrameText.fromTokens(tokens).caption
+                              .copyWith(color: tokens.danger),
                         ),
                       ),
                   ],
@@ -484,7 +528,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
+                  icon: const Icon(
+                    Icons.restart_alt_outlined,
+                    size: FrameSize.iconLg,
+                  ),
                   color: tokens.textMuted,
                   onPressed: !state.isReadOnlyRemote
                       ? () => notifier.resetSessionDefaultThinking()
@@ -516,13 +563,13 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final thinkingError = state.getValidationError('thinking');
     final fallbackError = state.getValidationError('fallbackAgent');
 
-    final selectedModelObj = config.availableModels.cast<PiAvailableModel?>().firstWhere(
-          (m) => m?.id == effectiveModel,
-          orElse: () => null,
-        );
+    final selectedModelObj = config.availableModels
+        .cast<PiAvailableModel?>()
+        .firstWhere((m) => m?.id == effectiveModel, orElse: () => null);
     final isReasoningDisabled =
         selectedModelObj != null && selectedModelObj.reasoning == false;
-    final isModelUnavailable = effectiveModel != null &&
+    final isModelUnavailable =
+        effectiveModel != null &&
         (state.config?.subagentDefaults.modelAvailable == false ||
             (config.availableModels.isNotEmpty &&
                 !config.availableModels.any((m) => m.id == effectiveModel)));
@@ -548,7 +595,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           const SizedBox(height: 4),
           Text(
             strings.agentsSubagentDefaultsSubtitle,
-            style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
+            style: FrameText.fromTokens(tokens).caption
+                .copyWith(color: tokens.textMuted),
           ),
           const SizedBox(height: 14),
 
@@ -564,7 +612,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsFallbackAgent,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
+                          fontSize: FrameText.fromTokens(tokens)
+                              .caption
+                              .fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -573,7 +623,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         tokens: tokens,
                         effectiveFallback: effectiveFallback,
                         agents: config.agents
-                            .where((a) => a.package == '@tintinweb/pi-subagents')
+                            .where(
+                              (a) => a.package == '@tintinweb/pi-subagents',
+                            )
                             .toList(),
                         enabled: !state.isReadOnlyRemote,
                         onChanged: (val) {
@@ -587,8 +639,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             fallbackError,
-                            style:
-                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                            style: FrameText.fromTokens(tokens).caption
+                                .copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -598,7 +650,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
+                    icon: const Icon(
+                      Icons.restart_alt_outlined,
+                      size: FrameSize.iconLg,
+                    ),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultFallbackAgent()
@@ -620,7 +675,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsDefaultModel,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
+                          fontSize: FrameText.fromTokens(tokens)
+                              .caption
+                              .fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -643,8 +700,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             modelError,
-                            style:
-                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                            style: FrameText.fromTokens(tokens).caption
+                                .copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -654,7 +711,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
+                    icon: const Icon(
+                      Icons.restart_alt_outlined,
+                      size: FrameSize.iconLg,
+                    ),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultModel()
@@ -671,7 +731,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                         strings.agentsThinkingLevel,
                         style: TextStyle(
                           color: tokens.textSecondary,
-                          fontSize: FrameText.fromTokens(tokens).caption.fontSize,
+                          fontSize: FrameText.fromTokens(tokens)
+                              .caption
+                              .fontSize,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -693,8 +755,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             thinkingError,
-                            style:
-                                FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                            style: FrameText.fromTokens(tokens).caption
+                                .copyWith(color: tokens.danger),
                           ),
                         ),
                     ],
@@ -704,7 +766,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                 Tooltip(
                   message: strings.agentsResetField,
                   child: IconButton(
-                    icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.iconLg),
+                    icon: const Icon(
+                      Icons.restart_alt_outlined,
+                      size: FrameSize.iconLg,
+                    ),
                     color: tokens.textMuted,
                     onPressed: !state.isReadOnlyRemote
                         ? () => notifier.resetSubagentDefaultThinking()
@@ -740,11 +805,19 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         const SizedBox(height: 4),
         Text(
           strings.agentsListSubtitle,
-          style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
+          style: FrameText.fromTokens(tokens).caption
+              .copyWith(color: tokens.textMuted),
         ),
         const SizedBox(height: 12),
         ...config.agents.map((agent) {
-          return _buildAgentRow(tokens, strings, state, config, agent, notifier);
+          return _buildAgentRow(
+            tokens,
+            strings,
+            state,
+            config,
+            agent,
+            notifier,
+          );
         }),
       ],
     );
@@ -764,22 +837,26 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final effectiveThinking = state.getEffectiveAgentThinking(agent);
     final effectiveContextLimit = state.getEffectiveAgentContextLimit(agent);
 
-    final selectedModelObj = config.availableModels.cast<PiAvailableModel?>().firstWhere(
-          (m) => m?.id == effectiveModel,
-          orElse: () => null,
-        );
+    final selectedModelObj = config.availableModels
+        .cast<PiAvailableModel?>()
+        .firstWhere((m) => m?.id == effectiveModel, orElse: () => null);
     final isReasoningDisabled =
         selectedModelObj != null && selectedModelObj.reasoning == false;
-    final isModelUnavailable = effectiveModel != null &&
+    final isModelUnavailable =
+        effectiveModel != null &&
         (agent.model.available == false ||
             (config.availableModels.isNotEmpty &&
                 !config.availableModels.any((m) => m.id == effectiveModel)));
 
     final modelError = state.getValidationError('model', agentName: agent.name);
-    final thinkingError =
-        state.getValidationError('thinking', agentName: agent.name);
-    final contextError =
-        state.getValidationError('contextLimit', agentName: agent.name);
+    final thinkingError = state.getValidationError(
+      'thinking',
+      agentName: agent.name,
+    );
+    final contextError = state.getValidationError(
+      'contextLimit',
+      agentName: agent.name,
+    );
 
     final bool isContextSupported;
     final List<int> contextOptions;
@@ -792,8 +869,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           ...selectedModelObj.tiers,
           if (selectedModelObj.contextWindow > 0)
             selectedModelObj.contextWindow,
-        }.toList()
-          ..sort();
+        }.toList()..sort();
         modelContextWindow = selectedModelObj.contextWindow > 0
             ? selectedModelObj.contextWindow
             : null;
@@ -822,12 +898,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             ),
             const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 5, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
                 color: tokens.surface,
-                borderRadius:
-                    BorderRadius.circular(tokens.radiusPill),
+                borderRadius: BorderRadius.circular(tokens.radiusPill),
                 border: Border.all(
                   color: modelOrigin == 'override'
                       ? tokens.accent
@@ -868,7 +942,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             Tooltip(
               message: strings.agentsResetField,
               child: IconButton(
-                icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
+                icon: const Icon(
+                  Icons.restart_alt_outlined,
+                  size: FrameSize.icon,
+                ),
                 color: tokens.textMuted,
                 onPressed: isEditable
                     ? () => notifier.resetAgentModel(agent.name)
@@ -882,7 +959,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               modelError,
-              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+              style: FrameText.fromTokens(tokens).caption
+                  .copyWith(color: tokens.danger),
             ),
           ),
       ],
@@ -919,7 +997,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             Tooltip(
               message: strings.agentsResetField,
               child: IconButton(
-                icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
+                icon: const Icon(
+                  Icons.restart_alt_outlined,
+                  size: FrameSize.icon,
+                ),
                 color: tokens.textMuted,
                 onPressed: isEditable
                     ? () => notifier.resetAgentThinking(agent.name)
@@ -933,7 +1014,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               thinkingError,
-              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+              style: FrameText.fromTokens(tokens).caption
+                  .copyWith(color: tokens.danger),
             ),
           ),
       ],
@@ -969,7 +1051,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               Tooltip(
                 message: strings.agentsResetField,
                 child: IconButton(
-                  icon: const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
+                  icon: const Icon(
+                    Icons.restart_alt_outlined,
+                    size: FrameSize.icon,
+                  ),
                   color: tokens.textMuted,
                   onPressed: isEditable
                       ? () => notifier.resetAgentContextLimit(agent.name)
@@ -983,7 +1068,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 contextError,
-                style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.danger),
+                style: FrameText.fromTokens(tokens).caption
+                    .copyWith(color: tokens.danger),
               ),
             ),
         ] else ...[
@@ -1003,8 +1089,11 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.help_outline,
-                      size: FrameSize.icon, color: tokens.textMuted),
+                  Icon(
+                    Icons.help_outlined,
+                    size: FrameSize.icon,
+                    color: tokens.textMuted,
+                  ),
                 ],
               ),
             ),
@@ -1022,7 +1111,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             : tokens.surfaceElevated.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         border: Border.all(
-          color: isEditable ? tokens.border : tokens.border.withValues(alpha: 0.4),
+          color: isEditable
+              ? tokens.border
+              : tokens.border.withValues(alpha: 0.4),
         ),
       ),
       child: Column(
@@ -1044,8 +1135,10 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               ),
               // Source badge
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 1.5,
+                ),
                 decoration: BoxDecoration(
                   color: tokens.surface,
                   borderRadius: BorderRadius.circular(tokens.radiusPill),
@@ -1076,7 +1169,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                   message: agent.readOnlyReason ?? 'Read-only',
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1.5),
+                      horizontal: 6,
+                      vertical: 1.5,
+                    ),
                     decoration: BoxDecoration(
                       color: tokens.border.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(tokens.radiusPill),
@@ -1084,14 +1179,19 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_outline,
-                            size: FrameSize.icon, color: tokens.textMuted),
+                        Icon(
+                          Icons.lock_outlined,
+                          size: FrameSize.icon,
+                          color: tokens.textMuted,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           agent.readOnlyReason ?? 'read-only',
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: FrameText.fromTokens(tokens).caption.fontSize,
+                            fontSize: FrameText.fromTokens(tokens)
+                                .caption
+                                .fontSize,
                           ),
                         ),
                       ],
@@ -1104,7 +1204,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             const SizedBox(height: 4),
             Text(
               agent.description!,
-              style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
+              style: FrameText.fromTokens(tokens).caption
+                  .copyWith(color: tokens.textMuted),
             ),
           ],
           const SizedBox(height: 12),
@@ -1142,10 +1243,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     );
 
     if (!agent.editable && agent.readOnlyReason != null) {
-      return Tooltip(
-        message: agent.readOnlyReason!,
-        child: cardContent,
-      );
+      return Tooltip(message: agent.readOnlyReason!, child: cardContent);
     }
     return cardContent;
   }
@@ -1175,8 +1273,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     }).toList();
 
     // If effective model is not among available models, add placeholder display
-    final valueInItems =
-        availableModels.any((m) => m.id == effectiveModel);
+    final valueInItems = availableModels.any((m) => m.id == effectiveModel);
     final displayValue = valueInItems ? effectiveModel : null;
 
     return Column(
@@ -1186,7 +1283,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: enabled ? tokens.surface : tokens.surface.withValues(alpha: 0.5),
+            color: enabled
+                ? tokens.surface
+                : tokens.surface.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             border: Border.all(
               color: isUnavailable ? tokens.warning : tokens.border,
@@ -1214,13 +1313,17 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           const SizedBox(height: 2),
           Row(
             children: [
-              Icon(Icons.warning_amber_outlined,
-                  size: FrameSize.icon, color: tokens.warning),
+              Icon(
+                Icons.warning_amber_outlined,
+                size: FrameSize.icon,
+                color: tokens.warning,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   strings.agentsModelUnavailableWarning,
-                  style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.warning),
+                  style: FrameText.fromTokens(tokens).caption
+                      .copyWith(color: tokens.warning),
                 ),
               ),
             ],
@@ -1241,8 +1344,16 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final levels = reasoningDisabled
         ? const ['off']
         : (thinkingLevels.isNotEmpty
-            ? thinkingLevels
-            : const ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+              ? thinkingLevels
+              : const [
+                  'off',
+                  'minimal',
+                  'low',
+                  'medium',
+                  'high',
+                  'xhigh',
+                  'max',
+                ]);
 
     final effectiveVal = reasoningDisabled ? 'off' : effectiveThinking;
     final valueInItems = levels.contains(effectiveVal);
@@ -1260,7 +1371,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           value: valueInItems ? effectiveVal : null,
           hint: Text(
             effectiveVal ?? ref.read(appStringsProvider).agentsPiDefaultLabel,
-            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
+            style: FrameText.fromTokens(tokens).label
+                .copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1269,7 +1381,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               value: lvl,
               child: Text(
                 ref.read(appStringsProvider).thinkingLevelLabel(lvl),
-                style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
+                style: FrameText.fromTokens(tokens).label
+                    .copyWith(color: tokens.textPrimary),
               ),
             );
           }).toList(),
@@ -1293,7 +1406,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         value: opt,
         child: Text(
           label,
-          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
+          style: FrameText.fromTokens(tokens).label
+              .copyWith(color: tokens.textPrimary),
         ),
       );
     }).toList();
@@ -1316,7 +1430,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
             effectiveLimit != null
                 ? formatContextTier(effectiveLimit, modelContextWindow)
                 : '—',
-            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
+            style: FrameText.fromTokens(tokens).label
+                .copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1339,7 +1454,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         value: a.name,
         child: Text(
           a.name,
-          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textPrimary),
+          style: FrameText.fromTokens(tokens).label
+              .copyWith(color: tokens.textPrimary),
         ),
       );
     }).toList();
@@ -1359,7 +1475,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           value: valueInItems ? effectiveFallback : null,
           hint: Text(
             effectiveFallback ?? '—',
-            style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
+            style: FrameText.fromTokens(tokens).label
+                .copyWith(color: tokens.textMuted),
           ),
           isExpanded: true,
           dropdownColor: tokens.surfaceElevated,
@@ -1379,7 +1496,8 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     // Save and Cancel only appear once the form differs from the saved config (D-3).
     if (!state.isDirty) return const SizedBox.shrink();
 
-    final canSave = state.isDirty &&
+    final canSave =
+        state.isDirty &&
         !state.isSaving &&
         !state.isLoading &&
         !state.isReadOnlyRemote;
@@ -1395,44 +1513,59 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           // Discard button
-          OutlinedButton(
-            onPressed: canDiscard ? () => notifier.discardEdits() : null,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: tokens.textSecondary,
-              side: BorderSide(
-                color: canDiscard
-                    ? tokens.borderStrong
-                    : tokens.border.withValues(alpha: 0.4),
+          PressFeedback(
+            child: OutlinedButton(
+              onPressed: canDiscard ? () => notifier.discardEdits() : null,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.textSecondary,
+                side: BorderSide(
+                  color: canDiscard
+                      ? tokens.borderStrong
+                      : tokens.border.withValues(alpha: 0.4),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(strings.agentsDiscard),
             ),
-            child: Text(strings.agentsDiscard),
           ),
           const SizedBox(width: 12),
 
           // Save button
-          FilledButton.icon(
-            onPressed: canSave
-                ? () async {
-                    final ok = await notifier.save();
-                    if (ok && mounted) {
-                      FrameSnackBar.show(
-                        context,
-                        message: strings.agentsSaveSuccess,
-                      );
+          PressFeedback(
+            child: FilledButton.icon(
+              onPressed: canSave
+                  ? () async {
+                      final ok = await notifier.save();
+                      if (ok && mounted) {
+                        FrameSnackBar.show(
+                          context,
+                          message: strings.agentsSaveSuccess,
+                        );
+                      }
                     }
-                  }
-                : null,
-            icon: state.isSaving
-                ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
-                : const Icon(Icons.check_outlined, size: FrameSize.icon),
-            label: Text(
-                state.isSaving ? strings.agentsSaving : strings.agentsSave),
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.accent,
-              foregroundColor: tokens.accentContrast,
-              disabledBackgroundColor: tokens.accent.withValues(alpha: 0.3),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  : null,
+              icon: state.isSaving
+                  ? FrameActivityIndicator(
+                      size: FrameSize.icon,
+                      strokeWidth: 2,
+                      color: tokens.accentContrast,
+                    )
+                  : const Icon(Icons.check_outlined, size: FrameSize.icon),
+              label: Text(
+                state.isSaving ? strings.agentsSaving : strings.agentsSave,
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: tokens.accent,
+                foregroundColor: tokens.accentContrast,
+                disabledBackgroundColor: tokens.accent.withValues(alpha: 0.3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+              ),
             ),
           ),
         ],

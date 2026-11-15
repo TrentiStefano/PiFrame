@@ -56,9 +56,9 @@ class _FrameCalloutState extends State<FrameCallout> {
       };
 
   IconData get _toneIcon => switch (widget.tone) {
-        FrameCalloutTone.info => Icons.info_outline,
+        FrameCalloutTone.info => Icons.info_outlined,
         FrameCalloutTone.warning => Icons.warning_amber_outlined,
-        FrameCalloutTone.danger => Icons.error_outline,
+        FrameCalloutTone.danger => Icons.error_outlined,
       };
 
   @override

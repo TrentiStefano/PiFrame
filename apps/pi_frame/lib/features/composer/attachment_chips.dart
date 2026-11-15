@@ -132,7 +132,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 decoration: InputDecoration(
                   labelText: strings.attTitleOptional,
                   hintText: strings.attTitleHint,
-                  prefixIcon: const Icon(Icons.label_outline, size: FrameSize.icon),
+                  prefixIcon: const Icon(Icons.label_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
                   border: OutlineInputBorder(
@@ -382,7 +382,7 @@ class AttachmentChip extends ConsumerWidget {
             attachment.type == AttachmentType.repoFile
                 ? Icons.folder_outlined
                 : Icons.insert_drive_file_outlined,
-            size: 14,
+            size: FrameSize.iconSm,
             color: tokens.accent,
           ),
           const SizedBox(width: 6),
@@ -427,7 +427,7 @@ class AttachmentChip extends ConsumerWidget {
           children: [
             Icon(
               Icons.link_outlined,
-              size: 14,
+              size: FrameSize.iconSm,
               color: tokens.syntaxKeyword,
             ),
             const SizedBox(width: 6),

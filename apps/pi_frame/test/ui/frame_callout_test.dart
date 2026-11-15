@@ -81,9 +81,9 @@ void main() {
 
   testWidgets('each tone uses its own icon', (tester) async {
     final expected = {
-      FrameCalloutTone.info: Icons.info_outline,
+      FrameCalloutTone.info: Icons.info_outlined,
       FrameCalloutTone.warning: Icons.warning_amber_outlined,
-      FrameCalloutTone.danger: Icons.error_outline,
+      FrameCalloutTone.danger: Icons.error_outlined,
     };
     for (final entry in expected.entries) {
       await pumpCallout(

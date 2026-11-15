@@ -14,6 +14,7 @@ import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_section.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/frame_status_tag.dart';
+import '../../ui/precision.dart';
 
 /// Tests may label synthetic diagnostic fixtures without changing runtime UI.
 final diagnosticsFixtureLabelProvider = Provider<String?>((ref) => null);
@@ -190,30 +191,37 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton.icon(
-                key: const ValueKey('diagnostics-copy-bundle-btn'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, FrameSize.rowForm),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FrameSpace.x4,
+              PressFeedback(
+                enabled: (_isExporting ? null : _exportBundle) != null,
+                child: FilledButton.icon(
+                  key: const ValueKey('diagnostics-copy-bundle-btn'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: FrameSpace.x4,
+                    ),
                   ),
+                  icon: _isExporting
+                      ? FrameActivityIndicator(
+                          size: FrameSize.icon,
+                          strokeWidth: 2,
+                          color: tokens.accentContrast,
+                        )
+                      : const Icon(Icons.copy_outlined, size: FrameSize.icon),
+                  label: Text(
+                    _isExporting
+                        ? strings.diagGenerating
+                        : strings.diagCopyBundleBtn,
+                  ),
+                  onPressed: _isExporting ? null : _exportBundle,
                 ),
-                icon: _isExporting
-                    ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
-                    : const Icon(Icons.copy_outlined, size: FrameSize.icon),
-                label: Text(
-                  _isExporting
-                      ? strings.diagGenerating
-                      : strings.diagCopyBundleBtn,
-                ),
-                onPressed: _isExporting ? null : _exportBundle,
               ),
               if (_exportSuccess != null) ...[
                 const SizedBox(height: FrameSpace.x2 + 2),
                 Row(
                   children: [
                     Icon(
-                      Icons.check_circle_outline,
+                      Icons.check_circle_outlined,
                       size: FrameSize.icon,
                       color: tokens.agentSettled,
                     ),

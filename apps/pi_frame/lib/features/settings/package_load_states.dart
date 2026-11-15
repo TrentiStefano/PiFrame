@@ -3,6 +3,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../ui/precision.dart';
 
 /// How long the Packages list may load before the "taking longer" notice shows.
 const packageLoadSlowThreshold = Duration(seconds: 10);
@@ -60,14 +61,16 @@ class PackageLoadingView extends StatelessWidget {
             style: text.body.copyWith(color: tokens.textSecondary),
           ),
           const SizedBox(height: FrameSpace.x2),
-          OutlinedButton.icon(
-            key: const ValueKey('packages-load-retry'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, FrameSize.rowForm),
+          PressFeedback(
+            child: OutlinedButton.icon(
+              key: const ValueKey('packages-load-retry'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, FrameSize.rowForm),
+              ),
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
+              label: Text(strings.retryAction),
             ),
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
-            label: Text(strings.retryAction),
           ),
         ],
       ],

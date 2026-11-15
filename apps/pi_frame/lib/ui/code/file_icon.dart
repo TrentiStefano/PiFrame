@@ -33,34 +33,34 @@ class FileIcon extends StatelessWidget {
     Color color = tokens.textMuted;
 
     if (lower.endsWith('.dart')) {
-      icon = Icons.flutter_dash;
+      icon = Icons.flutter_dash_outlined;
       color = tokens.info;
     } else if (lower.endsWith('.json')) {
-      icon = Icons.data_object;
+      icon = Icons.data_object_outlined;
       color = tokens.syntaxType;
     } else if (lower.endsWith('.yaml') || lower.endsWith('.yml')) {
       icon = Icons.settings_outlined;
       color = tokens.danger;
     } else if (lower.endsWith('.ts') || lower.endsWith('.tsx')) {
-      icon = Icons.code;
+      icon = Icons.code_outlined;
       color = tokens.info;
     } else if (lower.endsWith('.js') ||
         lower.endsWith('.jsx') ||
         lower.endsWith('.mjs') ||
         lower.endsWith('.cjs')) {
-      icon = Icons.javascript;
+      icon = Icons.javascript_outlined;
       color = tokens.warning;
     } else if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
       icon = Icons.article_outlined;
       color = tokens.info;
     } else if (lower.endsWith('.lock')) {
-      icon = Icons.lock_outline;
+      icon = Icons.lock_outlined;
       color = tokens.textMuted;
     } else if (lower.contains('.git')) {
       icon = Icons.merge_type_outlined;
       color = tokens.textMuted;
     } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
-      icon = Icons.html;
+      icon = Icons.html_outlined;
       color = tokens.syntaxNumber;
     } else if (lower.endsWith('.css') ||
         lower.endsWith('.scss') ||

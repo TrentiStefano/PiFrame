@@ -168,7 +168,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: row,
-        matching: find.byIcon(Icons.radio_button_unchecked),
+        matching: find.byIcon(Icons.radio_button_unchecked_outlined),
       ),
     );
     await tester.pump();

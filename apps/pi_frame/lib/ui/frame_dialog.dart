@@ -206,10 +206,12 @@ Future<T?> showFrameDialog<T>({
   required BuildContext context,
   required FrameDialog<T> dialog,
   bool instant = false,
+  bool barrierDismissible = true,
 }) => showFrameDialogBuilder<T>(
   context: context,
   builder: (_) => dialog,
   instant: instant,
+  barrierDismissible: barrierDismissible,
 );
 
 /// Like [showFrameDialog], for a dialog whose content is stateful: [builder]
@@ -219,6 +221,7 @@ Future<T?> showFrameDialogBuilder<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool instant = false,
+  bool barrierDismissible = true,
 }) {
   final reduced = FrameMotion.reduced(context);
   final tokens = context.tokens;
@@ -231,6 +234,7 @@ Future<T?> showFrameDialogBuilder<T>({
 
   return Navigator.of(context, rootNavigator: true).push<T>(
     _FrameDialogRoute<T>(
+      barrierDismissible: barrierDismissible,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: tokens.overlay,
       transitionDuration: enterDuration,
@@ -268,6 +272,7 @@ class _FrameDialogRoute<T> extends RawDialogRoute<T> {
     required super.barrierLabel,
     required super.transitionDuration,
     required this.reverseDuration,
+    super.barrierDismissible,
   });
 
   final Duration reverseDuration;

@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -205,7 +206,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                       onPressed: widget.connected && !_creating
                           ? _create
                           : null,
-                      icon: const Icon(Icons.add, size: FrameSize.iconLg),
+                      icon: const Icon(Icons.add_outlined, size: FrameSize.iconLg),
                       label: Text(
                         _creating
                             ? strings.creatingSession
@@ -213,13 +214,15 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                       ),
                     ),
                   ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('browse-sessions-button'),
-                    onPressed: widget.narrow
-                        ? widget.onOpenSessionsDrawer
-                        : widget.onOpenCommandPalette,
-                    icon: const Icon(Icons.search, size: FrameSize.iconLg),
-                    label: Text(strings.browseSessionsAction),
+                  PressFeedback(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('browse-sessions-button'),
+                      onPressed: widget.narrow
+                          ? widget.onOpenSessionsDrawer
+                          : widget.onOpenCommandPalette,
+                      icon: const Icon(Icons.search_outlined, size: FrameSize.iconLg),
+                      label: Text(strings.browseSessionsAction),
+                    ),
                   ),
                 ],
               ),
@@ -291,7 +294,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
         children: [
           Row(
             children: [
-              Icon(Icons.history, size: FrameSize.icon, color: tokens.accent),
+              Icon(Icons.history_outlined, size: FrameSize.icon, color: tokens.accent),
               const SizedBox(width: FrameSpace.x2),
               Text(
                 strings.recentSessionsHeader,
@@ -330,7 +333,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                           sessionNames[session['id'] ?? ''] ??
                           (session['name'] ?? session['id'] ?? '').toString(),
                       leading: Icon(
-                        Icons.chat_bubble_outline,
+                        Icons.chat_bubble_outlined,
                         size: FrameSize.icon,
                         color: tokens.textSecondary,
                       ),

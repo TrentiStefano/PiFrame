@@ -136,7 +136,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
               ),
               FrameIconAction(
                 key: const ValueKey('session-tree-refresh'),
-                icon: Icons.refresh,
+                icon: Icons.refresh_outlined,
                 tooltip: strings.sessionTreeReload,
                 onPressed: _loading ? null : _loadTree,
               ),
@@ -164,7 +164,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
         constraints: const BoxConstraints(minHeight: _minBodyHeight),
         child: FrameEmptyState(
           keyPrefix: 'session-tree-error',
-          icon: Icons.error_outline,
+          icon: Icons.error_outlined,
           title: strings.sessionTreeLoadFailed,
           message: strings.sessionTreeError(_error!),
           actionLabel: strings.sessionTreeEmptyAction,
@@ -193,7 +193,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
         constraints: const BoxConstraints(minHeight: _minBodyHeight),
         child: FrameEmptyState(
           keyPrefix: 'session-tree-empty',
-          icon: Icons.device_hub,
+          icon: Icons.device_hub_outlined,
           title: strings.sessionTreeNoBranches,
           message: strings.sessionTreeAllMessagesMainBranch,
           actionLabel: strings.sessionTreeEmptyAction,
@@ -323,8 +323,8 @@ class _TreeNodeTile extends StatelessWidget {
         children: [
           Icon(
             isActive
-                ? Icons.radio_button_checked
-                : (isLeaf ? Icons.nature : Icons.commit),
+                ? Icons.radio_button_checked_outlined
+                : (isLeaf ? Icons.nature_outlined : Icons.commit_outlined),
             color: isActive ? tokens.accent : tokens.textMuted,
             size: FrameSize.icon,
           ),

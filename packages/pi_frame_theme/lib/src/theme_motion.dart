@@ -41,6 +41,18 @@ abstract final class FrameMotionTokens {
   /// Wait after the last keystroke before a field re-validates.
   static const Duration debounce = Duration(milliseconds: 300);
 
+  /// Hover wait before a tooltip opens.
+  static const Duration tooltipWait = Duration(milliseconds: 300);
+
+  /// Startup logo pulse loop: static under reduced motion.
+  static const Duration pulseLoop = Duration(milliseconds: 1400);
+
+  /// Sweep loop of the animated focus border: one lap per loop.
+  static const Duration shimmerLoop = Duration(milliseconds: 3600);
+
+  /// Reveal of the launch surface before it settles.
+  static const Duration launchReveal = Duration(milliseconds: 620);
+
   /// Ease-out with a fast start: most UI changes.
   static const Cubic enterCurve = Cubic(0.23, 1, 0.32, 1);
 

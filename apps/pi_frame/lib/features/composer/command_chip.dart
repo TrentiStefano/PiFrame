@@ -123,7 +123,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                     : Icon(
                         Icons.terminal_outlined,
                         key: const ValueKey('idle'),
-                        size: 14,
+                        size: FrameSize.iconSm,
                         color: tokens.accent,
                       ),
               ),

@@ -27,9 +27,9 @@ const _baselines = <String, int>{
   'fontSize numeric literal': 28,
   'fontSize below 11': 2,
   'BorderRadius.circular numeric': 4,
-  'Duration(milliseconds:) numeric': 13,
+  'Duration(milliseconds:) numeric': 10,
   'Curves.': 2,
-  'BoxShadow(': 11,
+  'BoxShadow(': 10,
   'GestureDetector(': 4,
 };
 
