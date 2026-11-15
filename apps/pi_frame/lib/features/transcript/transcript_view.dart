@@ -1766,7 +1766,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 left: 0,
                 right: 0,
                 child: AnimatedSize(
-                  duration: FrameMotion.small,
+                  // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
+                  duration: FrameMotion.fade(context, FrameMotion.small),
                   curve: FrameMotion.enterCurve,
                   alignment: Alignment.topCenter,
                   child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
@@ -2448,7 +2449,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 Flexible(
                   child: AnimatedOpacity(
                     opacity: revealed ? 1 : 0,
-                    duration: FrameMotion.micro,
+                    duration: FrameMotion.fade(context, FrameMotion.micro),
                     child: InkWell(
                     borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                     onTap: () => _handleFork(entry.id),
@@ -2769,15 +2770,15 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: tokens.warning.withValues(alpha: 0.15),
+                      color: tokens.textMuted.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(color: tokens.warning.withValues(alpha: 0.3)),
+                      border: Border.all(color: tokens.textMuted.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _currentStrings.transcriptCancelledBadge,
                       style: TextStyle(
                         fontSize: FrameText.of(context).caption.fontSize,
-                        color: tokens.warning,
+                        color: tokens.textSecondary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

@@ -72,7 +72,7 @@ Widget workspacePaneHeader(
                                   ? null
                                   : () => onSelectCompanionTab?.call(tab),
                               child: AnimatedContainer(
-                                duration: FrameMotion.micro,
+                                duration: FrameMotion.fade(context, FrameMotion.micro),
                                 padding: EdgeInsets.symmetric(
                                   horizontal: isActive ? 10 : 7,
                                   vertical: 3,

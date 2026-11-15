@@ -11,6 +11,7 @@ import '../workspace/repository_workspace.dart' show WorkspacePane;
 import 'review_file_diff_viewer.dart';
 import 'session_changes_provider.dart';
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/motion.dart';
 
 /// Below this width for the companion tab row, inactive tabs show only their icon
 /// (the active tab keeps its label, ellipsised). Labels stay in semantics and tooltips.
@@ -242,8 +243,9 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                                                 : () => widget.onSelectCompanionTab
                                                       ?.call(tab),
                                             child: AnimatedContainer(
-                                              duration: const Duration(
-                                                milliseconds: 140,
+                                              duration: FrameMotion.fade(
+                                                context,
+                                                FrameMotion.micro,
                                               ),
                                               padding: EdgeInsets.symmetric(
                                                 horizontal: isActive ? 10 : 7,

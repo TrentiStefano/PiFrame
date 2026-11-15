@@ -54,7 +54,7 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
   'deleted' => tokens.diffRemovedFg,
   'unmerged' => tokens.danger,
   'renamed' || 'copied' => tokens.info,
-  _ => tokens.warning,
+  _ => tokens.textSecondary,
 };
 
 /// Splits a path into its file name and parent directory. [dir] is null for a

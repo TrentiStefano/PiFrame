@@ -337,7 +337,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       case 'idle':
         noticeText = strings.sideClosedNoticeIdle;
         noticeIcon = Icons.timer_outlined;
-        noticeColor = tokens.warning;
+        noticeColor = tokens.textSecondary;
         break;
       case 'parentClosed':
         noticeText = strings.sideClosedNoticeParentClosed;

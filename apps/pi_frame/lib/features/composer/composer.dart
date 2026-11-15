@@ -2801,7 +2801,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                               child:
                                                   FrameActivityIndicator(size: FrameSize.icon, 
                                                     strokeWidth: 2,
-                                                    color: tokens.danger,
+                                                    color: tokens.textSecondary,
                                                   ),
                                             )
                                           : Icon(

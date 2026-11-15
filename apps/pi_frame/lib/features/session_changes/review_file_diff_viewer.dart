@@ -390,9 +390,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             children: [
               Text(
                 isExpanded ? strings.linesExpanded : strings.moreLines(count),
-                style: TextStyle(
-                  fontFamily: tokens.monoFontFamily,
-                  fontSize: 10,
+                style: FrameText.of(context).mono.copyWith(
                   color: tokens.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -429,9 +427,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: tokens.monoFontFamily,
-            fontSize: 9,
+          style: FrameText.of(context).caption.copyWith(
             color: tokens.textMuted,
             fontWeight: FontWeight.bold,
           ),

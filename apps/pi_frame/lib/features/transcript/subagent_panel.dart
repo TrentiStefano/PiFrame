@@ -213,8 +213,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     }
 
     // AnimatedSize clips while it resizes, so the panel never lays out squeezed.
+    // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
     return AnimatedSize(
-      duration: FrameMotion.panel,
+      duration: FrameMotion.fade(context, FrameMotion.panel),
       curve: FrameMotion.enterCurve,
       alignment: Alignment.centerLeft,
       child: child,
@@ -332,7 +333,7 @@ class _Entrance extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       // `begin` only matters on the first build of this row's state.
       tween: Tween(begin: animate ? 0 : 1, end: 1),
-      duration: FrameMotion.panel,
+      duration: FrameMotion.fade(context, FrameMotion.panel),
       curve: FrameMotion.enterCurve,
       builder: (context, t, child) => Opacity(
         opacity: t,
@@ -494,7 +495,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
   final Set<String> _seenIds = <String>{};
   bool _firstBuild = true;
   late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+      AnimationController(vsync: this, duration: FrameMotion.pulseLoop);
 
   @override
   void dispose() {

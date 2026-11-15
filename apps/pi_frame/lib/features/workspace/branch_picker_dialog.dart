@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../data/language/strings_workspace.dart';
 import '../../ui/frame_focus.dart';
 import '../../ui/frame_activity_indicator.dart';
 
@@ -320,11 +321,28 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                     heightFactor: 1,
                                     child: Padding(
                                       padding: const EdgeInsets.all(FrameSpace.x4),
-                                      child: Text(
-                                        strings.branchPickerNoBranches,
-                                        style: text.body.copyWith(
-                                          color: tokens.textMuted,
-                                        ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            strings.branchPickerNoBranches,
+                                            style: text.body.copyWith(
+                                              color: tokens.textMuted,
+                                            ),
+                                          ),
+                                          // The one action: clear the filter that hides every branch.
+                                          if (query.isNotEmpty) ...[
+                                            const SizedBox(height: FrameSpace.x2),
+                                            TextButton(
+                                              key: const ValueKey('branch-picker-clear-search'),
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                setState(() => _selectedIndex = 0);
+                                              },
+                                              child: Text(strings.clearSearchTooltip),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   )

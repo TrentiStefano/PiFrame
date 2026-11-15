@@ -294,6 +294,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           'message': ?message,
         },
       );
+      if (_remoteActions.contains(action) && mounted) {
+        FrameSnackBar.show(
+          context,
+          message: ref.read(appStringsProvider).gitRemoteActionDone(action),
+        );
+      }
       if (action == 'discard' || action == 'commit') {
         ref
             .read(repositoryStateProvider(widget.sessionId).notifier)
@@ -1283,23 +1289,28 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             companionTabLabels: workspaceCompanionTabLabels(strings),
             activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.git,
             onSelectCompanionTab: widget.onSelectCompanionTab,
-            titleWidget: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
+            titleWidget: Row(
                 children: [
                   Icon(Icons.source_outlined, size: FrameSize.icon, color: tokens.accent),
                   const SizedBox(width: FrameSpace.x2),
-                  Text(
-                    strings.gitChangesLabel.toUpperCase(),
-                    style: text.label.copyWith(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4,
+                  // Title and chip share the header width and shrink with an
+                  // ellipsis at large text scale, instead of scrolling off.
+                  Flexible(
+                    child: Text(
+                      strings.gitChangesLabel.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.label.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
                   if (ref.watch(browserPaneSupportedProvider)) ...[
                     const SizedBox(width: FrameSpace.x2),
-                    InkWell(
+                    Flexible(
+                    child: InkWell(
                       key: const ValueKey('right-pane-switch-browser-chip'),
                       onTap: () {
                         ref.read(rightPaneModeProvider.notifier).state =
@@ -1325,21 +1336,25 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               color: tokens.textMuted,
                             ),
                             const SizedBox(width: FrameSpace.x1),
-                            Text(
-                              strings.browserPaneLabel,
-                              style: text.caption.copyWith(
-                                color: tokens.textMuted,
-                                fontWeight: FontWeight.w500,
+                            Flexible(
+                              child: Text(
+                                strings.browserPaneLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: text.caption.copyWith(
+                                  color: tokens.textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
+                    ),
                   ],
                 ],
               ),
-            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

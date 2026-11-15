@@ -482,8 +482,9 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
       return panelContent;
     }
 
+    // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
     return AnimatedSize(
-      duration: FrameMotion.small,
+      duration: FrameMotion.fade(context, FrameMotion.small),
       curve: FrameMotion.enterCurve,
       alignment: Alignment.topCenter,
       child: panelContent,

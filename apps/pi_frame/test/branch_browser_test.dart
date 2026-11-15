@@ -215,6 +215,40 @@ void main() {
       expect(find.text('fix#12'), findsNothing);
     });
 
+    testWidgets('a query that matches nothing offers one action: clear search', (tester) async {
+      final client = _MockBranchClient();
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => BranchPickerDialog.show(
+                context,
+                sessionId: 'session-a',
+                client: client,
+                currentBranch: 'main',
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+          client: client,
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('branch-picker-search-field')),
+        'zzz-no-such-branch',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('feature/login'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('branch-picker-clear-search')));
+      await tester.pumpAndSettle();
+      expect(find.text('feature/login'), findsOneWidget);
+      expect(find.byKey(const ValueKey('branch-picker-clear-search')), findsNothing);
+    });
+
     testWidgets('weird names render (unicode, "#", quotes)', (tester) async {
       final client = _MockBranchClient();
       await tester.pumpWidget(

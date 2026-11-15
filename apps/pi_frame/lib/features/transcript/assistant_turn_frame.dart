@@ -120,7 +120,7 @@ class AssistantTurnFrame extends StatelessWidget {
                   right: 0,
                   child: AnimatedOpacity(
                     opacity: revealed ? 1 : 0,
-                    duration: FrameMotion.micro,
+                    duration: FrameMotion.fade(context, FrameMotion.micro),
                     child: SizedBox(
                       width: kMetaActionHitSize,
                       height: kMetaActionHitSize,

@@ -24,7 +24,7 @@ class FileIcon extends StatelessWidget {
       return Icon(
         isExpanded ? Icons.folder_open_outlined : Icons.folder_outlined,
         size: size,
-        color: tokens.warning,
+        color: tokens.textSecondary,
       );
     }
 
@@ -40,7 +40,7 @@ class FileIcon extends StatelessWidget {
       color = tokens.syntaxType;
     } else if (lower.endsWith('.yaml') || lower.endsWith('.yml')) {
       icon = Icons.settings_outlined;
-      color = tokens.danger;
+      color = tokens.syntaxKeyword;
     } else if (lower.endsWith('.ts') || lower.endsWith('.tsx')) {
       icon = Icons.code_outlined;
       color = tokens.info;
@@ -49,7 +49,7 @@ class FileIcon extends StatelessWidget {
         lower.endsWith('.mjs') ||
         lower.endsWith('.cjs')) {
       icon = Icons.javascript_outlined;
-      color = tokens.warning;
+      color = tokens.syntaxString;
     } else if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
       icon = Icons.article_outlined;
       color = tokens.info;
