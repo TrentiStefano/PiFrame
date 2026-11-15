@@ -15,6 +15,7 @@ import '../../domain/errors/user_facing_error.dart';
 import '../../data/update/startup_updates_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';
+import '../../ui/escape_layers.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_status_tag.dart';
 import '../../ui/motion.dart';
@@ -62,6 +63,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   /// Maximum width of the section content column.
   static const double _contentMaxWidth = 760;
+
+  /// Escape closes the topmost open layer (plan task 6.3), so Review mode, which
+  /// closes before Settings, goes first. Settings closes itself through its own
+  /// registration. Without a shell (no layers registered), it closes directly.
+  void _escape() {
+    if (!ref.read(escapeLayersProvider).closeTopmost()) widget.onClose();
+  }
 
   /// Pi CLI is wide enough to hold the console in a right column.
   static const double _wideContentMaxWidth = 1160;
@@ -787,7 +795,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): widget.onClose,
+        const SingleActivator(LogicalKeyboardKey.escape): _escape,
       },
       child: Focus(autofocus: true, child: settingsContent),
     );

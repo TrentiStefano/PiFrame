@@ -2071,6 +2071,10 @@ class _ComposerState extends ConsumerState<Composer> {
                         padding: const EdgeInsets.all(4),
                         child: Focus(
                           key: const ValueKey('composer-input-focus'),
+                          // The text field below is the Tab stop. This wrapper only
+                          // routes keys from it, so it must not add a stop of its own.
+                          canRequestFocus: false,
+                          skipTraversal: true,
                           onKeyEvent: (node, event) {
                             if (event is KeyDownEvent ||
                                 event is KeyRepeatEvent) {

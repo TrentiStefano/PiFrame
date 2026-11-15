@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import '../ui/escape_layers.dart';
+import '../ui/frame_focus.dart';
 import '../ui/frame_icon_action.dart';
 import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
@@ -275,10 +276,13 @@ class _ResizeDividerFocusState extends State<_ResizeDividerFocus> {
       decreasedValue: widget.decreasedValue ?? widget.value,
       onIncrease: widget.onIncrease,
       onDecrease: widget.onDecrease,
-      child: Focus(
-        onKeyEvent: _handleKey,
-        onFocusChange: (focused) => setState(() => _focused = focused),
-        child: widget.builder(context, _focused),
+      // The ring wraps the Focus, so it shows while the divider has keyboard focus.
+      child: FrameFocusRing(
+        child: Focus(
+          onKeyEvent: _handleKey,
+          onFocusChange: (focused) => setState(() => _focused = focused),
+          child: widget.builder(context, _focused),
+        ),
       ),
     );
   }

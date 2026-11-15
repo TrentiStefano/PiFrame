@@ -144,10 +144,18 @@ class _SideSplitState extends ConsumerState<SideSplit>
                   maxWidth: sideTarget,
                   child: Opacity(
                     opacity: contentOpacity,
-                    child: SidePanel(
-                      key: ValueKey('side_panel_${widget.sessionId}'),
-                      sessionId: widget.sessionId,
-                      fullPane: fullPane,
+                    // A closed panel keeps its state but leaves Tab order and the
+                    // accessibility tree (its controls sit at zero width).
+                    child: ExcludeFocus(
+                      excluding: !shown,
+                      child: ExcludeSemantics(
+                        excluding: !shown,
+                        child: SidePanel(
+                          key: ValueKey('side_panel_${widget.sessionId}'),
+                          sessionId: widget.sessionId,
+                          fullPane: fullPane,
+                        ),
+                      ),
                     ),
                   ),
                 ),
