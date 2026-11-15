@@ -44,7 +44,9 @@ abstract final class FrameMotionTokens {
   /// Hover wait before a tooltip opens.
   static const Duration tooltipWait = Duration(milliseconds: 300);
 
-  /// Startup logo pulse loop: static under reduced motion.
+  /// Period of the pulse loops: the startup assemble overlay, the working dot
+  /// on running session rows and the subagent orbit. All three stop under
+  /// reduced motion.
   static const Duration pulseLoop = Duration(milliseconds: 1400);
 
   /// Sweep loop of the animated focus border: one lap per loop.

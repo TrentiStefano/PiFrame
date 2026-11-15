@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'frame_focus.dart';
 import 'frame_middle_ellipsis.dart';
 
 /// A compact list row: optional leading icon, [name] in primary text, an
@@ -137,78 +138,80 @@ class _FrameListRowState extends State<FrameListRow> {
         onExit: (_) => setState(() => _hovered = false),
         child: Semantics(
           selected: widget.selected,
-          child: InkWell(
-            // TODO(focus-ring): wrap in FrameFocusRing once lib/ui/frame_focus.dart
-            // exists. Until then the Material focus highlight is the indicator.
-            canRequestFocus: widget.focusable,
-            onTap: widget.onTap,
-            onSecondaryTapUp: widget.onSecondaryTap == null
-                ? null
-                : (details) => widget.onSecondaryTap!(details.globalPosition),
-            highlightColor: tokens.surfaceElevated,
-            hoverColor: transparent,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: widget.minHeight),
-              child: Container(
-                // No vertical padding: the 28 px minimum height and the
-                // 28 px action targets set the row height.
-                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                ),
-                child: Row(
-                  children: [
-                    if (widget.leading != null) ...[
-                      SizedBox(width: FrameSize.icon, child: widget.leading),
-                      const SizedBox(width: FrameSpace.x2),
-                    ],
-                    Expanded(
-                      child: widget.inlineSecondary
-                          ? _inlineTitle(text, tokens, enabled)
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.body.copyWith(
-                                    color: enabled
-                                        ? tokens.textPrimary
-                                        : tokens.textMuted,
-                                  ),
-                                ),
-                                if (widget.secondary != null)
-                                  FrameMiddleEllipsis(
-                                    text: widget.secondary!,
-                                    style: text.caption.copyWith(
-                                      color: tokens.textMuted,
+          child: FrameFocusRing(
+            child: InkWell(
+              canRequestFocus: widget.focusable,
+              onTap: widget.onTap,
+              onSecondaryTapUp: widget.onSecondaryTap == null
+                  ? null
+                  : (details) => widget.onSecondaryTap!(details.globalPosition),
+              highlightColor: tokens.surfaceElevated,
+              hoverColor: transparent,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: widget.minHeight),
+                child: Container(
+                  // No vertical padding: the 28 px minimum height and the
+                  // 28 px action targets set the row height.
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FrameSpace.x2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  ),
+                  child: Row(
+                    children: [
+                      if (widget.leading != null) ...[
+                        SizedBox(width: FrameSize.icon, child: widget.leading),
+                        const SizedBox(width: FrameSpace.x2),
+                      ],
+                      Expanded(
+                        child: widget.inlineSecondary
+                            ? _inlineTitle(text, tokens, enabled)
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.body.copyWith(
+                                      color: enabled
+                                          ? tokens.textPrimary
+                                          : tokens.textMuted,
                                     ),
                                   ),
-                              ],
+                                  if (widget.secondary != null)
+                                    FrameMiddleEllipsis(
+                                      text: widget.secondary!,
+                                      style: text.caption.copyWith(
+                                        color: tokens.textMuted,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                      ),
+                      if (widget.trailing != null) ...[
+                        const SizedBox(width: FrameSpace.x2),
+                        widget.trailing!,
+                      ],
+                      if (widget.actions.isNotEmpty) ...[
+                        const SizedBox(width: FrameSpace.x1),
+                        Opacity(
+                          opacity: revealActions ? 1 : 0,
+                          child: IgnorePointer(
+                            ignoring: !revealActions,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: widget.actions,
                             ),
-                    ),
-                    if (widget.trailing != null) ...[
-                      const SizedBox(width: FrameSpace.x2),
-                      widget.trailing!,
-                    ],
-                    if (widget.actions.isNotEmpty) ...[
-                      const SizedBox(width: FrameSpace.x1),
-                      Opacity(
-                        opacity: revealActions ? 1 : 0,
-                        child: IgnorePointer(
-                          ignoring: !revealActions,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: widget.actions,
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

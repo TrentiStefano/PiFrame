@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'frame_control_scale.dart';
+import 'frame_focus.dart';
 
 /// A 16 px icon button inside a 28 x 28 target.
 ///
@@ -44,29 +45,29 @@ class FrameIconAction extends StatelessWidget {
     final glyph = FrameSize.icon * scale;
     final target = FrameSize.hitMin * scale;
 
-    // TODO(focus-ring): wrap in FrameFocusRing once lib/ui/frame_focus.dart
-    // exists. Until then the Material focus highlight below is the indicator.
     return Semantics(
       label: message,
-      child: IconButton(
-        onPressed: onPressed,
-        tooltip: message,
-        icon: Icon(icon, size: glyph, color: color),
-        isSelected: selected,
-        iconSize: glyph,
-        splashRadius: target / 2,
-        style: IconButton.styleFrom(
-          fixedSize: Size.square(target),
-          minimumSize: Size.square(target),
-          padding: EdgeInsets.zero,
-          // Keep the 28 px target: the default padded tap target would
-          // enlarge it to 48 px.
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: VisualDensity.compact,
+      child: FrameFocusRing(
+        child: IconButton(
+          onPressed: onPressed,
+          tooltip: message,
+          icon: Icon(icon, size: glyph, color: color),
+          isSelected: selected,
+          iconSize: glyph,
+          splashRadius: target / 2,
+          style: IconButton.styleFrom(
+            fixedSize: Size.square(target),
+            minimumSize: Size.square(target),
+            padding: EdgeInsets.zero,
+            // Keep the 28 px target: the default padded tap target would
+            // enlarge it to 48 px.
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+          hoverColor: tokens.surfaceElevated,
+          highlightColor: tokens.surfaceElevated,
+          focusColor: tokens.surfaceElevated,
         ),
-        hoverColor: tokens.surfaceElevated,
-        highlightColor: tokens.surfaceElevated,
-        focusColor: tokens.surfaceElevated,
       ),
     );
   }

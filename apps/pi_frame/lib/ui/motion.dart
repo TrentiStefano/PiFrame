@@ -48,7 +48,9 @@ abstract final class FrameMotion {
   /// Hover wait before a tooltip opens.
   static const tooltipWait = FrameMotionTokens.tooltipWait;
 
-  /// Startup logo pulse loop: static under reduced motion.
+  /// Period of the pulse loops: the startup assemble overlay, the working dot
+  /// on running session rows and the subagent orbit. All three stop under
+  /// reduced motion.
   static const pulseLoop = FrameMotionTokens.pulseLoop;
 
   /// Sweep loop of the animated focus border.
@@ -293,10 +295,8 @@ class FrameSwitcher extends StatelessWidget {
       switchOutCurve: curve,
       // The default stack centres children at their own size. Fill the space
       // instead, so a scrolling child keeps its full height.
-      layoutBuilder: (current, previous) => Stack(
-        fit: StackFit.expand,
-        children: [...previous, ?current],
-      ),
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
       transitionBuilder: (widget, animation) {
         if (travel == 0) {
           return FadeTransition(opacity: animation, child: widget);
