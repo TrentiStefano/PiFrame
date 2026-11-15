@@ -200,6 +200,8 @@ Su macOS `Cmd` prende il posto di `Ctrl`, salvo dove indicato. Le scorciatoie di
 | `Invio` | Conferma nella Command Palette, nel selettore branch e nella rinomina della sessione | Palette, selettore branch, rinomina sessione |
 | `Shift+F10` / tasto Menu | Apre il menu contestuale della riga con il focus (o del cursore) nella lista sessioni, nella lista Git e nell'albero file | Sessioni, Git, Repository |
 | `F2` / `Invio` sul titolo della sessione | Rinomina la sessione (come il doppio clic sul titolo) | Intestazione sessione |
+| `F2` sulla riga della sessione selezionata | Rinomina la sessione sotto il cursore della lista (non vale per le cartelle) | Sessioni |
+| `Invio` sulla riga di sessione o cartella | Apre la sessione, oppure espande o comprime la cartella | Sessioni |
 | `Invio` sul messaggio non inviato | Riporta il testo e gli allegati nel composer (come il doppio clic) | Chat |
 | `Esc` | Chiude il livello più in alto, nell'ordine: menu, finestra di dialogo, cassetto (sessioni o contesto), diff nel pannello, modalità Revisione, Impostazioni. Interrompe l'agente solo se nessun livello è aperto e il composer ha il focus durante un'esecuzione | Shell (uniforme) |
 | `Tab` / `Shift+Tab` | Ordine di focus: barra del titolo, sessioni, repository, chat, composer, pannello companion; dall'alto in basso dentro ogni pannello | Shell |
@@ -453,7 +455,7 @@ Impostazioni → **Aspetto** → **Movimento ridotto** → *Riduci animazioni*.
 - Con l'interruttore attivo, PiFrame non fa più muovere gli elementi: i pannelli e le righe appaiono con una dissolvenza, i loop decorativi (anello attivo del compositore, puntino delle sessioni in esecuzione, animazione dei sottoagenti) diventano statici e le animazioni di espansione sono dissolvenze brevi.
 - La preferenza è salvata in `~/.piframe/reduced_motion_settings.json` e vale per tutte le sessioni.
 - Anche l'impostazione del sistema operativo che chiede di *ridurre o rimuovere le animazioni* (macOS: Riduci movimento; Windows: Effetti di animazione disattivati) è rispettata. Le due fonti si combinano: basta una delle due per attivare la modalità ridotta.
-- Gli indicatori di caricamento circolari restano attivi, perché segnalano un'operazione in corso.
+- Gli indicatori di lavoro circolari diventano un'icona statica di sincronizzazione nella stessa dimensione, quindi nulla gira sullo schermo. Le barre di avanzamento indeterminate in Impostazioni → Pacchetti e Aggiornamenti diventano una barra piena e ferma; una barra con percentuale nota continua a mostrare la percentuale.
 
 Movimento normale: mentre l'agente lavora, l'anello del compositore gira sul bordo in loop (3,6 s per giro) e si ferma quando il lavoro finisce. Pannelli, righe e passaggi intermedi usano tempi brevi (120–240 ms) con curve di uscita.
 
@@ -468,7 +470,7 @@ Impostazioni → **Aspetto** → **Animazione di avvio** (EN: *Startup animation
 
 ## 25. Animazioni dei pannelli e notifiche (snackbar)
 
-**Pannelli.** Mostrare, nascondere o comprimere un pannello (dalla barra del titolo, menu *Vista*, o dalla scorciatoia) anima la sua larghezza. Il testo delle altre colonne non va a capo durante l'animazione: il layout è stabile e il pannello che entra sfuma nella propria posizione. Con l'interruttore *Riduci animazioni* (sezione 15) o con la preferenza di sistema attiva, il layout cambia subito e il pannello che entra sfuma soltanto, senza movimento.
+**Pannelli.** Mostrare, nascondere o comprimere un pannello (dalla barra del titolo, menu *Vista*, o dalla scorciatoia) anima la sua larghezza. Il testo delle altre colonne non va a capo durante l'animazione: il layout è stabile e il pannello che entra sfuma nella propria posizione. Con l'interruttore *Riduci animazioni* (sezione 23) o con la preferenza di sistema attiva, il layout cambia subito e il pannello che entra sfuma soltanto, senza movimento.
 
 **Conversazione laterale.** Aprire la conversazione laterale dalla palette comandi (*Conversazione laterale*) divide l'area di chat in due; la divisione segue la stessa regola di animazione dei pannelli. Dettagli in [sezione 19](#19-conversazioni-laterali-read-only-side-conversations).
 
