@@ -2014,7 +2014,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         ),
                         child: Tooltip(
                           message: _currentStrings.transcriptDoubleClickToRename,
-                          waitDuration: const Duration(milliseconds: 400),
+                          waitDuration: FrameMotion.tooltipWait,
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: Row(

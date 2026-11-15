@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../app/row_context_menu.dart';
+import '../../ui/motion.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../domain/session/agent_status.dart';
 import '../composer/composer_draft.dart';
@@ -953,7 +954,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     return RepaintBoundary(
       child: Tooltip(
         message: node.path,
-        waitDuration: const Duration(milliseconds: 700),
+        waitDuration: FrameMotion.tooltipWait,
         child: MouseRegion(
           onEnter: (_) => setState(() => _hovered = true),
           onExit: (_) => setState(() => _hovered = false),

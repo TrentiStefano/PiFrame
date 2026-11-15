@@ -21,6 +21,12 @@ class DaemonEndpoint {
   });
 }
 
+// Non-visual daemon timings. They stay numeric and are listed on the allow-list
+// in test/design_literals_lint_test.dart.
+const _daemonHandleReleaseDelay = Duration(milliseconds: 600);
+const _daemonReadinessPollInterval = Duration(milliseconds: 100);
+const _daemonStaleFilesSettleDelay = Duration(milliseconds: 500);
+
 class DaemonLocator {
   static String get _homeDir {
     final env = Platform.environment;
@@ -75,7 +81,7 @@ class DaemonLocator {
     }
 
     // Allow OS to release socket and file handles
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await Future<void>.delayed(_daemonHandleReleaseDelay);
     return locateOrProbe(autoSpawn: true);
   }
 
@@ -148,7 +154,7 @@ class DaemonLocator {
     final stopwatch = Stopwatch()..start();
 
     while (stopwatch.elapsed < timeout) {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(_daemonReadinessPollInterval);
       endpoint = await _probeActiveDaemon();
       if (endpoint != null) {
         return endpoint;
@@ -193,7 +199,7 @@ class DaemonLocator {
                 if (await f.exists()) await f.delete();
               } catch (_) {}
             }
-            await Future<void>.delayed(const Duration(milliseconds: 500));
+            await Future<void>.delayed(_daemonStaleFilesSettleDelay);
             return null;
           }
 

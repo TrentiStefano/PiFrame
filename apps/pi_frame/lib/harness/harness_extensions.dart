@@ -12,6 +12,11 @@ import 'package:window_manager/window_manager.dart';
 
 import '../app/harness_mode.dart';
 
+// Harness-only pacing for synthetic touch input. Non-visual; listed on the
+// allow-list in test/design_literals_lint_test.dart.
+const _harnessDoubleTapGap = Duration(milliseconds: 80);
+const _harnessLongPressHold = Duration(milliseconds: 600);
+
 class HarnessInspector {
   const HarnessInspector._();
 
@@ -236,7 +241,7 @@ class HarnessInspector {
         _sendTouchTap(pointer, position);
       case HarnessPointerAction.doubleTap:
         _sendTouchTap(pointer, position);
-        await Future<void>.delayed(const Duration(milliseconds: 80));
+        await Future<void>.delayed(_harnessDoubleTapGap);
         _sendTouchTap(_nextPointer++, position);
       case HarnessPointerAction.longPress:
         GestureBinding.instance.handlePointerEvent(
@@ -247,7 +252,7 @@ class HarnessInspector {
             buttons: kPrimaryButton,
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await Future<void>.delayed(_harnessLongPressHold);
         GestureBinding.instance.handlePointerEvent(
           PointerUpEvent(
             pointer: pointer,

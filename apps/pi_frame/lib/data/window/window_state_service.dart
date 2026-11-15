@@ -8,6 +8,10 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../app/harness_mode.dart';
 
+/// Non-visual I/O debounce for saving the window geometry. Numeric on purpose;
+/// listed on the allow-list in test/design_literals_lint_test.dart.
+const _saveDebounceDelay = Duration(milliseconds: 300);
+
 class WindowState {
   final double width;
   final double height;
@@ -125,7 +129,7 @@ class WindowStateService {
   void debounceRecordCurrentState() {
     if (isHarnessMode) return;
     _saveDebounceTimer?.cancel();
-    _saveDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+    _saveDebounceTimer = Timer(_saveDebounceDelay, () {
       recordCurrentWindowState();
     });
   }

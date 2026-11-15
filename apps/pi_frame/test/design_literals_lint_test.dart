@@ -15,9 +15,28 @@ const _allowList = <String>{
   'lib/ui/startup_assemble_animation.dart',
 };
 
+/// Non-visual timers that may stay numeric (daemon retry and readiness, the
+/// window-save I/O debounce, harness touch pacing). Each one is a named
+/// `const` declaration, and the entry is `file#constantName`. Anything else
+/// with a numeric `Duration(milliseconds: …)` counts against the ratchet.
+const _allowedTimerConstants = <String>{
+  // lib/data/daemon/daemon_locator.dart: daemon start and shutdown timings.
+  'lib/data/daemon/daemon_locator.dart#_daemonHandleReleaseDelay',
+  'lib/data/daemon/daemon_locator.dart#_daemonReadinessPollInterval',
+  'lib/data/daemon/daemon_locator.dart#_daemonStaleFilesSettleDelay',
+  // lib/data/window/window_state_service.dart: I/O debounce of window geometry.
+  'lib/data/window/window_state_service.dart#_saveDebounceDelay',
+  // lib/harness/harness_extensions.dart: synthetic touch pacing (harness only).
+  'lib/harness/harness_extensions.dart#_harnessDoubleTapGap',
+  'lib/harness/harness_extensions.dart#_harnessLongPressHold',
+};
+
 final _fontSizeLiteral = RegExp(r'fontSize:\s*(\d+(?:\.\d+)?)');
 final _radiusLiteral = RegExp(r'BorderRadius\.circular\(\s*\d');
 final _durationLiteral = RegExp(r'Duration\(\s*milliseconds:\s*\d');
+final _timerConstantDecl = RegExp(
+  r'\b(\w+)\s*=\s*(?:const\s+)?Duration\(\s*milliseconds:',
+);
 final _curvesLiteral = RegExp(r'\bCurves\.');
 final _boxShadow = RegExp(r'\bBoxShadow\(');
 final _gestureDetector = RegExp(r'\bGestureDetector\(');
@@ -27,7 +46,7 @@ const _baselines = <String, int>{
   'fontSize numeric literal': 26,
   'fontSize below 11': 0,
   'BorderRadius.circular numeric': 4,
-  'Duration(milliseconds:) numeric': 10,
+  'Duration(milliseconds:) numeric': 0,
   'Curves.': 2,
   'BoxShadow(': 10,
   'GestureDetector(': 4,
@@ -74,10 +93,16 @@ void main() {
           hits['BorderRadius.circular numeric']!.add((file: rel, line: lineNo));
         }
         if (_durationLiteral.hasMatch(line)) {
-          hits['Duration(milliseconds:) numeric']!.add((
-            file: rel,
-            line: lineNo,
-          ));
+          final decl = _timerConstantDecl.firstMatch(line);
+          final allowed =
+              decl != null &&
+              _allowedTimerConstants.contains('$rel#${decl.group(1)}');
+          if (!allowed) {
+            hits['Duration(milliseconds:) numeric']!.add((
+              file: rel,
+              line: lineNo,
+            ));
+          }
         }
         if (_curvesLiteral.hasMatch(line)) {
           hits['Curves.']!.add((file: rel, line: lineNo));
