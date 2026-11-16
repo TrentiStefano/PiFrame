@@ -15,6 +15,7 @@ class TodoPopDown extends ConsumerStatefulWidget {
   final bool? isExpanded;
   final VoidCallback? onToggleExpand;
   final bool hideBookTab;
+  final Set<int>? filterTaskIds;
 
   const TodoPopDown({
     super.key,
@@ -23,6 +24,7 @@ class TodoPopDown extends ConsumerStatefulWidget {
     this.isExpanded,
     this.onToggleExpand,
     this.hideBookTab = false,
+    this.filterTaskIds,
   });
 
   @override
@@ -32,10 +34,31 @@ class TodoPopDown extends ConsumerStatefulWidget {
 class _TodoPopDownState extends ConsumerState<TodoPopDown> {
   final TextEditingController _addController = TextEditingController();
   final Set<int> _expandedTaskIds = <int>{};
+  Set<int>? _activeFilterTaskIds;
   bool _isAdding = false;
   bool _internalExpanded = true;
 
   bool get _isExpanded => widget.isExpanded ?? _internalExpanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeFilterTaskIds = widget.filterTaskIds != null
+        ? Set<int>.from(widget.filterTaskIds!)
+        : null;
+  }
+
+  @override
+  void didUpdateWidget(TodoPopDown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.filterTaskIds != oldWidget.filterTaskIds) {
+      setState(() {
+        _activeFilterTaskIds = widget.filterTaskIds != null
+            ? Set<int>.from(widget.filterTaskIds!)
+            : null;
+      });
+    }
+  }
 
   void _handleToggle() {
     if (widget.onToggleExpand != null) {
@@ -88,9 +111,17 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     final percent = totalCount > 0 ? (completedCount / totalCount) : 0.0;
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
+    final visibleTodos = (_activeFilterTaskIds != null && _activeFilterTaskIds!.isNotEmpty)
+        ? todos.where((t) => _activeFilterTaskIds!.contains(t.id)).toList()
+        : todos;
+    final isFiltered = _activeFilterTaskIds != null &&
+        _activeFilterTaskIds!.isNotEmpty &&
+        visibleTodos.length < todos.length;
+
     final panelContent = _isExpanded
         ? Container(
             key: const ValueKey('todo-popdown-panel'),
+            width: double.infinity,
             margin: EdgeInsets.fromLTRB(isMobile ? 12 : 8, 0, isMobile ? 12 : 8, 6),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
@@ -258,8 +289,53 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               ),
             ),
 
+          // Filter banner if showing only newly added tasks
+          if (isFiltered)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: tokens.accent.withValues(alpha: 0.08),
+                border: Border(
+                  bottom: BorderSide(color: tokens.border.withValues(alpha: 0.5)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 12, color: tokens.accent),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      strings.todoNewlyAddedTasks(visibleTodos.length),
+                      style: TextStyle(
+                        fontSize: FrameText.of(context).caption.fontSize,
+                        color: tokens.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    key: const ValueKey('todo-show-all-filter-btn'),
+                    onTap: () => setState(() => _activeFilterTaskIds = null),
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Text(
+                        strings.todoShowAllTasks(todos.length),
+                        style: TextStyle(
+                          fontSize: FrameText.of(context).caption.fontSize,
+                          color: tokens.accent,
+                          fontWeight: FontWeight.bold,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Compact, scrollable list of collapsed tasks
-          if (todos.isEmpty)
+          if (visibleTodos.isEmpty)
             Padding(
               padding: const EdgeInsets.all(14),
               child: Center(
@@ -275,13 +351,13 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               child: ListView.separated(
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                itemCount: todos.length,
+                itemCount: visibleTodos.length,
                 separatorBuilder: (ctx, i) => Divider(
                   color: tokens.border.withValues(alpha: 0.35),
                   height: 1,
                 ),
                 itemBuilder: (ctx, index) {
-                  final task = todos[index];
+                  final task = visibleTodos[index];
                   final isExpanded = _expandedTaskIds.contains(task.id);
                   final hasDescription = task.description != null &&
                       task.description!.trim().isNotEmpty;

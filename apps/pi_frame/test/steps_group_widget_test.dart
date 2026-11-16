@@ -434,6 +434,7 @@ void main() {
             ),
           ],
           timestamp: 1200,
+          metadata: const {'stopReason': 'error'},
         );
 
         final notifier = SessionStateNotifier(sid, null)
@@ -798,7 +799,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
 
         // Group is STILL expanded and thinking step is STILL expanded!
-        expect(find.byType(StepsGroup), findsOneWidget);
+        expect(find.byKey(const ValueKey('step_group_header_steps_user_9')), findsOneWidget);
         expect(find.text('Important thought to read'), findsOneWidget);
       },
     );

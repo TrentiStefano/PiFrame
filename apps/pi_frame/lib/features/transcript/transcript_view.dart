@@ -189,7 +189,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
   AppStrings _currentStrings = const AppStrings(AppLanguage.it);
   _ActiveBookTab _activeBookTab = _ActiveBookTab.none;
-  int _lastActiveTodoCount = 0;
+  Set<int> _knownTodoIds = {};
+  Set<int>? _autoOpenedTodoIds;
   bool _userManuallyToggledTabs = false;
   String? _trackedSessionId;
 
@@ -198,6 +199,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     setState(() {
       _activeBookTab = (_activeBookTab == tab) ? _ActiveBookTab.none : tab;
       _userManuallyToggledTabs = true;
+      _autoOpenedTodoIds = null;
     });
     Future.delayed(FrameMotion.panel, () {
       if (mounted) {
@@ -243,7 +245,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _userScrolledUp = false;
       _userManuallyToggledTabs = false;
       _activeBookTab = _ActiveBookTab.none;
-      _lastActiveTodoCount = 0;
+      _knownTodoIds.clear();
+      _autoOpenedTodoIds = null;
       _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -1177,19 +1180,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
     final cost = mainAgentCost;
 
-    final activeTodoCount = todos.where((t) => !t.isCompleted).length;
+    final currentTodoIds = todos.map((t) => t.id).toSet();
 
     final isNewSession = _trackedSessionId != widget.sessionId;
     if (isNewSession) {
       _trackedSessionId = widget.sessionId;
       _activeBookTab = _ActiveBookTab.none;
       _userManuallyToggledTabs = false;
-      _lastActiveTodoCount = activeTodoCount;
+      _knownTodoIds = currentTodoIds;
+      _autoOpenedTodoIds = null;
     } else {
-      if (activeTodoCount > _lastActiveTodoCount && !_userManuallyToggledTabs) {
+      final newlyAddedIds = currentTodoIds.difference(_knownTodoIds);
+      if (newlyAddedIds.isNotEmpty && !_userManuallyToggledTabs) {
         _activeBookTab = _ActiveBookTab.todos;
+        _autoOpenedTodoIds = newlyAddedIds;
       }
-      _lastActiveTodoCount = activeTodoCount;
+      _knownTodoIds = currentTodoIds;
     }
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
@@ -1815,19 +1821,25 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 top: 0,
                 left: 0,
                 right: 0,
-                child: AnimatedSize(
-                  // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
-                  duration: FrameMotion.fade(context, FrameMotion.small),
-                  curve: FrameMotion.enterCurve,
-                  alignment: Alignment.topCenter,
-                  child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
-                      ? TodoPopDown(
-                          sessionId: widget.sessionId,
-                          isExpanded: true,
-                          hideBookTab: true,
-                          onClose: () => _toggleBookTab(_ActiveBookTab.todos),
-                        )
-                      : const SizedBox.shrink(),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 820),
+                    child: AnimatedSize(
+                      // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
+                      duration: FrameMotion.fade(context, FrameMotion.small),
+                      curve: FrameMotion.enterCurve,
+                      alignment: Alignment.topCenter,
+                      child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
+                          ? TodoPopDown(
+                              sessionId: widget.sessionId,
+                              isExpanded: true,
+                              hideBookTab: true,
+                              filterTaskIds: _autoOpenedTodoIds,
+                              onClose: () => _toggleBookTab(_ActiveBookTab.todos),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
                 ),
               ),
 
@@ -2791,7 +2803,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     if (cleanText.isNotEmpty) const SizedBox(height: 8),
                   ],
                   if (cleanText.isNotEmpty)
-                    RichContent(text: cleanText, cwd: cwd),
+                    RichContent(
+                      text: cleanText,
+                      cwd: cwd,
+                      textColor: isCard ? null : tokens.textSecondary,
+                    ),
                 ],
               );
             },

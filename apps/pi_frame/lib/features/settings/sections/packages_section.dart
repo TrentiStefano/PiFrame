@@ -8,7 +8,6 @@ import '../../../data/update/startup_updates_provider.dart';
 import '../../../domain/errors/user_facing_error.dart';
 import '../../../ui/frame_error_callout.dart';
 import '../../../ui/frame_linear_progress.dart';
-import '../../../ui/frame_list_row.dart';
 import '../../../ui/frame_section.dart';
 import '../package_load_states.dart';
 import '../../../ui/precision.dart';
@@ -207,27 +206,8 @@ class PackagesSection extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: FrameSpace.x2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: tokens.surface,
-                        borderRadius: BorderRadius.circular(tokens.radiusPill),
-                        border: Border.all(color: tokens.borderStrong),
-                      ),
-                      child: Text(
-                        'v$version',
-                        style: text.caption.copyWith(
-                          color: tokens.textSecondary,
-                          fontFamily: tokens.monoFontFamily,
-                        ),
-                      ),
-                    ),
                     if (pin != null) ...[
-                      const SizedBox(width: FrameSpace.x1),
+                      const SizedBox(width: FrameSpace.x2),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: FrameSpace.x2,
@@ -267,7 +247,7 @@ class PackagesSection extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  source,
+                  '$version${pin == null ? '' : ' · pinned $pin'} · $source',
                   style: text.caption.copyWith(
                     color: tokens.textMuted,
                     fontFamily: tokens.monoFontFamily,

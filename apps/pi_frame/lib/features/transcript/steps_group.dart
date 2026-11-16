@@ -232,8 +232,13 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       stepGroupExpansionProvider(widget.sessionId).notifier,
     );
 
+    final groupKey = widget.block.groupId.isNotEmpty
+        ? widget.block.groupId
+        : widget.block.turnId;
+
     final expanded = expansionState.isGroupExpanded(
       turnId: widget.block.turnId,
+      groupId: groupKey,
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
       // Phone-sized screens: start minimized, the user opens it on demand.
@@ -241,12 +246,12 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     );
 
     final fullyExpanded =
-        expansionState.isGroupFullyExpanded(widget.block.turnId);
+        expansionState.isGroupFullyExpanded(groupKey);
     // Auto-collapse at turn end also returns the list to its compact form.
     if (!expanded && fullyExpanded) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          expansionNotifier.setGroupFullyExpanded(widget.block.turnId, false);
+          expansionNotifier.setGroupFullyExpanded(groupKey, false);
         }
       });
     }
@@ -258,9 +263,15 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     final latestStepLabel = _formatLatestStep(widget.block.latestStep, strings);
 
     // Borderless (plan 4.2): the summary row reads like a tool row, and the
-    // expanded steps keep their left rule.
+    // expanded steps keep their left rule. Slightly indented to distinguish from
+    // main answers and align with child thoughts.
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
+      margin: const EdgeInsets.only(
+        left: 20,
+        top: FrameSpace.x1,
+        bottom: FrameSpace.x1,
+        right: FrameSpace.x1,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -273,7 +284,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
             latestStepLabel: latestStepLabel,
             onTap: () {
               expansionNotifier.toggleGroup(
-                widget.block.turnId,
+                groupKey,
                 expanded,
                 runningTurnId:
                     widget.block.isRunning ? widget.block.turnId : null,
@@ -324,6 +335,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     required StepGroupExpansionState expansionState,
     required StepGroupExpansionNotifier expansionNotifier,
   }) {
+    final groupKey = widget.block.groupId.isNotEmpty
+        ? widget.block.groupId
+        : widget.block.turnId;
     final steps = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -376,7 +390,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 ),
                 onPressed: () {
                   expansionNotifier.setGroupFullyExpanded(
-                    widget.block.turnId,
+                    groupKey,
                     true,
                   );
                   widget.onExpansionChanged?.call();

@@ -687,7 +687,18 @@ void _processTurn({
       final hasToolError = currentSteps.whereType<ToolStep>().any(
         (s) => s.isError,
       );
+      final hasSubagentError = currentSteps
+          .whereType<SubagentNotificationStep>()
+          .any(
+            (s) =>
+                s.entry.metadata?['failed'] == true ||
+                s.entry.metadata?['isError'] == true ||
+                s.entry.metadata?['status'] == 'failed' ||
+                s.entry.metadata?['status'] == 'error' ||
+                s.entry.metadata?['sendError'] != null,
+          );
       final isRunningNow = isTurnRunning && isTrailing;
+      final groupHasError = hasToolError || hasSubagentError;
 
       output.add(
         StepsGroupBlock(
@@ -695,9 +706,9 @@ void _processTurn({
           turnId: turn.turnId,
           steps: List<StepItem>.unmodifiable(currentSteps),
           isRunning: isRunningNow,
-          hasError: hasToolError || hasGeneralError,
+          hasError: groupHasError,
           aborted: isAborted,
-          failed: isFailed,
+          failed: isTrailing && isFailed,
           stepCount: stepCount,
           elapsed: elapsed,
           latestStep: latestStep,
@@ -1013,6 +1024,14 @@ void _processTurn({
   }
 
   final hasToolError = steps.whereType<ToolStep>().any((s) => s.isError);
+  final hasSubagentError = steps.whereType<SubagentNotificationStep>().any(
+    (s) =>
+        s.entry.metadata?['failed'] == true ||
+        s.entry.metadata?['isError'] == true ||
+        s.entry.metadata?['status'] == 'failed' ||
+        s.entry.metadata?['status'] == 'error' ||
+        s.entry.metadata?['sendError'] != null,
+  );
   final lastStep = steps.isNotEmpty ? steps.last : null;
   final endedOnFailedTool =
       !isTurnRunning &&
@@ -1025,7 +1044,7 @@ void _processTurn({
           hasUserSendError ||
           endedOnFailedTool ||
           (turn.isLastTurn && live.hasError));
-  final legacyError = hasToolError || hasGeneralError;
+  final legacyError = hasToolError || hasSubagentError || hasGeneralError;
 
   final stepsGroup = StepsGroupBlock(
     groupId: 'steps_${turn.turnId}',

@@ -131,7 +131,6 @@ void main() {
         final firstChipFinder = find.byKey(
           const ValueKey('session-header-context-chip'),
         );
-        final firstChipRect = tester.getRect(firstChipFinder);
         final chipViewportRect = tester.getRect(
           find
               .ancestor(

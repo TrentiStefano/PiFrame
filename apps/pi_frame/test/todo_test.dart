@@ -162,6 +162,52 @@ void main() {
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
       expect(find.text('Fix bug'), findsOneWidget);
     });
+
+    testWidgets('TodoPopDown filters newly added tasks and shows all on button click', (tester) async {
+      final initialTasks = [
+        const TodoItem(id: 1, subject: 'Old task 1', status: 'completed'),
+        const TodoItem(id: 2, subject: 'Old task 2', status: 'pending'),
+        const TodoItem(id: 3, subject: 'Newly added task 3', status: 'pending'),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-filter-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-filter-test', initialTasks),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TodoPopDown(
+                sessionId: 'session-filter-test',
+                isExpanded: true,
+                hideBookTab: true,
+                filterTaskIds: {3},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Only the newly added task 3 is displayed initially
+      expect(find.text('Newly added task 3'), findsOneWidget);
+      expect(find.text('Old task 1'), findsNothing);
+      expect(find.text('Old task 2'), findsNothing);
+
+      // Filter banner is displayed
+      expect(find.byKey(const ValueKey('todo-show-all-filter-btn')), findsOneWidget);
+
+      // Tap show all
+      await tester.tap(find.byKey(const ValueKey('todo-show-all-filter-btn')));
+      await tester.pumpAndSettle();
+
+      // Now all 3 tasks are visible
+      expect(find.text('Old task 1'), findsOneWidget);
+      expect(find.text('Old task 2'), findsOneWidget);
+      expect(find.text('Newly added task 3'), findsOneWidget);
+    });
   });
 
   group('TodoNotifier synchronization and stability', () {

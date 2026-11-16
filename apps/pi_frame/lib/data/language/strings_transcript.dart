@@ -90,6 +90,12 @@ extension TranscriptStrings on AppStrings {
   String get todoVerbCompleted => isItalian ? 'completato' : 'completed';
   String get todoVerbPending =>
       isItalian ? 'da fare (pending)' : 'pending';
+  String todoNewlyAddedTasks(int count) => isItalian
+      ? '$count nuovi task aggiunti'
+      : '$count new tasks added';
+  String todoShowAllTasks(int total) => isItalian
+      ? 'Mostra tutti ($total)'
+      : 'Show all ($total)';
 
   // Subagents & Workflows panel
   String subagentsStripActive(int count) =>

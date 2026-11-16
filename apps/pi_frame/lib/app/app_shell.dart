@@ -1929,12 +1929,17 @@ class _AppShellState extends ConsumerState<AppShell>
             } else if (isCollapsed(pane)) {
               body = _collapsedPaneStrip(pane);
             } else {
+              final fromPx = _slotFromPx[pane] ?? 0;
+              final isEntering = fromPx <= 40;
+              final card = _paneCard(pane, contents[pane]!);
               body = Opacity(
                 opacity: _entryAlpha(pane, targets[pane]!),
-                child: FrameEnter(
-                  key: ValueKey('pane-enter-$pane'),
-                  child: _paneCard(pane, contents[pane]!),
-                ),
+                child: isEntering
+                    ? FrameEnter(
+                        key: ValueKey('pane-enter-$pane'),
+                        child: card,
+                      )
+                    : card,
               );
             }
             children.add(
@@ -2026,6 +2031,8 @@ class _AppShellState extends ConsumerState<AppShell>
   double _entryAlpha(WorkspacePane pane, double target) {
     if (!_paneAnimating) return 1;
     final from = _slotFromPx[pane] ?? 0;
+    // An existing open pane expanding width must stay fully opaque at all times:
+    if (from > 40 && !_collapsedPanes.contains(pane)) return 1;
     if (from >= target - 0.5) return 1;
     final t = _paneTransition.value;
     if (_reducedMotion) return t;

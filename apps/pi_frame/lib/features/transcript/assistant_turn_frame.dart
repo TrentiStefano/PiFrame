@@ -63,9 +63,11 @@ class AssistantTurnFrame extends StatelessWidget {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     return Align(
-      alignment: Alignment.topCenter,
+      alignment: isCard ? Alignment.topLeft : Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: kAssistantReadingMeasure),
+        constraints: BoxConstraints(
+          maxWidth: isCard ? 820 : kAssistantReadingMeasure,
+        ),
         child: HoverRevealBuilder(
           builder: (context, revealed) {
             final content = Stack(

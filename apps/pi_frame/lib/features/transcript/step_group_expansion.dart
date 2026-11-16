@@ -31,10 +31,14 @@ class StepGroupExpansionState {
   /// what fills a small screen, and the user can still open it with a tap.
   bool isGroupExpanded({
     required String turnId,
+    String? groupId,
     required bool isRunning,
     required bool autoCollapse,
     bool compactDefault = false,
   }) {
+    if (groupId != null && groupOverrides.containsKey(groupId)) {
+      return groupOverrides[groupId]!;
+    }
     final userOverride = groupOverrides[turnId];
     if (userOverride != null) return userOverride;
     if (compactDefault) return false;
@@ -111,12 +115,14 @@ class StepGroupExpansionNotifier
   /// Evaluates effective group expansion state.
   bool isGroupExpanded({
     required String turnId,
+    String? groupId,
     required bool isRunning,
     required bool autoCollapse,
     bool compactDefault = false,
   }) {
     return state.isGroupExpanded(
       turnId: turnId,
+      groupId: groupId,
       isRunning: isRunning,
       autoCollapse: autoCollapse,
       compactDefault: compactDefault,

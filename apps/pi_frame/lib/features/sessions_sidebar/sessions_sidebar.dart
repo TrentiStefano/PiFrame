@@ -128,9 +128,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   String _searchQuery = '';
   String _filterMode = 'all'; // 'all', 'active', 'repo'
   bool _creating = false;
-  final Set<String> _expandedFolders = {};
-  // Folders the user collapsed while they were expanded by default.
-  final Set<String> _collapsedFolders = {};
   // Repository expanded by default: the active session's, else the latest used.
   String? _defaultFolder;
   // Keyboard position in the rail, as a row key ('folder:<f>' or 'session:<id>').
@@ -998,7 +995,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               icon: Icons.add_outlined,
                               tooltip: strings.newSessionInFolderTooltip,
                               onPressed: () async {
-                                setState(() => _expandedFolders.add(folder));
+                                _setFolderExpanded(folder, true);
                                 await createSession(context, ref, cwd: folder);
                                 if (mounted) widget.onSessionSelected?.call();
                               },
@@ -1118,7 +1115,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             final activeSid = activeFolders.contains(folder) ? activeId : null;
                             InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
                           } else if (action == 'new_session') {
-                            setState(() => _expandedFolders.add(folder));
+                            _setFolderExpanded(folder, true);
                             await createSession(context, ref, cwd: folder);
                             if (mounted) widget.onSessionSelected?.call();
                           } else if (action == 'remove_repo') {
@@ -1578,7 +1575,6 @@ class _SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
-    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final id = session['id'] as String? ?? 's';
     // A chosen name (rename or Pi title); empty for a provisional one.

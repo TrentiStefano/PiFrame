@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Sfarfallio durante il ridimensionamento dei pannelli ed espansione a catena dei gruppi di passaggi
+
+**Sintomo:** durante il collasso o l'espansione dei pannelli laterali (ad es. sessioni, git o repository), gli altri pannelli aperti sparivano per circa un secondo creando un fastidioso sfarfallio; inoltre cliccando sull'intestazione di un gruppo di passaggi compatti, tutti i gruppi sovrastanti e sottostanti si espandevano contemporaneamente.
+
+**Causa:** nella shell principale (`app_shell.dart`), il calcolo di opacità `_entryAlpha` trattava erroneamente i pannelli già aperti che stavano ampliando la propria larghezza come «nuovi ingressi» azzerandone l'opacità per il 60% della durata della transizione. Per i passaggi compatti, la memorizzazione delle espansioni teneva conto unicamente dell'ID del turno (`turnId`) anziché dell'identificativo univoco del singolo blocco compatto (`groupId`), causando l'apertura condivisa di tutti i gruppi appartenenti allo stesso turno.
+
+**Correzione:** `_entryAlpha` limita l'abbattimento di trasparenza ai soli pannelli effettivamente chiusi (`fromPx <= 40`), lasciando opacità piena e transizione fluida su tutti i pannelli già visibili. In `step_group_expansion.dart` e `steps_group.dart`, la chiave di override memorizza ora il `groupId` specifico del blocco, rendendo l'espansione e la chiusura di ogni singolo gruppo di passaggi completamente indipendente.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/steps_group_widget_test.dart
+```
+
+---
+
 ## Raggruppamento passaggi con ragionamento intermedio e notifiche subagenti
 
 **Sintomo:** con l'opzione di raggruppamento passaggi impostata su «con pensiero» (`withThinking`), i turni contenenti chiamate a strumenti e risposte o passaggi intermedi di ragionamento apparivano sciolti nella chat invece di raggrupparsi in modo compatto; inoltre le notifiche dei subagenti generavano card di grandi dimensioni che sovraccaricavano la cronologia della conversazione.

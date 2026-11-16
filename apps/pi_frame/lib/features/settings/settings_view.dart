@@ -10,14 +10,12 @@ import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
-import '../../data/language/strings_shell.dart';
 import '../../domain/errors/user_facing_error.dart';
 import '../../data/update/startup_updates_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';
 import '../../ui/escape_layers.dart';
 import '../../ui/frame_dialog.dart';
-import '../../ui/frame_status_tag.dart';
 import '../../ui/motion.dart';
 import 'diagnostics.dart';
 import 'sections/aspetto_section.dart';
@@ -692,7 +690,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: _section == _SettingsSection.piCli ||
-                  _section == _SettingsSection.packages
+                  _section == _SettingsSection.packages ||
+                  _section == _SettingsSection.agents
               ? _wideContentMaxWidth
               : _contentMaxWidth,
         ),
@@ -748,19 +747,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     ),
                   ),
                 ),
-                if (runStatus != null) ...[
-                  const SizedBox(width: FrameSpace.x2),
-                  Flexible(
-                    child: Tooltip(
-                      message: strings.settingsRunStatusTooltip,
-                      child: FrameStatusTag(
-                        key: const ValueKey('settings-run-status'),
-                        label: strings.agentStatusLabel(runStatus),
-                        tone: _runStatusTone(runStatus),
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1017,16 +1003,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     AgentStatus.compacting ||
     AgentStatus.awaitingUser => true,
     _ => false,
-  };
-
-  FrameStatusTone _runStatusTone(AgentStatus status) => switch (status) {
-    AgentStatus.idle => FrameStatusTone.neutral,
-    AgentStatus.settled => FrameStatusTone.success,
-    AgentStatus.working ||
-    AgentStatus.retrying ||
-    AgentStatus.compacting => FrameStatusTone.info,
-    AgentStatus.awaitingUser => FrameStatusTone.warning,
-    AgentStatus.error || AgentStatus.workerError => FrameStatusTone.danger,
   };
 }
 

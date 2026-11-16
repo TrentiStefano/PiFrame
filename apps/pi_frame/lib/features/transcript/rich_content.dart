@@ -205,8 +205,14 @@ bool isLikelyFilePath(String s) {
 class RichContent extends StatefulWidget {
   final String text;
   final String? cwd;
+  final Color? textColor;
 
-  const RichContent({super.key, required this.text, this.cwd});
+  const RichContent({
+    super.key,
+    required this.text,
+    this.cwd,
+    this.textColor,
+  });
 
   @override
   State<RichContent> createState() => _RichContentState();
@@ -364,6 +370,7 @@ class RichContent extends StatefulWidget {
     String? cwd,
     AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    Color? textColor,
   }) {
     final rawLines =
         (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split(
@@ -371,6 +378,7 @@ class RichContent extends StatefulWidget {
         );
     final widgets = <Widget>[];
     final currentPara = StringBuffer();
+    final effectiveTextColor = textColor ?? tokens.textPrimary;
 
     void flushPara() {
       if (currentPara.isNotEmpty) {
@@ -388,7 +396,7 @@ class RichContent extends StatefulWidget {
                   createTapRecognizer: createTapRecognizer,
                 ),
                 style: TextStyle(
-                  color: tokens.textPrimary,
+                  color: effectiveTextColor,
                   fontSize: FrameText.fromTokens(tokens).body.fontSize,
                   height: 1.55,
                 ),
@@ -538,7 +546,7 @@ class RichContent extends StatefulWidget {
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
-                      color: tokens.textPrimary,
+                      color: effectiveTextColor,
                       fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
@@ -582,7 +590,7 @@ class RichContent extends StatefulWidget {
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
-                      color: tokens.textPrimary,
+                      color: effectiveTextColor,
                       fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
@@ -918,6 +926,7 @@ class _RichContentState extends State<RichContent> {
   FrameTokens? _cachedTokens;
   String? _cachedCwd;
   AppStrings? _cachedStrings;
+  Color? _cachedTextColor;
   Widget? _cachedBuiltWidget;
 
   @override
@@ -928,7 +937,8 @@ class _RichContentState extends State<RichContent> {
         _cachedText == widget.text &&
         _cachedCwd == widget.cwd &&
         identical(_cachedTokens, tokens) &&
-        _cachedStrings == strings) {
+        _cachedStrings == strings &&
+        _cachedTextColor == widget.textColor) {
       return _cachedBuiltWidget!;
     }
 
@@ -941,6 +951,7 @@ class _RichContentState extends State<RichContent> {
     _cachedTokens = tokens;
     _cachedCwd = widget.cwd;
     _cachedStrings = strings;
+    _cachedTextColor = widget.textColor;
 
     TapGestureRecognizer createTapRecognizer(VoidCallback onTap) {
       final recognizer = TapGestureRecognizer()..onTap = onTap;
@@ -971,6 +982,7 @@ class _RichContentState extends State<RichContent> {
               cwd: widget.cwd,
               strings: strings,
               createTapRecognizer: createTapRecognizer,
+              textColor: widget.textColor,
             );
           }
           return const SizedBox.shrink();

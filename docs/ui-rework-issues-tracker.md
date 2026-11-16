@@ -1,6 +1,6 @@
 # PiFrame UI Rework Issues Tracker
 
-This document tracks all 21 reported UI issues, organized into 6 logical groups by UI section and similarity.
+This document tracks all 30 reported UI issues across both rounds, organized into 9 logical groups by UI section and similarity.
 
 ## Progress Overview
 - [x] Group 1: Chat Pane — Message List, Compaction & Subagents (4/4 completed)
@@ -9,6 +9,9 @@ This document tracks all 21 reported UI issues, organized into 6 logical groups 
 - [x] Group 4: Left Sidebar & Navigation (Sessions, Repo Pane, New Session Dialog) (5/5 completed)
 - [x] Group 5: Right Sidebar (Agents & Git Changes) (3/3 completed)
 - [x] Group 6: Settings Screen (3/3 completed)
+- [x] Group 7: Tasks/Todo Popup & Pane Animations (3/3 completed)
+- [x] Group 8: Message List, Grouped Steps & Styling (3/3 completed)
+- [x] Group 9: Settings View Polish & Performance (3/3 completed)
 
 ---
 
@@ -58,3 +61,24 @@ This document tracks all 21 reported UI issues, organized into 6 logical groups 
 - [x] **6.1 Settings section order**: Move the "Pi" section above the "General" section in the settings navigation sidebar.
 - [x] **6.2 Pi CLI settings layout**: Realign the Output box to start at the same height as the "Quick commands" card, and give Output more horizontal space (`Screenshot 2026-11-16 085414.png`).
 - [x] **6.3 Packages settings layout**: Expand and format the Installed Packages list to not be crammed and squished in the center (`Screenshot 2026-11-16 085711.png`).
+
+---
+
+## Group 7: Tasks/Todo Popup & Pane Animations
+- [x] **7.1 Tasks popup expansion**: When new todo tasks are added, only show the newly added ones instead of expanding the entire full list of all previous tasks (`Screenshot 2026-11-16 092118.png`). Includes a filter banner with "Mostra tutti (N)" action.
+- [x] **7.2 Tasks popup "+" button placement**: Move the "+" button to add a task away from the middle of the header row into a proper location on the far right aligned with the action controls (`Screenshot 2026-11-16 092118.png`).
+- [x] **7.3 Smooth pane expand/minimize animation**: When minimizing or expanding main panes, other panes temporarily disappear for a second. Fixed `_entryAlpha` and `FrameEnter` in `app_shell.dart` so open panes keep opacity at 1.0 during transitions.
+
+---
+
+## Group 8: Message List, Grouped Steps & Styling
+- [x] **8.1 Step group independent expansion**: Expanding one step group currently expands all step groups above and below. Added `groupId` support in `step_group_expansion.dart` and `steps_group.dart` so each step block has an independent expansion key.
+- [x] **8.2 Grouped steps yellow warning icon bug**: Fix spurious yellow warning icon on `Completed X steps` header when all steps within the group completed successfully (`Screenshot 2026-11-16 144441.png`). Isolated group-level tool errors from whole-turn stopReason errors.
+- [x] **8.3 Alignment & Typography**: Indented grouped steps by 20px to the right, pushed final agent answer card to the left (`Alignment.topLeft`, `maxWidth: 820`), and gave intermediate reasoning answers a slightly darker/more muted text color (`tokens.textSecondary`) than final answers (`Screenshot 2026-11-16 144441.png`).
+
+---
+
+## Group 9: Settings View Polish & Performance
+- [x] **9.1 Settings title bar "Completed" text**: Removed the active session status badge ("Completed") that spuriously appeared in the title bar of the PiFrame Settings view (`Screenshot 2026-11-16 150305.png`).
+- [x] **9.2 Agents settings space utilization**: Expanded the Agents settings page layout to use `_wideContentMaxWidth` (1360px) rather than being constrained to a narrow 760px column (`Screenshot 2026-11-16 150305.png`).
+- [x] **9.3 Packages settings loading & layout**: Preserved package list state during background update checks, prevented RenderFlex overflow on narrow viewports, and ensured clear package card layout.
