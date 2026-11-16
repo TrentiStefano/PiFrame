@@ -1137,7 +1137,7 @@ void main() {
     );
   });
 
-  testWidgets('Compact layout spans Commit under the four remote buttons', (
+  testWidgets('Git remote buttons sit on the left of the commit button', (
     tester,
   ) async {
     final fetch = find.byKey(const ValueKey('git-fetch-btn'));
@@ -1150,16 +1150,11 @@ void main() {
     );
     expect(
       tester.getTopLeft(commitButton).dx,
-      closeTo(tester.getTopLeft(fetch).dx, 0.5),
+      greaterThan(tester.getTopRight(sync).dx),
     );
     expect(
-      tester.getBottomRight(commitButton).dx,
-      closeTo(tester.getBottomRight(sync).dx, 0.5),
-    );
-    // Commit sits below the remote buttons.
-    expect(
-      tester.getTopLeft(commitButton).dy,
-      greaterThan(tester.getBottomLeft(fetch).dy),
+      tester.getCenter(commitButton).dy,
+      closeTo(tester.getCenter(fetch).dy, 6.0),
     );
   });
 

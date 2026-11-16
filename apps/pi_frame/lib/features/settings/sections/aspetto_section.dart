@@ -565,6 +565,31 @@ class AppearanceSection extends ConsumerWidget {
                       },
                     ),
                   ),
+                  const SizedBox(height: FrameSpace.x1),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: SwitchListTile(
+                      key: const ValueKey(
+                        'settings-step-grouping-show-intermediate-answers-switch',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        strings.stepGroupingShowIntermediateAnswersTitle,
+                        style: text.body.copyWith(color: tokens.textPrimary),
+                      ),
+                      subtitle: Text(
+                        strings.stepGroupingShowIntermediateAnswersSubtitle,
+                        style: text.caption.copyWith(color: tokens.textMuted),
+                      ),
+                      activeThumbColor: tokens.accent,
+                      value: stepGroupingSettings.showIntermediateAnswers,
+                      onChanged: (val) {
+                        ref
+                            .read(stepGroupingSettingsProvider.notifier)
+                            .setShowIntermediateAnswers(val);
+                      },
+                    ),
+                  ),
                 ],
               ),
             );

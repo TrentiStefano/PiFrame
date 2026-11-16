@@ -10,7 +10,7 @@ import 'package:pi_frame/ui/frame_pane_header.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 const _longCwd =
-    r'C:\Users\Stefano\.piframe-harness\integ\fixtures\workspace-with-a-very-long-folder-name';
+    r'C:\Users\Stefano\.piframe-harness\integ\fixtures\workspace-with-a-very-long-folder-name\nested-subdirectory\submodule-repo-name-extra-long-path';
 
 /// Pumps the real session header inside a box of [width] px and returns once
 /// it has settled.
@@ -69,7 +69,7 @@ Finder _headerCwd() {
 void main() {
   for (final width in [280.0, 320.0, 480.0, 800.0, 1200.0]) {
     testWidgets(
-      'session header status tag never overlaps the title or cwd at ${width.toInt()} px',
+      'session header status tag and cards sit on top row, cwd sits on line below at  px',
       (tester) async {
         await _pumpHeader(tester, width);
 
@@ -81,15 +81,17 @@ void main() {
         );
         final cwdRect = tester.getRect(_headerCwd());
 
+        // Title and status badge do not overlap
         expect(
-          titleRect.right <= statusRect.left + 0.5,
-          isTrue,
-          reason: 'title $titleRect overlaps status $statusRect',
+          titleRect.overlaps(statusRect),
+          isFalse,
+          reason: 'title  overlaps status ',
         );
+        // Cwd sits on a line below the title / status cards
         expect(
-          cwdRect.right <= statusRect.left + 0.5,
+          cwdRect.top >= titleRect.bottom - 1.0,
           isTrue,
-          reason: 'cwd $cwdRect overlaps status $statusRect',
+          reason: 'cwd  is not below title ',
         );
         expect(tester.takeException(), isNull);
       },
@@ -98,7 +100,7 @@ void main() {
 
   for (final width in [480.0, 800.0, 1200.0]) {
     testWidgets(
-      'long cwd is middle-ellipsized and the status keeps its width at ${width.toInt()} px',
+      'long cwd is middle-ellipsized and the status keeps its width at  px',
       (tester) async {
         await _pumpHeader(tester, width);
 
@@ -112,14 +114,14 @@ void main() {
           find.byKey(const ValueKey('session-header-status')),
         );
         // The status keeps its intrinsic width (the label and dot fit).
-        expect(statusRect.width > 100, isTrue, reason: 'status $statusRect');
+        expect(statusRect.width > 100, isTrue, reason: 'status ');
       },
     );
   }
 
   for (final width in [480.0, 800.0, 1200.0, 1584.0]) {
     testWidgets(
-      'status pill and chips never intersect, chips start after the pill at ${width.toInt()} px',
+      'status pill is on far right, chips sit on its left and never intersect at  px',
       (tester) async {
         await _pumpHeader(tester, width);
 
@@ -130,8 +132,6 @@ void main() {
           const ValueKey('session-header-context-chip'),
         );
         final firstChipRect = tester.getRect(firstChipFinder);
-        // The chips sit in a clipped horizontal scroll view; its viewport
-        // must start after the pill as well.
         final chipViewportRect = tester.getRect(
           find
               .ancestor(
@@ -141,21 +141,17 @@ void main() {
               .first,
         );
 
+        // Status pill is to the right of the chips
         expect(
-          statusRect.overlaps(firstChipRect),
+          statusRect.overlaps(chipViewportRect),
           isFalse,
-          reason: 'status $statusRect overlaps first chip $firstChipRect',
+          reason: 'status  overlaps chip viewport ',
         );
         expect(
-          firstChipRect.left >= statusRect.right - 0.5,
-          isTrue,
-          reason: 'first chip $firstChipRect starts under status $statusRect',
-        );
-        expect(
-          chipViewportRect.left >= statusRect.right - 0.5,
+          statusRect.left >= chipViewportRect.right - 0.5,
           isTrue,
           reason:
-              'chip viewport $chipViewportRect starts under status $statusRect',
+              'status  is not to the right of chip viewport ',
         );
         expect(tester.takeException(), isNull);
       },

@@ -432,7 +432,7 @@ class _PiCliSectionState extends State<PiCliSection> {
           const SizedBox(height: FrameSpace.x2),
           Container(
             key: const ValueKey('pi-cli-console'),
-            height: 240,
+            height: 480,
             decoration: BoxDecoration(
               color: tokens.chassis,
               borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -497,36 +497,31 @@ class _PiCliSectionState extends State<PiCliSection> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= _piCliWideBreakpoint) {
-          // Wide: commands on the left, the console in a right column.
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          // Wide: commands on the left, the console in a right column starting at the same height as quick commands.
+          return ListView(
+            padding: const EdgeInsets.all(FrameSpace.x6),
             children: [
-              Expanded(
-                flex: 3,
-                child: ListView(
-                  padding: const EdgeInsets.all(FrameSpace.x6),
-                  children: [
-                    title,
-                    const SizedBox(height: FrameSpace.x6),
-                    commandsSection,
-                    const SizedBox(height: FrameSpace.x6),
-                    customSection,
-                    const SizedBox(height: FrameSpace.x6),
-                    footer,
-                  ],
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    0,
-                    FrameSpace.x6,
-                    FrameSpace.x6,
-                    FrameSpace.x6,
+              title,
+              const SizedBox(height: FrameSpace.x6),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        commandsSection,
+                        const SizedBox(height: FrameSpace.x6),
+                        customSection,
+                        const SizedBox(height: FrameSpace.x6),
+                        footer,
+                      ],
+                    ),
                   ),
-                  children: [consoleSection],
-                ),
+                  const SizedBox(width: FrameSpace.x6),
+                  Expanded(flex: 6, child: consoleSection),
+                ],
               ),
             ],
           );

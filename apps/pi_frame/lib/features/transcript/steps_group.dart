@@ -21,6 +21,7 @@ import '../../ui/motion.dart';
 import '../tool_timeline/tool_card.dart';
 import 'rich_content.dart';
 import 'step_group_expansion.dart';
+import 'task_notification_card.dart';
 
 /// Helper to abbreviate file path in the middle (e.g. 'lib/…/file.dart').
 String abbreviatePath(String path, {int maxLength = 36}) {
@@ -423,6 +424,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
         defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento',
       );
     }
+    if (step is SubagentNotificationStep) {
+      final data = TaskNotificationData.tryParse(step.entry.text);
+      return data?.summary ?? 'Subagent';
+    }
     return '';
   }
 
@@ -583,6 +588,19 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       return _buildIntermediateTextStep(
         step: step,
         tokens: tokens,
+      );
+    }
+    if (step is SubagentNotificationStep) {
+      return _buildSubagentNotificationStep(
+        context: context,
+        step: step,
+        tokens: tokens,
+        strings: strings,
+        isExpanded: expansionState.isStepExpanded(step.id),
+        onToggle: () {
+          expansionNotifier.toggleStep(step.id);
+          widget.onExpansionChanged?.call();
+        },
       );
     }
     return const SizedBox.shrink();
@@ -919,6 +937,136 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
           opacity: 0.9,
           child: RichContent(text: step.text, cwd: cwd),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSubagentNotificationStep({
+    required BuildContext context,
+    required SubagentNotificationStep step,
+    required FrameTokens tokens,
+    required AppStrings strings,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+  }) {
+    final data = TaskNotificationData.tryParse(step.entry.text);
+    final summary = data?.summary ?? 'Subagent completed';
+    final status = data?.status ?? 'Done';
+    final isError = status.toLowerCase().contains('error') || status.toLowerCase().contains('failed');
+    final isWrappedUp = status.toLowerCase().contains('turn limit') || status.toLowerCase().contains('wrapped');
+
+    String? durationText;
+    if (data?.durationMs != null) {
+      final totalSeconds = (data!.durationMs! / 1000).round();
+      if (totalSeconds < 60) {
+        durationText = '${totalSeconds}s';
+      } else {
+        final m = totalSeconds ~/ 60;
+        final s = totalSeconds % 60;
+        durationText = '${m}m ${s}s';
+      }
+    }
+
+    final cwd = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
+    );
+
+    return Padding(
+      key: ValueKey('subagent_step_${step.id}'),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: isExpanded,
+            label: summary,
+            child: InkWell(
+              key: ValueKey('subagent_step_header_${step.id}'),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.smart_toy_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: FrameText.of(context).caption.fontSize,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (durationText != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Text(
+                          durationText,
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: FrameText.of(context).caption.fontSize,
+                            fontFamily: tokens.monoFontFamily,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Icon(
+                      isError
+                          ? Icons.error_outline
+                          : isWrappedUp
+                              ? Icons.warning_amber_outlined
+                              : Icons.check_circle_outline,
+                      size: FrameSize.icon,
+                      color: isError
+                          ? tokens.agentError
+                          : isWrappedUp
+                              ? tokens.signalWarning
+                              : tokens.agentSettled,
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      isExpanded
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          FrameExpandable(
+            expanded: isExpanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 4),
+              child: data != null
+                  ? TaskNotificationCard(data: data, cwd: cwd)
+                  : RichContent(text: step.entry.text, cwd: cwd),
+            ),
+          ),
+        ],
       ),
     );
   }

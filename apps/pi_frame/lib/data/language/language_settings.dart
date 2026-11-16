@@ -381,6 +381,12 @@ class AppStrings {
       ? 'Comprime automaticamente il gruppo di passaggi al termine dell\'elaborazione.'
       : 'Automatically collapse the step group when the turn finishes.';
 
+  String get stepGroupingShowIntermediateAnswersTitle =>
+      isItalian ? 'Risposte intermedie visibili' : 'Show intermediate answers';
+  String get stepGroupingShowIntermediateAnswersSubtitle => isItalian
+      ? 'Mostra le risposte e il ragionamento dell\'agente tra i gruppi di passaggi.'
+      : 'Display agent reasoning and answers between step groups.';
+
   // Step group headers & labels
   String get stepGroupWorking =>
       isItalian ? 'Elaborazione…' : 'Working…';

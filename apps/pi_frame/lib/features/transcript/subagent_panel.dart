@@ -26,6 +26,9 @@ bool get _isTestBinding =>
 /// Width of the open Agents panel, its 360 px card plus the 3 px padding on each side.
 const double kAgentSidecarOpenWidth = 366;
 
+/// Adjustable width of the open Agents panel card.
+final agentSidecarWidthProvider = StateProvider<double>((ref) => 360.0);
+
 /// Chat pane minimum width (audit R2). When an open Agents panel would leave the
 /// chat narrower than this, the panel floats over the chat instead of squeezing it.
 const double kChatPaneMinWidth = 420;
@@ -61,8 +64,9 @@ class AgentSidecarLayout extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final panelWidth = ref.watch(agentSidecarWidthProvider);
         final floats =
-            constraints.maxWidth - kAgentSidecarOpenWidth < kChatPaneMinWidth;
+            constraints.maxWidth - (panelWidth + 6) < kChatPaneMinWidth;
         if (!floats) return row();
         // The sheet stops above the composer, which sits at the bottom of the chat,
         // so the send controls stay reachable while the sheet is open.
@@ -139,26 +143,52 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     if (!hasItems) {
       child = const SizedBox(key: ValueKey('agent-activity-none'), height: 0);
     } else if (open) {
-      child = Padding(
+      final panelWidth = ref.watch(agentSidecarWidthProvider);
+      child = Row(
         key: const ValueKey('agent-activity-open'),
-        padding: const EdgeInsets.all(3),
-        // Never wider than the slot it is given (an overlay on a narrow chat pane).
-        child: LayoutBuilder(
-          builder: (context, constraints) => Container(
-            width: constraints.maxWidth < 360 ? constraints.maxWidth : 360,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: tokens.surface,
-              border: Border.all(color: tokens.border),
-              borderRadius: BorderRadius.circular(tokens.radiusLg),
-            ),
-            child: AgentActivityPanel(
-              sessionId: sessionId,
-              onClose: () =>
-                  ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeColumn,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerMove: (event) {
+                if (event.buttons != 0) {
+                  final current = ref.read(agentSidecarWidthProvider);
+                  final next = (current - event.delta.dx).clamp(240.0, 700.0);
+                  ref.read(agentSidecarWidthProvider.notifier).state = next;
+                }
+              },
+              child: const SizedBox(
+                width: 6,
+                child: Center(
+                  child: SizedBox(width: 1),
+                ),
+              ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.all(3),
+            // Never wider than the slot it is given (an overlay on a narrow chat pane).
+            child: LayoutBuilder(
+              builder: (context, constraints) => Container(
+                width: panelWidth.clamp(240.0, constraints.maxWidth),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: tokens.surface,
+                  border: Border.all(color: tokens.border),
+                  borderRadius: BorderRadius.circular(tokens.radiusLg),
+                ),
+                child: AgentActivityPanel(
+                  sessionId: sessionId,
+                  onClose: () =>
+                      ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false,
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     } else {
       child = Padding(
@@ -494,6 +524,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
   // Row ids already shown once; only rows missing here play the entrance.
   final Set<String> _seenIds = <String>{};
   bool _firstBuild = true;
+  bool _completedExpanded = false;
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: FrameMotion.pulseLoop);
 
@@ -571,14 +602,28 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     _firstBuild = false;
     _seenIds.addAll(nodes.map((n) => n.id));
 
+    final activeNodes = <_TreeNode>[];
+    final completedNodes = <_TreeNode>[];
+    for (final node in nodes) {
+      if (node.depth == 1 &&
+          node.agent != null &&
+          !node.isRunning &&
+          !_expandedIds.contains(node.id) &&
+          anyRunning) {
+        completedNodes.add(node);
+      } else {
+        activeNodes.add(node);
+      }
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
       children: [
         _TreeRow(
           key: const ValueKey('agent-tree-root'),
           depth: 0,
-          isLast: true,
-          hasChildren: nodes.isNotEmpty,
+          isLast: activeNodes.isEmpty && completedNodes.isEmpty,
+          hasChildren: activeNodes.isNotEmpty || completedNodes.isNotEmpty,
           running: anyRunning,
           color: context.tokens.accent,
           pulse: _pulse,
@@ -594,7 +639,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
             style: TextStyle(color: context.tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
           ),
         ),
-        for (final node in nodes)
+        for (final node in activeNodes)
           _Entrance(
             key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
             animate: fresh.contains(node.id),
@@ -602,6 +647,41 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
                 ? _workflowRow(node, strings)
                 : _agentRow(node, notifier, strings),
           ),
+        if (completedNodes.isNotEmpty) ...[
+          _Entrance(
+            key: const ValueKey('agent-tree-completed-header'),
+            animate: false,
+            child: _TreeRow(
+              key: const ValueKey('agent-tree-completed-toggle'),
+              depth: 1,
+              isLast: true,
+              running: false,
+              color: context.tokens.textMuted,
+              pulse: _pulse,
+              onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+              avatar: _NodeAvatar(
+                icon: Icons.check_circle_outline,
+                color: context.tokens.textMuted,
+                running: false,
+                pulse: _pulse,
+              ),
+              title: '${strings.subagentStatusCompleted} (${completedNodes.length})',
+              trailing: Icon(
+                _completedExpanded ? Icons.expand_less : Icons.expand_more,
+                size: FrameSize.icon,
+                color: context.tokens.textMuted,
+              ),
+              subtitle: null,
+            ),
+          ),
+          if (_completedExpanded)
+            for (final node in completedNodes)
+              _Entrance(
+                key: ValueKey('subagent-entry-${node.id}'),
+                animate: fresh.contains(node.id),
+                child: _agentRow(node, notifier, strings),
+              ),
+        ],
       ],
     );
   }

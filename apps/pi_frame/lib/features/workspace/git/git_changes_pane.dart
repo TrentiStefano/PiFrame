@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../ui/precision.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -331,43 +333,33 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Widget _remoteButton({
     required String action,
     required IconData icon,
-    required String label,
     required String tooltip,
     required bool enabled,
     required FrameTokens tokens,
   }) {
-    final text = FrameText.of(context);
-    return Expanded(
-      child: Tooltip(
-        message: tooltip,
-        child: PressFeedback(enabled: (enabled ? () => _action(action, const []) : null) != null, child: OutlinedButton(
-          key: ValueKey('git-$action-btn'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x1,
-              vertical: FrameSpace.x1,
+    return Tooltip(
+      message: tooltip,
+      child: PressFeedback(
+        enabled: enabled,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: OutlinedButton(
+            key: ValueKey('git-$action-btn'),
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(28, 28),
+              visualDensity: VisualDensity.compact,
+              foregroundColor: tokens.textPrimary,
+              side: BorderSide(color: tokens.border),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
             ),
-            minimumSize: const Size(0, 30),
-            visualDensity: VisualDensity.compact,
-            foregroundColor: tokens.textPrimary,
-            side: BorderSide(color: tokens.border),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            onPressed: enabled ? () => _action(action, const []) : null,
+            child: Icon(icon, size: FrameSize.icon),
           ),
-          onPressed: enabled ? () => _action(action, const []) : null,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: FrameSize.icon),
-                const SizedBox(width: FrameSpace.x1),
-                Text(label, style: text.caption),
-              ],
-            ),
-          ),
-        )),
+        ),
       ),
     );
   }
@@ -535,31 +527,37 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             style: text.bodyLarge.copyWith(color: tokens.textMuted),
           ),
           actions: [
-            PressFeedback(enabled: true, child: OutlinedButton(
-              key: const ValueKey('git-cancel-switch-btn'),
-              autofocus: true,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: tokens.textPrimary,
-                side: BorderSide(color: tokens.border),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+            PressFeedback(
+              enabled: true,
+              child: OutlinedButton(
+                key: const ValueKey('git-cancel-switch-btn'),
+                autofocus: true,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: tokens.textPrimary,
+                  side: BorderSide(color: tokens.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  ),
                 ),
+                onPressed: () => popOnce(dialogContext, false),
+                child: Text(strings.cancel),
               ),
-              onPressed: () => popOnce(dialogContext, false),
-              child: Text(strings.cancel),
-            )),
-            PressFeedback(enabled: true, child: FilledButton(
-              key: const ValueKey('git-stash-and-switch-btn'),
-              style: FilledButton.styleFrom(
-                backgroundColor: tokens.accent,
-                foregroundColor: tokens.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
+            PressFeedback(
+              enabled: true,
+              child: FilledButton(
+                key: const ValueKey('git-stash-and-switch-btn'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: tokens.accent,
+                  foregroundColor: tokens.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  ),
                 ),
+                onPressed: () => popOnce(dialogContext, true),
+                child: Text(strings.stashAndSwitchBtn),
               ),
-              onPressed: () => popOnce(dialogContext, true),
-              child: Text(strings.stashAndSwitchBtn),
-            )),
+            ),
           ],
         );
       },
@@ -596,7 +594,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           title: Row(
             children: [
-              Icon(Icons.error_outline, color: tokens.danger, size: FrameSize.iconLg),
+              Icon(
+                Icons.error_outline,
+                color: tokens.danger,
+                size: FrameSize.iconLg,
+              ),
               const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Text(
@@ -666,17 +668,20 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             ),
           ),
           actions: [
-            PressFeedback(enabled: true, child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: tokens.accent,
-                foregroundColor: tokens.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+            PressFeedback(
+              enabled: true,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: tokens.accent,
+                  foregroundColor: tokens.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  ),
                 ),
+                onPressed: () => popOnce(dialogContext),
+                child: Text(strings.close),
               ),
-              onPressed: () => popOnce(dialogContext),
-              child: Text(strings.close),
-            )),
+            ),
           ],
         );
       },
@@ -1003,7 +1008,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           key: const ValueKey('git-menu-discard'),
           value: 'discard',
           enabled: !writesOff,
-          child: item(Icons.undo_outlined, strings.gitMenuDiscard, tokens.danger),
+          child: item(
+            Icons.undo_outlined,
+            strings.gitMenuDiscard,
+            tokens.danger,
+          ),
         ),
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-copy-path'),
@@ -1290,26 +1299,30 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.git,
             onSelectCompanionTab: widget.onSelectCompanionTab,
             titleWidget: Row(
-                children: [
-                  Icon(Icons.source_outlined, size: FrameSize.icon, color: tokens.accent),
-                  const SizedBox(width: FrameSpace.x2),
-                  // Title and chip share the header width and shrink with an
-                  // ellipsis at large text scale, instead of scrolling off.
-                  Flexible(
-                    child: Text(
-                      strings.gitChangesLabel.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.label.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.4,
-                      ),
+              children: [
+                Icon(
+                  Icons.source_outlined,
+                  size: FrameSize.icon,
+                  color: tokens.accent,
+                ),
+                const SizedBox(width: FrameSpace.x2),
+                // Title and chip share the header width and shrink with an
+                // ellipsis at large text scale, instead of scrolling off.
+                Flexible(
+                  child: Text(
+                    strings.gitChangesLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.label.copyWith(
+                      color: tokens.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  if (ref.watch(browserPaneSupportedProvider)) ...[
-                    const SizedBox(width: FrameSpace.x2),
-                    Flexible(
+                ),
+                if (ref.watch(browserPaneSupportedProvider)) ...[
+                  const SizedBox(width: FrameSpace.x2),
+                  Flexible(
                     child: InkWell(
                       key: const ValueKey('right-pane-switch-browser-chip'),
                       onTap: () {
@@ -1351,10 +1364,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                         ),
                       ),
                     ),
-                    ),
-                  ],
+                  ),
                 ],
-              ),
+              ],
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1372,7 +1385,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       ref.read(rightPaneModeProvider.notifier).state =
                           RightPaneMode.browser;
                     },
-                    icon: const Icon(Icons.language_outlined, size: FrameSize.icon),
+                    icon: const Icon(
+                      Icons.language_outlined,
+                      size: FrameSize.icon,
+                    ),
                   ),
                 IconButton(
                   tooltip: strings.refreshGitStatusTooltip,
@@ -1383,7 +1399,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     minHeight: 26,
                   ),
                   onPressed: _loading ? null : _refresh,
-                  icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
+                  icon: const Icon(
+                    Icons.refresh_outlined,
+                    size: FrameSize.icon,
+                  ),
                 ),
                 if (widget.onCollapse != null) ...[
                   const SizedBox(width: FrameSpace.x1),
@@ -1393,7 +1412,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     constraints: const BoxConstraints(),
                     tooltip: strings.collapseGitPanelTooltip,
                     onPressed: widget.onCollapse,
-                    icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg),
+                    icon: const Icon(
+                      Icons.chevron_right_outlined,
+                      size: FrameSize.iconLg,
+                    ),
                   ),
                 ],
               ],
@@ -1720,49 +1742,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                       setState(() => _bodyOpen = !_bodyOpen),
                                   onCommit: _commit,
                                 ),
-                                const SizedBox(height: FrameSpace.x2),
-                                Row(
-                                  children: [
-                                    for (final (i, spec) in [
-                                      (
-                                        'fetch',
-                                        Icons.cloud_download_outlined,
-                                        strings.gitFetchLabel,
-                                        strings.gitFetchTooltip,
-                                      ),
-                                      (
-                                        'pull',
-                                        Icons.arrow_downward_outlined,
-                                        strings.gitPullLabel,
-                                        strings.gitPullTooltip,
-                                      ),
-                                      (
-                                        'push',
-                                        Icons.arrow_upward_outlined,
-                                        strings.gitPushLabel,
-                                        strings.gitPushTooltip,
-                                      ),
-                                      (
-                                        'sync',
-                                        Icons.sync_outlined,
-                                        strings.gitSyncLabel,
-                                        strings.gitSyncTooltip,
-                                      ),
-                                    ].indexed) ...[
-                                      if (i > 0)
-                                        const SizedBox(width: FrameSpace.x1),
-                                      _remoteButton(
-                                        action: spec.$1,
-                                        icon: spec.$2,
-                                        label: spec.$3,
-                                        tooltip: spec.$4,
-                                        enabled:
-                                            !blocked && !_working && !_loading,
-                                        tokens: tokens,
-                                      ),
-                                    ],
-                                  ],
-                                ),
                               ],
                             ),
                           ),
@@ -1773,21 +1752,58 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               FrameSpace.x2,
                               FrameSpace.x2,
                             ),
-                            // Rebuilt as the subject changes, so the button
-                            // enables as soon as a subject is typed.
-                            child: ListenableBuilder(
-                              listenable: _subject,
-                              builder: (context, _) => GitCommitButton(
-                                label: strings.commitButtonLabel(staged.length),
-                                tooltip: strings.commitShortcutTooltip,
-                                enabled:
-                                    !blocked &&
-                                    !_working &&
-                                    staged.isNotEmpty &&
-                                    _subject.text.trim().isNotEmpty,
-                                fullWidth: gitCompactLayout(context),
-                                onPressed: _commit,
-                              ),
+                            child: Row(
+                              children: [
+                                for (final spec in [
+                                  (
+                                    'fetch',
+                                    Icons.cloud_download_outlined,
+                                    strings.gitFetchTooltip,
+                                  ),
+                                  (
+                                    'pull',
+                                    Icons.arrow_downward_outlined,
+                                    strings.gitPullTooltip,
+                                  ),
+                                  (
+                                    'push',
+                                    Icons.arrow_upward_outlined,
+                                    strings.gitPushTooltip,
+                                  ),
+                                  (
+                                    'sync',
+                                    Icons.sync_outlined,
+                                    strings.gitSyncTooltip,
+                                  ),
+                                ]) ...[
+                                  _remoteButton(
+                                    action: spec.$1,
+                                    icon: spec.$2,
+                                    tooltip: spec.$3,
+                                    enabled: !blocked && !_working && !_loading,
+                                    tokens: tokens,
+                                  ),
+                                  const SizedBox(width: FrameSpace.x1),
+                                ],
+                                Expanded(
+                                  child: ListenableBuilder(
+                                    listenable: _subject,
+                                    builder: (context, _) => GitCommitButton(
+                                      label: strings.commitButtonLabel(
+                                        staged.length,
+                                      ),
+                                      tooltip: strings.commitShortcutTooltip,
+                                      enabled:
+                                          !blocked &&
+                                          !_working &&
+                                          staged.isNotEmpty &&
+                                          _subject.text.trim().isNotEmpty,
+                                      fullWidth: gitCompactLayout(context),
+                                      onPressed: _commit,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],

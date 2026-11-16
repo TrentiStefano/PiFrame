@@ -4,7 +4,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'frame_middle_ellipsis.dart';
 
 /// The heading of a pane: a [title] in the pane-heading style (Barlow
-/// Condensed, `FrameTokens.headingFontFamily`, the only place it is used), an
+/// Condensed, FrameTokens.headingFontFamily, the only place it is used), an
 /// optional [subtitle] such as a path (mono, truncated in the middle),
 /// trailing [actions] and an optional [tabs] strip below.
 ///
@@ -12,13 +12,14 @@ import 'frame_middle_ellipsis.dart';
 /// its own gestures or controls (such as a double-tap rename). [title] is
 /// still required, so the pane keeps a plain-text label without it.
 ///
-/// The header row is at least `FrameSize.paneHeader` tall. It is flat, with
+/// The header row is at least FrameSize.paneHeader tall. It is flat, with
 /// no card or elevation. It has no interactive state of its own: the actions
 /// carry their own focus, hover and disabled states.
 class FramePaneHeader extends StatelessWidget {
   final String title;
   final Widget? titleWidget;
   final String? subtitle;
+  final Widget? subtitleWidget;
   final List<Widget> actions;
   final Widget? tabs;
 
@@ -27,6 +28,7 @@ class FramePaneHeader extends StatelessWidget {
     required this.title,
     this.titleWidget,
     this.subtitle,
+    this.subtitleWidget,
     this.actions = const [],
     this.tabs,
   });
@@ -47,15 +49,15 @@ class FramePaneHeader extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: FrameSize.paneHeader),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Semantics(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
                         header: true,
                         child:
                             titleWidget ??
@@ -66,17 +68,21 @@ class FramePaneHeader extends StatelessWidget {
                               style: titleStyle,
                             ),
                       ),
-                      if (subtitle != null)
-                        FrameMiddleEllipsis(
-                          text: subtitle!,
-                          style: text.mono.copyWith(color: tokens.textMuted),
-                        ),
+                    ),
+                    for (final action in actions) ...[
+                      const SizedBox(width: FrameSpace.x1),
+                      action,
                     ],
-                  ),
+                  ],
                 ),
-                for (final action in actions) ...[
-                  const SizedBox(width: FrameSpace.x1),
-                  action,
+                if (subtitleWidget != null) ...[
+                  const SizedBox(height: 2),
+                  subtitleWidget!,
+                ] else if (subtitle != null) ...[
+                  FrameMiddleEllipsis(
+                    text: subtitle!,
+                    style: text.mono.copyWith(color: tokens.textMuted),
+                  ),
                 ],
               ],
             ),

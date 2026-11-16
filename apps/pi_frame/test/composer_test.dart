@@ -320,9 +320,15 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 50));
 
-      // The status line and the full field are visible while streaming
-      expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+      // Initially minimized while streaming
+      expect(
+        find.byKey(const ValueKey('composer-minimized-bar')),
+        findsOneWidget,
+      );
+
+      // Tap minimized bar to expand
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+      await tester.pumpAndSettle();
 
       // Steer & Follow-up buttons are visible
       expect(find.text('Steer'), findsOneWidget);

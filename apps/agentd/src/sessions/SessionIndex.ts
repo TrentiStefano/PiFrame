@@ -398,7 +398,7 @@ export class SessionIndex {
         if (cached && this.cacheMatches(cached, stat)) {
           if (isTemporarySessionCwd(cached.summary.cwd) && !cached.summary.parentSession) return null;
           if (cached.ctime === undefined) needsRefresh = true;
-          return { summary: { ...cached.summary, sizeBytes: stat.size, lastActivityAt: stat.mtimeMs }, stat };
+          return { summary: { ...cached.summary, sizeBytes: stat.size, lastActivityAt: cached.summary.lastActivityAt || stat.mtimeMs }, stat };
         }
         const provisional = await this.parseSessionFileFast(filePath, stat, dirName);
         if (!provisional) return null;
@@ -602,7 +602,8 @@ export class SessionIndex {
     parentSession: string | undefined,
     messageCount?: number,
     lastMessagePreview?: string,
-    firstUserPrompt = ''
+    firstUserPrompt = '',
+    lastMessageTimestamp?: number
   ): SessionSummary | null {
     if (isTemporarySessionCwd(cwd) && !parentSession) return null;
     const isSubagentNameOrId =
@@ -610,7 +611,8 @@ export class SessionIndex {
       Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
     const summary: SessionSummary = {
       id: sessionId, name, cwd, gitRoot: null, sessionFile: filePath,
-      createdAt: stat.birthtimeMs || stat.mtimeMs, lastActivityAt: stat.mtimeMs,
+      createdAt: stat.birthtimeMs || stat.mtimeMs,
+      lastActivityAt: lastMessageTimestamp || stat.mtimeMs,
       sizeBytes: stat.size, lastMessagePreview, firstUserPrompt, isActive: false, parentSession,
       isSubsession: Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd))),
     };
@@ -627,6 +629,7 @@ export class SessionIndex {
     let messageCount = 0;
     let lastMessagePreview: string | undefined;
     let firstUserPrompt = '';
+    let lastMessageTimestamp: number | undefined;
     let parentSession: string | undefined;
     let firstLine = true;
     let readFailed = false;
@@ -665,12 +668,17 @@ export class SessionIndex {
             const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
             if (!firstUserPrompt) firstUserPrompt = firstPromptOf(message);
+            const rawTs = message.timestamp || entry.timestamp;
+            if (rawTs) {
+              const parsed = Date.parse(rawTs);
+              if (!isNaN(parsed)) lastMessageTimestamp = parsed;
+            }
           }
         } catch {}
       }
     } catch { readFailed = true; }
     if (readFailed) return null;
-    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview, firstUserPrompt);
+    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview, firstUserPrompt, lastMessageTimestamp);
   }
 
   private async parseSessionFileFast(filePath: string, stat: fs.Stats, _dirName: string): Promise<SessionSummary | null> {
@@ -680,6 +688,7 @@ export class SessionIndex {
     let hasTailTitle = false;
     let parentSession: string | undefined;
     let lastMessagePreview: string | undefined;
+    let lastMessageTimestamp: number | undefined;
     const fd = await fs.promises.open(filePath, 'r');
     try {
       const head = Buffer.alloc(16 * 1024);
@@ -727,6 +736,11 @@ export class SessionIndex {
             if (message.role === 'system') continue;
             const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
+            const rawTs = message.timestamp || entry.timestamp;
+            if (rawTs) {
+              const parsed = Date.parse(rawTs);
+              if (!isNaN(parsed)) lastMessageTimestamp = parsed;
+            }
           }
         } catch {}
       }
@@ -737,7 +751,7 @@ export class SessionIndex {
     } finally { await fd.close(); }
     const firstUserPrompt = await this.readFirstUserPrompt(filePath);
     const freshStat = await fs.promises.stat(filePath);
-    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview, firstUserPrompt);
+    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview, firstUserPrompt, lastMessageTimestamp);
   }
 
   /** The first user prompt in a session file. Reading stops at the first match. */

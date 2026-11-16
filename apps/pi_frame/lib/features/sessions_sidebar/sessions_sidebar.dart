@@ -29,6 +29,14 @@ import '../../data/update/update_providers.dart';
 /// Session rows in the rail are denser than the shared list row (plan 5.1).
 const double _railRowMinHeight = 32;
 
+/// Persistent user state for explicitly expanded session repo folders across unmounts/views.
+final sessionFoldersExpandedProvider =
+    StateProvider<Set<String>>((ref) => <String>{});
+
+/// Persistent user state for explicitly collapsed session repo folders across unmounts/views.
+final sessionFoldersCollapsedProvider =
+    StateProvider<Set<String>>((ref) => <String>{});
+
 bool _isSubsession(Map<String, dynamic> session) {
   if (session['isSubsession'] == true) return true;
   final parentSession = (session['parentSession'] ?? '').toString().trim();
@@ -165,20 +173,28 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   bool _isFolderExpanded(String folder) {
     if (_searchQuery.isNotEmpty) return true;
-    if (_expandedFolders.contains(folder)) return true;
-    return folder == _defaultFolder && !_collapsedFolders.contains(folder);
+    final expanded = ref.watch(sessionFoldersExpandedProvider);
+    if (expanded.contains(folder)) return true;
+    final collapsed = ref.watch(sessionFoldersCollapsedProvider);
+    return folder == _defaultFolder && !collapsed.contains(folder);
   }
 
-  void _setFolderExpanded(String folder, bool expanded) {
-    setState(() {
-      if (expanded) {
-        _expandedFolders.add(folder);
-        _collapsedFolders.remove(folder);
-      } else {
-        _expandedFolders.remove(folder);
-        _collapsedFolders.add(folder);
-      }
-    });
+  void _setFolderExpanded(String folder, bool isExpanded) {
+    if (isExpanded) {
+      ref
+          .read(sessionFoldersExpandedProvider.notifier)
+          .update((s) => {...s, folder});
+      ref
+          .read(sessionFoldersCollapsedProvider.notifier)
+          .update((s) => s.where((f) => f != folder).toSet());
+    } else {
+      ref
+          .read(sessionFoldersExpandedProvider.notifier)
+          .update((s) => s.where((f) => f != folder).toSet());
+      ref
+          .read(sessionFoldersCollapsedProvider.notifier)
+          .update((s) => {...s, folder});
+    }
   }
 
   KeyEventResult _onRailKey(FocusNode node, KeyEvent event) {
@@ -1600,16 +1616,12 @@ class _SessionTile extends ConsumerWidget {
         ? tokens.displayText.withValues(alpha: 0.8)
         : tokens.textMuted;
 
-    // At large text scales the trailing time squeezes the title to two or three
-    // characters, so it moves to the secondary line under the title.
-    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
-
     final row = FrameListRow(
       key: ValueKey('session-row-$id'),
       name: title,
-      secondary: largeText ? relative : null,
+      secondary: relative,
       selected: isSelected,
-      minHeight: _railRowMinHeight,
+      minHeight: _railRowMinHeight + (relative != null ? 8 : 0),
       leading: isWorking
           ? _WorkingDot(color: tokens.agentWorking)
           : Container(
@@ -1630,13 +1642,6 @@ class _SessionTile extends ConsumerWidget {
         children: [
           if (isPinned)
             Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
-          if (isPinned && relative != null && !largeText)
-            const SizedBox(width: FrameSpace.x1),
-          if (relative != null && !largeText)
-            Text(
-              relative,
-              style: text.caption.copyWith(color: metaColor),
-            ),
         ],
       ),
       actions: [

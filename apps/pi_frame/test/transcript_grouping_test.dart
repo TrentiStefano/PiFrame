@@ -128,7 +128,7 @@ void main() {
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
-          text: 'Running tool now...',
+          text: '',
           thinking: null,
           toolCalls: [
             ToolExecutionState(
@@ -150,7 +150,7 @@ void main() {
         ),
       ];
 
-      // withThinking: tool-only turn has no thinking -> NOT grouped
+      // withThinking: pure tool-only turn has no thinking and no reasoning text -> NOT grouped
       final blocksWithThinking = groupTranscript(
         entries: entries,
         mode: StepGroupingMode.withThinking,
@@ -174,16 +174,85 @@ void main() {
       expect(blocksAlways[2], isA<FinalTextBlock>());
 
       final group = blocksAlways[1] as StepsGroupBlock;
-      expect(group.steps.length, 2);
-      expect(group.steps[0], isA<IntermediateTextStep>());
-      expect((group.steps[0] as IntermediateTextStep).text, 'Running tool now...');
-      expect(group.steps[1], isA<ToolStep>());
-      expect((group.steps[1] as ToolStep).toolName, 'calculator');
-      expect(group.stepCount, 1); // 1 tool step
+      expect(group.steps.length, 1);
+      expect(group.steps[0], isA<ToolStep>());
+      expect((group.steps[0] as ToolStep).toolName, 'calculator');
+      expect(group.stepCount, 1);
 
       final finalBlock = blocksAlways[2] as FinalTextBlock;
       expect(finalBlock.text, 'The answer is 4.');
       assertTranscriptCoverage(inputEntries: entries, blocks: blocksAlways);
+    });
+
+    test('withThinking groups turn with intermediate reasoning text between step groups', () {
+      final entries = [
+        const SessionEntry(
+          id: 'u1',
+          role: 'user',
+          text: 'Fix the bug',
+          timestamp: 1000,
+        ),
+        const SessionEntry(
+          id: 'asst1',
+          role: 'assistant',
+          text: 'Starting phase: analyzing code...',
+          thinking: null,
+          toolCalls: [
+            ToolExecutionState(
+              toolCallId: 't1',
+              toolName: 'read_file',
+              args: {'path': 'main.dart'},
+              output: 'content',
+            ),
+          ],
+          timestamp: 1500,
+        ),
+        const SessionEntry(
+          id: 'asst2',
+          role: 'assistant',
+          text: 'Bug fixed successfully.',
+          thinking: null,
+          toolCalls: [],
+          timestamp: 2000,
+        ),
+      ];
+
+      // Multi-group flow (showIntermediateAnswers: true, default):
+      final blocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.withThinking,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: true,
+      );
+
+      // Expected: User -> IntermediateText -> StepsGroup (tool) -> FinalText
+      expect(blocks.length, 4);
+      expect(blocks[0], isA<EntryBlock>());
+      expect(blocks[1], isA<IntermediateTextBlock>());
+      expect((blocks[1] as IntermediateTextBlock).text, 'Starting phase: analyzing code...');
+      expect(blocks[2], isA<StepsGroupBlock>());
+      expect((blocks[2] as StepsGroupBlock).steps.length, 1);
+      expect(blocks[3], isA<FinalTextBlock>());
+      expect((blocks[3] as FinalTextBlock).text, 'Bug fixed successfully.');
+      assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
+
+      // Legacy compact flow (showIntermediateAnswers: false):
+      final legacyBlocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.withThinking,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: false,
+      );
+      expect(legacyBlocks.length, 3);
+      expect(legacyBlocks[0], isA<EntryBlock>());
+      expect(legacyBlocks[1], isA<StepsGroupBlock>());
+      expect(legacyBlocks[2], isA<FinalTextBlock>());
+      final legacyGroup = legacyBlocks[1] as StepsGroupBlock;
+      expect(legacyGroup.steps.length, 2);
+      expect(legacyGroup.steps[0], isA<IntermediateTextStep>());
+      expect((legacyGroup.steps[0] as IntermediateTextStep).text, 'Starting phase: analyzing code...');
+      expect(legacyGroup.steps[1], isA<ToolStep>());
+      assertTranscriptCoverage(inputEntries: entries, blocks: legacyBlocks);
     });
 
     test('off returns entries unchanged with LiveTailBlock marker when streaming', () {

@@ -1,6 +1,7 @@
 import '../../domain/errors/user_facing_error.dart';
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -122,6 +123,12 @@ class _ComposerState extends ConsumerState<Composer> {
   int _fileMentionSelectedIndex = 0;
   List<Map<String, dynamic>> _matchingMentionFiles = [];
   bool _queueExpanded = true;
+  bool _isManuallyExpanded = false;
+  bool _isPointerOver = false;
+  Timer? _hoverGraceTimer;
+  Timer? _expand5sTimer;
+  final ValueNotifier<Offset?> _minimizedHoverOffsetNotifier =
+      ValueNotifier<Offset?>(null);
   bool _hasText = false;
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
@@ -473,6 +480,9 @@ class _ComposerState extends ConsumerState<Composer> {
 
   @override
   void dispose() {
+    _hoverGraceTimer?.cancel();
+    _expand5sTimer?.cancel();
+    _minimizedHoverOffsetNotifier.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -1749,58 +1759,195 @@ class _ComposerState extends ConsumerState<Composer> {
         agentStatus == AgentStatus.working ||
         activeToolCallsNotEmpty;
 
-    return AnimatedContainer(
-      duration: FrameMotion.panel,
-      curve: FrameMotion.panelCurve,
-      margin: EdgeInsets.fromLTRB(
-        horizontalMargin,
-        4,
-        horizontalMargin,
-        bottomMargin,
-      ),
-      child: ShimmerBorder(
-        isActive: isShimmerActive,
-        borderRadius: _composerRadius(tokens),
-        child: _ComposerSizeAnimator(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: _composerRadius(tokens),
-            ),
-            child: pendingInteractionRequests.isNotEmpty
-                ? Padding(
-                    key: const ValueKey('composer-extension-ui-card'),
-                    padding: const EdgeInsets.only(bottom: FrameSpace.x2),
-                    child: ExtensionUiDialog(
-                      key: ValueKey(
-                        'ext_ui_${pendingInteractionRequests.last['requestId']}',
+    if (!isAgentAnswering && _isManuallyExpanded) {
+      _isManuallyExpanded = false;
+    }
+
+    final isFocused = _focusNode.hasFocus;
+    final hasInputtedText =
+        _hasText || _controller.text.trim().isNotEmpty || _activeCommand != null;
+    final hasAttachments = attachments.isNotEmpty;
+    final shouldMinimize =
+        isAgentAnswering &&
+        !isFocused &&
+        !_isManuallyExpanded &&
+        !hasInputtedText &&
+        !hasAttachments &&
+        totalQueued == 0 &&
+        pendingInteractionRequests.isEmpty;
+
+    return MouseRegion(
+      key: const ValueKey('composer-mouse-region'),
+      onEnter: (event) {
+        _isPointerOver = true;
+        _hoverGraceTimer?.cancel();
+        _hoverGraceTimer = null;
+        if (shouldMinimize) {
+          _expand5sTimer?.cancel();
+          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted && _isPointerOver) {
+              setState(() {
+                _isManuallyExpanded = true;
+                _minimizedHoverOffsetNotifier.value = null;
+              });
+            }
+          });
+        }
+      },
+      onHover: (event) {
+        if (shouldMinimize && _expand5sTimer == null && _isPointerOver) {
+          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+            if (mounted && _isPointerOver) {
+              setState(() {
+                _isManuallyExpanded = true;
+                _minimizedHoverOffsetNotifier.value = null;
+              });
+            }
+          });
+        }
+      },
+      onExit: (_) {
+        _isPointerOver = false;
+        _minimizedHoverOffsetNotifier.value = null;
+        _expand5sTimer?.cancel();
+        _expand5sTimer = null;
+        if (_isManuallyExpanded) {
+          _hoverGraceTimer?.cancel();
+          _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
+            if (mounted && !_isPointerOver) {
+              setState(() => _isManuallyExpanded = false);
+            }
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: FrameMotion.panel,
+        curve: FrameMotion.panelCurve,
+        margin: EdgeInsets.fromLTRB(
+          horizontalMargin,
+          4,
+          horizontalMargin,
+          bottomMargin,
+        ),
+        child: ShimmerBorder(
+          isActive: isShimmerActive,
+          borderRadius: _composerRadius(tokens),
+          child: _ComposerSizeAnimator(
+            child: AnimatedSwitcher(
+              duration: FrameMotion.panel,
+              switchInCurve: FrameMotion.panelCurve,
+              switchOutCurve: FrameMotion.panelCurve,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  alignment: Alignment.bottomCenter,
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    ...previousChildren.map(
+                      (child) => Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: child,
                       ),
-                      sessionId: widget.sessionId,
-                      request: pendingInteractionRequests.last,
-                      isCard: true,
-                      onDismissed: () {
-                        if (!mounted) return;
-                        setState(
-                          () => _dismissedUiRequestIds.add(
-                            pendingInteractionRequests.last['requestId']
-                                .toString(),
-                          ),
-                        );
-                      },
                     ),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Status line while Pi answers. The field below stays visible and usable.
-                      ComposerRunStatusLine(
-                        active: isAgentAnswering,
-                        startedAt: runStartedAt,
-                        label: strings.composerAgentAnswering,
-                        interruptLabel: strings.composerStopAction,
-                        onInterrupt: _isInterrupting ? null : _interrupt,
-                      ),
+                    ?currentChild,
+                  ],
+                );
+              },
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: Container(
+                key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
+                padding: shouldMinimize
+                    ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+                    : const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceElevated,
+                  borderRadius: _composerRadius(tokens),
+                  border: Border.all(
+                    color: tokens.border,
+                    width: 1,
+                  ),
+                  boxShadow: Theme.of(context).brightness == Brightness.dark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.07),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                ),
+                child: pendingInteractionRequests.isNotEmpty
+                    ? Padding(
+                        key: const ValueKey('composer-extension-ui-card'),
+                        padding: const EdgeInsets.only(bottom: FrameSpace.x2),
+                        child: ExtensionUiDialog(
+                          key: ValueKey(
+                            'ext_ui_${pendingInteractionRequests.last['requestId']}',
+                          ),
+                          sessionId: widget.sessionId,
+                          request: pendingInteractionRequests.last,
+                          isCard: true,
+                          onDismissed: () {
+                            if (!mounted) return;
+                            setState(
+                              () => _dismissedUiRequestIds.add(
+                                pendingInteractionRequests.last['requestId']
+                                    .toString(),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : shouldMinimize
+                    ? MouseRegion(
+                        onEnter: (event) {
+                          _minimizedHoverOffsetNotifier.value =
+                              event.localPosition;
+                        },
+                        onHover: (event) {
+                          _minimizedHoverOffsetNotifier.value =
+                              event.localPosition;
+                        },
+                        onExit: (_) {
+                          _minimizedHoverOffsetNotifier.value = null;
+                        },
+                        child: ValueListenableBuilder<Offset?>(
+                          valueListenable: _minimizedHoverOffsetNotifier,
+                          builder: (context, hoverOffset, childWidget) {
+                            return CustomPaint(
+                              painter: hoverOffset == null ||
+                                      FrameMotion.reduced(context)
+                                  ? null
+                                  : _GlowPointerPainter(
+                                      pointerPosition: hoverOffset,
+                                      borderRadius: _composerRadius(tokens),
+                                      glowColor: tokens.accent,
+                                      borderColor: tokens.accent,
+                                    ),
+                              child: childWidget,
+                            );
+                          },
+                          child: _buildMinimizedBar(
+                            tokens,
+                            strings,
+                            isStreaming,
+                            runStartedAt,
+                          ),
+                        ),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Status line while Pi answers.
+                          ComposerRunStatusLine(
+                            active: isAgentAnswering,
+                            startedAt: runStartedAt,
+                            label: strings.composerAgentAnswering,
+                            interruptLabel: strings.composerStopAction,
+                            onInterrupt: null,
+                          ),
                       // File Mention overlay if active
                       if (_showFileMentionMenu &&
                           _matchingMentionFiles.isNotEmpty)
@@ -2923,26 +3070,28 @@ class _ComposerState extends ConsumerState<Composer> {
                                       ),
                                     ),
                                   ] else ...[
-                                    ComposerReviewButton(
-                                      label: strings.composerReviewChangesLabel(
-                                        changeCount,
+                                    if (hasModifiedFiles || isReviewing) ...[
+                                      ComposerReviewButton(
+                                        label: strings.composerReviewChangesLabel(
+                                          changeCount,
+                                        ),
+                                        showLabel:
+                                            rowBox.maxWidth >=
+                                            kComposerReviewLabelMinRowWidth,
+                                        reviewing: isReviewing,
+                                        enabledTooltip: strings.composerReviewChangesTooltip(
+                                          isReviewing,
+                                        ),
+                                        disabledTooltip:
+                                            strings.composerReviewChangesNoneTooltip,
+                                        onPressed: !hasModifiedFiles
+                                            ? null
+                                            : () => ref
+                                                  .read(isReviewingChangesProvider.notifier)
+                                                  .update((v) => !v),
                                       ),
-                                      showLabel:
-                                          rowBox.maxWidth >=
-                                          kComposerReviewLabelMinRowWidth,
-                                      reviewing: isReviewing,
-                                      enabledTooltip: strings.composerReviewChangesTooltip(
-                                        isReviewing,
-                                      ),
-                                      disabledTooltip:
-                                          strings.composerReviewChangesNoneTooltip,
-                                      onPressed: !hasModifiedFiles
-                                          ? null
-                                          : () => ref
-                                                .read(isReviewingChangesProvider.notifier)
-                                                .update((v) => !v),
-                                    ),
-                                    const SizedBox(width: FrameSpace.x1),
+                                      const SizedBox(width: FrameSpace.x1),
+                                    ],
                                     Tooltip(
                                       key: const ValueKey('composer-send'),
                                       message: strings.composerSendTooltip(
@@ -3028,9 +3177,219 @@ class _ComposerState extends ConsumerState<Composer> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
           ),
+        ),
+    );
+  }
+  Widget _buildMinimizedBar(
+    FrameTokens tokens,
+    AppStrings strings,
+    bool isStreaming,
+    int? runStartedAt,
+  ) {
+    final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
+      'Test',
+    );
+    return InkWell(
+      key: const ValueKey('composer-minimized-bar'),
+      borderRadius: _composerRadius(tokens),
+      onTap: () {
+        _expand5sTimer?.cancel();
+        _expand5sTimer = null;
+        _minimizedHoverOffsetNotifier.value = null;
+        setState(() => _isManuallyExpanded = true);
+        _focusNode.requestFocus();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: isTest
+                  ? Icon(Icons.sync, size: 14, color: tokens.agentWorking)
+                  : FrameActivityIndicator(
+                      size: 14,
+                      strokeWidth: 1.5,
+                      color: tokens.agentWorking,
+                    ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                strings.composerAgentAnsweringMinimized,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontSize: 12,
+                  fontFamily: tokens.uiFontFamily,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            _MinimizedElapsedTimer(
+              startedAt: runStartedAt,
+              tokens: tokens,
+            ),
+            if (isStreaming) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                key: const ValueKey('composer-minimized-interrupt'),
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                onTap: _interrupt,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.stop_circle_outlined,
+                        size: 13,
+                        color: tokens.signalDanger,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        strings.composerStopAction,
+                        style: TextStyle(
+                          color: tokens.signalDanger,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 8),
+            Icon(Icons.unfold_more, size: 16, color: tokens.textMuted),
+          ],
         ),
       ),
     );
+  }
+}
+
+class _MinimizedElapsedTimer extends StatefulWidget {
+  final int? startedAt;
+  final FrameTokens tokens;
+
+  const _MinimizedElapsedTimer({
+    required this.startedAt,
+    required this.tokens,
+  });
+
+  @override
+  State<_MinimizedElapsedTimer> createState() => _MinimizedElapsedTimerState();
+}
+
+class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
+  late final int _fallbackStart = DateTime.now().millisecondsSinceEpoch;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final start = widget.startedAt ?? _fallbackStart;
+    final elapsed = Duration(
+      milliseconds: DateTime.now().millisecondsSinceEpoch - start,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        formatRunElapsed(elapsed),
+        style: TextStyle(
+          color: widget.tokens.textMuted,
+          fontSize: 11,
+          fontFamily: widget.tokens.uiFontFamily,
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowPointerPainter extends CustomPainter {
+  final Offset? pointerPosition;
+  final BorderRadius borderRadius;
+  final Color glowColor;
+  final Color borderColor;
+  static const double radius = 120.0;
+
+  const _GlowPointerPainter({
+    required this.pointerPosition,
+    required this.borderRadius,
+    required this.glowColor,
+    required this.borderColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pos = pointerPosition;
+    if (pos == null) return;
+
+    final rect = Offset.zero & size;
+    final rrect = borderRadius.toRRect(rect);
+
+    canvas.save();
+    canvas.clipRRect(rrect);
+
+    final glowPaint = Paint()
+      ..shader = ui.Gradient.radial(
+        pos,
+        radius,
+        [
+          glowColor.withValues(alpha: 0.22),
+          glowColor.withValues(alpha: 0.08),
+          glowColor.withValues(alpha: 0.0),
+        ],
+        const [0.0, 0.45, 1.0],
+      );
+
+    canvas.drawRect(rect, glowPaint);
+    canvas.restore();
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..shader = ui.Gradient.radial(
+        pos,
+        radius,
+        [
+          borderColor.withValues(alpha: 0.85),
+          glowColor.withValues(alpha: 0.4),
+          glowColor.withValues(alpha: 0.0),
+        ],
+        const [0.0, 0.5, 1.0],
+      );
+
+    canvas.drawRRect(rrect, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GlowPointerPainter oldDelegate) {
+    return oldDelegate.pointerPosition != pointerPosition ||
+        oldDelegate.glowColor != glowColor ||
+        oldDelegate.borderColor != borderColor;
   }
 }

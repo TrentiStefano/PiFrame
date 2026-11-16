@@ -358,6 +358,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-tree-completed-toggle')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('agent-tree-completed-toggle')));
+      await tester.pumpAndSettle();
       double y(String name) => tester.getTopLeft(find.text(name)).dy;
       expect(y('new-running'), lessThan(y('old-running')));
       expect(y('old-running'), lessThan(y('new-done')));
@@ -561,6 +564,10 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      if (find.byKey(const ValueKey('agent-tree-completed-toggle')).evaluate().isNotEmpty) {
+        await tester.tap(find.byKey(const ValueKey('agent-tree-completed-toggle')));
+        await tester.pumpAndSettle();
+      }
 
       // Ensure no Checkbox exists (user should not be able to checkmark subagent tasks)
       expect(find.byType(Checkbox), findsNothing);

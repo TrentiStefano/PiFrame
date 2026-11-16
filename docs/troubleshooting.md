@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Raggruppamento passaggi con ragionamento intermedio e notifiche subagenti
+
+**Sintomo:** con l'opzione di raggruppamento passaggi impostata su «con pensiero» (`withThinking`), i turni contenenti chiamate a strumenti e risposte o passaggi intermedi di ragionamento apparivano sciolti nella chat invece di raggrupparsi in modo compatto; inoltre le notifiche dei subagenti generavano card di grandi dimensioni che sovraccaricavano la cronologia della conversazione.
+
+**Causa:** `StepGroupingMode.withThinking` controllava esclusivamente la presenza di blocchi espliciti `<thinking>`. Quando il modello emetteva testo di ragionamento e chiamate di strumenti successive, la condizione non veniva soddisfatta. Inoltre, le notifiche XML `<task-notification>` venivano renderizzate come messaggi `custom` a tutta larghezza con doppia bordatura invece di venire sintetizzate in passaggi compatti del turno.
+
+**Correzione:** `transcript_grouping.dart` ora riconosce il testo di ragionamento intermedio prima o tra strumenti come pensiero dell'agente. È stata aggiunta la preferenza `showIntermediateAnswers` in `StepGroupingSettings` e nelle impostazioni grafiche, che permette di visualizzare i passaggi di ragionamento intermedi non bordati tra gruppi compatti successivi, delimitando la risposta finale in una card bordata dedicata. Le notifiche di completamento dei subagenti vengono compattate come `SubagentNotificationStep` all'interno del gruppo passaggi, mantenendo al contempo l'albero completo e i dettagli di costo nella scheda dedicata Agenti della barra laterale destra.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/transcript_grouping_test.dart test/subagents_feature_test.dart
+```
+
+---
+
 ## Strisce di overflow in companion, todo, card e pannello Agenti a larghezze strette
 
 **Sintomo:** con la chat stretta o il pannello Agenti aperto, la barra del browser, il pannello todo, le card delle attività, l'intestazione dell'assistente e i chip del composer mostrano strisce gialle e nere (in debug) o vengono tagliati (in release). Il chip del modello finisce sotto l'icona di espansione.

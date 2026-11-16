@@ -57,7 +57,7 @@ import '../data/layout/layout_store.dart';
 
 /// Minimum width of a companion pane (repository, git or browser). Narrower, and
 /// the companion collapses to its tab (audit R2 / plan task 1.2f).
-const double kCompanionMinWidth = 320;
+const double kCompanionMinWidth = 160;
 
 /// Companion panes whose share of [availableWidth] would be narrower than
 /// [kCompanionMinWidth]. Only applies while another pane stays open, so the last

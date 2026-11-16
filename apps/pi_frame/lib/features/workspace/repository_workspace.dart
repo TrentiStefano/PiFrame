@@ -25,6 +25,7 @@ import 'repository_state.dart';
 import 'workspace_pane.dart';
 import 'workspace_pane_header.dart';
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_middle_ellipsis.dart';
 
 export 'editor/repository_file_save.dart';
 export 'git/git_changes_pane.dart';
@@ -35,8 +36,6 @@ export 'workspace_pane.dart';
 final repoExpandedDirsProvider = StateProvider.family<Set<String>, String>(
   (ref, sessionId) => <String>{},
 );
-
-
 
 class RepositoryPane extends ConsumerStatefulWidget {
   const RepositoryPane({
@@ -196,14 +195,16 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             SizedBox(
               width: 18,
               height: 18,
-              child: FrameActivityIndicator(size: FrameSize.iconLg, color: tokens.accent),
+              child: FrameActivityIndicator(
+                size: FrameSize.iconLg,
+                color: tokens.accent,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               strings.loadingFiles,
-              style: FrameText.of(context).caption.copyWith(
-                color: tokens.textMuted,
-              ),
+              style: FrameText.of(context).caption
+                  .copyWith(color: tokens.textMuted),
             ),
           ],
         ),
@@ -265,9 +266,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     child: Text(
                       strings.noFilesFound(_searchQuery),
                       textAlign: TextAlign.center,
-                      style: FrameText.of(context).body.copyWith(
-                        color: tokens.textMuted,
-                      ),
+                      style: FrameText.of(context).body
+                          .copyWith(color: tokens.textMuted),
                     ),
                   ),
                 )
@@ -424,17 +424,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                               : strings.integratedTerminalTooltip),
                     selected: _terminalOpen,
                     onPressed: () {
-                      final termSettings = ref.read(
-                        terminalSettingsProvider,
-                      );
+                      final termSettings = ref.read(terminalSettingsProvider);
                       if (termSettings.mode == TerminalMode.native) {
                         launchNativeTerminal(
                           cwd:
                               repo.rootPath ??
                               ref
-                                  .read(
-                                    sessionStateFamily(widget.sessionId),
-                                  )
+                                  .read(sessionStateFamily(widget.sessionId))
                                   .cwd,
                           nativeApp: termSettings.nativeApp,
                           customPath: termSettings.customPath,
@@ -459,10 +455,6 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   ),
                   iconSize: FrameSize.icon,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: FrameSize.hitMin,
-                    height: FrameSize.hitMin,
-                  ),
                   onSelected: (choice) {
                     if (choice == 'collapse') {
                       _collapseAll();
@@ -514,13 +506,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 FrameSpace.x3,
                 FrameSpace.x2,
               ),
-              child: Text(
-                repo.rootPath!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: FrameText.of(context).caption.copyWith(
-                  color: tokens.textMuted,
-                  fontFamily: tokens.monoFontFamily,
+              child: Tooltip(
+                message: repo.rootPath!,
+                child: FrameMiddleEllipsis(
+                  text: repo.rootPath!,
+                  style: FrameText.of(context).caption.copyWith(
+                    color: tokens.textSecondary,
+                    fontFamily: tokens.monoFontFamily,
+                  ),
                 ),
               ),
             ),
@@ -619,7 +612,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                                 decoration: BoxDecoration(
                                   color: tokens.borderStrong,
                                   // A 2 px grip: any radius at or above 1 px gives the same pill.
-                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                  borderRadius: BorderRadius.circular(
+                                    tokens.radiusSm,
+                                  ),
                                 ),
                               ),
                             ),
@@ -653,9 +648,8 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               padding: const EdgeInsets.all(8),
               child: Text(
                 strings.fileListLimitedNotice,
-                style: FrameText.of(context).caption.copyWith(
-                  color: tokens.textMuted,
-                ),
+                style: FrameText.of(context).caption
+                    .copyWith(color: tokens.textMuted),
               ),
             ),
         ],
@@ -676,7 +670,11 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         ),
         child: Row(
           children: [
-            Icon(Icons.keyboard_arrow_up_outlined, size: FrameSize.icon, color: tokens.accent),
+            Icon(
+              Icons.keyboard_arrow_up_outlined,
+              size: FrameSize.icon,
+              color: tokens.accent,
+            ),
             const SizedBox(width: 6),
             Icon(Icons.terminal_outlined, size: 13, color: tokens.displayText),
             const SizedBox(width: 6),
@@ -707,7 +705,6 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     );
   }
 }
-
 
 class _TreeNode {
   final String name;
@@ -904,7 +901,12 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
           strings.addPathToChat,
         ),
       if (node.isDirectory && widget.rootPath != null)
-        _menuItem('session', Icons.add_outlined, tokens.accent, strings.newSessionHere),
+        _menuItem(
+          'session',
+          Icons.add_outlined,
+          tokens.accent,
+          strings.newSessionHere,
+        ),
       if (node.isDirectory && widget.onAddToChat != null)
         _menuItem(
           'chat-folder',
@@ -912,7 +914,12 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
           tokens.accent,
           strings.addFolderToChat,
         ),
-      _menuItem('copy', Icons.copy_outlined, tokens.textMuted, strings.copyPath),
+      _menuItem(
+        'copy',
+        Icons.copy_outlined,
+        tokens.textMuted,
+        strings.copyPath,
+      ),
     ];
     showMenu<String>(
       context: context,
@@ -943,9 +950,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     final tokens = widget.tokens;
     final text = FrameText.of(context);
     final node = widget.row.node;
-    final indent = (widget.row.depth * 14.0)
-        .clamp(0.0, 160.0)
-        .toDouble();
+    final indent = (widget.row.depth * 14.0).clamp(0.0, 160.0).toDouble();
     final showAddToChat = !node.isDirectory && widget.onAddToChat != null;
     // The add-to-chat action shows on hover or focus, like the file list
     // rows elsewhere; it stays in the tree (focusable) either way.
@@ -1039,14 +1044,11 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
                             child: IgnorePointer(
                               ignoring: !reveal,
                               child: FrameIconAction(
-                                key: ValueKey(
-                                  'tree-add-to-chat-${node.path}',
-                                ),
+                                key: ValueKey('tree-add-to-chat-${node.path}'),
                                 icon: Icons.add_comment_outlined,
                                 tooltip: strings.addPathToChat,
                                 selected: widget.selected,
-                                onPressed: () =>
-                                    widget.onAddToChat!(node.path),
+                                onPressed: () => widget.onAddToChat!(node.path),
                               ),
                             ),
                           ),

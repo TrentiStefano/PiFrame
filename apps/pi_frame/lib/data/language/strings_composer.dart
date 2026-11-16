@@ -94,6 +94,10 @@ extension ComposerStrings on AppStrings {
       ? 'L\'agente sta rispondendo…'
       : 'Agent is responding…';
 
+  String get composerAgentAnsweringMinimized => isItalian
+      ? 'L\'agente sta rispondendo... Passa il mouse o clicca per scrivere'
+      : 'Agent is responding... Hover or click to type';
+
   String get composerStopAction => isItalian ? 'Interrompi' : 'Stop';
 
   // --- Section 2: Composer Steer & Queue ---

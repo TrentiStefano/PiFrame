@@ -14,6 +14,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/frame_pane_header.dart';
+import '../../ui/frame_middle_ellipsis.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -39,6 +40,7 @@ import 'todo_provider.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/transcript_grouping.dart';
 import 'steps_group.dart';
+import 'task_notification_card.dart';
 
 enum _ActiveBookTab { none, todos }
 
@@ -1270,6 +1272,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             entries: visibleEntries,
             mode: stepGroupingSettings.mode,
             live: liveState,
+            showIntermediateAnswers:
+                stepGroupingSettings.showIntermediateAnswers,
           )
         : const <TranscriptBlock>[];
 
@@ -1294,6 +1298,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             itemKeys.add(block.entry.id);
           case StepsGroupBlock():
             itemKeys.add(block.groupId);
+          case IntermediateTextBlock():
+            itemKeys.add(block.entry.id);
           case FinalTextBlock():
             itemKeys.add(block.entry.id);
           case LiveTailBlock():
@@ -1683,6 +1689,48 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 ),
                               );
 
+                            case IntermediateTextBlock():
+                              final elapsedSeconds = entryElapsedSeconds(
+                                cleanEntries,
+                                cleanEntries.indexWhere(
+                                  (e) => e.id == block.entry.id,
+                                ),
+                              );
+                              final firstVisibleId = _targetAnchorId ??
+                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
+                                      ? itemKeys[hasLoadBanner ? 1 : 0]
+                                      : null);
+                              final isAnchor = block.entry.id == firstVisibleId ||
+                                  (_targetAnchorId != null &&
+                                      block.entry.id == _targetAnchorId);
+                              return _MeasureSize(
+                                onSizeChange: (s) =>
+                                    _entryHeights[block.entry.id] = s.height,
+                                child: Padding(
+                                  key: isAnchor
+                                      ? _anchorKey
+                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isCompact ? 12 : 24,
+                                  ),
+                                  child: Center(
+                                    child: ConstrainedBox(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 820),
+                                      child: RepaintBoundary(
+                                        key: ValueKey(block.entry.id),
+                                        child: _buildEntryItem(
+                                          block.entry,
+                                          tokens,
+                                          elapsedSeconds: elapsedSeconds,
+                                          isCard: false,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+
                             case FinalTextBlock():
                               final elapsedSeconds = entryElapsedSeconds(
                                 cleanEntries,
@@ -1717,6 +1765,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           block.entry,
                                           tokens,
                                           elapsedSeconds: elapsedSeconds,
+                                          isCard: true,
                                         ),
                                       ),
                                     ),
@@ -1745,6 +1794,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           block.text,
                                           false,
                                           const [],
+                                          isCard: true,
                                         ),
                                       ),
                                     ),
@@ -1808,6 +1858,83 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     cwd: sessionState.cwd,
                   ),
                 ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPluginsPopup(
+    BuildContext buttonContext,
+    FrameTokens tokens,
+    List<MapEntry<String, dynamic>> extensionStatuses,
+  ) async {
+    final buttonBox = buttonContext.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(buttonContext).context.findRenderObject() as RenderBox?;
+    if (buttonBox == null || overlay == null) return;
+
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        buttonBox.localToGlobal(Offset.zero, ancestor: overlay),
+        buttonBox.localToGlobal(
+          buttonBox.size.bottomRight(Offset.zero),
+          ancestor: overlay,
+        ),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    await showMenu<void>(
+      context: buttonContext,
+      position: position,
+      color: tokens.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        side: BorderSide(color: tokens.border),
+      ),
+      items: [
+        PopupMenuItem<void>(
+          enabled: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.extension_outlined,
+                    size: 14,
+                    color: tokens.syntaxKeyword,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Plugins (${extensionStatuses.length})',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final status in extensionStatuses)
+                    _metricChip(
+                      tokens,
+                      status.key,
+                      _cleanStatusValue(status.value),
+                      leadingIcon: Icons.extension_outlined,
+                      iconColor: tokens.syntaxKeyword,
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1908,7 +2035,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   style: TextStyle(
                                     color: tokens.textPrimary,
                                     fontFamily: tokens.headingFontFamily,
-                                    fontSize: isCompact ? 15 : 18,
+                                    fontSize: isCompact ? 17 : 21,
                                     fontWeight: FontWeight.w700,
                                   ),
                                   decoration: InputDecoration(
@@ -2028,7 +2155,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                     style: TextStyle(
                                       color: tokens.textPrimary,
                                       fontFamily: tokens.headingFontFamily,
-                                      fontSize: isCompact ? 16 : 19,
+                                      fontSize: isCompact ? 18 : 22,
                                       height: 1.1,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -2049,81 +2176,98 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         ),
                       );
         }
+        final subtitleWidget = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.folder_outlined,
+              size: 13,
+              color: tokens.textMuted,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: FrameMiddleEllipsis(
+                text: sessionState.cwd.isNotEmpty
+                    ? sessionState.cwd
+                    : _currentStrings.transcriptNoFolderOpened,
+                style: FrameText.of(context).mono.copyWith(
+                  color: tokens.textMuted,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        );
+
         return FramePaneHeader(
           title: effectiveSessionName,
           titleWidget: titleWidget,
-          subtitle: sessionState.cwd.isNotEmpty
-              ? sessionState.cwd
-              : _currentStrings.transcriptNoFolderOpened,
+          subtitleWidget: subtitleWidget,
           actions: [
-            // The status tag and the chips share one budget of 60% of the
-            // header. The status keeps its intrinsic width (never clipped or
-            // scrolled) and the chips take what is left, so the title column
-            // (cwd middle-ellipsized) keeps the rest and nothing runs under the
-            // status tag.
             ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.6),
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.65),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Flexible(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (extensionStatuses.isNotEmpty) ...[
+                            _metricChip(
+                              tokens,
+                              'Plugins',
+                              '${extensionStatuses.length}',
+                              key: const ValueKey('session-header-plugin-chip'),
+                              leadingIcon: Icons.extension_outlined,
+                              trailingIcon: Icons.arrow_drop_down_outlined,
+                              iconColor: tokens.syntaxKeyword,
+                              onTap: (ctx) => _showPluginsPopup(
+                                ctx,
+                                tokens,
+                                extensionStatuses,
+                              ),
+                            ),
+                            const SizedBox(width: FrameSpace.x2 - 2),
+                          ],
+                          // Opens the context drawer, where usage and compaction live.
+                          _metricChip(
+                            tokens,
+                            _currentStrings.transcriptContext,
+                            contextLabel,
+                            key: const ValueKey('session-header-context-chip'),
+                            leadingIcon: Icons.pie_chart_outline,
+                            iconColor: contextIconColor,
+                            onTap: (ctx) =>
+                                Scaffold.maybeOf(ctx)?.openEndDrawer(),
+                          ),
+                          const SizedBox(width: FrameSpace.x2 - 2),
+                          _metricChip(
+                            tokens,
+                            _currentStrings.transcriptCost,
+                            cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
+                            key: const ValueKey('session-header-cost-chip'),
+                            leadingIcon: Icons.monetization_on_outlined,
+                            iconColor: tokens.syntaxString,
+                            valueColor: tokens.syntaxString,
+                            trailingIcon: Icons.arrow_drop_down_outlined,
+                            onTap: (ctx) => _showCostBreakdownDialog(
+                              ctx,
+                              mainAgentCost,
+                              sessionState,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: FrameSpace.x1),
                   AgentStatusBadge(
                     key: const ValueKey('session-header-status'),
                     status: sessionState.agentStatus,
                     onDisplay: false,
-                  ),
-                  const SizedBox(width: FrameSpace.x1),
-                  Flexible(
-                    child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Opens the context drawer, where usage and compaction live.
-                    _metricChip(
-                      tokens,
-                      _currentStrings.transcriptContext,
-                      contextLabel,
-                      key: const ValueKey('session-header-context-chip'),
-                      leadingIcon: Icons.pie_chart_outline,
-                      iconColor: contextIconColor,
-                      onTap: (ctx) => Scaffold.maybeOf(ctx)?.openEndDrawer(),
-                    ),
-                    const SizedBox(width: FrameSpace.x2 - 2),
-                    _metricChip(
-                      tokens,
-                      _currentStrings.transcriptCost,
-                      cost == null ? '—' : '\$${cost.toStringAsFixed(4)}',
-                      key: const ValueKey('session-header-cost-chip'),
-                      leadingIcon: Icons.monetization_on_outlined,
-                      iconColor: tokens.syntaxString,
-                      valueColor: tokens.syntaxString,
-                      trailingIcon: Icons.arrow_drop_down_outlined,
-                      onTap: (ctx) => _showCostBreakdownDialog(
-                        ctx,
-                        mainAgentCost,
-                        sessionState,
-                      ),
-                    ),
-                    for (final status in extensionStatuses) ...[
-                      const SizedBox(width: FrameSpace.x2 - 2),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 200),
-                        child: Tooltip(
-                          message:
-                              '${status.key}: ${_cleanStatusValue(status.value)}',
-                          child: _metricChip(
-                            tokens,
-                            status.key,
-                            _cleanStatusValue(status.value),
-                            leadingIcon: Icons.extension_outlined,
-                            iconColor: tokens.syntaxKeyword,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
                   ),
                 ],
               ),
@@ -2253,8 +2397,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     String liveThinking,
     String liveText,
     bool hasActiveTools,
-    List<ToolExecutionState> liveTools,
-  ) {
+    List<ToolExecutionState> liveTools, {
+    bool isCard = false,
+  }) {
     final hasLiveThinking = liveThinking.trim().isNotEmpty;
     final hasLiveText = liveText.trim().isNotEmpty;
     final hasLoadingIndicator = sessionState.agentStatus == AgentStatus.working &&
@@ -2268,6 +2413,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       child: AssistantTurnFrame(
         key: ValueKey('assistant_turn_live_${widget.sessionId}'),
         label: _currentStrings.transcriptAssistant,
+        isCard: isCard,
         elapsedChip: _LiveTurnTimerWidget(
           startTime: sessionState.runStartedAt == null
               ? null
@@ -2400,6 +2546,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     SessionEntry entry,
     FrameTokens tokens, {
     int? elapsedSeconds,
+    bool isCard = false,
   }) {
     if (entry.isJunkOrInternal) return const SizedBox.shrink();
     final cwd = ref.watch(
@@ -2702,6 +2849,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   duration: const Duration(seconds: 1),
                 );
               },
+              isCard: isCard,
               body: turnBody,
             )
           else
@@ -2937,6 +3085,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   Widget _buildCustomItem(SessionEntry entry, FrameTokens tokens) {
     final customType =
         entry.metadata?['customType']?.toString() ?? _currentStrings.transcriptCustomTypeDefault;
+
+    if (customType == 'subagent-notification' || entry.text.contains('<task-notification>')) {
+      final notifData = TaskNotificationData.tryParse(entry.text);
+      if (notifData != null) {
+        final cwd = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.cwd));
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: TaskNotificationCard(data: notifData, cwd: cwd),
+        );
+      }
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(

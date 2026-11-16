@@ -71,8 +71,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     if (!ref.read(escapeLayersProvider).closeTopmost()) widget.onClose();
   }
 
-  /// Pi CLI is wide enough to hold the console in a right column.
-  static const double _wideContentMaxWidth = 1160;
+  /// Pi CLI and Packages are wide enough to hold multi-column / rich cards.
+  static const double _wideContentMaxWidth = 1360;
 
   late _SettingsSection _section;
   // True when the last section change came from the keyboard or a
@@ -691,7 +691,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final content = Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: _section == _SettingsSection.piCli
+          maxWidth: _section == _SettingsSection.piCli ||
+                  _section == _SettingsSection.packages
               ? _wideContentMaxWidth
               : _contentMaxWidth,
         ),
@@ -804,19 +805,19 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   /// Settings sections grouped for the navigation, in display order.
   List<(String, List<_SettingsSection>)> _navGroups(AppStrings strings) => [
     (
-      strings.settingsNavGeneral,
-      const [
-        _SettingsSection.appearance,
-        _SettingsSection.terminal,
-        _SettingsSection.updates,
-      ],
-    ),
-    (
       strings.settingsNavPi,
       const [
         _SettingsSection.piCli,
         _SettingsSection.packages,
         _SettingsSection.agents,
+      ],
+    ),
+    (
+      strings.settingsNavGeneral,
+      const [
+        _SettingsSection.appearance,
+        _SettingsSection.terminal,
+        _SettingsSection.updates,
       ],
     ),
     (

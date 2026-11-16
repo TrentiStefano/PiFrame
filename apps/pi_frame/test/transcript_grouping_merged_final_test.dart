@@ -217,11 +217,27 @@ void main() {
         _final('a2', 'Tests pass.'),
       ]);
 
+      // New default: intermediate text is kept visible outside the step group
       final blocks = _group(entries);
-      final group = blocks.whereType<StepsGroupBlock>().single;
-      expect(group.steps.whereType<IntermediateTextStep>().single.text,
-          'Let me run the tests.');
+      expect(
+        blocks.whereType<IntermediateTextBlock>().single.text,
+        'Let me run the tests.',
+      );
       expect(blocks.whereType<FinalTextBlock>().single.text, 'Tests pass.');
+
+      // Legacy compact setting: intermediate text is inside the single step group
+      final legacyBlocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.withThinking,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: false,
+      );
+      final legacyGroup = legacyBlocks.whereType<StepsGroupBlock>().single;
+      expect(
+        legacyGroup.steps.whereType<IntermediateTextStep>().single.text,
+        'Let me run the tests.',
+      );
+      expect(legacyBlocks.whereType<FinalTextBlock>().single.text, 'Tests pass.');
     });
   });
 

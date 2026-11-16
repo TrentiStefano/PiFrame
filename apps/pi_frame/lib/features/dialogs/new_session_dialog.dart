@@ -137,26 +137,39 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
-            key: const ValueKey('new-session-cwd'),
-            controller: _controller,
-            autofocus: true,
-            onChanged: _onChanged,
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              labelText: strings.workingDirectoryLabel,
-              hintText: strings.folderPathPlaceholder,
-              errorText: showNotFound ? strings.folderNotFoundNotice : null,
-              helperText: _helperText(strings),
-              suffixIcon: kIsWeb
-                  ? null
-                  : FrameIconAction(
-                      key: const ValueKey('new-session-pick-folder'),
-                      icon: Icons.folder_open_outlined,
-                      tooltip: strings.chooseFolderAction,
-                      onPressed: _pickDirectory,
-                    ),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('new-session-cwd'),
+                  controller: _controller,
+                  autofocus: true,
+                  onChanged: _onChanged,
+                  onSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    labelText: strings.workingDirectoryLabel,
+                    hintText: strings.folderPathPlaceholder,
+                    errorText: showNotFound
+                        ? strings.folderNotFoundNotice
+                        : null,
+                    helperText: _helperText(strings),
+                  ),
+                ),
+              ),
+              if (!kIsWeb) ...[
+                const SizedBox(width: FrameSpace.x2),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: FrameIconAction(
+                    key: const ValueKey('new-session-pick-folder'),
+                    icon: Icons.folder_open_outlined,
+                    tooltip: strings.chooseFolderAction,
+                    onPressed: _pickDirectory,
+                  ),
+                ),
+              ],
+            ],
           ),
           if (folders.isNotEmpty) ...[
             const SizedBox(height: FrameSpace.x4),

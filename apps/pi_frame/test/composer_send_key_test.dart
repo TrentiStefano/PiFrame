@@ -81,6 +81,8 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier()..setSendWithEnter(true);
       await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'cambia approccio');
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
@@ -283,6 +285,10 @@ void main() {
       await tester.pumpWidget(
         _wrapComposer(session: streamingSession, settingsNotifier: settingsNotifier),
       );
+      await tester.pumpAndSettle();
+
+      // Tap minimized bar to expand while streaming
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
