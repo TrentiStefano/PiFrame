@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Nomi dei rami Git lunghi troncati nel selettore rami e nell'intestazione Git Changes
+
+**Sintomo:** i rami Git con nomi lunghi (es. `Sprint_2026_21/Sprint_Login_Refactor_Phase1`) venivano troncati con puntini di sospensione sia nella finestra di dialogo di selezione del ramo (`BranchPickerDialog`) sia nella pillola del ramo corrente nell'intestazione del pannello Git Changes, rendendoli illeggibili.
+
+**Causa:** `BranchPickerDialog` aveva una larghezza massima fissa di soli 540 px e forzava il nome del ramo e il ramo di upstream sulla stessa riga all'interno di colonne fisse molto strette (upstream limitato a 150 px). Nel pannello Git Changes, la pillola del ramo aveva un vincolo rigido `maxWidth: 160` che impediva al nome del ramo di estendersi anche in presenza di spazio orizzontale abbondante.
+
+**Correzione:** `BranchPickerDialog` è stato allargato a 740 px (con adattamento reattivo sui display compatti) e il layout delle righe è stato ristrutturato a due livelli: la riga principale mostra l'icona, il nome completo del ramo (con tutto lo spazio a disposizione), gli indicatori di sincronizzazione ahead/behind e il badge del ramo corrente; la seconda riga subordinata mostra in modo chiaro l'upstream (`origin/...`). Nel pannello Git Changes, la pillola del ramo utilizza ora un `LayoutBuilder` adattivo che espande la larghezza massima disponibile fino al 65% del pannello (o su riga dedicata se il pannello è molto stretto) e include il nome completo del ramo nel tooltip all'hover.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/branch_browser_test.dart
+```
+
+---
+
 ## Finestra comandi /side e /btw non visibile e gestione discussioni laterali della sessione
 
 **Sintomo:** l'esecuzione dei comandi `/side` o `/btw` dal composer non apriva la finestra o risultava non funzionante; inoltre le discussioni laterali precedenti della sessione non venivano memorizzate né rese navigabili all'utente.

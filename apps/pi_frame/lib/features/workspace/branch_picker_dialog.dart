@@ -12,12 +12,10 @@ import '../../ui/frame_focus.dart';
 import '../../ui/frame_activity_indicator.dart';
 
 // Layout constants with no matching token in FrameSpace / FrameSize.
-const _dialogMaxWidth = 540.0;
-const _rowExtent = 40.0;
+const _dialogMaxWidth = 740.0;
+const _rowExtent = 48.0;
 const _rowIconGap = 10.0;
 const _errorIconSize = 28.0;
-const _remoteColumnWidth = 150.0;
-const _syncColumnWidth = 64.0;
 
 class BranchPickerDialog extends ConsumerStatefulWidget {
   final String sessionId;
@@ -156,8 +154,10 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: _dialogMaxWidth,
-            maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+            maxWidth: MediaQuery.sizeOf(context).width < 780
+                ? MediaQuery.sizeOf(context).width * 0.94
+                : _dialogMaxWidth,
+            maxHeight: (MediaQuery.sizeOf(context).height * 0.72).clamp(380.0, 600.0),
           ),
           child: Material(
             color: tokens.surface,
@@ -357,51 +357,61 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                           branch.name == widget.currentBranch;
                                       final isSelected =
                                           index == _selectedIndex;
+                                      final hasUpstream =
+                                          branch.upstream != null &&
+                                          branch.upstream!.isNotEmpty;
 
-                                      return InkWell(
-                                        key: ValueKey(
-                                          'branch-picker-item-${branch.name}',
-                                        ),
-                                        onTap: () => _selectBranch(branch),
-                                        hoverColor: tokens.accent.withValues(
-                                          alpha: 0.06,
-                                        ),
-                                        child: Container(
-                                          color: isSelected
-                                              ? tokens.accent.withValues(
-                                                  alpha: 0.12,
-                                                )
-                                              : isCurrent
-                                                  ? tokens.accent.withValues(
-                                                      alpha: 0.05,
-                                                    )
-                                                  : null,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: FrameSpace.x4,
+                                      return Tooltip(
+                                        message:
+                                            '${branch.name}${hasUpstream ? '\n→ ${branch.upstream}' : ''}',
+                                        child: InkWell(
+                                          key: ValueKey(
+                                            'branch-picker-item-${branch.name}',
                                           ),
-                                          height: _rowExtent,
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isCurrent
-                                                    ? Icons.check_outlined
-                                                    : Icons.fork_right_outlined,
-                                                key: isCurrent
-                                                    ? const ValueKey(
-                                                        'branch-picker-current-check',
+                                          onTap: () => _selectBranch(branch),
+                                          hoverColor: tokens.accent.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          child: Container(
+                                            color: isSelected
+                                                ? tokens.accent.withValues(
+                                                    alpha: 0.12,
+                                                  )
+                                                : isCurrent
+                                                    ? tokens.accent.withValues(
+                                                        alpha: 0.05,
                                                       )
                                                     : null,
-                                                size: FrameSize.icon,
-                                                color: isCurrent
-                                                    ? tokens.accent
-                                                    : tokens.textMuted,
-                                              ),
-                                              const SizedBox(width: _rowIconGap),
-                                              // Branch column: flexible, takes the remaining width.
-                                              Expanded(
-                                                child: Row(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: FrameSpace.x4,
+                                              vertical: FrameSpace.x2,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Row(
                                                   children: [
-                                                    Flexible(
+                                                    Icon(
+                                                      isCurrent
+                                                          ? Icons.check_outlined
+                                                          : Icons.fork_right_outlined,
+                                                      key: isCurrent
+                                                          ? const ValueKey(
+                                                              'branch-picker-current-check',
+                                                            )
+                                                          : null,
+                                                      size: FrameSize.icon,
+                                                      color: isCurrent
+                                                          ? tokens.accent
+                                                          : tokens.textMuted,
+                                                    ),
+                                                    const SizedBox(
+                                                      width: _rowIconGap,
+                                                    ),
+                                                    // Branch name takes available width
+                                                    Expanded(
                                                       child: Text(
                                                         branch.name,
                                                         maxLines: 1,
@@ -417,8 +427,31 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                         ),
                                                       ),
                                                     ),
+                                                    if (branch.ahead != null ||
+                                                        branch.behind != null) ...[
+                                                      const SizedBox(
+                                                        width: FrameSpace.x2,
+                                                      ),
+                                                      SizedBox(
+                                                        key: const ValueKey(
+                                                          'branch-picker-sync-column',
+                                                        ),
+                                                        child: Text(
+                                                          '↑${branch.ahead ?? 0} ↓${branch.behind ?? 0}',
+                                                          maxLines: 1,
+                                                          style: text.mono.copyWith(
+                                                            color: (branch.ahead ?? 0) > 0 ||
+                                                                    (branch.behind ?? 0) > 0
+                                                                ? tokens.accent
+                                                                : tokens.textMuted,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                     if (isCurrent) ...[
-                                                      const SizedBox(width: FrameSpace.x2),
+                                                      const SizedBox(
+                                                        width: FrameSpace.x2,
+                                                      ),
                                                       Container(
                                                         padding:
                                                             const EdgeInsets.symmetric(
@@ -447,46 +480,47 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                                     ],
                                                   ],
                                                 ),
-                                              ),
-                                              // Remote column: fixed width, so rows line up.
-                                              const SizedBox(width: FrameSpace.x3),
-                                              SizedBox(
-                                                key: const ValueKey(
-                                                  'branch-picker-remote-column',
-                                                ),
-                                                width: _remoteColumnWidth,
-                                                child: Text(
-                                                  branch.upstream ?? '',
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: text.mono.copyWith(
-                                                    color: tokens.textMuted,
+                                                if (hasUpstream) ...[
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(
+                                                      left: FrameSize.icon +
+                                                          _rowIconGap,
+                                                      top: 2,
+                                                    ),
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons.cloud_outlined,
+                                                          size: 11,
+                                                          color: tokens.textMuted,
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: SizedBox(
+                                                            key: const ValueKey(
+                                                              'branch-picker-remote-column',
+                                                            ),
+                                                            child: Text(
+                                                              branch.upstream!,
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow.ellipsis,
+                                                              style: text.caption
+                                                                  .copyWith(
+                                                                color: tokens
+                                                                    .textMuted,
+                                                                fontFamily: tokens
+                                                                    .monoFontFamily,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
-                                                ),
-                                              ),
-                                              // Ahead/behind column: fixed width, right aligned.
-                                              const SizedBox(width: FrameSpace.x2),
-                                              SizedBox(
-                                                key: const ValueKey(
-                                                  'branch-picker-sync-column',
-                                                ),
-                                                width: _syncColumnWidth,
-                                                child: Text(
-                                                  branch.ahead != null ||
-                                                          branch.behind != null
-                                                      ? '↑${branch.ahead ?? 0} ↓${branch.behind ?? 0}'
-                                                      : '',
-                                                  maxLines: 1,
-                                                  textAlign: TextAlign.right,
-                                                  style: text.mono.copyWith(
-                                                    color: (branch.ahead ?? 0) > 0 ||
-                                                            (branch.behind ?? 0) > 0
-                                                        ? tokens.accent
-                                                        : tokens.textMuted,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                                ],
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       );

@@ -1451,102 +1451,135 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             FrameSpace.x3,
                             FrameSpace.x2,
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  root,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.caption.copyWith(
-                                    color: tokens.textMuted,
-                                    fontFamily: tokens.monoFontFamily,
-                                  ),
-                                ),
-                              ),
-                              if (repo ||
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final hasBranch = repo ||
                                   _status?['branch'] != null ||
-                                  _status?['detached'] == true) ...[
-                                const SizedBox(width: FrameSpace.x1),
-                                Builder(
-                                  builder: (context) {
-                                    final branchDisabled =
-                                        blocked || _working || _loading;
-                                    final chipTooltip = (blocked && !readOnly)
-                                        ? strings.branchSwitchAgentWorking
-                                        : strings.branchChipTooltip;
-                                    return Tooltip(
-                                      message: chipTooltip,
-                                      child: InkWell(
-                                        key: const ValueKey('git-branch-chip'),
-                                        onTap: branchDisabled
-                                            ? null
-                                            : _openBranchPicker,
+                                  _status?['detached'] == true;
+                              final branchName = _status?['detached'] == true
+                                  ? (_status?['headShortSha']?.toString() ??
+                                      'detached')
+                                  : (_status?['branch']?.toString() ?? '—');
+                              final isNarrow = constraints.maxWidth < 360;
+
+                              Widget buildBranchChip({double? maxWidth}) {
+                                if (!hasBranch) return const SizedBox.shrink();
+                                final branchDisabled =
+                                    blocked || _working || _loading;
+                                final chipTooltip = (blocked && !readOnly)
+                                    ? strings.branchSwitchAgentWorking
+                                    : (branchName.isNotEmpty &&
+                                            branchName != '—'
+                                        ? '$branchName · ${strings.branchChipTooltip}'
+                                        : strings.branchChipTooltip);
+                                return Tooltip(
+                                  message: chipTooltip,
+                                  child: InkWell(
+                                    key: const ValueKey('git-branch-chip'),
+                                    onTap: branchDisabled
+                                        ? null
+                                        : _openBranchPicker,
+                                    borderRadius: BorderRadius.circular(
+                                      tokens.radiusSm,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: FrameSpace.x2,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tokens.surface,
                                         borderRadius: BorderRadius.circular(
                                           tokens.radiusSm,
                                         ),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: FrameSpace.x1,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: tokens.surface,
-                                            borderRadius: BorderRadius.circular(
-                                              tokens.radiusSm,
-                                            ),
-                                            border: Border.all(
-                                              color: tokens.border,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.fork_right_outlined,
-                                                size: 13,
-                                                color: branchDisabled
-                                                    ? tokens.textMuted
-                                                    : tokens.accent,
-                                              ),
-                                              const SizedBox(
-                                                width: FrameSpace.x1,
-                                              ),
-                                              ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      maxWidth: 160,
-                                                    ),
-                                                child: Text(
-                                                  _status?['detached'] == true
-                                                      ? (_status?['headShortSha']
-                                                                ?.toString() ??
-                                                            'detached')
-                                                      : (_status?['branch']
-                                                                ?.toString() ??
-                                                            '—'),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: text.caption.copyWith(
-                                                    color: branchDisabled
-                                                        ? tokens.textMuted
-                                                        : tokens.textPrimary,
-                                                    fontFamily:
-                                                        tokens.monoFontFamily,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                        border: Border.all(
+                                          color: tokens.border,
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ],
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.fork_right_outlined,
+                                            size: 13,
+                                            color: branchDisabled
+                                                ? tokens.textMuted
+                                                : tokens.accent,
+                                          ),
+                                          const SizedBox(
+                                            width: FrameSpace.x1,
+                                          ),
+                                          ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth: maxWidth ?? 340.0,
+                                            ),
+                                            child: Text(
+                                              branchName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: text.caption.copyWith(
+                                                color: branchDisabled
+                                                    ? tokens.textMuted
+                                                    : tokens.textPrimary,
+                                                fontFamily:
+                                                    tokens.monoFontFamily,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              if (isNarrow && hasBranch) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      root,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: text.caption.copyWith(
+                                        color: tokens.textMuted,
+                                        fontFamily: tokens.monoFontFamily,
+                                      ),
+                                    ),
+                                    const SizedBox(height: FrameSpace.x1),
+                                    buildBranchChip(
+                                      maxWidth: constraints.maxWidth -
+                                          FrameSpace.x2,
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      root,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: text.caption.copyWith(
+                                        color: tokens.textMuted,
+                                        fontFamily: tokens.monoFontFamily,
+                                      ),
+                                    ),
+                                  ),
+                                  if (hasBranch) ...[
+                                    const SizedBox(width: FrameSpace.x2),
+                                    buildBranchChip(
+                                      maxWidth: (constraints.maxWidth * 0.65)
+                                          .clamp(200.0, 450.0),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
                         ),
                         if (!repo)

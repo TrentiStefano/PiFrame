@@ -13,6 +13,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] Group 8: Message List, Grouped Steps & Styling (3/3 completed)
 - [x] Group 9: Settings View Polish & Performance (3/3 completed)
 - [x] Group 10: Side Conversations & Companion Sidecar (1/1 completed)
+- [x] Group 11: Git Branch Readability & Branch Picker Layout (1/1 completed)
 
 ---
 
@@ -93,3 +94,11 @@ This document tracks all 30 reported UI issues across both rounds, organized int
   - Added multi-conversation history support (`SideConversationRecord`) per session: users can ask side questions, view a horizontal pill list of all past and active side conversations with status indicators, switch between them with conversation transcripts preserved, delete old side conversations, and start new ones with a dedicated `+` button.
   - Added dual tabs `[ Agenti (N) ]` and `[ Laterale (M) ]` in the sidecar header when both agents and side threads are active, sharing the draggable resize handle and collapsed sidecar strip.
   - Updated documentation in [install.md](file:///c:/Personale/Repos/PiFrame/PiFrame/docs/install.md) and [troubleshooting.md](file:///c:/Personale/Repos/PiFrame/PiFrame/docs/troubleshooting.md).
+
+---
+
+## Group 11: Git Branch Readability & Branch Picker Layout
+- [x] **11.1 Branch name readability in Branch Picker and Git Changes Pane**:
+  - Enlarged `BranchPickerDialog` max width from 540px to 740px (with responsive constraint up to 94% on smaller screens) and max height up to 600px.
+  - Redesigned branch picker items with a two-level hierarchy: line 1 displays check/fork icon, full branch name with expanded flex width, ahead/behind indicators, and current branch badge; line 2 displays the upstream remote (`origin/...`) clearly beneath the branch name. Added hover tooltips with full branch and upstream details (`branch_1.png`).
+  - Improved Git Changes header branch chip with adaptive `LayoutBuilder`: removed hardcoded `maxWidth: 160`, allowing the chip to expand up to 65% of available pane width (up to 450px) on standard viewports, and cleanly wrapping to a dedicated row on narrow companion panes (<360px). Added branch name to the chip tooltip (`branch_2.png`).
