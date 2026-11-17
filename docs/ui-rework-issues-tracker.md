@@ -14,6 +14,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] Group 9: Settings View Polish & Performance (3/3 completed)
 - [x] Group 10: Side Conversations & Companion Sidecar (1/1 completed)
 - [x] Group 11: Git Branch Readability & Branch Picker Layout (1/1 completed)
+- [x] Group 12: Transcript History Windowing & Card Border Precision (2/2 completed)
 
 ---
 
@@ -102,3 +103,20 @@ This document tracks all 30 reported UI issues across both rounds, organized int
   - Enlarged `BranchPickerDialog` max width from 540px to 740px (with responsive constraint up to 94% on smaller screens) and max height up to 600px.
   - Redesigned branch picker items with a two-level hierarchy: line 1 displays check/fork icon, full branch name with expanded flex width, ahead/behind indicators, and current branch badge; line 2 displays the upstream remote (`origin/...`) clearly beneath the branch name. Added hover tooltips with full branch and upstream details (`branch_1.png`).
   - Improved Git Changes header branch chip with adaptive `LayoutBuilder`: removed hardcoded `maxWidth: 160`, allowing the chip to expand up to 65% of available pane width (up to 450px) on standard viewports, and cleanly wrapping to a dedicated row on narrow companion panes (<360px). Added branch name to the chip tooltip (`branch_2.png`).
+
+---
+
+## Group 12: Transcript History Windowing & Card Border Precision
+- [x] **12.1 Answer-based transcript history windowing (10 agent answers kept loaded)**:
+  - Transitioned the transcript windowing logic in `transcript_view.dart` from a raw entry counter (which previously counted tool calls, tool results, and internal steps against the window, causing prompts to be prematurely hidden) to counting the last 10 assistant answers (`_initialVisibleAnswers = 10`).
+  - Intermediate grouped steps (tool calls, tool results, thinking) no longer count against the window quota.
+  - Guaranteed that the user prompt initiating any loaded turn is never unloaded or hidden.
+  - Updated "Carica messaggi precedenti" / "Load earlier messages" pagination to step backward by 10 agent answers (`_answersPageSize = 10`) per click.
+  - Replaced fragile `GlobalKey` anchor tracking in `SmartTranscriptChildDelegate` with stable `ValueKey`s and smooth offset jumping (`jumpTo(oldOffset + addedHeight)`).
+  - Verified with comprehensive widget tests in `apps/pi_frame/test/transcript_history_window_test.dart`.
+- [x] **12.2 Accurate assistant card border lifecycle (final answer only)**:
+  - Fixed premature card border display in `transcript_grouping.dart` where an in-progress intermediate assistant message was designated as `finalAssistantEntry` between tool steps while `live.isRunning` was true.
+  - Emits in-progress assistant entries as `IntermediateTextBlock` (`isCard: false`, no card border) while `turn.isLastTurn && live.isRunning`.
+  - Updated `LiveTailBlock` in `transcript_view.dart` to use `isCard: false`.
+  - Only settled turns with completed execution receive `FinalTextBlock` (`isCard: true`, rendered with card border).
+
