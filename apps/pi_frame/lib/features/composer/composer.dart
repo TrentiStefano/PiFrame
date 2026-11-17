@@ -1813,7 +1813,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _expand5sTimer = null;
         if (_isManuallyExpanded) {
           _hoverGraceTimer?.cancel();
-          _hoverGraceTimer = Timer(const Duration(milliseconds: 600), () {
+          _hoverGraceTimer = Timer(FrameMotion.launchReveal, () {
             if (mounted && !_isPointerOver) {
               setState(() => _isManuallyExpanded = false);
             }
@@ -1864,19 +1864,12 @@ class _ComposerState extends ConsumerState<Composer> {
                 decoration: BoxDecoration(
                   color: tokens.surfaceElevated,
                   borderRadius: _composerRadius(tokens),
-                  border: Border.all(
-                    color: tokens.border,
-                    width: 1,
-                  ),
-                  boxShadow: Theme.of(context).brightness == Brightness.dark
+                  border: isShimmerActive
                       ? null
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.07),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                      : Border.all(
+                          color: tokens.border,
+                          width: 1,
+                        ),
                 ),
                 child: pendingInteractionRequests.isNotEmpty
                     ? Padding(
@@ -3224,10 +3217,8 @@ class _ComposerState extends ConsumerState<Composer> {
                 strings.composerAgentAnsweringMinimized,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: FrameText.of(context).label.copyWith(
                   color: tokens.textSecondary,
-                  fontSize: 12,
-                  fontFamily: tokens.uiFontFamily,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -3258,9 +3249,8 @@ class _ComposerState extends ConsumerState<Composer> {
                       const SizedBox(width: 4),
                       Text(
                         strings.composerStopAction,
-                        style: TextStyle(
+                        style: FrameText.of(context).caption.copyWith(
                           color: tokens.signalDanger,
-                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -3319,10 +3309,8 @@ class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         formatRunElapsed(elapsed),
-        style: TextStyle(
+        style: FrameText.of(context).caption.copyWith(
           color: widget.tokens.textMuted,
-          fontSize: 11,
-          fontFamily: widget.tokens.uiFontFamily,
         ),
       ),
     );

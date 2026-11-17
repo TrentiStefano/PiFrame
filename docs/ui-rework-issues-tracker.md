@@ -35,7 +35,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 ## Group 3: Chat Pane — Input Box & Composer
 - [x] **3.1 Remove duplicate stop button**: Only one stop button is presented; minimized bar has interrupt button and expanded input box has single stop button next to steer/followup.
 - [x] **3.2 Light theme input box contrast**: Added border and subtle elevation box shadow in light mode so the container clearly stands out from the background (`Screenshot 2026-11-16 075020.png`).
-- [x] **3.3 Restore ring glow animation**: Restored `ShimmerBorder` wrapped with `_ComposerSizeAnimator` and pointer hover glow via `_GlowPointerPainter`.
+- [x] **3.3 Restore ring glow animation**: Fixed `ShimmerBorder` by painting the base border, highlight halo, and crisp light beam on `foregroundPainter` (on top of the container) and rendering a soft atmospheric glow halo on `painter` without bounding box clipping (`saveLayer(rect)` removed). Ensured full visibility in both light and dark modes, minimized and expanded states, and compliant with design literal ratchets.
 - [x] **3.4 Minimized input box while responding**: Reverted input box to minimize into compact `_buildMinimizedBar` while agent is answering, displaying `_MinimizedElapsedTimer` in the minimized bar.
 - [x] **3.5 Review changes button visibility**: Wrapped `ComposerReviewButton` in `if (hasModifiedFiles || isReviewing)` so it is completely hidden when there are no changes to review (`Screenshot 2026-11-16 084035.png`).
 

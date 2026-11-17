@@ -1924,9 +1924,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   const SizedBox(width: 6),
                   Text(
                     'Plugins (${extensionStatuses.length})',
-                    style: TextStyle(
+                    style: FrameText.of(context).label.copyWith(
                       color: tokens.textPrimary,
-                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2204,7 +2203,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     : _currentStrings.transcriptNoFolderOpened,
                 style: FrameText.of(context).mono.copyWith(
                   color: tokens.textMuted,
-                  fontSize: 11,
                 ),
               ),
             ),
