@@ -12,6 +12,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] Group 7: Tasks/Todo Popup & Pane Animations (3/3 completed)
 - [x] Group 8: Message List, Grouped Steps & Styling (3/3 completed)
 - [x] Group 9: Settings View Polish & Performance (3/3 completed)
+- [x] Group 10: Side Conversations & Companion Sidecar (1/1 completed)
 
 ---
 
@@ -82,3 +83,13 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] **9.1 Settings title bar "Completed" text**: Removed the active session status badge ("Completed") that spuriously appeared in the title bar of the PiFrame Settings view (`Screenshot 2026-11-16 150305.png`).
 - [x] **9.2 Agents settings space utilization**: Expanded the Agents settings page layout to use `_wideContentMaxWidth` (1360px) rather than being constrained to a narrow 760px column (`Screenshot 2026-11-16 150305.png`).
 - [x] **9.3 Packages settings loading & layout**: Preserved package list state during background update checks, prevented RenderFlex overflow on narrow viewports, and ensured clear package card layout.
+
+---
+
+## Group 10: Side Conversations & Companion Sidecar (`/side` and `/btw`)
+- [x] **10.1 Side conversations companion pane & session history**:
+  - Restored `/side` and `/btw` command triggers from the composer.
+  - Replaced the inner `SideSplit` transcript wrapper with integration directly into the full-height Chat Sidecar (`AgentSidecarLayout` / `AgentActivitySidecar`).
+  - Added multi-conversation history support (`SideConversationRecord`) per session: users can ask side questions, view a horizontal pill list of all past and active side conversations with status indicators, switch between them with conversation transcripts preserved, delete old side conversations, and start new ones with a dedicated `+` button.
+  - Added dual tabs `[ Agenti (N) ]` and `[ Laterale (M) ]` in the sidecar header when both agents and side threads are active, sharing the draggable resize handle and collapsed sidecar strip.
+  - Updated documentation in [install.md](file:///c:/Personale/Repos/PiFrame/PiFrame/docs/install.md) and [troubleshooting.md](file:///c:/Personale/Repos/PiFrame/PiFrame/docs/troubleshooting.md).
