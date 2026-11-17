@@ -575,19 +575,31 @@ class AppearanceSection extends ConsumerWidget {
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         strings.stepGroupingShowIntermediateAnswersTitle,
-                        style: text.body.copyWith(color: tokens.textPrimary),
+                        style: text.body.copyWith(
+                          color: stepGroupingSettings.mode == StepGroupingMode.full
+                              ? tokens.textMuted
+                              : tokens.textPrimary,
+                        ),
                       ),
                       subtitle: Text(
-                        strings.stepGroupingShowIntermediateAnswersSubtitle,
+                        stepGroupingSettings.mode == StepGroupingMode.full
+                            ? (strings.isItalian
+                                ? 'Non applicabile in modalità Completo (tutte le risposte intermedie sono raggruppate nei passaggi).'
+                                : 'Not applicable in Full mode (all intermediate answers are compacted into steps).')
+                            : strings.stepGroupingShowIntermediateAnswersSubtitle,
                         style: text.caption.copyWith(color: tokens.textMuted),
                       ),
                       activeThumbColor: tokens.accent,
-                      value: stepGroupingSettings.showIntermediateAnswers,
-                      onChanged: (val) {
-                        ref
-                            .read(stepGroupingSettingsProvider.notifier)
-                            .setShowIntermediateAnswers(val);
-                      },
+                      value: stepGroupingSettings.mode == StepGroupingMode.full
+                          ? false
+                          : stepGroupingSettings.showIntermediateAnswers,
+                      onChanged: stepGroupingSettings.mode == StepGroupingMode.full
+                          ? null
+                          : (val) {
+                              ref
+                                  .read(stepGroupingSettingsProvider.notifier)
+                                  .setShowIntermediateAnswers(val);
+                            },
                     ),
                   ),
                 ],

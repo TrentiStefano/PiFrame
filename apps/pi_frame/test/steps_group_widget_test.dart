@@ -173,15 +173,6 @@ void main() {
       // Group must be present
       expect(find.byType(StepsGroup), findsOneWidget);
 
-      // Header shows "Working…" or Italian "Elaborazione…"
-      final workingFinder = find.textContaining('Working…');
-      final elaborazioneFinder = find.textContaining('Elaborazione…');
-      expect(
-        workingFinder.evaluate().isNotEmpty ||
-            elaborazioneFinder.evaluate().isNotEmpty,
-        isTrue,
-      );
-
       // Tool name and abbreviated path in header label
       expect(find.textContaining('read'), findsWidgets);
 
@@ -862,6 +853,74 @@ void main() {
 
       // And it is rendered on screen
       expect(find.textContaining('Exact unaltered final text'), findsOneWidget);
+    });
+
+    testWidgets('11. full mode compacts all steps and non-final answers, shows animated switcher for running steps', (
+      tester,
+    ) async {
+      const sid = 'session_full_mode';
+      final userEntry = SessionEntry(
+        id: 'user_full',
+        role: 'user',
+        text: 'Fix all compiler warnings',
+        timestamp: 1000,
+      );
+
+      final notifier = SessionStateNotifier(sid, null)
+        ..state = SessionState(
+          sessionId: sid,
+          cwd: '/repo',
+          entries: [userEntry],
+          agentStatus: AgentStatus.working,
+          activeToolCalls: const {
+            'tool_step_1': ToolExecutionState(
+              toolCallId: 'tool_step_1',
+              toolName: 'analyze_files',
+              args: {'scope': 'all'},
+              isRunning: true,
+              startedAt: 1100,
+            ),
+          },
+        );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionStateFamily(sid).overrideWith((ref) => notifier),
+            stepGroupingSettingsProvider.overrideWith(
+              (ref) =>
+                  StepGroupingSettingsNotifier()
+                    ..setMode(StepGroupingMode.full),
+            ),
+          ],
+          child: const TranscriptView(sessionId: sid),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Group is present and starts compact in full mode
+      expect(find.byType(StepsGroup), findsOneWidget);
+      expect(find.textContaining('analyze_files'), findsOneWidget);
+      expect(find.byType(AnimatedSwitcher), findsWidgets);
+      expect(find.byType(CircularProgressIndicator), findsWidgets);
+
+      // Switch to next step
+      notifier.state = notifier.state.copyWith(
+        activeToolCalls: const {
+          'tool_step_2': ToolExecutionState(
+            toolCallId: 'tool_step_2',
+            toolName: 'fix_linter',
+            args: {},
+            isRunning: true,
+            startedAt: 1200,
+          ),
+        },
+      );
+      await tester.pump(const Duration(milliseconds: 60)); // Mid fade
+      await tester.pump(const Duration(milliseconds: 150)); // Completes crossFade animation
+
+      expect(find.textContaining('fix_linter'), findsOneWidget);
     });
   });
 }

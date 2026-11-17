@@ -10,6 +10,10 @@ enum StepGroupingMode {
 
   /// Group a turn whenever it has at least one intermediate step (thinking, tool call, intermediate text).
   always,
+
+  /// Super-compact mode: compacts all intermediate steps and non-final answers into a single group,
+  /// showing only the user message, an expandable step indicator with elapsed time, and the final answer.
+  full,
 }
 
 /// Bundles the live/in-progress state for the active turn in a transcript.
@@ -562,7 +566,11 @@ void _processTurn({
   final hasSubagents = turn.nonUserEntries.any(_isSubagentNotificationEntry);
 
   final hasIntermediateSteps =
-      hasThinking || hasTools || hasCommittedIntermediateText || hasSubagents;
+      hasThinking ||
+      hasTools ||
+      hasCommittedIntermediateText ||
+      hasSubagents ||
+      (mode == StepGroupingMode.full && turn.isLastTurn && live.isRunning);
 
   final bool shouldGroup;
   switch (mode) {
@@ -573,6 +581,7 @@ void _processTurn({
       shouldGroup = hasThinking;
       break;
     case StepGroupingMode.always:
+    case StepGroupingMode.full:
       shouldGroup = hasIntermediateSteps;
       break;
   }
@@ -637,7 +646,9 @@ void _processTurn({
       isAborted ||
       (turn.isLastTurn && live.hasError);
 
-  if (showIntermediateAnswers && hasCommittedIntermediateText) {
+  if (mode != StepGroupingMode.full &&
+      showIntermediateAnswers &&
+      hasCommittedIntermediateText) {
     // Multi-group flow: intermediate answers are emitted OUTSIDE the step groups,
     // separated by compacted intermediate steps.
     final currentSteps = <StepItem>[];
@@ -985,7 +996,10 @@ void _processTurn({
   final stepCount = steps
       .where(
         (s) =>
-            s is ThinkingStep || s is ToolStep || s is SubagentNotificationStep,
+            s is ThinkingStep ||
+            s is ToolStep ||
+            s is SubagentNotificationStep ||
+            s is IntermediateTextStep,
       )
       .length;
   final latestStep = steps.isNotEmpty ? steps.last : null;
@@ -1063,7 +1077,9 @@ void _processTurn({
   );
 
   if (firstStepIdx == -1) {
-    output.add(stepsGroup);
+    if (steps.isNotEmpty || (turn.isLastTurn && live.isRunning)) {
+      output.add(stepsGroup);
+    }
     for (final m in turn.nonUserEntries) {
       if (!_isSubagentNotificationEntry(m)) {
         output.add(EntryBlock(m));
@@ -1073,7 +1089,9 @@ void _processTurn({
     for (int i = 0; i < firstStepIdx; i++) {
       output.add(EntryBlock(turn.nonUserEntries[i]));
     }
-    output.add(stepsGroup);
+    if (steps.isNotEmpty || (turn.isLastTurn && live.isRunning)) {
+      output.add(stepsGroup);
+    }
 
     for (int i = firstStepIdx; i < turn.nonUserEntries.length; i++) {
       final entry = turn.nonUserEntries[i];

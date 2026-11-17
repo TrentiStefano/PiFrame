@@ -245,8 +245,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       groupId: groupKey,
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
-      // Phone-sized screens: start minimized, the user opens it on demand.
-      compactDefault: MediaQuery.sizeOf(context).width < kCompactStepsWidth,
+      // Phone-sized screens or Full mode: start minimized, the user opens it on demand.
+      compactDefault: settings.mode == StepGroupingMode.full ||
+          MediaQuery.sizeOf(context).width < kCompactStepsWidth,
     );
 
     final fullyExpanded = expansionState.isGroupFullyExpanded(groupKey);
@@ -472,7 +473,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
         ),
       );
       headerLabel = latestStepLabel.isNotEmpty
-          ? '${strings.stepGroupWorking} · $latestStepLabel'
+          ? latestStepLabel
           : strings.stepGroupWorking;
     } else if (aborted) {
       statusIcon = Icon(
@@ -535,18 +536,36 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 statusIcon,
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    headerLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isRunning
-                          ? tokens.agentWorking
-                          : failed
-                          ? tokens.danger
-                          : tokens.textSecondary,
-                      fontSize: FrameText.of(context).label.fontSize,
-                      fontWeight: FontWeight.w600,
+                  child: AnimatedSwitcher(
+                    duration: FrameMotionTokens.crossFade,
+                    switchInCurve: FrameMotionTokens.enterCurve,
+                    switchOutCurve: FrameMotionTokens.enterCurve,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: AlignmentDirectional.centerStart,
+                        children: <Widget>[
+                          ...previousChildren,
+                          ?currentChild,
+                        ],
+                      );
+                    },
+                    child: Text(
+                      headerLabel,
+                      key: ValueKey<String>(headerLabel),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isRunning
+                            ? tokens.agentWorking
+                            : failed
+                            ? tokens.danger
+                            : tokens.textSecondary,
+                        fontSize: FrameText.of(context).label.fontSize,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

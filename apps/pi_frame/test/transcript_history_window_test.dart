@@ -88,7 +88,11 @@ void main() {
       // 15 turns: 15 user prompts, 75 tool steps, 15 agent answers = 105 entries total.
       // Last 10 answers are turns 5..14.
       // Turns 0..4 have 5 prompts + 25 tool steps + 5 answers = 35 entries hidden.
-      await _pump(tester, 'window-10-answers', _generateTurns(count: 15, toolStepsPerTurn: 5));
+      await _pump(
+        tester,
+        'window-10-answers',
+        _generateTurns(count: 15, toolStepsPerTurn: 5),
+      );
       await tester.pumpAndSettle();
 
       final scrollable = find

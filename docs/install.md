@@ -349,6 +349,7 @@ Il runtime di PiFrame (`pi-agentd`) include il supporto nativo per l'ispezione e
 PiFrame organizza in modo compatto e leggibile i passaggi intermedi eseguiti dall'assistente durante un turno di conversazione (blocchi di ragionamento / thinking, chiamate agli strumenti / tool calls e testi intermedi), lasciando in risalto la risposta finale:
 
 - **Modalità di raggruppamento (Step Grouping Modes)**:
+  - **Completo (`full`)**: visualizzazione ultra-compatta della chat. Raggruppa e compatta tutti i passaggi intermedi, i blocchi di ragionamento e le risposte non finali dell'agente in un unico blocco compresso espandibile: la chat mostra solo il prompt dell'utente, l'indicatore con il numero di passaggi e il tempo impiegato, e la risposta finale dell'agente. Durante l'esecuzione viene mostrato esclusivamente il titolo dell'ultimo passaggio attivo con indicatore di caricamento e animazione di dissolvenza incrociata (fade-out/fade-in) tra un passaggio e il successivo.
   - **Con ragionamento (`withThinking`, predefinita)**: raggruppa automaticamente i turni che contengono blocchi di ragionamento (sia storici sia durante lo streaming).
   - **Sempre (`always`)**: raggruppa qualsiasi turno che presenti almeno un passaggio intermedio (thinking, chiamata a tool o testo intermedio).
   - **Disattivato (`off`)**: disattiva il raggruppamento; ogni messaggio, tool call e blocco di ragionamento viene visualizzato singolarmente nel flusso normale della chat con rendering pixel-identico alla visualizzazione classica.

@@ -3,7 +3,7 @@
 This document tracks all 30 reported UI issues across both rounds, organized into 9 logical groups by UI section and similarity.
 
 ## Progress Overview
-- [x] Group 1: Chat Pane — Message List, Compaction & Subagents (4/4 completed)
+- [x] Group 1: Chat Pane — Message List, Compaction & Subagents (5/5 completed)
 - [x] Group 2: Chat Pane — Title Bar & Header (1/1 completed)
 - [x] Group 3: Chat Pane — Input Box & Composer (5/5 completed)
 - [x] Group 4: Left Sidebar & Navigation (Sessions, Repo Pane, New Session Dialog) (5/5 completed)
@@ -23,6 +23,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] **1.2 In-between agent answers placed between compacted step groups**: Partitioned intermediate assistant text turns into `IntermediateTextBlock` outside the compacted `StepsGroupBlock`s when `showIntermediateAnswers` is enabled (`showIntermediateAnswers: true`), following the visual sequence: user input -> compacted steps group -> intermediate reasoning answer -> compacted steps group -> final answer.
 - [x] **1.3 Final answer card border vs in-between answer**: Updated `AssistantTurnFrame` with `isCard: bool`. When `isCard: true` (used for `FinalTextBlock` and `LiveTailBlock`), the assistant message is enclosed in a card with a subtle border and surface fill (`Screenshot 2026-11-16 080453.png`). When `isCard: false` (used for `IntermediateTextBlock`), it renders cleanly without a card border.
 - [x] **1.4 Subagent notifications taking over chat**: Converted subagent task notification entries into `SubagentNotificationStep`s that compact into the intermediate steps group with a compact 1-line summary and smart-toy icon. In addition, subagents remain structured and accessible in the dedicated resizable Agents right sidebar tab (`Screenshot 2026-11-16 080637.png`).
+- [x] **1.5 "Full" step grouping option & animated live switcher**: Added `StepGroupingMode.full` option ("Completo (Full)") that groups all intermediate tool calls, reasoning/thinking, and non-final assistant text into a single compacted step group. While the agent is working, only the latest step title is shown alongside the activity spinner, smoothly transitioning between consecutive steps using a 120ms fade-out/fade-in `AnimatedSwitcher`. When settled, displays a super-compact view showing only the user prompt, expandable step summary indicator with step count and duration, and the agent's final answer.
 
 ---
 

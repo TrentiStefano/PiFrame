@@ -353,6 +353,12 @@ class AppStrings {
       ? 'Raggruppa qualsiasi turno con passaggi intermedi o chiamate a strumenti.'
       : 'Group any turn with intermediate steps or tool calls.';
 
+  String get stepGroupingModeFull =>
+      isItalian ? 'Completo (Full)' : 'Full';
+  String get stepGroupingModeFullDescription => isItalian
+      ? 'Comprime tutti i passaggi e le risposte non finali in un unico gruppo, mostrando solo la risposta finale.'
+      : 'Compacts all steps and non-final answers into a single group, showing only the final answer.';
+
   String stepGroupingModeLabel(StepGroupingMode mode) {
     switch (mode) {
       case StepGroupingMode.off:
@@ -361,6 +367,8 @@ class AppStrings {
         return stepGroupingModeWithThinking;
       case StepGroupingMode.always:
         return stepGroupingModeAlways;
+      case StepGroupingMode.full:
+        return stepGroupingModeFull;
     }
   }
 
@@ -372,6 +380,8 @@ class AppStrings {
         return stepGroupingModeWithThinkingDescription;
       case StepGroupingMode.always:
         return stepGroupingModeAlwaysDescription;
+      case StepGroupingMode.full:
+        return stepGroupingModeFullDescription;
     }
   }
 
