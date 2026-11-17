@@ -4,6 +4,29 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Windowing cronologia chat per risposte dell'agente e bordo card prematuro durante l'esecuzione
+
+**Sintomo:**
+1. Nei turni con molti passaggi intermedi o chiamate a strumenti (es. 20 o più step), il prompt dell'utente veniva scaricato e nascosto dalla finestra della chat costringendo a cliccare ripetutamente «Carica messaggi precedenti». Il limite di paginazione contava infatti i singoli messaggi grezzi (inclusi tool e step intermedi).
+2. Durante l'elaborazione dell'agente tra una chiamata a strumento e l'altra o durante lo streaming in corso, l'ultimo messaggio temporaneo veniva mostrato con il bordo a scheda (`isCard: true`) come se fosse la risposta finale, per poi perdere il bordo quando l'agente proseguiva l'esecuzione.
+
+**Causa:**
+1. `_visibleCount` utilizzava una soglia grezza (inizialmente 35 messaggi), conteggiando indistintamente chiamate di strumenti, risultati e passaggi intermedi raggruppati. Se un singolo turno generava 40 voci di log/strumento, il prompt utente a monte veniva escluso dalla finestra visibile. Inoltre la paginazione aumentava di un numero grezzo di voci anziché per turni/risposte dell'agente.
+2. In `transcript_grouping.dart`, il riconoscimento dell'ultimo blocco di risposta (`finalAssistantEntry`) non verificava se il turno corrente fosse ancora in esecuzione (`turn.isLastTurn && live.isRunning`), e `LiveTailBlock` in `transcript_view.dart` impostava incondizionatamente `isCard: true`.
+
+**Correzione:**
+1. Il sistema di windowing della cronologia chat in `transcript_view.dart` opera ora contando le ultime **10 risposte dell'agente** (`_visibleAnswerCount = 10`), ignorando nel computo i passaggi intermedi raggruppati (tool call, tool result, thinking) e garantendo che il prompt utente associato a ciascun turno caricato non venga mai scaricato o escluso. La paginazione tramite «Carica messaggi precedenti» avanza a blocchi di 10 risposte complete.
+2. In `transcript_grouping.dart`, nessun messaggio intermedio viene promosso a risposta finale (`finalAssistantEntry`) finché il turno è in esecuzione (`live.isRunning`). I messaggi intermedi vengono emessi come `IntermediateTextBlock` (`isCard: false`) e anche il blocco live `LiveTailBlock` mantiene `isCard: false`: solo quando il turno si conclude definitivamente il messaggio finale viene visualizzato con il bordo a scheda (`FinalTextBlock`, `isCard: true`).
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/transcript_history_window_test.dart test/transcript_grouping_test.dart
+```
+
+---
+
 ## Nomi dei rami Git lunghi troncati nel selettore rami e nell'intestazione Git Changes
 
 **Sintomo:** i rami Git con nomi lunghi (es. `Sprint_2026_21/Sprint_Login_Refactor_Phase1`) venivano troncati con puntini di sospensione sia nella finestra di dialogo di selezione del ramo (`BranchPickerDialog`) sia nella pillola del ramo corrente nell'intestazione del pannello Git Changes, rendendoli illeggibili.

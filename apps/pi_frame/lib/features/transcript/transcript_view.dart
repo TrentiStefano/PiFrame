@@ -140,14 +140,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   bool _isProgrammaticScroll = false;
   String? _lastHandledUiRequestId;
 
-  static const int _initialVisibleCount = 35;
-  static const int _pageSize = 250;
-  static const int _minVisibleUserMessages = 5;
-  int _visibleCount = _initialVisibleCount;
+  static const int _initialVisibleAnswers = 10;
+  static const int _answersPageSize = 10;
+  static const int _pageSize = 100;
+  int _visibleAnswerCount = _initialVisibleAnswers;
 
   final Map<String, double> _entryHeights = {};
-  String? _targetAnchorId;
-  final GlobalKey _anchorKey = GlobalKey();
 
   double _calculateAverageHeight() {
     if (_entryHeights.isEmpty) return 120.0;
@@ -164,10 +162,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   final TextEditingController _renameController = TextEditingController();
   final FocusNode _renameFocusNode = FocusNode();
   final Set<String> _expandedThinkingBlocks = <String>{};
-  int _lastTotalEntries = 0;
 
   static final RegExp _ansiEscape1 = RegExp(r'\x1B\[[0-9;]*[a-zA-Z]');
   static final RegExp _ansiEscape2 = RegExp(r'\x1B\([B0-9]');
+
+  /// Checks whether a session entry represents an agent answer (as opposed to a
+  /// grouped tool step, tool result, subagent notification, or thinking step).
+  static bool _isAgentAnswer(SessionEntry entry) {
+    if (entry.role != 'assistant') return false;
+    if (entry.text.trim().isEmpty) return false;
+    if (entry.metadata?['customType'] == 'subagent-notification') return false;
+    return true;
+  }
   static final RegExp _controlChars = RegExp(
     r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
   );
@@ -239,8 +245,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _cachedBentoHeader = null;
       _cachedHeaderExtStatuses = null;
       _expandedThinkingBlocks.clear();
-      _lastTotalEntries = 0;
-      _visibleCount = _pageSize;
+      _visibleAnswerCount = _initialVisibleAnswers;
       _initialScrollDone = false;
       _userScrolledUp = false;
       _userManuallyToggledTabs = false;
@@ -1189,6 +1194,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _userManuallyToggledTabs = false;
       _knownTodoIds = currentTodoIds;
       _autoOpenedTodoIds = null;
+      _visibleAnswerCount = _initialVisibleAnswers;
     } else {
       final newlyAddedIds = currentTodoIds.difference(_knownTodoIds);
       if (newlyAddedIds.isNotEmpty && !_userManuallyToggledTabs) {
@@ -1215,15 +1221,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         .toList();
     final totalEntries = cleanEntries.length;
 
-    // Keep visible messages in view if new messages arrive during active session
-    if (_lastTotalEntries > 0 && totalEntries > _lastTotalEntries) {
-      final added = totalEntries - _lastTotalEntries;
-      _visibleCount = _visibleCount + added;
-      if (cleanEntries.isNotEmpty && cleanEntries.last.role == 'user') {
-        _userScrolledUp = false;
-      }
+    // Keep visible messages in view if user just sent a message
+    if (cleanEntries.isNotEmpty && cleanEntries.last.role == 'user') {
+      _userScrolledUp = false;
     }
-    _lastTotalEntries = totalEntries;
 
     // Transition live thinking expansion to newly committed entry if stream finished
     if (!sessionState.isStreaming &&
@@ -1242,17 +1243,30 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       }
     }
 
-    var hiddenCount = (totalEntries - _visibleCount).clamp(0, totalEntries);
-    // A turn can hold many step entries, so a count-based window may start inside it
-    // and drop the prompt. Widen the window to reach the Nth-last user message.
-    var userSeen = 0;
-    for (var i = totalEntries - 1; i >= 0; i--) {
-      if (cleanEntries[i].role == 'user' && ++userSeen == _minVisibleUserMessages) {
-        if (i < hiddenCount) {
-          hiddenCount = i;
-          _visibleCount = totalEntries - i;
+    // Windowing keeps loaded the last [_visibleAnswerCount] answers from the agent.
+    // Grouped steps (tool calls, tool results, thinking) do not count against this quota,
+    // and the user prompt of each loaded answer's turn is never unloaded.
+    int answersSeen = 0;
+    int hiddenCount = 0;
+
+    for (int i = totalEntries - 1; i >= 0; i--) {
+      final entry = cleanEntries[i];
+      if (_isAgentAnswer(entry)) {
+        answersSeen++;
+        if (answersSeen == _visibleAnswerCount) {
+          int turnStartIndex = i;
+          for (int j = i - 1; j >= 0; j--) {
+            if (cleanEntries[j].role == 'user') {
+              turnStartIndex = j;
+              break;
+            }
+            if (_isAgentAnswer(cleanEntries[j])) {
+              break;
+            }
+          }
+          hiddenCount = turnStartIndex;
+          break;
         }
-        break;
       }
     }
     final visibleEntries = cleanEntries.sublist(hiddenCount);
@@ -1417,33 +1431,40 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   ),
                                   onPressed: () async {
                                     if (visibleEntries.isEmpty) return;
-                                    final anchorEntry = visibleEntries.first;
-                                    _targetAnchorId = anchorEntry.id;
                                     final oldOffset = _scrollController.offset;
-
-                                    double? initialAnchorY;
-                                    final initialBox = _anchorKey.currentContext
-                                        ?.findRenderObject() as RenderBox?;
-                                    if (initialBox != null && initialBox.attached) {
-                                      initialAnchorY = initialBox
-                                          .localToGlobal(Offset.zero)
-                                          .dy;
-                                    }
-
                                     final avg = _calculateAverageHeight();
                                     double addedHeight = 0;
 
                                     if (isLocalHidden) {
-                                      final oldVisibleCount = _visibleCount;
-                                      final newVisibleCount = (_visibleCount + _pageSize)
-                                          .clamp(0, totalEntries);
-                                      final oldHiddenCount = totalEntries - oldVisibleCount;
-                                      final newHiddenCount = totalEntries - newVisibleCount;
-                                      for (int i = newHiddenCount; i < oldHiddenCount; i++) {
+                                      final targetAnswerCount =
+                                          _visibleAnswerCount + _answersPageSize;
+                                      int answersSeen = 0;
+                                      int newHiddenCount = 0;
+                                      for (int i = totalEntries - 1; i >= 0; i--) {
+                                        final entry = cleanEntries[i];
+                                        if (_isAgentAnswer(entry)) {
+                                          answersSeen++;
+                                          if (answersSeen == targetAnswerCount) {
+                                            int turnStartIndex = i;
+                                            for (int j = i - 1; j >= 0; j--) {
+                                              if (cleanEntries[j].role == 'user') {
+                                                turnStartIndex = j;
+                                                break;
+                                              }
+                                              if (_isAgentAnswer(cleanEntries[j])) {
+                                                break;
+                                              }
+                                            }
+                                            newHiddenCount = turnStartIndex;
+                                            break;
+                                          }
+                                        }
+                                      }
+                                      for (int i = newHiddenCount; i < hiddenCount; i++) {
                                         addedHeight += _entryHeights[cleanEntries[i].id] ?? avg;
                                       }
                                       setState(() {
-                                        _visibleCount = newVisibleCount;
+                                        _visibleAnswerCount = targetAnswerCount;
                                       });
                                     } else {
                                       final added = await ref
@@ -1454,6 +1475,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           )
                                           .loadOlderHistory(limit: _pageSize);
                                       addedHeight = added * avg;
+                                      if (mounted) {
+                                        setState(() {
+                                          _visibleAnswerCount += _answersPageSize;
+                                        });
+                                      }
                                     }
 
                                     if (addedHeight > 0 && _scrollController.hasClients) {
@@ -1463,29 +1489,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
                                     WidgetsBinding.instance.addPostFrameCallback((_) {
                                       _isProgrammaticScroll = false;
-                                      if (!mounted ||
-                                          !_scrollController.hasClients ||
-                                          initialAnchorY == null) {
-                                        _targetAnchorId = null;
-                                        return;
-                                      }
-                                      final currentBox = _anchorKey.currentContext
-                                          ?.findRenderObject() as RenderBox?;
-                                      if (currentBox != null && currentBox.attached) {
-                                        final currentY = currentBox
-                                            .localToGlobal(Offset.zero)
-                                            .dy;
-                                        final diff = currentY - initialAnchorY;
-                                        if (diff.abs() > 0.5) {
-                                          _isProgrammaticScroll = true;
-                                          _scrollController
-                                              .jumpTo(_scrollController.offset + diff);
-                                          scheduleMicrotask(
-                                            () => _isProgrammaticScroll = false,
-                                          );
-                                        }
-                                      }
-                                      _targetAnchorId = null;
                                     });
                                   },
                                 )),
@@ -1517,13 +1520,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                 }
                               }
                             }
-                            final firstVisibleId = _targetAnchorId ??
-                                (visibleEntries.isNotEmpty ? visibleEntries.first.id : null);
-                            final isAnchor = entry.id == firstVisibleId;
                             return _MeasureSize(
                               onSizeChange: (s) => _entryHeights[entry.id] = s.height,
                               child: Padding(
-                                key: isAnchor ? _anchorKey : ValueKey('entry_row_${entry.id}'),
+                                key: ValueKey('entry_row_${entry.id}'),
                                 padding: EdgeInsets.symmetric(
                                   horizontal: isCompact ? 12 : 24,
                                 ),
@@ -1601,20 +1601,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   (e) => e.id == block.entry.id,
                                 ),
                               );
-                              final firstVisibleId = _targetAnchorId ??
-                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
-                                      ? itemKeys[hasLoadBanner ? 1 : 0]
-                                      : null);
-                              final isAnchor = block.entry.id == firstVisibleId ||
-                                  (_targetAnchorId != null &&
-                                      block.entry.id == _targetAnchorId);
                               return _MeasureSize(
                                 onSizeChange: (s) =>
                                     _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
-                                  key: isAnchor
-                                      ? _anchorKey
-                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  key: ValueKey('entry_row_${block.entry.id}'),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isCompact ? 12 : 24,
                                   ),
@@ -1659,20 +1650,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               );
 
                             case StepsGroupBlock():
-                              final firstVisibleId = _targetAnchorId ??
-                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
-                                      ? itemKeys[hasLoadBanner ? 1 : 0]
-                                      : null);
-                              final isAnchor = block.groupId == firstVisibleId ||
-                                  (_targetAnchorId != null &&
-                                      block.groupId == 'steps_$_targetAnchorId');
                               return _MeasureSize(
                                 onSizeChange: (s) =>
                                     _entryHeights[block.groupId] = s.height,
                                 child: Padding(
-                                  key: isAnchor
-                                      ? _anchorKey
-                                      : ValueKey('entry_row_${block.groupId}'),
+                                  key: ValueKey('entry_row_${block.groupId}'),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isCompact ? 12 : 24,
                                   ),
@@ -1702,20 +1684,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   (e) => e.id == block.entry.id,
                                 ),
                               );
-                              final firstVisibleId = _targetAnchorId ??
-                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
-                                      ? itemKeys[hasLoadBanner ? 1 : 0]
-                                      : null);
-                              final isAnchor = block.entry.id == firstVisibleId ||
-                                  (_targetAnchorId != null &&
-                                      block.entry.id == _targetAnchorId);
                               return _MeasureSize(
                                 onSizeChange: (s) =>
                                     _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
-                                  key: isAnchor
-                                      ? _anchorKey
-                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  key: ValueKey('entry_row_${block.entry.id}'),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isCompact ? 12 : 24,
                                   ),
@@ -1744,20 +1717,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                   (e) => e.id == block.entry.id,
                                 ),
                               );
-                              final firstVisibleId = _targetAnchorId ??
-                                  (itemKeys.length > (hasLoadBanner ? 1 : 0)
-                                      ? itemKeys[hasLoadBanner ? 1 : 0]
-                                      : null);
-                              final isAnchor = block.entry.id == firstVisibleId ||
-                                  (_targetAnchorId != null &&
-                                      block.entry.id == _targetAnchorId);
                               return _MeasureSize(
                                 onSizeChange: (s) =>
                                     _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
-                                  key: isAnchor
-                                      ? _anchorKey
-                                      : ValueKey('entry_row_${block.entry.id}'),
+                                  key: ValueKey('entry_row_${block.entry.id}'),
                                   padding: EdgeInsets.symmetric(
                                     horizontal: isCompact ? 12 : 24,
                                   ),
@@ -1800,7 +1764,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           block.text,
                                           false,
                                           const [],
-                                          isCard: true,
+                                          isCard: false,
                                         ),
                                       ),
                                     ),

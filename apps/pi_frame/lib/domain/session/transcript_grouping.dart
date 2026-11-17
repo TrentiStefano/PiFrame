@@ -517,11 +517,10 @@ void _processTurn({
   final hasTools = hasCommittedTools || hasActiveTools;
 
   // Identify final assistant entry candidate (if any).
+  // While the turn is actively running, no committed entry is final yet.
+  // Only once the turn completes (or stops running) is the last assistant entry final.
   SessionEntry? finalAssistantEntry;
-  if (!hasActiveTools &&
-      !(turn.isLastTurn &&
-          live.isRunning &&
-          live.streamingText.trim().isNotEmpty)) {
+  if (!hasActiveTools && !(turn.isLastTurn && live.isRunning)) {
     for (int i = assistantEntries.length - 1; i >= 0; i--) {
       final asst = assistantEntries[i];
       if (asst.toolCallsAfterText.isNotEmpty) {
