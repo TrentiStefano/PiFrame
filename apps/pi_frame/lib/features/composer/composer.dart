@@ -3228,6 +3228,14 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   'composer-steer-btn',
                                                 ),
                                                 padding: EdgeInsets.zero,
+                                                style: IconButton.styleFrom(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                  ),
+                                                ),
                                                 icon: Stack(
                                                   alignment: Alignment.center,
                                                   children: [
@@ -3287,6 +3295,14 @@ class _ComposerState extends ConsumerState<Composer> {
                                                   'composer-followup-btn',
                                                 ),
                                                 padding: EdgeInsets.zero,
+                                                style: IconButton.styleFrom(
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          tokens.radiusSm,
+                                                        ),
+                                                  ),
+                                                ),
                                                 icon: Stack(
                                                   alignment: Alignment.center,
                                                   children: [

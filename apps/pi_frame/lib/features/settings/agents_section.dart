@@ -1294,6 +1294,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: displayValue,
+              borderRadius: BorderRadius.circular(tokens.radiusMd),
               hint: Text(
                 effectiveModel ?? strings.agentsPiDefaultLabel,
                 overflow: TextOverflow.ellipsis,
@@ -1369,6 +1370,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: valueInItems ? effectiveVal : null,
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
           hint: Text(
             effectiveVal ?? ref.read(appStringsProvider).agentsPiDefaultLabel,
             style: FrameText.fromTokens(tokens).label
@@ -1426,6 +1428,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: valueInItems ? effectiveLimit : null,
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
           hint: Text(
             effectiveLimit != null
                 ? formatContextTier(effectiveLimit, modelContextWindow)
@@ -1473,6 +1476,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: valueInItems ? effectiveFallback : null,
+          borderRadius: BorderRadius.circular(tokens.radiusMd),
           hint: Text(
             effectiveFallback ?? '—',
             style: FrameText.fromTokens(tokens).label

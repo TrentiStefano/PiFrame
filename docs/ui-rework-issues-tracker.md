@@ -139,5 +139,10 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] **13.3 Minimized composer pointer glow overlay alignment**:
   - Fixed painter bounding box distortion in `composer.dart` where `_GlowPointerPainter` previously painted onto an inner child (~24px tall) inside outer padding, causing it to collapse into a detached stadium/capsule shape (`Screenshot 2026-11-17 141950.png`).
   - Lifted the glow pointer painter and mouse region to wrap the outer composer `Container` directly, ensuring the glow effect follows the exact outer container geometry and corner radius (`_composerRadius(tokens)`). Inner tap interactions and padding now neatly live within the child `InkWell`.
+- [x] **13.4 Component-level ink overlays, toggle splash containment & popup dropdown radii**:
+  - Follow-up and steer action buttons in `composer.dart` and `FrameIconAction` now use `shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm))`, replacing the circular splash overlay with rounded-square overlays matching the button contour (`Screenshot 2026-11-17 141640.png`).
+  - Wrapped MCP Server Status card in `pi_cli_section.dart` with a dedicated rounded sub-card `Container` (`tokens.surface`, `tokens.radiusSm`, `tokens.border`), internal padding, and `InkWell(borderRadius: BorderRadius.circular(tokens.radiusSm))`, eliminating sharp corners and cut-off ink splashes (`Screenshot 2026-11-17 141704.png`).
+  - Configured `splashRadius: 14.0` in `SwitchThemeData` (`theme_spec.dart`) so toggle switches keep their hover and focus radial reaction cleanly contained within the 32px track height without spilling over (`Screenshot 2026-11-17 141739.png`).
+  - Added `borderRadius: BorderRadius.circular(tokens.radiusMd)` to all `DropdownButton`s in `agents_section.dart` and `aspetto_section.dart`, replacing default 90-degree sharp dropdown menus with rounded popups matching the theme design language (`media_1794926090142_5798647a.png`).
 
 

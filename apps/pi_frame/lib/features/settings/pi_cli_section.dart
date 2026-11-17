@@ -626,100 +626,116 @@ class _PiCliSectionState extends State<PiCliSection> {
     final isRunning = _currentCommand == item.command && _isExecuting;
     final isMcpRow = item.command == 'pi mcp list';
 
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
-      child: Row(
-        children: [
-          Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
-          const SizedBox(width: FrameSpace.x3),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        item.label,
-                        style: text.label.copyWith(color: tokens.textPrimary),
-                      ),
+    final rowContent = Row(
+      children: [
+        Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
+        const SizedBox(width: FrameSpace.x3),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      item.label,
+                      style: text.label.copyWith(color: tokens.textPrimary),
                     ),
-                    if (item.isRecommended) ...[
-                      const SizedBox(width: FrameSpace.x2),
-                      FrameStatusTag(
-                        key: const ValueKey('pi-cli-recommended-tag'),
-                        label: strings.piCliRecommendedTag,
-                        tone: FrameStatusTone.info,
-                      ),
-                    ],
+                  ),
+                  if (item.isRecommended) ...[
+                    const SizedBox(width: FrameSpace.x2),
+                    FrameStatusTag(
+                      key: const ValueKey('pi-cli-recommended-tag'),
+                      label: strings.piCliRecommendedTag,
+                      tone: FrameStatusTone.info,
+                    ),
                   ],
-                ),
-                Text(
-                  item.command,
-                  style: text.mono.copyWith(color: tokens.textMuted),
-                ),
-                Text(
-                  item.description,
-                  style: text.caption.copyWith(color: tokens.textMuted),
-                ),
-              ],
+                ],
+              ),
+              Text(
+                item.command,
+                style: text.mono.copyWith(color: tokens.textMuted),
+              ),
+              Text(
+                item.description,
+                style: text.caption.copyWith(color: tokens.textMuted),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: FrameSpace.x2),
+        if (isMcpRow) ...[
+          PressFeedback(
+            child: OutlinedButton(
+              key: const ValueKey('btn-manage-mcp-servers'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.textPrimary,
+                side: BorderSide(color: tokens.borderStrong),
+                minimumSize: const Size(0, FrameSize.hitMin),
+              ),
+              onPressed: () =>
+                  McpServersDialog.show(context, tokens, strings: strings),
+              child: Text(strings.piCliManageMcpBtn),
             ),
           ),
           const SizedBox(width: FrameSpace.x2),
-          if (isMcpRow) ...[
-            PressFeedback(
-              child: OutlinedButton(
-                key: const ValueKey('btn-manage-mcp-servers'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: tokens.textPrimary,
-                  side: BorderSide(color: tokens.borderStrong),
-                  minimumSize: const Size(0, FrameSize.hitMin),
-                ),
-                onPressed: () =>
-                    McpServersDialog.show(context, tokens, strings: strings),
-                child: Text(strings.piCliManageMcpBtn),
-              ),
-            ),
-            const SizedBox(width: FrameSpace.x2),
-          ],
-          PressFeedback(
-            child: OutlinedButton.icon(
-              key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
-              style: _outlinedRunStyle(tokens),
-              onPressed: _isExecuting
-                  ? null
-                  : () => _executeCommand(item.command, item.args),
-              icon: isRunning
-                  ? FrameActivityIndicator(
-                      size: FrameSize.icon,
-                      strokeWidth: 2,
-                      color: tokens.accent,
-                    )
-                  : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
-              label: Text(
-                isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
-              ),
+        ],
+        PressFeedback(
+          child: OutlinedButton.icon(
+            key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
+            style: _outlinedRunStyle(tokens),
+            onPressed: _isExecuting
+                ? null
+                : () => _executeCommand(item.command, item.args),
+            icon: isRunning
+                ? FrameActivityIndicator(
+                    size: FrameSize.icon,
+                    strokeWidth: 2,
+                    color: tokens.accent,
+                  )
+                : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
+            label: Text(
+              isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
     if (isMcpRow) {
-      return Material(
-        key: const ValueKey('pi-cli-card-pi-mcp-list'),
-        type: MaterialType.transparency,
-        child: Tooltip(
-          message: strings.piCliMcpCardTooltip,
-          child: InkWell(
-            onTap: () =>
-                McpServersDialog.show(context, tokens, strings: strings),
-            child: row,
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
+        decoration: BoxDecoration(
+          color: tokens.surface,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(color: tokens.border),
+        ),
+        child: Material(
+          key: const ValueKey('pi-cli-card-pi-mcp-list'),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          child: Tooltip(
+            message: strings.piCliMcpCardTooltip,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              onTap: () =>
+                  McpServersDialog.show(context, tokens, strings: strings),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FrameSpace.x3,
+                  vertical: FrameSpace.x2,
+                ),
+                child: rowContent,
+              ),
+            ),
           ),
         ),
       );
     }
 
-    return row;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
+      child: rowContent,
+    );
   }
 }

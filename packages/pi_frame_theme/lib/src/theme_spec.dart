@@ -623,10 +623,19 @@ class ThemeSpec {
           ),
         ),
       ),
-      iconButtonTheme: IconButtonThemeData(style: _withFocusRing(tokens)),
+      iconButtonTheme: IconButtonThemeData(
+        style: _withFocusRing(tokens).copyWith(
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+            ),
+          ),
+        ),
+      ),
       checkboxTheme: CheckboxThemeData(overlayColor: _focusOverlay(tokens)),
       switchTheme: SwitchThemeData(
         overlayColor: _focusOverlay(tokens),
+        splashRadius: 14.0,
         // Off state uses the quiet `border` token; the on state keeps the
         // default (no outline on the filled track).
         trackOutlineColor: WidgetStateProperty.resolveWith((states) {
