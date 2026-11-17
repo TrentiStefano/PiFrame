@@ -7,6 +7,7 @@ import '../ui/frame_icon_action.dart';
 import '../ui/motion.dart';
 import '../ui/phone_corners.dart';
 import 'focus_regions.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,7 +47,6 @@ import '../features/session_changes/session_changes_pane.dart';
 import '../data/pi_install/pi_install_service.dart';
 import '../features/dialogs/pi_install_dialog.dart';
 import '../features/side/side_provider.dart';
-import '../features/side/side_split.dart';
 import '../data/metrics/nerd_stats_settings.dart';
 import '../data/metrics/system_metrics_controller.dart';
 import '../features/metrics/nerd_stats_bar.dart';
@@ -130,8 +130,8 @@ Map<WorkspacePane, double> clampRestoredPaneWeights({
       .fold<double>(0, (sum, p) => sum + result[p]!);
   final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
   for (final p in open) {
-    final share = pinned[p] ??
-        (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
+    final share =
+        pinned[p] ?? (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
     result[p] = share * 100;
   }
   return result;
@@ -203,9 +203,8 @@ class _ConnectionIndicator extends StatelessWidget {
                   const SizedBox(width: FrameSpace.x2),
                   Text(
                     label,
-                    style: FrameText.of(context).caption.copyWith(
-                      color: tokens.textMuted,
-                    ),
+                    style: FrameText.of(context).caption
+                        .copyWith(color: tokens.textMuted),
                   ),
                 ],
                 const SizedBox(width: FrameSpace.x2),
@@ -409,7 +408,8 @@ class _AppShellState extends ConsumerState<AppShell>
     if (_preReviewPaneVisibility != null) return;
     LayoutStore.instance.save({
       'visibility': {
-        for (final pane in WorkspacePane.values) pane.name: _paneVisibility[pane] ?? true,
+        for (final pane in WorkspacePane.values)
+          pane.name: _paneVisibility[pane] ?? true,
       },
       'sidebarCollapsed': _sidebarCollapsed,
       'sidebarWidth': _sidebarWidth,
@@ -509,7 +509,8 @@ class _AppShellState extends ConsumerState<AppShell>
     WidgetsBinding.instance.addObserver(this);
     _applyPersistedLayout();
     final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
-    _handlesNativeClose = desktopLifecycle && defaultTargetPlatform != TargetPlatform.windows;
+    _handlesNativeClose =
+        desktopLifecycle && defaultTargetPlatform != TargetPlatform.windows;
     _hasWindowListener = desktopLifecycle;
     if (_hasWindowListener) {
       windowManager.addListener(this);
@@ -554,9 +555,11 @@ class _AppShellState extends ConsumerState<AppShell>
   @override
   void didChangePlatformBrightness() {
     super.didChangePlatformBrightness();
-    ref.read(activeThemeSpecProvider.notifier).onPlatformBrightnessChanged(
-      WidgetsBinding.instance.platformDispatcher.platformBrightness,
-    );
+    ref
+        .read(activeThemeSpecProvider.notifier)
+        .onPlatformBrightnessChanged(
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+        );
   }
 
   @override
@@ -632,9 +635,7 @@ class _AppShellState extends ConsumerState<AppShell>
   ) {
     _escapeHandles.remove(tag)?.call();
     if (!open) return;
-    _escapeHandles[tag] = ref
-        .read(escapeLayersProvider)
-        .register(layer, close);
+    _escapeHandles[tag] = ref.read(escapeLayersProvider).register(layer, close);
   }
 
   /// Focuses the first focusable control of [region] in reading order. Returns false
@@ -735,12 +736,22 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     if (key == LogicalKeyboardKey.keyB && commandKey && shift) {
       if (activeId != null) {
-        ref.read(sideThreadFamily(activeId).notifier).togglePanel(instant: true);
+        final thread = ref.read(sideThreadFamily(activeId));
+        if (!thread.isOpen) {
+          ref.read(chatSidecarTabFamily(activeId).notifier).state =
+              ChatSidecarTab.side;
+        }
+        ref
+            .read(sideThreadFamily(activeId).notifier)
+            .togglePanel(instant: true);
         return KeyEventResult.handled;
       }
     }
     // Ctrl+Tab is the only one that is Ctrl-only; Cmd+Tab belongs to the OS.
-    if (key == LogicalKeyboardKey.tab && hardware.isControlPressed && !shift && !alt) {
+    if (key == LogicalKeyboardKey.tab &&
+        hardware.isControlPressed &&
+        !shift &&
+        !alt) {
       _switchToPreviousSession();
       return KeyEventResult.handled;
     }
@@ -807,7 +818,9 @@ class _AppShellState extends ConsumerState<AppShell>
       }
     });
     ref.listen<String?>(activeSessionIdProvider, (prev, next) {
-      if (prev != null && next != null && prev != next) _previousSessionId = prev;
+      if (prev != null && next != null && prev != next) {
+        _previousSessionId = prev;
+      }
     });
     ref.listen<bool>(showSettingsProvider, (prev, next) {
       // Closing Settings forgets the section, so a later plain open uses the tab index.
@@ -846,446 +859,488 @@ class _AppShellState extends ConsumerState<AppShell>
             sessionId: activeId,
             child: LayoutBuilder(
               builder: (context, constraints) => Column(
-              children: [
-                Expanded(
-                  child: FocusRegionMarker(
-                  region: FocusRegion.transcript,
-                  regionKey: _regionKeys[FocusRegion.transcript]!,
-                  child: SideSplit(
-                    sessionId: activeId,
-                    main: TranscriptView(
-                      key: ValueKey('transcript_$activeId'),
-                      sessionId: activeId,
-                    ),
-                  ),
-                  ),
-                ),
-                FocusRegionMarker(
-                  region: FocusRegion.composer,
-                  regionKey: _regionKeys[FocusRegion.composer]!,
-                  child: Composer(
-                    key: ValueKey('composer_$activeId'),
-                    sessionId: activeId,
-                    availableHeight: constraints.maxHeight,
-                  ),
-                ),
-              ],
-            ),
-            ),
-          );
-
-    return FocusTraversalGroup(
-    policy: OrderedTraversalPolicy(),
-    child: Focus(
-      autofocus: true,
-      // Only receives keys when nothing inside has focus; it is not a Tab stop.
-      skipTraversal: true,
-      onKeyEvent: (_, event) => _handleShortcut(event, activeId),
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: tokens.background,
-        onDrawerChanged: (open) => _setEscapeLayer(
-          'drawer',
-          EscapeLayer.drawer,
-          open,
-          () {
-            final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-            _scaffoldKey.currentState?.closeDrawer();
-            return wasOpen;
-          },
-        ),
-        onEndDrawerChanged: (open) => _setEscapeLayer(
-          'endDrawer',
-          EscapeLayer.drawer,
-          open,
-          () {
-            final wasOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
-            _scaffoldKey.currentState?.closeEndDrawer();
-            return wasOpen;
-          },
-        ),
-        drawer: Drawer(
-          width: _effectiveSidebarWidth(width, inDrawer: true) +
-              _sidebarDividerWidth,
-          child: _sessionsSidebar(width, inDrawer: true),
-        ),
-        endDrawer: activeId == null
-            ? null
-            : Drawer(
-                width: width < 420 ? width - 24 : 320,
-                // The panel draws its own heading. Escape and a tap on the scrim close it
-                // (plan task 6.3), so the shell adds no heading or close button here.
-                child: SafeArea(
-                  child: ContextPanel(
-                    key: ValueKey('drawer-context_$activeId'),
-                    sessionId: activeId,
-                  ),
-                ),
-              ),
-        body: Stack(
-          children: [
-            const SessionNotificationWatcher(),
-            const UpdatesPeriodicWatcher(),
-            const StartupUpdatesWatcher(),
-            SafeArea(
-              // Rounded-corner phones: the web view reports no safe area, so leave the same margin
-              // below as at the sides; the panel's corners then follow the display curve.
-              minimum: EdgeInsets.only(
-                bottom: phoneDisplayCornerRadius(context) == null ? 0 : 6,
-              ),
-              child: Column(
                 children: [
-                  FocusRegionMarker(
-                  region: FocusRegion.titleBar,
-                  regionKey: _regionKeys[FocusRegion.titleBar]!,
-                  child: Container(
-                    height: 42,
-                    margin: EdgeInsets.fromLTRB(
-                      width < 600 ? 12 : 8,
-                      width < 600 ? 6 : 4,
-                      width < 600 ? 12 : 8,
-                      4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.chassis,
-                      borderRadius: BorderRadius.circular(tokens.radiusMd),
-                      border: Border.all(color: tokens.border),
-                    ),
-                    child: Row(
-                      children: [
-                        if (!kIsWeb &&
-                            defaultTargetPlatform == TargetPlatform.macOS &&
-                            nativeChrome)
-                          const SizedBox(width: 76),
-                        if (!showSessionRail)
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: strings.openSessionsTooltip,
-                            icon: const Icon(Icons.menu_outlined, size: FrameSize.icon),
-                            onPressed: () =>
-                                _scaffoldKey.currentState?.openDrawer(),
-                          ),
-                        Expanded(
-                          child: DesktopDragRegion(
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                left: showSessionRail ? 16 : 4,
-                              ),
-                              child: Row(
-                                children: [
-                                  const PiFrameMark(size: FrameSize.iconLg),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: const BrandWordmark(size: FrameSize.icon),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _ConnectionIndicator(
-                                    connected: connected,
-                                    label: connectionLabel,
-                                    tooltip: strings.connectionIndicatorTooltip(
-                                      connectionLabel,
-                                    ),
-                                    showLabel: width >= kConnectionLabelMinWidth,
-                                    onTap: _openDiagnostics,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (ref.watch(nerdStatsSettingsProvider).enabled &&
-                            width >= (ref.watch(isWebProvider) ? 450 : 760)) ...[
-                          const SizedBox(width: 8),
-                          NerdStatsBar(width: width),
-                          const SizedBox(width: 8),
-                        ],
-                        if (width > 680)
-                          PressFeedback(
-                            child: TextButton.icon(
-                              onPressed: _palette,
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                foregroundColor: tokens.textSecondary,
-                              ),
-                              icon: const Icon(Icons.search_outlined, size: FrameSize.icon),
-                              label: Text(
-                                strings.commandsButtonLabel,
-                                style: FrameText.of(context).label,
-                              ),
-                            ),
-                          ),
-                        // Vista: pane layout and theme.
-                        Semantics(
-                          container: true,
-                          label: strings.viewGroupLabel,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (width >= 900 && activeId != null && !settings)
-                                PopupMenuButton<WorkspacePane>(
-                                  key: const ValueKey('shell-layout-button'),
-                                  tooltip: strings.togglePanelsTooltip,
-                                  icon: const Icon(
-                                    Icons.view_column_outlined,
-                                    size: FrameSize.icon,
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                  onSelected: _togglePane,
-                                  itemBuilder: (context) => [
-                                    for (final pane in WorkspacePane.values)
-                                      PopupMenuItem(
-                                        value: pane,
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              _paneVisibility[pane] == true
-                                                  ? Icons.check_box_outlined
-                                                  : Icons.check_box_outline_blank,
-                                              size: FrameSize.iconLg,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(_paneLabel(pane)),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              FrameIconAction(
-                                key: const ValueKey('shell-theme-toggle'),
-                                tooltip:
-                                    Theme.of(context).brightness == Brightness.light
-                                    ? strings.darkThemeTooltip
-                                    : strings.lightThemeTooltip,
-                                icon:
-                                    Theme.of(context).brightness == Brightness.light
-                                    ? Icons.dark_mode_outlined
-                                    : Icons.light_mode_outlined,
-                                onPressed: () => ref
-                                    .read(activeThemeSpecProvider.notifier)
-                                    .setTheme(
-                                      Theme.of(context).brightness == Brightness.light
-                                          ? 'piframe-dark'
-                                          : 'piframe-light',
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          key: const ValueKey('shell-title-divider'),
-                          width: 1,
-                          height: 18,
-                          margin: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
-                          color: tokens.borderStrong,
-                        ),
-                        // Area di lavoro: session drawer and settings.
-                        Semantics(
-                          container: true,
-                          label: strings.workspaceTitle,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (activeId != null && !settings)
-                                width >= kContextDrawerLabelMinWidth
-                                    ? Tooltip(
-                                        message: strings.sessionDrawerTooltip,
-                                        child: TextButton.icon(
-                                          key: const ValueKey(
-                                            'shell-context-drawer-button',
-                                          ),
-                                          style: TextButton.styleFrom(
-                                            visualDensity: VisualDensity.compact,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: FrameSpace.x2,
-                                              vertical: FrameSpace.x1,
-                                            ),
-                                            foregroundColor: tokens.textSecondary,
-                                          ),
-                                          onPressed: () => _scaffoldKey
-                                              .currentState
-                                              ?.openEndDrawer(),
-                                          icon: const Icon(
-                                            Icons.insights_outlined,
-                                            size: FrameSize.icon,
-                                          ),
-                                          label: Text(
-                                            strings.sessionDrawerLabel,
-                                            style: FrameText.of(context).label,
-                                          ),
-                                        ),
-                                      )
-                                    : FrameIconAction(
-                                        key: const ValueKey(
-                                          'shell-context-drawer-button',
-                                        ),
-                                        icon: Icons.insights_outlined,
-                                        tooltip: strings.sessionDrawerTooltip,
-                                        onPressed: () => _scaffoldKey
-                                            .currentState
-                                            ?.openEndDrawer(),
-                                      ),
-                              Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  FrameIconAction(
-                                    key: const ValueKey('shell-settings-button'),
-                                    icon: Icons.settings_outlined,
-                                    tooltip: strings.settingsTooltip,
-                                    shortcut: strings.settingsShortcutLabel,
-                                    onPressed: () =>
-                                        ref
-                                            .read(showSettingsProvider.notifier)
-                                            .state = !settings,
-                                  ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: IgnorePointer(
-                                      child: Consumer(
-                                        builder: (context, ref, _) {
-                                          if (!ref.watch(hasUpdateBadgeProvider)) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          return Container(
-                                            width: 7,
-                                            height: 7,
-                                            decoration: BoxDecoration(
-                                              color: tokens.accent,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (nativeChrome &&
-                            defaultTargetPlatform == TargetPlatform.windows) ...[
-                          Container(
-                            width: 1,
-                            height: 18,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            color: tokens.borderStrong,
-                          ),
-                          DesktopCaptionButtons(
-                            onCloseRequested: () =>
-                                resolveDirtyRepository(context, ref, activeId),
-                          ),
-                        ] else
-                          const SizedBox(width: 6),
-                      ],
-                    ),
-                  ),
-                  ),
-                  if (!connected)
-                    Container(
-                      color: tokens.signalWarning.withValues(alpha: 0.16),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.link_off_outlined, size: FrameSize.icon, color: tokens.warning),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              connection == DaemonConnectionState.reconnecting
-                                  ? strings.reconnectingToDaemon
-                                  : strings.daemonUnreachableNotice,
-                              style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
-                            ),
-                          ),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              foregroundColor: tokens.textPrimary,
-                            ),
-                            onPressed: () =>
-                                ref.invalidate(daemonEndpointProvider),
-                            child: Text(strings.retryAction),
-                          ),
-                        ],
-                      ),
-                    ),
-                  // Full-width notice under the title bar when the sessions
-                  // rail is not showing; the rail hosts it otherwise.
-                  if (!bannerInRail) const StartupUpdateBanner(),
                   Expanded(
-                    child: settings
-                        ? SettingsView(
-                            key: ValueKey('settings-view-$_settingsEpoch'),
-                            initialTabIndex:
-                                ref.watch(settingsTabIndexProvider),
-                            initialSection: _settingsSection,
-                            onClose: () =>
-                                ref.read(showSettingsProvider.notifier).state =
-                                    false,
-                          )
-                        : Row(
-                            children: [
-                              if (showSessionRail)
-                                FocusRegionMarker(
-                                  region: FocusRegion.sessions,
-                                  regionKey: _regionKeys[FocusRegion.sessions]!,
-                                  child: _sidebarCollapsed
-                                      ? _collapsedSidebarStrip(tokens)
-                                      : _sessionsSidebar(width),
-                                ),
-                              Expanded(
-                                child: activeId == null
-                                    ? RepaintBoundary(child: workArea())
-                                    : _workspace(activeId, width, workArea),
-                              ),
-                            ],
-                          ),
+                    child: FocusRegionMarker(
+                      region: FocusRegion.transcript,
+                      regionKey: _regionKeys[FocusRegion.transcript]!,
+                      child: TranscriptView(
+                        key: ValueKey('transcript_$activeId'),
+                        sessionId: activeId,
+                      ),
+                    ),
+                  ),
+                  FocusRegionMarker(
+                    region: FocusRegion.composer,
+                    regionKey: _regionKeys[FocusRegion.composer]!,
+                    child: Composer(
+                      key: ValueKey('composer_$activeId'),
+                      sessionId: activeId,
+                      availableHeight: constraints.maxHeight,
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
+          );
+
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Focus(
+        autofocus: true,
+        // Only receives keys when nothing inside has focus; it is not a Tab stop.
+        skipTraversal: true,
+        onKeyEvent: (_, event) => _handleShortcut(event, activeId),
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: tokens.background,
+          onDrawerChanged: (open) => _setEscapeLayer(
+            'drawer',
+            EscapeLayer.drawer,
+            open,
+            () {
+              final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+              _scaffoldKey.currentState?.closeDrawer();
+              return wasOpen;
+            },
+          ),
+          onEndDrawerChanged: (open) =>
+              _setEscapeLayer('endDrawer', EscapeLayer.drawer, open, () {
+                final wasOpen =
+                    _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+                _scaffoldKey.currentState?.closeEndDrawer();
+                return wasOpen;
+              }),
+          drawer: Drawer(
+            width:
+                _effectiveSidebarWidth(width, inDrawer: true) +
+                _sidebarDividerWidth,
+            child: _sessionsSidebar(width, inDrawer: true),
+          ),
+          endDrawer: activeId == null
+              ? null
+              : Drawer(
+                  width: width < 420 ? width - 24 : 320,
+                  // The panel draws its own heading. Escape and a tap on the scrim close it
+                  // (plan task 6.3), so the shell adds no heading or close button here.
+                  child: SafeArea(
+                    child: ContextPanel(
+                      key: ValueKey('drawer-context_$activeId'),
+                      sessionId: activeId,
+                    ),
+                  ),
+                ),
+          body: Stack(
+            children: [
+              const SessionNotificationWatcher(),
+              const UpdatesPeriodicWatcher(),
+              const StartupUpdatesWatcher(),
+              SafeArea(
+                // Rounded-corner phones: the web view reports no safe area, so leave the same margin
+                // below as at the sides; the panel's corners then follow the display curve.
+                minimum: EdgeInsets.only(
+                  bottom: phoneDisplayCornerRadius(context) == null ? 0 : 6,
+                ),
+                child: Column(
+                  children: [
+                    FocusRegionMarker(
+                      region: FocusRegion.titleBar,
+                      regionKey: _regionKeys[FocusRegion.titleBar]!,
+                      child: Container(
+                        height: 42,
+                        margin: EdgeInsets.fromLTRB(
+                          width < 600 ? 12 : 8,
+                          width < 600 ? 6 : 4,
+                          width < 600 ? 12 : 8,
+                          4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.chassis,
+                          borderRadius: BorderRadius.circular(tokens.radiusMd),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            if (!kIsWeb &&
+                                defaultTargetPlatform == TargetPlatform.macOS &&
+                                nativeChrome)
+                              const SizedBox(width: 76),
+                            if (!showSessionRail)
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                tooltip: strings.openSessionsTooltip,
+                                icon: const Icon(
+                                  Icons.menu_outlined,
+                                  size: FrameSize.icon,
+                                ),
+                                onPressed: () =>
+                                    _scaffoldKey.currentState?.openDrawer(),
+                              ),
+                            Expanded(
+                              child: DesktopDragRegion(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    left: showSessionRail ? 16 : 4,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const PiFrameMark(size: FrameSize.iconLg),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: const BrandWordmark(
+                                            size: FrameSize.icon,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _ConnectionIndicator(
+                                        connected: connected,
+                                        label: connectionLabel,
+                                        tooltip: strings
+                                            .connectionIndicatorTooltip(
+                                              connectionLabel,
+                                            ),
+                                        showLabel:
+                                            width >= kConnectionLabelMinWidth,
+                                        onTap: _openDiagnostics,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (ref.watch(nerdStatsSettingsProvider).enabled &&
+                                width >=
+                                    (ref.watch(isWebProvider) ? 450 : 760)) ...[
+                              const SizedBox(width: 8),
+                              NerdStatsBar(width: width),
+                              const SizedBox(width: 8),
+                            ],
+                            if (width > 680)
+                              PressFeedback(
+                                child: TextButton.icon(
+                                  onPressed: _palette,
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    foregroundColor: tokens.textSecondary,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.search_outlined,
+                                    size: FrameSize.icon,
+                                  ),
+                                  label: Text(
+                                    strings.commandsButtonLabel,
+                                    style: FrameText.of(context).label,
+                                  ),
+                                ),
+                              ),
+                            // Vista: pane layout and theme.
+                            Semantics(
+                              container: true,
+                              label: strings.viewGroupLabel,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (width >= 900 &&
+                                      activeId != null &&
+                                      !settings)
+                                    PopupMenuButton<WorkspacePane>(
+                                      key: const ValueKey(
+                                        'shell-layout-button',
+                                      ),
+                                      tooltip: strings.togglePanelsTooltip,
+                                      icon: const Icon(
+                                        Icons.view_column_outlined,
+                                        size: FrameSize.icon,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      onSelected: _togglePane,
+                                      itemBuilder: (context) => [
+                                        for (final pane in WorkspacePane.values)
+                                          PopupMenuItem(
+                                            value: pane,
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  _paneVisibility[pane] == true
+                                                      ? Icons.check_box_outlined
+                                                      : Icons
+                                                            .check_box_outline_blank,
+                                                  size: FrameSize.iconLg,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(_paneLabel(pane)),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  FrameIconAction(
+                                    key: const ValueKey('shell-theme-toggle'),
+                                    tooltip:
+                                        Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? strings.darkThemeTooltip
+                                        : strings.lightThemeTooltip,
+                                    icon:
+                                        Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? Icons.dark_mode_outlined
+                                        : Icons.light_mode_outlined,
+                                    onPressed: () => ref
+                                        .read(activeThemeSpecProvider.notifier)
+                                        .setTheme(
+                                          Theme.of(context).brightness ==
+                                                  Brightness.light
+                                              ? 'piframe-dark'
+                                              : 'piframe-light',
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              key: const ValueKey('shell-title-divider'),
+                              width: 1,
+                              height: 18,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: FrameSpace.x2,
+                              ),
+                              color: tokens.borderStrong,
+                            ),
+                            // Area di lavoro: session drawer and settings.
+                            Semantics(
+                              container: true,
+                              label: strings.workspaceTitle,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (activeId != null && !settings)
+                                    width >= kContextDrawerLabelMinWidth
+                                        ? Tooltip(
+                                            message:
+                                                strings.sessionDrawerTooltip,
+                                            child: TextButton.icon(
+                                              key: const ValueKey(
+                                                'shell-context-drawer-button',
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: FrameSpace.x2,
+                                                      vertical: FrameSpace.x1,
+                                                    ),
+                                                foregroundColor:
+                                                    tokens.textSecondary,
+                                              ),
+                                              onPressed: () => _scaffoldKey
+                                                  .currentState
+                                                  ?.openEndDrawer(),
+                                              icon: const Icon(
+                                                Icons.insights_outlined,
+                                                size: FrameSize.icon,
+                                              ),
+                                              label: Text(
+                                                strings.sessionDrawerLabel,
+                                                style: FrameText.of(context)
+                                                    .label,
+                                              ),
+                                            ),
+                                          )
+                                        : FrameIconAction(
+                                            key: const ValueKey(
+                                              'shell-context-drawer-button',
+                                            ),
+                                            icon: Icons.insights_outlined,
+                                            tooltip:
+                                                strings.sessionDrawerTooltip,
+                                            onPressed: () => _scaffoldKey
+                                                .currentState
+                                                ?.openEndDrawer(),
+                                          ),
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      FrameIconAction(
+                                        key: const ValueKey(
+                                          'shell-settings-button',
+                                        ),
+                                        icon: Icons.settings_outlined,
+                                        tooltip: strings.settingsTooltip,
+                                        shortcut: strings.settingsShortcutLabel,
+                                        onPressed: () =>
+                                            ref
+                                                    .read(
+                                                      showSettingsProvider
+                                                          .notifier,
+                                                    )
+                                                    .state =
+                                                !settings,
+                                      ),
+                                      Positioned(
+                                        top: 2,
+                                        right: 2,
+                                        child: IgnorePointer(
+                                          child: Consumer(
+                                            builder: (context, ref, _) {
+                                              if (!ref.watch(
+                                                hasUpdateBadgeProvider,
+                                              )) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              return Container(
+                                                width: 7,
+                                                height: 7,
+                                                decoration: BoxDecoration(
+                                                  color: tokens.accent,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (nativeChrome &&
+                                defaultTargetPlatform ==
+                                    TargetPlatform.windows) ...[
+                              Container(
+                                width: 1,
+                                height: 18,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                color: tokens.borderStrong,
+                              ),
+                              DesktopCaptionButtons(
+                                onCloseRequested: () => resolveDirtyRepository(
+                                  context,
+                                  ref,
+                                  activeId,
+                                ),
+                              ),
+                            ] else
+                              const SizedBox(width: 6),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (!connected)
+                      Container(
+                        color: tokens.signalWarning.withValues(alpha: 0.16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.link_off_outlined,
+                              size: FrameSize.icon,
+                              color: tokens.warning,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                connection == DaemonConnectionState.reconnecting
+                                    ? strings.reconnectingToDaemon
+                                    : strings.daemonUnreachableNotice,
+                                style: FrameText.of(context).label
+                                    .copyWith(color: tokens.textPrimary),
+                              ),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: tokens.textPrimary,
+                              ),
+                              onPressed: () =>
+                                  ref.invalidate(daemonEndpointProvider),
+                              child: Text(strings.retryAction),
+                            ),
+                          ],
+                        ),
+                      ),
+                    // Full-width notice under the title bar when the sessions
+                    // rail is not showing; the rail hosts it otherwise.
+                    if (!bannerInRail) const StartupUpdateBanner(),
+                    Expanded(
+                      child: settings
+                          ? SettingsView(
+                              key: ValueKey('settings-view-$_settingsEpoch'),
+                              initialTabIndex: ref.watch(
+                                settingsTabIndexProvider,
+                              ),
+                              initialSection: _settingsSection,
+                              onClose: () =>
+                                  ref
+                                          .read(showSettingsProvider.notifier)
+                                          .state =
+                                      false,
+                            )
+                          : Row(
+                              children: [
+                                if (showSessionRail)
+                                  FocusRegionMarker(
+                                    region: FocusRegion.sessions,
+                                    regionKey:
+                                        _regionKeys[FocusRegion.sessions]!,
+                                    child: _sidebarCollapsed
+                                        ? _collapsedSidebarStrip(tokens)
+                                        : _sessionsSidebar(width),
+                                  ),
+                                Expanded(
+                                  child: activeId == null
+                                      ? RepaintBoundary(child: workArea())
+                                      : _workspace(activeId, width, workArea),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
   Widget _workspace(String sessionId, double width, Widget Function() chat) {
-    _chatSidecarSessionId = width < 900 ? null : sessionId;
-    _chatSidecar = width < 900
-        ? null
-        : AgentActivitySidecar(
-            key: ValueKey('agent_activity_$sessionId'),
-            sessionId: sessionId,
-            onOpened: () {
-              if (mounted &&
-                  _paneVisibility[WorkspacePane.git] == true &&
-                  !_collapsedPanes.contains(WorkspacePane.git) &&
-                  !ref.read(isReviewingChangesProvider)) {
-                _collapsePane(WorkspacePane.git);
-              }
-            },
-          );
+    _chatSidecarSessionId = sessionId;
+    _chatSidecar = AgentActivitySidecar(
+      key: ValueKey('agent_activity_$sessionId'),
+      sessionId: sessionId,
+      onOpened: () {
+        if (mounted &&
+            _paneVisibility[WorkspacePane.git] == true &&
+            !_collapsedPanes.contains(WorkspacePane.git) &&
+            !ref.read(isReviewingChangesProvider)) {
+          _collapsePane(WorkspacePane.git);
+        }
+      },
+    );
     final isReviewing = ref.watch(isReviewingChangesProvider);
     final visible = _visiblePanes(chatFirst: width < 900);
     final companions = visible
         .where((pane) => pane != WorkspacePane.chat)
         .toList();
-    final companionTabs =
-        width >= 900 && width < 1440 && companions.length > 1
-            ? companions
-            : null;
+    final companionTabs = width >= 900 && width < 1440 && companions.length > 1
+        ? companions
+        : null;
     final selectedCompanion = companions.contains(_companionPane)
         ? _companionPane
         : (companions.isNotEmpty ? companions.first : null);
@@ -1308,29 +1363,26 @@ class _AppShellState extends ConsumerState<AppShell>
                   ref.read(isReviewingChangesProvider.notifier).state = false,
               companionTabs: companionTabs,
               activeCompanionTab: selectedCompanion,
-              onSelectCompanionTab: (pane) =>
-                  _selectCompanionPane(pane),
+              onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
             )
           : (ref.watch(browserPaneSupportedProvider) &&
-                  ref.watch(rightPaneModeProvider) == RightPaneMode.browser
-              ? WebBrowserPane(
-                  key: ValueKey('browser_$sessionId'),
-                  sessionId: sessionId,
-                  onCollapse: () => _collapsePane(WorkspacePane.git),
-                  companionTabs: companionTabs,
-                  activeCompanionTab: selectedCompanion,
-                  onSelectCompanionTab: (pane) =>
-                      _selectCompanionPane(pane),
-                )
-              : GitChangesPane(
-                  key: ValueKey('git_$sessionId'),
-                  sessionId: sessionId,
-                  onCollapse: () => _collapsePane(WorkspacePane.git),
-                  companionTabs: companionTabs,
-                  activeCompanionTab: selectedCompanion,
-                  onSelectCompanionTab: (pane) =>
-                      _selectCompanionPane(pane),
-                )),
+                    ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+                ? WebBrowserPane(
+                    key: ValueKey('browser_$sessionId'),
+                    sessionId: sessionId,
+                    onCollapse: () => _collapsePane(WorkspacePane.git),
+                    companionTabs: companionTabs,
+                    activeCompanionTab: selectedCompanion,
+                    onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
+                  )
+                : GitChangesPane(
+                    key: ValueKey('git_$sessionId'),
+                    sessionId: sessionId,
+                    onCollapse: () => _collapsePane(WorkspacePane.git),
+                    companionTabs: companionTabs,
+                    activeCompanionTab: selectedCompanion,
+                    onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
+                  )),
     };
     // Tab order by region (plan task 6.2). The chat pane's transcript and composer are
     // marked inside workArea().
@@ -1367,10 +1419,10 @@ class _AppShellState extends ConsumerState<AppShell>
 
     if (width < 1440 && _paneVisibility[WorkspacePane.chat] == true) {
       if (companions.isNotEmpty && selectedCompanion != null) {
-        return _resizablePaneRow(
-          [WorkspacePane.chat, selectedCompanion],
-          panes,
-        );
+        return _resizablePaneRow([
+          WorkspacePane.chat,
+          selectedCompanion,
+        ], panes);
       }
     }
 
@@ -1393,12 +1445,13 @@ class _AppShellState extends ConsumerState<AppShell>
     return switch (pane) {
       WorkspacePane.chat => strings.companionChatTab,
       WorkspacePane.repository => strings.paletteRepositoryPaneName,
-      WorkspacePane.git => ref.watch(isReviewingChangesProvider)
-          ? strings.companionReviewTab
-          : (ref.watch(browserPaneSupportedProvider) &&
-                    ref.watch(rightPaneModeProvider) == RightPaneMode.browser
-                ? strings.companionWebBrowserTab
-                : strings.paletteGitPaneName),
+      WorkspacePane.git =>
+        ref.watch(isReviewingChangesProvider)
+            ? strings.companionReviewTab
+            : (ref.watch(browserPaneSupportedProvider) &&
+                      ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+                  ? strings.companionWebBrowserTab
+                  : strings.paletteGitPaneName),
     };
   }
 
@@ -1600,7 +1653,8 @@ class _AppShellState extends ConsumerState<AppShell>
   Widget _collapsedPaneStrip(WorkspacePane pane) {
     final tokens = context.tokens;
     final isLeft = pane == WorkspacePane.repository;
-    final isBrowser = pane == WorkspacePane.git &&
+    final isBrowser =
+        pane == WorkspacePane.git &&
         !ref.watch(isReviewingChangesProvider) &&
         ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
@@ -1610,7 +1664,9 @@ class _AppShellState extends ConsumerState<AppShell>
         isBrowser ? Icons.language_outlined : Icons.source_outlined,
       WorkspacePane.chat => Icons.chat_bubble_outline,
     };
-    final expandIcon = isLeft ? Icons.chevron_right_outlined : Icons.chevron_left_outlined;
+    final expandIcon = isLeft
+        ? Icons.chevron_right_outlined
+        : Icons.chevron_left_outlined;
     final label = _paneLabel(pane).toUpperCase();
 
     return RepaintBoundary(
@@ -1631,7 +1687,11 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
-                icon: Icon(expandIcon, size: FrameSize.iconLg, color: tokens.accent),
+                icon: Icon(
+                  expandIcon,
+                  size: FrameSize.iconLg,
+                  color: tokens.accent,
+                ),
                 onPressed: () => _expandStripPane(pane),
               ),
               const SizedBox(height: 6),
@@ -1643,10 +1703,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       label,
-                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
-                        
+                      style: FrameText.of(context).caption.copyWith(
+                        color: tokens.textMuted,
+
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0),
+                        letterSpacing: 1.0,
+                      ),
                     ),
                   ),
                 ),
@@ -1698,7 +1760,11 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   /// Keyboard step on the sessions divider (plan task 6.7). Same resize path as a drag.
-  void _stepSidebar(double delta, double windowWidth, {required bool inDrawer}) {
+  void _stepSidebar(
+    double delta,
+    double windowWidth, {
+    required bool inDrawer,
+  }) {
     _resizeSidebar(delta, windowWidth, inDrawer: inDrawer);
     _persistLayout();
   }
@@ -1783,9 +1849,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 message: strings.sessionsSidebarDividerTooltip,
                 child: SizedBox(
                   width: _sidebarDividerWidth,
-                  child: Center(
-                    child: _dividerLine(context, focused),
-                  ),
+                  child: Center(child: _dividerLine(context, focused)),
                 ),
               ),
             ),
@@ -1814,7 +1878,11 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandSessionsSidebarTooltip,
-                icon: Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg, color: tokens.accent),
+                icon: Icon(
+                  Icons.chevron_right_outlined,
+                  size: FrameSize.iconLg,
+                  color: tokens.accent,
+                ),
                 onPressed: () {
                   setState(() => _sidebarCollapsed = false);
                   _persistLayout();
@@ -1835,10 +1903,12 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       strings.sessionsRailHeader,
-                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
-                        
+                      style: FrameText.of(context).caption.copyWith(
+                        color: tokens.textMuted,
+
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0),
+                        letterSpacing: 1.0,
+                      ),
                     ),
                   ),
                 ),
@@ -1856,9 +1926,7 @@ class _AppShellState extends ConsumerState<AppShell>
     Map<WorkspacePane, Widget> contents,
   ) {
     if (panes.isEmpty) return const SizedBox.shrink();
-    if (panes.length == 1 &&
-        _collapsedPanes.isEmpty &&
-        _exitingPanes.isEmpty) {
+    if (panes.length == 1 && _collapsedPanes.isEmpty && _exitingPanes.isEmpty) {
       return _paneCard(panes.single, contents[panes.single]!);
     }
     final rowPanes = _withExitingPanes(panes);
@@ -1935,10 +2003,7 @@ class _AppShellState extends ConsumerState<AppShell>
               body = Opacity(
                 opacity: _entryAlpha(pane, targets[pane]!),
                 child: isEntering
-                    ? FrameEnter(
-                        key: ValueKey('pane-enter-$pane'),
-                        child: card,
-                      )
+                    ? FrameEnter(key: ValueKey('pane-enter-$pane'), child: card)
                     : card,
               );
             }
@@ -2017,8 +2082,9 @@ class _AppShellState extends ConsumerState<AppShell>
     final total = out.values.fold<double>(0, (sum, v) => sum + v);
     final excess = total - (rowWidth - 0.001);
     if (excess > 0 && out.isNotEmpty) {
-      final largest =
-          out.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+      final largest = out.entries
+          .reduce((a, b) => a.value >= b.value ? a : b)
+          .key;
       final reduced = out[largest]! - excess;
       out[largest] = reduced > 0 ? reduced : 0.0;
     }
@@ -2090,12 +2156,8 @@ class _AppShellState extends ConsumerState<AppShell>
               ref.read(paneDraggingProvider.notifier).state = false;
               _persistLayout();
             },
-            onHorizontalDragUpdate: (details) => _resizeAdjacent(
-              left,
-              right,
-              details.delta.dx,
-              availableWidth,
-            ),
+            onHorizontalDragUpdate: (details) =>
+                _resizeAdjacent(left, right, details.delta.dx, availableWidth),
             child: SizedBox(
               width: dividerWidth,
               child: Center(child: _dividerLine(context, focused)),
@@ -2191,19 +2253,19 @@ class _AppShellState extends ConsumerState<AppShell>
     final tokens = context.tokens;
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 600;
-    final isBrowser = ref.watch(browserPaneSupportedProvider) &&
+    final isBrowser =
+        ref.watch(browserPaneSupportedProvider) &&
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final strings = ref.watch(appStringsProvider);
     // The run status rides on the Chat tab as a dot (task 10.3).
     final activeId = ref.watch(activeSessionIdProvider);
-    final running = activeId != null &&
-        ref.watch(sessionStateFamily(activeId)).isStreaming;
+    final running =
+        activeId != null && ref.watch(sessionStateFamily(activeId)).isStreaming;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => strings.companionChatTab,
       WorkspacePane.repository => strings.companionFileTab,
-      WorkspacePane.git => isBrowser
-          ? strings.companionWebBrowserTab
-          : strings.paletteGitPaneName,
+      WorkspacePane.git =>
+        isBrowser ? strings.companionWebBrowserTab : strings.paletteGitPaneName,
     };
     return Container(
       height: 44,

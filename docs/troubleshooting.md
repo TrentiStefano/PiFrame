@@ -4,6 +4,23 @@ Questo documento raccoglie diagnosi, cause radice e soluzioni per anomalie note 
 
 ---
 
+## Finestra comandi /side e /btw non visibile e gestione discussioni laterali della sessione
+
+**Sintomo:** l'esecuzione dei comandi `/side` o `/btw` dal composer non apriva la finestra o risultava non funzionante; inoltre le discussioni laterali precedenti della sessione non venivano memorizzate né rese navigabili all'utente.
+
+**Causa:** `SideSplit` era integrato direttamente e unicamente attorno alla `TranscriptView` all'interno della colonna della chat (sopra il composer), comprimendosi a larghezza zero o entrando in collisione con i limiti di larghezza minima del layout split. Inoltre, lo stato manteneva solo un thread effimero singolo per sessione senza archivio storico né supporto alla navigazione tra discussioni multiple.
+
+**Correzione:** le discussioni laterali (`/side` e `/btw`) sono state integrate come pannello laterale dedicato (`SidePanel`) all'interno del companion sidecar della chat (`AgentActivitySidecar` / `AgentSidecarLayout`), affiancato alla chat come il pannello Agenti. È stato implementato lo storico `SideConversationRecord` in `side_provider.dart` per memorizzare tutte le discussioni laterali della sessione, con selettore a pillole per navigare tra discussioni attive e concluse, pulsante `+` per aprire nuove domande laterali e sincronizzazione continua dei messaggi e del mini composer.
+
+Verifica da sorgente:
+
+```bash
+cd apps/pi_frame
+flutter test test/side_conversation_test.dart
+```
+
+---
+
 ## Sfarfallio durante il ridimensionamento dei pannelli ed espansione a catena dei gruppi di passaggi
 
 **Sintomo:** durante il collasso o l'espansione dei pannelli laterali (ad es. sessioni, git o repository), gli altri pannelli aperti sparivano per circa un secondo creando un fastidioso sfarfallio; inoltre cliccando sull'intestazione di un gruppo di passaggi compatti, tutti i gruppi sovrastanti e sottostanti si espandevano contemporaneamente.

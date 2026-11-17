@@ -5,7 +5,9 @@ import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
 import '../../ui/precision.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -14,6 +16,8 @@ import '../../ui/motion.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../side/side_panel.dart';
+import '../side/side_provider.dart';
 import 'subagents_provider.dart';
 import 'workflows_provider.dart';
 
@@ -52,14 +56,25 @@ class AgentSidecarLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasItems = ref.watch(subagentsFamily(sessionId)).isNotEmpty ||
+    final hasAgents =
+        ref.watch(subagentsFamily(sessionId)).isNotEmpty ||
         ref.watch(workflowsFamily(sessionId)).isNotEmpty;
-    final open = hasItems && ref.watch(agentActivityPanelOpenProvider(sessionId));
+    final agentsOpen =
+        hasAgents && ref.watch(agentActivityPanelOpenProvider(sessionId));
+    final sideThread = ref.watch(sideThreadFamily(sessionId));
+    final hasSide = sideThread.conversations.isNotEmpty || sideThread.isOpen;
+    final sideOpen = sideThread.isOpen;
+
+    final hasItems = hasAgents || hasSide;
+    final open = hasItems && (agentsOpen || sideOpen);
 
     Widget row() => Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [Expanded(child: chat), sidecar],
-        );
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: chat),
+        sidecar,
+      ],
+    );
     if (!open) return row();
 
     return LayoutBuilder(
@@ -79,7 +94,8 @@ class AgentSidecarLayout extends ConsumerWidget {
               right: 0,
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: constraints.maxHeight * kAgentSheetMaxHeightFraction,
+                  maxHeight:
+                      constraints.maxHeight * kAgentSheetMaxHeightFraction,
                 ),
                 child: sidecar,
               ),
@@ -97,10 +113,15 @@ class AgentActivitySidecar extends ConsumerStatefulWidget {
   /// Called whenever the panel opens, so the shell can make room for it.
   final VoidCallback? onOpened;
 
-  const AgentActivitySidecar({super.key, required this.sessionId, this.onOpened});
+  const AgentActivitySidecar({
+    super.key,
+    required this.sessionId,
+    this.onOpened,
+  });
 
   @override
-  ConsumerState<AgentActivitySidecar> createState() => _AgentActivitySidecarState();
+  ConsumerState<AgentActivitySidecar> createState() =>
+      _AgentActivitySidecarState();
 }
 
 class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
@@ -110,21 +131,81 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     final sessionId = widget.sessionId;
     // fireImmediately: a session entered with agents at work, or with the
     // panel left open, must open it and make room just like a fresh launch.
-    ref.listenManual<bool>(backgroundAgentsRunningProvider(sessionId), (previous, next) {
+    ref.listenManual<bool>(backgroundAgentsRunningProvider(sessionId), (
+      previous,
+      next,
+    ) {
       if (next && previous != true) {
         // Deferred: the change can surface while another widget is building.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = true;
+          if (mounted) {
+            ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state =
+                true;
+          }
         });
       }
     }, fireImmediately: true);
-    ref.listenManual<bool>(agentActivityPanelOpenProvider(sessionId), (previous, next) {
+    ref.listenManual<bool>(agentActivityPanelOpenProvider(sessionId), (
+      previous,
+      next,
+    ) {
       if (next && previous != true) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) widget.onOpened?.call();
         });
       }
     }, fireImmediately: true);
+    ref.listenManual<bool>(
+      sideThreadFamily(sessionId).select((s) => s.isOpen),
+      (previous, next) {
+        if (next && previous != true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) widget.onOpened?.call();
+          });
+        }
+      },
+      fireImmediately: true,
+    );
+  }
+
+  Widget _sidecarTab(
+    BuildContext context,
+    FrameTokens tokens, {
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(tokens.radiusSm),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? tokens.surface : tokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: isSelected ? Border.all(color: tokens.border) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? tokens.accent : tokens.textMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: FrameText.of(context).caption.copyWith(
+                color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -134,15 +215,30 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     final strings = ref.watch(appStringsProvider);
     final agents = ref.watch(subagentsFamily(sessionId));
     final workflows = ref.watch(workflowsFamily(sessionId));
-    final open = ref.watch(agentActivityPanelOpenProvider(sessionId));
-    final running = agents.where((a) => a.isRunning).length +
+    final openAgents = ref.watch(agentActivityPanelOpenProvider(sessionId));
+    final running =
+        agents.where((a) => a.isRunning).length +
         workflows.where((w) => w.isRunning).length;
 
-    final hasItems = agents.isNotEmpty || workflows.isNotEmpty;
+    final hasAgents = agents.isNotEmpty || workflows.isNotEmpty;
+    final sideThread = ref.watch(sideThreadFamily(sessionId));
+    final hasSide = sideThread.conversations.isNotEmpty || sideThread.isOpen;
+    final sideOpen = sideThread.isOpen;
+
+    final hasItems = hasAgents || hasSide;
+    final isOpen = (hasAgents && openAgents) || (hasSide && sideOpen);
+
+    final requestedTab = ref.watch(chatSidecarTabFamily(sessionId));
+    final effectiveTab = (hasAgents && hasSide)
+        ? (openAgents && !sideOpen
+              ? ChatSidecarTab.agents
+              : (sideOpen && !openAgents ? ChatSidecarTab.side : requestedTab))
+        : (hasSide ? ChatSidecarTab.side : ChatSidecarTab.agents);
+
     final Widget child;
     if (!hasItems) {
       child = const SizedBox(key: ValueKey('agent-activity-none'), height: 0);
-    } else if (open) {
+    } else if (isOpen) {
       final panelWidth = ref.watch(agentSidecarWidthProvider);
       child = Row(
         key: const ValueKey('agent-activity-open'),
@@ -162,9 +258,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
               },
               child: const SizedBox(
                 width: 6,
-                child: Center(
-                  child: SizedBox(width: 1),
-                ),
+                child: Center(child: SizedBox(width: 1)),
               ),
             ),
           ),
@@ -180,10 +274,96 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   border: Border.all(color: tokens.border),
                   borderRadius: BorderRadius.circular(tokens.radiusLg),
                 ),
-                child: AgentActivityPanel(
-                  sessionId: sessionId,
-                  onClose: () =>
-                      ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (hasAgents && hasSide)
+                      Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          border: Border(
+                            bottom: BorderSide(color: tokens.border),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _sidecarTab(
+                              context,
+                              tokens,
+                              icon: Icons.hub_outlined,
+                              label:
+                                  'Agenti (${agents.length + workflows.length})',
+                              isSelected: effectiveTab == ChatSidecarTab.agents,
+                              onTap: () {
+                                ref
+                                        .read(
+                                          chatSidecarTabFamily(sessionId)
+                                              .notifier,
+                                        )
+                                        .state =
+                                    ChatSidecarTab.agents;
+                                ref
+                                        .read(
+                                          agentActivityPanelOpenProvider(
+                                            sessionId,
+                                          ).notifier,
+                                        )
+                                        .state =
+                                    true;
+                              },
+                            ),
+                            const SizedBox(width: 4),
+                            _sidecarTab(
+                              context,
+                              tokens,
+                              icon: Icons.call_split_outlined,
+                              label:
+                                  'Laterale (${sideThread.conversations.length})',
+                              isSelected: effectiveTab == ChatSidecarTab.side,
+                              onTap: () {
+                                ref
+                                        .read(
+                                          chatSidecarTabFamily(sessionId)
+                                              .notifier,
+                                        )
+                                        .state =
+                                    ChatSidecarTab.side;
+                                ref
+                                    .read(sideThreadFamily(sessionId).notifier)
+                                    .openPanel();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: effectiveTab == ChatSidecarTab.side
+                          ? SidePanel(
+                              key: ValueKey('side_panel_$sessionId'),
+                              sessionId: sessionId,
+                              onClose: () => ref
+                                  .read(sideThreadFamily(sessionId).notifier)
+                                  .closePanel(),
+                            )
+                          : AgentActivityPanel(
+                              sessionId: sessionId,
+                              onClose: () =>
+                                  ref
+                                          .read(
+                                            agentActivityPanelOpenProvider(
+                                              sessionId,
+                                            ).notifier,
+                                          )
+                                          .state =
+                                      false,
+                            ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -191,6 +371,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
         ],
       );
     } else {
+      final showSideStrip = hasSide && !hasAgents;
       child = Padding(
         key: const ValueKey('agent-activity-strip'),
         padding: const EdgeInsets.all(3),
@@ -203,27 +384,51 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             key: const ValueKey('agent-activity-open-btn'),
-            onTap: () =>
-                ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = true,
+            onTap: () {
+              if (showSideStrip) {
+                ref.read(chatSidecarTabFamily(sessionId).notifier).state =
+                    ChatSidecarTab.side;
+                ref.read(sideThreadFamily(sessionId).notifier).openPanel();
+              } else {
+                ref
+                        .read(
+                          agentActivityPanelOpenProvider(sessionId).notifier,
+                        )
+                        .state =
+                    true;
+              }
+            },
             child: SizedBox(
               width: 34,
               child: Column(
                 children: [
                   const SizedBox(height: 8),
-                  Icon(Icons.chevron_left_outlined, size: FrameSize.iconLg, color: tokens.accent),
+                  Icon(
+                    Icons.chevron_left_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.accent,
+                  ),
                   const SizedBox(height: 6),
-                  Icon(Icons.hub_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
+                  Icon(
+                    showSideStrip
+                        ? Icons.call_split_outlined
+                        : Icons.hub_outlined,
+                    size: FrameSize.icon,
+                    color: tokens.syntaxFunction,
+                  ),
                   const SizedBox(height: 6),
-                  SubagentStatusDot(running: running > 0),
+                  if (!showSideStrip) SubagentStatusDot(running: running > 0),
                   const SizedBox(height: 12),
                   Expanded(
                     child: RotatedBox(
                       quarterTurns: 3,
                       child: Center(
                         child: Text(
-                          running > 0
-                              ? strings.subagentsStripActive(running)
-                              : strings.subagentsStripIdle,
+                          showSideStrip
+                              ? strings.sideAllConversationsTitle.toUpperCase()
+                              : (running > 0
+                                    ? strings.subagentsStripActive(running)
+                                    : strings.subagentsStripIdle),
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: FrameText.of(context).caption.fontSize,
@@ -271,12 +476,19 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     final subagents = ref.watch(subagentsFamily(widget.sessionId));
-    final workflows = ref.watch(workflowsFamily(widget.sessionId)).reversed.toList();
-    final runningCount = subagents.where((s) => s.isRunning).length +
+    final workflows = ref
+        .watch(workflowsFamily(widget.sessionId))
+        .reversed
+        .toList();
+    final runningCount =
+        subagents.where((s) => s.isRunning).length +
         workflows.where((w) => w.isRunning).length;
     // Unlinked children may belong to a listed agent; summing them could count a cost twice.
     final agents = subagents.where((s) => !s.isUnlinked).toList();
-    final knownCost = agents.fold<double>(0, (total, s) => total + (s.cost ?? 0));
+    final knownCost = agents.fold<double>(
+      0,
+      (total, s) => total + (s.cost ?? 0),
+    );
     final costLabel =
         '${agents.any((s) => s.cost == null) ? strings.subagentsPartialCostPrefix : ''}\$${knownCost.toStringAsFixed(4)}';
 
@@ -293,7 +505,11 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
           ),
           child: Row(
             children: [
-              Icon(Icons.hub_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
+              Icon(
+                Icons.hub_outlined,
+                size: FrameSize.icon,
+                color: tokens.syntaxFunction,
+              ),
               const SizedBox(width: 8),
               Text(
                 strings.subagentsPanelTitle,
@@ -322,7 +538,10 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 const SizedBox(width: 4),
                 Text(
                   strings.subagentsRunningCount(runningCount),
-                  style: TextStyle(color: tokens.syntaxKeyword, fontSize: FrameText.of(context).caption.fontSize),
+                  style: TextStyle(
+                    color: tokens.syntaxKeyword,
+                    fontSize: FrameText.of(context).caption.fontSize,
+                  ),
                 ),
               ],
               const Spacer(),
@@ -330,10 +549,17 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 IconButton(
                   key: const ValueKey('agent-activity-close-btn'),
                   visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                   padding: EdgeInsets.zero,
                   tooltip: strings.subagentsCloseTooltip,
-                  icon: Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
+                  icon: Icon(
+                    Icons.chevron_right_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.textMuted,
+                  ),
                   onPressed: widget.onClose,
                 ),
             ],
@@ -367,7 +593,10 @@ class _Entrance extends StatelessWidget {
       curve: FrameMotion.enterCurve,
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(12 * (1 - t), 0), child: child),
+        child: Transform.translate(
+          offset: Offset(12 * (1 - t), 0),
+          child: child,
+        ),
       ),
       child: child,
     );
@@ -385,13 +614,17 @@ class SubagentStatusDot extends StatelessWidget {
       return Container(
         width: 7,
         height: 7,
-        decoration: BoxDecoration(color: tokens.textMuted.withValues(alpha: 0.5), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: tokens.textMuted.withValues(alpha: 0.5),
+          shape: BoxShape.circle,
+        ),
       );
     }
     return SizedBox(
       width: 9,
       height: 9,
-      child: FrameActivityIndicator(size: 9, 
+      child: FrameActivityIndicator(
+        size: 9,
         strokeWidth: 1.6,
         // A spinning indicator never settles; keep widget tests deterministic.
         value: _isTestBinding ? 0.75 : null,
@@ -415,6 +648,7 @@ class _TreeNode {
   final int depth;
   final bool isLast;
   final bool hasChildren;
+
   /// For each ancestor level, whether its trunk continues past this row.
   final List<bool> guides;
   final SubagentItem? agent;
@@ -442,7 +676,9 @@ List<T> _byActivityThenLaunch<T>(
   bool Function(T) running,
   int? Function(T) launchedAt,
 ) {
-  final indexed = [for (var i = 0; i < items.length; i++) (i: i, item: items[i])];
+  final indexed = [
+    for (var i = 0; i < items.length; i++) (i: i, item: items[i]),
+  ];
   indexed.sort((a, b) {
     final ra = running(a.item), rb = running(b.item);
     if (ra != rb) return ra ? -1 : 1;
@@ -454,20 +690,28 @@ List<T> _byActivityThenLaunch<T>(
 
 String _elapsed(int? from, int? to) {
   if (from == null) return '';
-  final seconds = ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
+  final seconds =
+      ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
   if (seconds < 0) return '';
   if (seconds < 60) return '${seconds}s';
   final minutes = seconds ~/ 60;
-  if (minutes < 60) return '${minutes}m ${(seconds % 60).toString().padLeft(2, '0')}s';
+  if (minutes < 60) {
+    return '${minutes}m ${(seconds % 60).toString().padLeft(2, '0')}s';
+  }
   return '${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}m';
 }
 
-(String, Color) _statusStyle(FrameTokens tokens, AppStrings strings, String status) => switch (status) {
-      'running' || 'steering' => (strings.subagentStatusInProgress, tokens.agentWorking),
-      'error' => (strings.subagentStatusError, tokens.agentError),
-      'stopped' => (strings.subagentStatusStopped, tokens.textMuted),
-      _ => (strings.subagentStatusCompleted, tokens.success),
-    };
+(String, Color) _statusStyle(
+  FrameTokens tokens,
+  AppStrings strings,
+  String status,
+) => switch (status) {
+  'running' ||
+  'steering' => (strings.subagentStatusInProgress, tokens.agentWorking),
+  'error' => (strings.subagentStatusError, tokens.agentError),
+  'stopped' => (strings.subagentStatusStopped, tokens.textMuted),
+  _ => (strings.subagentStatusCompleted, tokens.success),
+};
 
 Color _typeColor(FrameTokens tokens, String? type) {
   final palette = [
@@ -479,30 +723,52 @@ Color _typeColor(FrameTokens tokens, String? type) {
     tokens.info,
   ];
   final key = (type ?? '').toLowerCase();
-  return palette[key.codeUnits.fold<int>(0, (h, c) => (h * 31 + c) & 0x7fffffff) % palette.length];
+  return palette[key.codeUnits.fold<int>(
+        0,
+        (h, c) => (h * 31 + c) & 0x7fffffff,
+      ) %
+      palette.length];
 }
 
 IconData _typeIcon(String? type) {
   final key = (type ?? '').toLowerCase();
-  if (key.contains('explore') || key.contains('locator') || key.contains('scout')) return Icons.travel_explore_outlined;
-  if (key.contains('review') || key.contains('verif') || key.contains('audit')) return Icons.fact_check_outlined;
-  if (key.contains('plan') || key.contains('architect')) return Icons.architecture_outlined;
-  if (key.contains('research') || key.contains('web')) return Icons.public_outlined;
+  if (key.contains('explore') ||
+      key.contains('locator') ||
+      key.contains('scout')) {
+    return Icons.travel_explore_outlined;
+  }
+  if (key.contains('review') || key.contains('verif') || key.contains('audit')) {
+    return Icons.fact_check_outlined;
+  }
+  if (key.contains('plan') || key.contains('architect')) {
+    return Icons.architecture_outlined;
+  }
+  if (key.contains('research') || key.contains('web')) {
+    return Icons.public_outlined;
+  }
   if (key.contains('analy')) return Icons.insights_outlined;
-  if (key.contains('worker') || key.contains('builder')) return Icons.construction_outlined;
+  if (key.contains('worker') || key.contains('builder')) {
+    return Icons.construction_outlined;
+  }
   return Icons.smart_toy_outlined;
 }
 
 IconData _toolIcon(String tool) {
   final key = tool.toLowerCase();
-  if (key.contains('shell') || key == 'bash' || key.contains('terminal')) return Icons.terminal_outlined;
+  if (key.contains('shell') || key == 'bash' || key.contains('terminal')) {
+    return Icons.terminal_outlined;
+  }
   if (key.contains('read')) return Icons.description_outlined;
   if (key.contains('edit') || key.contains('write')) return Icons.edit_outlined;
-  if (key.contains('grep') || key.contains('find') || key.contains('ls') || key.contains('search')) {
+  if (key.contains('grep') ||
+      key.contains('find') ||
+      key.contains('ls') ||
+      key.contains('search')) {
     return Icons.search_outlined;
   }
-  if (key.contains('web') || key.contains('fetch')) return Icons.public_outlined;
-  if (key.contains('agent')) return Icons.hub_outlined;
+  if (key.contains('web') || key.contains('fetch')) {
+    return Icons.public_outlined;
+  }
   return Icons.bolt_outlined;
 }
 
@@ -513,20 +779,27 @@ class _AgentTree extends ConsumerStatefulWidget {
   final List<WorkflowItem> workflows;
   final List<SubagentItem> subagents;
 
-  const _AgentTree({required this.sessionId, required this.workflows, required this.subagents});
+  const _AgentTree({
+    required this.sessionId,
+    required this.workflows,
+    required this.subagents,
+  });
 
   @override
   ConsumerState<_AgentTree> createState() => _AgentTreeState();
 }
 
-class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
+class _AgentTreeState extends ConsumerState<_AgentTree>
+    with SingleTickerProviderStateMixin {
   final Set<String> _expandedIds = <String>{};
   // Row ids already shown once; only rows missing here play the entrance.
   final Set<String> _seenIds = <String>{};
   bool _firstBuild = true;
   bool _completedExpanded = false;
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: FrameMotion.pulseLoop);
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: FrameMotion.pulseLoop,
+  );
 
   @override
   void dispose() {
@@ -535,40 +808,57 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
   }
 
   void _toggle(String id) => setState(() {
-        if (!_expandedIds.remove(id)) _expandedIds.add(id);
-      });
+    if (!_expandedIds.remove(id)) _expandedIds.add(id);
+  });
 
   List<_TreeNode> _nodes() {
-    final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
-    final top = _byActivityThenLaunch<({WorkflowItem? run, SubagentItem? agent})>([
-      for (final run in widget.workflows) (run: run, agent: null),
-      for (final agent in widget.subagents.where((s) => !s.isUnlinked)) (run: null, agent: agent),
-      for (final agent in split['']!) (run: null, agent: agent),
-    ], (i) => i.run?.isRunning ?? i.agent!.isRunning, (i) => i.run?.timestamp ?? i.agent!.startedAt ?? i.agent!.timestamp);
+    final split = workflowChildren(
+      widget.workflows,
+      widget.subagents.where((s) => s.isUnlinked).toList(),
+    );
+    final top =
+        _byActivityThenLaunch<({WorkflowItem? run, SubagentItem? agent})>(
+          [
+            for (final run in widget.workflows) (run: run, agent: null),
+            for (final agent in widget.subagents.where((s) => !s.isUnlinked))
+              (run: null, agent: agent),
+            for (final agent in split['']!) (run: null, agent: agent),
+          ],
+          (i) => i.run?.isRunning ?? i.agent!.isRunning,
+          (i) => i.run?.timestamp ?? i.agent!.startedAt ?? i.agent!.timestamp,
+        );
     final nodes = <_TreeNode>[];
     for (var i = 0; i < top.length; i++) {
       final item = top[i];
       final isLast = i == top.length - 1;
       final children = item.run == null
           ? const <SubagentItem>[]
-          : _byActivityThenLaunch<SubagentItem>(split[item.run!.id]!, (a) => a.isRunning, (a) => a.startedAt ?? a.timestamp);
-      nodes.add(_TreeNode(
-        id: item.run?.id ?? item.agent!.id,
-        depth: 1,
-        isLast: isLast,
-        hasChildren: children.isNotEmpty,
-        agent: item.agent,
-        run: item.run,
-        runChildren: children,
-      ));
+          : _byActivityThenLaunch<SubagentItem>(
+              split[item.run!.id]!,
+              (a) => a.isRunning,
+              (a) => a.startedAt ?? a.timestamp,
+            );
+      nodes.add(
+        _TreeNode(
+          id: item.run?.id ?? item.agent!.id,
+          depth: 1,
+          isLast: isLast,
+          hasChildren: children.isNotEmpty,
+          agent: item.agent,
+          run: item.run,
+          runChildren: children,
+        ),
+      );
       for (var j = 0; j < children.length; j++) {
-        nodes.add(_TreeNode(
-          id: children[j].id,
-          depth: 2,
-          isLast: j == children.length - 1,
-          guides: [!isLast],
-          agent: children[j],
-        ));
+        nodes.add(
+          _TreeNode(
+            id: children[j].id,
+            depth: 2,
+            isLast: j == children.length - 1,
+            guides: [!isLast],
+            agent: children[j],
+          ),
+        );
       }
     }
     return nodes;
@@ -578,7 +868,9 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
   Widget build(BuildContext context) {
     final nodes = _nodes();
     final anyRunning = nodes.any((n) => n.isRunning);
-    if (anyRunning && !_isTestBinding && !MediaQuery.disableAnimationsOf(context)) {
+    if (anyRunning &&
+        !_isTestBinding &&
+        !MediaQuery.disableAnimationsOf(context)) {
       if (!_pulse.isAnimating) _pulse.repeat();
     } else if (_pulse.isAnimating) {
       _pulse.stop();
@@ -591,7 +883,9 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final summary = [
       if (runCount > 0) '$runCount workflow',
       strings.subagentsCount(agentNodes.length),
-      working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
+      working > 0
+          ? strings.subagentsWorking(working)
+          : strings.subagentsAllIdle,
     ].join(' · ');
 
     final fresh = <String>{
@@ -636,12 +930,19 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           title: strings.subagentMainSession,
           subtitle: Text(
             summary,
-            style: TextStyle(color: context.tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
+            style: TextStyle(
+              color: context.tokens.textMuted,
+              fontSize: FrameText.of(context).caption.fontSize,
+            ),
           ),
         ),
         for (final node in activeNodes)
           _Entrance(
-            key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
+            key: ValueKey(
+              node.run != null
+                  ? 'workflow-entry-${node.id}'
+                  : 'subagent-entry-${node.id}',
+            ),
             animate: fresh.contains(node.id),
             child: node.run != null
                 ? _workflowRow(node, strings)
@@ -658,14 +959,16 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               running: false,
               color: context.tokens.textMuted,
               pulse: _pulse,
-              onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+              onTap: () =>
+                  setState(() => _completedExpanded = !_completedExpanded),
               avatar: _NodeAvatar(
                 icon: Icons.check_circle_outline,
                 color: context.tokens.textMuted,
                 running: false,
                 pulse: _pulse,
               ),
-              title: '${strings.subagentStatusCompleted} (${completedNodes.length})',
+              title:
+                  '${strings.subagentStatusCompleted} (${completedNodes.length})',
               trailing: Icon(
                 _completedExpanded ? Icons.expand_less : Icons.expand_more,
                 size: FrameSize.icon,
@@ -691,10 +994,20 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final run = node.run!;
     final done = node.runChildren.where((c) => !c.isRunning).length;
     final working = node.runChildren.where((c) => c.isRunning).length;
-    final (statusLabel, statusColor) = _statusStyle(tokens, strings, run.status);
+    final (statusLabel, statusColor) = _statusStyle(
+      tokens,
+      strings,
+      run.status,
+    );
     final counts = node.runChildren.isEmpty
-        ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? strings.workflowStarting : ''))
-        : strings.subagentsFinishedWorking(done, node.runChildren.length, working);
+        ? (run.summary.isNotEmpty
+              ? run.summary
+              : (run.isRunning ? strings.workflowStarting : ''))
+        : strings.subagentsFinishedWorking(
+            done,
+            node.runChildren.length,
+            working,
+          );
     final expanded = _expandedIds.contains(run.id);
     return _TreeRow(
       key: ValueKey('workflow-card-${run.id}'),
@@ -729,7 +1042,10 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               counts,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: FrameText.of(context).caption.fontSize,
+              ),
             ),
           if (node.runChildren.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -741,27 +1057,49 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           ],
         ],
       ),
-      details: expanded ? _WorkflowDetails(run: run, hasChildren: node.runChildren.isNotEmpty, strings: strings) : null,
+      details: expanded
+          ? _WorkflowDetails(
+              run: run,
+              hasChildren: node.runChildren.isNotEmpty,
+              strings: strings,
+            )
+          : null,
     );
   }
 
-  Widget _agentRow(_TreeNode node, SubagentsNotifier notifier, AppStrings strings) {
+  Widget _agentRow(
+    _TreeNode node,
+    SubagentsNotifier notifier,
+    AppStrings strings,
+  ) {
     final tokens = context.tokens;
     final agent = node.agent!;
-    final (statusLabel, statusColor) = _statusStyle(tokens, strings, agent.status);
+    final (statusLabel, statusColor) = _statusStyle(
+      tokens,
+      strings,
+      agent.status,
+    );
     final color = _typeColor(tokens, agent.agentType ?? agent.name);
     final expanded = _expandedIds.contains(agent.id);
     // Workflow children have no name of their own; their task line says what they do.
     final title = agent.isUnlinked ? (agent.prompt ?? agent.name) : agent.name;
-    final type = agent.agentType ?? (agent.isUnlinked ? agent.name.split('#').first : null);
+    final type =
+        agent.agentType ??
+        (agent.isUnlinked ? agent.name.split('#').first : null);
     final meta = [
       if (type != null && type.isNotEmpty) type,
       // Unknown stays unknown: never shown as a zero cost.
       agent.model ?? strings.transcriptNotAvailable,
-      agent.cost == null ? strings.transcriptNotAvailable : '\$${agent.cost!.toStringAsFixed(4)}',
+      agent.cost == null
+          ? strings.transcriptNotAvailable
+          : '\$${agent.cost!.toStringAsFixed(4)}',
     ].join(' · ');
     return _TreeRow(
-      key: ValueKey(agent.isUnlinked ? 'unlinked-session-${agent.id}' : 'subagent-card-${agent.id}'),
+      key: ValueKey(
+        agent.isUnlinked
+            ? 'unlinked-session-${agent.id}'
+            : 'subagent-card-${agent.id}',
+      ),
       depth: node.depth,
       isLast: node.isLast,
       guides: node.guides,
@@ -782,7 +1120,10 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       trailing: _StatusChip(
         label: statusLabel,
         color: statusColor,
-        detail: _elapsed(agent.startedAt, agent.isRunning ? null : agent.updatedAt),
+        detail: _elapsed(
+          agent.startedAt,
+          agent.isRunning ? null : agent.updatedAt,
+        ),
         expanded: expanded,
       ),
       subtitle: Column(
@@ -793,11 +1134,19 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               meta,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontFamily: tokens.monoFontFamily),
+              style: TextStyle(
+                color: tokens.textMuted,
+                fontSize: FrameText.of(context).caption.fontSize,
+                fontFamily: tokens.monoFontFamily,
+              ),
             ),
           if (agent.activity != null && agent.activity!.isNotEmpty) ...[
             const SizedBox(height: 3),
-            _ActivityLine(text: agent.activity!, running: agent.isRunning, color: color),
+            _ActivityLine(
+              text: agent.activity!,
+              running: agent.isRunning,
+              color: color,
+            ),
           ],
         ],
       ),
@@ -826,6 +1175,7 @@ class _TreeRow extends StatelessWidget {
   final Widget avatar;
   final String title;
   final int titleMaxLines;
+
   /// Settled agents read as done, like a ticked-off task.
   final bool struck;
   final String? badge;
@@ -878,10 +1228,15 @@ class _TreeRow extends StatelessWidget {
                       if (badge != null) ...[
                         Container(
                           margin: const EdgeInsets.only(top: 1, right: 5),
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(context.tokens.radiusSm),
+                            borderRadius: BorderRadius.circular(
+                              context.tokens.radiusSm,
+                            ),
                           ),
                           child: Text(
                             badge!,
@@ -900,19 +1255,29 @@ class _TreeRow extends StatelessWidget {
                           maxLines: titleMaxLines,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: struck ? tokens.textMuted : tokens.textPrimary,
+                            color: struck
+                                ? tokens.textMuted
+                                : tokens.textPrimary,
                             fontWeight: FontWeight.w600,
                             fontSize: FrameText.of(context).label.fontSize,
                             height: 1.25,
-                            decoration: struck ? TextDecoration.lineThrough : null,
+                            decoration: struck
+                                ? TextDecoration.lineThrough
+                                : null,
                             decorationColor: tokens.textMuted,
                           ),
                         ),
                       ),
-                      if (trailing != null) ...[const SizedBox(width: 6), trailing!],
+                      if (trailing != null) ...[
+                        const SizedBox(width: 6),
+                        trailing!,
+                      ],
                     ],
                   ),
-                  if (subtitle != null) ...[const SizedBox(height: 2), subtitle!],
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    subtitle!,
+                  ],
                 ],
               ),
             ),
@@ -988,7 +1353,11 @@ class _TreeLinePainter extends CustomPainter {
     }
     if (hasChildren) {
       final x = depth * _treeStep + _avatarSize / 2;
-      canvas.drawLine(Offset(x, _nodeCenterY + _avatarSize / 2), Offset(x, size.height), stroke);
+      canvas.drawLine(
+        Offset(x, _nodeCenterY + _avatarSize / 2),
+        Offset(x, size.height),
+        stroke,
+      );
     }
     if (depth == 0) return;
     final x = (depth - 1) * _treeStep + _avatarSize / 2;
@@ -1000,7 +1369,13 @@ class _TreeLinePainter extends CustomPainter {
       ..quadraticBezierTo(x, _nodeCenterY, x + radius, _nodeCenterY)
       ..lineTo(end, _nodeCenterY);
     canvas.drawPath(elbow, stroke);
-    if (!isLast) canvas.drawLine(Offset(x, _nodeCenterY - radius), Offset(x, size.height), stroke);
+    if (!isLast) {
+      canvas.drawLine(
+        Offset(x, _nodeCenterY - radius),
+        Offset(x, size.height),
+        stroke,
+      );
+    }
     if (!running) return;
     canvas.drawPath(
       elbow,
@@ -1011,7 +1386,9 @@ class _TreeLinePainter extends CustomPainter {
     );
     // A spark travels down the branch while the agent works.
     final metric = elbow.computeMetrics().first;
-    final at = metric.getTangentForOffset(metric.length * pulse.value)?.position;
+    final at = metric
+        .getTangentForOffset(metric.length * pulse.value)
+        ?.position;
     if (at == null) return;
     canvas.drawCircle(at, 4, Paint()..color = color.withValues(alpha: 0.25));
     canvas.drawCircle(at, 2, Paint()..color = color);
@@ -1026,7 +1403,8 @@ class _TreeLinePainter extends CustomPainter {
       old.line != line ||
       old.color != color ||
       old.guides.length != guides.length ||
-      !Iterable.generate(guides.length).every((i) => old.guides[i] == guides[i]);
+      !Iterable.generate(guides.length)
+          .every((i) => old.guides[i] == guides[i]);
 }
 
 /// Round agent badge; a running agent gets an orbiting arc.
@@ -1064,10 +1442,20 @@ class _NodeAvatar extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color.alphaBlend(color.withValues(alpha: running ? 0.22 : 0.12), tokens.surface),
-                border: Border.all(color: color.withValues(alpha: running ? 0.9 : 0.45), width: 1.2),
+                color: Color.alphaBlend(
+                  color.withValues(alpha: running ? 0.22 : 0.12),
+                  tokens.surface,
+                ),
+                border: Border.all(
+                  color: color.withValues(alpha: running ? 0.9 : 0.45),
+                  width: 1.2,
+                ),
               ),
-              child: Icon(icon, size: 12, color: running ? color : color.withValues(alpha: 0.8)),
+              child: Icon(
+                icon,
+                size: 12,
+                color: running ? color : color.withValues(alpha: 0.8),
+              ),
             ),
           ),
           if (running)
@@ -1076,7 +1464,9 @@ class _NodeAvatar extends StatelessWidget {
               top: -3,
               right: -3,
               bottom: -3,
-              child: CustomPaint(painter: _OrbitPainter(color: color, pulse: pulse)),
+              child: CustomPaint(
+                painter: _OrbitPainter(color: color, pulse: pulse),
+              ),
             ),
           if (badgeIcon != null)
             Positioned(
@@ -1102,7 +1492,8 @@ class _NodeAvatar extends StatelessWidget {
 class _OrbitPainter extends CustomPainter {
   final Color color;
   final Animation<double> pulse;
-  _OrbitPainter({required this.color, required this.pulse}) : super(repaint: pulse);
+  _OrbitPainter({required this.color, required this.pulse})
+    : super(repaint: pulse);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1129,7 +1520,12 @@ class _StatusChip extends StatelessWidget {
   final Color color;
   final String detail;
   final bool expanded;
-  const _StatusChip({required this.label, required this.color, required this.detail, required this.expanded});
+  const _StatusChip({
+    required this.label,
+    required this.color,
+    required this.detail,
+    required this.expanded,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1140,15 +1536,32 @@ class _StatusChip extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(label, style: TextStyle(color: color, fontSize: FrameText.of(context).caption.fontSize, fontWeight: FontWeight.w700)),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: FrameText.of(context).caption.fontSize,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             if (detail.isNotEmpty)
               Text(
                 detail,
-                style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontFamily: tokens.monoFontFamily),
+                style: TextStyle(
+                  color: tokens.textMuted,
+                  fontSize: FrameText.of(context).caption.fontSize,
+                  fontFamily: tokens.monoFontFamily,
+                ),
               ),
           ],
         ),
-        Icon(expanded ? Icons.keyboard_arrow_up_outlined : Icons.keyboard_arrow_down_outlined, size: FrameSize.icon, color: tokens.textMuted),
+        Icon(
+          expanded
+              ? Icons.keyboard_arrow_up_outlined
+              : Icons.keyboard_arrow_down_outlined,
+          size: FrameSize.icon,
+          color: tokens.textMuted,
+        ),
       ],
     );
   }
@@ -1159,18 +1572,28 @@ class _ActivityLine extends StatelessWidget {
   final String text;
   final bool running;
   final Color color;
-  const _ActivityLine({required this.text, required this.running, required this.color});
+  const _ActivityLine({
+    required this.text,
+    required this.running,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final tool = running ? RegExp(r'^([\w.\-]+):\s+(.*)$').firstMatch(text) : null;
+    final tool = running
+        ? RegExp(r'^([\w.\-]+):\s+(.*)$').firstMatch(text)
+        : null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: running ? color.withValues(alpha: 0.08) : tokens.background.withValues(alpha: 0.5),
+        color: running
+            ? color.withValues(alpha: 0.08)
+            : tokens.background.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border(left: BorderSide(color: running ? color : tokens.border, width: 2)),
+        border: Border(
+          left: BorderSide(color: running ? color : tokens.border, width: 2),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1178,7 +1601,11 @@ class _ActivityLine extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 1),
             child: Icon(
-              tool != null ? _toolIcon(tool.group(1)!) : (running ? Icons.chat_bubble_outline : Icons.notes_outlined),
+              tool != null
+                  ? _toolIcon(tool.group(1)!)
+                  : (running
+                        ? Icons.chat_bubble_outline
+                        : Icons.notes_outlined),
               size: 11,
               color: running ? color : tokens.textMuted,
             ),
@@ -1186,14 +1613,19 @@ class _ActivityLine extends StatelessWidget {
           const SizedBox(width: 5),
           Expanded(
             child: Text.rich(
-              TextSpan(children: [
-                if (tool != null)
-                  TextSpan(
-                    text: '${tool.group(1)} ',
-                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
-                  ),
-                TextSpan(text: tool?.group(2) ?? text),
-              ]),
+              TextSpan(
+                children: [
+                  if (tool != null)
+                    TextSpan(
+                      text: '${tool.group(1)} ',
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  TextSpan(text: tool?.group(2) ?? text),
+                ],
+              ),
               maxLines: running ? 2 : 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -1229,7 +1661,8 @@ class _ProgressSegments extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   color: switch (children[i].status) {
-                    'running' || 'steering' => tokens.agentWorking.withValues(alpha: 0.55),
+                    'running' ||
+                    'steering' => tokens.agentWorking.withValues(alpha: 0.55),
                     'error' => tokens.agentError,
                     'stopped' => tokens.textMuted.withValues(alpha: 0.5),
                     _ => tokens.success,
@@ -1264,12 +1697,19 @@ class _PhaseTrack extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(context.tokens.radiusSm),
-              border: Border.all(color: settled ? tokens.success.withValues(alpha: 0.6) : tokens.border),
+              border: Border.all(
+                color: settled
+                    ? tokens.success.withValues(alpha: 0.6)
+                    : tokens.border,
+              ),
               color: tokens.surfaceElevated,
             ),
             child: Text(
               phases[i],
-              style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: FrameText.of(context).caption.fontSize,
+              ),
             ),
           ),
         ],
@@ -1284,7 +1724,11 @@ class _WorkflowDetails extends StatefulWidget {
   final WorkflowItem run;
   final bool hasChildren;
   final AppStrings? strings;
-  const _WorkflowDetails({required this.run, required this.hasChildren, this.strings});
+  const _WorkflowDetails({
+    required this.run,
+    required this.hasChildren,
+    this.strings,
+  });
 
   @override
   State<_WorkflowDetails> createState() => _WorkflowDetailsState();
@@ -1315,8 +1759,14 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
   }
 
   void _syncTimer() {
-    if (widget.run.isRunning && !widget.hasChildren && !kIsWeb && !_isTestBinding) {
-      _timer ??= Timer.periodic(const Duration(seconds: 2), (_) => _readJournal());
+    if (widget.run.isRunning &&
+        !widget.hasChildren &&
+        !kIsWeb &&
+        !_isTestBinding) {
+      _timer ??= Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => _readJournal(),
+      );
     } else {
       _timer?.cancel();
       _timer = null;
@@ -1343,7 +1793,9 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
           // The run may be mid-append; the next read picks the line up.
         }
       }
-      if (mounted && entries.length != _journal.length) setState(() => _journal = entries);
+      if (mounted && entries.length != _journal.length) {
+        setState(() => _journal = entries);
+      }
     } catch (_) {}
   }
 
@@ -1359,7 +1811,13 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
         if (run.description != null && run.description!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(run.description!, style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize)),
+            child: Text(
+              run.description!,
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: FrameText.of(context).caption.fontSize,
+              ),
+            ),
           ),
         for (final entry in _journal)
           Padding(
@@ -1377,11 +1835,16 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
                   child: Text(
                     strings.workflowJournalAgent(
                       entry.index,
-                      entry.text.isEmpty ? '' : entry.text.trim().split('\n').first,
+                      entry.text.isEmpty
+                          ? ''
+                          : entry.text.trim().split('\n').first,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize),
+                    style: TextStyle(
+                      color: tokens.textSecondary,
+                      fontSize: FrameText.of(context).caption.fontSize,
+                    ),
                   ),
                 ),
               ],
@@ -1391,8 +1854,14 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
           _OutputBox(text: run.result)
         else if (_journal.isEmpty && !widget.hasChildren)
           Text(
-            run.isRunning ? strings.workflowWaitingFirstAgent : strings.workflowNoResultsRecorded,
-            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontStyle: FontStyle.italic),
+            run.isRunning
+                ? strings.workflowWaitingFirstAgent
+                : strings.workflowNoResultsRecorded,
+            style: TextStyle(
+              color: tokens.textMuted,
+              fontSize: FrameText.of(context).caption.fontSize,
+              fontStyle: FontStyle.italic,
+            ),
           ),
       ],
     );
@@ -1407,7 +1876,9 @@ class _OutputBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     // Long transcripts only matter at their end; keep layout cheap.
-    final shown = text.length > 6000 ? '…${text.substring(text.length - 6000)}' : text;
+    final shown = text.length > 6000
+        ? '…${text.substring(text.length - 6000)}'
+        : text;
     return Container(
       constraints: const BoxConstraints(maxHeight: 220),
       padding: const EdgeInsets.all(8),
@@ -1482,7 +1953,14 @@ class _AgentDetailsState extends State<_AgentDetails> {
         if (task != null && task.isNotEmpty && task != agent.name)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(task, style: TextStyle(color: tokens.textSecondary, fontSize: FrameText.of(context).caption.fontSize, height: 1.35)),
+            child: Text(
+              task,
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: FrameText.of(context).caption.fontSize,
+                height: 1.35,
+              ),
+            ),
           ),
         // Child sessions run in a worker the daemon cannot steer.
         if (!agent.isUnlinked)
@@ -1496,11 +1974,22 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                   ),
-                  onPressed: agent.isRunning ? widget.onToggleSteeringBox : null,
-                  icon: Icon(Icons.alt_route_outlined, size: 13, color: tokens.syntaxFunction),
+                  onPressed: agent.isRunning
+                      ? widget.onToggleSteeringBox
+                      : null,
+                  icon: Icon(
+                    Icons.alt_route_outlined,
+                    size: 13,
+                    color: tokens.syntaxFunction,
+                  ),
                   label: Text(
-                    agent.isSteeringOpen ? strings.subagentSteerClose : strings.subagentSteer,
-                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
+                    agent.isSteeringOpen
+                        ? strings.subagentSteerClose
+                        : strings.subagentSteer,
+                    style: TextStyle(
+                      fontSize: FrameText.of(context).caption.fontSize,
+                      color: tokens.textSecondary,
+                    ),
                   ),
                 ),
                 TextButton.icon(
@@ -1513,11 +2002,18 @@ class _AgentDetailsState extends State<_AgentDetails> {
                   icon: Icon(
                     Icons.stop_circle_outlined,
                     size: 13,
-                    color: agent.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
+                    color: agent.isRunning
+                        ? tokens.danger
+                        : tokens.textMuted.withValues(alpha: 0.4),
                   ),
                   label: Text(
-                    agent.isRunning ? strings.subagentStop : strings.subagentFinished,
-                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
+                    agent.isRunning
+                        ? strings.subagentStop
+                        : strings.subagentFinished,
+                    style: TextStyle(
+                      fontSize: FrameText.of(context).caption.fontSize,
+                      color: tokens.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -1535,11 +2031,17 @@ class _AgentDetailsState extends State<_AgentDetails> {
                     controller: _steer,
                     autofocus: true,
                     onSubmitted: (_) => _submit(),
-                    style: TextStyle(color: tokens.textPrimary, fontSize: FrameText.of(context).label.fontSize),
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: FrameText.of(context).label.fontSize,
+                    ),
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: strings.subagentSteerInputHint,
-                      hintStyle: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).label.fontSize),
+                      hintStyle: TextStyle(
+                        color: tokens.textMuted,
+                        fontSize: FrameText.of(context).label.fontSize,
+                      ),
                       filled: true,
                       fillColor: tokens.background,
                       border: OutlineInputBorder(
@@ -1552,7 +2054,11 @@ class _AgentDetailsState extends State<_AgentDetails> {
                 IconButton(
                   key: ValueKey('subagent-steer-send-${agent.id}'),
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.send_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
+                  icon: Icon(
+                    Icons.send_outlined,
+                    size: FrameSize.icon,
+                    color: tokens.syntaxFunction,
+                  ),
                   onPressed: _submit,
                 ),
               ],
@@ -1562,8 +2068,14 @@ class _AgentDetailsState extends State<_AgentDetails> {
           _OutputBox(text: agent.output)
         else
           Text(
-            agent.isRunning ? strings.subagentWorkingOutput : strings.subagentNoOutputRecorded,
-            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize, fontStyle: FontStyle.italic),
+            agent.isRunning
+                ? strings.subagentWorkingOutput
+                : strings.subagentNoOutputRecorded,
+            style: TextStyle(
+              color: tokens.textMuted,
+              fontSize: FrameText.of(context).caption.fontSize,
+              fontStyle: FontStyle.italic,
+            ),
           ),
       ],
     );
@@ -1652,10 +2164,14 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: sub.isCompleted ? tokens.textMuted : tokens.textPrimary,
+                            color: sub.isCompleted
+                                ? tokens.textMuted
+                                : tokens.textPrimary,
                             fontWeight: FontWeight.bold,
                             fontSize: FrameText.of(context).label.fontSize,
-                            decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
+                            decoration: sub.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
                             decorationColor: tokens.textMuted,
                           ),
                         ),
@@ -1672,7 +2188,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: tokens.textSecondary,
-                                  fontSize: FrameText.of(context).caption.fontSize,
+                                  fontSize: FrameText.of(context)
+                                      .caption
+                                      .fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                 ),
                               ),
@@ -1684,7 +2202,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                   : '\$${sub.cost!.toStringAsFixed(4)}',
                               style: TextStyle(
                                 color: tokens.syntaxString,
-                                fontSize: FrameText.of(context).caption.fontSize,
+                                fontSize: FrameText.of(context)
+                                    .caption
+                                    .fontSize,
                                 fontWeight: FontWeight.w600,
                                 fontFamily: tokens.monoFontFamily,
                               ),
@@ -1698,14 +2218,19 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                             sub.description!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
+                            style: TextStyle(
+                              color: tokens.textMuted,
+                              fontSize: FrameText.of(context).caption.fontSize,
+                            ),
                           ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 4),
                   Icon(
-                    widget.isExpanded ? Icons.keyboard_arrow_up_outlined : Icons.keyboard_arrow_down_outlined,
+                    widget.isExpanded
+                        ? Icons.keyboard_arrow_up_outlined
+                        : Icons.keyboard_arrow_down_outlined,
                     size: FrameSize.icon,
                     color: tokens.textMuted,
                   ),
@@ -1716,10 +2241,7 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
 
           // Card Expanded Body
           if (widget.isExpanded) ...[
-            Container(
-              height: 1,
-              color: tokens.border,
-            ),
+            Container(height: 1, color: tokens.border),
             Padding(
               padding: const EdgeInsets.all(8),
               child: Column(
@@ -1730,34 +2252,50 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                     children: [
                       TextButton.icon(
                         key: ValueKey('subagent-steer-btn-${sub.id}'),
-                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
                         icon: Icon(
-                          sub.isSteeringOpen ? Icons.close_outlined : Icons.navigation_outlined,
+                          sub.isSteeringOpen
+                              ? Icons.close_outlined
+                              : Icons.navigation_outlined,
                           size: FrameSize.icon,
-                          color: sub.isSteeringOpen ? tokens.textMuted : tokens.syntaxFunction,
+                          color: sub.isSteeringOpen
+                              ? tokens.textMuted
+                              : tokens.syntaxFunction,
                         ),
                         label: Text(
                           sub.isSteeringOpen
                               ? strings.subagentSteerClose
                               : strings.subagentSteer,
-                          style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
+                          style: TextStyle(
+                            fontSize: FrameText.of(context).caption.fontSize,
+                            color: tokens.textSecondary,
+                          ),
                         ),
                         onPressed: widget.onToggleSteeringBox,
                       ),
                       const SizedBox(width: 4),
                       TextButton.icon(
                         key: ValueKey('subagent-stop-btn-${sub.id}'),
-                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
                         icon: Icon(
                           Icons.stop_circle_outlined,
                           size: FrameSize.icon,
-                          color: sub.isRunning ? tokens.danger : tokens.textMuted.withValues(alpha: 0.4),
+                          color: sub.isRunning
+                              ? tokens.danger
+                              : tokens.textMuted.withValues(alpha: 0.4),
                         ),
                         label: Text(
                           sub.isRunning
                               ? strings.subagentStop
                               : strings.subagentFinished,
-                          style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, color: tokens.textSecondary),
+                          style: TextStyle(
+                            fontSize: FrameText.of(context).caption.fontSize,
+                            color: tokens.textSecondary,
+                          ),
                         ),
                         onPressed: sub.isRunning ? widget.onStop : null,
                       ),
@@ -1794,7 +2332,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 strings.subagentManualSteeringTitle,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
-                                  fontSize: FrameText.of(context).caption.fontSize,
+                                  fontSize: FrameText.of(context)
+                                      .caption
+                                      .fontSize,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1805,18 +2345,25 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                             children: [
                               Expanded(
                                 child: TextField(
-                                  key: ValueKey('subagent-steer-input-${sub.id}'),
+                                  key: ValueKey(
+                                    'subagent-steer-input-${sub.id}',
+                                  ),
                                   controller: _steerController,
                                   autofocus: true,
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize: FrameText.of(context).label.fontSize,
+                                    fontSize: FrameText.of(context)
+                                        .label
+                                        .fontSize,
                                   ),
                                   decoration: InputDecoration(
-                                    hintText: strings.subagentManualSteeringHint,
+                                    hintText:
+                                        strings.subagentManualSteeringHint,
                                     hintStyle: TextStyle(
                                       color: tokens.textMuted,
-                                      fontSize: FrameText.of(context).caption.fontSize,
+                                      fontSize: FrameText.of(context)
+                                          .caption
+                                          .fontSize,
                                     ),
                                     isDense: true,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -1826,14 +2373,17 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                     filled: true,
                                     fillColor: tokens.background,
                                     border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(tokens.radiusSm),
-                                      borderSide:
-                                          BorderSide(color: tokens.border),
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
+                                      borderSide: BorderSide(
+                                        color: tokens.border,
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(tokens.radiusSm),
+                                      borderRadius: BorderRadius.circular(
+                                        tokens.radiusSm,
+                                      ),
                                       borderSide: BorderSide(
                                         color: tokens.syntaxFunction,
                                         width: 1.2,
@@ -1844,22 +2394,36 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              PressFeedback(enabled: true, child: FilledButton.icon(
-                                key: ValueKey('subagent-steer-send-${sub.id}'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: tokens.syntaxFunction,
-                                  foregroundColor: tokens.surface,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
+                              PressFeedback(
+                                enabled: true,
+                                child: FilledButton.icon(
+                                  key: ValueKey(
+                                    'subagent-steer-send-${sub.id}',
                                   ),
-                                  visualDensity: VisualDensity.compact,
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: tokens.syntaxFunction,
+                                    foregroundColor: tokens.surface,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.send_outlined,
+                                    size: 12,
+                                  ),
+                                  label: Text(
+                                    strings.subagentSendButton,
+                                    style: TextStyle(
+                                      fontSize: FrameText.of(context)
+                                          .caption
+                                          .fontSize,
+                                    ),
+                                  ),
+                                  onPressed: _submitSteer,
                                 ),
-                                icon: const Icon(Icons.send_outlined, size: 12),
-                                label: Text(strings.subagentSendButton,
-                                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize)),
-                                onPressed: _submitSteer,
-                              )),
+                              ),
                             ],
                           ),
                         ],
@@ -1887,7 +2451,9 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                                 selectionWidthStyle: BoxWidthStyle.tight,
                                 style: TextStyle(
                                   color: tokens.textPrimary,
-                                  fontSize: FrameText.of(context).caption.fontSize,
+                                  fontSize: FrameText.of(context)
+                                      .caption
+                                      .fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   height: 1.4,
                                 ),
@@ -1896,19 +2462,30 @@ class _SubagentExpandableCardState extends State<SubagentExpandableCard> {
                           )
                         : Center(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               child: Text(
                                 sub.isRunning
-                                    ? (sub.description != null && sub.description!.isNotEmpty
-                                        ? strings.subagentWaitingWithTask(sub.description!)
-                                        : strings.subagentWaitingOutput)
-                                    : (sub.description != null && sub.description!.isNotEmpty
-                                        ? strings.subagentCompletedWithTask(sub.description!)
-                                        : strings.subagentNoOutputForThis),
+                                    ? (sub.description != null &&
+                                              sub.description!.isNotEmpty
+                                          ? strings.subagentWaitingWithTask(
+                                              sub.description!,
+                                            )
+                                          : strings.subagentWaitingOutput)
+                                    : (sub.description != null &&
+                                              sub.description!.isNotEmpty
+                                          ? strings.subagentCompletedWithTask(
+                                              sub.description!,
+                                            )
+                                          : strings.subagentNoOutputForThis),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: tokens.textMuted,
-                                  fontSize: FrameText.of(context).caption.fontSize,
+                                  fontSize: FrameText.of(context)
+                                      .caption
+                                      .fontSize,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),

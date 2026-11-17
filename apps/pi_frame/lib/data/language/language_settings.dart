@@ -552,6 +552,10 @@ class AppStrings {
   String get sideOpening => isItalian
       ? 'Apertura conversazione laterale...'
       : 'Opening side conversation...';
+  String get sideNewConversationTooltip =>
+      isItalian ? 'Nuova conversazione laterale' : 'New side conversation';
+  String get sideAllConversationsTitle =>
+      isItalian ? 'Conversazioni laterali' : 'Side conversations';
 }
 
 final appStringsProvider = Provider<AppStrings>((ref) {

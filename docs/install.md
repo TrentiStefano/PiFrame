@@ -402,14 +402,15 @@ PiFrame introduce il supporto per conversazioni laterali effimere e di sola lett
     - Scorciatoia globale: `Ctrl+Shift+B` (Linux/Windows) o `Cmd+Shift+B` (macOS) per aprire/chiudere il pannello laterale nella sessione corrente.
     - Voce dedicata nella Command Palette (`Ctrl+K` / `Cmd+K`): *"Conversazione laterale"*, con il tasto `Ctrl`/`⌘` + `Shift` + `B` mostrato a destra.
     - La Command Palette raggruppa i comandi in Sessione, Vista, Git e Impostazioni, mostra solo i comandi applicabili (per esempio *"Interrompi agente"* solo mentre l'agente lavora), chiude se stessa prima di eseguire il comando e include *"Vai a sessione…"* con ricerca fuzzy tra le sessioni.
-  - **Pannello Laterale Agganciato (Side Panel)**:
-    - Il thread laterale si affianca alla chat (task 10.1): occupa il 40 % dell'area, con un minimo di 320 px per lato. Il separatore si trascina; la chat non scende sotto 720 px. Sotto questa soglia il thread occupa tutta l'area e il pulsante indietro torna alla chat senza chiudere il thread.
-    - Escape chiude il thread (come la X). La conferma compare solo se il mini composer contiene una bozza. Ctrl+Shift+B apre o chiude senza animazione; con "Riduci movimento" la transizione è una dissolvenza breve.
-    - Drawer/pannello ancorato sulla destra del transcript con token semantici `pi_frame_theme` e stringhe localizzate `AppStrings`.
-    - Intestazione con badge `Side · read-only`, chip del modello attivo e nota *"Non fa parte della conversazione principale"*.
-    - Mini transcript che riusa i componenti `RichContent`, `ThinkingBlock` e `ToolCard`.
+  - **Pannello Laterale Agganciato (Side Panel & Companion Sidecar)**:
+    - Le discussioni laterali (`/side` e `/btw`) sono integrate nel companion sidecar alla destra della chat, affiancate al pannello Agenti con ridimensionamento a trascinamento (240–700 px).
+    - Storico completo delle discussioni della sessione (`SideConversationRecord`): tutte le discussioni laterali avviate nella sessione restano memorizzate e navigabili tramite selettore orizzontale a pillole, con indicatore di stato attivo/chiuso/errore ed eliminazione su richiesta.
+    - Pulsante `+` nell'intestazione per avviare una nuova discussione laterale in qualsiasi momento.
+    - Escape o X chiude il pannello. La conferma compare solo se il mini composer contiene una bozza. Ctrl+Shift+B apre o chiude istantaneamente il pannello.
+    - Intestazione con badge `Side · read-only`, chip del modello attivo, conteggio discussioni e nota *"Non fa parte della conversazione principale"*.
+    - Mini transcript che riusa i componenti `RichContent`, `ThinkingBlock` e `ToolCard` per la discussione selezionata.
     - Mini composer per domande di follow-up con gestione della preferenza Enter-to-send.
-    - Pulsante **Stop** (`side.abort`) per interrompere l'elaborazione in corso e pulsante **Chiudi** (`side.close`) con dialogo di conferma che attesta che nessun dato andrà perso dalla conversazione principale.
+    - Pulsante **Stop** (`side.abort`) per interrompere l'elaborazione in corso e pulsante **Chiudi** (`side.close`).
     - Azione **"Inserisci nel composer"** per ciascuna risposta dell'assistente che appende il testo alla bozza del composer principale esclusivamente su click esplicito.
     - Gestione delle causali di chiusura thread (`idle`, `parentClosed`, `error`, `user`) con banner di notifica dedicato.
 

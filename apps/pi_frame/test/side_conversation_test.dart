@@ -794,5 +794,66 @@ void main() {
 
       expect(container.read(sideThreadFamily('parent_session')).isOpen, isFalse);
     });
+
+    testWidgets(
+        'Multiple side conversations are stored in session history and selectable via pills',
+        (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(fakeClient),
+          activeSessionIdProvider.overrideWith((ref) => 'parent_session'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final sideNotifier =
+          container.read(sideThreadFamily('parent_session').notifier);
+
+      // Open first conversation
+      await sideNotifier.openSide(question: 'First question about architecture');
+      var state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 1);
+      expect(state.conversations.first.title,
+          'First question about architecture');
+
+      // Open second conversation
+      await sideNotifier.openSide(question: 'Second question about tests');
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 2);
+      expect(state.conversations.last.title, 'Second question about tests');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: SidePanel(sessionId: 'parent_session'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Both pills are rendered in the conversation bar
+      expect(find.text('First question about architecture'), findsOneWidget);
+      expect(find.text('Second question about tests'), findsOneWidget);
+
+      // Tap on first pill to select it
+      await tester.tap(find.text('First question about architecture'));
+      await tester.pumpAndSettle();
+
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.selectedConversationId, state.conversations.first.id);
+
+      // Tap + button to create a third conversation
+      await tester.tap(find.byKey(const ValueKey('side-new-conversation-btn')));
+      await tester.pumpAndSettle();
+
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 3);
+    });
   });
 }
