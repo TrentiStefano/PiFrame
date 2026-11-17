@@ -161,26 +161,28 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
             maxLines: 1,
             style: text.mono.copyWith(color: tokens.textMuted),
           ),
-          const SizedBox(width: FrameSpace.x2),
-          TextButton.icon(
-            key: const ValueKey('composer-status-interrupt'),
-            onPressed: widget.onInterrupt,
-            style: TextButton.styleFrom(
-              foregroundColor: danger,
-              minimumSize: const Size(0, FrameSize.hitMin),
-              padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            icon: Icon(Icons.stop_outlined, size: FrameSize.icon, color: danger),
-            label: Text(
-              widget.interruptLabel,
-              maxLines: 1,
-              style: text.label.copyWith(
-                color: danger,
-                fontWeight: FontWeight.w600,
+          if (widget.onInterrupt != null) ...[
+            const SizedBox(width: FrameSpace.x2),
+            TextButton.icon(
+              key: const ValueKey('composer-status-interrupt'),
+              onPressed: widget.onInterrupt,
+              style: TextButton.styleFrom(
+                foregroundColor: danger,
+                minimumSize: const Size(0, FrameSize.hitMin),
+                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: Icon(Icons.stop_outlined, size: FrameSize.icon, color: danger),
+              label: Text(
+                widget.interruptLabel,
+                maxLines: 1,
+                style: text.label.copyWith(
+                  color: danger,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

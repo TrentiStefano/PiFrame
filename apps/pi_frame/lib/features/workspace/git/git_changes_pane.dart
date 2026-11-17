@@ -1300,68 +1300,62 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             onSelectCompanionTab: widget.onSelectCompanionTab,
             titleWidget: Row(
               children: [
-                Icon(
-                  Icons.source_outlined,
-                  size: FrameSize.icon,
-                  color: tokens.accent,
-                ),
-                const SizedBox(width: FrameSpace.x2),
-                // Title and chip share the header width and shrink with an
-                // ellipsis at large text scale, instead of scrolling off.
-                Flexible(
-                  child: Text(
-                    strings.gitChangesLabel.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.label.copyWith(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.4,
+                if (ref.watch(browserPaneSupportedProvider))
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: _buildSegmentButton(
+                              key: const ValueKey('right-pane-switch-git-chip'),
+                              label: strings.browserGitChangesLabel,
+                              icon: Icons.source_outlined,
+                              isSelected: true,
+                              tokens: tokens,
+                              onTap: () {},
+                            ),
+                          ),
+                          Flexible(
+                            child: _buildSegmentButton(
+                              key: const ValueKey(
+                                'right-pane-switch-browser-chip',
+                              ),
+                              label: strings.browserWebBrowserLabel,
+                              icon: Icons.language_outlined,
+                              isSelected: false,
+                              tokens: tokens,
+                              onTap: () {
+                                ref.read(rightPaneModeProvider.notifier).state =
+                                    RightPaneMode.browser;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  )
+                else ...[
+                  Icon(
+                    Icons.source_outlined,
+                    size: FrameSize.icon,
+                    color: tokens.accent,
                   ),
-                ),
-                if (ref.watch(browserPaneSupportedProvider)) ...[
                   const SizedBox(width: FrameSpace.x2),
                   Flexible(
-                    child: InkWell(
-                      key: const ValueKey('right-pane-switch-browser-chip'),
-                      onTap: () {
-                        ref.read(rightPaneModeProvider.notifier).state =
-                            RightPaneMode.browser;
-                      },
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x1,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tokens.surface,
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: tokens.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.language_outlined,
-                              size: 12,
-                              color: tokens.textMuted,
-                            ),
-                            const SizedBox(width: FrameSpace.x1),
-                            Flexible(
-                              child: Text(
-                                strings.browserPaneLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: text.caption.copyWith(
-                                  color: tokens.textMuted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    child: Text(
+                      strings.gitChangesLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.label.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1371,25 +1365,6 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (ref.watch(browserPaneSupportedProvider))
-                  IconButton(
-                    key: const ValueKey('git-switch-to-browser-btn'),
-                    tooltip: strings.switchToWebBrowserTooltip,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 26,
-                      minHeight: 26,
-                    ),
-                    onPressed: () {
-                      ref.read(rightPaneModeProvider.notifier).state =
-                          RightPaneMode.browser;
-                    },
-                    icon: const Icon(
-                      Icons.language_outlined,
-                      size: FrameSize.icon,
-                    ),
-                  ),
                 IconButton(
                   tooltip: strings.refreshGitStatusTooltip,
                   visualDensity: VisualDensity.compact,
@@ -1845,6 +1820,59 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentButton({
+    required Key key,
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required FrameTokens tokens,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(tokens.radiusSm),
+      child: AnimatedContainer(
+        duration: FrameMotion.fade(context, FrameMotion.micro),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FrameSpace.x2,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? tokens.surfaceElevated
+              : tokens.surface.withValues(alpha: 0),
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: isSelected
+              ? Border.all(color: tokens.borderStrong, width: 0.8)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: FrameSize.iconSm,
+              color: isSelected ? tokens.accent : tokens.textMuted,
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: FrameText.of(context).caption.copyWith(
+                  color: isSelected ? tokens.displayText : tokens.textMuted,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

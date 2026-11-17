@@ -1169,12 +1169,13 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     final chip = find.byKey(const ValueKey('right-pane-switch-browser-chip'));
-    final trailing = find.byKey(const ValueKey('git-switch-to-browser-btn'));
+    final refresh = find.byIcon(Icons.refresh_outlined);
     expect(chip, findsOneWidget);
+    expect(find.byKey(const ValueKey('git-switch-to-browser-btn')), findsNothing);
     // The chip shrinks or ellipsizes; it never runs under the trailing button.
     expect(
       tester.getTopRight(chip).dx,
-      lessThanOrEqualTo(tester.getTopLeft(trailing).dx + 0.5),
+      lessThanOrEqualTo(tester.getTopLeft(refresh).dx + 0.5),
     );
   });
 

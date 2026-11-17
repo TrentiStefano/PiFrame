@@ -8,7 +8,6 @@ import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../data/language/strings_workspace.dart';
-import '../../ui/frame_focus.dart';
 import '../../ui/frame_activity_indicator.dart';
 
 // Layout constants with no matching token in FrameSpace / FrameSize.
@@ -65,6 +64,9 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
     _loadBranches();
   }
 
@@ -178,25 +180,36 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                       horizontal: FrameSpace.x4,
                       vertical: FrameSpace.x3,
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.search_outlined,
-                          size: FrameSize.iconLg,
-                          color: tokens.textMuted,
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        borderRadius: BorderRadius.circular(tokens.radiusMd),
+                        border: Border.all(
+                          color: _focusNode.hasFocus
+                              ? tokens.focusRing
+                              : tokens.border,
+                          width: _focusNode.hasFocus ? 1.5 : 1.0,
                         ),
-                        const SizedBox(width: FrameSpace.x3),
-                        Expanded(
-                          // Standard keyboard focus ring; the field draws no
-                          // border of its own (see the palette search field).
-                          child: FrameFocusRing(
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.search_outlined,
+                            size: FrameSize.icon,
+                            color: tokens.textMuted,
+                          ),
+                          const SizedBox(width: FrameSpace.x2),
+                          Expanded(
                             child: TextField(
                               key: const ValueKey('branch-picker-search-field'),
                               controller: _searchController,
                               focusNode: _focusNode,
                               autofocus: true,
-                              style: text.monoBody.copyWith(
+                              style: text.body.copyWith(
                                 color: tokens.textPrimary,
                               ),
                               decoration: InputDecoration(
@@ -206,9 +219,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                                 ),
                                 filled: false,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: FrameSpace.x2,
-                                ),
+                                contentPadding: EdgeInsets.zero,
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 disabledBorder: InputBorder.none,
@@ -221,26 +232,48 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
                               },
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: FrameSpace.x2,
-                            vertical: FrameSpace.x1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tokens.surface,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            border: Border.all(color: tokens.border),
-                          ),
-                          child: Text(
-                            strings.paletteEscKeyLabel,
-                            style: text.mono.copyWith(
-                              color: tokens.textMuted,
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(width: FrameSpace.x2),
+                          Semantics(
+                            button: true,
+                            label: strings.paletteEscKeyLabel,
+                            child: Tooltip(
+                              message: strings.paletteEscKeyLabel,
+                              child: InkWell(
+                                key: const ValueKey('branch-picker-esc-btn'),
+                                onTap: () {
+                                  if (_submitted) return;
+                                  _submitted = true;
+                                  Navigator.of(context).pop(null);
+                                },
+                                borderRadius: BorderRadius.circular(
+                                  tokens.radiusSm,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: FrameSpace.x2,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tokens.surface,
+                                    borderRadius: BorderRadius.circular(
+                                      tokens.radiusSm,
+                                    ),
+                                    border: Border.all(color: tokens.border),
+                                  ),
+                                  child: Text(
+                                    strings.paletteEscKeyLabel,
+                                    style: text.caption.copyWith(
+                                      color: tokens.textMuted,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   Divider(height: 1, color: tokens.border),
