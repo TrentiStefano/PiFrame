@@ -56,6 +56,14 @@ abstract final class FrameMotion {
   /// Sweep loop of the animated focus border.
   static const shimmerLoop = FrameMotionTokens.shimmerLoop;
 
+  /// Sweep loop for text shimmer (loading-ui style).
+  static const textShimmerLoop = Duration(milliseconds: 2000);
+
+  /// Fade transition between consecutive running steps (>100ms).
+  static const stepFadeIn = Duration(milliseconds: 240);
+  static const stepFadeOut = Duration(milliseconds: 180);
+  static const stepFadeCurve = Curves.easeInOut;
+
   /// Reveal of the launch surface before it settles.
   static const launchReveal = FrameMotionTokens.launchReveal;
 

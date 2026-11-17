@@ -14,6 +14,7 @@ import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_text_shimmer.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
@@ -460,18 +461,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     final stepCount = widget.block.stepCount;
 
     String headerLabel;
-    Widget statusIcon;
+    Widget? statusIcon;
 
     if (isRunning) {
-      statusIcon = SizedBox(
-        width: 14,
-        height: 14,
-        child: FrameActivityIndicator(
-          size: FrameSize.icon,
-          strokeWidth: 2,
-          color: tokens.agentWorking,
-        ),
-      );
+      statusIcon = null;
       headerLabel = latestStepLabel.isNotEmpty
           ? latestStepLabel
           : strings.stepGroupWorking;
@@ -533,13 +526,16 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
             padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
             child: Row(
               children: [
-                statusIcon,
-                const SizedBox(width: 8),
+                if (statusIcon != null) ...[
+                  statusIcon,
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
                   child: AnimatedSwitcher(
-                    duration: FrameMotionTokens.crossFade,
-                    switchInCurve: FrameMotionTokens.enterCurve,
-                    switchOutCurve: FrameMotionTokens.enterCurve,
+                    duration: FrameMotion.stepFadeIn,
+                    reverseDuration: FrameMotion.stepFadeOut,
+                    switchInCurve: FrameMotion.stepFadeCurve,
+                    switchOutCurve: FrameMotion.stepFadeCurve,
                     transitionBuilder: (child, animation) {
                       return FadeTransition(opacity: animation, child: child);
                     },
@@ -552,21 +548,32 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                         ],
                       );
                     },
-                    child: Text(
-                      headerLabel,
-                      key: ValueKey<String>(headerLabel),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isRunning
-                            ? tokens.agentWorking
-                            : failed
-                            ? tokens.danger
-                            : tokens.textSecondary,
-                        fontSize: FrameText.of(context).label.fontSize,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: isRunning
+                        ? FrameTextShimmer(
+                            key: ValueKey<String>(
+                              '${widget.block.steps.length}_$headerLabel',
+                            ),
+                            text: headerLabel,
+                            baseColor: tokens.textMuted,
+                            highlightColor: tokens.textPrimary,
+                            style: TextStyle(
+                              fontSize: FrameText.of(context).label.fontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : Text(
+                            headerLabel,
+                            key: ValueKey<String>(headerLabel),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: failed
+                                  ? tokens.danger
+                                  : tokens.textSecondary,
+                              fontSize: FrameText.of(context).label.fontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),

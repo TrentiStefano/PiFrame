@@ -9,6 +9,7 @@ import 'package:pi_frame/domain/session/transcript_grouping.dart';
 import 'package:pi_frame/features/transcript/step_group_expansion.dart';
 import 'package:pi_frame/features/transcript/steps_group.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
+import 'package:pi_frame/ui/frame_text_shimmer.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 Widget _buildTestApp({
@@ -903,7 +904,8 @@ void main() {
       expect(find.byType(StepsGroup), findsOneWidget);
       expect(find.textContaining('analyze_files'), findsOneWidget);
       expect(find.byType(AnimatedSwitcher), findsWidgets);
-      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(find.byType(FrameTextShimmer), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
 
       // Switch to next step
       notifier.state = notifier.state.copyWith(
@@ -917,8 +919,8 @@ void main() {
           ),
         },
       );
-      await tester.pump(const Duration(milliseconds: 60)); // Mid fade
-      await tester.pump(const Duration(milliseconds: 150)); // Completes crossFade animation
+      await tester.pump(const Duration(milliseconds: 100)); // Mid fade
+      await tester.pump(const Duration(milliseconds: 250)); // Completes fade animation
 
       expect(find.textContaining('fix_linter'), findsOneWidget);
     });
