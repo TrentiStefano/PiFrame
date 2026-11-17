@@ -193,7 +193,12 @@ class UpdatesSection extends ConsumerWidget {
               Material(
                 type: MaterialType.transparency,
                 child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: FrameSpace.x2,
+                  ),
                   title: Text(
                     strings.updatesAutoCheckSwitchTitle,
                     style: text.body.copyWith(color: tokens.textPrimary),

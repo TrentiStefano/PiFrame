@@ -383,7 +383,12 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-composer-send-with-enter-switch'),
-              contentPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: FrameSpace.x2,
+              ),
               title: Text(
                 strings.sendWithEnterTitle,
                 style: text.body.copyWith(color: tokens.textPrimary),
@@ -406,7 +411,12 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-reduced-motion-switch'),
-              contentPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: FrameSpace.x2,
+              ),
               title: Text(
                 strings.reducedMotionTitle,
                 style: text.body.copyWith(color: tokens.textPrimary),
@@ -429,7 +439,12 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-startup-animation-switch'),
-              contentPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: FrameSpace.x2,
+              ),
               title: Text(
                 strings.startupAnimationTitle,
                 style: text.body.copyWith(color: tokens.textPrimary),
@@ -452,7 +467,12 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-nerd-stats-switch'),
-              contentPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: FrameSpace.x2,
+              ),
               title: Text(
                 strings.nerdStatsTitle,
                 style: text.body.copyWith(color: tokens.textPrimary),
@@ -547,7 +567,12 @@ class AppearanceSection extends ConsumerWidget {
                       key: const ValueKey(
                         'settings-step-grouping-auto-collapse-switch',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x2,
+                      ),
                       title: Text(
                         strings.stepGroupingAutoCollapseTitle,
                         style: text.body.copyWith(color: tokens.textPrimary),
@@ -572,7 +597,12 @@ class AppearanceSection extends ConsumerWidget {
                       key: const ValueKey(
                         'settings-step-grouping-show-intermediate-answers-switch',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: FrameSpace.x2,
+                      ),
                       title: Text(
                         strings.stepGroupingShowIntermediateAnswersTitle,
                         style: text.body.copyWith(

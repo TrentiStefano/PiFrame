@@ -540,15 +540,24 @@ class ThemeSpec {
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: tokens.textPrimary,
+          color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
+          border: Border.all(color: tokens.borderStrong, width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         textStyle: TextStyle(
-          color: tokens.background,
+          color: tokens.displayText,
           fontFamily: tokens.uiFontFamily,
           fontSize: 12,
         ),
-        waitDuration: const Duration(milliseconds: 450),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        waitDuration: const Duration(milliseconds: 300),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: tokens.surfaceElevated,
@@ -648,6 +657,9 @@ class ThemeSpec {
       listTileTheme: ListTileThemeData(
         textColor: tokens.textPrimary,
         iconColor: tokens.textSecondary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tokens.radiusSm),
+        ),
       ),
       cardTheme: CardThemeData(
         color: tokens.surface,

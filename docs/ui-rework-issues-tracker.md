@@ -15,6 +15,7 @@ This document tracks all 30 reported UI issues across both rounds, organized int
 - [x] Group 10: Side Conversations & Companion Sidecar (1/1 completed)
 - [x] Group 11: Git Branch Readability & Branch Picker Layout (2/2 completed)
 - [x] Group 12: Transcript History Windowing & Card Border Precision (2/2 completed)
+- [x] Group 13: Overlay Precision & Design Token Alignment (4/4 completed)
 
 ---
 
@@ -125,4 +126,18 @@ This document tracks all 30 reported UI issues across both rounds, organized int
   - Emits in-progress assistant entries as `IntermediateTextBlock` (`isCard: false`, no card border) while `turn.isLastTurn && live.isRunning`.
   - Updated `LiveTailBlock` in `transcript_view.dart` to use `isCard: false`.
   - Only settled turns with completed execution receive `FinalTextBlock` (`isCard: true`, rendered with card border).
+
+---
+
+## Group 13: Overlay Precision & Design Token Alignment
+- [x] **13.1 Settings switch list tile shape and padding**:
+  - Replaced unpadded, sharp rectangular ink highlight (`BorderRadius.zero`) in `SwitchListTile` / `ListTile` across settings sections (`aspetto_section.dart`, `daemon_section.dart`, `updates_section.dart`) with `shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm))` and `contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2)`.
+  - Added global `listTileTheme` with `tokens.radiusSm` to `ThemeSpec` (`theme_spec.dart`), ensuring hover and focus overlays match component card borders and maintain comfortable internal margins (`Screenshot 2026-11-17 141739.png`).
+- [x] **13.2 Tooltip theme elevation, borders and contrast**:
+  - Replaced harsh white background / black text tooltips in dark mode (`Screenshot 2026-11-17 141704.png`, `Screenshot 2026-11-17 141640.png`) with design token integrated `TooltipThemeData` in `ThemeSpec` (`theme_spec.dart`).
+  - Tooltips now use `tokens.surfaceElevated` background, `tokens.displayText` foreground, `Border.all(color: tokens.borderStrong, width: 0.8)`, `tokens.radiusSm`, `waitDuration: 300ms`, and delicate drop shadows.
+- [x] **13.3 Minimized composer pointer glow overlay alignment**:
+  - Fixed painter bounding box distortion in `composer.dart` where `_GlowPointerPainter` previously painted onto an inner child (~24px tall) inside outer padding, causing it to collapse into a detached stadium/capsule shape (`Screenshot 2026-11-17 141950.png`).
+  - Lifted the glow pointer painter and mouse region to wrap the outer composer `Container` directly, ensuring the glow effect follows the exact outer container geometry and corner radius (`_composerRadius(tokens)`). Inner tap interactions and padding now neatly live within the child `InkWell`.
+
 

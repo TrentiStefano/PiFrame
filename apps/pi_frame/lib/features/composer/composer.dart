@@ -1929,79 +1929,79 @@ class _ComposerState extends ConsumerState<Composer> {
               },
               transitionBuilder: (child, animation) =>
                   FadeTransition(opacity: animation, child: child),
-              child: Container(
-                key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
-                padding: shouldMinimize
-                    ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
-                    : const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: _composerRadius(tokens),
-                  border: isShimmerActive
-                      ? null
-                      : Border.all(color: tokens.border, width: 1),
-                ),
-                child: pendingInteractionRequests.isNotEmpty
-                    ? Padding(
-                        key: const ValueKey('composer-extension-ui-card'),
-                        padding: const EdgeInsets.only(bottom: FrameSpace.x2),
-                        child: ExtensionUiDialog(
-                          key: ValueKey(
-                            'ext_ui_${pendingInteractionRequests.last['requestId']}',
-                          ),
-                          sessionId: widget.sessionId,
-                          request: pendingInteractionRequests.last,
-                          isCard: true,
-                          onDismissed: () {
-                            if (!mounted) return;
-                            setState(
-                              () => _dismissedUiRequestIds.add(
-                                pendingInteractionRequests.last['requestId']
-                                    .toString(),
+              child: MouseRegion(
+                onEnter: (event) {
+                  if (shouldMinimize) {
+                    _minimizedHoverOffsetNotifier.value = event.localPosition;
+                  }
+                },
+                onHover: (event) {
+                  if (shouldMinimize) {
+                    _minimizedHoverOffsetNotifier.value = event.localPosition;
+                  }
+                },
+                onExit: (_) {
+                  _minimizedHoverOffsetNotifier.value = null;
+                },
+                child: ValueListenableBuilder<Offset?>(
+                  valueListenable: _minimizedHoverOffsetNotifier,
+                  builder: (context, hoverOffset, childWidget) {
+                    return CustomPaint(
+                      foregroundPainter:
+                          hoverOffset == null ||
+                                  FrameMotion.reduced(context)
+                              ? null
+                              : _GlowPointerPainter(
+                                  pointerPosition: hoverOffset,
+                                  borderRadius: _composerRadius(tokens),
+                                  glowColor: tokens.accent,
+                                  borderColor: tokens.accent,
+                                ),
+                      child: childWidget,
+                    );
+                  },
+                  child: Container(
+                    key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
+                    padding: shouldMinimize
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceElevated,
+                      borderRadius: _composerRadius(tokens),
+                      border: isShimmerActive
+                          ? null
+                          : Border.all(color: tokens.border, width: 1),
+                    ),
+                    child: pendingInteractionRequests.isNotEmpty
+                        ? Padding(
+                            key: const ValueKey('composer-extension-ui-card'),
+                            padding: const EdgeInsets.only(bottom: FrameSpace.x2),
+                            child: ExtensionUiDialog(
+                              key: ValueKey(
+                                'ext_ui_${pendingInteractionRequests.last['requestId']}',
                               ),
-                            );
-                          },
-                        ),
-                      )
-                    : shouldMinimize
-                    ? MouseRegion(
-                        onEnter: (event) {
-                          _minimizedHoverOffsetNotifier.value =
-                              event.localPosition;
-                        },
-                        onHover: (event) {
-                          _minimizedHoverOffsetNotifier.value =
-                              event.localPosition;
-                        },
-                        onExit: (_) {
-                          _minimizedHoverOffsetNotifier.value = null;
-                        },
-                        child: ValueListenableBuilder<Offset?>(
-                          valueListenable: _minimizedHoverOffsetNotifier,
-                          builder: (context, hoverOffset, childWidget) {
-                            return CustomPaint(
-                              painter:
-                                  hoverOffset == null ||
-                                      FrameMotion.reduced(context)
-                                  ? null
-                                  : _GlowPointerPainter(
-                                      pointerPosition: hoverOffset,
-                                      borderRadius: _composerRadius(tokens),
-                                      glowColor: tokens.accent,
-                                      borderColor: tokens.accent,
-                                    ),
-                              child: childWidget,
-                            );
-                          },
-                          child: _buildMinimizedBar(
+                              sessionId: widget.sessionId,
+                              request: pendingInteractionRequests.last,
+                              isCard: true,
+                              onDismissed: () {
+                                if (!mounted) return;
+                                setState(
+                                  () => _dismissedUiRequestIds.add(
+                                    pendingInteractionRequests.last['requestId']
+                                        .toString(),
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                        : shouldMinimize
+                        ? _buildMinimizedBar(
                             tokens,
                             strings,
                             isStreaming,
                             runStartedAt,
-                          ),
-                        ),
-                      )
-                    : Column(
+                          )
+                        : Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Status line while Pi answers.
@@ -3458,12 +3458,14 @@ class _ComposerState extends ConsumerState<Composer> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildMinimizedBar(
@@ -3486,7 +3488,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _focusNode.requestFocus();
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(
           children: [
             SizedBox(
@@ -3619,10 +3621,10 @@ class _GlowPointerPainter extends CustomPainter {
     if (pos == null) return;
 
     final rect = Offset.zero & size;
-    final rrect = borderRadius.toRRect(rect);
+    final rrect = borderRadius.toRRect(rect.deflate(0.5));
 
     canvas.save();
-    canvas.clipRRect(rrect);
+    canvas.clipRRect(borderRadius.toRRect(rect));
 
     final glowPaint = Paint()
       ..shader = ui.Gradient.radial(
