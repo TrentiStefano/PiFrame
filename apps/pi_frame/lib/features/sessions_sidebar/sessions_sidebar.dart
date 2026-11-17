@@ -13,7 +13,6 @@ import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
-import '../../ui/shimmer_border.dart';
 import '../../ui/motion.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../transcript/workflows_provider.dart';
@@ -1681,23 +1680,22 @@ class _SessionTile extends ConsumerWidget {
       );
     });
 
-    Widget content = DecoratedBox(
+    final borderColor = isCursor
+        ? tokens.focusRing
+        : (isWorking
+            ? tokens.accent
+            : tokens.surface.withValues(alpha: 0));
+
+    final content = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         border: Border.all(
-          color: isCursor ? tokens.focusRing : tokens.surface.withValues(alpha: 0),
+          color: borderColor,
+          width: 1.0,
         ),
       ),
       child: row,
     );
-    if (isWorking) {
-      content = ShimmerBorder(
-        isActive: true,
-        strokeWidth: 1.0,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        child: content,
-      );
-    }
 
     return Padding(
       key: ValueKey('session-tile-$folder-$id'),

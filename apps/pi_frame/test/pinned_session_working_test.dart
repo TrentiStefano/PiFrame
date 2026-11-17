@@ -63,23 +63,36 @@ void main() {
     // active one and therefore expanded by default.
     expect(find.text('Core Engine Pinned'), findsNWidgets(2));
 
-    // Initial non-working state: ShimmerBorder isActive is false
-    final initialShimmers = tester.widgetList<ShimmerBorder>(find.byType(ShimmerBorder));
-    expect(initialShimmers.any((s) => s.isActive), isFalse);
+    // Sessions cards should never have ShimmerBorder
+    expect(find.byType(ShimmerBorder), findsNothing);
+
+    bool hasWorkingBorder() {
+      final boxes = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+      return boxes.any((b) {
+        final dec = b.decoration;
+        if (dec is BoxDecoration && dec.border != null) {
+          return dec.border!.top.color == FrameTokens.dark.accent;
+        }
+        return false;
+      });
+    }
+
+    // Initial non-working state: no working border
+    expect(hasWorkingBorder(), isFalse);
 
     // Set working to true on the pinned session
     sessionNotifier.state = sessionNotifier.state.copyWith(agentStatus: AgentStatus.working);
-    await tester.pump(); // Start animations
+    await tester.pump();
 
-    // Now ShimmerBorder should have isActive: true
-    final activeShimmers = tester.widgetList<ShimmerBorder>(find.byType(ShimmerBorder));
-    expect(activeShimmers.any((s) => s.isActive), isTrue);
+    // Now circular working border should be active, with no shimmering
+    expect(hasWorkingBorder(), isTrue);
+    expect(find.byType(ShimmerBorder), findsNothing);
 
     // Reset working to false
     sessionNotifier.state = sessionNotifier.state.copyWith(agentStatus: AgentStatus.settled);
     await tester.pump();
 
-    final revertedShimmers = tester.widgetList<ShimmerBorder>(find.byType(ShimmerBorder));
-    expect(revertedShimmers.any((s) => s.isActive), isFalse);
+    // Working border disappears
+    expect(hasWorkingBorder(), isFalse);
   });
 }

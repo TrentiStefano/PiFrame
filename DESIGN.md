@@ -886,7 +886,7 @@ Reduced motion follows `MediaQuery.disableAnimationsOf`. `PiFrameApp` sets it fr
 
 Decorative motion, with its tokens:
 - Startup intro: a 1.4 s assemble overlay (`FrameMotionTokens.pulseLoop`, 1400 ms, `ui/startup_assemble_animation.dart`) on the first run, and on every launch when "Animazione di avvio" is on (Settings → Aspetto, off by default; skipped under reduced motion). Other launches get a 620 ms reveal (`FrameMotionTokens.launchReveal`, `LaunchReveal` in `ui/precision.dart`) that the first input finishes at once.
-- Shimmer border on the composer and on working session rows: a 3.6 s loop (`FrameMotionTokens.shimmerLoop`, `ShimmerBorder`), static under reduced motion.
+- Shimmer border on the composer: a 3.6 s loop (`FrameMotionTokens.shimmerLoop`, `ShimmerBorder`), static under reduced motion. Working session cards in the Sessions tab use a static circular border with no shimmering.
 - Working dot on working session rows: a 1400 ms pulse period in `sessions_sidebar.dart` (`_workingPulsePeriod`), taken from `FrameMotion.pulseLoop`. Like the startup assemble and the subagent orbit, it stops under reduced motion.
 - Hover wait before a tooltip opens: `FrameMotionTokens.tooltipWait`, 300 ms (used by the nerd stats bar).
 - Literal durations with no token yet: a 140 ms transition in `session_changes_pane.dart`.

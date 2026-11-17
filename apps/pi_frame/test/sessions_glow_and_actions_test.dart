@@ -24,7 +24,7 @@ class _TestRemovedNotifier extends RemovedReposNotifier {
 
 void main() {
   testWidgets(
-    'glowing shimmer disappears after answer while active semaphore dot remains visible',
+    'working circular border disappears after answer while active semaphore dot remains visible and cards do not shimmer',
     (tester) async {
       final mockSessions = [
         {
@@ -78,14 +78,27 @@ void main() {
 
       expect(find.text('Open Idle Session'), findsOneWidget);
 
-      // Verify that NO ShimmerBorder is actively glowing when session is settled
-      final idleShimmers = tester.widgetList<ShimmerBorder>(
-        find.byType(ShimmerBorder),
+      bool hasWorkingBorder() {
+        final boxes = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+        return boxes.any((b) {
+          final dec = b.decoration;
+          if (dec is BoxDecoration && dec.border != null) {
+            return dec.border!.top.color == FrameTokens.dark.accent;
+          }
+          return false;
+        });
+      }
+
+      // Verify that NO session card has working border when session is settled, and no ShimmerBorder
+      expect(
+        hasWorkingBorder(),
+        isFalse,
+        reason: 'Idle open session should not have working border',
       );
       expect(
-        idleShimmers.any((s) => s.isActive),
-        isFalse,
-        reason: 'Idle open session should not glow',
+        find.byType(ShimmerBorder),
+        findsNothing,
+        reason: 'Cards in Sessions tab must not shimmer',
       );
 
       // Verify that active semaphore dot IS present
@@ -104,14 +117,16 @@ void main() {
       );
       await tester.pump();
 
-      // Now glowing shimmer should be active
-      final workingShimmers = tester.widgetList<ShimmerBorder>(
-        find.byType(ShimmerBorder),
+      // Now working circular border should be active, with no shimmering
+      expect(
+        hasWorkingBorder(),
+        isTrue,
+        reason: 'Working session must have working border',
       );
       expect(
-        workingShimmers.any((s) => s.isActive),
-        isTrue,
-        reason: 'Working session must glow',
+        find.byType(ShimmerBorder),
+        findsNothing,
+        reason: 'Cards in Sessions tab must not shimmer',
       );
 
       // Agent finishes generating and transitions back to settled
@@ -120,14 +135,11 @@ void main() {
       );
       await tester.pump();
 
-      // Glowing shimmer disappears
-      final settledShimmers = tester.widgetList<ShimmerBorder>(
-        find.byType(ShimmerBorder),
-      );
+      // Working border disappears
       expect(
-        settledShimmers.any((s) => s.isActive),
+        hasWorkingBorder(),
         isFalse,
-        reason: 'Glow must disappear when agent finished',
+        reason: 'Working border must disappear when agent finished',
       );
 
       // Semaphore dot remains active
