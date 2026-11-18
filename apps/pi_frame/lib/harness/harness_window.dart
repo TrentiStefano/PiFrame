@@ -49,16 +49,23 @@ Future<Size> setHarnessContentSize(Size content) async {
   return harnessContentSize();
 }
 
+/// How often a resize polls the view for its new size, and for how long.
+const _resizePollInterval = Duration(milliseconds: 30);
+const _resizePollSteps = 20;
+
+/// One more beat after the size changed, so a resize that lands in steps has
+/// finished.
+const _resizeSettleDelay = Duration(milliseconds: 60);
+
 /// Waits until the view reports a new size after a resize (it arrives
 /// asynchronously), or a short timeout when the size did not change.
 Future<void> _settleViewMetrics() async {
   final before = harnessContentSize();
-  for (var waited = 0; waited < 600; waited += 30) {
-    await Future<void>.delayed(const Duration(milliseconds: 30));
+  for (var step = 0; step < _resizePollSteps; step++) {
+    await Future<void>.delayed(_resizePollInterval);
     if (harnessContentSize() != before) break;
   }
-  // One more beat, so a resize that lands in steps has finished.
-  await Future<void>.delayed(const Duration(milliseconds: 60));
+  await Future<void>.delayed(_resizeSettleDelay);
 }
 
 void _preventWindowsActivation(int windowId) {

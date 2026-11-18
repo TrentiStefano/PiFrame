@@ -29,6 +29,9 @@ const _allowedTimerConstants = <String>{
   // lib/harness/harness_extensions.dart: synthetic touch pacing (harness only).
   'lib/harness/harness_extensions.dart#_harnessDoubleTapGap',
   'lib/harness/harness_extensions.dart#_harnessLongPressHold',
+  // lib/harness/harness_window.dart: polling the view size after a resize.
+  'lib/harness/harness_window.dart#_resizePollInterval',
+  'lib/harness/harness_window.dart#_resizeSettleDelay',
 };
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*(\d+(?:\.\d+)?)');
