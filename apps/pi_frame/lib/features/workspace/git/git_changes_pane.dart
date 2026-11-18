@@ -1351,6 +1351,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   Flexible(
                     child: Text(
                       strings.gitChangesLabel,
+                      key: const ValueKey('git-pane-title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.label.copyWith(

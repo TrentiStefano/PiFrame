@@ -179,6 +179,14 @@ class _VisualWorkspaceClient extends PcpClient {
   };
 }
 
+/// The Git pane header: a plain title, or the Git/Browser switch where the
+/// integrated browser is available (Windows).
+final Finder _gitPaneHeader = find.byWidgetPredicate(
+  (w) =>
+      w.key == const ValueKey('git-pane-title') ||
+      w.key == const ValueKey('right-pane-switch-git-chip'),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
@@ -280,7 +288,7 @@ void main() {
       expect(layoutError, isNull);
       if (size.width >= 1440) {
         expect(find.text('REPOSITORY'), findsOneWidget);
-        expect(find.text('MODIFICHE GIT'), findsOneWidget);
+        expect(_gitPaneHeader, findsOneWidget);
         final divider = find.byKey(
           const ValueKey(
             'pane-divider-WorkspacePane.repository-WorkspacePane.chat',
@@ -305,7 +313,7 @@ void main() {
         expect(find.text('Modifiche Git'), findsOneWidget);
         await tester.tap(find.text('Modifiche Git').first);
         await tester.pumpAndSettle();
-        expect(find.text('MODIFICHE GIT'), findsOneWidget);
+        expect(_gitPaneHeader, findsOneWidget);
         await tester.tap(find.text('Chat').first);
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Mostra o nascondi pannelli'));
@@ -489,8 +497,16 @@ void main() {
     );
     expect(find.textContaining('55.2%', findRichText: true), findsOneWidget);
     expect(find.textContaining('\$0.4200', findRichText: true), findsOneWidget);
+    // Extension statuses live in the header's Plugins popup.
+    final pluginChip = find.byKey(const ValueKey('session-header-plugin-chip'));
+    expect(pluginChip, findsOneWidget);
+    await tester.tap(pluginChip);
+    await tester.pumpAndSettle();
     expect(find.textContaining('caveman', findRichText: true), findsOneWidget);
     expect(find.textContaining('ponytail', findRichText: true), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('caveman', findRichText: true), findsNothing);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(AppShell)),
@@ -503,7 +519,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('REPOSITORY'), findsOneWidget);
-    expect(find.text('MODIFICHE GIT'), findsOneWidget);
+    expect(_gitPaneHeader, findsOneWidget);
     expect(tester.takeException(), isNull);
     await capture(
       tester,
@@ -546,7 +562,7 @@ void main() {
     );
     await tester.tap(find.text('Modifiche Git').first);
     await tester.pumpAndSettle();
-    expect(find.text('MODIFICHE GIT'), findsOneWidget);
+    expect(_gitPaneHeader, findsOneWidget);
     await capture(
       tester,
       boundaryKey,
