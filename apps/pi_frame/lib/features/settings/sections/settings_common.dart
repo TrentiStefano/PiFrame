@@ -24,23 +24,6 @@ Widget buildSettingsFieldBox(FrameTokens tokens, Widget child) {
   );
 }
 
-/// A group of label/value rows inside a bordered box. It has no background
-/// of its own, so a list tile placed inside it keeps its ink and splashes.
-Widget buildSettingsInfoCard(FrameTokens tokens, List<Widget> children) {
-  return Container(
-    padding: const EdgeInsets.all(FrameSpace.x4),
-    decoration: BoxDecoration(
-      border: Border.all(color: tokens.border),
-      borderRadius: BorderRadius.circular(tokens.radiusMd),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: children,
-    ),
-  );
-}
-
 Widget buildSettingsInfoRow(FrameTokens tokens, String label, String value) {
   final text = FrameText.fromTokens(tokens);
   return Padding(

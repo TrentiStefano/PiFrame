@@ -193,8 +193,6 @@ extension TranscriptStrings on AppStrings {
       isItalian ? 'Compatta contesto' : 'Compact Context';
   String get transcriptCompactionCompleted =>
       isItalian ? 'Compattazione completata!' : 'Compaction completed!';
-  String transcriptCompactionError(String e) =>
-      isItalian ? failureText(this, 'Errore compattazione', e) : failureText(this, 'Compaction error', e);
   String get transcriptAgentModelCosts =>
       isItalian ? 'Costi modelli agente' : 'Agent Model Costs';
   String get transcriptCostReportedByPi =>

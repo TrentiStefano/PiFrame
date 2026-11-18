@@ -58,8 +58,6 @@ class RemovedReposNotifier extends StateNotifier<Set<String>> {
       _save();
     }
   }
-
-  bool isRemoved(String repoPath) => state.contains(repoPath);
 }
 
 final removedReposProvider =

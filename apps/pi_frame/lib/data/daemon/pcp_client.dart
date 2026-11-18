@@ -57,12 +57,7 @@ class PcpClient {
   Map<String, dynamic>? _welcomePayload;
   Map<String, dynamic>? get welcomePayload => _welcomePayload;
 
-  List<String>? _customCapabilities;
-  @visibleForTesting
-  set customCapabilities(List<String>? caps) => _customCapabilities = caps;
-
   List<String> get capabilities {
-    if (_customCapabilities != null) return _customCapabilities!;
     final caps = _welcomePayload?['capabilities'];
     if (caps is List) {
       return caps.map((e) => e.toString()).toList();

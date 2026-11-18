@@ -241,20 +241,6 @@ class StepGroupExpansionNotifier
     state = state.copyWith(expandedStepIds: nextExpanded);
   }
 
-  /// Clears override for a turn, returning it to default auto-collapse behavior.
-  void resetTurn(String turnId) {
-    if (state.groupOverrides.containsKey(turnId) ||
-        state.fullyExpandedGroups.contains(turnId)) {
-      final nextOverrides = Map<String, bool>.from(state.groupOverrides)
-        ..remove(turnId);
-      state = state.copyWith(
-        groupOverrides: nextOverrides,
-        fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)
-          ..remove(turnId),
-      );
-    }
-  }
-
   /// Clears all expansion state.
   void clear() {
     state = const StepGroupExpansionState();

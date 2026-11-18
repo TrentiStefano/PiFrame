@@ -249,14 +249,6 @@ class AgentsConfigState {
     return agent.thinking.effective;
   }
 
-  String getEffectiveAgentThinkingOrigin(PiAgentInfo agent) {
-    final edit = agentEdits[agent.name];
-    if (edit?.hasThinkingEdit == true) {
-      return edit!.thinking == null ? 'default' : 'override';
-    }
-    return agent.thinking.origin;
-  }
-
   int? getEffectiveAgentContextLimit(PiAgentInfo agent) {
     final edit = agentEdits[agent.name];
     if (edit?.hasContextLimitEdit == true) return edit!.contextLimit;

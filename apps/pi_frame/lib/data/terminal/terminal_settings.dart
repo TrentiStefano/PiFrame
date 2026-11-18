@@ -133,10 +133,6 @@ class TerminalSettingsNotifier extends StateNotifier<TerminalSettings> {
     _save();
   }
 
-  void setIntegratedShell(String shell) {
-    state = state.copyWith(integratedShell: shell);
-    _save();
-  }
 }
 
 final terminalSettingsProvider =

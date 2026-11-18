@@ -222,8 +222,6 @@ extension SettingsStrings on AppStrings {
   String get layoutDensityDefault =>
       isItalian ? 'Confortevole (1.0x)' : 'Comfortable (Default 1.0x)';
   String get labelFonts => isItalian ? 'Caratteri' : 'Fonts';
-  String fontsDetail(String ui, String mono) =>
-      isItalian ? '$ui (UI) · $mono (codice)' : '$ui (UI) · $mono (Code)';
   String get themeDiagnosticsHeader =>
       isItalian ? 'Diagnostica tema:' : 'Theme diagnostics:';
 

@@ -29,10 +29,6 @@ class ComposerAttachmentsNotifier extends StateNotifier<List<ChatAttachment>> {
     state = state.where((a) => a.id != attachmentId).toList();
   }
 
-  void removeByPathOrUrl(String pathOrUrl) {
-    state = state.where((a) => a.pathOrUrl != pathOrUrl).toList();
-  }
-
   void clear() {
     state = const [];
   }

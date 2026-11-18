@@ -299,8 +299,6 @@ extension ShellStrings on AppStrings {
   String get fallbackAgentRule4 => isItalian
       ? '4. **Sicurezza e robustezza**: Gestisci sempre gli errori in modo esplicito e prevedi fallback trasparenti.'
       : '4. **Safety & Robustness**: Always handle errors explicitly and provide transparent fallbacks.';
-  String fallbackDefaultTitle(String targetFileName, String folderName) =>
-      isItalian ? '# Istruzioni per $targetFileName ($folderName)\n' : '# Instructions for $targetFileName ($folderName)\n';
   String get fallbackDefaultOverview =>
       isItalian ? '## Panoramica' : '## Overview';
   String get fallbackDefaultTech =>
