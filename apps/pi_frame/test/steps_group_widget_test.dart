@@ -902,7 +902,7 @@ void main() {
 
       // Group is present and starts compact in full mode
       expect(find.byType(StepsGroup), findsOneWidget);
-      expect(find.textContaining('analyze_files'), findsOneWidget);
+      expect(find.textContaining('analyze_files all...'), findsOneWidget);
       expect(find.byType(AnimatedSwitcher), findsWidgets);
       expect(find.byType(FrameTextShimmer), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
@@ -922,7 +922,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100)); // Mid fade
       await tester.pump(const Duration(milliseconds: 250)); // Completes fade animation
 
-      expect(find.textContaining('fix_linter'), findsOneWidget);
+      expect(find.textContaining('fix_linter...'), findsOneWidget);
     });
   });
 }

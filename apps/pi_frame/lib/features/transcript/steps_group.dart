@@ -465,9 +465,13 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
 
     if (isRunning) {
       statusIcon = null;
-      headerLabel = latestStepLabel.isNotEmpty
+      final rawLabel = latestStepLabel.isNotEmpty
           ? latestStepLabel
           : strings.stepGroupWorking;
+      final cleanLabel = rawLabel
+          .replaceAll(RegExp(r'[\.…]+$'), '')
+          .trimRight();
+      headerLabel = '$cleanLabel...';
     } else if (aborted) {
       statusIcon = Icon(
         Icons.stop_circle_outlined,
