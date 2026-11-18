@@ -10,7 +10,7 @@ import 'package:pi_frame/ui/frame_pane_header.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 const _longCwd =
-    r'C:\Users\Stefano\.piframe-harness\integ\fixtures\workspace-with-a-very-long-folder-name\nested-subdirectory\submodule-repo-name-extra-long-path';
+    r'C:\Users\user\.piframe-harness\integ\fixtures\workspace-with-a-very-long-folder-name\nested-subdirectory\submodule-repo-name-extra-long-path';
 
 /// Pumps the real session header inside a box of [width] px and returns once
 /// it has settled.

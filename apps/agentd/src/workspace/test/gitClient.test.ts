@@ -214,13 +214,15 @@ test('gitClient: binary files report zero line counts and retain binary diff out
   assert.match(await getGitDiff(repo, 'binary.bin'), /Binary files .* differ/);
 });
 
+// Opt-in: set PIFRAME_TEST_WSL_REPO to the WSL UNC path of a Git repository
+// (for example \\wsl.localhost\Ubuntu\home\user\repo) to run this check.
 test('gitClient: detects WSL repository if WSL path exists', async () => {
-  const testWslPath = '\\\\wsl.localhost\\LMD_env\\home\\strenti\\Repos\\Flutter\\BeamControl_main';
+  const testWslPath = process.env.PIFRAME_TEST_WSL_REPO;
   const fs = await import('fs');
-  if (fs.existsSync(testWslPath)) {
+  if (testWslPath && fs.existsSync(testWslPath)) {
     const res = await checkIsGitRepo(testWslPath);
     assert.equal(res.isRepo, true);
-    assert.ok(res.rootPath?.includes('BeamControl_main'));
+    assert.ok(res.rootPath);
 
     const status = await getGitStatus(testWslPath);
     assert.equal(status.isRepository, true);
