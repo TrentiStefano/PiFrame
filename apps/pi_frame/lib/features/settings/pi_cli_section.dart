@@ -125,6 +125,10 @@ class PiCliSection extends StatefulWidget {
   State<PiCliSection> createState() => _PiCliSectionState();
 }
 
+/// Narrowest MCP row that keeps its two buttons beside the text; below it the
+/// buttons move under the description.
+const double _kMcpRowInlineMinWidth = 420;
+
 class _PiCliSectionState extends State<PiCliSection> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
@@ -626,81 +630,115 @@ class _PiCliSectionState extends State<PiCliSection> {
     final isRunning = _currentCommand == item.command && _isExecuting;
     final isMcpRow = item.command == 'pi mcp list';
 
-    final rowContent = Row(
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
-        const SizedBox(width: FrameSpace.x3),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      item.label,
-                      style: text.label.copyWith(color: tokens.textPrimary),
-                    ),
-                  ),
-                  if (item.isRecommended) ...[
-                    const SizedBox(width: FrameSpace.x2),
-                    FrameStatusTag(
-                      key: const ValueKey('pi-cli-recommended-tag'),
-                      label: strings.piCliRecommendedTag,
-                      tone: FrameStatusTone.info,
-                    ),
-                  ],
-                ],
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                item.label,
+                style: text.label.copyWith(color: tokens.textPrimary),
               ),
-              Text(
-                item.command,
-                style: text.mono.copyWith(color: tokens.textMuted),
-              ),
-              Text(
-                item.description,
-                style: text.caption.copyWith(color: tokens.textMuted),
+            ),
+            if (item.isRecommended) ...[
+              const SizedBox(width: FrameSpace.x2),
+              FrameStatusTag(
+                key: const ValueKey('pi-cli-recommended-tag'),
+                label: strings.piCliRecommendedTag,
+                tone: FrameStatusTone.info,
               ),
             ],
-          ),
+          ],
         ),
-        const SizedBox(width: FrameSpace.x2),
-        if (isMcpRow) ...[
-          PressFeedback(
-            child: OutlinedButton(
-              key: const ValueKey('btn-manage-mcp-servers'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: tokens.textPrimary,
-                side: BorderSide(color: tokens.borderStrong),
-                minimumSize: const Size(0, FrameSize.hitMin),
-              ),
-              onPressed: () =>
-                  McpServersDialog.show(context, tokens, strings: strings),
-              child: Text(strings.piCliManageMcpBtn),
-            ),
-          ),
-          const SizedBox(width: FrameSpace.x2),
-        ],
-        PressFeedback(
-          child: OutlinedButton.icon(
-            key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
-            style: _outlinedRunStyle(tokens),
-            onPressed: _isExecuting
-                ? null
-                : () => _executeCommand(item.command, item.args),
-            icon: isRunning
-                ? FrameActivityIndicator(
-                    size: FrameSize.icon,
-                    strokeWidth: 2,
-                    color: tokens.accent,
-                  )
-                : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
-            label: Text(
-              isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
-            ),
-          ),
+        Text(item.command, style: text.mono.copyWith(color: tokens.textMuted)),
+        Text(
+          item.description,
+          style: text.caption.copyWith(color: tokens.textMuted),
         ),
       ],
     );
+
+    final buttons = <Widget>[
+      if (isMcpRow) ...[
+        PressFeedback(
+          child: OutlinedButton(
+            key: const ValueKey('btn-manage-mcp-servers'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: tokens.textPrimary,
+              side: BorderSide(color: tokens.borderStrong),
+              minimumSize: const Size(0, FrameSize.hitMin),
+            ),
+            onPressed: () =>
+                McpServersDialog.show(context, tokens, strings: strings),
+            child: Text(strings.piCliManageMcpBtn),
+          ),
+        ),
+        const SizedBox(width: FrameSpace.x2),
+      ],
+      PressFeedback(
+        child: OutlinedButton.icon(
+          key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
+          style: _outlinedRunStyle(tokens),
+          onPressed: _isExecuting
+              ? null
+              : () => _executeCommand(item.command, item.args),
+          icon: isRunning
+              ? FrameActivityIndicator(
+                  size: FrameSize.icon,
+                  strokeWidth: 2,
+                  color: tokens.accent,
+                )
+              : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
+          label: Text(
+            isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
+          ),
+        ),
+      ),
+    ];
+
+    Widget inline() => Row(
+      children: [
+        Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
+        const SizedBox(width: FrameSpace.x3),
+        Expanded(child: info),
+        const SizedBox(width: FrameSpace.x2),
+        ...buttons,
+      ],
+    );
+
+    // The MCP row carries two buttons. In a narrow card they would squeeze the
+    // text to a sliver (or overflow), so they move to their own line below it.
+    final rowContent = !isMcpRow
+        ? inline()
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= _kMcpRowInlineMinWidth) {
+                return inline();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        size: FrameSize.icon,
+                        color: tokens.textSecondary,
+                      ),
+                      const SizedBox(width: FrameSpace.x3),
+                      Expanded(child: info),
+                    ],
+                  ),
+                  const SizedBox(height: FrameSpace.x2),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: buttons,
+                  ),
+                ],
+              );
+            },
+          );
 
     if (isMcpRow) {
       return Container(
