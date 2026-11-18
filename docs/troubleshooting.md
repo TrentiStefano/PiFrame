@@ -118,7 +118,7 @@ flutter test test/transcript_grouping_test.dart test/subagents_feature_test.dart
 
 **Cause:** bars and headers had fixed widths or non-flexible children. The Agents pane took about 360 px and left the chat too little room.
 
-**Fix:** a companion (Git, files or browser) narrower than 320 px shrinks to its side tab instead of squeezing the bar. A narrow browser moves Home and bookmarks into the bar's menu. The Agents pane becomes a sheet above the chat when it would leave the chat under 420 px; the sheet stops above the composer, so send and the model stay reachable. Todo, activity cards and the assistant header use flexible layouts and wrapping text. The composer chips shorten their labels as space shrinks.
+**Fix:** a companion (Git, files or browser) narrower than 160 px (`kCompanionMinWidth`; 320 px before the UI rework) shrinks to its side tab instead of squeezing the bar. A narrow browser moves Home and bookmarks into the bar's menu. The Agents pane becomes a sheet above the chat when it would leave the chat under 420 px; the sheet stops above the composer, so send and the model stay reachable. Todo, activity cards and the assistant header use flexible layouts and wrapping text. The composer chips shorten their labels as space shrinks.
 
 Check from source:
 

@@ -470,8 +470,8 @@ Future<void> _pumpComposer(
 }
 
 void _companionTests() {
-  group('Companion panes keep a 320 px minimum (task 1.2f)', () {
-    test('a companion narrower than 320 px collapses to its tab', () {
+  group('Companion panes keep a ${kCompanionMinWidth.toInt()} px minimum (task 1.2f)', () {
+    test('a companion narrower than the minimum collapses to its tab', () {
       final narrow = narrowCompanionPanes(
         panes: const [WorkspacePane.chat, WorkspacePane.git],
         collapsed: const {},
@@ -481,7 +481,7 @@ void _companionTests() {
       expect(narrow, {WorkspacePane.git});
     });
 
-    test('a companion at 320 px or wider stays open', () {
+    test('a companion at the minimum or wider stays open', () {
       final narrow = narrowCompanionPanes(
         panes: const [WorkspacePane.chat, WorkspacePane.git],
         collapsed: const {},
@@ -506,7 +506,7 @@ void _companionTests() {
           panes: const [WorkspacePane.chat, WorkspacePane.git],
           collapsed: const {},
           weights: const {WorkspacePane.chat: 1, WorkspacePane.git: 99},
-          availableWidth: 280,
+          availableWidth: 150,
         ),
         {WorkspacePane.git},
       );
