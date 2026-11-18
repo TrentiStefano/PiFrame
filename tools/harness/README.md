@@ -5,7 +5,7 @@ Runs an isolated desktop PiFrame build, drives the app through `ext.piframe.*` D
 From the repository root:
 
 ```sh
-pnpm harness start [--scenario hello-world] [--seed] [--size 1280x800] [--device windows|macos|linux] [--run name] [--no-daemon-build] [--real-pi]
+pnpm harness start [--scenario hello-world] [--seed] [--size 1920x1032] [--device windows|macos|linux] [--run name] [--no-daemon-build] [--real-pi]
 pnpm harness seed [--run name]
 pnpm harness scenarios
 pnpm harness scenario <name> [--run name]
@@ -31,6 +31,8 @@ pnpm harness reload|restart|rebuild [--daemon] [--run name]
 pnpm harness logs [--lines 100] [--run name]
 pnpm harness stop [--run name | --all]
 ```
+
+`--size` and `resize` set the app's drawing area, not the outer window: the harness grows the window by its frame, so the default `1920x1032` renders and captures like a maximized window on a 1080p screen with the taskbar.
 
 Each run stores its isolated `PI_FRAME_HOME` under `~/.piframe-harness/<run>` (Windows: the user's home directory). Screenshots default to `scratch/harness/<run>/`. The default run is `default`.
 
@@ -63,7 +65,7 @@ Media overrides exist only in harness mode. A harness `reduce-motion on` or `off
 
 ## Recording animations
 
-`pnpm harness record <label>` captures a frame sequence into `scratch/harness/<run>/<time>-<label>/`: `frame-NNN.png`, `manifest.json` (frame times and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced, numbered frames in one image) and `anim.gif`. Defaults: 2000 ms, 12 fps requested, scale 0.5. Each frame is a real screenshot, so the real rate is lower (about 6-10 fps at 1400x900); motion faster than ~150 ms shows as a few steps.
+`pnpm harness record <label>` captures a frame sequence into `scratch/harness/<run>/<time>-<label>/`: `frame-NNN.png`, `manifest.json` (frame times and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced, numbered frames in one image) and `anim.gif`. Defaults: 2000 ms, 12 fps requested, scale 0.5. Each frame is a real screenshot, so the real rate is lower: about 10 fps at the default scale 0.5 and about 5-6 fps at `--scale 1` on a 1920x1032 run. Motion faster than ~150 ms shows as a few steps.
 
 - `--do "<command>"` runs one harness command right after the first frame, e.g. `--do "tap key:composer-send-btn"`; its exit code and output go in the manifest.
 - `--crop x,y,w,h` (logical pixels) crops the sheet and GIF; combine it with `--scale 1` to look closely at a spinner, border or small transition.

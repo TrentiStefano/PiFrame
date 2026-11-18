@@ -16,7 +16,7 @@ The user may be using their own PiFrame at the same time. The harness runs an is
 Run commands from the repository root. Start or reuse the isolated run:
 
 ```sh
-pnpm harness start [--scenario <name>] [--seed] [--size <WxH>]
+pnpm harness start [--scenario <name>] [--seed] [--size <WxH>]   # default 1920x1032 app area (1080p maximized, minus the taskbar)
 pnpm harness seed
 pnpm harness scenarios
 pnpm harness scenario <name>
@@ -54,7 +54,7 @@ pnpm harness record <label> [--duration 2000] [--fps 12] [--scale 0.5] [--crop x
 - `--do` runs one interaction right after the first frame, so the recording shows what it triggers, e.g. `--do "tap key:composer-send-btn"`.
 - `--crop` takes logical pixels; use it with `--scale 1` to zoom in on a small animation such as a spinner or a border.
 - The output folder holds `frame-NNN.png`, `manifest.json` (each frame's time and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced frames, numbered, in one image) and `anim.gif`.
-- Read `sheet.png` first to see the whole animation at once, then open single frames for detail. Capture runs at about 6-10 fps, so very fast motion (under ~150 ms) shows as a few steps.
+- Read `sheet.png` first to see the whole animation at once, then open single frames for detail. Capture runs at about 10 fps at the default scale (5-6 fps at `--scale 1`), so very fast motion (under ~150 ms) shows as a few steps.
 
 `media --reduce-motion on` checks the reduced-motion version, `media --reduce-motion system` follows the OS and the app setting (needed to test the Settings toggle), and `media --reset` goes back to animations on.
 

@@ -8,7 +8,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
+
+import 'harness_window.dart';
 
 import '../app/harness_mode.dart';
 
@@ -626,9 +627,12 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
           'error': 'width and height must be positive numbers',
         });
       }
-      await windowManager.setSize(Size(width, height));
-      await windowManager.setPosition(const Offset(-32000, -32000));
-      return _result({'ok': true, 'width': width, 'height': height});
+      final content = await setHarnessContentSize(Size(width, height));
+      return _result({
+        'ok': true,
+        'width': content.width,
+        'height': content.height,
+      });
     } catch (error) {
       return _result({'ok': false, 'error': '$error'});
     }

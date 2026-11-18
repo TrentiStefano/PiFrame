@@ -631,7 +631,7 @@ async function startCommand(options) {
   fs.mkdirSync(home, { recursive: true });
   writeFakePiShims(home);
   const device = options.device || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
-  const size = options.size || '1280x800';
+  const size = options.size || '1920x1032';
   const scenario = validateScenarioName(options.scenario || 'hello-world');
   if (!/^\d+x\d+$/.test(size)) throw new Error(`Invalid size: ${size}`);
   if (!['windows', 'macos', 'linux'].includes(device)) throw new Error(`Unsupported desktop device: ${device}`);

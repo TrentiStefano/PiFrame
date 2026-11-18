@@ -17,6 +17,48 @@ Future<void> configureHarnessWindow(Size size) async {
   } else {
     await windowManager.show(inactive: true);
   }
+  // The frame correction (setHarnessContentSize) runs once the app is up:
+  // see main_harness.dart.
+}
+
+/// Logical size of the app's drawing area (the window minus its frame).
+Size harnessContentSize() {
+  final view = WidgetsBinding.instance.platformDispatcher.views.first;
+  return view.physicalSize / view.devicePixelRatio;
+}
+
+/// Sizes the window so the app itself gets [content] logical pixels: a
+/// `--size 1920x1032` run then renders and captures exactly like a maximized
+/// window on a 1080p screen with the taskbar. `setSize` sets the outer
+/// window, whose frame takes some pixels, so the frame's share is measured
+/// and added back. Returns the content size reached.
+Future<Size> setHarnessContentSize(Size content) async {
+  await windowManager.setSize(content);
+  await windowManager.setPosition(const Offset(-32000, -32000));
+  for (var attempt = 0; attempt < 4; attempt++) {
+    await _settleViewMetrics();
+    final actual = harnessContentSize();
+    final dx = content.width - actual.width;
+    final dy = content.height - actual.height;
+    if (dx.abs() < 0.5 && dy.abs() < 0.5) return actual;
+    final outer = await windowManager.getSize();
+    await windowManager.setSize(Size(outer.width + dx, outer.height + dy));
+    await windowManager.setPosition(const Offset(-32000, -32000));
+  }
+  await _settleViewMetrics();
+  return harnessContentSize();
+}
+
+/// Waits until the view reports a new size after a resize (it arrives
+/// asynchronously), or a short timeout when the size did not change.
+Future<void> _settleViewMetrics() async {
+  final before = harnessContentSize();
+  for (var waited = 0; waited < 600; waited += 30) {
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    if (harnessContentSize() != before) break;
+  }
+  // One more beat, so a resize that lands in steps has finished.
+  await Future<void>.delayed(const Duration(milliseconds: 60));
 }
 
 void _preventWindowsActivation(int windowId) {
