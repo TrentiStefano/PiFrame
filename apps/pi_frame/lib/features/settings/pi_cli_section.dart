@@ -544,7 +544,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     );
   }
 
-  /// One style for every "Esegui" button: outlined, neutral border.
+  /// One style for every "Run" button: outlined, neutral border.
   ButtonStyle _outlinedRunStyle(FrameTokens tokens) => OutlinedButton.styleFrom(
     foregroundColor: tokens.accent,
     side: BorderSide(color: tokens.borderStrong),

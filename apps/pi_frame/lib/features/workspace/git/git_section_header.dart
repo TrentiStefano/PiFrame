@@ -85,7 +85,7 @@ class GitSectionHeader extends StatelessWidget {
   }
 }
 
-/// A one-line note under an empty section ("Nessun file preparato.").
+/// A one-line note under an empty section ("No staged files.").
 class GitListNote extends StatelessWidget {
   const GitListNote({super.key, required this.message});
 

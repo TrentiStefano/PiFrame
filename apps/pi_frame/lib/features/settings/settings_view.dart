@@ -18,7 +18,7 @@ import '../../ui/escape_layers.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/motion.dart';
 import 'diagnostics.dart';
-import 'sections/aspetto_section.dart';
+import 'sections/appearance_section.dart';
 import 'sections/daemon_section.dart';
 import 'sections/packages_section.dart';
 import 'sections/terminal_section.dart';

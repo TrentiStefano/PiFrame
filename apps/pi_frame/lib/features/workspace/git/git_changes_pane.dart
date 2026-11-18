@@ -49,7 +49,7 @@ class _GitEntry {
     this.expanded = false,
   });
 
-  /// A note under an empty section ("Nessun file preparato.").
+  /// A note under an empty section ("No staged files.").
   factory _GitEntry.note(String section, String message) => _GitEntry(
     key: 'n:$section',
     section: section,

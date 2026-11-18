@@ -18,7 +18,7 @@ import '../../../ui/frame_snack_bar.dart';
 import '../../../ui/motion.dart';
 import 'git_change_row.dart';
 
-/// Widest the "Apri in finestra" dialog gets. Wider than the default dialog,
+/// Widest the "Open in window" dialog gets. Wider than the default dialog,
 /// so diff lines fit without scrolling sideways.
 const double gitDiffWindowMaxWidth = 900;
 
@@ -44,7 +44,7 @@ Future<String> _loadDiffText(
   return (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
 }
 
-/// "Apri in finestra": the diff of [path] in a dialog. The width follows the
+/// "Open in window": the diff of [path] in a dialog. The width follows the
 /// window up to [gitDiffWindowMaxWidth]; the height fits the content up to the
 /// dialog's cap, then the body scrolls.
 Future<void> showGitDiffWindowDialog({

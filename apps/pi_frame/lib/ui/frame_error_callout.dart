@@ -10,7 +10,7 @@ import 'precision.dart';
 /// An error block for a failed load or action, built on [FrameCallout] with
 /// the danger tone.
 ///
-/// Shows a context [title] ("Impossibile caricare i pacchetti"), the mapped
+/// Shows a context [title] ("Could not load packages"), the mapped
 /// [error] title and hint, a Riprova action when the error is retryable and
 /// [onRetry] is given, and the raw text behind a collapsed "Dettagli" toggle.
 ///
