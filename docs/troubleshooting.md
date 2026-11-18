@@ -21,6 +21,23 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## Agent answer without a card when the turn had no steps
+
+**Symptom:** with step grouping on, an agent reply sometimes appeared without the bordered answer card and in dimmed text, while other replies in the same chat had the card.
+
+**Cause:** `groupTranscript` only builds the final-answer card for turns it groups. A turn the agent answered straight away, with no tool calls, thinking or intermediate text, has nothing to group, so its answer fell through to the classic layout, which draws assistant text without a card and in the secondary text colour.
+
+**Fix:** in `transcript_grouping.dart` the last assistant entry of a turn with no steps is now a `FinalTextBlock`, so it gets the same card and colour as any other final answer. Turns that the "with thinking" mode leaves ungrouped (tool calls without thinking) and grouping off keep the classic layout.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/transcript_direct_answer_card_test.dart test/transcript_grouping_test.dart
+```
+
+---
+
 ## Sessions pane: confusing status dot, no working animation, and borders on the wrong card
 
 **Symptom:** the leading dot of each session card worked like a traffic light (bright for the open session, green for any daemon-active session), so it said nothing about new answers. A working session only pulsed the dot's opacity, which was barely visible. After a click, one card showed a border while another showed the selection, and a working card looked the same as a clicked one.

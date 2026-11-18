@@ -117,6 +117,41 @@ void main() {
       assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
     });
 
+    test('an answer with no steps is still the final answer card in every grouping mode', () {
+      final entries = [
+        const SessionEntry(id: 'u1', role: 'user', text: 'Why is it blocked?', timestamp: 1000),
+        const SessionEntry(
+          id: 'asst1',
+          role: 'assistant',
+          text: 'One acceptance test is failing.',
+          timestamp: 2000,
+        ),
+      ];
+      for (final mode in [
+        StepGroupingMode.withThinking,
+        StepGroupingMode.always,
+        StepGroupingMode.full,
+      ]) {
+        final blocks = groupTranscript(
+          entries: entries,
+          mode: mode,
+          live: TranscriptLiveState.empty,
+        );
+        expect(blocks.length, 2, reason: '$mode');
+        expect(blocks.first, isA<EntryBlock>(), reason: '$mode');
+        expect(blocks.last, isA<FinalTextBlock>(), reason: '$mode');
+        expect((blocks.last as FinalTextBlock).entry.id, 'asst1');
+        assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
+      }
+      // Grouping off keeps the classic layout.
+      final off = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.off,
+        live: TranscriptLiveState.empty,
+      );
+      expect(off.every((b) => b is EntryBlock), isTrue);
+    });
+
     test('withThinking does not group a tool-only turn while always does', () {
       final entries = [
         const SessionEntry(

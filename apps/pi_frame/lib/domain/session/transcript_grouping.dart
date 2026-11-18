@@ -592,7 +592,21 @@ void _processTurn({
       output.add(EntryBlock(turn.userEntry!));
     }
     for (final entry in turn.nonUserEntries) {
-      output.add(EntryBlock(entry));
+      // A turn answered straight away, with no steps at all, still ends in
+      // the agent's final answer: show it as one, in the same card and text
+      // colour as an answer after steps. Turns left ungrouped by the mode
+      // (tools without thinking under "with thinking") keep the classic
+      // layout, and an entry with tool calls or thinking is never stripped.
+      final isPlainFinalAnswer =
+          !hasIntermediateSteps &&
+          entry.id == finalAssistantEntry?.id &&
+          entry.toolCalls.isEmpty &&
+          (entry.thinking == null || entry.thinking!.trim().isEmpty);
+      output.add(
+        isPlainFinalAnswer
+            ? FinalTextBlock(entry: entry, turnId: turn.turnId)
+            : EntryBlock(entry),
+      );
     }
     if (turn.isLastTurn &&
         live.isRunning &&
