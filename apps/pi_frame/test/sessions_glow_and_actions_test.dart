@@ -173,16 +173,39 @@ void main() {
         tester.element(find.byType(SessionsSidebar)),
       );
 
-      // Switch away while it still works: the row keeps its live spinner.
+      final folderName = find.text('myrepo');
+      final nameX = tester.getTopLeft(folderName).dx;
+
+      // Switch away while it still works: the row keeps its live spinner, the
+      // folder keeps its working dot, and the folder name does not move.
       container.read(activeSessionIdProvider.notifier).state = 'other';
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('session-working-spinner')), findsOneWidget);
+      expect(find.byKey(const ValueKey('folder-working-dot:C:/projects/myrepo')), findsOneWidget);
+      expect(tester.getTopLeft(folderName).dx, nameX);
+
+      // The working border is painted over the row, so a selected or
+      // hovered row's opaque fill cannot hide it.
+      final border = tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byKey(const ValueKey('session-tile-C:/projects/myrepo-run')),
+          matching: find.byType(DecoratedBox),
+        ),
+      ).firstWhere((box) {
+        final dec = box.decoration;
+        return dec is BoxDecoration &&
+            dec.border?.top.color ==
+                FrameTokens.dark.agentWorking.withValues(alpha: 0.7);
+      });
+      expect(border.position, DecorationPosition.foreground);
 
       running.state = running.state.copyWith(agentStatus: AgentStatus.settled);
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('session-working-spinner')), findsNothing);
       expect(find.byKey(const ValueKey('session-unread-dot-run-true')), findsOneWidget);
       expect(find.byKey(const ValueKey('session-unread-dot-other-false')), findsOneWidget);
+      expect(tester.getTopLeft(folderName).dx, nameX,
+          reason: 'the folder name stays put when work stops');
     },
   );
 

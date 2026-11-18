@@ -743,6 +743,13 @@ export function splitCommandLine(line) {
   return args;
 }
 
+const SINGLE_SELECTOR_COMMANDS = new Set(['tap', 'hover', 'longPress', 'rightClick', 'doubleTap']);
+
+/** Whether a harness command's output reports a failure (it exits 0 either way). */
+export function actionFailed(code, output) {
+  return code !== 0 || /"ok":\s*false/.test(output) || /pf-harness:/.test(output);
+}
+
 /** Validates `record` options and fills in defaults. */
 export function recordPlan(options = {}) {
   const duration = Number(options.duration ?? 2000);
@@ -759,7 +766,11 @@ export function recordPlan(options = {}) {
     }
     crop = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
   }
-  const action = options.do === undefined ? null : splitCommandLine(options.do);
+  let action = options.do === undefined ? null : splitCommandLine(options.do);
+  // "tap text:Long history paging" means one selector with spaces in it.
+  if (action && SINGLE_SELECTOR_COMMANDS.has(action[0]) && action.length > 2 && !action.slice(2).some((arg) => arg.startsWith('--'))) {
+    action = [action[0], action.slice(1).join(' ')];
+  }
   if (action && (action.length === 0 || ['record', 'start', 'stop', 'rebuild', 'seed'].includes(action[0]))) {
     throw new Error('--do expects one harness interaction, for example --do "tap key:composer-send-btn"');
   }
@@ -796,7 +807,7 @@ async function writeContactSheet(ffmpeg, outDir, frames, plan) {
   const tile = `tile=${columns}x${rows}:padding=4:color=gray`;
   try {
     // Each tile is labelled with its frame number, to match manifest.json.
-    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',drawtext=text='%{n}':x=6:y=6:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.6,${tile}`, ...output], { windowsHide: true });
+    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}drawtext=text='%{n}':x=6:y=6:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.6,select='${select}',${tile}`, ...output], { windowsHide: true });
   } catch {
     // drawtext needs a font backend that some ffmpeg builds lack.
     await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',${tile}`, ...output], { windowsHide: true });
@@ -854,7 +865,7 @@ async function recordCommand(positional, options, runName) {
     scale: plan.scale,
     crop: plan.crop,
     action: plan.action?.join(' ') ?? null,
-    actionResult: action ? { exitCode: action.code, output: action.output.slice(0, 2000) } : null,
+    actionResult: action ? { ok: !actionFailed(action.code, action.output), exitCode: action.code, output: action.output.slice(0, 2000) } : null,
   };
 
   const ffmpeg = await findFfmpeg();
@@ -871,6 +882,10 @@ async function recordCommand(positional, options, runName) {
         path.join(outDir, 'anim.gif')], { windowsHide: true });
       manifest.gif = path.join(outDir, 'anim.gif');
     } catch (error) { manifest.gifError = String(error.message).slice(0, 500); }
+  }
+  if (manifest.actionResult && !manifest.actionResult.ok) {
+    manifest.warning = `--do "${manifest.action}" failed, so the recording may not show what you expected. See actionResult.`;
+    console.error(`pf-harness record: ${manifest.warning}`);
   }
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify({ ...manifest, frameTimes: frames }, null, 2));
   console.log(JSON.stringify({ ...manifest, firstFrame: path.join(outDir, frames[0].file), lastFrame: path.join(outDir, frames[frames.length - 1].file) }, null, 2));

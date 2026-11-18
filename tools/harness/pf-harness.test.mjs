@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  actionFailed,
   assertSafeHome,
   encodeParams,
   isMissingProcessError,
@@ -121,4 +122,12 @@ test('contact sheets sample evenly and keep the first and last frame', () => {
 
 test('media accepts --reduce-motion system', () => {
   assert.deepEqual(parseArgs(['--reduce-motion', 'system']).options, { 'reduce-motion': 'system' });
+});
+
+test('record --do keeps a selector with spaces whole and spots failed actions', () => {
+  assert.deepEqual(recordPlan({ do: 'tap text:Long history paging' }).action, ['tap', 'text:Long history paging']);
+  assert.deepEqual(recordPlan({ do: 'drag key:divider 80 0' }).action, ['drag', 'key:divider', '80', '0']);
+  assert.equal(actionFailed(0, '{ "ok": false, "error": "Target not found" }'), true);
+  assert.equal(actionFailed(1, ''), true);
+  assert.equal(actionFailed(0, '{ "ok": true }'), false);
 });

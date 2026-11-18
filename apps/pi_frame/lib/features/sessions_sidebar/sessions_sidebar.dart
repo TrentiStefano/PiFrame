@@ -926,7 +926,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         final isSel = sId == activeId;
                         final isPin = pinnedIds.contains(sId);
                         final isAct = s['isActive'] == true;
-                        if (isSel || isPin || isAct) {
+                        // Same rule as the session rows: a session opened in
+                        // this run is followed live after switching away.
+                        final isFollowed = ref
+                            .read(unreadSessionsProvider.notifier)
+                            .isFollowed(sId);
+                        if (isSel || isPin || isAct || isFollowed) {
                           final isWorking = ref.watch(sessionStateFamily(sId).select((st) =>
                               st.agentStatus == AgentStatus.working ||
                               st.agentStatus == AgentStatus.retrying ||
@@ -979,6 +984,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 unread: true,
                                 size: 6,
                               ),
+                            ] else ...[
+                              // Same width as a dot, so the name does not
+                              // shift when work starts or an answer lands.
+                              const SizedBox(width: FrameSpace.x1 + 6),
                             ],
                           ],
                         ),
@@ -1672,7 +1681,10 @@ class _SessionTile extends ConsumerWidget {
             ? tokens.agentWorking.withValues(alpha: 0.7)
             : tokens.surface.withValues(alpha: 0));
 
+    // Foreground: the selected and hovered row fills are opaque and hid a
+    // border painted behind them.
     final content = DecoratedBox(
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(tokens.radiusSm),
         border: Border.all(

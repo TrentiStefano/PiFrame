@@ -29,6 +29,8 @@ flutter test test/transcript_rich_test.dart
 
 **Fix:** the dot is now a notification dot. It is dark normally and lit (`accent`) when the agent produced something in a session you have not opened since. `unreadSessionsProvider` follows every session opened in this run, plus the daemon listing, and saves the set in `~/.piframe/unread_sessions.json`. Folder rows and the PINNED header show a lit dot when one of their sessions is unread. Working sessions show a spinner (a static glyph under reduced motion) and an `agentWorking` border. The cursor ring shows only during keyboard navigation.
 
+A frame-by-frame recording in the UI harness (`pnpm harness record`) found three more glitches, now fixed: the card border was painted behind the row, so the opaque fill of a selected or hovered card hid the working border and the cursor ring (it is now painted in the foreground); the repository row inserted its status dot only when needed, so the repository name jumped 8 px when work started or stopped (the dot slot is now always reserved); and the repository row did not show the working dot for a session left running in the background (it now follows the same sessions as the session rows).
+
 Check from source:
 
 ```bash
