@@ -381,6 +381,57 @@ void main() {
     expect(find.byTooltip('Model has a single context tier'), findsOneWidget);
   });
 
+  testWidgets(
+      'context control is disabled with the runtime reason when unsupported',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const reason =
+        '@tintinweb/pi-subagents does not support per-agent context limits';
+    final config = PiAgentsConfig(
+      packages: [
+        const PiSubagentPackageInfo(
+          id: '@tintinweb/pi-subagents',
+          installed: true,
+        ),
+      ],
+      agents: [
+        const PiAgentInfo(
+          name: 'reviewer',
+          source: 'user',
+          editable: true,
+          model: PiAgentModelInfo(
+            effective: 'model-a',
+            origin: 'override',
+            available: true,
+          ),
+          context: PiAgentContextInfo(unsupportedReason: reason),
+        ),
+      ],
+      availableModels: [
+        const PiAvailableModel(
+          id: 'model-a',
+          name: 'Model A',
+          contextWindow: 100000,
+          reasoning: true,
+          tiers: [20000, 100000],
+        ),
+      ],
+    );
+
+    final client = _MockAgentsClient(config: config);
+    await tester.pumpWidget(
+        buildTestApp(client: client, language: AppLanguage.en));
+    await tester.pumpAndSettle();
+
+    // The model has tiers, but the runtime cannot apply a limit: no dropdown.
+    expect(find.text('20k'), findsNothing);
+    expect(find.text('N/A'), findsOneWidget);
+    expect(find.byTooltip(reason), findsOneWidget);
+  });
+
   testWidgets('narrow layout at 480px width renders without overflow',
       (tester) async {
     tester.view.physicalSize = const Size(480, 1200);

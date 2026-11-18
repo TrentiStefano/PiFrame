@@ -74,6 +74,16 @@ void main() {
       expect(empty.limit, isNull);
       expect(empty.options, isEmpty);
       expect(empty.modelContextWindow, isNull);
+      expect(empty.unsupportedReason, isNull);
+      expect(empty.toJson().containsKey('unsupportedReason'), isFalse);
+
+      final unsupported = PiAgentContextInfo.fromJson({
+        'supported': false,
+        'unsupportedReason': 'not supported here',
+      });
+      expect(unsupported.unsupportedReason, 'not supported here');
+      expect(unsupported.toJson()['unsupportedReason'], 'not supported here');
+      expect(PiAgentContextInfo.fromJson(unsupported.toJson()), unsupported);
     });
 
     test('PiAgentInfo parses JSON completely and tolerantly', () {

@@ -88,6 +88,17 @@ export async function writeJsonAtomicallyWithBackup(
   content: any,
   options?: SettingsWriterLockOptions
 ): Promise<void> {
+  await writeTextAtomicallyWithBackup(filePath, JSON.stringify(content, null, 2) + '\n', options);
+}
+
+/**
+ * Same discipline as writeJsonAtomicallyWithBackup, for raw text (agent `.md` files).
+ */
+export async function writeTextAtomicallyWithBackup(
+  filePath: string,
+  text: string,
+  options?: SettingsWriterLockOptions
+): Promise<void> {
   const executeWrite = async (lock: LockHandle) => {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
@@ -112,7 +123,7 @@ export async function writeJsonAtomicallyWithBackup(
     );
 
     try {
-      fs.writeFileSync(tempFile, JSON.stringify(content, null, 2) + '\n', {
+      fs.writeFileSync(tempFile, text, {
         encoding: 'utf8',
         mode,
       });

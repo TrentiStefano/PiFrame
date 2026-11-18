@@ -602,6 +602,8 @@ export interface PiAgentContextInfo {
   limit: number | null;
   options: number[];
   modelContextWindow: number | null;
+  /** Set when the installed subagent runtime cannot apply a per-agent context limit. */
+  unsupportedReason?: string | null;
 }
 
 export interface PiAgentInfo {

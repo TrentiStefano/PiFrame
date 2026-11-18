@@ -862,7 +862,12 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
     final List<int> contextOptions;
     final int? modelContextWindow;
 
-    if (selectedModelObj != null) {
+    final contextUnsupportedReason = agent.context.unsupportedReason;
+    if (contextUnsupportedReason != null) {
+      isContextSupported = false;
+      contextOptions = const [];
+      modelContextWindow = null;
+    } else if (selectedModelObj != null) {
       isContextSupported = selectedModelObj.tiers.isNotEmpty;
       if (isContextSupported) {
         contextOptions = <int>{
@@ -1076,7 +1081,9 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Tooltip(
-              message: strings.agentsContextSingleTierTooltip,
+              message:
+                  contextUnsupportedReason ??
+                  strings.agentsContextSingleTierTooltip,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -500,6 +500,28 @@ flutter test test/session_tool_history_test.dart test/session_reducer_test.dart 
 
 ---
 
+## Subagent model override in Settings → Agents ignored
+
+**Symptom:** in Settings → Agents you change a subagent's Model (for example `reviewer` → Claude Haiku 5.5, shown with the `override` tag), but subagents started afterwards still run with the `model:` from the agent's `.md` frontmatter. Thinking and Context overrides are ignored too.
+
+**Cause fixed:** PiFrame wrote every override to `subagents.agentOverrides.<name>` in `~/.pi/agent/settings.json`. Only `pi-subagents` (nicobailon) reads that key. `@tintinweb/pi-subagents` takes a subagent's model and thinking from the agent file's frontmatter ("frontmatter is authoritative"), has no per-agent key in `subagents.json`, and ignores `subagentOnlyExtensions`. So under tintinweb the override was saved but never applied. Agents with `extensions: false` also load no extension, so the change cannot be injected at runtime.
+
+**Current behavior:** with tintinweb installed, PiFrame writes Model and Thinking for user agents (`~/.pi/agent/agents/*.md`) into the agent file's `model:` / `thinking:` line. It changes only that line, makes a `<file>.piframe-backup` copy, and records the original line in `~/.piframe/subagent-frontmatter-originals.json`. *Reset* restores that exact line, or removes it if the field was absent. The page shows the value that actually runs, and the `override` tag only when PiFrame wrote it. Package and project agents stay read-only. The Context control shows `n/a` with the reason *@tintinweb/pi-subagents does not support per-agent context limits*. With only nicobailon `pi-subagents` installed nothing changes: overrides stay in `settings.json` and agent files are never edited.
+
+- Overrides saved in `settings.json` by an older PiFrame are not applied by tintinweb. The page lists them in a warning: pick the value again to write it to the agent file, or press *Reset* to clear the old entry.
+- If you edit an agent file by hand after a PiFrame override, *Reset* still restores the line recorded before PiFrame's first change.
+
+Check from source:
+
+```bash
+pnpm --filter @piframe/agentd exec tsc
+node --test apps/agentd/dist/pi/agents/test/AgentFileOverrides.test.js apps/agentd/dist/pi/agents/test/AgentsService.test.js
+cd apps/pi_frame
+flutter test test/agents_config_model_test.dart test/agents_section_widget_test.dart
+```
+
+---
+
 ## Subagent cost always zero, or frozen in the popup
 
 **Causes fixed:** the daemon read `usage.cost` only on the JSONL container, ignoring `message.usage.cost` in Pi messages. It also discarded every session with a temporary working directory, including the persistent sessions of subagents that use a worktree. The notification parser did not recognize the pi-subagents tag `<estimated_cost_usd>`. The refresh could stop because workers outside the daemon were already reported as completed, and the cost popup kept the values present when it opened.

@@ -124,11 +124,16 @@ class PiAgentContextInfo {
   final List<int> options;
   final int? modelContextWindow;
 
+  /// Set when the subagent runtime cannot apply a per-agent context limit
+  /// (for example `@tintinweb/pi-subagents`). The control is then disabled.
+  final String? unsupportedReason;
+
   const PiAgentContextInfo({
     this.supported = false,
     this.limit,
     this.options = const [],
     this.modelContextWindow,
+    this.unsupportedReason,
   });
 
   factory PiAgentContextInfo.fromJson(Map<String, dynamic> json) {
@@ -140,6 +145,7 @@ class PiAgentContextInfo {
               .toList() ??
           const [],
       modelContextWindow: (json['modelContextWindow'] as num?)?.toInt(),
+      unsupportedReason: json['unsupportedReason'] as String?,
     );
   }
 
@@ -148,6 +154,7 @@ class PiAgentContextInfo {
         'limit': limit,
         'options': options,
         'modelContextWindow': modelContextWindow,
+        if (unsupportedReason != null) 'unsupportedReason': unsupportedReason,
       };
 
   @override
@@ -158,11 +165,17 @@ class PiAgentContextInfo {
           supported == other.supported &&
           limit == other.limit &&
           listEquals(options, other.options) &&
-          modelContextWindow == other.modelContextWindow;
+          modelContextWindow == other.modelContextWindow &&
+          unsupportedReason == other.unsupportedReason;
 
   @override
-  int get hashCode =>
-      Object.hash(supported, limit, Object.hashAll(options), modelContextWindow);
+  int get hashCode => Object.hash(
+        supported,
+        limit,
+        Object.hashAll(options),
+        modelContextWindow,
+        unsupportedReason,
+      );
 }
 
 @immutable

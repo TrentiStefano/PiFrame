@@ -12,6 +12,12 @@ import { getPiFrameBaseDir } from '../../config/config.js';
 import { readSettingsFile, applyAgentSettingsChanges } from './settingsWriter.js';
 import { detectSubagentPackages, discoverAgents } from './agentDiscovery.js';
 import { readSubagentContextLimits } from './subagentContextLimitExtension.js';
+import {
+  applyAgentFileChanges,
+  originalsKey,
+  readAgentFileOriginals,
+  type AgentFileChange,
+} from './agentFileOverrides.js';
 import type { LockOptions } from './lockfile.js';
 
 export const THINKING_LEVELS = [
@@ -23,6 +29,23 @@ export const THINKING_LEVELS = [
   'xhigh',
   'max',
 ];
+
+export const TINTINWEB_CONTEXT_UNSUPPORTED =
+  '@tintinweb/pi-subagents does not support per-agent context limits';
+
+/**
+ * Whether this agent's model/thinking overrides must be written into its own
+ * `.md` frontmatter. `@tintinweb/pi-subagents` treats frontmatter as
+ * authoritative and ignores `settings.json` `subagents.agentOverrides`, so for
+ * user-scope agents under tintinweb the agent file is the only place an
+ * override takes effect.
+ */
+export function isFrontmatterManaged(
+  agent: { source: string; filePath?: string },
+  tintinwebInstalled: boolean
+): boolean {
+  return tintinwebInstalled && agent.source === 'user' && !!agent.filePath;
+}
 
 export interface AgentsServiceOptions {
   agentDir?: string;
@@ -77,6 +100,7 @@ export class AgentsService {
     const settings = readSettingsFile(settingsPath);
     const tintinwebConfig = readSettingsFile(tintinwebPath);
     const contextLimits = readSubagentContextLimits(this.piframeDir);
+    const fileOriginals = readAgentFileOriginals(this.piframeDir);
 
     const packageDetection = detectSubagentPackages(this.agentDir, settings);
     const discoveredRaw = discoverAgents(this.agentDir, packageDetection, cwd);
@@ -110,9 +134,27 @@ export class AgentsService {
       return modelMap.has(base) || availableModels.some((m) => m.id === base || m.id === modelStr);
     };
 
+    // Under tintinweb alone, settings.json agentOverrides are never read by the runtime.
+    const tintinwebOnly = isTintinwebInstalled && !isPiSubagentsInstalled;
+    const ignoredOverrides: string[] = [];
+
     // Build agent list with effective values
     const agents: PiAgentInfo[] = discoveredRaw.map((agent) => {
-      const overrides = settings.subagents?.agentOverrides?.[agent.name];
+      const fileManaged = isFrontmatterManaged(agent, isTintinwebInstalled);
+      const settingsOverrides = settings.subagents?.agentOverrides?.[agent.name];
+      const recorded: Record<string, unknown> =
+        fileManaged && agent.filePath ? fileOriginals[originalsKey(agent.filePath)] ?? {} : {};
+      // For frontmatter-managed agents the file is the truth: show what actually runs,
+      // and call it an override only when PiFrame wrote it.
+      const overrides = fileManaged && tintinwebOnly ? undefined : settingsOverrides;
+      if (fileManaged && tintinwebOnly && settingsOverrides) {
+        const stale =
+          (typeof settingsOverrides.model === 'string' &&
+            settingsOverrides.model.trim() !== (agent.frontmatterModel ?? '')) ||
+          (typeof settingsOverrides.thinking === 'string' &&
+            settingsOverrides.thinking.trim() !== (agent.frontmatterThinking ?? ''));
+        if (stale) ignoredOverrides.push(agent.name);
+      }
 
       // Model resolution
       let effectiveModel: string | null = null;
@@ -123,7 +165,7 @@ export class AgentsService {
         modelOrigin = 'override';
       } else if (agent.frontmatterModel) {
         effectiveModel = agent.frontmatterModel;
-        modelOrigin = 'frontmatter';
+        modelOrigin = 'model' in recorded ? 'override' : 'frontmatter';
       } else if (typeof settings.subagents?.defaultModel === 'string' && settings.subagents.defaultModel.trim()) {
         effectiveModel = settings.subagents.defaultModel.trim();
         modelOrigin = 'default';
@@ -138,7 +180,7 @@ export class AgentsService {
         thinkingOrigin = 'override';
       } else if (agent.frontmatterThinking) {
         effectiveThinking = agent.frontmatterThinking;
-        thinkingOrigin = 'frontmatter';
+        thinkingOrigin = 'thinking' in recorded ? 'override' : 'frontmatter';
       } else if (typeof settings.subagents?.defaultThinking === 'string' && settings.subagents.defaultThinking.trim()) {
         effectiveThinking = settings.subagents.defaultThinking.trim();
         thinkingOrigin = 'default';
@@ -149,7 +191,9 @@ export class AgentsService {
       const baseModel = effectiveModel ? effectiveModel.split(':')[0] : null;
       const foundModel = baseModel ? (modelMap.get(baseModel) ?? availableModels.find((m) => m.id === baseModel)) : null;
 
-      const supported = !!(foundModel && foundModel.tiers && foundModel.tiers.length > 0);
+      const contextUnsupportedReason = tintinwebOnly ? TINTINWEB_CONTEXT_UNSUPPORTED : null;
+      const supported =
+        !contextUnsupportedReason && !!(foundModel && foundModel.tiers && foundModel.tiers.length > 0);
       const modelContextWindow = foundModel?.contextWindow ?? null;
       const options = supported && foundModel
         ? Array.from(new Set([...foundModel.tiers, foundModel.contextWindow])).sort((a, b) => a - b)
@@ -175,11 +219,19 @@ export class AgentsService {
         context: {
           supported,
           limit,
-          options,
+          options: contextUnsupportedReason ? [] : options,
           modelContextWindow,
+          unsupportedReason: contextUnsupportedReason,
         },
       };
     });
+
+    if (ignoredOverrides.length > 0) {
+      warnings.push(
+        `settings.json overrides for ${ignoredOverrides.join(', ')} are ignored by @tintinweb/pi-subagents ` +
+          '(it reads the agent file only). Pick the value again here to apply it.'
+      );
+    }
 
     // Subagent defaults
     let subagentDefaults: PiSubagentDefaults;
@@ -370,7 +422,12 @@ export class AgentsService {
 
           // Validate contextLimit if given
           if (change.contextLimit !== undefined && change.contextLimit !== null) {
-            if (!modelInfo || !modelInfo.tiers || modelInfo.tiers.length === 0) {
+            if (agent.context.unsupportedReason) {
+              validationErrors.push({
+                field: 'contextLimit',
+                message: agent.context.unsupportedReason,
+              });
+            } else if (!modelInfo || !modelInfo.tiers || modelInfo.tiers.length === 0) {
               validationErrors.push({
                 field: 'contextLimit',
                 message: 'Context limit requires a model with pricing tiers',
@@ -502,13 +559,57 @@ export class AgentsService {
         });
       }
 
-      // 2. Apply updates
-      await applyAgentSettingsChanges(
-        this.agentDir,
-        this.piframeDir,
-        resolvedChanges,
-        this.lockOptions
-      );
+      // 2. Apply updates.
+      // Frontmatter-managed agents (user scope under tintinweb) get model/thinking
+      // written into their .md file. settings.json still receives the change when
+      // nicobailon pi-subagents is installed too; under tintinweb alone only resets
+      // go there, to clear stale agentOverrides that tintinweb never read.
+      const fileChanges: AgentFileChange[] = [];
+      const settingsChanges: PiAgentChange[] = [];
+      if (isTintinwebInstalled) {
+        const settings = readSettingsFile(path.join(this.agentDir, 'settings.json'));
+        const raw = discoverAgents(
+          this.agentDir,
+          detectSubagentPackages(this.agentDir, settings),
+          cwd
+        );
+        const rawByName = new Map(raw.map((a) => [a.name, a]));
+        for (const change of resolvedChanges) {
+          const rawAgent = change.kind === 'agent' ? rawByName.get(change.name) : undefined;
+          if (change.kind !== 'agent' || !rawAgent || !isFrontmatterManaged(rawAgent, true)) {
+            settingsChanges.push(change);
+            continue;
+          }
+          if (change.model !== undefined || change.thinking !== undefined) {
+            fileChanges.push({
+              filePath: rawAgent.filePath!,
+              model: change.model,
+              thinking: change.thinking,
+            });
+          }
+          if (isPiSubagentsInstalled) {
+            settingsChanges.push(change);
+          } else {
+            const forSettings: PiAgentChange = { kind: 'agent', name: change.name };
+            if (change.model === null) forSettings.model = null;
+            if (change.thinking === null) forSettings.thinking = null;
+            if (change.contextLimit === null) forSettings.contextLimit = null;
+            if (Object.keys(forSettings).length > 2) settingsChanges.push(forSettings);
+          }
+        }
+      } else {
+        settingsChanges.push(...resolvedChanges);
+      }
+
+      await applyAgentFileChanges(this.piframeDir, fileChanges, this.lockOptions);
+      if (settingsChanges.length > 0) {
+        await applyAgentSettingsChanges(
+          this.agentDir,
+          this.piframeDir,
+          settingsChanges,
+          this.lockOptions
+        );
+      }
 
       // 3. Return fresh state
       return await this.getAgents(cwd);
