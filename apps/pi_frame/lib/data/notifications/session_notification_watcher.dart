@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +8,26 @@ import '../../domain/session/session_state.dart';
 import '../daemon/daemon_providers.dart';
 import '../../features/sessions_sidebar/pinned_sessions_provider.dart';
 import '../../features/transcript/subagents_provider.dart';
+import '../../features/transcript/workflows_provider.dart';
 import 'notification_providers.dart';
+
+/// How long a session must stay finished before its answer counts as the
+/// final one. The status reads "settled" for a moment between steps of one
+/// run (after a question is answered, after compaction, between turns the
+/// agent continues on its own), and those moments must not notify.
+const finalAnswerQuietPeriod = Duration(milliseconds: 1500);
+
+/// The text of the agent's final answer in [entries], or null when the last
+/// assistant message is not one (it hands off to a tool, or has no text).
+SessionEntry? finalAnswerEntry(List<SessionEntry> entries) {
+  for (final e in entries.reversed) {
+    if (e.role != 'assistant') continue;
+    if (e.text.contains('<task-notification>')) continue;
+    if (e.text.trim().isEmpty || e.toolCallsAfterText.isNotEmpty) return null;
+    return e;
+  }
+  return null;
+}
 
 class SessionNotificationWatcher extends ConsumerStatefulWidget {
   const SessionNotificationWatcher({super.key});
@@ -22,8 +42,9 @@ class _SessionNotificationWatcherState
   @override
   void initState() {
     super.initState();
-    ref.read(desktopNotificationServiceProvider).onNotificationClicked =
-        (sessionId) {
+    ref
+        .read(desktopNotificationServiceProvider)
+        .onNotificationClicked = (sessionId) {
       if (mounted) {
         ref.read(activeSessionIdProvider.notifier).state = sessionId;
       }
@@ -62,6 +83,13 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
   final Set<String> _handledUiRequestIds = <String>{};
   final Set<String> _handledEntryIds = <String>{};
   bool _isRunActive = false;
+  Timer? _completionTimer;
+
+  @override
+  void dispose() {
+    _completionTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -78,7 +106,8 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
         _handledUiRequestIds.add(reqId);
       }
     }
-    _isRunActive = initial.agentStatus == AgentStatus.working ||
+    _isRunActive =
+        initial.agentStatus == AgentStatus.working ||
         initial.agentStatus == AgentStatus.retrying ||
         initial.agentStatus == AgentStatus.compacting ||
         initial.isStreaming ||
@@ -87,21 +116,29 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(
-      sessionStateFamily(widget.sessionId),
-      (prev, next) {
-        final subagents = ref.read(subagentsFamily(widget.sessionId));
-        _checkNotifications(next, subagents);
-      },
-    );
+    ref.listen(sessionStateFamily(widget.sessionId), (prev, next) {
+      final subagents = ref.read(subagentsFamily(widget.sessionId));
+      _checkNotifications(next, subagents);
+    });
 
-    ref.listen<List<SubagentItem>>(
-      subagentsFamily(widget.sessionId),
-      (prev, next) {
-        final session = ref.read(sessionStateFamily(widget.sessionId));
-        _checkNotifications(session, next);
-      },
-    );
+    ref.listen<List<SubagentItem>>(subagentsFamily(widget.sessionId), (
+      prev,
+      next,
+    ) {
+      final session = ref.read(sessionStateFamily(widget.sessionId));
+      _checkNotifications(session, next);
+    });
+
+    // Workflow runs and unlinked agents keep the run going too.
+    ref.listen<bool>(backgroundAgentsRunningProvider(widget.sessionId), (
+      prev,
+      next,
+    ) {
+      _checkNotifications(
+        ref.read(sessionStateFamily(widget.sessionId)),
+        ref.read(subagentsFamily(widget.sessionId)),
+      );
+    });
 
     return const SizedBox.shrink();
   }
@@ -110,16 +147,20 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     SessionState next,
     List<SubagentItem> subagents,
   ) async {
+    // Run tracking (steps 2 and 3) happens whatever the focus: a run started
+    // while PiFrame was in front must still notify if it ends while it is not.
+    _trackRun(next, subagents);
+
     final enabled = ref.read(notificationsEnabledProvider);
     if (!enabled) return;
 
     final service = ref.read(desktopNotificationServiceProvider);
     final isFocusedCached = ref.read(appFocusProvider);
-    final isFocused = await service.checkIsAppFocused(isFocusedCached);
-    if (isFocused) return;
 
     // 1. Attention required: interactive choice, question, or confirmation dialog
-    if (next.pendingUiRequests.isNotEmpty) {
+    if (next.pendingUiRequests.isNotEmpty &&
+        !await service.checkIsAppFocused(isFocusedCached) &&
+        mounted) {
       final pendingInteraction = next.pendingUiRequests.where((r) {
         final method = r['method']?.toString();
         return r['dialog'] == true ||
@@ -138,22 +179,29 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
               sessionDisplayNameProvider(widget.sessionId),
             );
             final title = req['title']?.toString() ?? 'Attenzione richiesta';
-            final message = req['message']?.toString() ??
+            final message =
+                req['message']?.toString() ??
                 'L\'agente richiede una tua risposta o scelta.';
-            unawaited(service.showNotification(
-              title: 'Richiesta attenzione · $sessionName',
-              body: '$title: $message',
-              sessionId: widget.sessionId,
-            ));
+            unawaited(
+              service.showNotification(
+                title: 'Richiesta attenzione · $sessionName',
+                body: '$title: $message',
+                sessionId: widget.sessionId,
+              ),
+            );
           }
         }
       }
     }
+  }
 
+  void _trackRun(SessionState next, List<SubagentItem> subagents) {
     // 2. Track whether the agent is currently working or operating
     final hasRunningSubagents =
-        subagents.any((s) => !s.isUnlinked && s.isRunning);
-    final isCurrentlyOperating = next.agentStatus == AgentStatus.working ||
+        subagents.any((s) => !s.isUnlinked && s.isRunning) ||
+        ref.read(backgroundAgentsRunningProvider(widget.sessionId));
+    final isCurrentlyOperating =
+        next.agentStatus == AgentStatus.working ||
         next.agentStatus == AgentStatus.retrying ||
         next.agentStatus == AgentStatus.compacting ||
         next.isStreaming ||
@@ -162,57 +210,70 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
 
     if (isCurrentlyOperating) {
       _isRunActive = true;
+      // Still working: an answer seen a moment ago was not the final one.
+      _completionTimer?.cancel();
+      _completionTimer = null;
     }
 
     // Agent crashed or worker error: reset active run flag so no false completion is fired
     if (next.agentStatus == AgentStatus.workerError ||
         next.agentStatus == AgentStatus.error) {
       _isRunActive = false;
+      _completionTimer?.cancel();
+      _completionTimer = null;
       return;
     }
 
-    // 3. Agent completed an answer:
-    // Only fire when there was an active run that is now fully settled and idle,
-    // with NO active tools, NO streaming, NO subagents running, NO queued steering/followups,
-    // and NO pending interaction dialogs.
-    final isSettledNow = (next.agentStatus == AgentStatus.settled ||
-            next.agentStatus == AgentStatus.idle) &&
-        !next.isStreaming &&
-        !next.activeToolCalls.values.any((t) => t.isRunning) &&
-        !hasRunningSubagents &&
-        next.steeringQueue.isEmpty &&
-        next.followUpQueue.isEmpty &&
-        next.pendingUiRequests.isEmpty;
-
-    if (_isRunActive && isSettledNow && next.entries.isNotEmpty) {
-      _isRunActive = false;
-
-      SessionEntry? lastAssistantEntry;
-      for (final e in next.entries.reversed) {
-        if (e.role == 'assistant' && !e.text.contains('<task-notification>')) {
-          lastAssistantEntry = e;
-          break;
-        }
-      }
-
-      if (lastAssistantEntry != null &&
-          !_handledEntryIds.contains(lastAssistantEntry.id)) {
-        _handledEntryIds.add(lastAssistantEntry.id);
-        final sessionName = ref.read(
-          sessionDisplayNameProvider(widget.sessionId),
-        );
-        final rawText = lastAssistantEntry.text.trim();
-        final preview = rawText.isNotEmpty
-            ? (rawText.length > 120
-                ? '${rawText.substring(0, 120)}...'
-                : rawText)
-            : 'L\'agente ha completato la risposta.';
-        unawaited(service.showNotification(
-          title: 'Risposta completata · $sessionName',
-          body: preview,
-          sessionId: widget.sessionId,
-        ));
-      }
+    // 3. Agent completed its final answer: the run must stay settled for
+    // [finalAnswerQuietPeriod] with nothing left running, queued or waiting
+    // on the user, so intermediate answers between steps never notify.
+    if (_isRunActive && _isSettled(next, hasRunningSubagents)) {
+      _completionTimer ??= Timer(finalAnswerQuietPeriod, _notifyIfFinished);
     }
+  }
+
+  bool _isSettled(SessionState state, bool hasRunningSubagents) =>
+      (state.agentStatus == AgentStatus.settled ||
+          state.agentStatus == AgentStatus.idle) &&
+      !state.isStreaming &&
+      !state.activeToolCalls.values.any((t) => t.isRunning) &&
+      !hasRunningSubagents &&
+      state.steeringQueue.isEmpty &&
+      state.followUpQueue.isEmpty &&
+      state.pendingUiRequests.isEmpty;
+
+  Future<void> _notifyIfFinished() async {
+    _completionTimer = null;
+    if (!mounted || !_isRunActive) return;
+    final state = ref.read(sessionStateFamily(widget.sessionId));
+    final subagents = ref.read(subagentsFamily(widget.sessionId));
+    final hasRunningSubagents =
+        subagents.any((s) => !s.isUnlinked && s.isRunning) ||
+        ref.read(backgroundAgentsRunningProvider(widget.sessionId));
+    if (!_isSettled(state, hasRunningSubagents)) return;
+    _isRunActive = false;
+
+    final answer = finalAnswerEntry(state.entries);
+    if (answer == null || _handledEntryIds.contains(answer.id)) return;
+    _handledEntryIds.add(answer.id);
+
+    if (!ref.read(notificationsEnabledProvider)) return;
+    final service = ref.read(desktopNotificationServiceProvider);
+    final isFocused = await service.checkIsAppFocused(
+      ref.read(appFocusProvider),
+    );
+    if (isFocused || !mounted) return;
+    final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
+    final rawText = answer.text.trim();
+    final preview = rawText.length > 120
+        ? '${rawText.substring(0, 120)}...'
+        : rawText;
+    unawaited(
+      service.showNotification(
+        title: 'Risposta completata · $sessionName',
+        body: preview,
+        sessionId: widget.sessionId,
+      ),
+    );
   }
 }

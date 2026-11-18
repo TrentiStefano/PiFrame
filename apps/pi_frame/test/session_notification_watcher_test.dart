@@ -9,6 +9,7 @@ import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart';
 import 'package:pi_frame/features/transcript/subagents_provider.dart';
+import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 class MockDesktopNotificationService extends DesktopNotificationService {
@@ -106,6 +107,7 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
+    await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
     expect(mockService.sent.first.title, contains('Risposta completata'));
@@ -207,6 +209,7 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
+    await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
     expect(mockService.sent.first.title, contains('Richiesta attenzione'));
@@ -317,6 +320,7 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
+    await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
     expect(mockService.sent.first.title, contains('Risposta completata'));
@@ -381,6 +385,7 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
+    await tester.pump(finalAnswerQuietPeriod);
 
     // MUST NOT notify because subagent is still running!
     expect(mockService.sent, isEmpty);
@@ -394,6 +399,7 @@ void main() {
       ),
     ]);
     await tester.pumpAndSettle();
+    await tester.pump(finalAnswerQuietPeriod);
 
     // Now notification fires because all work has settled
     expect(mockService.sent, hasLength(1));
@@ -447,5 +453,129 @@ void main() {
 
     // Should NOT notify for old_asst_1
     expect(mockService.sent, isEmpty);
+  });
+
+  group('only the final answer notifies', () {
+    final focused = StateProvider<bool>((ref) => false);
+    final workflowRunning = StateProvider<bool>((ref) => false);
+
+    Future<(MockDesktopNotificationService, SessionStateNotifier, ProviderContainer)> pump(
+      WidgetTester tester,
+      String sid,
+    ) async {
+      final service = MockDesktopNotificationService();
+      final notifier = SessionStateNotifier(sid, null)
+        ..state = SessionState(
+          sessionId: sid,
+          sessionName: 'Final answer',
+          cwd: '/repo',
+          agentStatus: AgentStatus.settled,
+          entries: const [],
+        );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            desktopNotificationServiceProvider.overrideWithValue(service),
+            appFocusProvider.overrideWith((ref) => ref.watch(focused)),
+            notificationsEnabledProvider.overrideWith((ref) => true),
+            activeSessionIdProvider.overrideWith((ref) => sid),
+            sessionStateFamily(sid).overrideWith((ref) => notifier),
+            subagentsFamily(sid).overrideWith((ref) => _MockSubagentsNotifier()),
+            backgroundAgentsRunningProvider(sid).overrideWith((ref) => ref.watch(workflowRunning)),
+            pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: SessionNotificationWatcher()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(tester.element(find.byType(SessionNotificationWatcher)));
+      return (service, notifier, container);
+    }
+
+    SessionEntry answer(String id, String text, {List<ToolExecutionState> tools = const []}) =>
+        SessionEntry(id: id, role: 'assistant', text: text, toolCalls: tools, timestamp: 2);
+
+    testWidgets('an answer between steps does not notify; the final one does, once', (tester) async {
+      final (service, notifier, _) = await pump(tester, 'steps');
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump();
+
+      // A brief "settled" between steps (question answered, compaction, next turn).
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('mid', 'Reading the files first.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod ~/ 2);
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump(finalAnswerQuietPeriod * 2);
+      expect(service.sent, isEmpty);
+
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('mid', 'Reading the files first.'), answer('final', 'All done: tests pass.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod);
+      await tester.pumpAndSettle();
+      expect(service.sent, hasLength(1));
+      expect(service.sent.single.body, 'All done: tests pass.');
+    });
+
+    testWidgets('a running workflow keeps the answer from counting as final', (tester) async {
+      final (service, notifier, container) = await pump(tester, 'workflow');
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump();
+      container.read(workflowRunning.notifier).state = true;
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('started', 'Workflow started in the background.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod * 2);
+      expect(service.sent, isEmpty);
+
+      container.read(workflowRunning.notifier).state = false;
+      notifier.state = notifier.state.copyWith(
+        entries: [answer('started', 'Workflow started in the background.'), answer('done', 'Workflow finished.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod);
+      await tester.pumpAndSettle();
+      expect(service.sent.map((n) => n.body), ['Workflow finished.']);
+      container.read(workflowRunning.notifier).state = false;
+    });
+
+    testWidgets('a run started while PiFrame was focused still notifies if it ends unfocused', (tester) async {
+      final (service, notifier, container) = await pump(tester, 'focus');
+      container.read(focused.notifier).state = true;
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump();
+      container.read(focused.notifier).state = false;
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('done', 'Finished while you were away.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod);
+      await tester.pumpAndSettle();
+      expect(service.sent.map((n) => n.body), ['Finished while you were away.']);
+    });
+  });
+
+  test('finalAnswerEntry skips notifications and rejects a hand-off to a tool', () {
+    const tool = ToolExecutionState(toolCallId: 't', toolName: 'bash', args: {}, output: '');
+    expect(
+      finalAnswerEntry(const [
+        SessionEntry(id: 'a', role: 'assistant', text: 'Final words.', timestamp: 1),
+        SessionEntry(id: 'n', role: 'assistant', text: '<task-notification>x</task-notification>', timestamp: 2),
+      ])?.id,
+      'a',
+    );
+    expect(
+      finalAnswerEntry(const [
+        SessionEntry(id: 'b', role: 'assistant', text: 'Let me check.', toolCalls: [tool], timestamp: 1),
+      ]),
+      isNull,
+    );
+    expect(finalAnswerEntry(const [SessionEntry(id: 'c', role: 'assistant', text: ' ', timestamp: 1)]), isNull);
   });
 }

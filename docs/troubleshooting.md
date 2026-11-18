@@ -21,6 +21,23 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## System notifications for intermediate answers
+
+**Symptom:** with notifications on and PiFrame in the background, a "Risposta completata" notification arrived for answers the agent wrote between steps, not only for its final answer, so one task could send several.
+
+**Cause:** `session_notification_watcher.dart` notified on the first moment a session looked settled after working. The status reads settled for a moment between steps of one run: after a question is answered, after compaction, and between turns the agent continues by itself. Workflow runs and unlinked agents were not counted as still running, so each time a background agent reported back the main agent's reply notified. The watcher also stopped tracking a run while PiFrame was focused, so a task started in the foreground could miss its final notification.
+
+**Fix:** the completion notification now waits until the run has stayed settled for `finalAnswerQuietPeriod` (1.5 s) with nothing running (including workflows and unlinked agents), queued or waiting on the user, and fires only when the last assistant message is a text answer that does not hand off to a tool. Run tracking happens whatever the focus; focus is checked only when the notification is shown. Notifications for questions, confirmations and other input requests are unchanged.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/session_notification_watcher_test.dart
+```
+
+---
+
 ## Agent answer without a card when the turn had no steps
 
 **Symptom:** with step grouping on, an agent reply sometimes appeared without the bordered answer card and in dimmed text, while other replies in the same chat had the card.
