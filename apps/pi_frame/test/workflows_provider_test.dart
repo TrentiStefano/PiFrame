@@ -79,4 +79,28 @@ phase('Review')''';
     expect(split['wf_new']!.map((c) => c.id), ['late', 'b']);
     expect(split['']!.map((c) => c.id), ['stray', 'unknown']);
   });
+
+  test('a run whose notification never came settles once its agents go quiet', () {
+    const minute = 60 * 1000;
+    final now = 100 * minute;
+    WorkflowItem run(String id) => WorkflowItem(id: id, name: id, toolCallId: 'call_$id', timestamp: 0);
+    SubagentItem child(String id, {required int at, String status = 'completed'}) => SubagentItem(
+          id: id, name: id, status: status, isUnlinked: true, startedAt: 1000, updatedAt: at,
+        );
+
+    List<WorkflowItem> settle(List<SubagentItem> children, {Set<String> active = const {}}) =>
+        settleIdleWorkflows([run('wf')], children, activeToolCallIds: active, now: now);
+
+    // Every agent finished long ago: the run is over.
+    final idle = settle([child('a', at: 20 * minute), child('b', at: 30 * minute)]).single;
+    expect(idle.isRunning, isFalse);
+    expect(idle.status, 'completed');
+    expect(idle.endedAt, 30 * minute);
+    // An agent still works, or the last one settled moments ago (next phase starting).
+    expect(settle([child('a', at: 20 * minute), child('b', at: now, status: 'running')]).single.isRunning, isTrue);
+    expect(settle([child('a', at: now - minute)]).single.isRunning, isTrue);
+    // No agents to judge by, or the launch call itself still runs.
+    expect(settle(const []).single.isRunning, isTrue);
+    expect(settle([child('a', at: 20 * minute)], active: {'call_wf'}).single.isRunning, isTrue);
+  });
 }

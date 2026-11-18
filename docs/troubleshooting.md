@@ -21,6 +21,40 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## Agents pane reopens on close, and Git Changes cannot be expanded, while a subagent runs
+
+**Symptom:** while a subagent was working, clicking the Agents pane collapse button closed it and reopened it at once. Expanding the Git Changes pane collapsed it again straight away.
+
+**Cause:** `AgentSidecarLayout` placed the sidecar in a `Row` beside the chat, but in a `Stack` overlay when the chat was narrower than 420 px. Closing the panel, or expanding Git (which narrows the chat), switched between the two, so Flutter remounted the sidecar. On mount, its listeners fire immediately: "agents are running" reopened the panel, and "panel open" asked the shell to collapse Git.
+
+**Fix:** the sidecar layout now uses one `CustomMultiChildLayout` for both modes, so chat and sidecar stay mounted when it switches. The automatic open also happens once per running episode (tracked in a provider, not in the widget), so a panel closed while the same agents still run stays closed.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/subagents_feature_test.dart test/overflow_widths_test.dart
+```
+
+---
+
+## Subagents and workflows stuck as "running"
+
+**Symptom:** a background subagent or workflow stayed "In progress" for hours. Stopping it from the Agents pane showed it as stopped, but the main agent could not confirm it, and it was marked running again after a restart.
+
+**Cause:** a background `Agent` launch counts as running until its `<task-notification>` reaches the parent session. When the notification never arrives (for example, the Pi worker was restarted or the agent died), the daemon reported it as running forever. Workflow runs had the same problem. The Stop button only sends a stop request to the main agent and marks the agent stopped locally, so the daemon's status came back after a reload.
+
+**Fix:** `SessionIndex.getSubagents` now falls back to the child session file for a background agent with no notification: a final answer marks it completed, and 10 minutes without writes marks it settled (the same rule already used for unlinked child sessions). In the app, `settleIdleWorkflows` marks a workflow run completed when all its agents settled and none wrote for 10 minutes. A run with no agents to judge by stays running.
+
+Check from source:
+
+```bash
+cd apps/agentd && pnpm build && node --test dist/test/sessionCostPersistence.test.js
+cd apps/pi_frame && flutter test test/workflows_provider_test.dart
+```
+
+---
+
 ## Chat jumps back to the bottom while the agent answers
 
 **Symptom:** while the agent streamed the first answer of a turn, scrolling up in the chat did not stick: every streaming update pulled the view back to the bottom.

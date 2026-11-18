@@ -992,7 +992,11 @@ export class SessionIndex {
           model,
           cost,
           output: output || lastMessagePreview || agent.output,
-          status: child.isActive ? 'running' : agent.status,
+          // A background launch stays "running" in the parent until its
+          // notification arrives; one that never comes (worker restarted, agent
+          // killed) would stay running forever, so ask the child file instead.
+          status: child.isActive ? 'running' :
+            agent.status === 'running' ? childStatus(live, Date.now()) : agent.status,
           description: agent.description || lastMessagePreview,
           ...liveFields,
         };

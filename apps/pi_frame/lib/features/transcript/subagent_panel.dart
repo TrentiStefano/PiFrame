@@ -65,45 +65,77 @@ class AgentSidecarLayout extends ConsumerWidget {
 
     final hasItems = hasAgents || hasSide;
     final open = hasItems && (agentsOpen || sideOpen);
+    final panelWidth = ref.watch(agentSidecarWidthProvider);
 
-    Widget row() => Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    // One render object lays out both modes, so switching between the column
+    // and the overlay sheet never moves chat or sidecar in the element tree.
+    // Reparenting them remounted the sidecar, whose mount re-opened the panel
+    // while agents ran and collapsed the Git pane again.
+    return CustomMultiChildLayout(
+      delegate: _AgentSidecarLayoutDelegate(
+        floatBelowWidth: open ? panelWidth + 6 + kChatPaneMinWidth : null,
+      ),
       children: [
-        Expanded(child: chat),
-        sidecar,
+        LayoutId(id: _AgentSidecarSlot.chat, child: chat),
+        LayoutId(id: _AgentSidecarSlot.sidecar, child: sidecar),
       ],
-    );
-    if (!open) return row();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final panelWidth = ref.watch(agentSidecarWidthProvider);
-        final floats =
-            constraints.maxWidth - (panelWidth + 6) < kChatPaneMinWidth;
-        if (!floats) return row();
-        // The sheet stops above the composer, which sits at the bottom of the chat,
-        // so the send controls stay reachable while the sheet is open.
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            chat,
-            Positioned(
-              top: 0,
-              right: 0,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight:
-                      constraints.maxHeight * kAgentSheetMaxHeightFraction,
-                ),
-                child: sidecar,
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
+
+enum _AgentSidecarSlot { chat, sidecar }
+
+/// Wide: chat and sidecar side by side. Narrower than [floatBelowWidth]: the
+/// sidecar floats over the chat's top-right corner as a sheet that stops above
+/// the composer, so the send controls stay reachable.
+class _AgentSidecarLayoutDelegate extends MultiChildLayoutDelegate {
+  final double? floatBelowWidth;
+
+  _AgentSidecarLayoutDelegate({required this.floatBelowWidth});
+
+  @override
+  void performLayout(Size size) {
+    final threshold = floatBelowWidth;
+    final floats = threshold != null && size.width < threshold;
+    final sidecarSize = layoutChild(
+      _AgentSidecarSlot.sidecar,
+      floats
+          // Width unbounded like the right-anchored sheet it replaces: the
+          // panel sizes itself to its adjustable width.
+          ? BoxConstraints(
+              maxHeight: size.height * kAgentSheetMaxHeightFraction,
+            )
+          : BoxConstraints(
+              maxWidth: size.width,
+              minHeight: size.height,
+              maxHeight: size.height,
+            ),
+    );
+    final chatWidth = floats
+        ? size.width
+        : (size.width - sidecarSize.width).clamp(0.0, size.width);
+    layoutChild(
+      _AgentSidecarSlot.chat,
+      BoxConstraints.tight(Size(chatWidth, size.height)),
+    );
+    positionChild(_AgentSidecarSlot.chat, Offset.zero);
+    positionChild(
+      _AgentSidecarSlot.sidecar,
+      Offset(size.width - sidecarSize.width, 0),
+    );
+  }
+
+  @override
+  bool shouldRelayout(_AgentSidecarLayoutDelegate oldDelegate) =>
+      oldDelegate.floatBelowWidth != floatBelowWidth;
+}
+
+/// Running episodes whose panel was already opened automatically, per session.
+/// It outlives the sidecar widget, so a remount (session switch, layout change)
+/// does not open again a panel the user closed while the same agents still run.
+final _agentsAutoOpenedFamily = StateProvider.family<bool, String>(
+  (ref, sessionId) => false,
+);
 
 class AgentActivitySidecar extends ConsumerStatefulWidget {
   final String sessionId;
@@ -133,15 +165,21 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
       previous,
       next,
     ) {
-      if (next && previous != true) {
-        // Deferred: the change can surface while another widget is building.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state =
-                true;
-          }
-        });
-      }
+      // Deferred: the change can surface while another widget is building.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final autoOpened = ref.read(_agentsAutoOpenedFamily(sessionId).notifier);
+        if (!next) {
+          autoOpened.state = false;
+          return;
+        }
+        // Open once per running episode: closing the panel while the same
+        // agents still work must stick.
+        if (autoOpened.state) return;
+        autoOpened.state = true;
+        ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state =
+            true;
+      });
     }, fireImmediately: true);
     ref.listenManual<bool>(agentActivityPanelOpenProvider(sessionId), (
       previous,

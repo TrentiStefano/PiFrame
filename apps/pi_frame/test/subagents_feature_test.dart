@@ -29,6 +29,25 @@ class _MockSubagentsNotifier extends SubagentsNotifier {
   }
 }
 
+class _MountCounter extends StatefulWidget {
+  final VoidCallback onMount;
+  const _MountCounter({required this.onMount});
+
+  @override
+  State<_MountCounter> createState() => _MountCounterState();
+}
+
+class _MountCounterState extends State<_MountCounter> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onMount();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
+}
+
 class _MockTodoNotifier extends TodoNotifier {
   _MockTodoNotifier(super.ref, super.sessionId, List<TodoItem> initial) {
     state = initial;
@@ -336,6 +355,76 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
+    });
+
+    testWidgets('closing the agents panel while an agent runs keeps it closed and Git stays open', (tester) async {
+      const subagents = [
+        SubagentItem(id: 'sub_run', name: 'Busy Agent', status: 'running'),
+      ];
+      var opened = 0;
+      var chatMounts = 0;
+      Widget app(double width) => ProviderScope(
+            overrides: [
+              sessionStateFamily('sess_run').overrideWith(
+                (ref) => SessionStateNotifier('sess_run', null)
+                  ..state = const SessionState(sessionId: 'sess_run', cwd: '/repo'),
+              ),
+              subagentsFamily('sess_run').overrideWith(
+                (ref) => _MockSubagentsNotifier(ref, 'sess_run', subagents),
+              ),
+            ],
+            child: MaterialApp(
+              theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: width,
+                    height: 700,
+                    child: AgentSidecarLayout(
+                      sessionId: 'sess_run',
+                      chat: _MountCounter(onMount: () => chatMounts++),
+                      sidecar: AgentActivitySidecar(
+                        key: const ValueKey('agent_activity_sess_run'),
+                        sessionId: 'sess_run',
+                        onOpened: () => opened++,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+      // Narrow enough that the open panel floats over the chat.
+      await tester.pumpWidget(app(600));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget,
+          reason: 'a running agent opens the panel once');
+      expect(opened, 1);
+
+      await tester.tap(find.byKey(const ValueKey('agent-activity-close-btn')));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing,
+          reason: 'closing must not bounce back open while the agent still runs');
+      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
+      expect(opened, 1, reason: 'the shell must not collapse Git again');
+      expect(chatMounts, 1, reason: 'switching between overlay and column keeps the chat mounted');
+
+      // Reopen at a width where the panel sits beside the chat, then narrow it.
+      await tester.pumpWidget(app(1200));
+      await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
+      await tester.pumpAndSettle();
+      expect(opened, 2);
+      await tester.pumpWidget(app(600));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+      expect(opened, 2, reason: 'a narrower chat (Git expanded) must not collapse Git again');
+      expect(chatMounts, 1);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 6));
     });
 
     testWidgets('agents list running first, then settled, each newest launch first', (tester) async {
