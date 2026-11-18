@@ -21,6 +21,23 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## Chat jumps back to the bottom while the agent answers
+
+**Symptom:** while the agent streamed the first answer of a turn, scrolling up in the chat did not stick: every streaming update pulled the view back to the bottom.
+
+**Cause:** the answer-based windowing change reset the "user scrolled up" flag on every rebuild whose last entry was a user message. While the agent answers, the prompt is still the last committed entry, so each update re-enabled auto-follow.
+
+**Fix:** `transcript_view.dart` tracks the entry count and resets the flag only when a new user message arrives. Sending a message still scrolls to the bottom; reading earlier messages during a run is no longer interrupted.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/transcript_scroll_test.dart
+```
+
+---
+
 ## Chat history windowing by agent answers, and a card border shown too early while running
 
 **Symptom:**
