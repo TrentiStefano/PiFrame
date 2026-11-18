@@ -1,65 +1,66 @@
-# Verifica locale prima di una pull request
+# Local verification before a pull request
 
-Dopo il merge su `main` partono i workflow GitHub (`ci.yml` e `release.yml`). Se falliscono, hanno già consumato minuti di runner (Windows ×2, macOS ×10) e `main` è rotto. Questi due comandi eseguono gli stessi passi **sulla tua macchina**, prima della PR.
+After a merge into `main`, the GitHub workflows (`ci.yml` and `release.yml`) start. If they fail, they have already used runner minutes (Windows ×2, macOS ×10) and `main` is broken. These two commands run the same steps **on your machine**, before the PR.
 
-## Comandi
+## Commands
 
 ```bash
-pnpm run verify            # verifica CI + validazione release
-pnpm run pr                # verify + push del ramo + apertura della PR (gh pr create)
+pnpm run verify            # CI checks + release validation
+pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
 
-Opzioni (valgono per entrambi; con `pnpm` vanno dopo `--`):
+Options (they work for both commands; with `pnpm` they go after `--`):
 
-| Opzione | Effetto |
+| Option | Effect |
 |---|---|
-| `--release` | aggiunge `flutter build web` e `flutter build` del desktop del tuo sistema, come nel job di build degli installer |
-| `--e2e` | aggiunge il test iPhone emulato della web app remota (`tools/remote-e2e`, serve Playwright in `~/.pf-e2e`, vedi il suo README) |
-| `--force` | ignora il risultato in cache e riesegue tutto |
-| `--no-merge` | verifica solo `HEAD`, senza fare il merge di `origin/main` |
-| `--keep` | non cancella il worktree temporaneo (debug) |
-| `--verbose` | mostra l'output di ogni passo invece di salvarlo e mostrare solo gli errori |
+| `--release` | adds `flutter build web` and the `flutter build` for your desktop OS, as in the installer build job |
+| `--e2e` | adds the emulated-iPhone test of the remote web app (`tools/remote-e2e`; it needs Playwright in `~/.pf-e2e`, see its README) |
+| `--force` | ignores the cached result and runs everything again |
+| `--no-merge` | checks only `HEAD`, without merging `origin/main` |
+| `--keep` | keeps the temporary worktree (for debugging) |
+| `--verbose` | prints the output of every step instead of saving it and printing only errors |
 
-`pnpm run pr` accetta anche gli argomenti di `gh pr create`, per esempio `pnpm run pr -- --title "fix: ..." --body "..."`. Senza titolo e corpo usa `--fill` (dai commit).
+`pnpm run pr` also takes `gh pr create` arguments, for example `pnpm run pr -- --title "fix: ..." --body "..."`. Without a title and body it uses `--fill` (from the commits).
 
-## Cosa controlla
+## What it checks
 
-`verify` controlla il **commit** corrente (`HEAD`) con dentro `origin/main`, in un worktree temporaneo accanto al repo (`<repo>-verify-<pid>`, non nella cartella temp del sistema: alcuni test falliscono se il repo sta lì). Così verifica ciò che `main` diventerà dopo il merge, non solo il tuo ramo. Se il merge con `origin/main` ha conflitti, si ferma e te lo dice.
+`verify` checks the current **commit** (`HEAD`) merged with `origin/main`, in a temporary worktree next to the repository (`<repo>-verify-<pid>`, not in the system temp folder: some tests fail when the repository is there). It checks what `main` will be after the merge, not only your branch. If the merge with `origin/main` has conflicts, it stops and tells you.
 
-Passi (nello stesso ordine dei workflow):
+Steps (in the same order as the workflows):
 
 1. `pnpm install --frozen-lockfile`
 2. `node tools/recon/verify.ts`
-3. validazione degli schemi PCP
-4. `pnpm -r run build` (compresa la build del bundle del daemon)
+3. PCP schema validation
+4. `pnpm -r run build` (including the daemon bundle build)
 5. `pnpm -r run test`
 6. `pnpm run check:notices`
-7. `pnpm run check:version` (versioni sincronizzate)
-8. `check:agentd-bundle` e `smoke:agentd-bundle`
-9. test del nome della release Windows
-10. `flutter analyze` e `flutter test` su `pi_frame_protocol`, `pi_frame_theme` e `pi_frame`
-11. con `--release`: `flutter build web` e `flutter build <desktop>`
-12. con `--e2e`: test iPhone emulato
+7. `pnpm run check:version` (synchronized versions)
+8. `check:agentd-bundle` and `smoke:agentd-bundle`
+9. Windows release-name tests
+10. Flutter dependencies (`tools/scripts/setup-flutter.js`)
+11. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+12. with `--release`: `flutter build web` and `flutter build <desktop>`
+13. with `--e2e`: emulated-iPhone test
 
-L'output completo è in `.git/verify-ci/last.log`. Se un passo fallisce, lo script stampa le ultime righe e si ferma: con `pnpm run pr` non viene fatto nessun push e nessuna PR.
+The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 
 ## Cache
 
-Un risultato positivo vale per lo stesso contenuto (hash dell'albero), la stessa base (`origin/main`) e lo stesso livello. Rilanciarlo senza modifiche è istantaneo. Dopo un nuovo commit, o se `origin/main` è avanzato, si riesegue.
+A passing result is valid for the same content (tree hash), the same base (`origin/main`) and the same level. Running it again without changes is instant. After a new commit, or when `origin/main` has moved, it runs again.
 
-## Prerequisiti
+## Prerequisites
 
-- Albero di lavoro **pulito**: `verify` controlla ciò che hai committato, quindi fai prima il commit.
-- `git`, `pnpm`, Node e Flutter (versioni dei workflow: vedi `.github/workflows/release.yml`; lo script avvisa se differiscono).
-- Per `pnpm run pr`: GitHub CLI (`gh`) autenticato con `gh auth login`.
+- A **clean** working tree: `verify` checks what you committed, so commit first.
+- `git`, `pnpm`, Node and Flutter (the workflow versions are in `.github/workflows/release.yml`; the script warns when yours differ).
+- For `pnpm run pr`: the GitHub CLI (`gh`), signed in with `gh auth login`.
 
-## Limiti
+## Limits
 
-- Gira su un solo sistema operativo: i job Linux (`.deb`, screenshot con `xvfb`) e macOS (`.dmg`) dei workflow non sono riprodotti, e differenze di path o maiuscole/minuscole su Linux possono sfuggire.
-- Alcuni test rigenerano screenshot tracciati (`docs/design-evidence`, `website/assets`). Non è un errore, ma se li vedi modificati nel tuo albero dopo aver lanciato i test a mano, **non committarli** (`git checkout -- docs/design-evidence website/assets/img/ui`). `verify` lavora in un worktree usa e getta, quindi non te li lascia.
-- È un controllo locale: si può aggirare. Non sostituisce i workflow GitHub, li protegge dai fallimenti evitabili.
+- It runs on one operating system only: the Linux (`.deb`, screenshots with `xvfb`) and macOS (`.dmg`) jobs of the workflows are not reproduced, and path or letter-case differences on Linux can slip through.
+- Some tests regenerate tracked screenshots (`docs/design-evidence`, `website/assets`). This is not an error, but if you see them changed in your tree after running tests by hand, **do not commit them** (`git checkout -- docs/design-evidence website/assets`). `verify` works in a throw-away worktree, so it does not leave them behind.
+- It is a local check and can be bypassed. It does not replace the GitHub workflows; it protects them from avoidable failures.
 
-## Esempio
+## Example
 
 ```text
 $ pnpm run verify
