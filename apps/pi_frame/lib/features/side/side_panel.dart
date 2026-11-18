@@ -261,33 +261,43 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 ),
                 const SizedBox(width: FrameSpace.x1),
               ],
-              // Badge 'Side · read-only'
-              Container(
-                key: const ValueKey('side-read-only-badge'),
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(color: tokens.border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.call_split_outlined,
-                      size: 13,
-                      color: tokens.textSecondary,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      strings.sideReadOnlyBadge,
-                      style: FrameText.of(context).caption.copyWith(
+              // Badge 'Side · read-only'. Flexible so a narrow pane ellipsizes
+              // it instead of overflowing the header row.
+              Flexible(
+                child: Container(
+                  key: const ValueKey('side-read-only-badge'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.call_split_outlined,
+                        size: 13,
                         color: tokens.textSecondary,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: tokens.monoFontFamily,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          strings.sideReadOnlyBadge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: FrameText.of(context).caption.copyWith(
+                            color: tokens.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
