@@ -22,10 +22,11 @@ pnpm harness type <text> [--into selector] [--run name]
 pnpm harness key <name> [--ctrl --shift --alt --meta] [--run name]
 pnpm harness scroll <selector> <dy> [--run name]
 pnpm harness tree [--filter text] [--limit N] [--depth N] [--run name]
-pnpm harness media [--text-scale 1.5] [--reduce-motion on|off] [--brightness light|dark] [--reset] [--run name]
+pnpm harness media [--text-scale 1.5] [--reduce-motion on|off|system] [--brightness light|dark] [--reset] [--run name]
 pnpm harness state [--run name]
 pnpm harness resize <width>x<height> [--run name]
 pnpm harness shot [label] [--out path] [--run name]
+pnpm harness record [label] [--duration ms] [--fps n] [--scale n] [--crop x,y,w,h] [--do "<command>"] [--out dir] [--run name]
 pnpm harness reload|restart|rebuild [--daemon] [--run name]
 pnpm harness logs [--lines 100] [--run name]
 pnpm harness stop [--run name | --all]
@@ -58,7 +59,20 @@ Scenario user messages echo the prompt you send (`{{prompt}}`) with the current 
 
 In Git Bash on Windows, set `MSYS_NO_PATHCONV=1` before `pnpm harness type "/"`; otherwise the shell rewrites `/` to `C:/Program Files/Git/`.
 
-Media overrides exist only in harness mode. `reduce-motion off` clears the harness request; OS and app reduce-motion preferences remain active. `state` reports the effective media values and current harness overrides.
+Media overrides exist only in harness mode. A harness `reduce-motion on` or `off` wins over the OS setting and the app's "Reduce animations" preference. Runs start with `off` (animations on), and `--reset` returns to it. `reduce-motion system` follows the OS and app settings again, which is what you need to test the Settings toggle. `start` deletes the run home's saved `reduced_motion_settings.json`, so a toggle from an earlier run does not carry over. `state` reports the effective media values and current harness overrides.
+
+## Recording animations
+
+`pnpm harness record <label>` captures a frame sequence into `scratch/harness/<run>/<time>-<label>/`: `frame-NNN.png`, `manifest.json` (frame times and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced, numbered frames in one image) and `anim.gif`. Defaults: 2000 ms, 12 fps requested, scale 0.5. Each frame is a real screenshot, so the real rate is lower (about 6-10 fps at 1400x900); motion faster than ~150 ms shows as a few steps.
+
+- `--do "<command>"` runs one harness command right after the first frame, e.g. `--do "tap key:composer-send-btn"`; its exit code and output go in the manifest.
+- `--crop x,y,w,h` (logical pixels) crops the sheet and GIF; combine it with `--scale 1` to look closely at a spinner, border or small transition.
+
+```sh
+pnpm harness type "hello" --into key:composer-input-area
+pnpm harness record send --duration 2500 --do "tap key:composer-send-btn"
+pnpm harness record composer --scale 1 --crop 0,820,800,80
+```
 
 ## Feature → how to reach it
 

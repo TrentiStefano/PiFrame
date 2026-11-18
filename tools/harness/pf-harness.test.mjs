@@ -10,7 +10,10 @@ import {
   listScenarios,
   parseArgs,
   parseSelector,
+  recordPlan,
+  sampleFrames,
   seedHarnessHome,
+  splitCommandLine,
   validateScenarioName,
   writeFakePiShims,
 } from './pf-harness.mjs';
@@ -90,4 +93,32 @@ test('writeFakePiShims creates a fresh run home before writing the shims', () =>
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }
+});
+
+test('record plans default to 2 s at 12 fps and half scale, and validate options', () => {
+  assert.deepEqual(recordPlan({}), { duration: 2000, fps: 12, scale: 0.5, crop: null, action: null });
+  const plan = recordPlan({ duration: '800', fps: '20', scale: '1', crop: '10,20,300,200', do: 'tap "text:New session#2"' });
+  assert.deepEqual(plan.crop, { x: 10, y: 20, width: 300, height: 200 });
+  assert.deepEqual(plan.action, ['tap', 'text:New session#2']);
+  assert.throws(() => recordPlan({ fps: '0' }), /--fps/);
+  assert.throws(() => recordPlan({ duration: '90000' }), /--duration/);
+  assert.throws(() => recordPlan({ crop: '1,2,3' }), /--crop/);
+  assert.throws(() => recordPlan({ do: 'stop' }), /--do/);
+});
+
+test('splitCommandLine keeps quoted arguments together', () => {
+  assert.deepEqual(splitCommandLine(`type "hello world" --into key:composer-input-area`), ['type', 'hello world', '--into', 'key:composer-input-area']);
+  assert.deepEqual(splitCommandLine(`tap 'text:Workspace planning'`), ['tap', 'text:Workspace planning']);
+});
+
+test('contact sheets sample evenly and keep the first and last frame', () => {
+  assert.deepEqual(sampleFrames(5), [0, 1, 2, 3, 4]);
+  const picked = sampleFrames(25, 12);
+  assert.equal(picked.length, 12);
+  assert.equal(picked[0], 0);
+  assert.equal(picked[11], 24);
+});
+
+test('media accepts --reduce-motion system', () => {
+  assert.deepEqual(parseArgs(['--reduce-motion', 'system']).options, { 'reduce-motion': 'system' });
 });

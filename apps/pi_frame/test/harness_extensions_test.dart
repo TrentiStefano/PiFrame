@@ -144,6 +144,38 @@ void main() {
     expect(appPreference.disableAnimations, isTrue);
   });
 
+  test('a harness motion choice wins over the OS and the app preference', () {
+    const reducedOs = MediaQueryData(disableAnimations: true);
+
+    // The default harness run animates even with reduce-motion set elsewhere.
+    final animated = applyHarnessMediaOverrides(
+      reducedOs,
+      harnessEnabled: true,
+      reduceMotionPreference: true,
+      overrides: kHarnessDefaultMediaOverrides,
+    );
+    expect(kHarnessDefaultMediaOverrides.reduceMotion, isFalse);
+    expect(animated.disableAnimations, isFalse);
+
+    // "system" (null) follows the OS and the app preference again.
+    final system = applyHarnessMediaOverrides(
+      const MediaQueryData(),
+      harnessEnabled: true,
+      reduceMotionPreference: true,
+      overrides: kHarnessDefaultMediaOverrides.copyWith(followSystemMotion: true),
+    );
+    expect(system.disableAnimations, isTrue);
+
+    // Outside harness mode the override is ignored.
+    final normal = applyHarnessMediaOverrides(
+      reducedOs,
+      harnessEnabled: false,
+      reduceMotionPreference: false,
+      overrides: kHarnessDefaultMediaOverrides,
+    );
+    expect(normal.disableAnimations, isTrue);
+  });
+
   testWidgets('pointer dispatch supports tapAt, rightClick, and drag', (
     tester,
   ) async {

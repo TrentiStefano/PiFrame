@@ -88,7 +88,8 @@ To check every feature without a real Pi:
 - `pnpm harness start --seed` creates isolated test data: a Git repository with changes, sessions (including a 150-message history and a hidden subagent), a pinned session and two MCP servers.
 - `pnpm harness scenario <name>` changes fake-pi's behavior for the next prompt, without a restart. `pnpm harness scenarios` lists the scenarios, for example `provider-error`, `edit-files` (enables **Review changes**), `subagents`, `todos`, `ui-question-preview`, `session-tree`.
 - fake-pi also answers `pi list/install/remove/update` and `pi mcp list`, so the Packages, Agents and MCP tabs show realistic data.
-- `pnpm harness media --text-scale 1.4 --reduce-motion on` simulates text scaling and reduced motion.
+- `pnpm harness media --text-scale 1.4 --reduce-motion on` simulates text scaling and reduced motion. Harness runs start with animations on, even if the OS or an earlier run turned on reduced motion; `--reduce-motion system` follows those settings again.
+- `pnpm harness record <label> [--duration ms] [--do "tap key:..."]` records an animation as numbered frames plus, with ffmpeg installed, a contact sheet (`sheet.png`) and a GIF, so you can review motion frame by frame.
 
 Commands, selectors and details: [tools/harness/README.md](../tools/harness/README.md).
 

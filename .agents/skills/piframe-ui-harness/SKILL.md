@@ -30,7 +30,7 @@ pnpm harness tree
 
 Use selectors from the tree: `key:<key>` or `text:<text>`; append `#N` to target a matching index, e.g. `text:New session#2`. Tree entries include covered widgets and button tooltips/labels; `truncated` reports a reached cap. Prefer stable `ValueKey<String>` keys. Add one to any control that lacks a stable key.
 
-Drive the app with `pnpm harness tap <selector>`, `tapAt <x> <y>`, `rightClick <selector>`, `doubleTap <selector>`, `longPress <selector>`, `drag <selector> <dx> <dy>`, `type <text> [--into <selector>]`, `key <name>`, `hover <selector>`, `scroll <selector> <dy>`, and `resize <WxH>`. Inspect bounded widget trees with `tree [--filter text] [--limit N] [--depth N]`. Set harness-only media with `media [--text-scale 1.5] [--reduce-motion on|off] [--brightness light|dark]` or restore defaults with `media --reset`. Capture and inspect a real screenshot:
+Drive the app with `pnpm harness tap <selector>`, `tapAt <x> <y>`, `rightClick <selector>`, `doubleTap <selector>`, `longPress <selector>`, `drag <selector> <dx> <dy>`, `type <text> [--into <selector>]`, `key <name>`, `hover <selector>`, `scroll <selector> <dy>`, and `resize <WxH>`. Inspect bounded widget trees with `tree [--filter text] [--limit N] [--depth N]`. Set harness-only media with `media [--text-scale 1.5] [--reduce-motion on|off|system] [--brightness light|dark]` or restore defaults with `media --reset`. Capture and inspect a real screenshot:
 
 ```sh
 pnpm harness shot <descriptive-label>
@@ -42,6 +42,21 @@ Read the generated PNG. Critique the actual UI, then edit `apps/pi_frame/lib/` a
 - `pnpm harness restart` for state or initialization changes.
 - `pnpm harness rebuild` for native, `pubspec`, or `main` changes.
 - `pnpm harness rebuild --daemon` for `apps/agentd` changes.
+
+### Recording animations
+
+Runs start with animations on, whatever the OS or the harness home's "Reduce animations" setting. To study motion, record a frame sequence instead of a single shot:
+
+```sh
+pnpm harness record <label> [--duration 2000] [--fps 12] [--scale 0.5] [--crop x,y,w,h] [--do "<harness command>"]
+```
+
+- `--do` runs one interaction right after the first frame, so the recording shows what it triggers, e.g. `--do "tap key:composer-send-btn"`.
+- `--crop` takes logical pixels; use it with `--scale 1` to zoom in on a small animation such as a spinner or a border.
+- The output folder holds `frame-NNN.png`, `manifest.json` (each frame's time and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced frames, numbered, in one image) and `anim.gif`.
+- Read `sheet.png` first to see the whole animation at once, then open single frames for detail. Capture runs at about 6-10 fps, so very fast motion (under ~150 ms) shows as a few steps.
+
+`media --reduce-motion on` checks the reduced-motion version, `media --reduce-motion system` follows the OS and the app setting (needed to test the Settings toggle), and `media --reset` goes back to animations on.
 
 Run `pnpm harness stop` when done. Always stop the run, including after screenshot review.
 
@@ -61,7 +76,7 @@ Example feature → route recipes:
 - Composer/editor/question previews: `ui-input`, `ui-editor`, `ui-question-preview`.
 - Rich transcript, context, sessions, slash commands, steer queue: `rich-content`, `transcript-entries`, `context-high`, `session-tree`, `long-history`, `slash-commands`, `steer-queue`.
 
-`media --reduce-motion off` clears only the harness override; operating-system and app-level reduce-motion settings stay active. `state` reports the effective media values and active override values.
+A harness `--reduce-motion on|off` wins over the operating-system and app-level settings; runs start with `off`. `system` follows those settings again. `start` also deletes the run home's saved "Reduce animations" preference. `state` reports the effective media values and active override values.
 
 ## Fake-pi scenario guide
 

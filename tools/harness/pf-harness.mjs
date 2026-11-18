@@ -366,6 +366,9 @@ function prepareHome(home, scenario, size, device, useRealPi) {
   fs.mkdirSync(path.join(home, 'pi-agent', 'sessions'), { recursive: true });
   // Deliberately write a clean config. Never copy user's ~/.piframe config or piPath.
   fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({}), { mode: 0o600 });
+  // A "Reduce animations" toggle from an earlier run must not carry over:
+  // the run home persists between runs, and agents need to see the motion.
+  fs.rmSync(path.join(home, '.piframe', 'reduced_motion_settings.json'), { force: true });
   const shim = writeFakePiShims(home);
   writeScenarioControlFile(home, scenario);
   const startedAt = new Date().toISOString();
@@ -723,12 +726,154 @@ async function convenience(command, positional, options, runName) {
   }
   if (command === 'media') {
     if (options['text-scale'] !== undefined && (!Number.isFinite(Number(options['text-scale'])) || Number(options['text-scale']) <= 0)) throw new Error('--text-scale must be a positive number');
-    if (options['reduce-motion'] !== undefined && !['on', 'off'].includes(options['reduce-motion'])) throw new Error('--reduce-motion must be on or off');
+    if (options['reduce-motion'] !== undefined && !['on', 'off', 'system'].includes(options['reduce-motion'])) throw new Error('--reduce-motion must be on, off or system');
     if (options.brightness !== undefined && !['light', 'dark'].includes(options.brightness)) throw new Error('--brightness must be light or dark');
     if (!options.reset && Object.keys(options).every((key) => key === 'run')) throw new Error('media needs an override or --reset');
   }
   if (command === 'resize' && (!Number.isInteger(params.width) || !Number.isInteger(params.height))) throw new Error('resize expects WxH');
   console.log(JSON.stringify(await invokeExtension(state, ext, params), null, 2));
+}
+
+/** Splits a command line into arguments, keeping "quoted parts" together. */
+export function splitCommandLine(line) {
+  const args = [];
+  const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let match;
+  while ((match = pattern.exec(String(line)))) args.push(match[1] ?? match[2] ?? match[3]);
+  return args;
+}
+
+/** Validates `record` options and fills in defaults. */
+export function recordPlan(options = {}) {
+  const duration = Number(options.duration ?? 2000);
+  const fps = Number(options.fps ?? 12);
+  const scale = Number(options.scale ?? 0.5);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 60000) throw new Error('--duration must be between 1 and 60000 ms');
+  if (!Number.isFinite(fps) || fps <= 0 || fps > 60) throw new Error('--fps must be between 1 and 60');
+  if (!Number.isFinite(scale) || scale <= 0 || scale > 2) throw new Error('--scale must be between 0 and 2');
+  let crop = null;
+  if (options.crop !== undefined) {
+    const parts = String(options.crop).split(',').map(Number);
+    if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n) || n < 0) || parts[2] === 0 || parts[3] === 0) {
+      throw new Error('--crop expects x,y,width,height in logical pixels');
+    }
+    crop = { x: parts[0], y: parts[1], width: parts[2], height: parts[3] };
+  }
+  const action = options.do === undefined ? null : splitCommandLine(options.do);
+  if (action && (action.length === 0 || ['record', 'start', 'stop', 'rebuild', 'seed'].includes(action[0]))) {
+    throw new Error('--do expects one harness interaction, for example --do "tap key:composer-send-btn"');
+  }
+  return { duration, fps, scale, crop, action };
+}
+
+/** Evenly picks up to `max` frame indexes, always keeping the first and last. */
+export function sampleFrames(count, max = 12) {
+  if (count <= max) return Array.from({ length: count }, (_, i) => i);
+  return Array.from({ length: max }, (_, i) => Math.round((i * (count - 1)) / (max - 1)));
+}
+
+async function findFfmpeg() {
+  try {
+    await execFileAsync('ffmpeg', ['-version'], { windowsHide: true });
+    return 'ffmpeg';
+  } catch { return null; }
+}
+
+/** Builds the ffmpeg filter that crops (logical px times the capture scale). */
+function cropFilter(plan) {
+  if (!plan.crop) return '';
+  const px = (value) => Math.round(value * plan.scale);
+  return `crop=${px(plan.crop.width)}:${px(plan.crop.height)}:${px(plan.crop.x)}:${px(plan.crop.y)},`;
+}
+
+async function writeContactSheet(ffmpeg, outDir, frames, plan) {
+  const picked = sampleFrames(frames.length);
+  const columns = Math.min(4, picked.length);
+  const rows = Math.ceil(picked.length / columns);
+  const select = picked.map((n) => `eq(n\\,${n})`).join('+');
+  const input = ['-y', '-loglevel', 'error', '-start_number', '0', '-i', path.join(outDir, 'frame-%03d.png')];
+  const output = ['-frames:v', '1', '-fps_mode', 'vfr', path.join(outDir, 'sheet.png')];
+  const tile = `tile=${columns}x${rows}:padding=4:color=gray`;
+  try {
+    // Each tile is labelled with its frame number, to match manifest.json.
+    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',drawtext=text='%{n}':x=6:y=6:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.6,${tile}`, ...output], { windowsHide: true });
+  } catch {
+    // drawtext needs a font backend that some ffmpeg builds lack.
+    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',${tile}`, ...output], { windowsHide: true });
+  }
+  return picked;
+}
+
+/**
+ * Captures a timed frame sequence from the running app: one PNG per frame,
+ * a manifest with each frame's time, and, when ffmpeg is installed, a
+ * contact sheet (sheet.png) and an animated GIF (anim.gif). `--do` runs one
+ * harness interaction right after the first frame, to film what it triggers.
+ */
+async function recordCommand(positional, options, runName) {
+  const { state } = requireState(runName);
+  const plan = recordPlan(options);
+  const label = (positional[0] || 'recording').replace(/[^a-zA-Z0-9._-]+/g, '-');
+  const outDir = options.out
+    ? path.resolve(options.out)
+    : path.join(ROOT, 'scratch', 'harness', runName, `${new Date().toISOString().replace(/[:.]/g, '-')}-${label}`);
+  fs.mkdirSync(outDir, { recursive: true });
+  const frames = [];
+  const interval = 1000 / plan.fps;
+  const started = performance.now();
+  let actionRun = null;
+  for (let index = 0; ; index++) {
+    const at = performance.now() - started;
+    if (index > 0 && at > plan.duration) break;
+    const file = `frame-${String(index).padStart(3, '0')}.png`;
+    const result = await invokeExtension(state, 'screenshot', { path: path.join(outDir, file), pixelRatio: String(plan.scale) });
+    if (result?.ok === false) throw new Error(`Frame ${index} failed: ${result.error}`);
+    frames.push({ file, ms: Math.round(at) });
+    if (index === 0 && plan.action) {
+      actionRun = new Promise((resolve) => {
+        const child = spawn(process.execPath, [SCRIPT, ...plan.action, '--run', runName], { cwd: ROOT, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        let output = '';
+        child.stdout.on('data', (chunk) => { output += chunk; });
+        child.stderr.on('data', (chunk) => { output += chunk; });
+        child.on('close', (code) => resolve({ code, output: output.trim() }));
+      });
+    }
+    const wait = (index + 1) * interval - (performance.now() - started);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+  const action = actionRun ? await actionRun : null;
+  const span = frames.length > 1 ? frames[frames.length - 1].ms - frames[0].ms : 0;
+  const actualFps = span > 0 ? Number((((frames.length - 1) * 1000) / span).toFixed(1)) : 0;
+  const manifest = {
+    ok: true,
+    dir: outDir,
+    frames: frames.length,
+    durationMs: plan.duration,
+    requestedFps: plan.fps,
+    actualFps,
+    scale: plan.scale,
+    crop: plan.crop,
+    action: plan.action?.join(' ') ?? null,
+    actionResult: action ? { exitCode: action.code, output: action.output.slice(0, 2000) } : null,
+  };
+
+  const ffmpeg = await findFfmpeg();
+  if (!ffmpeg) {
+    manifest.note = 'ffmpeg not found on PATH: only the PNG frames were saved (no sheet.png or anim.gif).';
+  } else if (frames.length > 1) {
+    try {
+      manifest.sheetFrames = await writeContactSheet(ffmpeg, outDir, frames, plan);
+      manifest.sheet = path.join(outDir, 'sheet.png');
+    } catch (error) { manifest.sheetError = String(error.message).slice(0, 500); }
+    try {
+      await execFileAsync(ffmpeg, ['-y', '-loglevel', 'error', '-framerate', String(actualFps || plan.fps), '-start_number', '0',
+        '-i', path.join(outDir, 'frame-%03d.png'), '-vf', `${cropFilter(plan)}split[a][b];[a]palettegen[p];[b][p]paletteuse`,
+        path.join(outDir, 'anim.gif')], { windowsHide: true });
+      manifest.gif = path.join(outDir, 'anim.gif');
+    } catch (error) { manifest.gifError = String(error.message).slice(0, 500); }
+  }
+  fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify({ ...manifest, frameTimes: frames }, null, 2));
+  console.log(JSON.stringify({ ...manifest, firstFrame: path.join(outDir, frames[0].file), lastFrame: path.join(outDir, frames[frames.length - 1].file) }, null, 2));
 }
 
 async function tailFile(file, lines) {
@@ -763,7 +908,7 @@ async function main(argv) {
   const { positional, options } = parseArgs(argv.slice(1));
   const runName = options.run || 'default';
   if (!command || command === 'help' || command === '--help') {
-    console.log('Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|reload|restart|rebuild|logs|status|stop> [options]'); return;
+    console.log('Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|record|reload|restart|rebuild|logs|status|stop> [options]'); return;
   }
   if (command === '__supervise') {
     const home = options.home;
@@ -787,6 +932,7 @@ async function main(argv) {
     return;
   }
   if (command === 'call') return callCommand(positional[0], positional[1], runName);
+  if (command === 'record') return recordCommand(positional, options, runName);
   if (['tap', 'tapAt', 'rightClick', 'doubleTap', 'drag', 'longPress', 'hover', 'type', 'key', 'scroll', 'tree', 'media', 'state', 'resize', 'shot'].includes(command)) return convenience(command, positional, options, runName);
   if (['reload', 'restart'].includes(command)) {
     const { state } = requireState(runName);

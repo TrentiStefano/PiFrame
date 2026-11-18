@@ -475,6 +475,7 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
             'off' => false,
             _ => null,
           };
+    final followSystemMotion = params['reduceMotion'] == 'system';
     final brightness = switch (params['brightness']) {
       'light' => Brightness.light,
       'dark' => Brightness.dark,
@@ -488,8 +489,13 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
         'error': 'textScale must be a positive number',
       });
     }
-    if (params['reduceMotion'] != null && reduceMotion == null) {
-      return _result({'ok': false, 'error': 'reduceMotion must be on or off'});
+    if (params['reduceMotion'] != null &&
+        reduceMotion == null &&
+        !followSystemMotion) {
+      return _result({
+        'ok': false,
+        'error': 'reduceMotion must be on, off or system',
+      });
     }
     if (params['brightness'] != null && brightness == null) {
       return _result({
@@ -501,6 +507,7 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       textScale: textScale,
       reduceMotion: reduceMotion,
       brightness: brightness,
+      followSystemMotion: followSystemMotion,
       reset: _isTrue(params['reset']),
     );
     return _result({
