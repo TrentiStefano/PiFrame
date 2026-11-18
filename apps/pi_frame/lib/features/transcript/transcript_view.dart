@@ -163,6 +163,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   final FocusNode _renameFocusNode = FocusNode();
   final Set<String> _expandedThinkingBlocks = <String>{};
 
+  /// Entry count at the last build, so a newly sent user message can be told
+  /// apart from a rebuild while the agent answers that prompt.
+  int _lastTotalEntries = 0;
+
   static final RegExp _ansiEscape1 = RegExp(r'\x1B\[[0-9;]*[a-zA-Z]');
   static final RegExp _ansiEscape2 = RegExp(r'\x1B\([B0-9]');
 
@@ -245,6 +249,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _cachedBentoHeader = null;
       _cachedHeaderExtStatuses = null;
       _expandedThinkingBlocks.clear();
+      _lastTotalEntries = 0;
       _visibleAnswerCount = _initialVisibleAnswers;
       _initialScrollDone = false;
       _userScrolledUp = false;
@@ -1194,6 +1199,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _userManuallyToggledTabs = false;
       _knownTodoIds = currentTodoIds;
       _autoOpenedTodoIds = null;
+      _lastTotalEntries = 0;
       _visibleAnswerCount = _initialVisibleAnswers;
     } else {
       final newlyAddedIds = currentTodoIds.difference(_knownTodoIds);
@@ -1221,10 +1227,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         .toList();
     final totalEntries = cleanEntries.length;
 
-    // Keep visible messages in view if user just sent a message
-    if (cleanEntries.isNotEmpty && cleanEntries.last.role == 'user') {
+    // Follow the bottom again when the user sends a message. Only when entries
+    // were added: while the agent answers, the prompt stays the last committed
+    // entry, and resetting on every rebuild would pull a user who scrolled up
+    // back to the bottom on each streaming update.
+    if (totalEntries > _lastTotalEntries &&
+        cleanEntries.isNotEmpty &&
+        cleanEntries.last.role == 'user') {
       _userScrolledUp = false;
     }
+    _lastTotalEntries = totalEntries;
 
     // Transition live thinking expansion to newly committed entry if stream finished
     if (!sessionState.isStreaming &&
