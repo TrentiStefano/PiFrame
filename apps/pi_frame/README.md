@@ -12,7 +12,7 @@ cd apps/pi_frame
 flutter run -d windows   # or macos / linux
 ```
 
-`pnpm run:app:dev` does both from the root. For a web build served by the daemon: `flutter build web --no-web-resources-cdn`.
+`pnpm run:app:dev` does both from the root and keeps dev state in `~/.piframe-dev`, so a release daemon can keep running next to it. For a web build served by the daemon: `flutter build web --no-web-resources-cdn`.
 
 ## Entry points
 
