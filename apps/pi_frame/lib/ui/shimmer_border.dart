@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import '../data/platform/widget_test_binding.dart';
 
 /// Accent ring around an active composer.
 ///
@@ -38,9 +39,6 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   /// The OS or the app's Reduce motion setting asks for no movement.
   bool _reduced = false;
 
-  bool get _isTest =>
-      WidgetsBinding.instance.runtimeType.toString().contains('Test');
-
   @override
   void initState() {
     super.initState();
@@ -58,7 +56,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
     _syncAnimation();
   }
 
-  bool get _animates => widget.isActive && !_isTest && !_lite && !_reduced;
+  bool get _animates => widget.isActive && !isWidgetTestBinding && !_lite && !_reduced;
 
   void _syncAnimation() {
     if (_animates) {

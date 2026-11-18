@@ -20,6 +20,7 @@ import '../workspace/repository_workspace.dart';
 import 'browser_controller.dart';
 import 'browser_models.dart';
 import '../../ui/precision.dart';
+import '../../data/platform/widget_test_binding.dart';
 
 /// Companion width below which header and toolbar actions move into
 /// overflow menus so the single toolbar row always fits (audit P1-4).
@@ -82,7 +83,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       !kIsWeb &&
       defaultTargetPlatform == TargetPlatform.windows &&
       !Platform.environment.containsKey('FLUTTER_TEST') &&
-      !WidgetsBinding.instance.runtimeType.toString().contains('Test');
+      !isWidgetTestBinding;
 
   @override
   void initState() {

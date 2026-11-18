@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'motion.dart';
+import '../data/platform/widget_test_binding.dart';
 
 /// A text widget with an animated luminous shimmer gradient sweeping across it,
 /// inspired by loading-ui TextShimmer (https://www.loading-ui.com/docs/components/text-shimmer).
@@ -36,7 +37,7 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
   @override
   void initState() {
     super.initState();
-    _isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    _isTest = isWidgetTestBinding;
     _controller = AnimationController(
       vsync: this,
       duration: widget.duration,

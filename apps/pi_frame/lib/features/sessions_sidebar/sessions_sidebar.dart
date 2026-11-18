@@ -24,6 +24,7 @@ import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../domain/session/session_labels.dart';
 import '../../data/update/update_providers.dart';
+import '../../data/platform/widget_test_binding.dart';
 
 /// Session rows in the rail are denser than the shared list row (plan 5.1).
 const double _railRowMinHeight = 32;
@@ -1357,8 +1358,7 @@ class _WorkingDotState extends State<_WorkingDot>
     // Phone browsers: a continuously animated blurred glow per working session repaints the list
     // every frame and made scrolling the sessions drawer stutter. Keep a static glow there.
     final lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
-    final isTest =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    final isTest = isWidgetTestBinding;
     if (!isTest && !lite && !MediaQuery.disableAnimationsOf(context)) {
       if (!_controller.isAnimating) _controller.repeat(reverse: true);
     } else {

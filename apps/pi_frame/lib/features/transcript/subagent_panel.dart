@@ -20,9 +20,7 @@ import '../side/side_panel.dart';
 import '../side/side_provider.dart';
 import 'subagents_provider.dart';
 import 'workflows_provider.dart';
-
-bool get _isTestBinding =>
-    WidgetsBinding.instance.runtimeType.toString().contains('Test');
+import '../../data/platform/widget_test_binding.dart';
 
 /// The Agents/Workflows column beside the chat card: a slim strip while
 /// closed, the full [AgentActivityPanel] while open, nothing when the session
@@ -627,7 +625,7 @@ class SubagentStatusDot extends StatelessWidget {
         size: 9,
         strokeWidth: 1.6,
         // A spinning indicator never settles; keep widget tests deterministic.
-        value: _isTestBinding ? 0.75 : null,
+        value: isWidgetTestBinding ? 0.75 : null,
         color: tokens.syntaxKeyword,
       ),
     );
@@ -869,7 +867,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree>
     final nodes = _nodes();
     final anyRunning = nodes.any((n) => n.isRunning);
     if (anyRunning &&
-        !_isTestBinding &&
+        !isWidgetTestBinding &&
         !MediaQuery.disableAnimationsOf(context)) {
       if (!_pulse.isAnimating) _pulse.repeat();
     } else if (_pulse.isAnimating) {
@@ -1762,7 +1760,7 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
     if (widget.run.isRunning &&
         !widget.hasChildren &&
         !kIsWeb &&
-        !_isTestBinding) {
+        !isWidgetTestBinding) {
       _timer ??= Timer.periodic(
         const Duration(seconds: 2),
         (_) => _readJournal(),

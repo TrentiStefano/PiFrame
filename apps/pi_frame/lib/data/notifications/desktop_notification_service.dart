@@ -1,10 +1,10 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../app/harness_mode.dart';
+import '../platform/widget_test_binding.dart';
 
 class DesktopNotificationService {
   static final DesktopNotificationService instance =
@@ -20,7 +20,7 @@ class DesktopNotificationService {
 
   bool get isSupported =>
       !kIsWeb &&
-      !WidgetsBinding.instance.runtimeType.toString().contains('Test') &&
+      !isWidgetTestBinding &&
       (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
   Future<void> initialize() async {
