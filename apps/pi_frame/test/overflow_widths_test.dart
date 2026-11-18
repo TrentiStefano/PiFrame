@@ -337,6 +337,35 @@ void _subagentTests() {
       });
     }
 
+    testWidgets('half-width chat docks a narrower Agents card instead of floating it',
+        (tester) async {
+      // A chat pane of 760 px (a half-width window with the Repository pane
+      // open) used to float the 360 px card over the transcript.
+      await tester.pumpWidget(host(760, height: 700));
+      await _openPanel(tester, sessionId);
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      final chatWidth =
+          tester.getSize(find.byKey(const ValueKey('overflow-chat-body'))).width;
+      expect(chatWidth, greaterThanOrEqualTo(kChatPaneMinWidth));
+      expect(chatWidth, lessThan(760), reason: 'docked beside the chat, not over it');
+      expect(agentSidecarFloating[sessionId], isFalse);
+      final panel = tester.getRect(find.byKey(const ValueKey('agent-activity-open')));
+      expect(panel.left, greaterThanOrEqualTo(chatWidth - 0.5));
+      expect(
+        panel.height,
+        tester.getSize(find.byKey(const ValueKey('overflow-chat-body'))).height,
+        reason: 'a full-height column beside the chat',
+      );
+
+      // Below chat minimum plus the smallest card it still floats.
+      await tester.pumpWidget(host(600, height: 700));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(agentSidecarFloating[sessionId], isTrue);
+    });
+
     testWidgets('open Agents panel sits beside a chat of at least 420 px',
         (tester) async {
       await tester.pumpWidget(host(900, height: 700));

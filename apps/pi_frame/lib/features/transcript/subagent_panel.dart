@@ -38,6 +38,21 @@ const double kChatPaneMinWidth = 420;
 /// Largest share of the chat pane height that the overlay sheet covers.
 const double kAgentSheetMaxHeightFraction = 0.6;
 
+/// Narrowest the docked Agents card may get before the panel floats instead.
+/// Below its preferred width the card shrinks to keep the chat readable, so a
+/// half-width window docks the panel beside the chat rather than over it.
+const double kAgentSidecarMinCardWidth = 280;
+
+/// Width the open sidecar adds around its card: the 6 px resize handle and the
+/// 3 px padding on each side.
+const double _kAgentSidecarChrome = 12;
+
+/// Whether the open Agents panel currently floats over the chat, per session.
+/// Written by the layout, read by the shell after the panel opens to decide
+/// whether a companion pane should collapse to make room. Not a provider: the
+/// value changes during layout, where notifying listeners is not allowed.
+final Map<String, bool> agentSidecarFloating = <String, bool>{};
+
 /// Places the Agents sidecar beside the chat pane. Wide: a sibling column.
 /// Narrow with the panel open: an overlay sheet inside the chat pane.
 class AgentSidecarLayout extends ConsumerWidget {
@@ -65,16 +80,12 @@ class AgentSidecarLayout extends ConsumerWidget {
 
     final hasItems = hasAgents || hasSide;
     final open = hasItems && (agentsOpen || sideOpen);
-    final panelWidth = ref.watch(agentSidecarWidthProvider);
-
     // One render object lays out both modes, so switching between the column
     // and the overlay sheet never moves chat or sidecar in the element tree.
     // Reparenting them remounted the sidecar, whose mount re-opened the panel
     // while agents ran and collapsed the Git pane again.
     return CustomMultiChildLayout(
-      delegate: _AgentSidecarLayoutDelegate(
-        floatBelowWidth: open ? panelWidth + 6 + kChatPaneMinWidth : null,
-      ),
+      delegate: _AgentSidecarLayoutDelegate(sessionId: sessionId, open: open),
       children: [
         LayoutId(id: _AgentSidecarSlot.chat, child: chat),
         LayoutId(id: _AgentSidecarSlot.sidecar, child: sidecar),
@@ -85,28 +96,35 @@ class AgentSidecarLayout extends ConsumerWidget {
 
 enum _AgentSidecarSlot { chat, sidecar }
 
-/// Wide: chat and sidecar side by side. Narrower than [floatBelowWidth]: the
-/// sidecar floats over the chat's top-right corner as a sheet that stops above
-/// the composer, so the send controls stay reachable.
+/// Wide: chat and sidecar side by side. The open card keeps its preferred
+/// width while the chat stays at least [kChatPaneMinWidth] wide, then shrinks
+/// down to [kAgentSidecarMinCardWidth]. Narrower than that, the sidecar floats
+/// over the chat's top-right corner as a sheet that stops above the composer,
+/// so the send controls stay reachable.
 class _AgentSidecarLayoutDelegate extends MultiChildLayoutDelegate {
-  final double? floatBelowWidth;
+  final String sessionId;
+  final bool open;
 
-  _AgentSidecarLayoutDelegate({required this.floatBelowWidth});
+  _AgentSidecarLayoutDelegate({required this.sessionId, required this.open});
 
   @override
   void performLayout(Size size) {
-    final threshold = floatBelowWidth;
-    final floats = threshold != null && size.width < threshold;
+    final floats =
+        open &&
+        size.width <
+            kChatPaneMinWidth +
+                _kAgentSidecarChrome +
+                kAgentSidecarMinCardWidth;
+    agentSidecarFloating[sessionId] = floats;
     final sidecarSize = layoutChild(
       _AgentSidecarSlot.sidecar,
       floats
-          // Width unbounded like the right-anchored sheet it replaces: the
-          // panel sizes itself to its adjustable width.
           ? BoxConstraints(
+              maxWidth: size.width,
               maxHeight: size.height * kAgentSheetMaxHeightFraction,
             )
           : BoxConstraints(
-              maxWidth: size.width,
+              maxWidth: open ? size.width - kChatPaneMinWidth : size.width,
               minHeight: size.height,
               maxHeight: size.height,
             ),
@@ -127,7 +145,7 @@ class _AgentSidecarLayoutDelegate extends MultiChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_AgentSidecarLayoutDelegate oldDelegate) =>
-      oldDelegate.floatBelowWidth != floatBelowWidth;
+      oldDelegate.open != open || oldDelegate.sessionId != sessionId;
 }
 
 /// Running episodes whose panel was already opened automatically, per session.
@@ -168,7 +186,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
       // Deferred: the change can surface while another widget is building.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final autoOpened = ref.read(_agentsAutoOpenedFamily(sessionId).notifier);
+        final autoOpened = ref.read(
+          _agentsAutoOpenedFamily(sessionId).notifier,
+        );
         if (!next) {
           autoOpened.state = false;
           return;
@@ -298,97 +318,56 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(3),
-            // Never wider than the slot it is given (an overlay on a narrow chat pane).
-            child: LayoutBuilder(
-              builder: (context, constraints) => Container(
-                width: panelWidth.clamp(240.0, constraints.maxWidth),
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: tokens.surface,
-                  border: Border.all(color: tokens.border),
-                  borderRadius: BorderRadius.circular(tokens.radiusLg),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (hasAgents && hasSide)
-                      Container(
-                        height: 34,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: tokens.surfaceElevated,
-                          border: Border(
-                            bottom: BorderSide(color: tokens.border),
+          // Flexible: the card is never wider than the slot the layout gives
+          // it (a docked panel beside a narrow chat, or an overlay sheet).
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: LayoutBuilder(
+                builder: (context, constraints) => Container(
+                  width: panelWidth < constraints.maxWidth
+                      ? panelWidth
+                      : constraints.maxWidth,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: tokens.surface,
+                    border: Border.all(color: tokens.border),
+                    borderRadius: BorderRadius.circular(tokens.radiusLg),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (hasAgents && hasSide)
+                        Container(
+                          height: 34,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            _sidecarTab(
-                              context,
-                              tokens,
-                              icon: Icons.hub_outlined,
-                              label:
-                                  'Agenti (${agents.length + workflows.length})',
-                              isSelected: effectiveTab == ChatSidecarTab.agents,
-                              onTap: () {
-                                ref
-                                        .read(
-                                          chatSidecarTabFamily(sessionId)
-                                              .notifier,
-                                        )
-                                        .state =
-                                    ChatSidecarTab.agents;
-                                ref
-                                        .read(
-                                          agentActivityPanelOpenProvider(
-                                            sessionId,
-                                          ).notifier,
-                                        )
-                                        .state =
-                                    true;
-                              },
+                          decoration: BoxDecoration(
+                            color: tokens.surfaceElevated,
+                            border: Border(
+                              bottom: BorderSide(color: tokens.border),
                             ),
-                            const SizedBox(width: 4),
-                            _sidecarTab(
-                              context,
-                              tokens,
-                              icon: Icons.call_split_outlined,
-                              label:
-                                  'Laterale (${sideThread.conversations.length})',
-                              isSelected: effectiveTab == ChatSidecarTab.side,
-                              onTap: () {
-                                ref
-                                        .read(
-                                          chatSidecarTabFamily(sessionId)
-                                              .notifier,
-                                        )
-                                        .state =
-                                    ChatSidecarTab.side;
-                                ref
-                                    .read(sideThreadFamily(sessionId).notifier)
-                                    .openPanel();
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    Expanded(
-                      child: effectiveTab == ChatSidecarTab.side
-                          ? SidePanel(
-                              key: ValueKey('side_panel_$sessionId'),
-                              sessionId: sessionId,
-                              onClose: () => ref
-                                  .read(sideThreadFamily(sessionId).notifier)
-                                  .closePanel(),
-                            )
-                          : AgentActivityPanel(
-                              sessionId: sessionId,
-                              onClose: () =>
+                          ),
+                          child: Row(
+                            children: [
+                              _sidecarTab(
+                                context,
+                                tokens,
+                                icon: Icons.hub_outlined,
+                                label:
+                                    'Agenti (${agents.length + workflows.length})',
+                                isSelected:
+                                    effectiveTab == ChatSidecarTab.agents,
+                                onTap: () {
+                                  ref
+                                          .read(
+                                            chatSidecarTabFamily(sessionId)
+                                                .notifier,
+                                          )
+                                          .state =
+                                      ChatSidecarTab.agents;
                                   ref
                                           .read(
                                             agentActivityPanelOpenProvider(
@@ -396,10 +375,59 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                                             ).notifier,
                                           )
                                           .state =
-                                      false,
-                            ),
-                    ),
-                  ],
+                                      true;
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              _sidecarTab(
+                                context,
+                                tokens,
+                                icon: Icons.call_split_outlined,
+                                label:
+                                    'Laterale (${sideThread.conversations.length})',
+                                isSelected: effectiveTab == ChatSidecarTab.side,
+                                onTap: () {
+                                  ref
+                                          .read(
+                                            chatSidecarTabFamily(sessionId)
+                                                .notifier,
+                                          )
+                                          .state =
+                                      ChatSidecarTab.side;
+                                  ref
+                                      .read(
+                                        sideThreadFamily(sessionId).notifier,
+                                      )
+                                      .openPanel();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: effectiveTab == ChatSidecarTab.side
+                            ? SidePanel(
+                                key: ValueKey('side_panel_$sessionId'),
+                                sessionId: sessionId,
+                                onClose: () => ref
+                                    .read(sideThreadFamily(sessionId).notifier)
+                                    .closePanel(),
+                              )
+                            : AgentActivityPanel(
+                                sessionId: sessionId,
+                                onClose: () =>
+                                    ref
+                                            .read(
+                                              agentActivityPanelOpenProvider(
+                                                sessionId,
+                                              ).notifier,
+                                            )
+                                            .state =
+                                        false,
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -724,10 +752,14 @@ List<T> _byActivityThenLaunch<T>(
   return [for (final e in indexed) e.item];
 }
 
-String _elapsed(int? from, int? to) {
-  if (from == null) return '';
+/// Duration from [from] to [to] (or now), as `8s`, `3m 05s` or `2h 10m`.
+/// A missing or zero time (an entry restored without its timestamp) shows
+/// nothing rather than a duration counted from 1970.
+@visibleForTesting
+String formatAgentElapsed(int? from, int? to, {int? now}) {
+  if (from == null || from <= 0 || (to != null && to <= 0)) return '';
   final seconds =
-      ((to ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
+      ((to ?? now ?? DateTime.now().millisecondsSinceEpoch) - from) ~/ 1000;
   if (seconds < 0) return '';
   if (seconds < 60) return '${seconds}s';
   final minutes = seconds ~/ 60;
@@ -736,6 +768,8 @@ String _elapsed(int? from, int? to) {
   }
   return '${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}m';
 }
+
+String _elapsed(int? from, int? to) => formatAgentElapsed(from, to);
 
 (String, Color) _statusStyle(
   FrameTokens tokens,
@@ -773,7 +807,9 @@ IconData _typeIcon(String? type) {
       key.contains('scout')) {
     return Icons.travel_explore_outlined;
   }
-  if (key.contains('review') || key.contains('verif') || key.contains('audit')) {
+  if (key.contains('review') ||
+      key.contains('verif') ||
+      key.contains('audit')) {
     return Icons.fact_check_outlined;
   }
   if (key.contains('plan') || key.contains('architect')) {

@@ -12,6 +12,10 @@ import 'frame_middle_ellipsis.dart';
 /// its own gestures or controls (such as a double-tap rename). [title] is
 /// still required, so the pane keeps a plain-text label without it.
 ///
+/// With [actionsOnOwnLine] the actions move to their own line under the
+/// title and subtitle, for a pane too narrow to fit both: the title keeps the
+/// full width and every action stays visible.
+///
 /// The header row is at least FrameSize.paneHeader tall. It is flat, with
 /// no card or elevation. It has no interactive state of its own: the actions
 /// carry their own focus, hover and disabled states.
@@ -22,6 +26,7 @@ class FramePaneHeader extends StatelessWidget {
   final Widget? subtitleWidget;
   final List<Widget> actions;
   final Widget? tabs;
+  final bool actionsOnOwnLine;
 
   const FramePaneHeader({
     super.key,
@@ -31,6 +36,7 @@ class FramePaneHeader extends StatelessWidget {
     this.subtitleWidget,
     this.actions = const [],
     this.tabs,
+    this.actionsOnOwnLine = false,
   });
 
   @override
@@ -49,7 +55,10 @@ class FramePaneHeader extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: FrameSize.paneHeader),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x3,
+              vertical: 4,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -69,10 +78,11 @@ class FramePaneHeader extends StatelessWidget {
                             ),
                       ),
                     ),
-                    for (final action in actions) ...[
-                      const SizedBox(width: FrameSpace.x1),
-                      action,
-                    ],
+                    if (!actionsOnOwnLine)
+                      for (final action in actions) ...[
+                        const SizedBox(width: FrameSpace.x1),
+                        action,
+                      ],
                   ],
                 ),
                 if (subtitleWidget != null) ...[
@@ -82,6 +92,18 @@ class FramePaneHeader extends StatelessWidget {
                   FrameMiddleEllipsis(
                     text: subtitle!,
                     style: text.mono.copyWith(color: tokens.textMuted),
+                  ),
+                ],
+                if (actionsOnOwnLine && actions.isNotEmpty) ...[
+                  const SizedBox(height: FrameSpace.x1),
+                  Row(
+                    key: const ValueKey('pane-header-actions-line'),
+                    children: [
+                      for (final (i, action) in actions.indexed) ...[
+                        if (i > 0) const SizedBox(width: FrameSpace.x1),
+                        Flexible(child: action),
+                      ],
+                    ],
                   ),
                 ],
               ],

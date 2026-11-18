@@ -1334,6 +1334,18 @@ class _AppShellState extends ConsumerState<AppShell>
             !ref.read(isReviewingChangesProvider)) {
           _collapsePane(WorkspacePane.git);
         }
+        // Half-width windows: if the panel still has to float over the chat,
+        // fold the Repository pane to its strip once so the panel can dock
+        // beside the chat. Only on opening, so expanding it again sticks.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              agentSidecarFloating[sessionId] == true &&
+              _paneVisibility[WorkspacePane.repository] == true &&
+              !_collapsedPanes.contains(WorkspacePane.repository) &&
+              !ref.read(isReviewingChangesProvider)) {
+            _collapsePane(WorkspacePane.repository);
+          }
+        });
       },
     );
     final isReviewing = ref.watch(isReviewingChangesProvider);

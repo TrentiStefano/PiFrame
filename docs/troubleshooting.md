@@ -21,6 +21,29 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## Half-width window: Agents panel over the chat, cut-off pane titles
+
+**Symptom:** with the window at about half the screen width, the Agents panel floated as a box over the top of the chat and hid the transcript, the Repository pane title was cut to nothing by its buttons, and the session title was shortened to a few letters next to the context and cost chips.
+
+**Cause:** the Agents panel docked beside the chat only when the chat kept 420 px *and* the panel its full 366 px; otherwise it became an overlay sheet. The Repository header was a single fixed row where the buttons took their full width first. The session header kept the chips on the title's line at any width.
+
+**Fix:**
+- `AgentSidecarLayout` docks the panel while a card of at least 280 px still fits next to a 420 px chat, shrinking the card instead of floating it. If it still has to float when it opens, the shell folds the Repository pane to its strip once, so the panel can dock; expanding the pane again is respected.
+- `workspacePaneHeader` lays a plain title and its buttons out in a `Wrap`: one line when they fit, buttons on a second line (scrolling if even that is too narrow) when they do not.
+- `FramePaneHeader` has `actionsOnOwnLine`; the session header uses it below 640 px, so the chips and status move under the title and path.
+- Agent and workflow durations no longer count from 1970 when an entry was restored without a timestamp (`formatAgentElapsed`).
+
+Full-width layouts are unchanged.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/half_width_layout_test.dart test/overflow_widths_test.dart
+```
+
+---
+
 ## System notifications for intermediate answers
 
 **Symptom:** with notifications on and PiFrame in the background, a "Risposta completata" notification arrived for answers the agent wrote between steps, not only for its final answer, so one task could send several.

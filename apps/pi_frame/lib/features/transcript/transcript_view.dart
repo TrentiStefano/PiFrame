@@ -119,6 +119,9 @@ class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
   }
 }
 
+/// Narrowest chat pane whose header keeps the chips on the title's line.
+const double _kSessionHeaderInlineMinWidth = 640;
+
 class TranscriptView extends ConsumerStatefulWidget {
   final String sessionId;
 
@@ -2193,13 +2196,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           ],
         );
 
+        // Half-width windows: the chips and status move under the title, so
+        // the session name and every chip stay readable.
+        final chipsOnOwnLine = box.maxWidth < _kSessionHeaderInlineMinWidth;
         return FramePaneHeader(
           title: effectiveSessionName,
           titleWidget: titleWidget,
           subtitleWidget: subtitleWidget,
+          actionsOnOwnLine: chipsOnOwnLine,
           actions: [
             ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.65),
+              constraints: BoxConstraints(
+                maxWidth: chipsOnOwnLine ? box.maxWidth : box.maxWidth * 0.65,
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

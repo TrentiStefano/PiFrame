@@ -26,6 +26,73 @@ Widget workspacePaneHeader(
 }) {
   final tokens = context.tokens;
   final hasTabs = companionTabs != null && companionTabs.length > 1;
+  final decoration = BoxDecoration(
+    color: tokens.surfaceElevated,
+    borderRadius: BorderRadius.circular(tokens.radiusMd),
+    border: Border.all(color: tokens.borderStrong),
+  );
+
+  // A plain title with actions: on a narrow pane the actions move to a second
+  // line, so the title stays readable and every button stays reachable.
+  if (!hasTabs && titleWidget == null && trailing != null) {
+    final titleStyle = FrameText.of(context).label.copyWith(
+      color: tokens.textPrimary,
+      fontFamily: tokens.uiFontFamily,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    );
+    return Container(
+      key: const ValueKey('workspace-pane-header'),
+      constraints: const BoxConstraints(minHeight: 38),
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: decoration,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: FrameSpace.x2,
+          runSpacing: FrameSpace.x1,
+          children: [
+            ConstrainedBox(
+              // Only the title shortens, and only when it cannot fit alone.
+              constraints: BoxConstraints(
+                minHeight: 28,
+                maxWidth: constraints.maxWidth,
+              ),
+              child: Row(
+                key: const ValueKey('workspace-pane-header-title'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: FrameSize.icon, color: tokens.accent),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      title.toUpperCase(),
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: titleStyle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // On its own line the action row scrolls if even that is too
+            // narrow, so every button stays reachable.
+            ConstrainedBox(
+              key: const ValueKey('workspace-pane-header-actions'),
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: trailing,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   return Container(
     height: 38,
@@ -72,7 +139,10 @@ Widget workspacePaneHeader(
                                   ? null
                                   : () => onSelectCompanionTab?.call(tab),
                               child: AnimatedContainer(
-                                duration: FrameMotion.fade(context, FrameMotion.micro),
+                                duration: FrameMotion.fade(
+                                  context,
+                                  FrameMotion.micro,
+                                ),
                                 padding: EdgeInsets.symmetric(
                                   horizontal: isActive ? 10 : 7,
                                   vertical: 3,
@@ -109,16 +179,17 @@ Widget workspacePaneHeader(
                                       isActive
                                           ? tabTitle.toUpperCase()
                                           : tabTitle,
-                                      style: FrameText.of(context).label.copyWith(
-                                        color: isActive
-                                            ? tokens.accent
-                                            : tokens.textMuted,
-                                        fontFamily: tokens.uiFontFamily,
-                                        fontWeight: isActive
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
-                                        letterSpacing: 0.3,
-                                      ),
+                                      style: FrameText.of(context).label
+                                          .copyWith(
+                                            color: isActive
+                                                ? tokens.accent
+                                                : tokens.textMuted,
+                                            fontFamily: tokens.uiFontFamily,
+                                            fontWeight: isActive
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
+                                            letterSpacing: 0.3,
+                                          ),
                                     ),
                                   ],
                                 ),
