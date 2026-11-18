@@ -66,8 +66,10 @@ void main() {
 
   group('Composer review button (plan 4.4)', () {
     testWidgets(
-      'with no changes it stays visible, disabled, with an explanation',
+      'with no changes the composer hides it',
       (tester) async {
+        // Since c255a95 the composer shows the button only when Pi changed files
+        // (or while a review is open), instead of a disabled placeholder.
         const sessionId = 'controls-no-changes';
         await tester.pumpWidget(
           _host(
@@ -77,16 +79,36 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        expect(find.byKey(const ValueKey('review-changes-btn')), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a disabled button explains when it turns on',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: ComposerReviewButton(
+                label: 'Rivedi modifiche',
+                showLabel: true,
+                reviewing: true,
+                enabledTooltip: 'Chiudi revisione',
+                disabledTooltip: 'Nessuna modifica da rivedere',
+                onPressed: null,
+              ),
+            ),
+          ),
+        );
+
         final button = tester.widget<TextButton>(
           find.byKey(const ValueKey('review-changes-btn')),
         );
         expect(button.onPressed, isNull);
-        expect(
-          find.byTooltip(
-            'Nessuna modifica da rivedere: il pulsante si attiva quando Pi modifica dei file',
-          ),
-          findsOneWidget,
-        );
+        expect(find.byTooltip('Nessuna modifica da rivedere'), findsOneWidget);
       },
     );
 

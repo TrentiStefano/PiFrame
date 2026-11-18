@@ -532,6 +532,6 @@ When no session is open, the welcome screen is a place to pick work back up.
 - With **Send with Enter** off, `Ctrl+Enter` (or `Cmd+Enter`) applies the steer; `Enter` inserts a new line.
 - To send a message after the current answer, use **Follow-up: queue** to queue it.
 
-**Review button.** When Pi changes files, the composer shows **Review changes (n)** with the number of changed files. Pressing it opens the review of the session's changes; pressing it again closes it. Without changes the button is a disabled icon with a note that it turns on when Pi changes files.
+**Review button.** When Pi changes files, the composer shows **Review changes (n)** with the number of changed files. Pressing it opens the review of the session's changes; pressing it again closes it. Without changes the button is hidden; it appears as soon as Pi changes a file.
 
 **Empty chat.** A session without messages shows the name of the working folder, the Git branch (if any) and three hints: `/` for commands, `@` to attach a file, `Ctrl/Cmd+K` for the command palette. The input field takes focus as soon as it appears, so you can type at once.
