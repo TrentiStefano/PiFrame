@@ -88,12 +88,12 @@ String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
     return '\\\\$host\\$distro$baseLinux$sep$resolved'.replaceAll('/', '\\');
   }
 
-  // 3. What if cwd or resolved starts with '/' (pure Linux path on Windows)?
+  // 3. A pure Linux path on Windows with no known WSL distro: keep the Linux
+  // path. openInOsFileExplorer maps it with `wslpath -w` on the default distro.
   if (cwd != null && (cwd.startsWith('/') || resolved.startsWith('/'))) {
-    final targetLinux = resolved.startsWith('/')
+    return resolved.startsWith('/')
         ? resolved
         : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
-    return '\\\\wsl.localhost\\LMD_env$targetLinux'.replaceAll('/', '\\');
   }
 
   // 4. Standard Windows path
@@ -124,6 +124,7 @@ Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
       if (!file.existsSync() &&
           !dir.existsSync() &&
           (cwd?.contains('wsl') == true ||
+              cwd?.startsWith('/') == true ||
               rawPath.contains('wsl') ||
               rawPath.startsWith('/'))) {
         try {

@@ -133,30 +133,36 @@ void main() {}
 
   test('resolvePathForOsExplorer correctly resolves WSL and Windows paths', () {
     // 1. WSL UNC cwd with relative path
-    const wslCwd = r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo';
+    const wslCwd = r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo';
     final res1 = resolvePathForOsExplorer('lib/main.dart', cwd: wslCwd);
-    expect(res1, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+    expect(res1, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 2. WSL UNC cwd with Linux absolute path
-    final res2 = resolvePathForOsExplorer('/home/strenti/Repos/my_repo/lib/main.dart', cwd: wslCwd);
-    expect(res2, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+    final res2 = resolvePathForOsExplorer('/home/user/Repos/my_repo/lib/main.dart', cwd: wslCwd);
+    expect(res2, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 3. WSL file:// URI
-    final res3 = resolvePathForOsExplorer('file:///home/strenti/Repos/my_repo/test.dart', cwd: wslCwd);
-    expect(res3, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\test.dart');
+    final res3 = resolvePathForOsExplorer('file:///home/user/Repos/my_repo/test.dart', cwd: wslCwd);
+    expect(res3, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\test.dart');
 
     // 4. Already full WSL UNC path
-    final res4 = resolvePathForOsExplorer(r'\\wsl$\LMD_env\home\strenti\file.txt');
-    expect(res4, r'\\wsl$\LMD_env\home\strenti\file.txt');
+    final res4 = resolvePathForOsExplorer(r'\\wsl$\Ubuntu\home\user\file.txt');
+    expect(res4, r'\\wsl$\Ubuntu\home\user\file.txt');
 
     // 5. Line numbers and anchor stripped
     final res5 = resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: wslCwd);
-    expect(res5, r'\\wsl.localhost\LMD_env\home\strenti\Repos\my_repo\lib\main.dart');
+    expect(res5, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
-    // 6. Windows cwd with relative path
-    const winCwd = r'C:\Personale\Repos\my_repo';
+    // 6. Linux path without a WSL distro stays a Linux path (wslpath maps it)
+    expect(
+      resolvePathForOsExplorer('lib/main.dart', cwd: '/home/user/repo'),
+      '/home/user/repo/lib/main.dart',
+    );
+
+    // 7. Windows cwd with relative path
+    const winCwd = r'C:\Projects\my_repo';
     final res6 = resolvePathForOsExplorer('lib/main.dart', cwd: winCwd);
-    expect(res6, r'C:\Personale\Repos\my_repo\lib\main.dart');
+    expect(res6, r'C:\Projects\my_repo\lib\main.dart');
   }, skip: !Platform.isWindows);
 
   test('resolvePathForOsExplorer correctly resolves POSIX paths', () {
@@ -189,7 +195,7 @@ void main() {}
       wrapWithTheme(
         const RichContent(
           text: textWithVariousLinks,
-          cwd: r'\\wsl.localhost\LMD_env\home\strenti\repo',
+          cwd: r'\\wsl.localhost\Ubuntu\home\user\repo',
         ),
       ),
     );
