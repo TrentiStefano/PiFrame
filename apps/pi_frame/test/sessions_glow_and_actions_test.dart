@@ -24,7 +24,7 @@ class _TestRemovedNotifier extends RemovedReposNotifier {
 
 void main() {
   testWidgets(
-    'working circular border disappears after answer while active semaphore dot remains visible and cards do not shimmer',
+    'working border and spinner clear after the answer, and the notification dot lights until the session is opened',
     (tester) async {
       final mockSessions = [
         {
@@ -75,7 +75,6 @@ void main() {
 
       // Folder "myrepo" exists and, as the only repository, is expanded by default
       expect(find.text('myrepo'), findsOneWidget);
-
       expect(find.text('Open Idle Session'), findsOneWidget);
 
       bool hasWorkingBorder() {
@@ -83,81 +82,112 @@ void main() {
         return boxes.any((b) {
           final dec = b.decoration;
           if (dec is BoxDecoration && dec.border != null) {
-            return dec.border!.top.color == FrameTokens.dark.accent;
+            return dec.border!.top.color ==
+                FrameTokens.dark.agentWorking.withValues(alpha: 0.7);
           }
           return false;
         });
       }
 
-      // Verify that NO session card has working border when session is settled, and no ShimmerBorder
-      expect(
-        hasWorkingBorder(),
-        isFalse,
-        reason: 'Idle open session should not have working border',
+      final darkDot = find.byKey(
+        const ValueKey('session-unread-dot-sess_active_1-false'),
       );
-      expect(
-        find.byType(ShimmerBorder),
-        findsNothing,
-        reason: 'Cards in Sessions tab must not shimmer',
+      final litDot = find.byKey(
+        const ValueKey('session-unread-dot-sess_active_1-true'),
       );
+      final spinner = find.byKey(const ValueKey('session-working-spinner'));
 
-      // Verify that active semaphore dot IS present
-      final activeDots = find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.constraints?.maxWidth == 6 &&
-            widget.decoration is BoxDecoration &&
-            (widget.decoration as BoxDecoration).shape == BoxShape.circle,
-      );
-      expect(activeDots, findsWidgets, reason: 'Active dot should be visible');
+      // Idle with nothing new: no working border, and the dot is dark.
+      expect(hasWorkingBorder(), isFalse);
+      expect(find.byType(ShimmerBorder), findsNothing,
+          reason: 'Cards in Sessions tab must not shimmer');
+      expect(darkDot, findsOneWidget);
+      expect(litDot, findsNothing);
+      expect(find.byKey(const ValueKey('folder-unread-dot:C:/projects/myrepo')),
+          findsNothing);
 
-      // Now simulate agent generating (working)
+      // The agent works: spinner and working border, no shimmer.
       sessionNotifier.state = sessionNotifier.state.copyWith(
         agentStatus: AgentStatus.working,
       );
       await tester.pump();
+      expect(hasWorkingBorder(), isTrue);
+      expect(spinner, findsOneWidget);
+      expect(find.byType(ShimmerBorder), findsNothing,
+          reason: 'Cards in Sessions tab must not shimmer');
 
-      // Now working circular border should be active, with no shimmering
-      expect(
-        hasWorkingBorder(),
-        isTrue,
-        reason: 'Working session must have working border',
-      );
-      expect(
-        find.byType(ShimmerBorder),
-        findsNothing,
-        reason: 'Cards in Sessions tab must not shimmer',
-      );
-
-      // Agent finishes generating and transitions back to settled
+      // It answers while another session is open: the dot lights up.
       sessionNotifier.state = sessionNotifier.state.copyWith(
         agentStatus: AgentStatus.settled,
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(hasWorkingBorder(), isFalse);
+      expect(spinner, findsNothing);
+      expect(litDot, findsOneWidget);
+      expect(find.byKey(const ValueKey('folder-unread-dot:C:/projects/myrepo')),
+          findsOneWidget);
 
-      // Working border disappears
-      expect(
-        hasWorkingBorder(),
-        isFalse,
-        reason: 'Working border must disappear when agent finished',
+      // Opening the session marks it read.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SessionsSidebar)),
       );
-
-      // Semaphore dot remains active
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is Container &&
-              widget.constraints?.maxWidth == 6 &&
-              widget.decoration is BoxDecoration &&
-              (widget.decoration as BoxDecoration).shape == BoxShape.circle,
-        ),
-        findsWidgets,
-      );
+      container.read(activeSessionIdProvider.notifier).state = 'sess_active_1';
+      await tester.pumpAndSettle();
+      expect(litDot, findsNothing);
+      expect(darkDot, findsOneWidget);
     },
   );
 
   testWidgets(
-    'working folder indicator stays static while session indicator remains animated',
+    'a session left mid-run keeps its spinner and lights its dot when the answer lands',
+    (tester) async {
+      final mockSessions = [
+        {'id': 'run', 'name': 'Running Session', 'cwd': 'C:/projects/myrepo'},
+        {'id': 'other', 'name': 'Other Session', 'cwd': 'C:/projects/myrepo'},
+      ];
+      final running = SessionStateNotifier('run', null)
+        ..state = SessionState(
+          sessionId: 'run',
+          cwd: 'C:/projects/myrepo',
+          agentStatus: AgentStatus.working,
+          entries: [],
+        );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionListProvider.overrideWith((ref) => Future.value(mockSessions)),
+            pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+            removedReposProvider.overrideWith((ref) => _TestRemovedNotifier({})),
+            activeSessionIdProvider.overrideWith((ref) => 'run'),
+            sessionStateFamily('run').overrideWith((ref) => running),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: SessionsSidebar()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SessionsSidebar)),
+      );
+
+      // Switch away while it still works: the row keeps its live spinner.
+      container.read(activeSessionIdProvider.notifier).state = 'other';
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('session-working-spinner')), findsOneWidget);
+
+      running.state = running.state.copyWith(agentStatus: AgentStatus.settled);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('session-working-spinner')), findsNothing);
+      expect(find.byKey(const ValueKey('session-unread-dot-run-true')), findsOneWidget);
+      expect(find.byKey(const ValueKey('session-unread-dot-other-false')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'working folder indicator stays static while the session row shows a spinner',
     (tester) async {
       final mockSessions = [
         {
@@ -231,7 +261,7 @@ void main() {
       expect(
         find.descendant(
           of: sessionTile,
-          matching: find.byType(AnimatedBuilder),
+          matching: find.byKey(const ValueKey('session-working-spinner')),
         ),
         findsOneWidget,
       );

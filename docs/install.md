@@ -144,6 +144,8 @@ To build the macOS disk image (`dist/PiFrame-<version>-macos-<arch>.dmg`) locall
 
 When sessions or repositories have equivalent names (ignoring case and spaces), PiFrame adds the parent folders needed to tell the paths apart. For example, two folders `v1/PiFrame` and `v2/PiFrame` are shown as **v1 / PiFrame** and **v2 / PiFrame**; if the parents match too, further ancestors are added. The distinction stays visible in the list, in pinned sessions, in Quick Launch, in the chat title, in the `/resume` picker and in notifications. Saved names and rename fields do not change; sessions in the same folder can still share a name.
 
+Each session card shows what its agent is doing. A spinner and a coloured border mean the agent is working, even after you switch to another session. The dot on the left is a notification dot: it stays dark until the agent writes something you have not seen, then lights up until you open that session. A repository row and the **Pinned** header light their dot too when one of their sessions has news. Unread sessions are remembered across restarts in `~/.piframe/unread_sessions.json`. The outlined cursor on a card appears only while you move through the list with the keyboard.
+
 Drag the divider on the right edge of the **Sessions** pane to make it wider or narrower. This works both in the sidebar on wide screens and in the panel opened with **Open sessions**. The width is saved with the layout in `~/.piframe/layout.json`, stays the same when you collapse and reopen the sidebar, and is clamped to the available space on small screens. In the browser the choice lasts for the current visit, like the other layout preferences.
 
 ## 5. Updating all Pi packages

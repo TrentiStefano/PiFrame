@@ -71,7 +71,8 @@ void main() {
       return boxes.any((b) {
         final dec = b.decoration;
         if (dec is BoxDecoration && dec.border != null) {
-          return dec.border!.top.color == FrameTokens.dark.accent;
+          return dec.border!.top.color ==
+              FrameTokens.dark.agentWorking.withValues(alpha: 0.7);
         }
         return false;
       });
@@ -84,8 +85,9 @@ void main() {
     sessionNotifier.state = sessionNotifier.state.copyWith(agentStatus: AgentStatus.working);
     await tester.pump();
 
-    // Now circular working border should be active, with no shimmering
+    // Now the working border and spinner are shown, with no shimmering
     expect(hasWorkingBorder(), isTrue);
+    expect(find.byKey(const ValueKey('session-working-spinner')), findsWidgets);
     expect(find.byType(ShimmerBorder), findsNothing);
 
     // Reset working to false

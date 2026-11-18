@@ -21,6 +21,23 @@ flutter test test/transcript_rich_test.dart
 
 ---
 
+## Sessions pane: confusing status dot, no working animation, and borders on the wrong card
+
+**Symptom:** the leading dot of each session card worked like a traffic light (bright for the open session, green for any daemon-active session), so it said nothing about new answers. A working session only pulsed the dot's opacity, which was barely visible. After a click, one card showed a border while another showed the selection, and a working card looked the same as a clicked one.
+
+**Cause:** the dot colour encoded selection and "active", not unread activity. The working card border and the keyboard cursor ring both used the `accent` colour (it equals `focusRing`), and the cursor ring was drawn after mouse clicks too, so it could land on a card the selection had not reached (for example, a cancelled switch). A session row stopped watching live state once you switched away from it unless it was pinned, so a run left in the background looked idle.
+
+**Fix:** the dot is now a notification dot. It is dark normally and lit (`accent`) when the agent produced something in a session you have not opened since. `unreadSessionsProvider` follows every session opened in this run, plus the daemon listing, and saves the set in `~/.piframe/unread_sessions.json`. Folder rows and the PINNED header show a lit dot when one of their sessions is unread. Working sessions show a spinner (a static glyph under reduced motion) and an `agentWorking` border. The cursor ring shows only during keyboard navigation.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/sessions_glow_and_actions_test.dart test/sessions_rail_keyboard_test.dart test/unread_sessions_provider_test.dart test/pinned_session_working_test.dart
+```
+
+---
+
 ## Agents pane reopens on close, and Git Changes cannot be expanded, while a subagent runs
 
 **Symptom:** while a subagent was working, clicking the Agents pane collapse button closed it and reopened it at once. Expanding the Git Changes pane collapsed it again straight away.

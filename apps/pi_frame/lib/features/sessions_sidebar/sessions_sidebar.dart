@@ -19,6 +19,7 @@ import '../transcript/workflows_provider.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import 'removed_repos_provider.dart';
+import 'unread_sessions_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
@@ -146,14 +147,30 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         _searchQuery = _searchController.text.trim().toLowerCase();
       });
     });
-    _railFocus.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _railFocus.addListener(_onRailFocusChanged);
+    FocusManager.instance.addHighlightModeListener(_onHighlightModeChanged);
   }
+
+  void _onRailFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onHighlightModeChanged(FocusHighlightMode mode) {
+    if (mounted) setState(() {});
+  }
+
+  /// The cursor ring is a keyboard cue: after a click it would sit on the
+  /// clicked card while the selection (and a cancelled switch) sat elsewhere.
+  bool _showsCursor(String key) =>
+      _railFocus.hasFocus &&
+      FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
+      _cursorKey == key;
 
   @override
   void dispose() {
     _searchController.dispose();
+    FocusManager.instance.removeHighlightModeListener(_onHighlightModeChanged);
+    _railFocus.removeListener(_onRailFocusChanged);
     _railFocus.dispose();
     super.dispose();
   }
@@ -686,6 +703,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 }
 
                 final pinnedIds = ref.watch(pinnedSessionsProvider);
+                final unreadIds = ref.watch(unreadSessionsProvider);
                 final sessionMap = {
                   for (final s in allSessions)
                     if (s['id'] is String) s['id'] as String: s
@@ -761,8 +779,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         st.isStreaming ||
                         st.activeToolCalls.isNotEmpty));
                   });
-                  final hasActivePinned = hasWorkingPinned ||
-                      pinnedSessions.any((s) => s['isActive'] == true);
+                  final hasUnreadPinned = pinnedSessions.any(
+                    (s) => s['id'] != activeId && unreadIds.contains(s['id']),
+                  );
 
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
@@ -781,15 +800,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         if (hasWorkingPinned) ...[
                           const SizedBox(width: 6),
                           _WorkingDot(color: tokens.agentWorking, size: 7),
-                        ] else if (hasActivePinned) ...[
+                        ] else if (hasUnreadPinned) ...[
                           const SizedBox(width: 6),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: tokens.accent,
-                            ),
+                          const _UnreadDot(
+                            key: ValueKey('pinned-unread-dot'),
+                            unread: true,
+                            size: 6,
                           ),
                         ],
                       ],
@@ -851,8 +867,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 isSelected: isSelected,
                                 onMenuOpener: (open) =>
                                     _rowMenus.register('session:$id', open),
-                                isCursor: _railFocus.hasFocus &&
-                                    _cursorKey == 'session:$id',
+                                isCursor: _showsCursor('session:$id'),
                                 onTap: () {
                                   _railFocus.requestFocus();
                                   _openSession(id);
@@ -902,8 +917,10 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             if (row.isFolder) {
                       final folder = row.folder ?? '';
                       final expanded = _isFolderExpanded(folder);
-                      final hasActive = activeFolders.contains(folder);
                       final folderSessions = grouped[folder] ?? [];
+                      final hasUnread = folderSessions.any(
+                        (s) => s['id'] != activeId && unreadIds.contains(s['id']),
+                      );
                       final hasWorking = folderSessions.any((s) {
                         final sId = s['id'] as String? ?? '';
                         final isSel = sId == activeId;
@@ -942,9 +959,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               size: FrameSize.icon,
                               color: hasWorking
                                   ? tokens.agentWorking
-                                  : (hasActive
-                                      ? tokens.accent
-                                      : tokens.accent.withValues(alpha: 0.8)),
+                                  : tokens.accent.withValues(alpha: 0.8),
                             ),
                             if (hasWorking) ...[
                               const SizedBox(width: FrameSpace.x1),
@@ -957,15 +972,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   color: tokens.agentWorking,
                                 ),
                               ),
-                            ] else if (hasActive) ...[
+                            ] else if (hasUnread) ...[
                               const SizedBox(width: FrameSpace.x1),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tokens.accent,
-                                ),
+                              _UnreadDot(
+                                key: ValueKey('folder-unread-dot:$folder'),
+                                unread: true,
+                                size: 6,
                               ),
                             ],
                           ],
@@ -1148,7 +1160,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                       );
 
                       final folderCursor =
-                          _railFocus.hasFocus && _cursorKey == 'folder:$folder';
+                          _showsCursor('folder:$folder');
                       return Material(
                         color: tokens.surface,
                         child: DecoratedBox(
@@ -1177,7 +1189,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         onMenuOpener: (open) =>
                             _rowMenus.register('session:$id', open),
                         isCursor:
-                            _railFocus.hasFocus && _cursorKey == 'session:$id',
+                            _showsCursor('session:$id'),
                         onTap: () {
                           _railFocus.requestFocus();
                           _openSession(id);
@@ -1315,80 +1327,54 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   }
 }
 
-class _WorkingDot extends StatefulWidget {
+/// Spinner on the row of a session whose agent is at work. Static (a fixed
+/// arc) under widget tests, so `pumpAndSettle` still settles; under reduced
+/// motion [FrameActivityIndicator] shows a static glyph.
+class _WorkingDot extends StatelessWidget {
   final Color color;
   final double size;
 
   const _WorkingDot({
     required this.color,
-    this.size = 8.0,
+    this.size = 10.0,
   });
 
   @override
-  State<_WorkingDot> createState() => _WorkingDotState();
+  Widget build(BuildContext context) {
+    // Phone browsers: one endless animation per working row made scrolling
+    // the sessions drawer stutter, so they get the static arc too.
+    final still =
+        isWidgetTestBinding || (kIsWeb && MediaQuery.sizeOf(context).width < 700);
+    return RepaintBoundary(
+      child: FrameActivityIndicator(
+        key: const ValueKey('session-working-spinner'),
+        size: size,
+        strokeWidth: 1.6,
+        value: still ? 0.7 : null,
+        color: color,
+      ),
+    );
+  }
 }
 
-/// Period of the working-dot pulse: the FrameMotion loop token. The loop stops
-/// under reduced motion (see didChangeDependencies).
-const Duration _workingPulsePeriod = FrameMotion.pulseLoop;
+/// Notification dot: dark while there is nothing new, lit while the session
+/// has agent activity the user has not opened yet.
+class _UnreadDot extends StatelessWidget {
+  final bool unread;
+  final double size;
 
-/// Easing of the working-dot pulse (ease-in-out, unlike FrameMotion's ease-out).
-const Curve _workingPulseCurve = Curves.easeInOut;
-
-class _WorkingDotState extends State<_WorkingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: _workingPulsePeriod,
-    );
-    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: _workingPulseCurve),
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Phone browsers: a continuously animated blurred glow per working session repaints the list
-    // every frame and made scrolling the sessions drawer stutter. Keep a static glow there.
-    final lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
-    final isTest = isWidgetTestBinding;
-    if (!isTest && !lite && !MediaQuery.disableAnimationsOf(context)) {
-      if (!_controller.isAnimating) _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _UnreadDot({super.key, required this.unread, this.size = 8.0});
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        // Flat dot on the rail: the pulse is carried by alpha only, no glow.
-        final scale = _controller.isAnimating ? _pulse.value : 1.0;
-        return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withValues(alpha: 0.75 + 0.25 * scale),
-          ),
-        );
-      },
+    final tokens = context.tokens;
+    return AnimatedContainer(
+      duration: FrameMotion.reduced(context) ? Duration.zero : FrameMotion.crossFade,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: unread ? tokens.accent : tokens.borderStrong.withValues(alpha: 0.45),
       ),
     );
   }
@@ -1592,16 +1578,19 @@ class _SessionTile extends ConsumerWidget {
     final folder = _sessionFolder(session);
     final isStaticActive = session['isActive'] == true;
 
-    final isWorking = (isPinned || isSelected || isStaticActive)
-        ? ref.watch(sessionStateFamily(id).select((s) =>
-            s.agentStatus == AgentStatus.working ||
-            s.agentStatus == AgentStatus.retrying ||
-            s.agentStatus == AgentStatus.compacting ||
-            s.isStreaming ||
-            s.activeToolCalls.isNotEmpty)) ||
+    // Sessions opened in this run stay subscribed, so their live state is
+    // shown after switching away; the daemon listing lags a running turn.
+    final unread = ref.read(unreadSessionsProvider.notifier);
+    final isLive =
+        isPinned || isSelected || isStaticActive || unread.isFollowed(id);
+    if (isLive) unread.follow(id);
+    final isWorking = isLive
+        ? ref.watch(sessionStateFamily(id).select(agentAtWork)) ||
             // Waiting on background subagents or workflows still counts as running.
             ref.watch(backgroundAgentsRunningProvider(id))
         : (session['status'] == 'working' || session['isStreaming'] == true);
+    final isUnread = !isSelected &&
+        ref.watch(unreadSessionsProvider.select((ids) => ids.contains(id)));
 
     final relative = relativeTimeLabel(
       strings,
@@ -1617,21 +1606,14 @@ class _SessionTile extends ConsumerWidget {
       secondary: relative,
       selected: isSelected,
       minHeight: _railRowMinHeight + (relative != null ? 8 : 0),
-      leading: isWorking
-          ? _WorkingDot(color: tokens.agentWorking)
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? tokens.displayText
-                    : (isStaticActive
-                        ? tokens.agentSettled
-                        : tokens.textMuted.withValues(alpha: 0.5)),
-                border: Border.all(color: tokens.borderStrong),
+      leading: Center(
+        child: isWorking
+            ? _WorkingDot(color: tokens.agentWorking)
+            : _UnreadDot(
+                key: ValueKey('session-unread-dot-$id-$isUnread'),
+                unread: isUnread,
               ),
-            ),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1680,10 +1662,14 @@ class _SessionTile extends ConsumerWidget {
       );
     });
 
+    // The keyboard cursor and a working agent used the same colour (accent is
+    // the focus ring colour), so a clicked card looked like a working one.
+    // The cursor ring now shows only while navigating with the keyboard, and
+    // a working card uses the agent-working colour.
     final borderColor = isCursor
         ? tokens.focusRing
         : (isWorking
-            ? tokens.accent
+            ? tokens.agentWorking.withValues(alpha: 0.7)
             : tokens.surface.withValues(alpha: 0));
 
     final content = DecoratedBox(

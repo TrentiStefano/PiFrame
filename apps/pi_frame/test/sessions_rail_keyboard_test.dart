@@ -135,4 +135,34 @@ void main() {
 
     expect(find.byType(PopupMenuItem<String>), findsWidgets);
   });
+
+  testWidgets('the cursor ring is a keyboard cue: a click does not leave it on the card', (
+    tester,
+  ) async {
+    await _pumpRail(tester);
+    final alphaTile = find.byKey(const ValueKey('session-tile-/repos/alpha-a1'));
+
+    bool hasRing() => tester
+        .widgetList<DecoratedBox>(
+          find.descendant(of: alphaTile, matching: find.byType(DecoratedBox)),
+        )
+        .any((box) {
+          final dec = box.decoration;
+          return dec is BoxDecoration &&
+              dec.border != null &&
+              dec.border!.top.color == FrameTokens.dark.focusRing;
+        });
+
+    // Clicking a card focuses the rail but shows no keyboard ring.
+    FocusManager.instance.highlightStrategy = FocusHighlightStrategy.automatic;
+    await tester.tap(find.text('Alpha one'));
+    await tester.pumpAndSettle();
+    expect(hasRing(), isFalse);
+
+    // Arrow keys switch to keyboard mode and the ring follows the cursor.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(hasRing(), isTrue);
+  });
 }

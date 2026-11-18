@@ -25,6 +25,7 @@ import '../data/language/strings_workspace.dart';
 import '../data/theme/theme_providers.dart';
 import '../features/sessions_sidebar/session_actions.dart';
 import '../features/sessions_sidebar/sessions_sidebar.dart';
+import '../features/sessions_sidebar/unread_sessions_provider.dart';
 import '../features/transcript/transcript_view.dart';
 import '../features/transcript/subagent_panel.dart';
 import '../features/transcript/chat_drop_target.dart';
@@ -810,6 +811,8 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
+    // Keeps unread tracking alive while the sessions rail is hidden.
+    ref.listen(unreadSessionsProvider, (_, _) {});
     ref.listen<bool>(isReviewingChangesProvider, (prev, next) {
       if (next) {
         _enterReviewMode();
