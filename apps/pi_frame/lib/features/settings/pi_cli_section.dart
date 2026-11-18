@@ -712,7 +712,7 @@ class _PiCliSectionState extends State<PiCliSection> {
         ),
         child: Material(
           key: const ValueKey('pi-cli-card-pi-mcp-list'),
-          color: Colors.transparent,
+          type: MaterialType.transparency,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           child: Tooltip(
             message: strings.piCliMcpCardTooltip,

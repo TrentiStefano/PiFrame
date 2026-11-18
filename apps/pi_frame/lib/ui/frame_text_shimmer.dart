@@ -94,7 +94,8 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
         widget.text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: widget.style.copyWith(color: Colors.white),
+        // BlendMode.srcIn keeps only the glyph alpha; any opaque colour works.
+        style: widget.style.copyWith(color: highlight),
       ),
     );
   }
