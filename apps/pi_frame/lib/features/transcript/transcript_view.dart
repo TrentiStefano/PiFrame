@@ -1777,6 +1777,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           false,
                                           const [],
                                           isCard: false,
+                                          // The running step group above already
+                                          // shows a shimmering "Working…" header.
+                                          showLoadingIndicator: !blocks.any(
+                                            (b) =>
+                                                b is StepsGroupBlock &&
+                                                b.isRunning &&
+                                                b.turnId == block.turnId,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -2385,10 +2393,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     bool hasActiveTools,
     List<ToolExecutionState> liveTools, {
     bool isCard = false,
+    bool showLoadingIndicator = true,
   }) {
     final hasLiveThinking = liveThinking.trim().isNotEmpty;
     final hasLiveText = liveText.trim().isNotEmpty;
-    final hasLoadingIndicator = sessionState.agentStatus == AgentStatus.working &&
+    final hasLoadingIndicator = showLoadingIndicator &&
+        sessionState.agentStatus == AgentStatus.working &&
         !hasLiveThinking &&
         !hasActiveTools;
 
