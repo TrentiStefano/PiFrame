@@ -213,7 +213,7 @@ Do not claim that a reference was inspected when it was not accessible.
 | Q-SCOPE | scope | 100 | yes | answered | Is this discovery meant to establish PiFrame's overall product/UI contract, or focus on a specific session-workflow change in the current branch? |
 | Q-FILE-VIEW | file pane behavior | 100 | yes | answered | Should repository files support read-only browsing/preview, or direct editing and saving from PiFrame? |
 | Q-VISUAL-DIRECTION | visual direction | 100 | yes | answered | Which visual composition should lead exploration: Bento Triptych, Artifact Atlas, or Conversation Desk? |
-| Q-COLD-TITLE | product-fidelity | 100 | yes | answered | Quando manca un titolo nell'indice, preferisci mostrare subito un ID provvisorio o attendere il titolo esatto? |
+| Q-COLD-TITLE | product-fidelity | 100 | yes | answered | When a title is missing from the index, should the UI show a provisional ID at once or wait for the exact title? |
 | Q-FLOW | critical flow | 93 | yes | answered | Which session workflow should define the critical path: resume/reconnect ongoing work, find and switch sessions, branch/fork/clone, or protect uncertain/shared sessions? |
 <!-- DD_INTERVIEW_STATUS_END -->
 
@@ -925,7 +925,7 @@ Do not create generic components whose abstraction removes product meaning.
 Technical and direct. Italian is the primary UI language, with English available.
 
 ## Tone
-Calm and factual. Errors say what failed and what to do next, for example "Comando non riuscito: …" or "Attendi la fine del turno o della compattazione."
+Calm and factual. Errors say what failed and what to do next, for example "Command failed: …" or "Wait for the turn or the compaction to finish." (Italian UI: "Comando non riuscito: …").
 
 ## Naming rules
 - Pi commands always appear as `/name` in the mono font.

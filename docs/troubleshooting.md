@@ -519,7 +519,7 @@ If the monitor is turned off, or a DisplayPort monitor enters deep sleep, Window
 #### Fix 3: assign the dedicated GPU (Windows graphics settings)
 On systems with integrated graphics and a dedicated graphics card (for example AMD + NVIDIA):
 1. Open **Windows Settings → System → Display → Graphics**.
-2. Add the `PiFrame.exe` executable (in `C:\Program Files\PiFrame\` or your install directory).
+2. Add the `PiFrame.exe` executable (by default in `%LOCALAPPDATA%\Programs\PiFrame\`, the per-user install directory).
 3. Click **Options** and choose **High performance** (NVIDIA GeForce RTX) to force the primary D3D11 adapter instead of the software or integrated fallback.
 
 ---
