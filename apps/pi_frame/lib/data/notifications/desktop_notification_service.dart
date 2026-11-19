@@ -40,9 +40,7 @@ class DesktopNotificationService {
     try {
       switch (status) {
         case DesktopIndicatorStatus.working:
-          if (Platform.isWindows) {
-            await windowManager.setProgressBar(2.0);
-          } else if (Platform.isMacOS) {
+          if (Platform.isMacOS) {
             await windowManager.setBadgeLabel('⋯');
             await windowManager.setProgressBar(0.5);
           }
@@ -50,9 +48,7 @@ class DesktopNotificationService {
           break;
 
         case DesktopIndicatorStatus.unread:
-          if (Platform.isWindows) {
-            await windowManager.setProgressBar(1.0);
-          } else if (Platform.isMacOS) {
+          if (Platform.isMacOS) {
             await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel('•');
           }
@@ -60,8 +56,8 @@ class DesktopNotificationService {
           break;
 
         case DesktopIndicatorStatus.idle:
-          await windowManager.setProgressBar(-1.0);
           if (Platform.isMacOS) {
+            await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel(null);
           }
           await windowManager.setTitle('PiFrame');

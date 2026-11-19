@@ -4,6 +4,16 @@ This document collects diagnoses, root causes and fixes for known problems in th
 
 ---
 
+## Windows crash with `0xc0000005` in `window_manager_plugin.dll`
+
+**Symptom:** on Windows, the application crashed shortly after launching with exit code `0xc0000005` (access violation) reported in Windows Event Viewer inside `window_manager_plugin.dll` at offset `0x000000000000aceb`.
+
+**Cause:** the upstream `window_manager` plugin on Windows implements `setProgressBar` by calling `taskbar_->SetProgressState(...)` without checking whether `taskbar_` is null. In `window_manager.cpp`, `taskbar_` (`ITaskbarList3*`) is only initialized if `windowManager.waitUntilReadyToShow()` is invoked. Because PiFrame uses custom desktop window restoration (`WindowStateService.instance.restoreWindow()`), `taskbar_` remained a null pointer, causing a native null pointer dereference whenever `setProgressBar` was invoked.
+
+**Fix:** removed native `setProgressBar` calls on Windows in `DesktopNotificationService.updateIndicatorStatus`. Windows and Linux taskbar status is reliably surfaced through window title updates (`● PiFrame` while working, `• PiFrame` when an unread answer is ready, and `PiFrame` when idle), while macOS continues using dock progress and badge dots via native Cocoa APIs.
+
+---
+
 ## Path links open the wrong WSL distro on Windows
 
 **Symptom:** on Windows, clicking a Linux path in the chat (for example `/home/user/repo/lib/main.dart`) in a session whose folder is not a WSL UNC path tried to open it in a fixed WSL distro name that existed only on the developer's machine, so File Explorer showed nothing or the wrong folder.
