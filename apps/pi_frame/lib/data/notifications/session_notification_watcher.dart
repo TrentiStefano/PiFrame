@@ -9,6 +9,7 @@ import '../daemon/daemon_providers.dart';
 import '../../features/sessions_sidebar/pinned_sessions_provider.dart';
 import '../../features/transcript/subagents_provider.dart';
 import '../../features/transcript/workflows_provider.dart';
+import 'desktop_notification_service.dart';
 import 'notification_providers.dart';
 
 /// How long a session must stay finished before its answer counts as the
@@ -39,31 +40,83 @@ class SessionNotificationWatcher extends ConsumerStatefulWidget {
 
 class _SessionNotificationWatcherState
     extends ConsumerState<SessionNotificationWatcher> {
+  final Set<String> _workingSessionIds = <String>{};
+  bool _hasUnreadAnswer = false;
+  DesktopNotificationService? _notificationService;
+
   @override
-  void initState() {
-    super.initState();
-    ref
-        .read(desktopNotificationServiceProvider)
-        .onNotificationClicked = (sessionId) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final service = ref.read(desktopNotificationServiceProvider);
+    _notificationService = service;
+    service.onNotificationClicked = (sessionId) {
       if (mounted) {
         ref.read(activeSessionIdProvider.notifier).state = sessionId;
       }
     };
   }
 
+  void _syncIndicator() {
+    if (!mounted) return;
+    final service = _notificationService;
+    if (service == null) return;
+    if (_workingSessionIds.isNotEmpty) {
+      service.updateIndicatorStatus(DesktopIndicatorStatus.working);
+    } else if (_hasUnreadAnswer) {
+      service.updateIndicatorStatus(DesktopIndicatorStatus.unread);
+    } else {
+      service.updateIndicatorStatus(DesktopIndicatorStatus.idle);
+    }
+  }
+
+  void _onRunWorking(String id) {
+    if (!mounted) return;
+    setState(() {
+      _workingSessionIds.add(id);
+    });
+    _syncIndicator();
+  }
+
+  void _onRunFinished(String id, {required bool unreadAnswer}) {
+    if (!mounted) return;
+    setState(() {
+      _workingSessionIds.remove(id);
+      if (unreadAnswer) {
+        _hasUnreadAnswer = true;
+      }
+    });
+    _syncIndicator();
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(appFocusProvider, (prev, isFocused) {
+      if (isFocused && _hasUnreadAnswer) {
+        setState(() {
+          _hasUnreadAnswer = false;
+        });
+        _syncIndicator();
+      }
+    });
+
     final activeId = ref.watch(activeSessionIdProvider);
     final pinnedIds = ref.watch(pinnedSessionsProvider);
     final monitoredIds = <String>{
       if (activeId != null && activeId.isNotEmpty) activeId,
       ...pinnedIds,
+      ..._workingSessionIds,
     };
 
     return Stack(
       children: [
         for (final id in monitoredIds)
-          _SessionWatcherItem(key: ValueKey('watcher_$id'), sessionId: id),
+          _SessionWatcherItem(
+            key: ValueKey('watcher_$id'),
+            sessionId: id,
+            onRunWorking: () => _onRunWorking(id),
+            onRunFinished: ({required bool unreadAnswer}) =>
+                _onRunFinished(id, unreadAnswer: unreadAnswer),
+          ),
       ],
     );
   }
@@ -71,8 +124,15 @@ class _SessionNotificationWatcherState
 
 class _SessionWatcherItem extends ConsumerStatefulWidget {
   final String sessionId;
+  final VoidCallback onRunWorking;
+  final void Function({required bool unreadAnswer}) onRunFinished;
 
-  const _SessionWatcherItem({super.key, required this.sessionId});
+  const _SessionWatcherItem({
+    super.key,
+    required this.sessionId,
+    required this.onRunWorking,
+    required this.onRunFinished,
+  });
 
   @override
   ConsumerState<_SessionWatcherItem> createState() =>
@@ -88,6 +148,10 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
   @override
   void dispose() {
     _completionTimer?.cancel();
+    _completionTimer = null;
+    if (_isRunActive) {
+      widget.onRunFinished(unreadAnswer: false);
+    }
     super.dispose();
   }
 
@@ -112,6 +176,12 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
         initial.agentStatus == AgentStatus.compacting ||
         initial.isStreaming ||
         initial.activeToolCalls.values.any((t) => t.isRunning);
+
+    if (_isRunActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onRunWorking();
+      });
+    }
   }
 
   @override
@@ -209,7 +279,10 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
         hasRunningSubagents;
 
     if (isCurrentlyOperating) {
-      _isRunActive = true;
+      if (!_isRunActive) {
+        _isRunActive = true;
+        widget.onRunWorking();
+      }
       // Still working: an answer seen a moment ago was not the final one.
       _completionTimer?.cancel();
       _completionTimer = null;
@@ -218,7 +291,10 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     // Agent crashed or worker error: reset active run flag so no false completion is fired
     if (next.agentStatus == AgentStatus.workerError ||
         next.agentStatus == AgentStatus.error) {
-      _isRunActive = false;
+      if (_isRunActive) {
+        _isRunActive = false;
+        widget.onRunFinished(unreadAnswer: false);
+      }
       _completionTimer?.cancel();
       _completionTimer = null;
       return;
@@ -251,18 +327,23 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
         subagents.any((s) => !s.isUnlinked && s.isRunning) ||
         ref.read(backgroundAgentsRunningProvider(widget.sessionId));
     if (!_isSettled(state, hasRunningSubagents)) return;
-    _isRunActive = false;
 
-    final answer = finalAnswerEntry(state.entries);
-    if (answer == null || _handledEntryIds.contains(answer.id)) return;
-    _handledEntryIds.add(answer.id);
-
-    if (!ref.read(notificationsEnabledProvider)) return;
     final service = ref.read(desktopNotificationServiceProvider);
     final isFocused = await service.checkIsAppFocused(
       ref.read(appFocusProvider),
     );
-    if (isFocused || !mounted) return;
+
+    if (!mounted || !_isRunActive) return;
+    _isRunActive = false;
+
+    final answer = finalAnswerEntry(state.entries);
+    final isUnread = !isFocused && answer != null;
+    widget.onRunFinished(unreadAnswer: isUnread);
+
+    if (answer == null || _handledEntryIds.contains(answer.id)) return;
+    _handledEntryIds.add(answer.id);
+
+    if (!ref.read(notificationsEnabledProvider) || isFocused || !mounted) return;
     final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
     final rawText = answer.text.trim();
     final preview = rawText.length > 120

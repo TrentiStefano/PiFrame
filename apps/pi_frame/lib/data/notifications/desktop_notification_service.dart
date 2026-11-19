@@ -6,6 +6,12 @@ import 'package:window_manager/window_manager.dart';
 import '../../app/harness_mode.dart';
 import '../platform/widget_test_binding.dart';
 
+enum DesktopIndicatorStatus {
+  idle,
+  working,
+  unread,
+}
+
 class DesktopNotificationService {
   static final DesktopNotificationService instance =
       DesktopNotificationService._();
@@ -16,12 +22,55 @@ class DesktopNotificationService {
   DesktopNotificationService.forTesting();
 
   bool _initialized = false;
+  DesktopIndicatorStatus _indicatorStatus = DesktopIndicatorStatus.idle;
+  DesktopIndicatorStatus get indicatorStatus => _indicatorStatus;
   void Function(String sessionId)? onNotificationClicked;
 
   bool get isSupported =>
       !kIsWeb &&
       !isWidgetTestBinding &&
       (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+
+  Future<void> updateIndicatorStatus(DesktopIndicatorStatus status) async {
+    if (_indicatorStatus == status) return;
+    _indicatorStatus = status;
+
+    if (!isSupported || isHarnessMode) return;
+
+    try {
+      switch (status) {
+        case DesktopIndicatorStatus.working:
+          if (Platform.isWindows) {
+            await windowManager.setProgressBar(2.0);
+          } else if (Platform.isMacOS) {
+            await windowManager.setBadgeLabel('⋯');
+            await windowManager.setProgressBar(0.5);
+          }
+          await windowManager.setTitle('● PiFrame');
+          break;
+
+        case DesktopIndicatorStatus.unread:
+          if (Platform.isWindows) {
+            await windowManager.setProgressBar(1.0);
+          } else if (Platform.isMacOS) {
+            await windowManager.setProgressBar(-1.0);
+            await windowManager.setBadgeLabel('•');
+          }
+          await windowManager.setTitle('• PiFrame');
+          break;
+
+        case DesktopIndicatorStatus.idle:
+          await windowManager.setProgressBar(-1.0);
+          if (Platform.isMacOS) {
+            await windowManager.setBadgeLabel(null);
+          }
+          await windowManager.setTitle('PiFrame');
+          break;
+      }
+    } catch (e) {
+      debugPrint('Failed to update desktop indicator: $e');
+    }
+  }
 
   Future<void> initialize() async {
     if (!isSupported || _initialized) return;

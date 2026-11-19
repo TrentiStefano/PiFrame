@@ -16,6 +16,7 @@ class MockDesktopNotificationService extends DesktopNotificationService {
   MockDesktopNotificationService() : super.forTesting();
 
   final List<({String title, String body, String? sessionId})> sent = [];
+  final List<DesktopIndicatorStatus> indicatorHistory = [];
 
   @override
   bool get isSupported => true;
@@ -25,6 +26,13 @@ class MockDesktopNotificationService extends DesktopNotificationService {
 
   @override
   Future<bool> checkIsAppFocused(bool fallbackState) async => fallbackState;
+
+  @override
+  Future<void> updateIndicatorStatus(DesktopIndicatorStatus status) async {
+    if (indicatorStatus == status) return;
+    indicatorHistory.add(status);
+    await super.updateIndicatorStatus(status);
+  }
 
   @override
   Future<void> showNotification({
@@ -558,6 +566,63 @@ void main() {
       await tester.pump(finalAnswerQuietPeriod);
       await tester.pumpAndSettle();
       expect(service.sent.map((n) => n.body), ['Finished while you were away.']);
+    });
+
+    testWidgets('desktop indicator updates working -> unread -> idle on focus', (tester) async {
+      final (service, notifier, container) = await pump(tester, 'indicator_flow');
+      container.read(focused.notifier).state = false;
+      expect(service.indicatorHistory, isEmpty);
+
+      // 1. Session begins working
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump();
+      expect(service.indicatorHistory, [DesktopIndicatorStatus.working]);
+
+      // 2. Agent finishes answer while unfocused
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('a1', 'Done working on your task.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod);
+      await tester.pumpAndSettle();
+      expect(
+        service.indicatorHistory,
+        [DesktopIndicatorStatus.working, DesktopIndicatorStatus.unread],
+      );
+
+      // 3. User focuses the app
+      container.read(focused.notifier).state = true;
+      await tester.pump();
+      expect(
+        service.indicatorHistory,
+        [
+          DesktopIndicatorStatus.working,
+          DesktopIndicatorStatus.unread,
+          DesktopIndicatorStatus.idle,
+        ],
+      );
+    });
+
+    testWidgets('desktop indicator transitions working -> idle when finished while focused', (tester) async {
+      final (service, notifier, container) = await pump(tester, 'indicator_focused');
+      container.read(focused.notifier).state = true;
+
+      // Agent starts working
+      notifier.state = notifier.state.copyWith(agentStatus: AgentStatus.working);
+      await tester.pump();
+      expect(service.indicatorHistory, [DesktopIndicatorStatus.working]);
+
+      // Agent completes while user is viewing the app
+      notifier.state = notifier.state.copyWith(
+        agentStatus: AgentStatus.settled,
+        entries: [answer('a2', 'Finished in front of user.')],
+      );
+      await tester.pump(finalAnswerQuietPeriod);
+      await tester.pumpAndSettle();
+      expect(
+        service.indicatorHistory,
+        [DesktopIndicatorStatus.working, DesktopIndicatorStatus.idle],
+      );
     });
   });
 
