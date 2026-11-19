@@ -103,4 +103,28 @@ phase('Review')''';
     expect(settle(const []).single.isRunning, isTrue);
     expect(settle([child('a', at: 20 * minute)], active: {'call_wf'}).single.isRunning, isTrue);
   });
+
+  test('a worker reporting nothing running settles workflows at once', () {
+    const minute = 60 * 1000;
+    final run = WorkflowItem(id: 'wf', name: 'wf', toolCallId: 'call_wf', timestamp: 0);
+    // A child that settled a moment ago would keep the guess waiting 10 minutes.
+    final child = SubagentItem(id: 'c', name: 'c', status: 'completed', isUnlinked: true, startedAt: 1000, updatedAt: 3 * minute);
+    final settled = settleIdleWorkflows([run], [child], activeToolCallIds: const {}, now: 3 * minute, nothingRunning: true);
+    expect(settled.single.isRunning, isFalse);
+    // While its launch call still runs, the run is not over.
+    expect(
+      settleIdleWorkflows([run], [child], activeToolCallIds: const {'call_wf'}, now: 3 * minute, nothingRunning: true).single.isRunning,
+      isTrue,
+    );
+  });
+
+  test('SubagentLiveState.idleFor needs the worker to report idle long enough, or be gone', () {
+    const quiet = Duration(seconds: 20);
+    expect(const SubagentLiveState().idleFor(quiet, 100000), isFalse);
+    expect(const SubagentLiveState(workerGone: true).idleFor(quiet, 0), isTrue);
+    const idle = SubagentLiveState(workerAlive: true, anyRunning: false, idleSince: 1000);
+    expect(idle.idleFor(quiet, 15000), isFalse);
+    expect(idle.idleFor(quiet, 21000), isTrue);
+    expect(const SubagentLiveState(workerAlive: true, anyRunning: true).idleFor(quiet, 99999), isFalse);
+  });
 }

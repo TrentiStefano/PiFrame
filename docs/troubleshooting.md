@@ -114,19 +114,28 @@ flutter test test/subagents_feature_test.dart test/overflow_widths_test.dart
 
 ---
 
-## Subagents and workflows stuck as "running"
+## Subagents and workflows stuck as "running", or shown finished while still running
 
-**Symptom:** a background subagent or workflow stayed "In progress" for hours. Stopping it from the Agents pane showed it as stopped, but the main agent could not confirm it, and it was marked running again after a restart.
+**Symptom:** a background subagent or workflow stayed "In progress" for hours, or the opposite: `/agents` showed an agent as running while PiFrame's Agents pane showed it completed. Stopping it from the Agents pane showed it as stopped, but the main agent said it could not confirm or force the stop, and the agent came back as running after a reload. Only restarting the session cleared it.
 
-**Cause:** a background `Agent` launch counts as running until its `<task-notification>` reaches the parent session. When the notification never arrives (for example, the Pi worker was restarted or the agent died), the daemon reported it as running forever. Workflow runs had the same problem. The Stop button only sends a stop request to the main agent and marks the agent stopped locally, so the daemon's status came back after a reload.
+**Causes:**
+- `@tintinweb/pi-subagents` runs background agents inside the Pi worker process. PiFrame stopped an idle worker after 30 minutes when the main agent was settled, without checking for background agents, so an agent that kept working past that was killed with no result and no notification; the main agent then waited on it forever.
+- PiFrame did not read pi-subagents' state; it guessed it from the session files (a final answer, or 10 minutes without writes). An agent waiting inside a long tool call, such as a hung `bash` command, looked finished; an agent that died with its worker looked running.
+- The Stop button sent the main agent a chat message asking it to stop the agent, but pi-subagents gives the main agent no tool that stops an agent (only `Agent`, `get_subagent_result` and `steer_subagent`), so nothing stopped it.
 
-**Fix:** `SessionIndex.getSubagents` now falls back to the child session file for a background agent with no notification: a final answer marks it completed, and 10 minutes without writes marks it settled (the same rule already used for unlinked child sessions). In the app, `settleIdleWorkflows` marks a workflow run completed when all its agents settled and none wrote for 10 minutes. A run with no agents to judge by stays running.
+**Fix:**
+- PiFrame's extension in each Pi worker now includes a bridge (`subagentBridgeExtension.ts`). It follows pi-subagents' lifecycle events and its manager registry (`Symbol.for("pi-subagents:manager")`) and reports the live state to the daemon on a reserved status key. While the worker reports, that state decides what the Agents pane shows; an agent this worker does not know, while nothing runs, is not running; once PiFrame's worker for a session has gone, none of its agents is running. The session-file guess is only used for sessions PiFrame did not run (for example, open in a Pi terminal).
+- **Stop** now goes through `session.stopSubagent` and the bridge to pi-subagents' own stop (`subagents:rpc:stop`, the one `/agents` uses). The daemon waits for the bridge to confirm; if it cannot, the Agents pane says why. A real stop also writes the agent's final record and notifies the main agent.
+- The main agent gets a `stop_subagent` tool, so it can stop an agent when you ask it to.
+- The idle shutdown waits while any background agent runs in the worker.
+- A running agent whose session has not moved for 10 minutes shows "No activity for N min, it may be stuck" next to its Stop button.
+- Workflow runs settle as soon as the worker reports nothing running for 20 seconds, instead of after 10 quiet minutes.
 
 Check from source:
 
 ```bash
-cd apps/agentd && pnpm build && node --test dist/test/sessionCostPersistence.test.js
-cd apps/pi_frame && flutter test test/workflows_provider_test.dart
+cd apps/agentd && pnpm build && node --test dist/pi/test/SubagentBridge.test.js dist/sessions/test/LiveSubagents.test.js
+cd apps/pi_frame && flutter test test/workflows_provider_test.dart test/pcp_client_test.dart
 ```
 
 ---

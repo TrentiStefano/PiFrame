@@ -111,6 +111,7 @@ export type PcpCommandType =
   | 'session.getStats'
   | 'session.getForkPoints'
   | 'session.subagents'
+  | 'session.stopSubagent'
   | 'agent.prompt'
   | 'agent.steer'
   | 'agent.followUp'

@@ -28,6 +28,11 @@ class _CostClient extends PcpClient {
   Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
 
   @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
+  @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
     calls++;
     if (fail) throw StateError('daemon unavailable');
@@ -55,6 +60,11 @@ class _SlowSubagentsClient extends PcpClient {
 
   @override
   Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
+
+  @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
 
   @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) {

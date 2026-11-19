@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
 
 import '../../data/language/language_settings.dart';
@@ -868,6 +869,17 @@ List<T> _byActivityThenLaunch<T>(
   return [for (final e in indexed) e.item];
 }
 
+/// How long a running agent's session has been quiet, in minutes, once that
+/// is long enough to look stuck (10 min); null otherwise.
+@visibleForTesting
+int? quietMinutes(SubagentItem agent, {int? now}) {
+  final updated = agent.updatedAt;
+  if (!agent.isRunning || updated == null || updated <= 0) return null;
+  final minutes =
+      ((now ?? DateTime.now().millisecondsSinceEpoch) - updated) ~/ 60000;
+  return minutes >= 10 ? minutes : null;
+}
+
 /// Duration from [from] to [to] (or now), as `8s`, `3m 05s` or `2h 10m`.
 /// A missing or zero time (an entry restored without its timestamp) shows
 /// nothing rather than a duration counted from 1970.
@@ -1336,6 +1348,21 @@ class _AgentTreeState extends ConsumerState<_AgentTree>
               color: color,
             ),
           ],
+          // A running agent whose session has not moved for a while is most
+          // likely stuck in a tool call: say so, next to its Stop button.
+          if (quietMinutes(agent) case final minutes?) ...[
+            const SizedBox(height: 3),
+            Text(
+              strings.subagentQuietFor(minutes),
+              key: ValueKey('agent-quiet-${agent.id}'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: tokens.warning,
+                fontSize: FrameText.of(context).caption.fontSize,
+              ),
+            ),
+          ],
         ],
       ),
       details: expanded
@@ -1343,7 +1370,15 @@ class _AgentTreeState extends ConsumerState<_AgentTree>
               agent: agent,
               strings: strings,
               onSteer: (msg) => notifier.steerSubagent(agent.id, msg),
-              onStop: () => notifier.stopSubagent(agent.id),
+              onStop: () async {
+                final failure = await notifier.stopSubagent(agent.id);
+                if (failure != null && mounted) {
+                  FrameSnackBar.show(
+                    context,
+                    message: strings.subagentStopFailedMessage(failure),
+                  );
+                }
+              },
               onToggleSteeringBox: () => notifier.toggleSteering(agent.id),
             )
           : null,

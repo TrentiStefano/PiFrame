@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/features/transcript/subagent_panel.dart';
+import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame/features/workspace/workspace_pane.dart';
 import 'package:pi_frame/features/workspace/workspace_pane_header.dart';
 import 'package:pi_frame/ui/frame_icon_action.dart';
@@ -102,5 +103,14 @@ void main() {
     expect(formatAgentElapsed(0, now), '', reason: 'a start restored without a timestamp');
     expect(formatAgentElapsed(now - 1000, 0), '');
     expect(formatAgentElapsed(null, now), '');
+  });
+
+  test('a running agent quiet for 10 minutes or more is flagged as possibly stuck', () {
+    const now = 1795000000000;
+    SubagentItem agent(String status, int quietMs) =>
+        SubagentItem(id: 'a', name: 'a', status: status, updatedAt: now - quietMs);
+    expect(quietMinutes(agent('running', 9 * 60000), now: now), isNull);
+    expect(quietMinutes(agent('running', 52 * 60000), now: now), 52);
+    expect(quietMinutes(agent('completed', 52 * 60000), now: now), isNull);
   });
 }

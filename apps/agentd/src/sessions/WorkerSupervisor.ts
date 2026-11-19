@@ -115,6 +115,7 @@ export class WorkerSupervisor {
     });
 
     session.worker = worker;
+    session.markWorkerStarted();
     this.activeWorkers.set(session.id, worker);
     this.sessions.set(session.id, session);
     this.workerSessions.set(worker, session);
@@ -187,6 +188,8 @@ export class WorkerSupervisor {
       this.workerSessions.delete(worker);
       if (this.activeWorkers.get(session.id) !== worker) return;
       this.activeWorkers.delete(session.id);
+      // Background subagents run inside the worker: they are gone with it.
+      session.markWorkerGone();
       const timer = this.idleTimers.get(session.id);
       if (timer) {
         clearTimeout(timer);
@@ -258,6 +261,12 @@ export class WorkerSupervisor {
     });
   }
 
+  /** The session's live worker, if it has one. */
+  public liveWorker(sessionId: string): StdioPiTransport | undefined {
+    const worker = this.activeWorkers.get(sessionId);
+    return worker && worker.health().alive ? worker : undefined;
+  }
+
   public touch(sessionId: string): void {
     const existingTimer = this.idleTimers.get(sessionId);
     if (existingTimer) {
@@ -284,7 +293,11 @@ export class WorkerSupervisor {
     const session = this.sessions.get(sessionId);
     if (session && session.sessionFile && fs.existsSync(session.sessionFile) &&
         session.status === 'settled' && !session.isStreaming && !session.isCompacting &&
-        session.uiBroker.getPending().length === 0) {
+        session.uiBroker.getPending().length === 0 &&
+        // Background subagents run inside this worker: stopping it while one
+        // works killed the agent with no result, leaving the main agent
+        // waiting on it forever.
+        !session.hasRunningSubagents) {
       await this.stopWorker(sessionId);
     } else {
       this.touch(sessionId);

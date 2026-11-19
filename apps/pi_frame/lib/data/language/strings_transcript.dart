@@ -171,6 +171,15 @@ extension TranscriptStrings on AppStrings {
       isItalian ? '[Guida utente]: $text' : '[User steer]: $text';
   String get subagentStoppedNote =>
       isItalian ? '[Interrotto dall\'utente]' : '[Stopped by user]';
+  String get subagentStopFailed => isItalian
+      ? 'pi-subagents non ha confermato l\'interruzione.'
+      : 'pi-subagents did not confirm the stop.';
+  String subagentStopFailedMessage(String reason) => isItalian
+      ? 'Agente non interrotto: $reason'
+      : 'Agent not stopped: $reason';
+  String subagentQuietFor(int minutes) => isItalian
+      ? 'Nessuna attività da $minutes min, potrebbe essere bloccato'
+      : 'No activity for $minutes min, it may be stuck';
 
   // Steps group
   String get stepsGroupInputCopied =>

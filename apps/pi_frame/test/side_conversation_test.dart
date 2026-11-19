@@ -135,6 +135,11 @@ class FakeSidePcpClient extends PcpClient {
   }
 
   @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
+  @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
     return [];
   }

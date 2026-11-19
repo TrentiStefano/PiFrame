@@ -95,6 +95,56 @@ class SubagentItem {
   }
 }
 
+/// What the daemon knows of the worker a session's agents run in: whether
+/// anything still runs (`anyRunning`, `idleSince`) and whether the worker is
+/// alive or has gone. Empty until the first answer.
+class SubagentLiveState {
+  final bool? anyRunning;
+  final int? idleSince;
+  final bool workerAlive;
+  final bool workerGone;
+
+  const SubagentLiveState({
+    this.anyRunning,
+    this.idleSince,
+    this.workerAlive = false,
+    this.workerGone = false,
+  });
+
+  factory SubagentLiveState.fromJson(Map<String, dynamic> json) =>
+      SubagentLiveState(
+        anyRunning: json['anyRunning'] is bool ? json['anyRunning'] as bool : null,
+        idleSince: (json['idleSince'] as num?)?.toInt(),
+        workerAlive: json['workerAlive'] == true,
+        workerGone: json['workerGone'] == true,
+      );
+
+  /// Nothing can be running: the worker reports idle, or it has gone.
+  bool idleFor(Duration quiet, int now) =>
+      workerGone ||
+      (workerAlive &&
+          anyRunning == false &&
+          idleSince != null &&
+          now - idleSince! >= quiet.inMilliseconds);
+
+  @override
+  bool operator ==(Object other) =>
+      other is SubagentLiveState &&
+      other.anyRunning == anyRunning &&
+      other.idleSince == idleSince &&
+      other.workerAlive == workerAlive &&
+      other.workerGone == workerGone;
+
+  @override
+  int get hashCode => Object.hash(anyRunning, idleSince, workerAlive, workerGone);
+}
+
+/// Per session, the live state from the last subagent refresh.
+final subagentLiveStateFamily =
+    StateProvider.family<SubagentLiveState, String>(
+      (ref, sessionId) => const SubagentLiveState(),
+    );
+
 class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   final Ref ref;
   final String sessionId;
@@ -316,9 +366,14 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     try {
       // Keep one request in flight so a slow response is not discarded or duplicated.
       // A daemon that never answers must not block every later refresh.
-      final daemonSubagents =
-          await client.getSubagents(sessionId).timeout(const Duration(seconds: 30));
+      final response = await client
+          .getSubagentsWithLive(sessionId)
+          .timeout(const Duration(seconds: 30));
       if (!mounted) return;
+      final daemonSubagents = response.subagents;
+      final live = SubagentLiveState.fromJson(response.live);
+      final liveState = ref.read(subagentLiveStateFamily(sessionId).notifier);
+      if (liveState.state != live) liveState.state = live;
       final nextIds = daemonSubagents.map((raw) => raw['id']).toSet();
       final removedIds = _daemonSubagents
           .map((raw) => raw['id'])
@@ -572,7 +627,8 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     } catch (_) {}
   }
 
-  Future<void> stopSubagent(String subagentId) async {
+  /// Stops the agent; returns why it could not, or null once it stopped.
+  Future<String?> stopSubagent(String subagentId) async {
     _locallyStopped.add(subagentId);
     _openSteeringIds.remove(subagentId);
 
@@ -588,12 +644,25 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       return item;
     }).toList();
 
+    String? failure;
     try {
       final client = ref.read(pcpClientProvider);
       if (client != null) {
-        await client.stopSubagent(sessionId, subagentId);
+        final result = await client.stopSubagent(sessionId, subagentId);
+        if (result['stopped'] != true) {
+          failure = result['reason']?.toString() ?? strings.subagentStopFailed;
+        }
       }
-    } catch (_) {}
+    } catch (error) {
+      failure = '$error';
+    }
+    if (failure != null && mounted) {
+      // Not stopped: show the agent as it really is again.
+      _locallyStopped.remove(subagentId);
+      _syncFromSessionState();
+    }
+    unawaited(_fetchFromDaemon());
+    return failure;
   }
 }
 

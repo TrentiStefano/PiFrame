@@ -12,6 +12,7 @@ function fixture() {
       await new Promise<void>((resolve) => { release = resolve; });
       return [{ id: `agent-${calls}` }];
     },
+    subagentRuntime: () => ({ live: null, workerAlive: false, workerGone: false }),
     getIndex: () => ({}),
     getPiExecutablePath: () => 'node',
   };

@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import { PIFRAME_SUBAGENTS_STATUS_KEY, parseLiveSubagents, type LiveSubagentState } from './liveSubagents.js';
 import { EventJournal } from '../journal/EventJournal.js';
 import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilder.js';
 import { adaptPiEvent, type SessionContext } from '../pi/PiEventAdapter.js';
@@ -63,6 +64,10 @@ export class Session {
 
   public journal: EventJournal;
   public worker?: StdioPiTransport;
+  /** Last report of PiFrame's subagent bridge in the current worker. */
+  public liveSubagents: LiveSubagentState | null = null;
+  /** When PiFrame's worker for this session last went away (stopped or crashed). */
+  public workerGoneAt: number | null = null;
   public attachedClientIds = new Set<string>();
   public uiBroker: UiRequestBroker;
 
@@ -156,6 +161,14 @@ export class Session {
   }
 
   public dispatchPiEvent(rawEvent: PiEvent): PcpEvent[] {
+    // The subagent bridge reports through a reserved status key: keep it as
+    // live state, never as a visible status line or a journal event.
+    if (rawEvent.type === 'extension_ui_request' && rawEvent.method === 'setStatus' &&
+        rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY) {
+      const live = parseLiveSubagents(rawEvent.statusText);
+      if (live) this.liveSubagents = live;
+      return [];
+    }
     this.lastActivityAt = Date.now();
     const adapted = adaptPiEvent(rawEvent, this.adapterContext);
     const emitted: PcpEvent[] = [];
@@ -171,6 +184,23 @@ export class Session {
     }
 
     return emitted;
+  }
+
+  /** A new worker starts: its bridge reports afresh. */
+  public markWorkerStarted(): void {
+    this.liveSubagents = null;
+    this.workerGoneAt = null;
+  }
+
+  /** The worker is gone, and the background agents running inside it with it. */
+  public markWorkerGone(at = Date.now()): void {
+    this.liveSubagents = null;
+    this.workerGoneAt = at;
+  }
+
+  /** Whether a background agent is running in this session's worker. */
+  public get hasRunningSubagents(): boolean {
+    return this.liveSubagents?.anyRunning === true;
   }
 
   public emitCustomEvent(type: PcpEventType, payload: any): PcpEvent {

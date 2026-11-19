@@ -431,6 +431,8 @@ export class Dispatcher {
         'agent.getCommands',
         'agent.abort',
         'agent.interrupt',
+        // Like abort: stopping a runaway background agent is a safety control.
+        'session.stopSubagent',
         'workspace.refresh',
         'workspace.getDiff',
         'workspace.listFiles',
@@ -779,7 +781,20 @@ export class Dispatcher {
       case 'session.subagents': {
         if (!sessionId) throw new Error('sessionId is required for session.subagents');
         const subagents = await this.registry.getSubagents(sessionId);
-        return { subagents };
+        const runtime = this.registry.subagentRuntime(sessionId);
+        // Whether anything still runs in the worker, so the app can settle
+        // workflows without guessing from idle time.
+        const live = runtime.live?.available
+          ? { anyRunning: runtime.live.anyRunning, idleSince: runtime.live.idleSince, workerAlive: true }
+          : { workerAlive: runtime.workerAlive, workerGone: runtime.workerGone };
+        return { subagents, live };
+      }
+
+      case 'session.stopSubagent': {
+        if (!sessionId) throw new Error('sessionId is required for session.stopSubagent');
+        const agentId = String(payload?.agentId ?? '').trim();
+        if (!agentId) throw new Error('agentId is required for session.stopSubagent');
+        return await this.registry.stopSubagent(sessionId, agentId);
       }
 
       case 'session.create': {

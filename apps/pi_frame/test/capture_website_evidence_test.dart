@@ -202,6 +202,11 @@ class ThemeTokensController {
   };
 
   @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
+  @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async => [];
 
   // Answer the defaults lookups so their timeout timers do not outlive the test.

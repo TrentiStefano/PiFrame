@@ -36,6 +36,7 @@
         "session.getEntries",
         "session.getStats",
         "session.getForkPoints",
+        "session.stopSubagent",
         "agent.prompt",
         "agent.steer",
         "agent.followUp",
