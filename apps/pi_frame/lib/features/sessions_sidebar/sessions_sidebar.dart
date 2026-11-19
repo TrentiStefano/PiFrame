@@ -772,13 +772,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ];
 
                 Widget buildPinnedHeader() {
-                  final hasWorkingPinned = pinnedSessions.any((s) {
-                    final sId = s['id'] as String? ?? '';
-                    return ref.watch(sessionStateFamily(sId).select((st) =>
-                        st.agentStatus == AgentStatus.working ||
-                        st.isStreaming ||
-                        st.activeToolCalls.isNotEmpty));
-                  });
                   final hasUnreadPinned = pinnedSessions.any(
                     (s) => s['id'] != activeId && unreadIds.contains(s['id']),
                   );
@@ -797,10 +790,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             letterSpacing: 0.5,
                           ),
                         ),
-                        if (hasWorkingPinned) ...[
-                          const SizedBox(width: 6),
-                          _WorkingDot(color: tokens.agentWorking, size: 7),
-                        ] else if (hasUnreadPinned) ...[
+                        if (hasUnreadPinned) ...[
                           const SizedBox(width: 6),
                           const _UnreadDot(
                             key: ValueKey('pinned-unread-dot'),
@@ -1341,12 +1331,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 /// motion [FrameActivityIndicator] shows a static glyph.
 class _WorkingDot extends StatelessWidget {
   final Color color;
-  final double size;
 
   const _WorkingDot({
     required this.color,
-    this.size = 10.0,
   });
+
+  static const double _size = 10.0;
 
   @override
   Widget build(BuildContext context) {
@@ -1357,7 +1347,7 @@ class _WorkingDot extends StatelessWidget {
     return RepaintBoundary(
       child: FrameActivityIndicator(
         key: const ValueKey('session-working-spinner'),
-        size: size,
+        size: _size,
         strokeWidth: 1.6,
         value: still ? 0.7 : null,
         color: color,

@@ -85,10 +85,20 @@ void main() {
     sessionNotifier.state = sessionNotifier.state.copyWith(agentStatus: AgentStatus.working);
     await tester.pump();
 
-    // Now the working border and spinner are shown, with no shimmering
+    // Now the working border and spinner are shown on session rows, with no shimmering
     expect(hasWorkingBorder(), isTrue);
     expect(find.byKey(const ValueKey('session-working-spinner')), findsWidgets);
     expect(find.byType(ShimmerBorder), findsNothing);
+
+    // The pinned section header itself must NOT show any redundant loading animation
+    final pinnedHeader = find.ancestor(
+      of: find.text('FISSATE (1)'),
+      matching: find.byType(Row),
+    );
+    expect(
+      find.descendant(of: pinnedHeader, matching: find.byKey(const ValueKey('session-working-spinner'))),
+      findsNothing,
+    );
 
     // Reset working to false
     sessionNotifier.state = sessionNotifier.state.copyWith(agentStatus: AgentStatus.settled);
