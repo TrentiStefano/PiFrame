@@ -19,6 +19,11 @@ class TodoPopDown extends ConsumerStatefulWidget {
   final bool hideBookTab;
   final Set<int>? filterTaskIds;
 
+  /// Fills the Tasks tab of the panel beside the chat: no card border or
+  /// shadow, the list takes the full height, and the close button hides the
+  /// tab instead of collapsing a popup.
+  final bool embedded;
+
   const TodoPopDown({
     super.key,
     required this.sessionId,
@@ -27,6 +32,7 @@ class TodoPopDown extends ConsumerStatefulWidget {
     this.onToggleExpand,
     this.hideBookTab = false,
     this.filterTaskIds,
+    this.embedded = false,
   });
 
   @override
@@ -122,36 +128,41 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
         _activeFilterTaskIds!.isNotEmpty &&
         visibleTodos.length < todos.length;
 
-    final panelContent = _isExpanded
+    final embedded = widget.embedded;
+    final panelContent = _isExpanded || embedded
         ? Container(
             key: const ValueKey('todo-popdown-panel'),
             width: double.infinity,
-            margin: EdgeInsets.fromLTRB(
-              isMobile ? 12 : 8,
-              0,
-              isMobile ? 12 : 8,
-              6,
-            ),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: widget.hideBookTab
-                  ? BorderRadius.only(
-                      topRight: Radius.circular(tokens.radiusMd),
-                      bottomLeft: Radius.circular(tokens.radiusMd),
-                      bottomRight: Radius.circular(tokens.radiusMd),
-                    )
-                  : BorderRadius.circular(tokens.radiusMd),
-              border: Border.all(color: tokens.borderStrong, width: 1.0),
-              boxShadow: [
-                BoxShadow(
-                  color: tokens.overlay.withValues(alpha: 0.12),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
+            margin: embedded
+                ? EdgeInsets.zero
+                : EdgeInsets.fromLTRB(
+                    isMobile ? 12 : 8,
+                    0,
+                    isMobile ? 12 : 8,
+                    6,
+                  ),
+            decoration: embedded
+                ? BoxDecoration(color: tokens.surface)
+                : BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: widget.hideBookTab
+                        ? BorderRadius.only(
+                            topRight: Radius.circular(tokens.radiusMd),
+                            bottomLeft: Radius.circular(tokens.radiusMd),
+                            bottomRight: Radius.circular(tokens.radiusMd),
+                          )
+                        : BorderRadius.circular(tokens.radiusMd),
+                    border: Border.all(color: tokens.borderStrong, width: 1.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: tokens.overlay.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: embedded ? MainAxisSize.max : MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Header Bar
@@ -161,8 +172,10 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: tokens.surface,
-                    borderRadius: widget.hideBookTab
+                    color: embedded ? tokens.surfaceElevated : tokens.surface,
+                    borderRadius: embedded
+                        ? null
+                        : widget.hideBookTab
                         ? BorderRadius.only(
                             topRight: Radius.circular(tokens.radiusMd),
                           )
@@ -213,10 +226,13 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                             ),
                           ),
                           child: Text(
-                            strings.todoCompletedCount(
-                              completedCount,
-                              totalCount,
-                            ),
+                            // The narrow side panel shows just the fraction.
+                            embedded
+                                ? '$completedCount/$totalCount'
+                                : strings.todoCompletedCount(
+                                    completedCount,
+                                    totalCount,
+                                  ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -290,11 +306,13 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                           minHeight: 26,
                         ),
                         icon: Icon(
-                          Icons.keyboard_arrow_up_outlined,
+                          embedded
+                              ? Icons.chevron_right_outlined
+                              : Icons.keyboard_arrow_up_outlined,
                           size: FrameSize.icon,
                           color: tokens.textMuted,
                         ),
-                        onPressed: _handleToggle,
+                        onPressed: embedded ? widget.onClose : _handleToggle,
                       ),
                     ],
                   ),
@@ -437,10 +455,10 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     ),
                   )
                 else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
+                  _listSlot(
+                    embedded: embedded,
                     child: ListView.separated(
-                      shrinkWrap: true,
+                      shrinkWrap: !embedded,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 4,
@@ -691,7 +709,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                   ),
                 ));
 
-    if (widget.hideBookTab) {
+    if (widget.hideBookTab || embedded) {
       return panelContent;
     }
 
@@ -703,6 +721,15 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
       child: panelContent,
     );
   }
+
+  /// Embedded, the list fills the tab; as a popup it stays at most 220 px.
+  Widget _listSlot({required bool embedded, required Widget child}) =>
+      embedded
+          ? Expanded(child: child)
+          : ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: child,
+            );
 
   Widget _buildStatusBadge(
     TodoItem task,

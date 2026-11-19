@@ -556,7 +556,7 @@ void main() {
       expect(find.text('Audit the repo'), findsOneWidget);
     });
 
-    testWidgets('Book tabs operate like an exclusive tab control between activities and subagents', (tester) async {
+    testWidgets('tasks live in a Tasks tab of the side panel, not over the chat', (tester) async {
       final subagents = [
         const SubagentItem(
           id: 'sub_agent_exclusive',
@@ -599,28 +599,107 @@ void main() {
               extensions: const [FrameTokens.dark],
             ),
             home: const Scaffold(
-              body: TranscriptView(
-                sessionId: 'sess_tabs_1',
+              body: SizedBox(
+                width: 1200,
+                height: 700,
+                child: AgentSidecarLayout(
+                  sessionId: 'sess_tabs_1',
+                  chat: TranscriptView(sessionId: 'sess_tabs_1'),
+                  sidecar: AgentActivitySidecar(sessionId: 'sess_tabs_1'),
+                ),
               ),
             ),
           ),
         ),
       );
-
       await tester.pumpAndSettle();
 
-      // Only the Activities tab remains; subagents live in the side panel.
-      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
-      expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
+      // The chat no longer carries a tasks chip or popup.
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
+      // The running agent opened the panel; both kinds have a tab.
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidecar-tab-agents')), findsOneWidget);
+      expect(find.byKey(const ValueKey('sidecar-tab-tasks')), findsOneWidget);
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      await tester.tap(find.byKey(const ValueKey('sidecar-tab-tasks')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
+      expect(find.text('Review database queries'), findsOneWidget);
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
+      // Closing the Tasks tab goes back to the agents, still open.
+      await tester.tap(find.byKey(const ValueKey('todo-popdown-close-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('new tasks open the Tasks tab until the user closes it', (tester) async {
+      late _MockTodoNotifier todoNotifier;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionStateFamily('sess_tasks_auto').overrideWith(
+              (ref) => SessionStateNotifier('sess_tasks_auto', null)
+                ..state = const SessionState(
+                  sessionId: 'sess_tasks_auto',
+                  cwd: 'C:/projects/app',
+                  agentStatus: AgentStatus.settled,
+                ),
+            ),
+            subagentsFamily('sess_tasks_auto').overrideWith(
+              (ref) => _MockSubagentsNotifier(ref, 'sess_tasks_auto', const []),
+            ),
+            todosFamily('sess_tasks_auto').overrideWith((ref) {
+              todoNotifier = _MockTodoNotifier(ref, 'sess_tasks_auto', const []);
+              return todoNotifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 700,
+                child: AgentSidecarLayout(
+                  sessionId: 'sess_tasks_auto',
+                  chat: SizedBox.expand(),
+                  sidecar: AgentActivitySidecar(sessionId: 'sess_tasks_auto'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsNothing);
+
+      todoNotifier.state = [const TodoItem(id: 1, subject: 'Plan the change', status: 'pending')];
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget,
+          reason: 'tasks the agent adds open the tab');
+
+      await tester.tap(find.byKey(const ValueKey('todo-popdown-close-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget,
+          reason: 'the closed panel leaves its strip to reopen it');
+
+      todoNotifier.state = [
+        ...todoNotifier.state,
+        const TodoItem(id: 2, subject: 'Write the tests', status: 'pending'),
+      ];
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing,
+          reason: 'after the user closed it, new tasks do not reopen it');
+
+      await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
+      await tester.pumpAndSettle();
+      expect(find.text('Write the tests'), findsOneWidget);
     });
 
     testWidgets('Subagent task does not have user checkmark and crosses out title when completed', (tester) async {
@@ -1234,13 +1313,9 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       // Session A starts with both cards minimized
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
-      // Expand activities tab in Session A
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
 
       // Switch to Session B
       currentSessionNotifier.value = 'sess_b';
@@ -1249,7 +1324,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       // Session B must NOT reopen with expanded card; it must normally be minimized
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       // Switch back to Session A
@@ -1331,18 +1406,15 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
 
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
 
       currentSessionNotifier.value = 'sess_b';
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('todo-peek-tab')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
 
       currentSessionNotifier.value = 'sess_a';
@@ -1352,110 +1424,6 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
 
       currentSessionNotifier.dispose();
       container.dispose();
-    });
-
-    testWidgets('Expanding and collapsing activity or subagent cards maintains scroll stability without vibration', (tester) async {
-      tester.view.physicalSize = const Size(1200, 900);
-      tester.view.devicePixelRatio = 1.25;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final entries = List.generate(
-        30,
-        (i) => SessionEntry(
-          id: 'msg_$i',
-          role: i.isEven ? 'user' : 'assistant',
-          text: 'Message number $i in the chat transcript history.',
-          timestamp: 1000 + i,
-        ),
-      );
-      final todos = [
-        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
-      ];
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStateFamily('sess_scroll').overrideWith(
-              (ref) => SessionStateNotifier('sess_scroll', null)
-                ..state = SessionState(
-                  sessionId: 'sess_scroll',
-                  sessionName: 'Scroll Test',
-                  cwd: 'C:/projects/app',
-                  agentStatus: AgentStatus.settled,
-                  entries: entries,
-                ),
-            ),
-            todosFamily('sess_scroll').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'sess_scroll', todos),
-            ),
-            subagentsFamily('sess_scroll').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', [
-                const SubagentItem(
-                  id: 'scroll_worker',
-                  name: 'Scroll worker',
-                  model: 'test',
-                  status: 'completed',
-                ),
-              ]),
-            ),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: SizedBox(
-                height: 700,
-                width: 800,
-                child: TranscriptView(sessionId: 'sess_scroll'),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Match the screenshot: the user has scrolled away from the bottom.
-      final scrollView = find.byKey(const ValueKey('transcript-scroll'));
-      await tester.drag(scrollView, const Offset(0, 200));
-      await tester.pumpAndSettle();
-      final controller = tester.widget<ListView>(scrollView).controller!;
-      expect(controller.position.maxScrollExtent - controller.offset, greaterThan(60));
-      final scrollOffset = controller.offset;
-      final scrollTop = tester.getTopLeft(scrollView).dy;
-      final anchor = find.text('Message number 24 in the chat transcript history.');
-      final anchorTop = tester.getTopLeft(anchor).dy;
-      void expectStablePosition() {
-        expect(tester.getTopLeft(scrollView).dy, closeTo(scrollTop, 0.01));
-        expect(tester.getTopLeft(anchor).dy, closeTo(anchorTop, 0.01));
-        expect(controller.offset, closeTo(scrollOffset, 0.01));
-      }
-
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-
-      // Expand activities card
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      // Check every animation frame, not only the settled position.
-      for (int i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        expectStablePosition();
-      }
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
-      expectStablePosition();
-
-      // Collapse activities card
-      await tester.tap(find.byKey(const ValueKey('todo-peek-tab')));
-      for (int i = 0; i < 15; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-        expectStablePosition();
-      }
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-      expectStablePosition();
     });
   });
 }

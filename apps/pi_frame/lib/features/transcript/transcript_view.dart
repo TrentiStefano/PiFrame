@@ -35,14 +35,12 @@ import 'entry_elapsed.dart';
 import 'rich_content.dart';
 import 'thinking_block.dart';
 import 'subagents_provider.dart';
-import 'todo_panel.dart';
 import 'todo_provider.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/transcript_grouping.dart';
 import 'steps_group.dart';
 import 'task_notification_card.dart';
 
-enum _ActiveBookTab { none, todos }
 
 class _MeasureSizeRenderObject extends RenderProxyBox {
   _MeasureSizeRenderObject({required this.onSizeChange});
@@ -201,25 +199,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   AppStrings? _cachedHeaderStrings;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
   AppStrings _currentStrings = const AppStrings(AppLanguage.it);
-  _ActiveBookTab _activeBookTab = _ActiveBookTab.none;
-  Set<int> _knownTodoIds = {};
-  Set<int>? _autoOpenedTodoIds;
-  bool _userManuallyToggledTabs = false;
   String? _trackedSessionId;
 
-  void _toggleBookTab(_ActiveBookTab tab) {
-    _isProgrammaticScroll = true;
-    setState(() {
-      _activeBookTab = (_activeBookTab == tab) ? _ActiveBookTab.none : tab;
-      _userManuallyToggledTabs = true;
-      _autoOpenedTodoIds = null;
-    });
-    Future.delayed(FrameMotion.panel, () {
-      if (mounted) {
-        _isProgrammaticScroll = false;
-      }
-    });
-  }
 
   bool _extensionStatusesEqual(
     List<MapEntry<String, dynamic>> a,
@@ -256,10 +237,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _visibleAnswerCount = _initialVisibleAnswers;
       _initialScrollDone = false;
       _userScrolledUp = false;
-      _userManuallyToggledTabs = false;
-      _activeBookTab = _ActiveBookTab.none;
-      _knownTodoIds.clear();
-      _autoOpenedTodoIds = null;
       _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -1193,24 +1170,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
     final cost = mainAgentCost;
 
-    final currentTodoIds = todos.map((t) => t.id).toSet();
-
-    final isNewSession = _trackedSessionId != widget.sessionId;
-    if (isNewSession) {
+    // Tasks live in the Tasks tab of the panel beside the chat.
+    if (_trackedSessionId != widget.sessionId) {
       _trackedSessionId = widget.sessionId;
-      _activeBookTab = _ActiveBookTab.none;
-      _userManuallyToggledTabs = false;
-      _knownTodoIds = currentTodoIds;
-      _autoOpenedTodoIds = null;
       _lastTotalEntries = 0;
       _visibleAnswerCount = _initialVisibleAnswers;
-    } else {
-      final newlyAddedIds = currentTodoIds.difference(_knownTodoIds);
-      if (newlyAddedIds.isNotEmpty && !_userManuallyToggledTabs) {
-        _activeBookTab = _ActiveBookTab.todos;
-        _autoOpenedTodoIds = newlyAddedIds;
-      }
-      _knownTodoIds = currentTodoIds;
     }
 
     final extensionStatuses = sessionState.extensionStatuses.entries.toList()
@@ -1369,13 +1333,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           subagentsCost: subagentsCost,
           contextIconColor: contextIconColor,
         ),
-        if (todos.isNotEmpty)
-          _buildUnifiedBookTabsBar(
-            context,
-            tokens,
-            todos,
-            isCompact,
-          ),
         Expanded(
           child: Stack(
             children: [
@@ -1803,33 +1760,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   ),
                 ),
               ),
-              // Overlay activity panels so expanding them cannot move the chat.
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 820),
-                    child: AnimatedSize(
-                      // Not FrameMotion.move: a zero-duration AnimatedSize mutates layout mid-frame.
-                      duration: FrameMotion.fade(context, FrameMotion.small),
-                      curve: FrameMotion.enterCurve,
-                      alignment: Alignment.topCenter,
-                      child: _activeBookTab == _ActiveBookTab.todos && todos.isNotEmpty
-                          ? TodoPopDown(
-                              sessionId: widget.sessionId,
-                              isExpanded: true,
-                              hideBookTab: true,
-                              filterTaskIds: _autoOpenedTodoIds,
-                              onClose: () => _toggleBookTab(_ActiveBookTab.todos),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-              ),
-
               // Floating Scroll-to-bottom Button
               ValueListenableBuilder<bool>(
                 valueListenable: _userScrolledUpNotifier,
@@ -2283,116 +2213,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
 
-  Widget _buildUnifiedBookTabsBar(
-    BuildContext context,
-    FrameTokens tokens,
-    List<TodoItem> todos,
-    bool isCompact,
-  ) {
-    final completedCount = todos.where((t) => t.isCompleted).length;
-    final totalCount = todos.length;
-    final isAnyExpanded = _activeBookTab != _ActiveBookTab.none;
-
-    return Container(
-      margin: EdgeInsets.only(
-        left: isCompact ? 12 : 8,
-        right: isCompact ? 12 : 8,
-        bottom: isAnyExpanded ? 0 : 4,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isAnyExpanded)
-            Container(
-              height: 2.5,
-              margin: const EdgeInsets.only(bottom: 2),
-              decoration: BoxDecoration(
-                color: tokens.borderStrong.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(context.tokens.radiusSm),
-              ),
-            )
-          else
-            // Reserve the collapsed divider's space to keep the transcript still.
-            const SizedBox(height: 4.5),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (todos.isNotEmpty)
-                InkWell(
-                  key: const ValueKey('todo-peek-tab'),
-                  onTap: () => _toggleBookTab(_ActiveBookTab.todos),
-                  borderRadius: _activeBookTab == _ActiveBookTab.todos
-                      ? const BorderRadius.vertical(top: Radius.circular(6))
-                      : BorderRadius.circular(context.tokens.radiusSm),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: _activeBookTab == _ActiveBookTab.todos ? 4.5 : 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _activeBookTab == _ActiveBookTab.todos
-                          ? tokens.surface
-                          : tokens.surfaceElevated.withValues(alpha: 0.6),
-                      borderRadius: _activeBookTab == _ActiveBookTab.todos
-                          ? const BorderRadius.vertical(top: Radius.circular(6))
-                          : BorderRadius.circular(context.tokens.radiusSm),
-                      border: Border.all(
-                        color: _activeBookTab == _ActiveBookTab.todos
-                            ? tokens.borderStrong
-                            : tokens.borderStrong.withValues(alpha: 0.6),
-                        width: 1,
-                      ),
-                      boxShadow: _activeBookTab == _ActiveBookTab.todos
-                          ? []
-                          : [
-                              BoxShadow(
-                                color: tokens.overlay.withValues(alpha: 0.08),
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.checklist_rtl_outlined,
-                          size: 12,
-                          color: tokens.accent,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _currentStrings.todoPeekTab(completedCount, totalCount),
-                          style: TextStyle(
-                            color: _activeBookTab == _ActiveBookTab.todos
-                                ? tokens.textPrimary
-                                : tokens.textSecondary,
-                            fontSize: FrameText.of(context).caption.fontSize,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Icon(
-                          _activeBookTab == _ActiveBookTab.todos
-                              ? Icons.keyboard_arrow_up_outlined
-                              : Icons.keyboard_arrow_down_outlined,
-                          size: 13,
-                          color: _activeBookTab == _ActiveBookTab.todos
-                              ? tokens.accent
-                              : tokens.textMuted,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildLiveStream(
     SessionState sessionState,

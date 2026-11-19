@@ -128,7 +128,7 @@ final sideThreadFamily =
 /// Set by a toggle that must not animate (Ctrl+Shift+B). The split consumes and clears it.
 final sideInstantToggleProvider = StateProvider<bool>((ref) => false);
 
-enum ChatSidecarTab { agents, side }
+enum ChatSidecarTab { agents, side, tasks }
 
 final chatSidecarTabFamily = StateProvider.family<ChatSidecarTab, String>(
   (ref, sessionId) => ChatSidecarTab.side,

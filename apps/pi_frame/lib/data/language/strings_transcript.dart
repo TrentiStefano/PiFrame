@@ -102,6 +102,13 @@ extension TranscriptStrings on AppStrings {
       isItalian ? 'AGENTI · $count ATTIVI' : 'AGENTS · $count ACTIVE';
   String get subagentsStripIdle => isItalian ? 'AGENTI' : 'AGENTS';
   String get subagentsPanelTitle => isItalian ? 'Agenti' : 'Agents';
+  // Tabs of the panel beside the chat.
+  String sidecarAgentsTab(int count) =>
+      isItalian ? 'Agenti ($count)' : 'Agents ($count)';
+  String sidecarSideTab(int count) =>
+      isItalian ? 'Laterale ($count)' : 'Side ($count)';
+  String sidecarTasksTab(int completed, int total) =>
+      isItalian ? 'Attività ($completed/$total)' : 'Tasks ($completed/$total)';
   String get subagentsPartialCostPrefix => isItalian ? 'Parziale ' : 'Partial ';
   String subagentsRunningCount(int count) =>
       isItalian ? '$count in esecuzione' : '$count running';

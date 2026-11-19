@@ -235,6 +235,10 @@ The pane shows agents as a tree starting from the **Main session**:
 
 The daemon reads activity from the session files of child sessions (`~/.pi/agent/sessions`). A child session with no activity for 10 minutes is considered finished. The final state of agents also uses the `subagents:record` records saved by pi-subagents. This needs an up-to-date daemon: with an older daemon the pane shows only name and state.
 
+### Tasks tab
+
+The agent's task list (todos) lives in the same pane, as a **Tasks** tab next to **Agents** and **Side**, instead of a popup over the chat. The tab shows how many tasks are done (`Tasks (3/5)`); the tab bar appears when the session has more than one of agents, side conversations and tasks. When the agent adds tasks, the pane opens on the Tasks tab, unless a side conversation is open there; once you close the Tasks tab, new tasks no longer reopen it in that session. In the tab you can tick tasks, expand one to read its description, and add your own with **+**. When the pane is closed, its strip reopens the last tab you used.
+
 In the `/agents` menu, **Workflows (N)** opens this pane instead of the TUI view, which is not available over RPC. In the Sessions sidebar, a session stays marked as running until its background subagents or workflows finish.
 
 ## 10. Technical stats and resource monitoring

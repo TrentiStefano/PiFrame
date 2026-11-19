@@ -19,6 +19,8 @@ import '../../data/language/strings_transcript.dart';
 import '../side/side_panel.dart';
 import '../side/side_provider.dart';
 import 'subagents_provider.dart';
+import 'todo_panel.dart';
+import 'todo_provider.dart';
 import 'workflows_provider.dart';
 import '../../data/platform/widget_test_binding.dart';
 
@@ -53,6 +55,86 @@ const double _kAgentSidecarChrome = 12;
 /// value changes during layout, where notifying listeners is not allowed.
 final Map<String, bool> agentSidecarFloating = <String, bool>{};
 
+/// Whether the Tasks tab of the panel beside the chat is open, per session.
+final tasksPanelOpenProvider = StateProvider.family<bool, String>(
+  (ref, sessionId) => false,
+);
+
+/// Task ids already seen per session, so only tasks the agent adds later open
+/// the Tasks tab on their own. Null until the session's tasks were first read.
+final _tasksKnownIdsFamily = StateProvider.family<Set<int>?, String>(
+  (ref, sessionId) => null,
+);
+
+/// Set when the user closes the Tasks tab: new tasks then stop reopening it.
+final _tasksUserClosedFamily = StateProvider.family<bool, String>(
+  (ref, sessionId) => false,
+);
+
+/// What the panel beside the chat can show for a session (agents, side
+/// conversations, tasks) and which of them are open. The layout and the
+/// sidecar read the same rule, so they always agree on whether it is open.
+class SidecarKinds {
+  final bool hasAgents;
+  final bool hasSide;
+  final bool hasTasks;
+  final bool agentsOpen;
+  final bool sideOpen;
+  final bool tasksOpen;
+
+  const SidecarKinds({
+    required this.hasAgents,
+    required this.hasSide,
+    required this.hasTasks,
+    required this.agentsOpen,
+    required this.sideOpen,
+    required this.tasksOpen,
+  });
+
+  factory SidecarKinds.watch(WidgetRef ref, String sessionId) {
+    final hasAgents =
+        ref.watch(subagentsFamily(sessionId)).isNotEmpty ||
+        ref.watch(workflowsFamily(sessionId)).isNotEmpty;
+    final side = ref.watch(sideThreadFamily(sessionId));
+    final hasTasks = ref.watch(todosFamily(sessionId)).isNotEmpty;
+    return SidecarKinds(
+      hasAgents: hasAgents,
+      hasSide: side.conversations.isNotEmpty || side.isOpen,
+      hasTasks: hasTasks,
+      agentsOpen: ref.watch(agentActivityPanelOpenProvider(sessionId)),
+      sideOpen: side.isOpen,
+      tasksOpen: ref.watch(tasksPanelOpenProvider(sessionId)),
+    );
+  }
+
+  /// Tabs in display order: those the session has.
+  List<ChatSidecarTab> get available => [
+    if (hasAgents) ChatSidecarTab.agents,
+    if (hasSide) ChatSidecarTab.side,
+    if (hasTasks) ChatSidecarTab.tasks,
+  ];
+
+  bool isOpenTab(ChatSidecarTab tab) => switch (tab) {
+    ChatSidecarTab.agents => hasAgents && agentsOpen,
+    ChatSidecarTab.side => hasSide && sideOpen,
+    ChatSidecarTab.tasks => hasTasks && tasksOpen,
+  };
+
+  bool get hasItems => available.isNotEmpty;
+  bool get isOpen => available.any(isOpenTab);
+
+  /// The tab to show: the one the user picked when it is open, else the
+  /// first open one; when closed, the one the strip reopens.
+  ChatSidecarTab effectiveTab(ChatSidecarTab requested) {
+    final open = available.where(isOpenTab).toList();
+    if (open.contains(requested)) return requested;
+    if (open.isNotEmpty) return open.first;
+    return available.contains(requested)
+        ? requested
+        : (available.isEmpty ? requested : available.first);
+  }
+}
+
 /// Places the Agents sidecar beside the chat pane. Wide: a sibling column.
 /// Narrow with the panel open: an overlay sheet inside the chat pane.
 class AgentSidecarLayout extends ConsumerWidget {
@@ -69,17 +151,7 @@ class AgentSidecarLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasAgents =
-        ref.watch(subagentsFamily(sessionId)).isNotEmpty ||
-        ref.watch(workflowsFamily(sessionId)).isNotEmpty;
-    final agentsOpen =
-        hasAgents && ref.watch(agentActivityPanelOpenProvider(sessionId));
-    final sideThread = ref.watch(sideThreadFamily(sessionId));
-    final hasSide = sideThread.conversations.isNotEmpty || sideThread.isOpen;
-    final sideOpen = sideThread.isOpen;
-
-    final hasItems = hasAgents || hasSide;
-    final open = hasItems && (agentsOpen || sideOpen);
+    final open = SidecarKinds.watch(ref, sessionId).isOpen;
     // One render object lays out both modes, so switching between the column
     // and the overlay sheet never moves chat or sidecar in the element tree.
     // Reparenting them remounted the sidecar, whose mount re-opened the panel
@@ -222,7 +294,60 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
       },
       fireImmediately: true,
     );
+    ref.listenManual<bool>(tasksPanelOpenProvider(sessionId), (previous, next) {
+      if (next && previous != true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onOpened?.call();
+        });
+      }
+    }, fireImmediately: true);
+    // Tasks the agent adds open the Tasks tab, until the user closes it. The
+    // ones a session already had when first shown do not.
+    ref.listenManual<List<TodoItem>>(todosFamily(sessionId), (previous, next) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final known = ref.read(_tasksKnownIdsFamily(sessionId).notifier);
+        final ids = {for (final task in next) task.id};
+        final seen = known.state;
+        known.state = ids;
+        if (seen == null || ids.difference(seen).isEmpty) return;
+        if (ref.read(_tasksUserClosedFamily(sessionId))) return;
+        ref.read(tasksPanelOpenProvider(sessionId).notifier).state = true;
+        // A side conversation is the user's own thread: do not switch away.
+        final tab = ref.read(chatSidecarTabFamily(sessionId).notifier);
+        final side = ref.read(sideThreadFamily(sessionId));
+        if (!(tab.state == ChatSidecarTab.side && side.isOpen)) {
+          tab.state = ChatSidecarTab.tasks;
+        }
+      });
+    }, fireImmediately: true);
   }
+
+  void _openTab(ChatSidecarTab tab) {
+    final sessionId = widget.sessionId;
+    ref.read(chatSidecarTabFamily(sessionId).notifier).state = tab;
+    switch (tab) {
+      case ChatSidecarTab.agents:
+        ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state =
+            true;
+      case ChatSidecarTab.side:
+        ref.read(sideThreadFamily(sessionId).notifier).openPanel();
+      case ChatSidecarTab.tasks:
+        ref.read(tasksPanelOpenProvider(sessionId).notifier).state = true;
+    }
+  }
+
+  void _closeTasks() {
+    final sessionId = widget.sessionId;
+    ref.read(tasksPanelOpenProvider(sessionId).notifier).state = false;
+    ref.read(_tasksUserClosedFamily(sessionId).notifier).state = true;
+  }
+
+  static IconData _tabIcon(ChatSidecarTab tab) => switch (tab) {
+    ChatSidecarTab.agents => Icons.hub_outlined,
+    ChatSidecarTab.side => Icons.call_split_outlined,
+    ChatSidecarTab.tasks => Icons.checklist_rtl_outlined,
+  };
 
   Widget _sidecarTab(
     BuildContext context,
@@ -271,25 +396,20 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     final strings = ref.watch(appStringsProvider);
     final agents = ref.watch(subagentsFamily(sessionId));
     final workflows = ref.watch(workflowsFamily(sessionId));
-    final openAgents = ref.watch(agentActivityPanelOpenProvider(sessionId));
     final running =
         agents.where((a) => a.isRunning).length +
         workflows.where((w) => w.isRunning).length;
 
-    final hasAgents = agents.isNotEmpty || workflows.isNotEmpty;
     final sideThread = ref.watch(sideThreadFamily(sessionId));
-    final hasSide = sideThread.conversations.isNotEmpty || sideThread.isOpen;
-    final sideOpen = sideThread.isOpen;
-
-    final hasItems = hasAgents || hasSide;
-    final isOpen = (hasAgents && openAgents) || (hasSide && sideOpen);
-
-    final requestedTab = ref.watch(chatSidecarTabFamily(sessionId));
-    final effectiveTab = (hasAgents && hasSide)
-        ? (openAgents && !sideOpen
-              ? ChatSidecarTab.agents
-              : (sideOpen && !openAgents ? ChatSidecarTab.side : requestedTab))
-        : (hasSide ? ChatSidecarTab.side : ChatSidecarTab.agents);
+    final todos = ref.watch(todosFamily(sessionId));
+    final kinds = SidecarKinds.watch(ref, sessionId);
+    final hasItems = kinds.hasItems;
+    final isOpen = kinds.isOpen;
+    final effectiveTab = kinds.effectiveTab(
+      ref.watch(chatSidecarTabFamily(sessionId)),
+    );
+    final tabs = kinds.available;
+    final tasksDone = todos.where((t) => t.isCompleted).length;
 
     final Widget child;
     if (!hasItems) {
@@ -337,7 +457,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (hasAgents && hasSide)
+                      if (tabs.length > 1)
                         Container(
                           height: 34,
                           padding: const EdgeInsets.symmetric(
@@ -350,81 +470,72 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                               bottom: BorderSide(color: tokens.border),
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              _sidecarTab(
-                                context,
-                                tokens,
-                                icon: Icons.hub_outlined,
-                                label:
-                                    'Agenti (${agents.length + workflows.length})',
-                                isSelected:
-                                    effectiveTab == ChatSidecarTab.agents,
-                                onTap: () {
-                                  ref
-                                          .read(
-                                            chatSidecarTabFamily(sessionId)
-                                                .notifier,
-                                          )
-                                          .state =
-                                      ChatSidecarTab.agents;
-                                  ref
-                                          .read(
-                                            agentActivityPanelOpenProvider(
-                                              sessionId,
-                                            ).notifier,
-                                          )
-                                          .state =
-                                      true;
-                                },
-                              ),
-                              const SizedBox(width: 4),
-                              _sidecarTab(
-                                context,
-                                tokens,
-                                icon: Icons.call_split_outlined,
-                                label:
-                                    'Laterale (${sideThread.conversations.length})',
-                                isSelected: effectiveTab == ChatSidecarTab.side,
-                                onTap: () {
-                                  ref
-                                          .read(
-                                            chatSidecarTabFamily(sessionId)
-                                                .notifier,
-                                          )
-                                          .state =
-                                      ChatSidecarTab.side;
-                                  ref
-                                      .read(
-                                        sideThreadFamily(sessionId).notifier,
-                                      )
-                                      .openPanel();
-                                },
-                              ),
-                            ],
+                          // Scrolls rather than overflows in a narrow panel.
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                for (final tab in tabs) ...[
+                                  if (tab != tabs.first)
+                                    const SizedBox(width: 4),
+                                  KeyedSubtree(
+                                    key: ValueKey('sidecar-tab-${tab.name}'),
+                                    child: _sidecarTab(
+                                      context,
+                                      tokens,
+                                      icon: _tabIcon(tab),
+                                      label: switch (tab) {
+                                        ChatSidecarTab.agents =>
+                                          strings.sidecarAgentsTab(
+                                            agents.length + workflows.length,
+                                          ),
+                                        ChatSidecarTab.side =>
+                                          strings.sidecarSideTab(
+                                            sideThread.conversations.length,
+                                          ),
+                                        ChatSidecarTab.tasks =>
+                                          strings.sidecarTasksTab(
+                                            tasksDone,
+                                            todos.length,
+                                          ),
+                                      },
+                                      isSelected: effectiveTab == tab,
+                                      onTap: () => _openTab(tab),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       Expanded(
-                        child: effectiveTab == ChatSidecarTab.side
-                            ? SidePanel(
-                                key: ValueKey('side_panel_$sessionId'),
-                                sessionId: sessionId,
-                                onClose: () => ref
-                                    .read(sideThreadFamily(sessionId).notifier)
-                                    .closePanel(),
-                              )
-                            : AgentActivityPanel(
-                                sessionId: sessionId,
-                                onClose: () =>
-                                    ref
-                                            .read(
-                                              agentActivityPanelOpenProvider(
-                                                sessionId,
-                                              ).notifier,
-                                            )
-                                            .state =
-                                        false,
-                              ),
+                        child: switch (effectiveTab) {
+                          ChatSidecarTab.side => SidePanel(
+                            key: ValueKey('side_panel_$sessionId'),
+                            sessionId: sessionId,
+                            onClose: () => ref
+                                .read(sideThreadFamily(sessionId).notifier)
+                                .closePanel(),
+                          ),
+                          ChatSidecarTab.tasks => TodoPopDown(
+                            key: ValueKey('tasks_panel_$sessionId'),
+                            sessionId: sessionId,
+                            embedded: true,
+                            onClose: _closeTasks,
+                          ),
+                          ChatSidecarTab.agents => AgentActivityPanel(
+                            sessionId: sessionId,
+                            onClose: () =>
+                                ref
+                                        .read(
+                                          agentActivityPanelOpenProvider(
+                                            sessionId,
+                                          ).notifier,
+                                        )
+                                        .state =
+                                    false,
+                          ),
+                        },
                       ),
                     ],
                   ),
@@ -435,7 +546,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
         ],
       );
     } else {
-      final showSideStrip = hasSide && !hasAgents;
+      final stripTab = effectiveTab;
       child = Padding(
         key: const ValueKey('agent-activity-strip'),
         padding: const EdgeInsets.all(3),
@@ -448,20 +559,7 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             key: const ValueKey('agent-activity-open-btn'),
-            onTap: () {
-              if (showSideStrip) {
-                ref.read(chatSidecarTabFamily(sessionId).notifier).state =
-                    ChatSidecarTab.side;
-                ref.read(sideThreadFamily(sessionId).notifier).openPanel();
-              } else {
-                ref
-                        .read(
-                          agentActivityPanelOpenProvider(sessionId).notifier,
-                        )
-                        .state =
-                    true;
-              }
-            },
+            onTap: () => _openTab(stripTab),
             child: SizedBox(
               width: 34,
               child: Column(
@@ -474,25 +572,31 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   ),
                   const SizedBox(height: 6),
                   Icon(
-                    showSideStrip
-                        ? Icons.call_split_outlined
-                        : Icons.hub_outlined,
+                    _tabIcon(stripTab),
                     size: FrameSize.icon,
                     color: tokens.syntaxFunction,
                   ),
                   const SizedBox(height: 6),
-                  if (!showSideStrip) SubagentStatusDot(running: running > 0),
+                  if (stripTab == ChatSidecarTab.agents)
+                    SubagentStatusDot(running: running > 0),
                   const SizedBox(height: 12),
                   Expanded(
                     child: RotatedBox(
                       quarterTurns: 3,
                       child: Center(
                         child: Text(
-                          showSideStrip
-                              ? strings.sideAllConversationsTitle.toUpperCase()
-                              : (running > 0
-                                    ? strings.subagentsStripActive(running)
-                                    : strings.subagentsStripIdle),
+                          switch (stripTab) {
+                            ChatSidecarTab.side =>
+                              strings.sideAllConversationsTitle.toUpperCase(),
+                            ChatSidecarTab.tasks =>
+                              strings
+                                  .sidecarTasksTab(tasksDone, todos.length)
+                                  .toUpperCase(),
+                            ChatSidecarTab.agents =>
+                              running > 0
+                                  ? strings.subagentsStripActive(running)
+                                  : strings.subagentsStripIdle,
+                          },
                           style: TextStyle(
                             color: tokens.textMuted,
                             fontSize: FrameText.of(context).caption.fontSize,
@@ -586,13 +690,20 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
               ),
               if (agents.any((s) => (s.cost ?? 0) > 0)) ...[
                 const SizedBox(width: 8),
-                Text(
-                  costLabel,
-                  style: TextStyle(
-                    color: tokens.syntaxString,
-                    fontSize: FrameText.of(context).caption.fontSize,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: tokens.monoFontFamily,
+                // Cost and running count shorten before the narrow docked
+                // card (280 px at half width) overflows.
+                Flexible(
+                  child: Text(
+                    costLabel,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.syntaxString,
+                      fontSize: FrameText.of(context).caption.fontSize,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: tokens.monoFontFamily,
+                    ),
                   ),
                 ),
               ],
@@ -600,11 +711,16 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
                 const SizedBox(width: 8),
                 SubagentStatusDot(running: true),
                 const SizedBox(width: 4),
-                Text(
-                  strings.subagentsRunningCount(runningCount),
-                  style: TextStyle(
-                    color: tokens.syntaxKeyword,
-                    fontSize: FrameText.of(context).caption.fontSize,
+                Flexible(
+                  child: Text(
+                    strings.subagentsRunningCount(runningCount),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.syntaxKeyword,
+                      fontSize: FrameText.of(context).caption.fontSize,
+                    ),
                   ),
                 ),
               ],

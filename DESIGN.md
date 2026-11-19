@@ -367,7 +367,7 @@ Reasonable inference from local coding-agent use and daemon continuity architect
 PiFrame is a GUI over a local daemon that runs Pi workers and preserves execution and replay across GUI disconnects. Current capabilities:
 
 - **Sessions:** repository-grouped session tree, folder-scoped creation, hidden worker sessions, clone/fork/resume, read-only protection for terminal-owned sessions.
-- **Chat:** streaming transcript with compact reasoning and tool rows, prompt/steer/follow-up/interrupt, queue editing, todo panel, subagent and workflow panel with task-notification cards, side conversations (`/side`, `/btw`), extension UI requests and questionnaires.
+- **Chat:** streaming transcript with compact reasoning and tool rows, prompt/steer/follow-up/interrupt, queue editing, a panel beside the chat with tabs for subagents and workflows, side conversations (`/side`, `/btw`) and the agent's tasks, task-notification cards, extension UI requests and questionnaires.
 - **Composer:** file and code-range context, attachments, model and thinking pickers, context-window policy, and Pi `/` commands staged as command chips.
 - **Workspace:** editable repository files with dirty-buffer protection, Git Changes with diff, per-file stage/unstage and confirmed undo, evidence-based agent/manual provenance, branch picker, integrated terminal and an in-app browser pane on desktop.
 - **Status:** Pi metrics (model, thinking, context usage, cost, extension statuses) and Pi package management in Settings.
