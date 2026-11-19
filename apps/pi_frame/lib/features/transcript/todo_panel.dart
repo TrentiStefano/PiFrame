@@ -7,7 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
-import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_text_shimmer.dart';
 import '../../ui/motion.dart';
 import 'todo_provider.dart';
 
@@ -277,25 +277,6 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         ),
                       ],
                       const Spacer(),
-                      IconButton(
-                        tooltip: _isAdding
-                            ? strings.todoCancelTooltip
-                            : strings.todoAddTaskTooltip,
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 26,
-                          minHeight: 26,
-                        ),
-                        icon: Icon(
-                          _isAdding
-                              ? Icons.close_outlined
-                              : Icons.add_circle_outline,
-                          size: FrameSize.icon,
-                          color: tokens.accent,
-                        ),
-                        onPressed: () => setState(() => _isAdding = !_isAdding),
-                      ),
                       // In the plugins pane, its header hides the pane.
                       if (!embedded || widget.onClose != null)
                         IconButton(
@@ -319,68 +300,6 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     ],
                   ),
                 ),
-
-                // Add Task Form (collapsible)
-                if (_isAdding)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    color: tokens.background,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            key: const ValueKey('todo-add-task-field'),
-                            controller: _addController,
-                            autofocus: true,
-                            onSubmitted: (_) => _submitNewTask(),
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: FrameText.of(context).label.fontSize,
-                            ),
-                            decoration: InputDecoration(
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 4,
-                              ),
-                              hintText: strings.todoAddTaskHint,
-                              hintStyle: TextStyle(
-                                color: tokens.textMuted,
-                                fontSize: FrameText.of(context)
-                                    .caption
-                                    .fontSize,
-                              ),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                        PressFeedback(
-                          enabled: true,
-                          child: FilledButton(
-                            key: const ValueKey('todo-add-task-submit'),
-                            style: FilledButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                            ),
-                            onPressed: _submitNewTask,
-                            child: Text(
-                              strings.todoAddButton,
-                              style: TextStyle(
-                                fontSize: FrameText.of(context)
-                                    .caption
-                                    .fontSize,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
 
                 // Filter banner if showing only newly added tasks
                 if (isFiltered)
@@ -524,35 +443,50 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
 
                                     // Task Title
                                     Expanded(
-                                      child: Text(
-                                        task.subject,
-                                        maxLines: isExpanded ? null : 1,
-                                        overflow: isExpanded
-                                            ? null
-                                            : TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: task.isCompleted
-                                              ? tokens.textMuted
-                                              : task.isInProgress
-                                              ? tokens.textPrimary
-                                              : tokens.textSecondary,
-                                          fontSize: FrameText.of(context)
-                                              .label
-                                              .fontSize,
-                                          fontWeight: task.isInProgress
-                                              ? FontWeight.bold
-                                              : FontWeight.w500,
-                                          decoration: task.isCompleted
-                                              ? TextDecoration.lineThrough
-                                              : null,
-                                          decorationColor: tokens.textMuted,
-                                        ),
-                                      ),
+                                      child: task.isInProgress
+                                          ? FrameTextShimmer(
+                                              key: ValueKey<String>(
+                                                'todo-shimmer-${task.id}',
+                                              ),
+                                              text: task.subject.endsWith('...')
+                                                  ? task.subject
+                                                  : '${task.subject}...',
+                                              baseColor: tokens.textMuted,
+                                              highlightColor:
+                                                  tokens.textPrimary,
+                                              maxLines: isExpanded ? null : 1,
+                                              overflow: isExpanded
+                                                  ? null
+                                                  : TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: FrameText.of(context)
+                                                    .label
+                                                    .fontSize,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : Text(
+                                              task.subject,
+                                              maxLines: isExpanded ? null : 1,
+                                              overflow: isExpanded
+                                                  ? null
+                                                  : TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: task.isCompleted
+                                                    ? tokens.textMuted
+                                                    : tokens.textSecondary,
+                                                fontSize: FrameText.of(context)
+                                                    .label
+                                                    .fontSize,
+                                                fontWeight: FontWeight.w500,
+                                                decoration: task.isCompleted
+                                                    ? TextDecoration.lineThrough
+                                                    : null,
+                                                decorationColor:
+                                                    tokens.textMuted,
+                                              ),
+                                            ),
                                     ),
-                                    const SizedBox(width: 6),
-
-                                    // Status Badge
-                                    _buildStatusBadge(task, tokens, strings),
 
                                     // Expand / Collapse Chevron
                                     const SizedBox(width: 4),
@@ -616,6 +550,138 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       },
                     ),
                   ),
+
+                // Bottom "Add task" section
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: tokens.border.withValues(alpha: 0.35),
+                      ),
+                    ),
+                  ),
+                  child: _isAdding
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: tokens.background,
+                            borderRadius: embedded
+                                ? null
+                                : BorderRadius.vertical(
+                                    bottom: Radius.circular(tokens.radiusMd),
+                                  ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  key: const ValueKey('todo-add-task-field'),
+                                  controller: _addController,
+                                  autofocus: true,
+                                  onSubmitted: (_) => _submitNewTask(),
+                                  style: TextStyle(
+                                    color: tokens.textPrimary,
+                                    fontSize:
+                                        FrameText.of(context).label.fontSize,
+                                  ),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    hintText: strings.todoAddTaskHint,
+                                    hintStyle: TextStyle(
+                                      color: tokens.textMuted,
+                                      fontSize: FrameText.of(context)
+                                          .caption
+                                          .fontSize,
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: strings.todoCancelTooltip,
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 26,
+                                  minHeight: 26,
+                                ),
+                                icon: Icon(
+                                  Icons.close_outlined,
+                                  size: FrameSize.icon,
+                                  color: tokens.textMuted,
+                                ),
+                                onPressed: () {
+                                  _addController.clear();
+                                  setState(() => _isAdding = false);
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              PressFeedback(
+                                enabled: true,
+                                child: FilledButton(
+                                  key: const ValueKey('todo-add-task-submit'),
+                                  style: FilledButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                  ),
+                                  onPressed: _submitNewTask,
+                                  child: Text(
+                                    strings.todoAddButton,
+                                    style: TextStyle(
+                                      fontSize: FrameText.of(context)
+                                          .caption
+                                          .fontSize,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : InkWell(
+                          key: const ValueKey('todo-add-task-btn'),
+                          onTap: () => setState(() => _isAdding = true),
+                          borderRadius: embedded
+                              ? null
+                              : BorderRadius.vertical(
+                                  bottom: Radius.circular(tokens.radiusMd),
+                                ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.add_rounded,
+                                  size: FrameSize.iconLg,
+                                  color: tokens.textSecondary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  strings.todoAddTaskTooltip,
+                                  style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize:
+                                        FrameText.of(context).label.fontSize,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
               ],
             ),
           )
@@ -731,86 +797,4 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
           constraints: const BoxConstraints(maxHeight: 220),
           child: child,
         );
-
-  Widget _buildStatusBadge(
-    TodoItem task,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
-    if (task.isCompleted) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: tokens.success.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: tokens.success.withValues(alpha: 0.35),
-            width: 0.8,
-          ),
-        ),
-        child: Text(
-          strings.todoBadgeCompleted,
-          style: TextStyle(
-            color: tokens.success,
-            fontSize: FrameText.of(context).caption.fontSize,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    if (task.isInProgress) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: tokens.agentWorking.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: tokens.agentWorking.withValues(alpha: 0.4),
-            width: 0.8,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 7,
-              height: 7,
-              child: FrameActivityIndicator(
-                size: 7,
-                strokeWidth: 1.2,
-                color: tokens.agentWorking,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              strings.todoBadgeInProgress,
-              style: TextStyle(
-                color: tokens.agentWorking,
-                fontSize: FrameText.of(context).caption.fontSize,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(color: tokens.border, width: 0.8),
-      ),
-      child: Text(
-        strings.todoBadgePending,
-        style: TextStyle(
-          color: tokens.textMuted,
-          fontSize: FrameText.of(context).caption.fontSize,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
 }

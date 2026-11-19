@@ -15,6 +15,8 @@ class FrameTextShimmer extends StatefulWidget {
   final Color? baseColor;
   final Color? highlightColor;
   final Duration duration;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   const FrameTextShimmer({
     super.key,
@@ -23,6 +25,8 @@ class FrameTextShimmer extends StatefulWidget {
     this.baseColor,
     this.highlightColor,
     this.duration = FrameMotion.textShimmerLoop,
+    this.maxLines = 1,
+    this.overflow = TextOverflow.ellipsis,
   });
 
   @override
@@ -62,8 +66,8 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
     if (_isTest || FrameMotion.reduced(context)) {
       return Text(
         widget.text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        maxLines: widget.maxLines,
+        overflow: widget.overflow,
         style: widget.style.copyWith(color: highlight),
       );
     }
@@ -93,8 +97,8 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
       },
       child: Text(
         widget.text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        maxLines: widget.maxLines,
+        overflow: widget.overflow,
         // BlendMode.srcIn keeps only the glyph alpha; any opaque colour works.
         style: widget.style.copyWith(color: highlight),
       ),

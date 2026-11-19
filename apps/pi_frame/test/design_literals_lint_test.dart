@@ -54,7 +54,7 @@ const _baselines = <String, int>{
   'BorderRadius.circular numeric': 4,
   'Duration(milliseconds:) numeric': 0,
   'Curves.': 2,
-  'BoxShadow(': 10,
+  'BoxShadow(': 9,
   'GestureDetector(': 4,
 };
 
