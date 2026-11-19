@@ -10,7 +10,7 @@ This document collects diagnoses, root causes and fixes for known problems in th
 
 **Cause:** the upstream `window_manager` plugin on Windows implements `setProgressBar` by calling `taskbar_->SetProgressState(...)` without checking whether `taskbar_` is null. In `window_manager.cpp`, `taskbar_` (`ITaskbarList3*`) is only initialized if `windowManager.waitUntilReadyToShow()` is invoked. Because PiFrame uses custom desktop window restoration (`WindowStateService.instance.restoreWindow()`), `taskbar_` remained a null pointer, causing a native null pointer dereference whenever `setProgressBar` was invoked.
 
-**Fix:** removed native `setProgressBar` calls on Windows in `DesktopNotificationService.updateIndicatorStatus`. Windows and Linux taskbar status is reliably surfaced through window title updates (`● PiFrame` while working, `• PiFrame` when an unread answer is ready, and `PiFrame` when idle), while macOS continues using dock progress and badge dots via native Cocoa APIs.
+**Fix:** bypassed the buggy `window_manager` `setProgressBar` C++ plugin method on Windows in favor of a robust, direct Win32 COM implementation of `ITaskbarList3` via `dart:ffi` (`windows_taskbar.dart`). It initializes COM and `ITaskbarList3` with explicit null checks and error handling, safely providing the native animated progress marquee (`TBPF_INDETERMINATE`) during execution and solid progress (`TBPF_NORMAL`) for unread answers without any risk of null pointer dereferences.
 
 ---
 

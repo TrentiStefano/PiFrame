@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../app/harness_mode.dart';
 import '../platform/widget_test_binding.dart';
+import 'windows_taskbar.dart';
 
 enum DesktopIndicatorStatus {
   idle,
@@ -31,6 +32,18 @@ class DesktopNotificationService {
       !isWidgetTestBinding &&
       (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
+  int? _windowsHwnd;
+
+  Future<int> _getWindowsHwnd() async {
+    if (_windowsHwnd != null && _windowsHwnd != 0) return _windowsHwnd!;
+    try {
+      _windowsHwnd = await windowManager.getId();
+    } catch (_) {
+      _windowsHwnd = 0;
+    }
+    return _windowsHwnd ?? 0;
+  }
+
   Future<void> updateIndicatorStatus(DesktopIndicatorStatus status) async {
     if (_indicatorStatus == status) return;
     _indicatorStatus = status;
@@ -40,7 +53,13 @@ class DesktopNotificationService {
     try {
       switch (status) {
         case DesktopIndicatorStatus.working:
-          if (Platform.isMacOS) {
+          if (Platform.isWindows) {
+            final hwnd = await _getWindowsHwnd();
+            WindowsTaskbar.instance.setProgressState(
+              hwnd,
+              WindowsTaskbarProgressState.indeterminate,
+            );
+          } else if (Platform.isMacOS) {
             await windowManager.setBadgeLabel('⋯');
             await windowManager.setProgressBar(0.5);
           }
@@ -48,7 +67,14 @@ class DesktopNotificationService {
           break;
 
         case DesktopIndicatorStatus.unread:
-          if (Platform.isMacOS) {
+          if (Platform.isWindows) {
+            final hwnd = await _getWindowsHwnd();
+            WindowsTaskbar.instance.setProgressValue(hwnd, 100, 100);
+            WindowsTaskbar.instance.setProgressState(
+              hwnd,
+              WindowsTaskbarProgressState.normal,
+            );
+          } else if (Platform.isMacOS) {
             await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel('•');
           }
@@ -56,7 +82,13 @@ class DesktopNotificationService {
           break;
 
         case DesktopIndicatorStatus.idle:
-          if (Platform.isMacOS) {
+          if (Platform.isWindows) {
+            final hwnd = await _getWindowsHwnd();
+            WindowsTaskbar.instance.setProgressState(
+              hwnd,
+              WindowsTaskbarProgressState.noProgress,
+            );
+          } else if (Platform.isMacOS) {
             await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel(null);
           }

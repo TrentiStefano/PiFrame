@@ -551,6 +551,7 @@ When no session is open, the welcome screen is a place to pick work back up.
 ## 30. Desktop taskbar and dock indicators
 
 When an agent is operating in any monitored or active session:
+- **Windows**: the taskbar button displays the animated green progress marquee (`TBPF_INDETERMINATE`) via direct Win32 COM (`ITaskbarList3`) while an agent is actively working, and switches to a solid progress indicator (`TBPF_NORMAL`) when the agent completes its final answer while PiFrame is not focused.
 - **macOS**: the dock tile displays an active progress indicator and `⋯` badge while the agent is working, and displays an unread notification badge dot (`•`) when an answer finishes while the app is in the background.
-- **Windows, Linux & Window Title**: the window title reflects the state with `● PiFrame` during execution and `• PiFrame` when unread.
+- **Linux & Window Title**: the window title reflects the state with `● PiFrame` during execution and `• PiFrame` when unread.
 - Focusing or opening PiFrame immediately clears the unread indicator and dock badge back to normal (`idle`).
