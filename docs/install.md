@@ -239,7 +239,9 @@ The state comes from pi-subagents itself: PiFrame's extension in the Pi worker r
 
 ### Tasks tab
 
-The agent's task list (todos) lives in the same pane, as a **Tasks** tab next to **Agents** and **Side**, instead of a popup over the chat. The tab shows how many tasks are done (`Tasks (3/5)`); the tab bar appears when the session has more than one of agents, side conversations and tasks. When the agent adds tasks, the pane opens on the Tasks tab, unless a side conversation is open there; once you close the Tasks tab, new tasks no longer reopen it in that session. In the tab you can tick tasks, expand one to read its description, and add your own with **+**. When the pane is closed, its strip reopens the last tab you used.
+The agent's task list (todos) lives in the same pane, as a **Tasks** tab next to **Agents** and **Side**, instead of a popup over the chat. The tab shows how many tasks are done (`Tasks (3/5)`). The pane's header lists its tabs and, on the right, one **>** button that hides the whole pane, whichever tab is showing; the tabs have no close buttons of their own. When the agent adds tasks, the pane opens on the Tasks tab, unless a side conversation is open there; once you hide the pane, new tasks no longer reopen it in that session. In the tab you can tick tasks, expand one to read its description, and add your own with **+**. When the pane is hidden, its strip reopens the last tab you used. An unsent message in the Side tab is kept when you hide the pane or switch tab.
+
+Drag the thin line between the chat and the pane to make the pane wider or narrower.
 
 In the `/agents` menu, **Workflows (N)** opens this pane instead of the TUI view, which is not available over RPC. In the Sessions sidebar, a session stays marked as running until its background subagents or workflows finish.
 

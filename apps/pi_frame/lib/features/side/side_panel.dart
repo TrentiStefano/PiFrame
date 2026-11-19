@@ -28,11 +28,15 @@ class SidePanel extends ConsumerStatefulWidget {
   final bool fullPane;
   final VoidCallback? onClose;
 
+  /// False inside the plugins pane, whose header hides the whole pane.
+  final bool showCloseButton;
+
   const SidePanel({
     super.key,
     required this.sessionId,
     this.fullPane = false,
     this.onClose,
+    this.showCloseButton = true,
   });
 
   @override
@@ -49,12 +53,20 @@ class _SidePanelState extends ConsumerState<SidePanel> {
   @override
   void initState() {
     super.initState();
+    // The draft outlives the panel: hiding the plugins pane must not lose it.
+    _textController.text = ref.read(sideDraftFamily(widget.sessionId));
+    _textController.addListener(_saveDraft);
     // Escape closes the side conversation while it is open (plan task 10.1).
     _threadSub = ref.listenManual<SideThreadState>(
       sideThreadFamily(widget.sessionId),
       (_, next) => _syncEscape(next.isOpen),
       fireImmediately: true,
     );
+  }
+
+  void _saveDraft() {
+    final draft = ref.read(sideDraftFamily(widget.sessionId).notifier);
+    if (draft.state != _textController.text) draft.state = _textController.text;
   }
 
   void _syncEscape(bool open) {
@@ -70,7 +82,9 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
   bool _escapeClose() {
     if (!mounted) return false;
-    unawaited(_requestClose(context));
+    // Opened from the keyboard: an instant dialog takes focus at once, so the
+    // next Escape dismisses it.
+    unawaited(_requestClose(context, fromKeyboard: true));
     return true;
   }
 
@@ -78,6 +92,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
   void dispose() {
     _unregisterEscape?.call();
     _threadSub?.close();
+    _textController.removeListener(_saveDraft);
     _textController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -106,7 +121,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
   /// Closes the side thread. Asks first only when the mini composer holds a draft,
   /// since closing discards it (plan task 10.1).
-  Future<void> _requestClose(BuildContext context) async {
+  Future<void> _requestClose(
+    BuildContext context, {
+    bool fromKeyboard = false,
+  }) async {
     final hasDraft = _textController.text.trim().isNotEmpty;
     if (!hasDraft) {
       if (widget.onClose != null) {
@@ -120,6 +138,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
     final confirmed = await showFrameDialog<bool>(
       context: context,
+      instant: fromKeyboard,
       dialog: FrameDialog<bool>(
         title: strings.sideCloseConfirmTitle,
         body: Text(strings.sideCloseConfirmContent),
@@ -369,19 +388,23 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 ),
 
               // Close button
-              IconButton(
-                key: const ValueKey('side-close-btn'),
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                padding: EdgeInsets.zero,
-                tooltip: strings.sideCloseTooltip,
-                icon: Icon(
-                  Icons.close_outlined,
-                  size: FrameSize.iconLg,
-                  color: tokens.textSecondary,
+              if (widget.showCloseButton)
+                IconButton(
+                  key: const ValueKey('side-close-btn'),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  padding: EdgeInsets.zero,
+                  tooltip: strings.sideCloseTooltip,
+                  icon: Icon(
+                    Icons.close_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.textSecondary,
+                  ),
+                  onPressed: () => _requestClose(context),
                 ),
-                onPressed: () => _requestClose(context),
-              ),
             ],
           ),
           const SizedBox(height: FrameSpace.x1),

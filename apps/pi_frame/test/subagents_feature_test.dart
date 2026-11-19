@@ -7,6 +7,7 @@ import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart';
 import 'package:pi_frame/features/sessions_sidebar/removed_repos_provider.dart';
 import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
+import 'package:pi_frame/features/side/side_provider.dart';
 import 'package:pi_frame/features/transcript/subagent_panel.dart';
 import 'package:pi_frame/features/transcript/subagents_provider.dart';
 import 'package:pi_frame/features/transcript/todo_provider.dart';
@@ -351,7 +352,7 @@ void main() {
       expect(find.text('Side Agent'), findsOneWidget);
       expect(opened, 1, reason: 'the shell collapses Git when the panel opens');
 
-      await tester.tap(find.byKey(const ValueKey('agent-activity-close-btn')));
+      await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
@@ -403,7 +404,7 @@ void main() {
           reason: 'a running agent opens the panel once');
       expect(opened, 1);
 
-      await tester.tap(find.byKey(const ValueKey('agent-activity-close-btn')));
+      await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing,
@@ -628,14 +629,67 @@ void main() {
       expect(find.text('Review database queries'), findsOneWidget);
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
 
-      // Closing the Tasks tab goes back to the agents, still open.
-      await tester.tap(find.byKey(const ValueKey('todo-popdown-close-btn')));
+      // One hide button for the whole pane; the tabs have none of their own.
+      expect(find.byKey(const ValueKey('todo-popdown-close-btn')), findsNothing);
+      expect(find.byKey(const ValueKey('agent-activity-close-btn')), findsNothing);
+      expect(find.byKey(const ValueKey('sidecar-hide-btn')), findsOneWidget);
+      // The draggable border between chat and pane shows its line.
+      expect(find.byKey(const ValueKey('sidecar-resize-handle')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing);
+      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('hiding the plugins pane keeps an unsent side draft', (tester) async {
+      final container = ProviderContainer(overrides: [
+        sessionStateFamily('sess_draft').overrideWith(
+          (ref) => SessionStateNotifier('sess_draft', null)
+            ..state = const SessionState(sessionId: 'sess_draft', cwd: 'C:/projects/app'),
+        ),
+        subagentsFamily('sess_draft').overrideWith(
+          (ref) => _MockSubagentsNotifier(ref, 'sess_draft', const []),
+        ),
+      ]);
+      addTearDown(container.dispose);
+      container.read(sideThreadFamily('sess_draft').notifier).state = const SideThreadState(
+        parentSessionId: 'sess_draft',
+        sideId: 'side_1',
+        streamId: 'stream_1',
+        status: 'active',
+        isOpen: true,
+      );
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 700,
+              child: AgentSidecarLayout(
+                sessionId: 'sess_draft',
+                chat: SizedBox.expand(),
+                sidecar: AgentActivitySidecar(sessionId: 'sess_draft'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('side-close-btn')), findsNothing);
+      await tester.enterText(find.byKey(const ValueKey('side-mini-composer-input')), 'half a question');
+      await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('side-mini-composer-input')), findsNothing);
+
+      container.read(sideThreadFamily('sess_draft').notifier).openPanel();
+      await tester.pumpAndSettle();
+      expect(find.text('half a question'), findsOneWidget);
     });
 
     testWidgets('new tasks open the Tasks tab until the user closes it', (tester) async {
@@ -683,7 +737,7 @@ void main() {
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget,
           reason: 'tasks the agent adds open the tab');
 
-      await tester.tap(find.byKey(const ValueKey('todo-popdown-close-btn')));
+      await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget,

@@ -127,7 +127,7 @@ void main() {
   );
 
   testWidgets(
-    'click-opened FrameDialog: Escape closes the dialog, the side conversation stays open',
+    'side close confirmation: Escape closes the dialog, the side conversation stays open',
     (tester) async {
       final container = _shellContainer();
       addTearDown(container.dispose);
@@ -146,13 +146,15 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      // A draft makes Close ask for confirmation through a click-launched FrameDialog.
+      // A draft makes closing ask for confirmation through a FrameDialog. In
+      // the plugins pane the Side tab has no close button of its own; Escape
+      // closes the conversation, so it opens the confirmation here.
       await tester.enterText(
         find.byKey(const ValueKey('side-mini-composer-input')),
         'bozza',
       );
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('side-close-btn')));
+      await pressEscape(tester);
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(FrameDialog<bool>), findsOneWidget);
 

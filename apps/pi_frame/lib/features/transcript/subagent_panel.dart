@@ -338,10 +338,17 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
     }
   }
 
-  void _closeTasks() {
+  /// Hides the whole pane, whichever tabs were open. The tasks stay closed
+  /// for this session, as when the Tasks tab was closed on its own.
+  void _hidePane() {
     final sessionId = widget.sessionId;
+    ref.read(agentActivityPanelOpenProvider(sessionId).notifier).state = false;
     ref.read(tasksPanelOpenProvider(sessionId).notifier).state = false;
     ref.read(_tasksUserClosedFamily(sessionId).notifier).state = true;
+    final side = ref.read(sideThreadFamily(sessionId));
+    if (side.isOpen) {
+      ref.read(sideThreadFamily(sessionId).notifier).closePanel();
+    }
   }
 
   static IconData _tabIcon(ChatSidecarTab tab) => switch (tab) {
@@ -433,9 +440,16 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   ref.read(agentSidecarWidthProvider.notifier).state = next;
                 }
               },
-              child: const SizedBox(
+              child: SizedBox(
+                key: const ValueKey('sidecar-resize-handle'),
                 width: 6,
-                child: Center(child: SizedBox(width: 1)),
+                child: Center(
+                  child: Container(
+                    width: 1,
+                    height: 40,
+                    color: tokens.borderStrong,
+                  ),
+                ),
               ),
             ),
           ),
@@ -458,62 +472,92 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (tabs.length > 1)
-                        Container(
-                          height: 34,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tokens.surfaceElevated,
-                            border: Border(
-                              bottom: BorderSide(color: tokens.border),
-                            ),
-                          ),
-                          // Scrolls rather than overflows in a narrow panel.
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                for (final tab in tabs) ...[
-                                  if (tab != tabs.first)
-                                    const SizedBox(width: 4),
-                                  KeyedSubtree(
-                                    key: ValueKey('sidecar-tab-${tab.name}'),
-                                    child: _sidecarTab(
-                                      context,
-                                      tokens,
-                                      icon: _tabIcon(tab),
-                                      label: switch (tab) {
-                                        ChatSidecarTab.agents =>
-                                          strings.sidecarAgentsTab(
-                                            agents.length + workflows.length,
-                                          ),
-                                        ChatSidecarTab.side =>
-                                          strings.sidecarSideTab(
-                                            sideThread.conversations.length,
-                                          ),
-                                        ChatSidecarTab.tasks =>
-                                          strings.sidecarTasksTab(
-                                            tasksDone,
-                                            todos.length,
-                                          ),
-                                      },
-                                      isSelected: effectiveTab == tab,
-                                      onTap: () => _openTab(tab),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                      // The plugins pane's own header: its tabs, and one
+                      // button that hides the whole pane whichever tab shows.
+                      Container(
+                        key: const ValueKey('sidecar-header'),
+                        height: 34,
+                        padding: const EdgeInsets.only(
+                          left: 6,
+                          right: 2,
+                          top: 3,
+                          bottom: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          border: Border(
+                            bottom: BorderSide(color: tokens.border),
                           ),
                         ),
+                        child: Row(
+                          children: [
+                            // Scrolls rather than overflows in a narrow panel.
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    for (final tab in tabs) ...[
+                                      if (tab != tabs.first)
+                                        const SizedBox(width: 4),
+                                      KeyedSubtree(
+                                        key: ValueKey(
+                                          'sidecar-tab-${tab.name}',
+                                        ),
+                                        child: _sidecarTab(
+                                          context,
+                                          tokens,
+                                          icon: _tabIcon(tab),
+                                          label: switch (tab) {
+                                            ChatSidecarTab.agents =>
+                                              strings.sidecarAgentsTab(
+                                                agents.length +
+                                                    workflows.length,
+                                              ),
+                                            ChatSidecarTab.side =>
+                                              strings.sidecarSideTab(
+                                                sideThread.conversations.length,
+                                              ),
+                                            ChatSidecarTab.tasks =>
+                                              strings.sidecarTasksTab(
+                                                tasksDone,
+                                                todos.length,
+                                              ),
+                                          },
+                                          isSelected: effectiveTab == tab,
+                                          onTap: () => _openTab(tab),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              key: const ValueKey('sidecar-hide-btn'),
+                              tooltip: strings.sidecarHideTooltip,
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 28,
+                                minHeight: 28,
+                              ),
+                              icon: Icon(
+                                Icons.chevron_right_outlined,
+                                size: FrameSize.iconLg,
+                                color: tokens.textSecondary,
+                              ),
+                              onPressed: _hidePane,
+                            ),
+                          ],
+                        ),
+                      ),
                       Expanded(
                         child: switch (effectiveTab) {
                           ChatSidecarTab.side => SidePanel(
                             key: ValueKey('side_panel_$sessionId'),
                             sessionId: sessionId,
+                            showCloseButton: false,
                             onClose: () => ref
                                 .read(sideThreadFamily(sessionId).notifier)
                                 .closePanel(),
@@ -522,19 +566,9 @@ class _AgentActivitySidecarState extends ConsumerState<AgentActivitySidecar> {
                             key: ValueKey('tasks_panel_$sessionId'),
                             sessionId: sessionId,
                             embedded: true,
-                            onClose: _closeTasks,
                           ),
                           ChatSidecarTab.agents => AgentActivityPanel(
                             sessionId: sessionId,
-                            onClose: () =>
-                                ref
-                                        .read(
-                                          agentActivityPanelOpenProvider(
-                                            sessionId,
-                                          ).notifier,
-                                        )
-                                        .state =
-                                    false,
                           ),
                         },
                       ),

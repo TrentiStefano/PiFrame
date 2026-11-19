@@ -107,6 +107,8 @@ extension TranscriptStrings on AppStrings {
       isItalian ? 'Agenti ($count)' : 'Agents ($count)';
   String sidecarSideTab(int count) =>
       isItalian ? 'Laterale ($count)' : 'Side ($count)';
+  String get sidecarHideTooltip =>
+      isItalian ? 'Nascondi pannello' : 'Hide panel';
   String sidecarTasksTab(int completed, int total) =>
       isItalian ? 'Attività ($completed/$total)' : 'Tasks ($completed/$total)';
   String get subagentsPartialCostPrefix => isItalian ? 'Parziale ' : 'Partial ';

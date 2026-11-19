@@ -130,6 +130,12 @@ final sideInstantToggleProvider = StateProvider<bool>((ref) => false);
 
 enum ChatSidecarTab { agents, side, tasks }
 
+/// The unsent text of a session's side conversation. Kept outside the panel,
+/// so hiding the plugins pane (or switching tab) does not lose a draft.
+final sideDraftFamily = StateProvider.family<String, String>(
+  (ref, parentSessionId) => '',
+);
+
 final chatSidecarTabFamily = StateProvider.family<ChatSidecarTab, String>(
   (ref, sessionId) => ChatSidecarTab.side,
 );

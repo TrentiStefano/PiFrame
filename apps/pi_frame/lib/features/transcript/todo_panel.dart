@@ -296,24 +296,26 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         ),
                         onPressed: () => setState(() => _isAdding = !_isAdding),
                       ),
-                      IconButton(
-                        key: const ValueKey('todo-popdown-close-btn'),
-                        tooltip: strings.todoHideTasksTooltip,
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 26,
-                          minHeight: 26,
+                      // In the plugins pane, its header hides the pane.
+                      if (!embedded || widget.onClose != null)
+                        IconButton(
+                          key: const ValueKey('todo-popdown-close-btn'),
+                          tooltip: strings.todoHideTasksTooltip,
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 26,
+                            minHeight: 26,
+                          ),
+                          icon: Icon(
+                            embedded
+                                ? Icons.chevron_right_outlined
+                                : Icons.keyboard_arrow_up_outlined,
+                            size: FrameSize.icon,
+                            color: tokens.textMuted,
+                          ),
+                          onPressed: embedded ? widget.onClose : _handleToggle,
                         ),
-                        icon: Icon(
-                          embedded
-                              ? Icons.chevron_right_outlined
-                              : Icons.keyboard_arrow_up_outlined,
-                          size: FrameSize.icon,
-                          color: tokens.textMuted,
-                        ),
-                        onPressed: embedded ? widget.onClose : _handleToggle,
-                      ),
                     ],
                   ),
                 ),
@@ -723,13 +725,12 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
   }
 
   /// Embedded, the list fills the tab; as a popup it stays at most 220 px.
-  Widget _listSlot({required bool embedded, required Widget child}) =>
-      embedded
-          ? Expanded(child: child)
-          : ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: child,
-            );
+  Widget _listSlot({required bool embedded, required Widget child}) => embedded
+      ? Expanded(child: child)
+      : ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 220),
+          child: child,
+        );
 
   Widget _buildStatusBadge(
     TodoItem task,
