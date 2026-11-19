@@ -547,3 +547,11 @@ When no session is open, the welcome screen is a place to pick work back up.
 **Review button.** When Pi changes files, the composer shows **Review changes (n)** with the number of changed files. Pressing it opens the review of the session's changes; pressing it again closes it. Without changes the button is hidden; it appears as soon as Pi changes a file.
 
 **Empty chat.** A session without messages shows the name of the working folder, the Git branch (if any) and three hints: `/` for commands, `@` to attach a file, `Ctrl/Cmd+K` for the command palette. The input field takes focus as soon as it appears, so you can type at once.
+
+## 30. Desktop taskbar and dock indicators
+
+When an agent is operating in any monitored or active session:
+- **Windows**: the taskbar button displays an indeterminate progress animation (`TBPF_INDETERMINATE`) while an agent is actively working, and switches to a solid progress indicator (`TBPF_NORMAL`) when the agent completes its final answer while PiFrame is not focused.
+- **macOS**: the dock tile displays a progress indicator and `⋯` badge while the agent is working, and displays an unread notification badge dot (`•`) when an answer finishes while the app is in the background.
+- **Linux & Window Title**: the window title reflects the state with `● PiFrame` during execution and `• PiFrame` when unread.
+- Focusing or opening PiFrame immediately clears the unread indicator and dock badge back to normal (`idle`).
