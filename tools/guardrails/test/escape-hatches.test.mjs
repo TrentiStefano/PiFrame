@@ -146,6 +146,30 @@ test('Dart-only patterns are counted in Dart, TypeScript-only patterns in TypeSc
   assert.deepEqual(counts.agentd.lib, zeros());
 });
 
+test('"as any" and ": any" count only in type positions, not in prose', () => {
+  const files = [
+    file(
+      'apps/agentd/src/prose.ts',
+      '// It blocks the obvious ways: any `gh` call, and treats it as any other command.',
+      '/** Note: any value works here. */'
+    ),
+    file(
+      'apps/agentd/src/types.ts',
+      'let a: any;',
+      'f(b as any);',
+      'const c = (d as any).e;',
+      'function g(h: any, i?: any[]): any {',
+      'const j = k as any as L;',
+      'type M = { n: any };',
+      'let o: any = p as any',
+      'let q: any | undefined; // trailing'
+    )
+  ];
+  const { counts } = auditEscapeHatches({ files, baseline: baseline() });
+  assert.equal(counts.agentd.lib['as any'], 4);
+  assert.equal(counts.agentd.lib[': any'], 7);
+});
+
 test('the audit does not count its own pattern definitions and fixtures', () => {
   const files = [
     file('tools/guardrails/src/escape-hatches.mjs', "const p = 'as any';"),

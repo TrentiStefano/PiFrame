@@ -49,8 +49,10 @@ const PATTERNS = [
     regex: /eslint-disable/g,
     fix: 'ESLint is not installed in this repository, so the comment disables nothing: delete it, and fix the code the rule would flag.'
   },
-  { name: 'as any', files: SCRIPT, regex: /\bas\s+any\b/g, fix: ANY_FIX },
-  { name: ': any', files: SCRIPT, regex: /:\s*any\b/g, fix: ANY_FIX },
+  // `any` in a type position only: followed by punctuation that can follow a type, `as`, or the end of the line, so
+  // prose such as "two ways: any call" or "as any other" in a comment does not count.
+  { name: 'as any', files: SCRIPT, regex: /\bas\s+any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
+  { name: ': any', files: SCRIPT, regex: /:\s*any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
   { name: 'as unknown as', files: SCRIPT, regex: /\bas\s+unknown\s+as\b/g, fix: ANY_FIX },
   {
     name: '// coverage:ignore',
