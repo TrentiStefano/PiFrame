@@ -568,3 +568,7 @@ When PiFrame is updated to a new release, the first time the app is opened after
 ## 32. Agent guard for the human-approved label (development)
 
 Coding agents working on this repository (Claude Code, pi, Codex) cannot apply the `human-approved` label or create, edit or delete labels: the committed project settings, extension and rules block those `gh` commands, and only the maintainer approves in the GitHub UI. pi and Codex apply them after you trust the project once in each tool. Details: [`docs/pr-verification.md`](pr-verification.md#agent-guard).
+
+## 33. Escape-hatch ratchet (development)
+
+`pnpm run check`, `pnpm run verify` and CI count the lint suppressions, type escapes and coverage exclusions in each package (`// ignore:`, `@ts-ignore`, `as any`, `: any`, `as unknown as`, `coverage:ignore` and others), split into library and test code, and fail when a count differs from the committed baseline `tools/guardrails/escape-hatch-baseline.json`. A new escape hatch fails with the file, the pattern and how to fix the root cause; a removed one fails until the baseline is lowered, with the exact edit to make. Details: [`docs/pr-verification.md`](pr-verification.md#escape-hatch-ratchet).
