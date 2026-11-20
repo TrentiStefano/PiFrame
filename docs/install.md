@@ -563,3 +563,7 @@ When PiFrame is updated to a new release, the first time the app is opened after
 - **Scope badges:** highlights the affected area (e.g. `settings`, `chat`, `git`, `workspace`, `agentd`) and cleans commit links.
 - **Per-release persistence:** remembers the last seen version in `~/.piframe/changelog_state.json` so the popup appears only once per release and never on brand new installs.
 - **On-demand review:** you can also review the current release notes at any time from **Settings → Updates → Release notes** (`Note di rilascio`).
+
+## 32. Agent guard for the human-approved label (development)
+
+Coding agents working on this repository (Claude Code, pi, Codex) cannot apply the `human-approved` label or create, edit or delete labels: the committed project settings, extension and rules block those `gh` commands, and only the maintainer approves in the GitHub UI. pi and Codex apply them after you trust the project once in each tool. Details: [`docs/pr-verification.md`](pr-verification.md#agent-guard).

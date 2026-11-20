@@ -54,6 +54,18 @@ The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips
 
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 
+## Agent guard
+
+Agents use the maintainer's `gh` login, so GitHub cannot tell an agent's label click from the human's. A shared guard (`guardCommand` in `tools/guardrails`) blocks any `gh` invocation that mentions `human-approved` (any flag order or quoting, inside `sh -c`/`bash -c`, PowerShell and `gh api`) and `gh label create|edit|delete`. Everything else is allowed, including other labels, `--add-sub-issue`, `--add-blocked-by` and the dependency/sub-issue `gh api` calls in `docs/agents/issue-tracker.md`. A `gh` command that only mentions the label in prose (an issue body or comment) is blocked too: write the text to a file and pass `--body-file`.
+
+Each agent enforces it with its own mechanism, all committed:
+
+- **Claude Code**: `.claude/settings.json` has `permissions.deny` rules for the common forms (Bash and PowerShell tools) and a `PreToolUse` hook, `.claude/hooks/guard-command.mjs`, that calls the guard for every Bash/PowerShell command. Try it: `echo '{"tool_name":"Bash","tool_input":{"command":"gh pr edit 999999 --add-label human-approved"}}' | node .claude/hooks/guard-command.mjs`.
+- **pi**: `.pi/extensions/guard-command.ts` blocks `bash` and `powershell` tool calls the guard rejects. pi loads project extensions only after you trust the project.
+- **Codex**: `.codex/rules/guard.rules` forbids `gh label` and asks before `gh pr edit`, `gh issue edit` and `gh api` (Codex rules match exact prefixes only, so they cannot call the guard). Codex loads them only after you trust the project; check with `codex execpolicy check --pretty --rules .codex/rules/guard.rules -- gh label delete wip`.
+
+Git tracks `.claude/` except `skills/` (installer symlinks), `worktrees/` and `settings.local.json`, and `.pi/` only for `extensions/`. The guard is a speed bump, not a security boundary: an agent determined to call the GitHub API another way still can, which is why approval also expires on the next push and the human reviews the PR.
+
 ## Cache
 
 A passing result is valid for the same content (tree hash), the same base (`origin/main`) and the same level. Running it again without changes is instant. After a new commit, or when `origin/main` has moved, it runs again.
