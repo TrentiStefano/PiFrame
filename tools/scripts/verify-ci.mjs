@@ -2,10 +2,10 @@
 /**
  * Local pre-pull-request verification.
  *
- * Runs, on this machine, the steps the GitHub workflows (ci.yml + the validation job and desktop/web
- * builds of release.yml) run after a merge to `main`, so a broken change is caught before it burns
- * runner minutes. It verifies what `main` will look like AFTER the pull request: the committed HEAD is
- * checked out in a temporary worktree and `origin/main` is merged into it first.
+ * Runs, on this machine, the `verify` tier of the shared step list (tools/guardrails/src/steps.mjs): the
+ * same steps ci.yml runs on every pull request, plus the release.yml desktop/web builds with --release, so a
+ * broken change is caught before it burns runner minutes. It verifies what `main` will look like AFTER the
+ * pull request: the committed HEAD is checked out in a temporary worktree and `origin/main` is merged into it first.
  *
  *   pnpm run verify                 CI + release validation
  *   pnpm run verify -- --release    + flutter build (desktop of this OS) and web, as in the release job

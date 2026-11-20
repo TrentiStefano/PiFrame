@@ -40,7 +40,8 @@ const GATE = [
  * @property {string} [appVersion] version passed to the Flutter builds
  */
 
-export const TIERS = ['verify', 'ci'];
+const TIERS = ['verify', 'ci'];
+const FLUTTER_APP = 'apps/pi_frame';
 
 /**
  * @param {'verify' | 'ci'} tier `verify`: the local full gate. `ci`: the same gate, as the CI workflow runs it
@@ -61,14 +62,14 @@ export function stepList(tier, options = {}) {
     job: 'flutter',
     name: 'Build Flutter web app (as in the release job)',
     command: ['flutter', 'build', 'web', '--release', '--no-web-resources-cdn', '--pwa-strategy=none', define],
-    cwd: 'apps/pi_frame'
+    cwd: FLUTTER_APP
   });
   if (release) {
     steps.push({
       job: 'flutter',
       name: `Build Flutter ${platform} desktop app (as in the release job)`,
       command: ['flutter', 'build', platform, '--release', '--build-name', appVersion, '--build-number', '1', define],
-      cwd: 'apps/pi_frame'
+      cwd: FLUTTER_APP
     });
   }
   if (e2e) {
