@@ -82,3 +82,57 @@ test('a release build without a platform or version is refused instead of buildi
   assert.throws(() => stepList('verify', { release: true, appVersion: '1.5.1' }), /platform/);
   assert.throws(() => stepList('verify', { e2e: true, platform: 'linux' }), /appVersion/);
 });
+
+const FLUTTER_PROJECTS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
+const check = (tests = []) => stepList('check', { tests, flutterProjects: FLUTTER_PROJECTS });
+
+test('check is the inner loop: build (for the workspace type declarations), type checking and flutter analyze', () => {
+  assert.deepEqual(commandLines(check()), [
+    'pnpm -r run build',
+    'pnpm -r run lint',
+    'node tools/scripts/lint-flutter.js'
+  ]);
+});
+
+test('check never installs, creates a worktree or merges', () => {
+  const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);
+  for (const line of commandLines(steps)) {
+    assert.doesNotMatch(line, /\binstall\b|\bworktree\b|\bmerge\b|setup-flutter|pub get/, line);
+  }
+});
+
+const withCwd = (steps) => steps.map((s) => ({ command: s.command.join(' '), cwd: s.cwd }));
+
+test('check runs a Dart test file with flutter test inside its project, after analysis', () => {
+  const steps = check([
+    'apps/pi_frame/test/widgets/bento_test.dart',
+    'packages\\pi_frame_theme\\test\\theme_test.dart'
+  ]);
+  assert.deepEqual(withCwd(steps).slice(3), [
+    { command: 'flutter test test/widgets/bento_test.dart', cwd: 'apps/pi_frame' },
+    { command: 'flutter test test/theme_test.dart', cwd: 'packages/pi_frame_theme' }
+  ]);
+});
+
+test('check runs a Node test file with node --test from the repository root', () => {
+  const steps = check(['tools/guardrails/test/steps.test.mjs', 'tools/scripts/x.test.js', 'tools/a/b.test.cjs']);
+  assert.deepEqual(withCwd(steps).slice(3), [
+    { command: 'node --test tools/guardrails/test/steps.test.mjs', cwd: undefined },
+    { command: 'node --test tools/scripts/x.test.js', cwd: undefined },
+    { command: 'node --test tools/a/b.test.cjs', cwd: undefined }
+  ]);
+});
+
+test('check refuses a path it cannot route, naming the supported kinds', () => {
+  for (const file of ['README.md', 'lib/main.dart', 'somewhere/else/x_test.dart', 'apps/agentd/src/a.test.ts']) {
+    assert.throws(
+      () => check([file]),
+      (err) => {
+        assert.match(err.message, new RegExp(file.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
+        assert.match(err.message, /_test\.dart/);
+        assert.match(err.message, /\.test\.mjs/);
+        return true;
+      }
+    );
+  }
+});

@@ -1,6 +1,7 @@
 /**
  * The single list of gate steps. `pnpm run verify` (tools/scripts/verify-ci.mjs) runs the `verify` tier and the
  * CI workflow (.github/workflows/ci.yml) runs the `ci` tier; a parity test fails when the workflow drifts from it.
+ * `pnpm run check` (tools/scripts/check.mjs) runs the `check` tier: the fast, local-only inner loop.
  *
  * Pure: no I/O. A step's `command` starts with the program (`node` means the Node.js running the gate).
  * To add a check, add it here, then add the matching step to ci.yml (the parity test prints the exact YAML).
@@ -56,17 +57,25 @@ const GATE = [
  * @property {string} [appVersion] version passed to the Flutter builds
  */
 
-const TIERS = ['verify', 'ci'];
+/**
+ * @typedef {object} CheckOptions
+ * @property {string[]} [tests] repository-relative test files to run after analysis (`*_test.dart` or `*.test.mjs|cjs|js`)
+ * @property {string[]} [flutterProjects] the Flutter project folders a Dart test file may belong to
+ */
+
+const TIERS = ['verify', 'ci', 'check'];
 const FLUTTER_APP = 'apps/pi_frame';
 
 /**
- * @param {'verify' | 'ci'} tier `verify`: the local full gate. `ci`: the same gate, as the CI workflow runs it
- *   (release builds and e2e stay in the release workflow and in `verify --release` / `--e2e`).
- * @param {StepOptions} [options] only used by the `verify` tier
+ * @param {'verify' | 'ci' | 'check'} tier `verify`: the local full gate. `ci`: the same gate, as the CI workflow runs
+ *   it (release builds and e2e stay in the release workflow and in `verify --release` / `--e2e`). `check`: the inner
+ *   loop, static analysis plus the given test files, in the current tree (no install, worktree or merge).
+ * @param {StepOptions & CheckOptions} [options] release/e2e options for `verify`, test files for `check`
  * @returns {Step[]}
  */
 export function stepList(tier, options = {}) {
   if (!TIERS.includes(tier)) throw new Error(`stepList: unknown tier "${tier}". Known tiers: ${TIERS.join(', ')}.`);
+  if (tier === 'check') return checkSteps(options);
   const steps = GATE.map((step) => ({ ...step, command: [...step.command] }));
   const { release = false, e2e = false, platform, appVersion } = tier === 'verify' ? options : {};
   if (!release && !e2e) return steps;
@@ -97,4 +106,41 @@ export function stepList(tier, options = {}) {
     });
   }
   return steps;
+}
+
+/** The `check` tier: static analysis only, in the current working tree. */
+const CHECK = [
+  // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first.
+  { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] },
+  { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] },
+  { job: 'flutter', name: 'Flutter analyze (all projects)', command: ['node', 'tools/scripts/lint-flutter.js'] }
+];
+
+function checkSteps({ tests = [], flutterProjects = [] } = {}) {
+  const steps = CHECK.map((step) => ({ ...step, command: [...step.command] }));
+  for (const test of tests) steps.push(testStep(test.replaceAll('\\', '/').replace(/^\.\//, ''), flutterProjects));
+  return steps;
+}
+
+/** @returns {Step} */
+function testStep(file, flutterProjects) {
+  if (file.endsWith('_test.dart')) {
+    const project = flutterProjects.find((dir) => file.startsWith(`${dir}/`));
+    if (project) {
+      return {
+        job: 'flutter',
+        name: `Flutter test ${file}`,
+        command: ['flutter', 'test', file.slice(project.length + 1)],
+        cwd: project
+      };
+    }
+  }
+  if (/\.test\.(mjs|cjs|js)$/.test(file)) {
+    return { job: 'node', name: `Node test ${file}`, command: ['node', '--test', file] };
+  }
+  throw new Error(
+    `check: cannot run "${file}". Supported test files: Dart "*_test.dart" inside a Flutter project ` +
+      `(${flutterProjects.join(', ')}), run with flutter test; Node "*.test.mjs", "*.test.cjs" or "*.test.js", ` +
+      'run with node --test. TypeScript tests run from their build output: pass the compiled dist/**/*.test.js.'
+  );
 }
