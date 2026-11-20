@@ -108,7 +108,7 @@ export function approvalStatus({ baseBaseline, headBaseline, changedPaths = [], 
   const stale = Boolean(label);
   const comment = [
     APPROVAL_MARKER,
-    `**Guardrail approval needed.** This pull request loosens a guardrail; a human must review it and add the ` +
+    `**Guardrail approval needed.** This pull request changes a guardrail; a human must review it and add the ` +
       `\`${APPROVAL_LABEL}\` label:`,
     '',
     ...list,
