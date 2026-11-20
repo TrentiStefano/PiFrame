@@ -67,12 +67,7 @@ class SyntaxHighlighter {
   static final RegExp _commentRegex = RegExp(r'(//[^\n]*|/\*[\s\S]*?\*/|#[^\n]*)');
   static final RegExp _typeRegex = RegExp(r'\b[A-Z][a-zA-Z0-9_]*\b');
 
-  static List<InlineSpan> highlightLine(
-    String line,
-    String lang,
-    FrameTokens tokens, {
-    Color? defaultColor,
-  }) {
+  static List<InlineSpan> highlightLine(String line, String lang, FrameTokens tokens, {Color? defaultColor}) {
     if (line.isEmpty) return [const TextSpan(text: '')];
 
     final baseFg = defaultColor ?? tokens.textPrimary;
@@ -115,9 +110,7 @@ class SyntaxHighlighter {
           text: line.substring(match.start, match.end),
           style: TextStyle(
             color: match.color,
-            fontWeight: match.color == tokens.syntaxKeyword
-                ? FontWeight.w600
-                : FontWeight.normal,
+            fontWeight: match.color == tokens.syntaxKeyword ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
       );

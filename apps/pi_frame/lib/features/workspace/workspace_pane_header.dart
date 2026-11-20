@@ -56,10 +56,7 @@ Widget workspacePaneHeader(
           children: [
             ConstrainedBox(
               // Only the title shortens, and only when it cannot fit alone.
-              constraints: BoxConstraints(
-                minHeight: 28,
-                maxWidth: constraints.maxWidth,
-              ),
+              constraints: BoxConstraints(minHeight: 28, maxWidth: constraints.maxWidth),
               child: Row(
                 key: const ValueKey('workspace-pane-header-title'),
                 mainAxisSize: MainAxisSize.min,
@@ -83,10 +80,7 @@ Widget workspacePaneHeader(
             ConstrainedBox(
               key: const ValueKey('workspace-pane-header-actions'),
               constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: trailing,
-              ),
+              child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: trailing),
             ),
           ],
         ),
@@ -123,46 +117,23 @@ Widget workspacePaneHeader(
                           WorkspacePane.chat => Icons.chat_bubble_outline,
                         };
                         return MouseRegion(
-                          cursor: isActive
-                              ? SystemMouseCursors.basic
-                              : SystemMouseCursors.click,
+                          cursor: isActive ? SystemMouseCursors.basic : SystemMouseCursors.click,
                           child: Semantics(
                             button: true,
                             selected: isActive,
                             label: tabTitle,
                             child: InkWell(
                               key: ValueKey('companion-tab-${tab.name}'),
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusSm,
-                              ),
-                              onTap: isActive
-                                  ? null
-                                  : () => onSelectCompanionTab?.call(tab),
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              onTap: isActive ? null : () => onSelectCompanionTab?.call(tab),
                               child: AnimatedContainer(
-                                duration: FrameMotion.fade(
-                                  context,
-                                  FrameMotion.micro,
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isActive ? 10 : 7,
-                                  vertical: 3,
-                                ),
+                                duration: FrameMotion.fade(context, FrameMotion.micro),
+                                padding: EdgeInsets.symmetric(horizontal: isActive ? 10 : 7, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: isActive
-                                      ? tokens.surface
-                                      : tokens.surface.withValues(alpha: 0),
-                                  borderRadius: BorderRadius.circular(
-                                    tokens.radiusSm,
-                                  ),
+                                  color: isActive ? tokens.surface : tokens.surface.withValues(alpha: 0),
+                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                                   // Selected tab: a 2 px accent underline (10.3).
-                                  border: isActive
-                                      ? Border(
-                                          bottom: BorderSide(
-                                            color: tokens.accent,
-                                            width: 2,
-                                          ),
-                                        )
-                                      : null,
+                                  border: isActive ? Border(bottom: BorderSide(color: tokens.accent, width: 2)) : null,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -170,26 +141,17 @@ Widget workspacePaneHeader(
                                     Icon(
                                       tabIcon,
                                       size: isActive ? 14 : 13,
-                                      color: isActive
-                                          ? tokens.accent
-                                          : tokens.textMuted,
+                                      color: isActive ? tokens.accent : tokens.textMuted,
                                     ),
                                     const SizedBox(width: 5),
                                     Text(
-                                      isActive
-                                          ? tabTitle.toUpperCase()
-                                          : tabTitle,
-                                      style: FrameText.of(context).label
-                                          .copyWith(
-                                            color: isActive
-                                                ? tokens.accent
-                                                : tokens.textMuted,
-                                            fontFamily: tokens.uiFontFamily,
-                                            fontWeight: isActive
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                            letterSpacing: 0.3,
-                                          ),
+                                      isActive ? tabTitle.toUpperCase() : tabTitle,
+                                      style: FrameText.of(context).label.copyWith(
+                                        color: isActive ? tokens.accent : tokens.textMuted,
+                                        fontFamily: tokens.uiFontFamily,
+                                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                                        letterSpacing: 0.3,
+                                      ),
                                     ),
                                   ],
                                 ),

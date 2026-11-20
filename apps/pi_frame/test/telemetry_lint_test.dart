@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -6,10 +7,7 @@ void main() {
     final libDir = Directory('lib');
     expect(libDir.existsSync(), isTrue, reason: 'lib directory must exist');
 
-    final dartFiles = libDir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'));
+    final dartFiles = libDir.listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'));
 
     final violations = <String>[];
 
@@ -20,9 +18,7 @@ void main() {
     );
 
     // Disallowed telemetry SDK invocations
-    final telemetrySdkRegex = RegExp(
-      r'''\b(Sentry|FirebaseAnalytics|Mixpanel|AmplitudeClient|PosthogClient)\.''',
-    );
+    final telemetrySdkRegex = RegExp(r'''\b(Sentry|FirebaseAnalytics|Mixpanel|AmplitudeClient|PosthogClient)\.''');
 
     // External outbound URL pattern (allow only loopback, localhost, and json schemas)
     final remoteUrlRegex = RegExp(

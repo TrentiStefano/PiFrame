@@ -34,12 +34,10 @@ class SessionNotificationWatcher extends ConsumerStatefulWidget {
   const SessionNotificationWatcher({super.key});
 
   @override
-  ConsumerState<SessionNotificationWatcher> createState() =>
-      _SessionNotificationWatcherState();
+  ConsumerState<SessionNotificationWatcher> createState() => _SessionNotificationWatcherState();
 }
 
-class _SessionNotificationWatcherState
-    extends ConsumerState<SessionNotificationWatcher> {
+class _SessionNotificationWatcherState extends ConsumerState<SessionNotificationWatcher> {
   final Set<String> _workingSessionIds = <String>{};
   bool _hasUnreadAnswer = false;
   DesktopNotificationService? _notificationService;
@@ -114,8 +112,7 @@ class _SessionNotificationWatcherState
             key: ValueKey('watcher_$id'),
             sessionId: id,
             onRunWorking: () => _onRunWorking(id),
-            onRunFinished: ({required bool unreadAnswer}) =>
-                _onRunFinished(id, unreadAnswer: unreadAnswer),
+            onRunFinished: ({required bool unreadAnswer}) => _onRunFinished(id, unreadAnswer: unreadAnswer),
           ),
       ],
     );
@@ -135,8 +132,7 @@ class _SessionWatcherItem extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_SessionWatcherItem> createState() =>
-      _SessionWatcherItemState();
+  ConsumerState<_SessionWatcherItem> createState() => _SessionWatcherItemState();
 }
 
 class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
@@ -191,32 +187,20 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
       _checkNotifications(next, subagents);
     });
 
-    ref.listen<List<SubagentItem>>(subagentsFamily(widget.sessionId), (
-      prev,
-      next,
-    ) {
+    ref.listen<List<SubagentItem>>(subagentsFamily(widget.sessionId), (prev, next) {
       final session = ref.read(sessionStateFamily(widget.sessionId));
       _checkNotifications(session, next);
     });
 
     // Workflow runs and unlinked agents keep the run going too.
-    ref.listen<bool>(backgroundAgentsRunningProvider(widget.sessionId), (
-      prev,
-      next,
-    ) {
-      _checkNotifications(
-        ref.read(sessionStateFamily(widget.sessionId)),
-        ref.read(subagentsFamily(widget.sessionId)),
-      );
+    ref.listen<bool>(backgroundAgentsRunningProvider(widget.sessionId), (prev, next) {
+      _checkNotifications(ref.read(sessionStateFamily(widget.sessionId)), ref.read(subagentsFamily(widget.sessionId)));
     });
 
     return const SizedBox.shrink();
   }
 
-  Future<void> _checkNotifications(
-    SessionState next,
-    List<SubagentItem> subagents,
-  ) async {
+  Future<void> _checkNotifications(SessionState next, List<SubagentItem> subagents) async {
     // Run tracking (steps 2 and 3) happens whatever the focus: a run started
     // while PiFrame was in front must still notify if it ends while it is not.
     _trackRun(next, subagents);
@@ -228,9 +212,7 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     final isFocusedCached = ref.read(appFocusProvider);
 
     // 1. Attention required: interactive choice, question, or confirmation dialog
-    if (next.pendingUiRequests.isNotEmpty &&
-        !await service.checkIsAppFocused(isFocusedCached) &&
-        mounted) {
+    if (next.pendingUiRequests.isNotEmpty && !await service.checkIsAppFocused(isFocusedCached) && mounted) {
       final pendingInteraction = next.pendingUiRequests.where((r) {
         final method = r['method']?.toString();
         return r['dialog'] == true ||
@@ -245,13 +227,9 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
           final reqId = req['requestId']?.toString() ?? '';
           if (reqId.isNotEmpty && !_handledUiRequestIds.contains(reqId)) {
             _handledUiRequestIds.add(reqId);
-            final sessionName = ref.read(
-              sessionDisplayNameProvider(widget.sessionId),
-            );
+            final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
             final title = req['title']?.toString() ?? 'Attenzione richiesta';
-            final message =
-                req['message']?.toString() ??
-                'L\'agente richiede una tua risposta o scelta.';
+            final message = req['message']?.toString() ?? 'L\'agente richiede una tua risposta o scelta.';
             unawaited(
               service.showNotification(
                 title: 'Richiesta attenzione · $sessionName',
@@ -289,8 +267,7 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     }
 
     // Agent crashed or worker error: reset active run flag so no false completion is fired
-    if (next.agentStatus == AgentStatus.workerError ||
-        next.agentStatus == AgentStatus.error) {
+    if (next.agentStatus == AgentStatus.workerError || next.agentStatus == AgentStatus.error) {
       if (_isRunActive) {
         _isRunActive = false;
         widget.onRunFinished(unreadAnswer: false);
@@ -309,8 +286,7 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
   }
 
   bool _isSettled(SessionState state, bool hasRunningSubagents) =>
-      (state.agentStatus == AgentStatus.settled ||
-          state.agentStatus == AgentStatus.idle) &&
+      (state.agentStatus == AgentStatus.settled || state.agentStatus == AgentStatus.idle) &&
       !state.isStreaming &&
       !state.activeToolCalls.values.any((t) => t.isRunning) &&
       !hasRunningSubagents &&
@@ -329,9 +305,7 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     if (!_isSettled(state, hasRunningSubagents)) return;
 
     final service = ref.read(desktopNotificationServiceProvider);
-    final isFocused = await service.checkIsAppFocused(
-      ref.read(appFocusProvider),
-    );
+    final isFocused = await service.checkIsAppFocused(ref.read(appFocusProvider));
 
     if (!mounted || !_isRunActive) return;
     _isRunActive = false;
@@ -346,15 +320,9 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
     if (!ref.read(notificationsEnabledProvider) || isFocused || !mounted) return;
     final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
     final rawText = answer.text.trim();
-    final preview = rawText.length > 120
-        ? '${rawText.substring(0, 120)}...'
-        : rawText;
+    final preview = rawText.length > 120 ? '${rawText.substring(0, 120)}...' : rawText;
     unawaited(
-      service.showNotification(
-        title: 'Risposta completata · $sessionName',
-        body: preview,
-        sessionId: widget.sessionId,
-      ),
+      service.showNotification(title: 'Risposta completata · $sessionName', body: preview, sessionId: widget.sessionId),
     );
   }
 }

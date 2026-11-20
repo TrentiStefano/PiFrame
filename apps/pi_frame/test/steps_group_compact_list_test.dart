@@ -59,13 +59,9 @@ Future<void> _setWindow(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('many steps: compact list capped at half the window, then expand all', (
-    tester,
-  ) async {
+  testWidgets('many steps: compact list capped at half the window, then expand all', (tester) async {
     await _setWindow(tester);
-    await tester.pumpWidget(
-      _app(StepsGroup(sessionId: _sid, block: _block(steps: 60), tokens: FrameTokens.dark)),
-    );
+    await tester.pumpWidget(_app(StepsGroup(sessionId: _sid, block: _block(steps: 60), tokens: FrameTokens.dark)));
     // Settled group starts collapsed: expand it.
     await tester.tap(_header());
     await tester.pumpAndSettle();
@@ -99,9 +95,7 @@ void main() {
 
   testWidgets('few steps: no limit button', (tester) async {
     await _setWindow(tester);
-    await tester.pumpWidget(
-      _app(StepsGroup(sessionId: _sid, block: _block(steps: 3), tokens: FrameTokens.dark)),
-    );
+    await tester.pumpWidget(_app(StepsGroup(sessionId: _sid, block: _block(steps: 3), tokens: FrameTokens.dark)));
     await tester.tap(_header());
     await tester.pumpAndSettle();
     expect(_compactList(), findsOneWidget);
@@ -138,19 +132,13 @@ void main() {
     expect(_expandAll(), findsOneWidget);
     await tester.tap(_expandAll());
     await tester.pump();
-    expect(
-      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'),
-      isTrue,
-    );
+    expect(container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'), isTrue);
 
     // Turn ends: auto-collapse closes the group and drops the full height.
     await tester.pumpWidget(build(false));
     await tester.pump();
     await tester.pump();
-    expect(
-      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'),
-      isFalse,
-    );
+    expect(container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'), isFalse);
 
     // Re-opening shows the compact list again.
     await tester.tap(_header());

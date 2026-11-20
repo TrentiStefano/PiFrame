@@ -352,8 +352,6 @@ test('SystemMetricsService: concurrent subscribes share single start promise and
   assert.equal(mockGpu.stopCalls, 1);
 });
 
-
-
 test('SystemMetricsService: repeated unsubscribe/subscribe cycles always restart sampling', async () => {
   // Regression: with an existing GPU provider the start body ran synchronously,
   // cleared startPromise before it was assigned, and from the third cycle on

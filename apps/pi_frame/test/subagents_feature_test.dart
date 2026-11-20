@@ -88,35 +88,19 @@ void main() {
         ProviderScope(
           overrides: [
             daemonEndpointProvider.overrideWith((ref) async => null),
-            sessionListProvider.overrideWith(
-              (ref) => Future.value(mockSessions),
-            ),
-            pinnedSessionsProvider.overrideWith(
-              (ref) => _TestPinnedNotifier({}),
-            ),
-            removedReposProvider.overrideWith(
-              (ref) => _TestRemovedNotifier({}),
-            ),
+            sessionListProvider.overrideWith((ref) => Future.value(mockSessions)),
+            pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
+            removedReposProvider.overrideWith((ref) => _TestRemovedNotifier({})),
             activeSessionIdProvider.overrideWith((ref) => 'sess_main_1'),
             sessionStateFamily('sess_main_1').overrideWith(
-              (ref) => SessionStateNotifier('sess_main_1', null)
-                ..state = const SessionState(
-                  sessionId: 'sess_main_1',
-                  cwd: 'C:/projects/app',
-                ),
+              (ref) =>
+                  SessionStateNotifier('sess_main_1', null)
+                    ..state = const SessionState(sessionId: 'sess_main_1', cwd: 'C:/projects/app'),
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: SizedBox(
-                width: 300,
-                height: 600,
-                child: SessionsSidebar(),
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: SizedBox(width: 300, height: 600, child: SessionsSidebar())),
           ),
         ),
       );
@@ -150,19 +134,12 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            subagentsFamily('test_session').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'test_session', subagents),
-            ),
+            subagentsFamily('test_session')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'test_session', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: AgentActivityPanel(
-                sessionId: 'test_session',
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'test_session')),
           ),
         ),
       );
@@ -198,19 +175,12 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            subagentsFamily('test_session').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'test_session', subagents),
-            ),
+            subagentsFamily('test_session')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'test_session', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: AgentActivityPanel(
-                sessionId: 'test_session',
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'test_session')),
           ),
         ),
       );
@@ -281,19 +251,11 @@ void main() {
                   agentStatus: AgentStatus.settled,
                 ),
             ),
-            subagentsFamily('sess_chat_1').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_chat_1', subagents),
-            ),
+            subagentsFamily('sess_chat_1').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_chat_1', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: TranscriptView(
-                sessionId: 'sess_chat_1',
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: TranscriptView(sessionId: 'sess_chat_1')),
           ),
         ),
       );
@@ -309,25 +271,18 @@ void main() {
 
     testWidgets('agent activity sidecar opens from its strip and closes back to it', (tester) async {
       const subagents = [
-        SubagentItem(
-          id: 'sub_side',
-          name: 'Side Agent',
-          model: 'haiku',
-          output: 'Side output',
-          status: 'completed',
-        ),
+        SubagentItem(id: 'sub_side', name: 'Side Agent', model: 'haiku', output: 'Side output', status: 'completed'),
       ];
       var opened = 0;
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             sessionStateFamily('sess_side').overrideWith(
-              (ref) => SessionStateNotifier('sess_side', null)
-                ..state = const SessionState(sessionId: 'sess_side', cwd: '/repo'),
+              (ref) =>
+                  SessionStateNotifier('sess_side', null)
+                    ..state = const SessionState(sessionId: 'sess_side', cwd: '/repo'),
             ),
-            subagentsFamily('sess_side').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_side', subagents),
-            ),
+            subagentsFamily('sess_side').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_side', subagents)),
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
@@ -359,56 +314,58 @@ void main() {
     });
 
     testWidgets('closing the agents panel while an agent runs keeps it closed and Git stays open', (tester) async {
-      const subagents = [
-        SubagentItem(id: 'sub_run', name: 'Busy Agent', status: 'running'),
-      ];
+      const subagents = [SubagentItem(id: 'sub_run', name: 'Busy Agent', status: 'running')];
       var opened = 0;
       var chatMounts = 0;
       Widget app(double width) => ProviderScope(
-            overrides: [
-              sessionStateFamily('sess_run').overrideWith(
-                (ref) => SessionStateNotifier('sess_run', null)
-                  ..state = const SessionState(sessionId: 'sess_run', cwd: '/repo'),
-              ),
-              subagentsFamily('sess_run').overrideWith(
-                (ref) => _MockSubagentsNotifier(ref, 'sess_run', subagents),
-              ),
-            ],
-            child: MaterialApp(
-              theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-              home: Scaffold(
-                body: Align(
-                  alignment: Alignment.topLeft,
-                  child: SizedBox(
-                    width: width,
-                    height: 700,
-                    child: AgentSidecarLayout(
-                      sessionId: 'sess_run',
-                      chat: _MountCounter(onMount: () => chatMounts++),
-                      sidecar: AgentActivitySidecar(
-                        key: const ValueKey('agent_activity_sess_run'),
-                        sessionId: 'sess_run',
-                        onOpened: () => opened++,
-                      ),
-                    ),
+        overrides: [
+          sessionStateFamily('sess_run').overrideWith(
+            (ref) =>
+                SessionStateNotifier('sess_run', null)..state = const SessionState(sessionId: 'sess_run', cwd: '/repo'),
+          ),
+          subagentsFamily('sess_run').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_run', subagents)),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                height: 700,
+                child: AgentSidecarLayout(
+                  sessionId: 'sess_run',
+                  chat: _MountCounter(onMount: () => chatMounts++),
+                  sidecar: AgentActivitySidecar(
+                    key: const ValueKey('agent_activity_sess_run'),
+                    sessionId: 'sess_run',
+                    onOpened: () => opened++,
                   ),
                 ),
               ),
             ),
-          );
+          ),
+        ),
+      );
 
       // Narrow enough that the open panel floats over the chat.
       await tester.pumpWidget(app(600));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget,
-          reason: 'a running agent opens the panel once');
+      expect(
+        find.byKey(const ValueKey('agent-activity-panel')),
+        findsOneWidget,
+        reason: 'a running agent opens the panel once',
+      );
       expect(opened, 1);
 
       await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byKey(const ValueKey('agent-activity-panel')), findsNothing,
-          reason: 'closing must not bounce back open while the agent still runs');
+      expect(
+        find.byKey(const ValueKey('agent-activity-panel')),
+        findsNothing,
+        reason: 'closing must not bounce back open while the agent still runs',
+      );
       expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget);
       expect(opened, 1, reason: 'the shell must not collapse Git again');
       expect(chatMounts, 1, reason: 'switching between overlay and column keeps the chat mounted');
@@ -466,8 +423,7 @@ void main() {
           overrides: [
             subagentsFamily('sess_scroll').overrideWith(
               (ref) => _MockSubagentsNotifier(ref, 'sess_scroll', [
-                for (var i = 0; i < 40; i++)
-                  SubagentItem(id: 'a$i', name: 'agent-$i', status: 'completed'),
+                for (var i = 0; i < 40; i++) SubagentItem(id: 'a$i', name: 'agent-$i', status: 'completed'),
               ]),
             ),
           ],
@@ -491,7 +447,8 @@ void main() {
     });
 
     testWidgets('agent panel lists a workflow run and expands to its phases', (tester) async {
-      const script = "export const meta = { name: 'audit', description: 'Audit the repo', "
+      const script =
+          "export const meta = { name: 'audit', description: 'Audit the repo', "
           "phases: [{ title: 'Scan' }] }";
       await tester.pumpWidget(
         ProviderScope(
@@ -568,13 +525,7 @@ void main() {
           status: 'running',
         ),
       ];
-      final todos = [
-        const TodoItem(
-          id: 1,
-          subject: 'Review database queries',
-          status: 'pending',
-        ),
-      ];
+      final todos = [const TodoItem(id: 1, subject: 'Review database queries', status: 'pending')];
 
       await tester.pumpWidget(
         ProviderScope(
@@ -588,17 +539,11 @@ void main() {
                   agentStatus: AgentStatus.settled,
                 ),
             ),
-            subagentsFamily('sess_tabs_1').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_tabs_1', subagents),
-            ),
-            todosFamily('sess_tabs_1').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'sess_tabs_1', todos),
-            ),
+            subagentsFamily('sess_tabs_1').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_tabs_1', subagents)),
+            todosFamily('sess_tabs_1').overrideWith((ref) => _MockTodoNotifier(ref, 'sess_tabs_1', todos)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
               body: SizedBox(
                 width: 1200,
@@ -646,15 +591,16 @@ void main() {
     });
 
     testWidgets('hiding the plugins pane keeps an unsent side draft', (tester) async {
-      final container = ProviderContainer(overrides: [
-        sessionStateFamily('sess_draft').overrideWith(
-          (ref) => SessionStateNotifier('sess_draft', null)
-            ..state = const SessionState(sessionId: 'sess_draft', cwd: 'C:/projects/app'),
-        ),
-        subagentsFamily('sess_draft').overrideWith(
-          (ref) => _MockSubagentsNotifier(ref, 'sess_draft', const []),
-        ),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          sessionStateFamily('sess_draft').overrideWith(
+            (ref) =>
+                SessionStateNotifier('sess_draft', null)
+                  ..state = const SessionState(sessionId: 'sess_draft', cwd: 'C:/projects/app'),
+          ),
+          subagentsFamily('sess_draft').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_draft', const [])),
+        ],
+      );
       addTearDown(container.dispose);
       container.read(sideThreadFamily('sess_draft').notifier).state = const SideThreadState(
         parentSessionId: 'sess_draft',
@@ -663,23 +609,25 @@ void main() {
         status: 'active',
         isOpen: true,
       );
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-          home: const Scaffold(
-            body: SizedBox(
-              width: 1200,
-              height: 700,
-              child: AgentSidecarLayout(
-                sessionId: 'sess_draft',
-                chat: SizedBox.expand(),
-                sidecar: AgentActivitySidecar(sessionId: 'sess_draft'),
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 700,
+                child: AgentSidecarLayout(
+                  sessionId: 'sess_draft',
+                  chat: SizedBox.expand(),
+                  sidecar: AgentActivitySidecar(sessionId: 'sess_draft'),
+                ),
               ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('side-close-btn')), findsNothing);
       await tester.enterText(find.byKey(const ValueKey('side-mini-composer-input')), 'half a question');
@@ -705,9 +653,8 @@ void main() {
                   agentStatus: AgentStatus.settled,
                 ),
             ),
-            subagentsFamily('sess_tasks_auto').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'sess_tasks_auto', const []),
-            ),
+            subagentsFamily('sess_tasks_auto')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_tasks_auto', const [])),
             todosFamily('sess_tasks_auto').overrideWith((ref) {
               todoNotifier = _MockTodoNotifier(ref, 'sess_tasks_auto', const []);
               return todoNotifier;
@@ -734,22 +681,31 @@ void main() {
 
       todoNotifier.state = [const TodoItem(id: 1, subject: 'Plan the change', status: 'pending')];
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget,
-          reason: 'tasks the agent adds open the tab');
+      expect(
+        find.byKey(const ValueKey('todo-popdown-panel')),
+        findsOneWidget,
+        reason: 'tasks the agent adds open the tab',
+      );
 
       await tester.tap(find.byKey(const ValueKey('sidecar-hide-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing);
-      expect(find.byKey(const ValueKey('agent-activity-open-btn')), findsOneWidget,
-          reason: 'the closed panel leaves its strip to reopen it');
+      expect(
+        find.byKey(const ValueKey('agent-activity-open-btn')),
+        findsOneWidget,
+        reason: 'the closed panel leaves its strip to reopen it',
+      );
 
       todoNotifier.state = [
         ...todoNotifier.state,
         const TodoItem(id: 2, subject: 'Write the tests', status: 'pending'),
       ];
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('todo-popdown-panel')), findsNothing,
-          reason: 'after the user closed it, new tasks do not reopen it');
+      expect(
+        find.byKey(const ValueKey('todo-popdown-panel')),
+        findsNothing,
+        reason: 'after the user closed it, new tasks do not reopen it',
+      );
 
       await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
       await tester.pumpAndSettle();
@@ -770,17 +726,12 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            subagentsFamily('test_session').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'test_session', subagents),
-            ),
+            subagentsFamily('test_session')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'test_session', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: AgentActivityPanel(sessionId: 'test_session'),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'test_session')),
           ),
         ),
       );
@@ -835,14 +786,8 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: TranscriptView(
-                sessionId: 'sess_cost_test',
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: TranscriptView(sessionId: 'sess_cost_test')),
           ),
         ),
       );
@@ -881,13 +826,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Costi subagenti & modelli'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.text('Code Reviewer'),
-        ),
-        findsOneWidget,
-      );
+      expect(find.descendant(of: find.byType(Dialog), matching: find.text('Code Reviewer')), findsOneWidget);
       expect(find.text('gemini-1.5-pro'), findsWidgets);
       expect(find.text('\$0.0125'), findsWidgets);
 
@@ -923,25 +862,14 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
                   sessionName: 'Notification Test',
                   cwd: 'C:/projects/app',
                   entries: [
-                    SessionEntry(
-                      id: 'msg-notif-1',
-                      role: 'assistant',
-                      text: rawTaskNotification,
-                      timestamp: 1000,
-                    ),
+                    SessionEntry(id: 'msg-notif-1', role: 'assistant', text: rawTaskNotification, timestamp: 1000),
                   ],
                 ),
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: TranscriptView(
-                sessionId: 'sess_notif_test',
-              ),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: TranscriptView(sessionId: 'sess_notif_test')),
           ),
         ),
       );
@@ -1067,12 +995,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
                       ),
                     ],
                   ),
-                  SessionEntry(
-                    id: 'notification',
-                    role: 'assistant',
-                    text: taskNotification,
-                    timestamp: 1000,
-                  ),
+                  SessionEntry(id: 'notification', role: 'assistant', text: taskNotification, timestamp: 1000),
                 ],
               ),
           ),
@@ -1118,12 +1041,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
                       ),
                     ],
                   ),
-                  SessionEntry(
-                    id: 'worker-notification',
-                    role: 'assistant',
-                    text: taskNotification,
-                    timestamp: 2000,
-                  ),
+                  SessionEntry(id: 'worker-notification', role: 'assistant', text: taskNotification, timestamp: 2000),
                 ],
               ),
           ),
@@ -1131,9 +1049,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       );
       addTearDown(container.dispose);
 
-      final subagents = container.read(
-        subagentsFamily('worker_notification_merge'),
-      );
+      final subagents = container.read(subagentsFamily('worker_notification_merge'));
       expect(subagents, hasLength(1));
       expect(subagents.single.id, 'agent_task_1');
       expect(subagents.single.name, 'Remove folder-row glow');
@@ -1143,17 +1059,10 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
 
     test('SubagentsNotifier updates in real time when activeToolCalls are added to SessionState', () {
       final sessionNotifier = SessionStateNotifier('realtime_subagent_test', null)
-        ..state = const SessionState(
-          sessionId: 'realtime_subagent_test',
-          cwd: 'C:/test',
-        );
+        ..state = const SessionState(sessionId: 'realtime_subagent_test', cwd: 'C:/test');
 
       final container = ProviderContainer(
-        overrides: [
-          sessionStateFamily('realtime_subagent_test').overrideWith(
-            (ref) => sessionNotifier,
-          ),
-        ],
+        overrides: [sessionStateFamily('realtime_subagent_test').overrideWith((ref) => sessionNotifier)],
       );
       addTearDown(container.dispose);
 
@@ -1166,11 +1075,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
           'tool-subagent-1': const ToolExecutionState(
             toolCallId: 'tool-subagent-1',
             toolName: 'delegate',
-            args: {
-              'description': 'Run native core tests',
-              'subagent_type': 'reviewer',
-              'model': 'gpt-6-luna',
-            },
+            args: {'description': 'Run native core tests', 'subagent_type': 'reviewer', 'model': 'gpt-6-luna'},
             isRunning: true,
           ),
         },
@@ -1198,11 +1103,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
               ToolExecutionState(
                 toolCallId: 'tool-subagent-1',
                 toolName: 'delegate',
-                args: {
-                  'description': 'Run native core tests',
-                  'subagent_type': 'reviewer',
-                  'model': 'gpt-6-luna',
-                },
+                args: {'description': 'Run native core tests', 'subagent_type': 'reviewer', 'model': 'gpt-6-luna'},
                 output: 'All tests passed',
                 isRunning: false,
               ),
@@ -1220,28 +1121,17 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
     });
 
     testWidgets('Missing subagent cost is shown as unavailable, not zero', (tester) async {
-      final subagents = [
-        const SubagentItem(
-          id: 'unpriced-worker',
-          name: 'Unpriced Worker',
-          status: 'completed',
-        ),
-      ];
+      final subagents = [const SubagentItem(id: 'unpriced-worker', name: 'Unpriced Worker', status: 'completed')];
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            subagentsFamily('unknown_cost_sub').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'unknown_cost_sub', subagents),
-            ),
+            subagentsFamily('unknown_cost_sub')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'unknown_cost_sub', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: AgentActivityPanel(sessionId: 'unknown_cost_sub'),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'unknown_cost_sub')),
           ),
         ),
       );
@@ -1265,17 +1155,12 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            subagentsFamily('test_cost_sub').overrideWith(
-              (ref) => _MockSubagentsNotifier(ref, 'test_cost_sub', subagents),
-            ),
+            subagentsFamily('test_cost_sub')
+                .overrideWith((ref) => _MockSubagentsNotifier(ref, 'test_cost_sub', subagents)),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: AgentActivityPanel(sessionId: 'test_cost_sub'),
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'test_cost_sub')),
           ),
         ),
       );
@@ -1287,26 +1172,10 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
     });
 
     testWidgets('Changing session keeps cards minimized and does not re-open expanded cards', (tester) async {
-      final subagentsA = [
-        const SubagentItem(
-          id: 'sub_a',
-          name: 'Worker A',
-          status: 'running',
-        ),
-      ];
-      final todosA = [
-        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
-      ];
-      final subagentsB = [
-        const SubagentItem(
-          id: 'sub_b',
-          name: 'Worker B',
-          status: 'running',
-        ),
-      ];
-      final todosB = [
-        const TodoItem(id: 2, subject: 'Task B', status: 'pending'),
-      ];
+      final subagentsA = [const SubagentItem(id: 'sub_a', name: 'Worker A', status: 'running')];
+      final todosA = [const TodoItem(id: 1, subject: 'Task A', status: 'pending')];
+      final subagentsB = [const SubagentItem(id: 'sub_b', name: 'Worker B', status: 'running')];
+      final todosB = [const TodoItem(id: 2, subject: 'Task B', status: 'pending')];
 
       final container = ProviderContainer(
         overrides: [
@@ -1328,18 +1197,10 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
                 agentStatus: AgentStatus.settled,
               ),
           ),
-          subagentsFamily('sess_a').overrideWith(
-            (ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA),
-          ),
-          todosFamily('sess_a').overrideWith(
-            (ref) => _MockTodoNotifier(ref, 'sess_a', todosA),
-          ),
-          subagentsFamily('sess_b').overrideWith(
-            (ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB),
-          ),
-          todosFamily('sess_b').overrideWith(
-            (ref) => _MockTodoNotifier(ref, 'sess_b', todosB),
-          ),
+          subagentsFamily('sess_a').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA)),
+          todosFamily('sess_a').overrideWith((ref) => _MockTodoNotifier(ref, 'sess_a', todosA)),
+          subagentsFamily('sess_b').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB)),
+          todosFamily('sess_b').overrideWith((ref) => _MockTodoNotifier(ref, 'sess_b', todosB)),
         ],
       );
 
@@ -1349,9 +1210,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: Scaffold(
               body: ValueListenableBuilder<String>(
                 valueListenable: currentSessionNotifier,
@@ -1369,7 +1228,6 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
-
 
       // Switch to Session B
       currentSessionNotifier.value = 'sess_b';
@@ -1391,18 +1249,10 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
     });
 
     testWidgets('Changing session keeps cards minimized and does not re-open expanded cards', (tester) async {
-      final subagentsA = [
-        const SubagentItem(id: 'sub_a', name: 'Worker A', status: 'running'),
-      ];
-      final todosA = [
-        const TodoItem(id: 1, subject: 'Task A', status: 'pending'),
-      ];
-      final subagentsB = [
-        const SubagentItem(id: 'sub_b', name: 'Worker B', status: 'running'),
-      ];
-      final todosB = [
-        const TodoItem(id: 2, subject: 'Task B', status: 'pending'),
-      ];
+      final subagentsA = [const SubagentItem(id: 'sub_a', name: 'Worker A', status: 'running')];
+      final todosA = [const TodoItem(id: 1, subject: 'Task A', status: 'pending')];
+      final subagentsB = [const SubagentItem(id: 'sub_b', name: 'Worker B', status: 'running')];
+      final todosB = [const TodoItem(id: 2, subject: 'Task B', status: 'pending')];
 
       final container = ProviderContainer(
         overrides: [
@@ -1424,18 +1274,10 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
                 agentStatus: AgentStatus.settled,
               ),
           ),
-          subagentsFamily('sess_a').overrideWith(
-            (ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA),
-          ),
-          todosFamily('sess_a').overrideWith(
-            (ref) => _MockTodoNotifier(ref, 'sess_a', todosA),
-          ),
-          subagentsFamily('sess_b').overrideWith(
-            (ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB),
-          ),
-          todosFamily('sess_b').overrideWith(
-            (ref) => _MockTodoNotifier(ref, 'sess_b', todosB),
-          ),
+          subagentsFamily('sess_a').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_a', subagentsA)),
+          todosFamily('sess_a').overrideWith((ref) => _MockTodoNotifier(ref, 'sess_a', todosA)),
+          subagentsFamily('sess_b').overrideWith((ref) => _MockSubagentsNotifier(ref, 'sess_b', subagentsB)),
+          todosFamily('sess_b').overrideWith((ref) => _MockTodoNotifier(ref, 'sess_b', todosB)),
         ],
       );
       final currentSessionNotifier = ValueNotifier<String>('sess_a');
@@ -1444,9 +1286,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: Scaffold(
               body: ValueListenableBuilder<String>(
                 valueListenable: currentSessionNotifier,
@@ -1462,7 +1302,6 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       expect(find.byKey(const ValueKey('subagents-popdown-panel')), findsNothing);
       expect(find.byKey(const ValueKey('todo-peek-tab')), findsNothing);
       expect(find.byKey(const ValueKey('subagents-book-tab')), findsNothing);
-
 
       currentSessionNotifier.value = 'sess_b';
       await tester.pumpAndSettle();

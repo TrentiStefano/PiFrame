@@ -46,10 +46,8 @@ class ComposerRunStatusLine extends StatelessWidget {
           child: AnimatedBuilder(
             animation: animation,
             child: child,
-            builder: (context, child) => Transform.translate(
-              offset: Offset(0, (1 - animation.value) * _rise),
-              child: child,
-            ),
+            builder: (context, child) =>
+                Transform.translate(offset: Offset(0, (1 - animation.value) * _rise), child: child),
           ),
         );
       },
@@ -119,13 +117,9 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     final start = widget.startedAt ?? _fallbackStart;
-    final elapsed = Duration(
-      milliseconds: DateTime.now().millisecondsSinceEpoch - start,
-    );
+    final elapsed = Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - start);
     // Tests get a static glyph: an endless spinner would keep pumpAndSettle from ever returning.
-    final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
-      'Test',
-    );
+    final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
     final danger = tokens.signalDanger;
 
     return SizedBox(
@@ -136,12 +130,9 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
             width: FrameSize.icon - FrameSpace.x1,
             height: FrameSize.icon - FrameSpace.x1,
             child: isTest
-                ? Icon(
-                    Icons.sync_outlined,
+                ? Icon(Icons.sync_outlined, size: FrameSize.icon - FrameSpace.x1, color: tokens.agentWorking)
+                : FrameActivityIndicator(
                     size: FrameSize.icon - FrameSpace.x1,
-                    color: tokens.agentWorking,
-                  )
-                : FrameActivityIndicator(size: FrameSize.icon - FrameSpace.x1, 
                     strokeWidth: 1.5,
                     color: tokens.agentWorking,
                   ),
@@ -156,11 +147,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
             ),
           ),
           const SizedBox(width: FrameSpace.x2),
-          Text(
-            formatRunElapsed(elapsed),
-            maxLines: 1,
-            style: text.mono.copyWith(color: tokens.textMuted),
-          ),
+          Text(formatRunElapsed(elapsed), maxLines: 1, style: text.mono.copyWith(color: tokens.textMuted)),
           if (widget.onInterrupt != null) ...[
             const SizedBox(width: FrameSpace.x2),
             TextButton.icon(
@@ -176,10 +163,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
               label: Text(
                 widget.interruptLabel,
                 maxLines: 1,
-                style: text.label.copyWith(
-                  color: danger,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: text.label.copyWith(color: danger, fontWeight: FontWeight.w600),
               ),
             ),
           ],

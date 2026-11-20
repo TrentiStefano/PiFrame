@@ -2,12 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/transcript/entry_elapsed.dart';
 
-SessionEntry _entry(String id, String role, int timestamp) => SessionEntry(
-      id: id,
-      role: role,
-      text: id,
-      timestamp: timestamp,
-    );
+SessionEntry _entry(String id, String role, int timestamp) =>
+    SessionEntry(id: id, role: role, text: id, timestamp: timestamp);
 
 void main() {
   group('entryElapsedSeconds', () {
@@ -20,20 +16,13 @@ void main() {
     });
 
     test('measures from a preceding user entry', () {
-      final entries = [
-        _entry('u1', 'user', 0),
-        _entry('a1', 'assistant', 12000),
-      ];
+      final entries = [_entry('u1', 'user', 0), _entry('a1', 'assistant', 12000)];
 
       expect(entryElapsedSeconds(entries, 1), 12);
     });
 
     test('measures from a preceding assistant entry', () {
-      final entries = [
-        _entry('a0', 'assistant', 0),
-        _entry('u1', 'user', 30000),
-        _entry('a1', 'assistant', 41000),
-      ];
+      final entries = [_entry('a0', 'assistant', 0), _entry('u1', 'user', 30000), _entry('a1', 'assistant', 41000)];
 
       expect(entryElapsedSeconds(entries, 2), 11);
     });
@@ -73,10 +62,7 @@ void main() {
       expect(kEntryElapsedMaxGapMs, dayMs);
 
       final atLimit = [_entry('u1', 'user', 0), _entry('a1', 'assistant', dayMs)];
-      final overLimit = [
-        _entry('u1', 'user', 0),
-        _entry('a1', 'assistant', dayMs + 1),
-      ];
+      final overLimit = [_entry('u1', 'user', 0), _entry('a1', 'assistant', dayMs + 1)];
 
       expect(entryElapsedSeconds(atLimit, 1), 86400);
       expect(entryElapsedSeconds(overLimit, 1), isNull);

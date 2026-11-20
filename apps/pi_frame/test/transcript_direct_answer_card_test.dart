@@ -24,12 +24,7 @@ void main() {
         agentStatus: AgentStatus.settled,
         entries: [
           SessionEntry(id: 'u1', role: 'user', text: 'Why is it still blocked?', timestamp: 1000),
-          SessionEntry(
-            id: 'a1',
-            role: 'assistant',
-            text: 'One acceptance test is failing.',
-            timestamp: 2000,
-          ),
+          SessionEntry(id: 'a1', role: 'assistant', text: 'One acceptance test is failing.', timestamp: 2000),
         ],
       );
     await tester.pumpWidget(
@@ -56,13 +51,13 @@ void main() {
       matching: find.byType(AssistantTurnFrame),
     );
     expect(answer, findsOneWidget);
-    expect(tester.widget<AssistantTurnFrame>(answer).isCard, isTrue,
-        reason: 'the answer is shown in the bordered final-answer card');
-    final content = tester.widget<RichContent>(
-      find.descendant(of: answer, matching: find.byType(RichContent)),
+    expect(
+      tester.widget<AssistantTurnFrame>(answer).isCard,
+      isTrue,
+      reason: 'the answer is shown in the bordered final-answer card',
     );
-    expect(content.textColor, isNull,
-        reason: 'primary text colour, not the dimmed secondary one');
+    final content = tester.widget<RichContent>(find.descendant(of: answer, matching: find.byType(RichContent)));
+    expect(content.textColor, isNull, reason: 'primary text colour, not the dimmed secondary one');
     await tester.pumpWidget(const SizedBox());
   });
 }

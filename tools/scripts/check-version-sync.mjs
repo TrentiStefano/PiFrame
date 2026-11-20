@@ -12,11 +12,11 @@ for (const path of [
   'apps/pi_frame/pubspec.yaml',
   'apps/agentd/package.json',
   'apps/agentd/src/main.ts',
-  'apps/pi_frame/lib/app/app_version.dart',
+  'apps/pi_frame/lib/app/app_version.dart'
 ]) {
   assert.ok(
     packageConfig['extra-files'].some((file) => file.path === path),
-    `${path} is missing from release-please extra-files`,
+    `${path} is missing from release-please extra-files`
   );
 }
 assert.match(version, /^\d+\.\d+\.\d+$/, 'manifest must contain a SemVer version');

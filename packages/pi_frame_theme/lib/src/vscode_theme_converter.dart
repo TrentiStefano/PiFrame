@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'theme_spec.dart';
@@ -68,10 +69,7 @@ class VsCodeThemeConverter {
     }
 
     // Remove trailing commas before } or ]
-    return buffer.toString().replaceAllMapped(
-      RegExp(r',\s*([}\]])'),
-      (m) => m.group(1)!,
-    );
+    return buffer.toString().replaceAllMapped(RegExp(r',\s*([}\]])'), (m) => m.group(1)!);
   }
 
   /// Parses either a PiFrame theme JSON or a VSCode theme JSON (with JSONC comment support).
@@ -82,17 +80,14 @@ class VsCodeThemeConverter {
       throw const FormatException('Il JSON del tema deve essere un oggetto');
     }
 
-    final map = (decoded is Map<String, dynamic>)
-        ? decoded
-        : Map<String, dynamic>.from(decoded as Map);
+    final map = (decoded is Map<String, dynamic>) ? decoded : Map<String, dynamic>.from(decoded as Map);
 
     // Check if it's already a PiFrame theme
     final colors = map['colors'];
-    final isPiFrameTheme = map.containsKey('id') &&
+    final isPiFrameTheme =
+        map.containsKey('id') &&
         (map.containsKey('schemaVersion') ||
-            (colors is Map &&
-                (colors.containsKey('chassis') ||
-                    colors.containsKey('displaySurface'))));
+            (colors is Map && (colors.containsKey('chassis') || colors.containsKey('displaySurface'))));
 
     if (isPiFrameTheme) {
       return ThemeSpec.fromJson(map);
@@ -103,26 +98,18 @@ class VsCodeThemeConverter {
   }
 
   /// Converts a parsed VSCode color theme map into a [ThemeSpec].
-  static ThemeSpec convertVsCodeTheme({
-    required Map<String, dynamic> json,
-    String? overrideId,
-  }) {
+  static ThemeSpec convertVsCodeTheme({required Map<String, dynamic> json, String? overrideId}) {
     final rawName = (json['name']?.toString() ?? 'Tema VSCode').trim();
     final sanitizedBase = rawName
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9_-]'), '-')
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-|-$'), '');
-    final id = overrideId ??
-        (sanitizedBase.isEmpty ? 'vscode-theme' : 'vscode-$sanitizedBase');
+    final id = overrideId ?? (sanitizedBase.isEmpty ? 'vscode-theme' : 'vscode-$sanitizedBase');
 
-    final author = json['author']?.toString() ??
-        json['publisher']?.toString() ??
-        'VSCode Import';
+    final author = json['author']?.toString() ?? json['publisher']?.toString() ?? 'VSCode Import';
 
-    final colors = (json['colors'] is Map)
-        ? Map<String, dynamic>.from(json['colors'] as Map)
-        : <String, dynamic>{};
+    final colors = (json['colors'] is Map) ? Map<String, dynamic>.from(json['colors'] as Map) : <String, dynamic>{};
 
     String? getFirstColor(List<String> keys) {
       for (final k in keys) {
@@ -153,25 +140,14 @@ class VsCodeThemeConverter {
     final isLight = variant == 'light';
     final fallback = isLight ? FrameTokens.light : FrameTokens.dark;
 
-    String hex(Color c) =>
-        '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+    String hex(Color c) => '#${c.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
 
     // Workbench surfaces
-    final bg = getFirstColor(['editor.background', 'sideBar.background']) ??
-        hex(fallback.background);
-    final chassis = getFirstColor([
-          'activityBar.background',
-          'sideBar.background',
-          'titleBar.activeBackground',
-        ]) ??
-        bg;
-    final surface = getFirstColor([
-          'sideBar.background',
-          'editorWidget.background',
-          'panel.background',
-        ]) ??
-        bg;
-    final surfaceElevated = getFirstColor([
+    final bg = getFirstColor(['editor.background', 'sideBar.background']) ?? hex(fallback.background);
+    final chassis = getFirstColor(['activityBar.background', 'sideBar.background', 'titleBar.activeBackground']) ?? bg;
+    final surface = getFirstColor(['sideBar.background', 'editorWidget.background', 'panel.background']) ?? bg;
+    final surfaceElevated =
+        getFirstColor([
           'editorWidget.background',
           'dropdown.background',
           'menu.background',
@@ -180,91 +156,47 @@ class VsCodeThemeConverter {
         ]) ??
         surface;
 
-    final overlay = getFirstColor([
-          'editorOverviewRuler.background',
-          'editorHoverWidget.background',
-        ]) ??
+    final overlay =
+        getFirstColor(['editorOverviewRuler.background', 'editorHoverWidget.background']) ??
         (isLight ? '#dce0e8b3' : '#232634b3');
 
     // Borders
-    final border = getFirstColor([
-          'sideBar.border',
-          'editorGroup.border',
-          'panel.border',
-          'widget.border',
-          'input.border',
-        ]) ??
+    final border =
+        getFirstColor(['sideBar.border', 'editorGroup.border', 'panel.border', 'widget.border', 'input.border']) ??
         hex(fallback.border);
-    final borderStrong = getFirstColor([
-          'focusBorder',
-          'sideBar.border',
-          'editorGroup.border',
-        ]) ??
-        hex(fallback.borderStrong);
+    final borderStrong =
+        getFirstColor(['focusBorder', 'sideBar.border', 'editorGroup.border']) ?? hex(fallback.borderStrong);
 
     // Typography & Text
-    final textPrimary = getFirstColor(['editor.foreground', 'foreground']) ??
-        hex(fallback.textPrimary);
-    final textSecondary = getFirstColor([
-          'descriptionForeground',
-          'sideBarTitle.foreground',
-          'tab.inactiveForeground',
-        ]) ??
+    final textPrimary = getFirstColor(['editor.foreground', 'foreground']) ?? hex(fallback.textPrimary);
+    final textSecondary =
+        getFirstColor(['descriptionForeground', 'sideBarTitle.foreground', 'tab.inactiveForeground']) ??
         hex(fallback.textSecondary);
-    final textMuted = getFirstColor([
-          'editorLineNumber.foreground',
-          'disabledForeground',
-          'sideBarTitle.foreground',
-        ]) ??
+    final textMuted =
+        getFirstColor(['editorLineNumber.foreground', 'disabledForeground', 'sideBarTitle.foreground']) ??
         textSecondary;
 
     // Accent
-    final accent = getFirstColor([
-          'focusBorder',
-          'activityBarBadge.background',
-          'button.background',
-          'textLink.foreground',
-        ]) ??
+    final accent =
+        getFirstColor(['focusBorder', 'activityBarBadge.background', 'button.background', 'textLink.foreground']) ??
         hex(fallback.accent);
-    final accentContrast = getFirstColor([
-          'button.foreground',
-          'activityBarBadge.foreground',
-        ]) ??
-        hex(fallback.accentContrast);
+    final accentContrast =
+        getFirstColor(['button.foreground', 'activityBarBadge.foreground']) ?? hex(fallback.accentContrast);
 
     // Status indicators
-    final success = getFirstColor([
-          'terminal.ansiGreen',
-          'gitDecoration.addedResourceForeground',
-        ]) ??
-        hex(fallback.success);
-    final warning = getFirstColor([
-          'editorWarning.foreground',
-          'terminal.ansiYellow',
-        ]) ??
-        hex(fallback.warning);
-    final danger = getFirstColor([
-          'editorError.foreground',
-          'errorForeground',
-          'terminal.ansiRed',
-        ]) ??
-        hex(fallback.danger);
-    final info = getFirstColor([
-          'editorInfo.foreground',
-          'terminal.ansiBlue',
-        ]) ??
-        hex(fallback.info);
+    final success =
+        getFirstColor(['terminal.ansiGreen', 'gitDecoration.addedResourceForeground']) ?? hex(fallback.success);
+    final warning = getFirstColor(['editorWarning.foreground', 'terminal.ansiYellow']) ?? hex(fallback.warning);
+    final danger =
+        getFirstColor(['editorError.foreground', 'errorForeground', 'terminal.ansiRed']) ?? hex(fallback.danger);
+    final info = getFirstColor(['editorInfo.foreground', 'terminal.ansiBlue']) ?? hex(fallback.info);
 
     // Diff colors
-    final diffAddedBg = getFirstColor([
-          'diffEditor.insertedTextBackground',
-          'diffEditor.insertedLineBackground',
-        ]) ??
+    final diffAddedBg =
+        getFirstColor(['diffEditor.insertedTextBackground', 'diffEditor.insertedLineBackground']) ??
         (isLight ? '#40a02b26' : '#a6d18926');
-    final diffRemovedBg = getFirstColor([
-          'diffEditor.removedTextBackground',
-          'diffEditor.removedLineBackground',
-        ]) ??
+    final diffRemovedBg =
+        getFirstColor(['diffEditor.removedTextBackground', 'diffEditor.removedLineBackground']) ??
         (isLight ? '#d20f3926' : '#e7828426');
 
     // Syntax Highlighting from tokenColors
@@ -297,12 +229,9 @@ class VsCodeThemeConverter {
                   syntax.putIfAbsent('number', () => fg);
                 } else if (sLower.contains('comment')) {
                   syntax.putIfAbsent('comment', () => fg);
-                } else if (sLower.contains('function') ||
-                    sLower.contains('entity.name.function')) {
+                } else if (sLower.contains('function') || sLower.contains('entity.name.function')) {
                   syntax.putIfAbsent('function', () => fg);
-                } else if (sLower.contains('type') ||
-                    sLower.contains('class') ||
-                    sLower.contains('entity.name.type')) {
+                } else if (sLower.contains('type') || sLower.contains('class') || sLower.contains('entity.name.type')) {
                   syntax.putIfAbsent('type', () => fg);
                 } else if (sLower.contains('variable')) {
                   syntax.putIfAbsent('variable', () => fg);

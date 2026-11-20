@@ -202,9 +202,7 @@ writeFixture('snapshot.valid.json', {
       queue: { steering: [], followUp: [] }
     },
     transcript: {
-      entries: [
-        { id: 'e_1', type: 'user', text: 'Start' }
-      ],
+      entries: [{ id: 'e_1', type: 'user', text: 'Start' }],
       leafId: 'e_1'
     },
     liveMessage: null,

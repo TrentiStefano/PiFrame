@@ -23,26 +23,16 @@ void main() {
       {'id': 'one', 'name': 'PiFrame', 'cwd': r'C:\versions\v1\PiFrame'},
       {'id': 'two', 'name': 'PiFrame', 'cwd': r'C:\versions\v2\PiFrame'},
     ];
-    expect(sessionDisplayNames(sessions), {
-      'one': 'v1 / PiFrame',
-      'two': 'v2 / PiFrame',
-    });
+    expect(sessionDisplayNames(sessions), {'one': 'v1 / PiFrame', 'two': 'v2 / PiFrame'});
     expect(sessions.first['name'], 'PiFrame');
   });
 
   test('only conflicting suffixes expand to further ancestors', () {
-    expect(
-      folderDisplayNames([
-        '/releases/v1/PiFrame',
-        '/branches/v1/PiFrame',
-        '/releases/v2/PiFrame',
-      ]),
-      {
-        '/releases/v1/PiFrame': 'releases / v1 / PiFrame',
-        '/branches/v1/PiFrame': 'branches / v1 / PiFrame',
-        '/releases/v2/PiFrame': 'v2 / PiFrame',
-      },
-    );
+    expect(folderDisplayNames(['/releases/v1/PiFrame', '/branches/v1/PiFrame', '/releases/v2/PiFrame']), {
+      '/releases/v1/PiFrame': 'releases / v1 / PiFrame',
+      '/branches/v1/PiFrame': 'branches / v1 / PiFrame',
+      '/releases/v2/PiFrame': 'v2 / PiFrame',
+    });
   });
 
   test('equivalent custom titles retain their name and add folder context', () {
@@ -85,11 +75,7 @@ void main() {
   test('UNC aliases and dot segments are treated as the same folder', () {
     expect(
       sessionDisplayNames([
-        {
-          'id': 'one',
-          'name': 'PiFrame',
-          'cwd': r'\\server\share\version\..\PiFrame',
-        },
+        {'id': 'one', 'name': 'PiFrame', 'cwd': r'\\server\share\version\..\PiFrame'},
         {'id': 'two', 'name': 'PiFrame', 'cwd': '//SERVER/share/PiFrame/'},
       ]),
       {'one': 'PiFrame', 'two': 'PiFrame'},
@@ -111,18 +97,8 @@ void main() {
   test('working directories distinguish sessions inside the same git root', () {
     expect(
       sessionDisplayNames([
-        {
-          'id': 'one',
-          'name': 'Product',
-          'cwd': '/repo/v1/Product',
-          'gitRoot': '/repo',
-        },
-        {
-          'id': 'two',
-          'name': 'Product',
-          'cwd': '/repo/v2/Product',
-          'gitRoot': '/repo',
-        },
+        {'id': 'one', 'name': 'Product', 'cwd': '/repo/v1/Product', 'gitRoot': '/repo'},
+        {'id': 'two', 'name': 'Product', 'cwd': '/repo/v2/Product', 'gitRoot': '/repo'},
       ]),
       {'one': 'v1 / Product', 'two': 'v2 / Product'},
     );
@@ -145,13 +121,7 @@ void main() {
     expect(container.read(sessionDisplayNameProvider('one')), 'v1 / PiFrame');
 
     final notifier = container.read(sessionStateFamily('one').notifier);
-    notifier.state = notifier.state.copyWith(
-      sessionName: 'Renamed product',
-      cwd: '/v1/PiFrame',
-    );
-    expect(
-      container.read(sessionDisplayNameProvider('one')),
-      'Renamed product',
-    );
+    notifier.state = notifier.state.copyWith(sessionName: 'Renamed product', cwd: '/v1/PiFrame');
+    expect(container.read(sessionDisplayNameProvider('one')), 'Renamed product');
   });
 }

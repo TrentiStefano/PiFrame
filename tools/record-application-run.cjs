@@ -10,7 +10,7 @@ if (!fs.existsSync(framesDir)) {
   fs.mkdirSync(framesDir, { recursive: true });
 } else {
   // Clear old frames
-  fs.readdirSync(framesDir).forEach(f => fs.unlinkSync(path.join(framesDir, f)));
+  fs.readdirSync(framesDir).forEach((f) => fs.unlinkSync(path.join(framesDir, f)));
 }
 
 async function main() {
@@ -25,17 +25,17 @@ async function main() {
     showcaseUrl
   ]);
 
-  chrome.stderr.on('data', d => {
+  chrome.stderr.on('data', (d) => {
     // suppress verbose chromium logs
   });
 
   // Wait 1.5s for Chrome to initialize
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise((r) => setTimeout(r, 1500));
 
   console.log('2. Discovering CDP target...');
   const res = await fetch(`http://127.0.0.1:${port}/json`);
   const targets = await res.json();
-  const pageTarget = targets.find(t => t.type === 'page');
+  const pageTarget = targets.find((t) => t.type === 'page');
 
   if (!pageTarget) {
     console.error('No page target found!');
@@ -50,7 +50,7 @@ async function main() {
   let msgId = 1;
 
   function sendCmd(method, params = {}) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const id = msgId++;
       const handler = (e) => {
         const data = JSON.parse(e.data);
@@ -64,7 +64,7 @@ async function main() {
     });
   }
 
-  await new Promise(resolve => {
+  await new Promise((resolve) => {
     ws.addEventListener('open', resolve);
   });
 
@@ -81,11 +81,13 @@ async function main() {
       fs.writeFileSync(framePath, Buffer.from(data, 'base64'));
 
       // Ack frame to keep stream pumping smoothly
-      ws.send(JSON.stringify({
-        id: msgId++,
-        method: 'Page.screencastFrameAck',
-        params: { sessionId }
-      }));
+      ws.send(
+        JSON.stringify({
+          id: msgId++,
+          method: 'Page.screencastFrameAck',
+          params: { sessionId }
+        })
+      );
     }
   });
 
@@ -100,8 +102,8 @@ async function main() {
   const startTime = Date.now();
   let done = false;
 
-  while (!done && (Date.now() - startTime < 26000)) {
-    await new Promise(r => setTimeout(r, 500));
+  while (!done && Date.now() - startTime < 26000) {
+    await new Promise((r) => setTimeout(r, 500));
     try {
       const evalRes = await sendCmd('Runtime.evaluate', { expression: 'window.demoFinished' });
       if (evalRes && evalRes.result && evalRes.result.value === true) {
@@ -110,7 +112,7 @@ async function main() {
         break;
       }
     } catch (_) {}
-    process.stdout.write(`\rCaptured ${frameCount} frames... (${((Date.now() - startTime)/1000).toFixed(1)}s)`);
+    process.stdout.write(`\rCaptured ${frameCount} frames... (${((Date.now() - startTime) / 1000).toFixed(1)}s)`);
   }
 
   console.log(`\n6. Finished recording! Total frames captured: ${frameCount}`);
@@ -139,19 +141,31 @@ async function main() {
 
   // Compile MP4
   console.log('Encoding hero.mp4...');
-  execSync(`ffmpeg -framerate ${inputFps} -i "${path.join(framesDir, 'frame_%05d.png')}" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -crf 20 -r 24 -y "${mp4Hero}"`, { stdio: 'inherit' });
+  execSync(
+    `ffmpeg -framerate ${inputFps} -i "${path.join(framesDir, 'frame_%05d.png')}" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -crf 20 -r 24 -y "${mp4Hero}"`,
+    { stdio: 'inherit' }
+  );
   fs.copyFileSync(mp4Hero, mp4Showcase);
 
   // Compile animated WebP
   console.log('Encoding hero.webp...');
-  execSync(`ffmpeg -i "${mp4Hero}" -c:v libwebp -lossless 0 -q:v 75 -loop 0 -vf "fps=16,scale=800:-2" -y "${webpHero}"`, { stdio: 'inherit' });
+  execSync(
+    `ffmpeg -i "${mp4Hero}" -c:v libwebp -lossless 0 -q:v 75 -loop 0 -vf "fps=16,scale=800:-2" -y "${webpHero}"`,
+    { stdio: 'inherit' }
+  );
   fs.copyFileSync(webpHero, webpShowcase);
 
   // Compile animated GIF (palettegen + paletteuse for crisp colors)
   console.log('Encoding hero.gif with optimized 256-color palette...');
   const palettePng = path.join(framesDir, 'palette.png');
-  execSync(`ffmpeg -i "${mp4Hero}" -vf "fps=12,scale=720:-2:flags=lanczos,palettegen=stats_mode=diff" -y "${palettePng}"`, { stdio: 'inherit' });
-  execSync(`ffmpeg -i "${mp4Hero}" -i "${palettePng}" -lavfi "fps=12,scale=720:-2:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" -y "${gifHero}"`, { stdio: 'inherit' });
+  execSync(
+    `ffmpeg -i "${mp4Hero}" -vf "fps=12,scale=720:-2:flags=lanczos,palettegen=stats_mode=diff" -y "${palettePng}"`,
+    { stdio: 'inherit' }
+  );
+  execSync(
+    `ffmpeg -i "${mp4Hero}" -i "${palettePng}" -lavfi "fps=12,scale=720:-2:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" -y "${gifHero}"`,
+    { stdio: 'inherit' }
+  );
 
   console.log('All formats generated successfully!');
   console.log(`- ${mp4Hero}`);
@@ -159,7 +173,7 @@ async function main() {
   console.log(`- ${gifHero}`);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Fatal error:', err);
   process.exit(1);
 });

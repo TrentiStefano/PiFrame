@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,11 +34,7 @@ void main() {
             return notifier;
           }),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: repo.activeTheme.toThemeData(),
-        home: child,
-      ),
+      child: MaterialApp(debugShowCheckedModeBanner: false, theme: repo.activeTheme.toThemeData(), home: child),
     );
   }
 
@@ -56,12 +53,7 @@ void main() {
         sessionName: 'Test iPhone 12 Session',
         cwd: '/repo/mobile',
         entries: [
-          SessionEntry(
-            id: 'e1',
-            role: 'user',
-            text: 'Hello from iPhone 12 web app!',
-            timestamp: 1000,
-          ),
+          SessionEntry(id: 'e1', role: 'user', text: 'Hello from iPhone 12 web app!', timestamp: 1000),
           SessionEntry(
             id: 'e2',
             role: 'assistant',
@@ -71,11 +63,7 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(wrapApp(
-        const AppShell(),
-        activeSessionId: 'sess_iphone12',
-        sessionState: session,
-      ));
+      await tester.pumpWidget(wrapApp(const AppShell(), activeSessionId: 'sess_iphone12', sessionState: session));
       await tester.pumpAndSettle();
 
       // Ensure no exceptions or render flex overflow
@@ -88,10 +76,7 @@ void main() {
       final composerFinder = find.byType(Composer);
       expect(composerFinder, findsOneWidget);
 
-      final shimmerFinder = find.descendant(
-        of: composerFinder,
-        matching: find.byType(ShimmerBorder),
-      );
+      final shimmerFinder = find.descendant(of: composerFinder, matching: find.byType(ShimmerBorder));
       expect(shimmerFinder, findsOneWidget);
 
       final cardBox = tester.getRect(shimmerFinder);
@@ -118,21 +103,12 @@ void main() {
         agentStatus: AgentStatus.working,
         streamingTextBlocks: {0: 'Processing live answer...'},
         steeringQueue: ['Next direction'],
-        entries: [
-          SessionEntry(
-            id: 'e1',
-            role: 'user',
-            text: 'Process this request',
-            timestamp: 1000,
-          ),
-        ],
+        entries: [SessionEntry(id: 'e1', role: 'user', text: 'Process this request', timestamp: 1000)],
       );
 
-      await tester.pumpWidget(wrapApp(
-        const AppShell(),
-        activeSessionId: 'sess_iphone12_streaming',
-        sessionState: session,
-      ));
+      await tester.pumpWidget(
+        wrapApp(const AppShell(), activeSessionId: 'sess_iphone12_streaming', sessionState: session),
+      );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);

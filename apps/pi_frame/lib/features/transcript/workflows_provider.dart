@@ -18,6 +18,7 @@ class WorkflowItem {
   final String summary;
   final String result;
   final int timestamp;
+
   /// When the run's settling notification arrived, if it has.
   final int? endedAt;
 
@@ -46,35 +47,30 @@ class WorkflowItem {
   }
 
   WorkflowItem copyWith({String? status, String? summary, String? result, int? endedAt}) => WorkflowItem(
-        id: id,
-        name: name,
-        description: description,
-        phases: phases,
-        status: status ?? this.status,
-        toolCallId: toolCallId,
-        scriptPath: scriptPath,
-        summary: summary ?? this.summary,
-        result: result ?? this.result,
-        timestamp: timestamp,
-        endedAt: endedAt ?? this.endedAt,
-      );
+    id: id,
+    name: name,
+    description: description,
+    phases: phases,
+    status: status ?? this.status,
+    toolCallId: toolCallId,
+    scriptPath: scriptPath,
+    summary: summary ?? this.summary,
+    result: result ?? this.result,
+    timestamp: timestamp,
+    endedAt: endedAt ?? this.endedAt,
+  );
 }
 
 String? _metaField(String script, String field) {
   final start = script.indexOf('meta');
   if (start < 0) return null;
-  return RegExp('\\b$field\\s*:\\s*([\'"`])((?:(?!\\1).)*)\\1')
-      .firstMatch(script.substring(start))
-      ?.group(2);
+  return RegExp('\\b$field\\s*:\\s*([\'"`])((?:(?!\\1).)*)\\1').firstMatch(script.substring(start))?.group(2);
 }
 
 List<String> _phaseTitles(String script) {
   final phases = RegExp(r'phases\s*:\s*\[([\s\S]*?)\]').firstMatch(script)?.group(1);
   if (phases == null) return const [];
-  return [
-    for (final match in RegExp(r'''title\s*:\s*(['"`])((?:(?!\1).)*)\1''').allMatches(phases))
-      match.group(2)!,
-  ];
+  return [for (final match in RegExp(r'''title\s*:\s*(['"`])((?:(?!\1).)*)\1''').allMatches(phases)) match.group(2)!];
 }
 
 String _workflowStatus(String notificationStatus) {
@@ -85,10 +81,7 @@ String _workflowStatus(String notificationStatus) {
 }
 
 /// Workflow runs in transcript order, newest last.
-List<WorkflowItem> parseWorkflows(
-  List<SessionEntry> entries,
-  Iterable<ToolExecutionState> activeTools,
-) {
+List<WorkflowItem> parseWorkflows(List<SessionEntry> entries, Iterable<ToolExecutionState> activeTools) {
   final runs = <String, WorkflowItem>{};
   final byToolCall = <String, String>{};
 
@@ -102,7 +95,8 @@ List<WorkflowItem> parseWorkflows(
     byToolCall[tool.toolCallId] = id;
     runs[id] = WorkflowItem(
       id: id,
-      name: RegExp(r'Workflow "([^"]+)" started').firstMatch(output)?.group(1) ??
+      name:
+          RegExp(r'Workflow "([^"]+)" started').firstMatch(output)?.group(1) ??
           _metaField(script, 'name') ??
           tool.args['name']?.toString() ??
           'Workflow',
@@ -125,13 +119,10 @@ List<WorkflowItem> parseWorkflows(
     for (final tool in entry.toolCalls) {
       addLaunch(tool, entry.timestamp);
     }
-    for (final match in RegExp(r'<task-notification>[\s\S]*?</task-notification>')
-        .allMatches(entry.text)) {
+    for (final match in RegExp(r'<task-notification>[\s\S]*?</task-notification>').allMatches(entry.text)) {
       final notification = TaskNotificationData.tryParse(match.group(0)!);
       if (notification == null) continue;
-      final id = runs.containsKey(notification.taskId)
-          ? notification.taskId
-          : byToolCall[notification.toolUseId];
+      final id = runs.containsKey(notification.taskId) ? notification.taskId : byToolCall[notification.toolUseId];
       final run = id == null ? null : runs[id];
       if (run == null) continue;
       runs[id!] = run.copyWith(
@@ -149,9 +140,7 @@ List<WorkflowItem> parseWorkflows(
 }
 
 final workflowsFamily = Provider.autoDispose.family<List<WorkflowItem>, String>((ref, sessionId) {
-  final (entries, activeTools) = ref.watch(
-    sessionStateFamily(sessionId).select((s) => (s.entries, s.activeToolCalls)),
-  );
+  final (entries, activeTools) = ref.watch(sessionStateFamily(sessionId).select((s) => (s.entries, s.activeToolCalls)));
   final runs = parseWorkflows(entries, activeTools.values);
   if (!runs.any((run) => run.isRunning)) return runs;
   final unlinked = ref.watch(subagentsFamily(sessionId)).where((s) => s.isUnlinked).toList();
@@ -162,9 +151,7 @@ final workflowsFamily = Provider.autoDispose.family<List<WorkflowItem>, String>(
     activeToolCallIds: activeTools.keys.toSet(),
     now: now,
     // The worker reports nothing running (or is gone): no workflow can be.
-    nothingRunning: ref
-        .watch(subagentLiveStateFamily(sessionId))
-        .idleFor(kWorkflowLiveIdle, now),
+    nothingRunning: ref.watch(subagentLiveStateFamily(sessionId)).idleFor(kWorkflowLiveIdle, now),
   );
 });
 
@@ -213,10 +200,7 @@ WorkflowItem _settleIfIdle(WorkflowItem run, List<SubagentItem> agents, int now)
 /// Splits child sessions the daemon could not tie to an `Agent` call between
 /// the workflow runs whose lifetime covers their start. Runs are matched
 /// newest first; children no run claims come back under the `''` key.
-Map<String, List<SubagentItem>> workflowChildren(
-  List<WorkflowItem> runs,
-  List<SubagentItem> unlinked,
-) {
+Map<String, List<SubagentItem>> workflowChildren(List<WorkflowItem> runs, List<SubagentItem> unlinked) {
   const slack = 5000;
   final byRun = <String, List<SubagentItem>>{for (final run in runs) run.id: []};
   final loose = <SubagentItem>[];

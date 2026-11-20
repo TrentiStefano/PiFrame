@@ -46,10 +46,7 @@ void main() {
 
     // Initial without search
     controller.searchQuery = '';
-    final span1 = controller.buildTextSpan(
-      context: DummyBuildContext(),
-      withComposing: false,
-    );
+    final span1 = controller.buildTextSpan(context: DummyBuildContext(), withComposing: false);
     expect(span1.children, isNotEmpty);
 
     // With search query "Hello"
@@ -60,21 +57,14 @@ void main() {
     expect(matches[1].start, 48);
 
     controller.currentMatchIndex = 0;
-    final spanWithSearch = controller.buildTextSpan(
-      context: DummyBuildContext(),
-      withComposing: false,
-    );
+    final spanWithSearch = controller.buildTextSpan(context: DummyBuildContext(), withComposing: false);
     expect(spanWithSearch.children, isNotEmpty);
   });
 
   testWidgets('RepositoryPane opens search bar and navigates matches', (tester) async {
     final client = MockWorkspaceSearchClient();
     final notifier = SessionStateNotifier('sess_search', client)
-      ..state = SessionState(
-        sessionId: 'sess_search',
-        cwd: '/projects/test',
-        entries: [],
-      );
+      ..state = SessionState(sessionId: 'sess_search', cwd: '/projects/test', entries: []);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -84,9 +74,7 @@ void main() {
           sessionStateFamily('sess_search').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: RepositoryPane(sessionId: 'sess_search')),
         ),
       ),
@@ -110,10 +98,7 @@ void main() {
     expect(find.byKey(const ValueKey('repository-file-search-field')), findsOneWidget);
 
     // Enter query "message"
-    await tester.enterText(
-      find.byKey(const ValueKey('repository-file-search-field')),
-      'message',
-    );
+    await tester.enterText(find.byKey(const ValueKey('repository-file-search-field')), 'message');
     await tester.pumpAndSettle();
 
     // "message" appears twice in readWorkspaceFile content

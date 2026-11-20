@@ -9,28 +9,18 @@ import '../../domain/session/context_pricing_helper.dart';
 import '../../domain/session/agent_status.dart';
 import '../../ui/frame_snack_bar.dart';
 
-final customContextModeProvider = StateProvider.family<bool?, String>(
-  (ref, id) => null,
-);
-final contextPolicySavingProvider = StateProvider.family<bool, String>(
-  (ref, id) => false,
-);
+final customContextModeProvider = StateProvider.family<bool?, String>((ref, id) => null);
+final contextPolicySavingProvider = StateProvider.family<bool, String>((ref, id) => false);
 
 class ContextWindowSelector extends ConsumerStatefulWidget {
   final String sessionId;
   final Map<String, dynamic> model;
   final bool readOnly;
 
-  const ContextWindowSelector({
-    super.key,
-    required this.sessionId,
-    required this.model,
-    this.readOnly = false,
-  });
+  const ContextWindowSelector({super.key, required this.sessionId, required this.model, this.readOnly = false});
 
   @override
-  ConsumerState<ContextWindowSelector> createState() =>
-      _ContextWindowSelectorState();
+  ConsumerState<ContextWindowSelector> createState() => _ContextWindowSelectorState();
 }
 
 class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
@@ -63,9 +53,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
     saving.state = true;
     setState(() => _pending = true);
     try {
-      await ref
-          .read(sessionStateFamily(sessionId).notifier)
-          .setContextWindow(limit);
+      await ref.read(sessionStateFamily(sessionId).notifier).setContextWindow(limit);
       if (mode.mounted && generation == _generation) mode.state = custom;
       if (generation == _generation) _draft = null;
     } catch (error) {
@@ -87,9 +75,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     ref.listen<(String?, String?, String?)>(
-      sessionStateFamily(widget.sessionId).select(
-        (s) => (s.currentModel, s.currentModelProvider, s.currentModelId),
-      ),
+      sessionStateFamily(widget.sessionId).select((s) => (s.currentModel, s.currentModelProvider, s.currentModelId)),
       (previous, next) {
         if (previous != next) {
           ref.read(customContextModeProvider(widget.sessionId).notifier).state = null;
@@ -100,28 +86,18 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
     final maximum = modelContextWindow(widget.model);
     final presets = getVariableContextSizes(widget.model);
     final override = session.contextWindowOverride;
-    final explicitCustom = ref.watch(
-      customContextModeProvider(widget.sessionId),
-    );
-    final isCustom =
-        explicitCustom == true ||
-        (override != null && !presets.contains(override));
+    final explicitCustom = ref.watch(customContextModeProvider(widget.sessionId));
+    final isCustom = explicitCustom == true || (override != null && !presets.contains(override));
     final activeSize = override ?? maximum;
     final sliderMaximum = maximum == null
         ? 0
-        : (maximum < 100000
-              ? 0
-              : (maximum ~/ _step * _step).clamp(100000, 1000000));
+        : (maximum < 100000 ? 0 : (maximum ~/ _step * _step).clamp(100000, 1000000));
     final sliderEnabled = sliderMaximum >= 100000;
     final disabled =
         widget.readOnly ||
         session.readOnly ||
         session.isStreaming ||
-        const {
-          AgentStatus.retrying,
-          AgentStatus.compacting,
-          AgentStatus.awaitingUser,
-        }.contains(session.agentStatus) ||
+        const {AgentStatus.retrying, AgentStatus.compacting, AgentStatus.awaitingUser}.contains(session.agentStatus) ||
         _pending ||
         ref.watch(contextPolicySavingProvider(widget.sessionId)) ||
         maximum == null ||
@@ -134,10 +110,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
         ? activeSize
         : null;
     final sliderValue =
-        _draft ??
-        (activeSize ?? 100000)
-            .clamp(100000, sliderMaximum < 100000 ? 100000 : sliderMaximum)
-            .toDouble();
+        _draft ?? (activeSize ?? 100000).clamp(100000, sliderMaximum < 100000 ? 100000 : sliderMaximum).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,16 +128,12 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
               isExpanded: true,
               value: selected,
               hint: Text(
-                maximum == null
-                    ? strings.contextMaxNotAvailable
-                    : strings.contextSelectLimit,
+                maximum == null ? strings.contextMaxNotAvailable : strings.contextSelectLimit,
                 style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
               ),
               borderRadius: BorderRadius.circular(tokens.radiusMd),
               dropdownColor: tokens.surfaceElevated,
-              style: FrameText.of(context).body.copyWith(color: tokens.textPrimary,
-                
-                fontFamily: tokens.uiFontFamily),
+              style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, fontFamily: tokens.uiFontFamily),
               items: [
                 DropdownMenuItem<Object>(
                   value: _custom,
@@ -191,8 +160,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                       if (value == _custom) {
                         if (!sliderEnabled) return;
                         final current = activeSize ?? 100000;
-                        final snapped = ((current / _step).round() * _step)
-                            .clamp(100000, sliderMaximum);
+                        final snapped = ((current / _step).round() * _step).clamp(100000, sliderMaximum);
                         await _save(snapped, custom: true);
                       } else if (value is int) {
                         await _save(value, custom: false);
@@ -205,9 +173,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
           const SizedBox(height: 6),
           Text(
             strings.contextMaxWindow,
-            style: FrameText.of(context).label.copyWith(color: tokens.textSecondary,
-              
-              fontWeight: FontWeight.w600),
+            style: FrameText.of(context).label.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -221,18 +187,12 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
             inactiveColor: tokens.border,
             min: 100000,
             max: sliderMaximum.toDouble(),
-            divisions: sliderMaximum > 100000
-                ? (sliderMaximum - 100000) ~/ _step
-                : null,
+            divisions: sliderMaximum > 100000 ? (sliderMaximum - 100000) ~/ _step : null,
             value: sliderValue,
             label: strings.contextTokensLabel(sliderValue.round()),
             semanticFormatterCallback: (value) => strings.contextTokensLabel(value.round()),
-            onChanged: disabled || sliderMaximum == 100000
-                ? null
-                : (value) => setState(() => _draft = value),
-            onChangeEnd: disabled || sliderMaximum == 100000
-                ? null
-                : (value) => _save(value.round(), custom: true),
+            onChanged: disabled || sliderMaximum == 100000 ? null : (value) => setState(() => _draft = value),
+            onChangeEnd: disabled || sliderMaximum == 100000 ? null : (value) => _save(value.round(), custom: true),
           ),
           Text(
             strings.contextStep50k(formatTokens(sliderMaximum)),

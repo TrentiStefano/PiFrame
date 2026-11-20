@@ -14,11 +14,7 @@ class FrameStatusTag extends StatelessWidget {
   final String label;
   final FrameStatusTone tone;
 
-  const FrameStatusTag({
-    super.key,
-    required this.label,
-    this.tone = FrameStatusTone.neutral,
-  });
+  const FrameStatusTag({super.key, required this.label, this.tone = FrameStatusTone.neutral});
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +28,7 @@ class FrameStatusTag extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: FrameSpace.x2,
-        vertical: FrameSpace.x1 / 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1 / 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -50,8 +43,7 @@ class FrameStatusTag extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: FrameText.of(context).caption
-                  .copyWith(color: tokens.textSecondary),
+              style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary),
             ),
           ),
         ],

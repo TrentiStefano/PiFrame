@@ -65,39 +65,18 @@ void main() {
         ),
       );
       await expectLater(
-        uploadAttachmentBytes(
-          name: 'a.png',
-          bytes: Uint8List(1),
-          client: client,
-          base: Uri.parse('https://h/'),
-        ),
-        throwsA(
-          isA<AttachmentUploadException>().having(
-            (e) => e.requiresControlMode,
-            'requiresControlMode',
-            isTrue,
-          ),
-        ),
+        uploadAttachmentBytes(name: 'a.png', bytes: Uint8List(1), client: client, base: Uri.parse('https://h/')),
+        throwsA(isA<AttachmentUploadException>().having((e) => e.requiresControlMode, 'requiresControlMode', isTrue)),
       );
     });
 
     test('reports an oversized upload', () async {
       final client = MockClient(
-        (_) async => http.Response(
-          jsonEncode({'ok': false, 'error': 'Payload Too Large (max 50MB)'}),
-          413,
-        ),
+        (_) async => http.Response(jsonEncode({'ok': false, 'error': 'Payload Too Large (max 50MB)'}), 413),
       );
       await expectLater(
-        uploadAttachmentBytes(
-          name: 'a.bin',
-          bytes: Uint8List(1),
-          client: client,
-          base: Uri.parse('https://h/'),
-        ),
-        throwsA(
-          isA<AttachmentUploadException>().having((e) => e.code, 'code', 'TOO_LARGE'),
-        ),
+        uploadAttachmentBytes(name: 'a.bin', bytes: Uint8List(1), client: client, base: Uri.parse('https://h/')),
+        throwsA(isA<AttachmentUploadException>().having((e) => e.code, 'code', 'TOO_LARGE')),
       );
     });
   });
@@ -134,12 +113,7 @@ void main() {
         isWeb: () => true,
         uploader: (name, bytes, mime) async {
           sent = bytes;
-          return UploadedBlob(
-            blobId: _id,
-            name: name,
-            path: '/home/me/.piframe/blobs/$_id/$name',
-            size: bytes.length,
-          );
+          return UploadedBlob(blobId: _id, name: name, path: '/home/me/.piframe/blobs/$_id/$name', size: bytes.length);
         },
       );
       expect(sent, [9, 9]);

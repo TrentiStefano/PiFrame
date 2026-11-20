@@ -42,8 +42,8 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
   void follow(String sessionId) => _follow?.call(sessionId);
 
   UnreadSessionsNotifier([Iterable<String>? initial])
-      : _persists = initial == null && !kIsWeb && !isWidgetTestBinding,
-        super(initial?.toSet() ?? const <String>{}) {
+    : _persists = initial == null && !kIsWeb && !isWidgetTestBinding,
+      super(initial?.toSet() ?? const <String>{}) {
     if (_persists) _load();
   }
 
@@ -51,9 +51,7 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
     if (!_persists) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) dir.createSync(recursive: true);
       return File('${dir.path}/unread_sessions.json');
@@ -67,7 +65,10 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
     if (file == null || !file.existsSync()) return;
     try {
       final list = (jsonDecode(file.readAsStringSync()) as List?) ?? const [];
-      state = {for (final id in list) if (id is String) id};
+      state = {
+        for (final id in list)
+          if (id is String) id,
+      };
     } catch (_) {}
   }
 
@@ -117,8 +118,7 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final unreadSessionsProvider =
-    StateNotifierProvider<UnreadSessionsNotifier, Set<String>>((ref) {
+final unreadSessionsProvider = StateNotifierProvider<UnreadSessionsNotifier, Set<String>>((ref) {
   final notifier = UnreadSessionsNotifier();
 
   // An answer that lands while another session is open marks it unread. The
@@ -132,18 +132,11 @@ final unreadSessionsProvider =
     });
   }
 
-  ref.listen<AsyncValue<List<Map<String, dynamic>>>>(
-    sessionListProvider,
-    (_, next) {
-      final sessions = next.value;
-      if (sessions == null) return;
-      notifier.noteListing(
-        sessions,
-        activeId: ref.read(activeSessionIdProvider),
-      );
-    },
-    fireImmediately: true,
-  );
+  ref.listen<AsyncValue<List<Map<String, dynamic>>>>(sessionListProvider, (_, next) {
+    final sessions = next.value;
+    if (sessions == null) return;
+    notifier.noteListing(sessions, activeId: ref.read(activeSessionIdProvider));
+  }, fireImmediately: true);
   ref.listen<String?>(activeSessionIdProvider, (_, id) {
     if (id == null) return;
     notifier.markRead(id);

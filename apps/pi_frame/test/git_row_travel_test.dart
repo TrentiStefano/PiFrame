@@ -17,22 +17,14 @@ class _TravelClient extends PcpClient {
   final Map<String, bool> stagedByPath = {'notes.txt': false};
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': '/repo',
       'branch': 'main',
       'files': [
         for (final entry in stagedByPath.entries)
-          {
-            'path': entry.key,
-            'status': 'modified',
-            'staged': entry.value,
-            'unstaged': !entry.value,
-          },
+          {'path': entry.key, 'status': 'modified', 'staged': entry.value, 'unstaged': !entry.value},
       ],
       'totalAdditions': 1,
       'totalDeletions': 0,
@@ -40,10 +32,7 @@ class _TravelClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> workspaceGitAction(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async {
+  Future<Map<String, dynamic>> workspaceGitAction(String sessionId, Map<String, dynamic> payload) async {
     final paths = (payload['paths'] as List).cast<String>();
     if (payload['action'] == 'stage') {
       for (final path in paths) {
@@ -70,10 +59,7 @@ void main() {
   const leavingRow = ValueKey('git-row-leaving-unstaged-notes.txt');
   const stageButton = ValueKey('git-unstaged-toggle-notes.txt');
 
-  Future<_TravelClient> pumpPane(
-    WidgetTester tester, {
-    bool disableAnimations = false,
-  }) async {
+  Future<_TravelClient> pumpPane(WidgetTester tester, {bool disableAnimations = false}) async {
     tester.view.physicalSize = const Size(800, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -84,21 +70,15 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           sessionStateFamily('session-a').overrideWith(
-            (ref) => SessionStateNotifier(
-              'session-a',
-              null,
-            )..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+            (ref) =>
+                SessionStateNotifier('session-a', null)
+                  ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.light().copyWith(
-            extensions: const [FrameTokens.light],
-          ),
+          theme: ThemeData.light().copyWith(extensions: const [FrameTokens.light]),
           home: MediaQuery(
-            data: MediaQueryData(
-              size: const Size(800, 900),
-              disableAnimations: disableAnimations,
-            ),
+            data: MediaQueryData(size: const Size(800, 900), disableAnimations: disableAnimations),
             child: const Scaffold(body: GitChangesPane(sessionId: 'session-a')),
           ),
         ),
@@ -108,9 +88,7 @@ void main() {
     return client;
   }
 
-  testWidgets('a staged row travels from Changes to Staged (Spec F)', (
-    tester,
-  ) async {
+  testWidgets('a staged row travels from Changes to Staged (Spec F)', (tester) async {
     await pumpPane(tester);
     expect(find.byKey(unstagedRow), findsOneWidget);
     expect(find.byKey(stagedRow), findsNothing);
@@ -125,9 +103,7 @@ void main() {
 
     // The arriving row starts transparent and rises into place.
     final arriveOpacity = tester.widget<Opacity>(
-      find
-          .descendant(of: find.byKey(stagedRow), matching: find.byType(Opacity))
-          .first,
+      find.descendant(of: find.byKey(stagedRow), matching: find.byType(Opacity)).first,
     );
     expect(arriveOpacity.opacity, lessThan(1));
 
@@ -136,35 +112,25 @@ void main() {
     expect(find.byKey(stagedRow), findsOneWidget);
   });
 
-  testWidgets('reduced motion moves the row at once (no leaving copy)', (
-    tester,
-  ) async {
+  testWidgets('reduced motion moves the row at once (no leaving copy)', (tester) async {
     await pumpPane(tester, disableAnimations: true);
     await tester.tap(find.byKey(stageButton));
     await tester.pump();
     expect(find.byKey(stagedRow), findsOneWidget);
     expect(find.byKey(leavingRow), findsNothing);
     final arriveOpacity = tester.widget<Opacity>(
-      find
-          .descendant(of: find.byKey(stagedRow), matching: find.byType(Opacity))
-          .first,
+      find.descendant(of: find.byKey(stagedRow), matching: find.byType(Opacity)).first,
     );
     expect(arriveOpacity.opacity, 1);
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Shift+F10 on the cursor Git row opens its row menu', (
-    tester,
-  ) async {
+  testWidgets('Shift+F10 on the cursor Git row opens its row menu', (tester) async {
     await pumpPane(tester);
     // The list is the one Tab stop: give it focus, then move the cursor from
     // the Staged header (empty) down past the Changes header onto notes.txt.
     tester
-        .widget<Focus>(
-          find.byWidgetPredicate(
-            (w) => w is Focus && w.focusNode?.debugLabel == 'git-list',
-          ),
-        )
+        .widget<Focus>(find.byWidgetPredicate((w) => w is Focus && w.focusNode?.debugLabel == 'git-list'))
         .focusNode!
         .requestFocus();
     await tester.pump();

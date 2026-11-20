@@ -6,16 +6,7 @@
 export type ProtocolVersion = 1;
 
 export type ProtocolKind =
-  | 'hello'
-  | 'welcome'
-  | 'command'
-  | 'ack'
-  | 'result'
-  | 'event'
-  | 'snapshot'
-  | 'error'
-  | 'ping'
-  | 'pong';
+  'hello' | 'welcome' | 'command' | 'ack' | 'result' | 'event' | 'snapshot' | 'error' | 'ping' | 'pong';
 
 export interface PcpEnvelope<T = Record<string, unknown>> {
   protocol: ProtocolVersion;
@@ -681,18 +672,8 @@ export interface PiAgentsUpdatePayload {
 // Message Unions
 // -----------------------------------------------------------------------------
 
-export type ClientMessage =
-  | PcpHello
-  | PcpCommand<any>
-  | PcpPong;
+export type ClientMessage = PcpHello | PcpCommand<any> | PcpPong;
 
-export type ServerMessage =
-  | PcpWelcome
-  | PcpAck
-  | PcpResult<any>
-  | PcpEvent<any>
-  | PcpSnapshot
-  | PcpError
-  | PcpPing;
+export type ServerMessage = PcpWelcome | PcpAck | PcpResult<any> | PcpEvent<any> | PcpSnapshot | PcpError | PcpPing;
 
 export type PcpMessage = ClientMessage | ServerMessage;

@@ -29,7 +29,7 @@ export function findStaticDir(customDir?: string): string | undefined {
     path.join(process.cwd(), 'build', 'web'),
     path.resolve(scriptDir, 'web'),
     path.resolve(scriptDir, 'data', 'web'),
-    path.resolve(scriptDir, 'data', 'flutter_assets', 'web'),
+    path.resolve(scriptDir, 'data', 'flutter_assets', 'web')
   ];
 
   // Walk up from scriptDir (up to 8 levels) checking web directories
@@ -120,9 +120,7 @@ export function setSecurityHeaders(
   const isRemote = opts?.listener === 'remote';
   if (isRemote) {
     const host = opts?.expectedHost;
-    const connectSrc = host
-      ? `'self' https://${host} wss://${host} blob: data:`
-      : "'self' blob: data:";
+    const connectSrc = host ? `'self' https://${host} wss://${host} blob: data:` : "'self' blob: data:";
     res.setHeader(
       'Content-Security-Policy',
       `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; connect-src ${connectSrc}; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; child-src 'self' blob:;`

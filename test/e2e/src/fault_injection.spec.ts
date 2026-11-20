@@ -65,10 +65,10 @@ test('Fault Injection Suite: proxy drops, duplicate frames, and corrupted frames
       version: '0.85.1',
       supported: true,
       modes: ['rpc'],
-      features: ['thinking', 'tools', 'compaction'],
+      features: ['thinking', 'tools', 'compaction']
     },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   dispatcher = new Dispatcher(registry, manager);
@@ -121,7 +121,16 @@ test('Fault Injection Suite: proxy drops, duplicate frames, and corrupted frames
             if (msg.kind === 'welcome' && !welcomeReceived) {
               welcomeReceived = true;
               // Ping to trigger response
-              ws.send(JSON.stringify({ protocol: 1, kind: 'ping', id: makeId('p'), ts: Date.now(), type: 'ping', payload: {} }));
+              ws.send(
+                JSON.stringify({
+                  protocol: 1,
+                  kind: 'ping',
+                  id: makeId('p'),
+                  ts: Date.now(),
+                  type: 'ping',
+                  payload: {}
+                })
+              );
             }
             if (msg.kind === 'pong') {
               clearTimeout(timeout);

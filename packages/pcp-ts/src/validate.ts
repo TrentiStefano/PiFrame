@@ -5,9 +5,7 @@ import type { ClientMessage, PcpEnvelope, PcpError, PcpMessage } from './types.j
 const ajv = new (Ajv2020 as any)({ strict: false, allErrors: true });
 (addFormats as any)(ajv);
 
-export type Result<T, E> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
 export function isEnvelope(value: unknown): value is PcpEnvelope {
   if (typeof value !== 'object' || value === null) return false;

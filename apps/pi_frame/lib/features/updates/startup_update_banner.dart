@@ -31,15 +31,11 @@ class StartupUpdateBanner extends ConsumerWidget {
 
     final details = <String>[];
     if (state.piHasUpdate) {
-      details.add(
-        'Pi CLI: ${state.currentPiVersion ?? '?'} → ${state.latestPiVersion ?? '?'}',
-      );
+      details.add('Pi CLI: ${state.currentPiVersion ?? '?'} → ${state.latestPiVersion ?? '?'}');
     }
     if (state.outdatedPackages.isNotEmpty) {
       final names = state.outdatedPackages.map((p) => p.name).join(', ');
-      details.add(
-        '${state.outdatedPackages.length} ${strings.updateNoticePackages}: $names',
-      );
+      details.add('${state.outdatedPackages.length} ${strings.updateNoticePackages}: $names');
     }
     if (state.error != null) {
       details.add(strings.packageUpdateCheckFailed(state.error!));
@@ -53,27 +49,17 @@ class StartupUpdateBanner extends ConsumerWidget {
         color: tokens.signalWarning.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
       ),
-      child: Icon(
-        Icons.system_update_alt_outlined,
-        color: tokens.signalWarning,
-        size: FrameSize.iconLg,
-      ),
+      child: Icon(Icons.system_update_alt_outlined, color: tokens.signalWarning, size: FrameSize.iconLg),
     );
 
     final title = Text(
       strings.updateNoticeTitle,
-      style: text.body.copyWith(
-        color: tokens.textPrimary,
-        fontWeight: FontWeight.bold,
-      ),
+      style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
     );
 
     final detailText = Text(
       details.join(' • '),
-      style: text.label.copyWith(
-        color: tokens.textSecondary,
-        fontWeight: FontWeight.w400,
-      ),
+      style: text.label.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w400),
       maxLines: inRail ? 3 : 2,
       overflow: TextOverflow.ellipsis,
     );
@@ -84,26 +70,16 @@ class StartupUpdateBanner extends ConsumerWidget {
         style: FilledButton.styleFrom(
           backgroundColor: tokens.accent,
           foregroundColor: tokens.surface,
-          padding: const EdgeInsets.symmetric(
-            horizontal: FrameSpace.x3,
-            vertical: FrameSpace.x2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
           visualDensity: VisualDensity.compact,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
         ),
         onPressed: () {
-          ref.read(settingsTabIndexProvider.notifier).state = state.piHasUpdate
-              ? 0
-              : 1;
+          ref.read(settingsTabIndexProvider.notifier).state = state.piHasUpdate ? 0 : 1;
           ref.read(showSettingsProvider.notifier).state = true;
           ref.read(startupUpdatesProvider.notifier).dismiss();
         },
-        child: Text(
-          strings.updateNoticeOpenSettings,
-          style: text.label.copyWith(fontWeight: FontWeight.w600),
-        ),
+        child: Text(strings.updateNoticeOpenSettings, style: text.label.copyWith(fontWeight: FontWeight.w600)),
       ),
     );
 
@@ -165,18 +141,8 @@ class StartupUpdateBanner extends ConsumerWidget {
 
     return Container(
       margin: inRail
-          ? const EdgeInsets.fromLTRB(
-              FrameSpace.x2,
-              FrameSpace.x2,
-              FrameSpace.x2,
-              0,
-            )
-          : const EdgeInsets.fromLTRB(
-              FrameSpace.x3,
-              FrameSpace.x2,
-              FrameSpace.x3,
-              0,
-            ),
+          ? const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, 0)
+          : const EdgeInsets.fromLTRB(FrameSpace.x3, FrameSpace.x2, FrameSpace.x3, 0),
       child: Material(
         elevation: 0,
         color: tokens.surfaceElevated,
@@ -185,10 +151,7 @@ class StartupUpdateBanner extends ConsumerWidget {
           side: BorderSide(color: tokens.border),
         ),
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: inRail ? FrameSpace.x3 : FrameSpace.x4,
-            vertical: FrameSpace.x3,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: inRail ? FrameSpace.x3 : FrameSpace.x4, vertical: FrameSpace.x3),
           child: content,
         ),
       ),

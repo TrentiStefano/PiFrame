@@ -79,55 +79,77 @@ function createGitRepo(): { root: string; cleanup: () => void } {
   return { root, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 
-async function sendCommand(setup: ReturnType<typeof createTestSetup>, type: string, sessionId: string | undefined, payload: Record<string, unknown> = {}) {
+async function sendCommand(
+  setup: ReturnType<typeof createTestSetup>,
+  type: string,
+  sessionId: string | undefined,
+  payload: Record<string, unknown> = {}
+) {
   const start = setup.ws.sentMessages.length;
   await setup.dispatcher.handle(setup.conn, {
-    protocol: 1, kind: 'command', id: `msg_${start}`, ts: Date.now(), commandId: `workspace_${start}_${Math.random()}`,
-    type, sessionId, payload
+    protocol: 1,
+    kind: 'command',
+    id: `msg_${start}`,
+    ts: Date.now(),
+    commandId: `workspace_${start}_${Math.random()}`,
+    type,
+    sessionId,
+    payload
   } as any);
   return setup.ws.sentMessages.slice(start).map((item) => JSON.parse(item));
 }
 
-test('Dispatcher: session.list returns a cached result before slow filesystem revalidation', { timeout: 10_000 }, async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
-  const sessionsDir = path.join(root, 'sessions');
-  const cachePath = path.join(root, 'index.json');
-  fs.mkdirSync(sessionsDir);
-  fs.writeFileSync(path.join(sessionsDir, 'cached.jsonl'), [
-    { type: 'session', id: 'cached', cwd: process.cwd() },
-    { type: 'session_info', name: 'Cached session' },
-  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
-  const index = new SessionIndex({ sessionsDir, cachePath });
-  await index.scan();
-  const currentIndex = new SessionIndex({ sessionsDir, cachePath });
-  const enumerate = (currentIndex as any).enumerateSessionFiles.bind(currentIndex);
-  let release!: () => void;
-  const blocked = new Promise<void>((resolve) => { release = resolve; });
-  (currentIndex as any).enumerateSessionFiles = async () => {
-    await blocked;
-    return enumerate();
-  };
-  const setup = createTestSetup(undefined, currentIndex);
-  try {
-    let timer: NodeJS.Timeout | undefined;
-    const result = await Promise.race([
-      sendCommand(setup, 'session.list', '@daemon'),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
-      })
-    ]);
-    if (timer) clearTimeout(timer);
-    assert.equal(result[0].kind, 'ack');
-    assert.equal(result[1].payload.state, 'completed');
-    assert.equal(result[1].payload.data.sessions[0].id, 'cached');
-    release();
-    await currentIndex.scanFast();
-  } finally {
-    release();
-    await setup.registry.closeAll();
-    fs.rmSync(root, { recursive: true, force: true });
+test(
+  'Dispatcher: session.list returns a cached result before slow filesystem revalidation',
+  { timeout: 10_000 },
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
+    const sessionsDir = path.join(root, 'sessions');
+    const cachePath = path.join(root, 'index.json');
+    fs.mkdirSync(sessionsDir);
+    fs.writeFileSync(
+      path.join(sessionsDir, 'cached.jsonl'),
+      [
+        { type: 'session', id: 'cached', cwd: process.cwd() },
+        { type: 'session_info', name: 'Cached session' }
+      ]
+        .map((row) => JSON.stringify(row))
+        .join('\n') + '\n'
+    );
+    const index = new SessionIndex({ sessionsDir, cachePath });
+    await index.scan();
+    const currentIndex = new SessionIndex({ sessionsDir, cachePath });
+    const enumerate = (currentIndex as any).enumerateSessionFiles.bind(currentIndex);
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    (currentIndex as any).enumerateSessionFiles = async () => {
+      await blocked;
+      return enumerate();
+    };
+    const setup = createTestSetup(undefined, currentIndex);
+    try {
+      let timer: NodeJS.Timeout | undefined;
+      const result = await Promise.race([
+        sendCommand(setup, 'session.list', '@daemon'),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
+        })
+      ]);
+      if (timer) clearTimeout(timer);
+      assert.equal(result[0].kind, 'ack');
+      assert.equal(result[1].payload.state, 'completed');
+      assert.equal(result[1].payload.data.sessions[0].id, 'cached');
+      release();
+      await currentIndex.scanFast();
+    } finally {
+      release();
+      await setup.registry.closeAll();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   }
-});
+);
 
 test('Dispatcher: workspace commands require session scope and ignore client cwd', async () => {
   const repoA = createGitRepo();
@@ -157,16 +179,25 @@ test('Dispatcher: workspace blocks writes for read-only and active sessions, but
   try {
     const setup = createTestSetup();
     const session = await setup.registry.createSession({ cwd: repo.root });
-    const file = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' })).find((m) => m.kind === 'result').payload.data;
+    const file = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' })).find(
+      (m) => m.kind === 'result'
+    ).payload.data;
     fs.writeFileSync(path.join(repo.root, 'file.txt'), 'edited\n');
     session.worker = { health: () => ({ alive: true }) } as any; // healthy idle workers may still use the workspace
     session.readOnly = true;
-    let result = await sendCommand(setup, 'workspace.saveFile', session.id, { path: 'file.txt', content: 'blocked', revision: file.revision });
+    let result = await sendCommand(setup, 'workspace.saveFile', session.id, {
+      path: 'file.txt',
+      content: 'blocked',
+      revision: file.revision
+    });
     let res = result.find((m) => m.kind === 'result');
     let err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
     assert.equal(res.payload.state, 'rejected');
-    assert.equal((await sendCommand(setup, 'workspace.listFiles', session.id)).find((m) => m.kind === 'result').payload.state, 'completed');
+    assert.equal(
+      (await sendCommand(setup, 'workspace.listFiles', session.id)).find((m) => m.kind === 'result').payload.state,
+      'completed'
+    );
     session.readOnly = false;
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['file.txt'] });
     assert.equal(result.find((m) => m.kind === 'result').payload.state, 'completed');
@@ -221,7 +252,10 @@ test('Dispatcher: workspace gitAction stages and commits confirmed staged paths'
     let result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['file.txt'] });
     assert.equal(result[1].payload.state, 'completed');
     result = await sendCommand(setup, 'workspace.gitAction', session.id, {
-      action: 'commit', paths: ['file.txt'], expectedStagedPaths: ['file.txt'], message: 'workspace edit'
+      action: 'commit',
+      paths: ['file.txt'],
+      expectedStagedPaths: ['file.txt'],
+      message: 'workspace edit'
     });
     assert.equal(result[1].payload.state, 'completed');
     assert.equal(result[1].payload.data.status.files.length, 0);
@@ -235,10 +269,15 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
   const piPackages: PiPackageOperations = {
     async list(checkUpdates) {
       calls.push(checkUpdates ? 'checkUpdates' : 'list');
-      return [{
-        source: 'npm:pi-caveman', name: 'pi-caveman', version: '1.2.3', pinnedVersion: null,
-        ...(checkUpdates ? { latestVersion: '1.2.4' } : {}),
-      }];
+      return [
+        {
+          source: 'npm:pi-caveman',
+          name: 'pi-caveman',
+          version: '1.2.3',
+          pinnedVersion: null,
+          ...(checkUpdates ? { latestVersion: '1.2.4' } : {})
+        }
+      ];
     },
     async update(source) {
       calls.push(`update:${source}`);
@@ -251,18 +290,30 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
     async pin(source, version) {
       calls.push(`pin:${source}@${version}`);
       return { output: 'pinned', source: `npm:pi-caveman@${version}` };
-    },
+    }
   };
   const setup = createTestSetup(piPackages);
   const listed = await sendCommand(setup, 'pi.packages.list', undefined);
   assert.equal(listed[1].payload.data.packages[0].name, 'pi-caveman');
   const checked = await sendCommand(setup, 'pi.packages.list', undefined, { checkUpdates: true });
   assert.equal(checked[1].payload.data.packages[0].latestVersion, '1.2.4');
-  assert.equal((await sendCommand(setup, 'pi.packages.update', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
-  assert.equal((await sendCommand(setup, 'pi.packages.remove', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
+  assert.equal(
+    (await sendCommand(setup, 'pi.packages.update', undefined, { source: 'npm:pi-caveman' }))[1].payload.state,
+    'completed'
+  );
+  assert.equal(
+    (await sendCommand(setup, 'pi.packages.remove', undefined, { source: 'npm:pi-caveman' }))[1].payload.state,
+    'completed'
+  );
   const pinned = await sendCommand(setup, 'pi.packages.pin', undefined, { source: 'npm:pi-caveman', version: '1.2.3' });
   assert.equal(pinned[1].payload.data.source, 'npm:pi-caveman@1.2.3');
-  assert.deepEqual(calls, ['list', 'checkUpdates', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
+  assert.deepEqual(calls, [
+    'list',
+    'checkUpdates',
+    'update:npm:pi-caveman',
+    'remove:npm:pi-caveman',
+    'pin:npm:pi-caveman@1.2.3'
+  ]);
 });
 
 test('Dispatcher: delegates pi.agents.get and pi.agents.update for local connection', async () => {
@@ -412,8 +463,13 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // 1. remote.getStatus
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_rg', ts: Date.now(),
-    commandId: 'c_rem_get', type: 'remote.getStatus', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_rg',
+    ts: Date.now(),
+    commandId: 'c_rem_get',
+    type: 'remote.getStatus',
+    payload: {}
   });
   const res1 = getLastResult(ws);
   assert.equal(res1.payload.state, 'completed');
@@ -421,8 +477,13 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // 2. remote.setOptions
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_opt', ts: Date.now(),
-    commandId: 'c_rem_opt', type: 'remote.setOptions', payload: { defaultMode: 'control' }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_opt',
+    ts: Date.now(),
+    commandId: 'c_rem_opt',
+    type: 'remote.setOptions',
+    payload: { defaultMode: 'control' }
   });
   const res2 = getLastResult(ws);
   assert.equal(res2.payload.state, 'completed');
@@ -450,8 +511,13 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // Remote attempts remote.* -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_rem_att', ts: Date.now(),
-    commandId: 'c_rem_att', type: 'remote.getStatus', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_rem_att',
+    ts: Date.now(),
+    commandId: 'c_rem_att',
+    type: 'remote.getStatus',
+    payload: {}
   });
   const res3 = getLastResult(remoteWs);
   assert.equal(res3.payload.state, 'rejected');
@@ -459,45 +525,74 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // Remote attempts daemon.setConfig -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_cfg_att', ts: Date.now(),
-    commandId: 'c_cfg_att', type: 'daemon.setConfig', payload: { workerIdleTimeoutMs: 5000 }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_cfg_att',
+    ts: Date.now(),
+    commandId: 'c_cfg_att',
+    type: 'daemon.setConfig',
+    payload: { workerIdleTimeoutMs: 5000 }
   });
   const res4 = getLastResult(remoteWs);
   assert.equal(res4.payload.state, 'rejected');
 
   // Remote attempts pi.packages.* -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_pkg_att', ts: Date.now(),
-    commandId: 'c_pkg_att', type: 'pi.packages.list', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_pkg_att',
+    ts: Date.now(),
+    commandId: 'c_pkg_att',
+    type: 'pi.packages.list',
+    payload: {}
   });
   const res5 = getLastResult(remoteWs);
   assert.equal(res5.payload.state, 'rejected');
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_pkg_check_att', ts: Date.now(),
-    commandId: 'c_pkg_check_att', type: 'pi.packages.list', payload: { checkUpdates: true }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_pkg_check_att',
+    ts: Date.now(),
+    commandId: 'c_pkg_check_att',
+    type: 'pi.packages.list',
+    payload: { checkUpdates: true }
   });
   assert.equal(getLastResult(remoteWs).payload.state, 'rejected');
 
   // Remote attempts pi.agents.get -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_agents_get_att', ts: Date.now(),
-    commandId: 'c_ag_att', type: 'pi.agents.get', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_agents_get_att',
+    ts: Date.now(),
+    commandId: 'c_ag_att',
+    type: 'pi.agents.get',
+    payload: {}
   });
   const resAgentsGet = getLastResult(remoteWs);
   assert.equal(resAgentsGet.payload.state, 'rejected');
 
   // Remote attempts pi.agents.update -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_agents_upd_att', ts: Date.now(),
-    commandId: 'c_au_att', type: 'pi.agents.update', payload: { changes: [] }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_agents_upd_att',
+    ts: Date.now(),
+    commandId: 'c_au_att',
+    type: 'pi.agents.update',
+    payload: { changes: [] }
   });
   const resAgentsUpd = getLastResult(remoteWs);
   assert.equal(resAgentsUpd.payload.state, 'rejected');
 
   // Remote in view mode attempts workspace.saveFile -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_write_blocked', ts: Date.now(),
-    commandId: 'c_blk_write', type: 'workspace.saveFile',
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_write_blocked',
+    ts: Date.now(),
+    commandId: 'c_blk_write',
+    type: 'workspace.saveFile',
     payload: { path: 'a.txt', content: 'hello', revision: '0'.repeat(64) }
   });
   const res6 = getLastResult(remoteWs);
@@ -505,24 +600,35 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // Remote in view mode attempts agent.prompt -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_prompt_blocked', ts: Date.now(),
-    commandId: 'c_blk_prompt', type: 'agent.prompt',
-    payload: { text: 'hello' }, sessionId: 'sess_1'
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_prompt_blocked',
+    ts: Date.now(),
+    commandId: 'c_blk_prompt',
+    type: 'agent.prompt',
+    payload: { text: 'hello' },
+    sessionId: 'sess_1'
   });
   const res7 = getLastResult(remoteWs);
   assert.equal(res7.payload.state, 'rejected');
 
   // Local connection attempts daemon.setConfig { remote: ... } -> MUST BE BLOCKED with CONFIG_INVALID
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_inj_cfg', ts: Date.now(),
-    commandId: 'c_inj_cfg', type: 'daemon.setConfig',
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_inj_cfg',
+    ts: Date.now(),
+    commandId: 'c_inj_cfg',
+    type: 'daemon.setConfig',
     payload: { remote: { customTunnelCommand: 'calc.exe' } }
   });
   const res8 = getLastResult(ws);
   assert.equal(res8.payload.state, 'rejected');
   assert.ok(res8.payload.error.includes('cannot modify "remote"'));
 
-  try { fs.unlinkSync(devFile); } catch {}
+  try {
+    fs.unlinkSync(devFile);
+  } catch {}
 });
 
 test('Dispatcher: agent.interrupt clears queues without marking the worker idle', async () => {
@@ -536,7 +642,7 @@ test('Dispatcher: agent.interrupt clears queues without marking the worker idle'
     send: async ({ command }: { command: string }) => {
       commands.push(command);
       return { data: {} };
-    },
+    }
   } as any;
 
   const res = await sendCommand(setup, 'agent.interrupt', session.id);
@@ -558,21 +664,23 @@ test('Dispatcher: agent.interrupt responds before Pi finishes becoming idle', { 
   session.status = 'working';
   session.isStreaming = true;
   let releaseAbort!: () => void;
-  const abortPending = new Promise<void>((resolve) => { releaseAbort = resolve; });
+  const abortPending = new Promise<void>((resolve) => {
+    releaseAbort = resolve;
+  });
   const commands: string[] = [];
   session.worker = {
     send: async ({ command }: { command: string }) => {
       commands.push(command);
       if (command === 'abort') await abortPending;
       return { data: {} };
-    },
+    }
   } as any;
 
   const responsePromise = sendCommand(setup, 'agent.interrupt', session.id);
   try {
     const response = await Promise.race([
       responsePromise,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500))
     ]);
     assert.ok(response, 'interrupt response must not wait for Pi idle');
     const result = response.find((message: any) => message.kind === 'result');
@@ -610,7 +718,6 @@ test('Dispatcher: session.getHistory paginates historical entries backwards', as
   assert.equal(result2.payload.data.entries[0].id, 'entry_1');
   assert.equal(result2.payload.data.hasMore, false);
 });
-
 
 test('Dispatcher: session.create starts the Pi worker in the background so the first prompt is not stalled', async () => {
   const repo = createGitRepo();

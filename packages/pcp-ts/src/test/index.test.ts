@@ -3,13 +3,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  parseIncoming,
-  isEnvelope,
-  makeEnvelope,
-  encode,
-  type PcpMessage
-} from '../index.js';
+import { parseIncoming, isEnvelope, makeEnvelope, encode, type PcpMessage } from '../index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

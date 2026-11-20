@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import 'syntax_highlighter.dart';
@@ -34,10 +35,7 @@ class _CodeBlockState extends State<CodeBlock> {
   }
 
   TextSpan _getSpans(String code, String lang, FrameTokens tokens) {
-    if (_cachedSpans != null &&
-        _cachedCode == code &&
-        _cachedLang == lang &&
-        identical(_cachedTokens, tokens)) {
+    if (_cachedSpans != null && _cachedCode == code && _cachedLang == lang && identical(_cachedTokens, tokens)) {
       return _cachedSpans!;
     }
     _cachedCode = code;
@@ -51,8 +49,7 @@ class _CodeBlockState extends State<CodeBlock> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final hasScope =
-        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
-            null ||
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() != null ||
         context.findAncestorWidgetOfExactType<ProviderScope>() != null;
     if (hasScope) {
       return Consumer(
@@ -65,11 +62,7 @@ class _CodeBlockState extends State<CodeBlock> {
     return _buildContent(context, tokens, const AppStrings(AppLanguage.it));
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _buildContent(BuildContext context, FrameTokens tokens, AppStrings strings) {
     final lang = widget.language?.trim().toLowerCase() ?? 'text';
 
     return RepaintBoundary(
@@ -86,76 +79,63 @@ class _CodeBlockState extends State<CodeBlock> {
             // Header: Language badge + Copy button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(tokens.radiusSm),
-                topRight: Radius.circular(tokens.radiusSm),
-              ),
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  lang.toUpperCase(),
-                  style: FrameText.of(context).caption.copyWith(
-                    color: tokens.textMuted,
-                    fontFamily: tokens.monoFontFamily,
-                    fontWeight: FontWeight.bold,
-                  ),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(tokens.radiusSm),
+                  topRight: Radius.circular(tokens.radiusSm),
                 ),
-                InkWell(
-                  onTap: _copyToClipboard,
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    lang.toUpperCase(),
+                    style: FrameText.of(context).caption.copyWith(
+                      color: tokens.textMuted,
+                      fontFamily: tokens.monoFontFamily,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _copied ? Icons.check_outlined : Icons.copy_outlined,
-                          size: 12,
-                          color: _copied
-                              ? tokens.success
-                              : tokens.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _copied ? strings.copiedAction : strings.copyAction,
-                          style: FrameText.of(context).caption.copyWith(
-                            color: _copied
-                                ? tokens.textPrimary
-                                : tokens.textSecondary,
-                            fontFamily: tokens.monoFontFamily,
+                  ),
+                  InkWell(
+                    onTap: _copyToClipboard,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _copied ? Icons.check_outlined : Icons.copy_outlined,
+                            size: 12,
+                            color: _copied ? tokens.success : tokens.textSecondary,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            _copied ? strings.copiedAction : strings.copyAction,
+                            style: FrameText.of(context).caption.copyWith(
+                              color: _copied ? tokens.textPrimary : tokens.textSecondary,
+                              fontFamily: tokens.monoFontFamily,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Code text area with horizontal scrolling
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(12),
-            child: SelectableText.rich(
-              _getSpans(widget.code, lang, tokens),
-              style: FrameText.of(context).monoBody,
+            // Code text area with horizontal scrolling
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(12),
+              child: SelectableText.rich(_getSpans(widget.code, lang, tokens), style: FrameText.of(context).monoBody),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
-

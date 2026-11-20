@@ -82,12 +82,16 @@ const stateDir = path.join(gitDir, 'verify-ci');
 fs.mkdirSync(stateDir, { recursive: true });
 
 // A result is valid for the same content (tree), the same base and the same level of checking.
-const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : ''].filter(Boolean).join('+');
+const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : '']
+  .filter(Boolean)
+  .join('+');
 const cacheKey = `${treeSha}-${opt.noMerge ? 'x' : baseSha}-${level}`;
 const cacheFile = path.join(stateDir, `${cacheKey}.ok`);
 
 if (!opt.force && fs.existsSync(cacheFile)) {
-  console.log(green(`✔ Already verified (${level}): tree ${treeSha.slice(0, 10)} on ${BASE_REF} ${baseSha.slice(0, 10)}.`));
+  console.log(
+    green(`✔ Already verified (${level}): tree ${treeSha.slice(0, 10)} on ${BASE_REF} ${baseSha.slice(0, 10)}.`)
+  );
   console.log(dim('  Use --force to run again.'));
   process.exit(0);
 }
@@ -118,7 +122,9 @@ try {
   // flutter missing is reported by the first Flutter step
 }
 if (process.platform !== 'linux') {
-  warnings.push(`Running on ${process.platform}: workflows run on Linux (and Windows/macOS for installers); path/case differences are not covered.`);
+  warnings.push(
+    `Running on ${process.platform}: workflows run on Linux (and Windows/macOS for installers); path/case differences are not covered.`
+  );
 }
 for (const w of warnings) console.warn(yellow(`! ${w}`));
 
@@ -156,11 +162,23 @@ if (!opt.noMerge) {
     console.log(dim(`HEAD already contains ${BASE_REF}.`));
   } else {
     try {
-      git(work, '-c', 'user.name=verify', '-c', 'user.email=verify@localhost', 'merge', '--no-edit', '--quiet', baseSha);
+      git(
+        work,
+        '-c',
+        'user.name=verify',
+        '-c',
+        'user.email=verify@localhost',
+        'merge',
+        '--no-edit',
+        '--quiet',
+        baseSha
+      );
       console.log(dim(`Merged ${BASE_REF} (${ahead} commit(s)) into the verification worktree.`));
     } catch (err) {
       console.error(String(err.stderr || err.message).trim());
-      fail(`Merging ${BASE_REF} into your branch conflicts. Merge or rebase ${BASE_REF} first, resolve the conflicts, commit, then run verify again.`);
+      fail(
+        `Merging ${BASE_REF} into your branch conflicts. Merge or rebase ${BASE_REF} first, resolve the conflicts, commit, then run verify again.`
+      );
     }
   }
 }
@@ -195,7 +213,9 @@ function tail(file, lines = 70) {
 }
 
 const started = Date.now();
-console.log(`\nVerifying (${level}) tree ${treeSha.slice(0, 10)} + ${opt.noMerge ? 'no merge' : `${BASE_REF} ${baseSha.slice(0, 10)}`}`);
+console.log(
+  `\nVerifying (${level}) tree ${treeSha.slice(0, 10)} + ${opt.noMerge ? 'no merge' : `${BASE_REF} ${baseSha.slice(0, 10)}`}`
+);
 console.log(dim(`Output log: ${logFile}\n`));
 
 let index = 0;
@@ -235,9 +255,20 @@ if (dirty.length > 0) {
     `\n! The test run rewrote ${files.length} tracked file(s) in the verification worktree (discarded with it). ` +
     'If the same files show up as modified in your working tree after running the tests yourself, do not commit them:';
   console.warn(yellow(header));
-  console.warn(files.slice(0, 10).map((l) => `    ${l}`).join('\n'));
+  console.warn(
+    files
+      .slice(0, 10)
+      .map((l) => `    ${l}`)
+      .join('\n')
+  );
 }
 
-fs.writeFileSync(cacheFile, JSON.stringify({ head: headSha, tree: treeSha, base: baseSha, level, at: new Date().toISOString() }));
+fs.writeFileSync(
+  cacheFile,
+  JSON.stringify({ head: headSha, tree: treeSha, base: baseSha, level, at: new Date().toISOString() })
+);
 const total = ((Date.now() - started) / 60000).toFixed(1);
-console.log(green(`\n✔ All ${steps.length} steps passed in ${total} min.`) + dim(`  Result cached for this exact content (${level}).`));
+console.log(
+  green(`\n✔ All ${steps.length} steps passed in ${total} min.`) +
+    dim(`  Result cached for this exact content (${level}).`)
+);

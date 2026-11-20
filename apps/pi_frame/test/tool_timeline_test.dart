@@ -9,64 +9,62 @@ import 'package:pi_frame/features/transcript/thinking_block.dart';
 void main() {
   Widget wrapWithTheme(Widget child) {
     return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
-      ),
+      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
 
-  testWidgets('tool actions align with reasoning at narrow and wide widths', (
-    tester,
-  ) async {
+  testWidgets('tool actions align with reasoning at narrow and wide widths', (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     for (final width in [320.0, 700.0]) {
       tester.view.physicalSize = Size(width + 40, 1000);
-      await tester.pumpWidget(wrapWithTheme(
-        Center(
-          child: SizedBox(
-            width: width,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const ThinkingBlock(thinkingText: 'Checking the files'),
-                const ToolTimeline(toolCalls: [
-                  ToolExecutionState(
-                    toolCallId: 'short',
-                    toolName: 'read',
-                    args: {'path': 'a'},
-                    output: 'content',
-                    durationMs: 42,
+      await tester.pumpWidget(
+        wrapWithTheme(
+          Center(
+            child: SizedBox(
+              width: width,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ThinkingBlock(thinkingText: 'Checking the files'),
+                  const ToolTimeline(
+                    toolCalls: [
+                      ToolExecutionState(
+                        toolCallId: 'short',
+                        toolName: 'read',
+                        args: {'path': 'a'},
+                        output: 'content',
+                        durationMs: 42,
+                      ),
+                      ToolExecutionState(
+                        toolCallId: 'long',
+                        toolName: 'write',
+                        args: {'path': 'a/very/long/path/that/should/be/truncated/in/the/compact/layout/example.dart'},
+                        output: 'saved',
+                        durationMs: 6000,
+                      ),
+                      ToolExecutionState(
+                        toolCallId: 'no-output',
+                        toolName: 'edit',
+                        args: {'path': 'file.dart'},
+                        isError: true,
+                      ),
+                      ToolExecutionState(
+                        toolCallId: 'running',
+                        toolName: 'bash',
+                        args: {'command': 'git status'},
+                        isRunning: true,
+                      ),
+                    ],
                   ),
-                  ToolExecutionState(
-                    toolCallId: 'long',
-                    toolName: 'write',
-                    args: {
-                      'path': 'a/very/long/path/that/should/be/truncated/in/the/compact/layout/example.dart',
-                    },
-                    output: 'saved',
-                    durationMs: 6000,
-                  ),
-                  ToolExecutionState(
-                    toolCallId: 'no-output',
-                    toolName: 'edit',
-                    args: {'path': 'file.dart'},
-                    isError: true,
-                  ),
-                  ToolExecutionState(
-                    toolCallId: 'running',
-                    toolName: 'bash',
-                    args: {'command': 'git status'},
-                    isRunning: true,
-                  ),
-                ]),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pump();
       final reasoningIcon = find.descendant(
         of: find.byType(ThinkingBlock),
@@ -75,10 +73,7 @@ void main() {
       final reasoningX = tester.getCenter(reasoningIcon).dx;
       for (final id in ['short', 'long', 'running']) {
         final card = find.byKey(ValueKey(id));
-        final icon = find.descendant(
-          of: card,
-          matching: find.byIcon(Icons.expand_more_outlined),
-        );
+        final icon = find.descendant(of: card, matching: find.byIcon(Icons.expand_more_outlined));
         expect(tester.getCenter(icon).dx, closeTo(reasoningX, 0.01));
       }
       final completed = find.descendant(
@@ -89,18 +84,12 @@ void main() {
         of: find.byKey(const ValueKey('no-output')),
         matching: find.byIcon(Icons.error_outline),
       );
-      expect(
-        tester.getCenter(failed).dx,
-        closeTo(tester.getCenter(completed).dx, 0.01),
-      );
+      expect(tester.getCenter(failed).dx, closeTo(tester.getCenter(completed).dx, 0.01));
       final running = find.descendant(
         of: find.byKey(const ValueKey('running')),
         matching: find.byType(CircularProgressIndicator),
       );
-      expect(
-        tester.getCenter(running).dx,
-        closeTo(tester.getCenter(completed).dx, 0.01),
-      );
+      expect(tester.getCenter(running).dx, closeTo(tester.getCenter(completed).dx, 0.01));
       await tester.tap(find.text('read'));
       await tester.pump();
       final expandedIcon = find.descendant(
@@ -125,11 +114,7 @@ void main() {
       durationMs: 45,
     );
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const ToolCard(tool: tool),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const ToolCard(tool: tool)));
 
     expect(find.text('read_file'), findsOneWidget);
     expect(find.text('lib/main.dart'), findsOneWidget);
@@ -154,11 +139,7 @@ void main() {
       ),
     ];
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        ToolTimeline(toolCalls: tools),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(ToolTimeline(toolCalls: tools)));
 
     expect(find.text('bash'), findsOneWidget);
     expect(find.text('edit_file'), findsOneWidget);

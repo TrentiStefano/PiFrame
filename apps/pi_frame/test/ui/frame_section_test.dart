@@ -5,21 +5,13 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
   Widget host(Widget child) => MaterialApp(
-        theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
-        home: Scaffold(body: child),
-      );
+    theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+    home: Scaffold(body: child),
+  );
 
-  testWidgets('shows title, description and child inside one bordered box', (
-    tester,
-  ) async {
+  testWidgets('shows title, description and child inside one bordered box', (tester) async {
     await tester.pumpWidget(
-      host(
-        const FrameSection(
-          title: 'Aspetto',
-          description: 'Tema e font',
-          child: Text('contenuto'),
-        ),
-      ),
+      host(const FrameSection(title: 'Aspetto', description: 'Tema e font', child: Text('contenuto'))),
     );
 
     expect(find.text('Aspetto'), findsOneWidget);
@@ -31,12 +23,7 @@ void main() {
     expect(title.style?.fontFamily, FrameTokens.dark.uiFontFamily);
 
     final box = tester.widget<Container>(
-      find
-          .ancestor(
-            of: find.text('contenuto'),
-            matching: find.byType(Container),
-          )
-          .first,
+      find.ancestor(of: find.text('contenuto'), matching: find.byType(Container)).first,
     );
     final decoration = box.decoration as BoxDecoration;
     final side = (decoration.border as Border).top;
@@ -45,9 +32,7 @@ void main() {
   });
 
   testWidgets('omits the description when none is given', (tester) async {
-    await tester.pumpWidget(
-      host(const FrameSection(title: 'Solo titolo', child: SizedBox())),
-    );
+    await tester.pumpWidget(host(const FrameSection(title: 'Solo titolo', child: SizedBox())));
     expect(find.text('Solo titolo'), findsOneWidget);
     expect(find.byType(Text), findsOneWidget);
   });

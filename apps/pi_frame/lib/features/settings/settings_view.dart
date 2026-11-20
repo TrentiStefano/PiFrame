@@ -41,12 +41,7 @@ class SettingsView extends ConsumerStatefulWidget {
   /// Opens on this section id instead of [initialTabIndex] when it is known.
   final String? initialSection;
 
-  const SettingsView({
-    super.key,
-    required this.onClose,
-    this.initialTabIndex = 0,
-    this.initialSection,
-  });
+  const SettingsView({super.key, required this.onClose, this.initialTabIndex = 0, this.initialSection});
 
   @override
   ConsumerState<SettingsView> createState() => _SettingsViewState();
@@ -77,8 +72,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   // reduced-motion setting: the content then switches without a cross-fade.
   bool _instantSwitch = false;
   final Map<_SettingsSection, FocusNode> _navFocus = {
-    for (final section in _SettingsSection.values)
-      section: FocusNode(debugLabel: 'settings-nav-${section.name}'),
+    for (final section in _SettingsSection.values) section: FocusNode(debugLabel: 'settings-nav-${section.name}'),
   };
   final Map<_SettingsSection, GlobalKey> _navItemKeys = {
     for (final section in _SettingsSection.values) section: GlobalKey(),
@@ -117,9 +111,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     }
 
     try {
-      final res = await client.getDaemonConfig().timeout(
-        const Duration(seconds: 4),
-      );
+      final res = await client.getDaemonConfig().timeout(const Duration(seconds: 4));
       final data = res['data'] as Map<String, dynamic>? ?? res;
       final ms = (data['workerIdleTimeoutMs'] as num?)?.toInt() ?? 1800000;
       if (mounted) {
@@ -235,21 +227,16 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             title: title,
             body: Text(message),
             actions: [
-              FrameDialogAction(
-                label: strings.cancel,
-                role: FrameDialogActionRole.cancel,
-                value: false,
-              ),
+              FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
               FrameDialogAction(
                 label: confirmation,
-                role: destructive
-                    ? FrameDialogActionRole.destructive
-                    : FrameDialogActionRole.primary,
+                role: destructive ? FrameDialogActionRole.destructive : FrameDialogActionRole.primary,
                 value: true,
               ),
             ],
           ),
-        ) ?? false;
+        ) ??
+        false;
   }
 
   Future<void> _performPackageAction(
@@ -271,28 +258,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       final result = await action(client);
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
-        final message =
-            resultMessage?.call(data) ??
-            strings.packageActionNotice(successMessage, source);
-        final needsRestart =
-            data['status'] != 'current' && data['status'] != 'pinned';
+        final message = resultMessage?.call(data) ?? strings.packageActionNotice(successMessage, source);
+        final needsRestart = data['status'] != 'current' && data['status'] != 'pinned';
         FrameSnackBar.show(
           context,
-          message:
-              '$message${needsRestart ? ' ${strings.restartPiAfterPackageUpdate}' : ''}',
+          message: '$message${needsRestart ? ' ${strings.restartPiAfterPackageUpdate}' : ''}',
         );
       }
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _packageUpdateError =
-              '$source: ${describeError(error, strings).summary}',
-        );
-        FrameSnackBar.show(
-          context,
-          message: strings.packageActionFailedNotice(error),
-          isError: true,
-        );
+        setState(() => _packageUpdateError = '$source: ${describeError(error, strings).summary}');
+        FrameSnackBar.show(context, message: strings.packageActionFailedNotice(error), isError: true);
       }
     } finally {
       await updates.refreshPackages();
@@ -303,10 +279,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           setState(() {
             _isWorkingWithPackage = false;
             if (checkError != null) {
-              _packageUpdateError = [
-                ?_packageUpdateError,
-                strings.packageUpdateCheckFailed(checkError),
-              ].join('\n');
+              _packageUpdateError = [?_packageUpdateError, strings.packageUpdateCheckFailed(checkError)].join('\n');
             }
           });
         }
@@ -314,11 +287,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     }
   }
 
-  Future<Map<String, dynamic>> _updateVerifiedPackage(
-    PcpClient client,
-    String source,
-    AppStrings strings,
-  ) async {
+  Future<Map<String, dynamic>> _updateVerifiedPackage(PcpClient client, String source, AppStrings strings) async {
     final result = await client.updatePiPackage(source);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     if (!const {'updated', 'current', 'pinned'}.contains(data['status'])) {
@@ -334,9 +303,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   Future<void> _updatePackage(Map<String, dynamic> package) async {
     final strings = ref.read(appStringsProvider);
-    if (_isWorkingWithPackage ||
-        _isLoadingPackages ||
-        !hasAvailablePiPackageUpdate(package)) {
+    if (_isWorkingWithPackage || _isLoadingPackages || !hasAvailablePiPackageUpdate(package)) {
       return;
     }
     final source = package['source'].toString();
@@ -347,9 +314,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     )) {
       return;
     }
-    final currentPackage = _packages
-        .where((item) => item['source'] == source)
-        .firstOrNull;
+    final currentPackage = _packages.where((item) => item['source'] == source).firstOrNull;
     if (!mounted ||
         _isWorkingWithPackage ||
         _isLoadingPackages ||
@@ -359,8 +324,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     }
     await _performPackageAction(
       source,
-      (client) =>
-          _updateVerifiedPackage(client, source, ref.read(appStringsProvider)),
+      (client) => _updateVerifiedPackage(client, source, ref.read(appStringsProvider)),
       successMessage: strings.packageUpdatedSuccess,
       resultMessage: (result) {
         final strings = ref.read(appStringsProvider);
@@ -371,11 +335,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           case 'pinned':
             return strings.packageVersionPinned(source, version);
           default:
-            return strings.packageVersionUpdated(
-              source,
-              result['previousVersion']?.toString(),
-              version,
-            );
+            return strings.packageVersionUpdated(source, result['previousVersion']?.toString(), version);
         }
       },
     );
@@ -453,17 +413,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           : '${strings.packageUpdateSummary(updated, current, pinned)}'
                 '${failures.isEmpty ? '' : ' ${strings.packageUpdateFailures(failures.length)}'}';
       final checkError = ref.read(startupUpdatesProvider).error;
-      final details = [
-        ...failures,
-        if (checkError != null) strings.packageUpdateCheckFailed(checkError),
-      ];
+      final details = [...failures, if (checkError != null) strings.packageUpdateCheckFailed(checkError)];
       if (details.isNotEmpty) {
         setState(() => _packageUpdateError = '$result\n${details.join('\n')}');
       }
       FrameSnackBar.show(
         context,
-        message:
-            '$result${updated == 0 ? '' : ' ${strings.restartPiAfterPackageUpdate}'}',
+        message: '$result${updated == 0 ? '' : ' ${strings.restartPiAfterPackageUpdate}'}',
         duration: Duration(seconds: details.isEmpty ? 3 : 8),
         backgroundColor: details.isEmpty ? null : context.tokens.danger,
         isError: details.isNotEmpty,
@@ -499,8 +455,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   Future<void> _pinPackage(Map<String, dynamic> package) async {
     final strings = ref.read(appStringsProvider);
     final source = package['source'].toString();
-    final currentVersion =
-        (package['pinnedVersion'] ?? package['version'] ?? '').toString();
+    final currentVersion = (package['pinnedVersion'] ?? package['version'] ?? '').toString();
     var version = currentVersion;
     final selected = await showFrameDialogBuilder<String>(
       context: context,
@@ -510,16 +465,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           body: TextFormField(
             initialValue: currentVersion,
             onChanged: (value) => setDialogState(() => version = value.trim()),
-            decoration: InputDecoration(
-              labelText: strings.semverVersionLabel,
-              hintText: '1.2.3',
-            ),
+            decoration: InputDecoration(labelText: strings.semverVersionLabel, hintText: '1.2.3'),
           ),
           actions: [
-            FrameDialogAction(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-            ),
+            FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel),
             FrameDialogAction(
               label: strings.actionPin,
               role: FrameDialogActionRole.primary,
@@ -588,16 +537,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   @override
   Widget build(BuildContext context) {
     ref.listen<StartupUpdateState>(startupUpdatesProvider, (previous, next) {
-      if (previous?.isChecking == true &&
-          !next.isChecking &&
-          !_isWorkingWithPackage) {
+      if (previous?.isChecking == true && !next.isChecking && !_isWorkingWithPackage) {
         _fetchPiPackages();
       }
     });
-    ref.listen<AsyncValue<DaemonConnectionState>>(connectionStateProvider, (
-      prev,
-      next,
-    ) {
+    ref.listen<AsyncValue<DaemonConnectionState>>(connectionStateProvider, (prev, next) {
       if (next.value == DaemonConnectionState.connected) {
         _fetchDaemonConfig();
         _fetchPiPackages();
@@ -611,10 +555,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final activeSessionId = ref.watch(activeSessionIdProvider);
     final runStatus = activeSessionId == null
         ? null
-        : ref.watch(
-            sessionStateFamily(activeSessionId)
-                .select((state) => state.agentStatus),
-          );
+        : ref.watch(sessionStateFamily(activeSessionId).select((state) => state.agentStatus));
     final reduced = FrameMotion.reduced(context);
 
     Widget sectionBody(_SettingsSection section) {
@@ -632,11 +573,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             if (!mounted) return;
             final error = ref.read(startupUpdatesProvider).error;
             if (error != null) {
-              setState(
-                () => _packageUpdateError = strings.packageUpdateCheckFailed(
-                  error,
-                ),
-              );
+              setState(() => _packageUpdateError = strings.packageUpdateCheckFailed(error));
             }
           },
         ),
@@ -668,20 +605,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           onUpdateTimeout: _updateTimeout,
           runActive: _isRunActive(runStatus),
         ),
-        _SettingsSection.appearance => AppearanceSection(
-          tokens: tokens,
-          strings: strings,
-        ),
+        _SettingsSection.appearance => AppearanceSection(tokens: tokens, strings: strings),
         _SettingsSection.diagnostics => const DiagnosticsSection(),
         _SettingsSection.updates => const UpdatesSection(),
-        _SettingsSection.terminal => TerminalSection(
-          tokens: tokens,
-          strings: strings,
-        ),
+        _SettingsSection.terminal => TerminalSection(tokens: tokens, strings: strings),
         _SettingsSection.remote => const RemoteSection(),
         _SettingsSection.agents => AgentsSection(
-          onOpenPackages: () =>
-              setState(() => _section = _SettingsSection.packages),
+          onOpenPackages: () => setState(() => _section = _SettingsSection.packages),
         ),
       };
     }
@@ -689,20 +619,16 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final content = Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: _section == _SettingsSection.piCli ||
+          maxWidth:
+              _section == _SettingsSection.piCli ||
                   _section == _SettingsSection.packages ||
                   _section == _SettingsSection.agents
               ? _wideContentMaxWidth
               : _contentMaxWidth,
         ),
         child: AnimatedSwitcher(
-          duration: _instantSwitch || reduced
-              ? FrameMotion.instant
-              : FrameMotion.crossFade,
-          child: KeyedSubtree(
-            key: ValueKey('settings-section-${_section.name}'),
-            child: sectionBody(_section),
-          ),
+          duration: _instantSwitch || reduced ? FrameMotion.instant : FrameMotion.crossFade,
+          child: KeyedSubtree(key: ValueKey('settings-section-${_section.name}'), child: sectionBody(_section)),
         ),
       ),
     );
@@ -712,16 +638,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       child: Column(
         children: [
           Container(
-            margin: const EdgeInsets.fromLTRB(
-              FrameSpace.x2,
-              FrameSpace.x2,
-              FrameSpace.x2,
-              FrameSpace.x1,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x4,
-              vertical: FrameSpace.x2,
-            ),
+            margin: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
               borderRadius: BorderRadius.circular(tokens.radiusLg),
@@ -741,10 +659,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   child: Text(
                     strings.settingsTitle,
                     overflow: TextOverflow.ellipsis,
-                    style: text.display.copyWith(
-                      color: tokens.displayText,
-                      fontFamily: tokens.headingFontFamily,
-                    ),
+                    style: text.display.copyWith(color: tokens.displayText, fontFamily: tokens.headingFontFamily),
                   ),
                 ),
               ],
@@ -759,8 +674,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                     children: [
                       SizedBox(
                         // Grows with the text scale so labels do not truncate.
-                        width: _navWidth *
-                            MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
+                        width: _navWidth * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
                         child: _buildVerticalNav(strings, tokens, text),
                       ),
                       Expanded(child: content),
@@ -781,83 +695,45 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       ),
     );
     return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): _escape,
-      },
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): _escape},
       child: Focus(autofocus: true, child: settingsContent),
     );
   }
 
   /// Settings sections grouped for the navigation, in display order.
   List<(String, List<_SettingsSection>)> _navGroups(AppStrings strings) => [
-    (
-      strings.settingsNavPi,
-      const [
-        _SettingsSection.piCli,
-        _SettingsSection.packages,
-        _SettingsSection.agents,
-      ],
-    ),
+    (strings.settingsNavPi, const [_SettingsSection.piCli, _SettingsSection.packages, _SettingsSection.agents]),
     (
       strings.settingsNavGeneral,
-      const [
-        _SettingsSection.appearance,
-        _SettingsSection.terminal,
-        _SettingsSection.updates,
-      ],
+      const [_SettingsSection.appearance, _SettingsSection.terminal, _SettingsSection.updates],
     ),
-    (
-      strings.settingsNavSystem,
-      const [
-        _SettingsSection.daemon,
-        _SettingsSection.diagnostics,
-        _SettingsSection.remote,
-      ],
-    ),
+    (strings.settingsNavSystem, const [_SettingsSection.daemon, _SettingsSection.diagnostics, _SettingsSection.remote]),
   ];
 
-  String _sectionLabel(_SettingsSection section, AppStrings strings) =>
-      switch (section) {
-        _SettingsSection.piCli => strings.tabPiCli,
-        _SettingsSection.packages => strings.tabPackages,
-        _SettingsSection.daemon => strings.tabDaemon,
-        _SettingsSection.appearance => strings.tabAppearance,
-        _SettingsSection.diagnostics => strings.tabDiagnostics,
-        _SettingsSection.updates => strings.tabUpdates,
-        _SettingsSection.terminal => strings.tabTerminal,
-        _SettingsSection.remote => strings.tabRemote,
-        _SettingsSection.agents => strings.tabAgents,
-      };
+  String _sectionLabel(_SettingsSection section, AppStrings strings) => switch (section) {
+    _SettingsSection.piCli => strings.tabPiCli,
+    _SettingsSection.packages => strings.tabPackages,
+    _SettingsSection.daemon => strings.tabDaemon,
+    _SettingsSection.appearance => strings.tabAppearance,
+    _SettingsSection.diagnostics => strings.tabDiagnostics,
+    _SettingsSection.updates => strings.tabUpdates,
+    _SettingsSection.terminal => strings.tabTerminal,
+    _SettingsSection.remote => strings.tabRemote,
+    _SettingsSection.agents => strings.tabAgents,
+  };
 
-  Widget _buildVerticalNav(
-    AppStrings strings,
-    FrameTokens tokens,
-    FrameText text,
-  ) {
+  Widget _buildVerticalNav(AppStrings strings, FrameTokens tokens, FrameText text) {
     return Focus(
       onKeyEvent: _handleNavKey,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          FrameSpace.x2,
-          FrameSpace.x2,
-          FrameSpace.x2,
-          FrameSpace.x4,
-        ),
+        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final (label, sections) in _navGroups(strings)) ...[
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  FrameSpace.x2,
-                  FrameSpace.x3,
-                  FrameSpace.x2,
-                  FrameSpace.x1,
-                ),
-                child: Text(
-                  label,
-                  style: text.caption.copyWith(color: tokens.textMuted),
-                ),
+                padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x3, FrameSpace.x2, FrameSpace.x1),
+                child: Text(label, style: text.caption.copyWith(color: tokens.textMuted)),
               ),
               for (final section in sections)
                 _SettingsNavItem(
@@ -878,11 +754,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   /// Narrow layout: one horizontal row of section tabs that scrolls, with
   /// fade edges that show there is more to reach.
-  Widget _buildHorizontalNav(
-    AppStrings strings,
-    FrameTokens tokens,
-    FrameText text,
-  ) {
+  Widget _buildHorizontalNav(AppStrings strings, FrameTokens tokens, FrameText text) {
     final fadeColor = tokens.surfaceElevated;
     final transparent = fadeColor.withValues(alpha: 0);
     final sections = [for (final group in _navGroups(strings)) ...group.$2];
@@ -892,10 +764,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x4,
-              vertical: FrameSpace.x2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: FrameSpace.x2),
             child: Row(
               children: [
                 for (final section in sections)
@@ -921,9 +790,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             width: FrameSpace.x4,
             child: IgnorePointer(
               child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [fadeColor, transparent]),
-                ),
+                decoration: BoxDecoration(gradient: LinearGradient(colors: [fadeColor, transparent])),
               ),
             ),
           ),
@@ -950,11 +817,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   void _selectFromPointerOrKeyboard(_SettingsSection section) {
-    _select(
-      section,
-      keyboard:
-          FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
-    );
+    _select(section, keyboard: FocusManager.instance.highlightMode == FocusHighlightMode.traditional);
   }
 
   void _select(_SettingsSection section, {required bool keyboard}) {
@@ -970,11 +833,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       _navFocus[section]?.requestFocus();
       final itemContext = _navItemKeys[section]?.currentContext;
       if (itemContext != null) {
-        Scrollable.ensureVisible(
-          itemContext,
-          alignment: 0.5,
-          duration: FrameMotion.instant,
-        );
+        Scrollable.ensureVisible(itemContext, alignment: 0.5, duration: FrameMotion.instant);
       }
     });
   }
@@ -998,10 +857,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   /// A run counts as active from the first working state until it settles.
   bool _isRunActive(AgentStatus? status) => switch (status) {
-    AgentStatus.working ||
-    AgentStatus.retrying ||
-    AgentStatus.compacting ||
-    AgentStatus.awaitingUser => true,
+    AgentStatus.working || AgentStatus.retrying || AgentStatus.compacting || AgentStatus.awaitingUser => true,
     _ => false,
   };
 }
@@ -1071,12 +927,7 @@ class _SettingsNavItemState extends State<_SettingsNavItem> {
     );
     final indicator = widget.selected ? tokens.accent : transparent;
 
-    final label = Text(
-      widget.label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: labelStyle,
-    );
+    final label = Text(widget.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: labelStyle);
 
     final body = widget.vertical
         ? Row(
@@ -1086,10 +937,7 @@ class _SettingsNavItemState extends State<_SettingsNavItem> {
                 duration: FrameMotion.micro,
                 width: FrameSpace.x1 / 2,
                 height: FrameSpace.x4,
-                decoration: BoxDecoration(
-                  color: indicator,
-                  borderRadius: BorderRadius.circular(tokens.radiusPill),
-                ),
+                decoration: BoxDecoration(color: indicator, borderRadius: BorderRadius.circular(tokens.radiusPill)),
               ),
               const SizedBox(width: FrameSpace.x2),
               Expanded(child: label),
@@ -1106,10 +954,7 @@ class _SettingsNavItemState extends State<_SettingsNavItem> {
                 AnimatedContainer(
                   duration: FrameMotion.micro,
                   height: FrameSpace.x1 / 2,
-                  decoration: BoxDecoration(
-                    color: indicator,
-                    borderRadius: BorderRadius.circular(tokens.radiusPill),
-                  ),
+                  decoration: BoxDecoration(color: indicator, borderRadius: BorderRadius.circular(tokens.radiusPill)),
                 ),
               ],
             ),
@@ -1133,14 +978,8 @@ class _SettingsNavItemState extends State<_SettingsNavItem> {
             key: widget.itemKey,
             duration: FrameMotion.micro,
             constraints: const BoxConstraints(minHeight: FrameSize.rowList),
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x2,
-              vertical: FrameSpace.x1,
-            ),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
+            decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(tokens.radiusSm)),
             child: body,
           ),
         ),

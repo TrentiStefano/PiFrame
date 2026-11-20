@@ -3,7 +3,14 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { compactionThreshold, validateContextLimit, validateReservePercent, readContextPolicy, writeContextPolicy, deleteContextPolicy } from '../contextPolicy.js';
+import {
+  compactionThreshold,
+  validateContextLimit,
+  validateReservePercent,
+  readContextPolicy,
+  writeContextPolicy,
+  deleteContextPolicy
+} from '../contextPolicy.js';
 import { contextLimitExtension, physicalModel } from '../contextLimitExtension.js';
 
 test('context policy: thresholds and untrusted bounds', () => {
@@ -25,14 +32,19 @@ test('context policy: persistence contains only preferences and survives reopeni
   process.env.PI_FRAME_HOME = home;
   try {
     assert.deepEqual(readContextPolicy('s_test'), { contextWindowOverride: null, compactionReservePercent: 2.5 });
-    writeContextPolicy('s_test', { contextWindowOverride: 200000, compactionReservePercent: 5, secret: 'never persisted' } as any);
+    writeContextPolicy('s_test', {
+      contextWindowOverride: 200000,
+      compactionReservePercent: 5,
+      secret: 'never persisted'
+    } as any);
     assert.deepEqual(readContextPolicy('s_test'), { contextWindowOverride: 200000, compactionReservePercent: 5 });
     assert.equal(fs.readFileSync(path.join(home, 'context', 's_test.json'), 'utf8').includes('secret'), false);
     assert.throws(() => writeContextPolicy('../escape', { contextWindowOverride: null, compactionReservePercent: 5 }));
     deleteContextPolicy('s_test');
     assert.equal(readContextPolicy('s_test').contextWindowOverride, null);
   } finally {
-    if (previous === undefined) delete process.env.PI_FRAME_HOME; else process.env.PI_FRAME_HOME = previous;
+    if (previous === undefined) delete process.env.PI_FRAME_HOME;
+    else process.env.PI_FRAME_HOME = previous;
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
@@ -43,12 +55,27 @@ function runtime(settings: any = {}) {
   const ctx = { model: { provider: 'test', id: 'model', contextWindow: 1000000 } as any };
   const pi = {
     getSettings: () => settings,
-    registerCommand: (name: string, definition: any) => { commands.set(name, definition); },
-    on: (event: string, handler: any) => { handlers.set(event, handler); },
-    setModel: async (model: any) => { ctx.model = model; await handlers.get('model_select')?.({}, ctx); return true; },
+    registerCommand: (name: string, definition: any) => {
+      commands.set(name, definition);
+    },
+    on: (event: string, handler: any) => {
+      handlers.set(event, handler);
+    },
+    setModel: async (model: any) => {
+      ctx.model = model;
+      await handlers.get('model_select')?.({}, ctx);
+      return true;
+    }
   };
   contextLimitExtension(pi);
-  return { ctx, pi, handlers, commands, setPolicy: async (limit: number | null, percent: number) => commands.get('piframe-context-policy').handler(JSON.stringify({ limit, percent }), ctx) };
+  return {
+    ctx,
+    pi,
+    handlers,
+    commands,
+    setPolicy: async (limit: number | null, percent: number) =>
+      commands.get('piframe-context-policy').handler(JSON.stringify({ limit, percent }), ctx)
+  };
 }
 
 test('runtime extension: starts with the displayed default reserve even without a custom limit', async () => {
@@ -90,12 +117,20 @@ test('runtime extension: idle threshold compacts once, avoids failed-summary loo
   let tokens = 194999;
   let attempts = 0;
   let callbacks: any;
-  const ctx = { ...r.ctx, getContextUsage: () => ({ tokens }), compact: (options: any) => { attempts++; callbacks = options; } };
+  const ctx = {
+    ...r.ctx,
+    getContextUsage: () => ({ tokens }),
+    compact: (options: any) => {
+      attempts++;
+      callbacks = options;
+    }
+  };
   const settle = () => r.handlers.get('agent_settled')({}, ctx);
   settle();
   assert.equal(attempts, 0);
   tokens = 195000;
-  settle(); settle();
+  settle();
+  settle();
   assert.equal(attempts, 1);
   callbacks.onError(new Error('Summary failed'));
   settle();

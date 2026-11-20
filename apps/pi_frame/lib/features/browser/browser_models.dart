@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum RightPaneMode {
-  git,
-  browser,
-}
+enum RightPaneMode { git, browser }
 
 enum SearchEngine {
   google(
@@ -60,12 +57,7 @@ enum SearchEngine {
   final String searchUrlTemplate;
   final String homeUrl;
 
-  const SearchEngine({
-    required this.label,
-    required this.icon,
-    required this.searchUrlTemplate,
-    required this.homeUrl,
-  });
+  const SearchEngine({required this.label, required this.icon, required this.searchUrlTemplate, required this.homeUrl});
 
   String buildSearchUrl(String query) {
     return searchUrlTemplate.replaceAll('{query}', Uri.encodeComponent(query));
@@ -88,12 +80,7 @@ class WebSearchResult {
   final String snippet;
   final String domain;
 
-  const WebSearchResult({
-    required this.title,
-    required this.url,
-    required this.snippet,
-    required this.domain,
-  });
+  const WebSearchResult({required this.title, required this.url, required this.snippet, required this.domain});
 }
 
 class WebContent {
@@ -137,18 +124,11 @@ class WebBookmark {
   final String url;
   final IconData? icon;
 
-  const WebBookmark({
-    required this.title,
-    required this.url,
-    this.icon,
-  });
+  const WebBookmark({required this.title, required this.url, this.icon});
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is WebBookmark &&
-          runtimeType == other.runtimeType &&
-          url == other.url;
+      identical(this, other) || other is WebBookmark && runtimeType == other.runtimeType && url == other.url;
 
   @override
   int get hashCode => url.hashCode;
@@ -222,9 +202,7 @@ class WebBrowserState {
   WebBrowserTab get activeTab {
     return tabs.firstWhere(
       (t) => t.id == activeTabId,
-      orElse: () => tabs.isNotEmpty
-          ? tabs.first
-          : const WebBrowserTab(id: 't_0', url: 'about:home', title: 'Home'),
+      orElse: () => tabs.isNotEmpty ? tabs.first : const WebBrowserTab(id: 't_0', url: 'about:home', title: 'Home'),
     );
   }
 

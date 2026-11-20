@@ -58,23 +58,15 @@ const sampleSession = SessionState(
   ],
 );
 
-Future<void> capture(
-  WidgetTester tester,
-  GlobalKey boundaryKey,
-  String name, {
-  String? outputDirectory,
-}) async {
+Future<void> capture(WidgetTester tester, GlobalKey boundaryKey, String name, {String? outputDirectory}) async {
   final output = outputDirectory ?? Platform.environment['PI_FRAME_CAPTURE'];
   if (output == null) return;
   await tester.runAsync(() async {
-    final boundary =
-        boundaryKey.currentContext!.findRenderObject()!
-            as RenderRepaintBoundary;
+    final boundary = boundaryKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = await boundary.toImage();
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     final directory = Directory(output)..createSync(recursive: true);
-    File('${directory.path}/$name.png')
-        .writeAsBytesSync(bytes!.buffer.asUint8List());
+    File('${directory.path}/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
     image.dispose();
   });
 }
@@ -89,20 +81,13 @@ class _VisualWorkspaceClient extends PcpClient {
       'truncated': false,
       'files': [
         {'path': 'apps/pi_frame/lib/app/app_shell.dart', 'sizeBytes': 4800},
-        {
-          'path':
-              'apps/pi_frame/lib/features/workspace/repository_workspace.dart',
-          'sizeBytes': 7200,
-        },
+        {'path': 'apps/pi_frame/lib/features/workspace/repository_workspace.dart', 'sizeBytes': 7200},
       ],
     },
   };
 
   @override
-  Future<Map<String, dynamic>> readWorkspaceFile(
-    String sessionId,
-    String path,
-  ) async => {
+  Future<Map<String, dynamic>> readWorkspaceFile(String sessionId, String path) async => {
     'data': {
       'rootPath': 'C:/Projects/pi-frame',
       'path': path,
@@ -119,10 +104,7 @@ class _VisualWorkspaceClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': 'C:/Projects/pi-frame',
@@ -137,8 +119,7 @@ class _VisualWorkspaceClient extends PcpClient {
           'deletions': 2,
         },
         {
-          'path':
-              'apps/pi_frame/lib/features/workspace/repository_workspace.dart',
+          'path': 'apps/pi_frame/lib/features/workspace/repository_workspace.dart',
           'status': 'modified',
           'staged': true,
           'unstaged': false,
@@ -152,29 +133,17 @@ class _VisualWorkspaceClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> getWorkspaceDiff(
-    String sessionId, {
-    String? filePath,
-  }) async => {
-    'data': {
-      'diff':
-          'diff --git a/$filePath b/$filePath\\n+selected-session workspace\\n',
-    },
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) async => {
+    'data': {'diff': 'diff --git a/$filePath b/$filePath\\n+selected-session workspace\\n'},
   };
 
   @override
-  Future<Map<String, dynamic>> saveWorkspaceFile(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async => {
+  Future<Map<String, dynamic>> saveWorkspaceFile(String sessionId, Map<String, dynamic> payload) async => {
     'data': {'path': payload['path'], 'revision': List.filled(64, 'b').join()},
   };
 
   @override
-  Future<Map<String, dynamic>> workspaceGitAction(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async => {
+  Future<Map<String, dynamic>> workspaceGitAction(String sessionId, Map<String, dynamic> payload) async => {
     'data': {'status': <String, dynamic>{}},
   };
 }
@@ -182,42 +151,31 @@ class _VisualWorkspaceClient extends PcpClient {
 /// The Git pane header: a plain title, or the Git/Browser switch where the
 /// integrated browser is available (Windows).
 final Finder _gitPaneHeader = find.byWidgetPredicate(
-  (w) =>
-      w.key == const ValueKey('git-pane-title') ||
-      w.key == const ValueKey('right-pane-switch-git-chip'),
+  (w) => w.key == const ValueKey('git-pane-title') || w.key == const ValueKey('right-pane-switch-git-chip'),
 );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async {
     for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
-      final loader = FontLoader(font)
-        ..addFont(rootBundle.load('assets/fonts/$font.ttf'));
+      final loader = FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'));
       await loader.load();
     }
     final heading = FontLoader('BarlowCondensed')
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
     await heading.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
-  for (final size in [
-    const Size(1440, 960),
-    const Size(1100, 800),
-    const Size(390, 844),
-  ]) {
-    testWidgets('shell remains usable at ${size.width.toInt()}px', (
-      tester,
-    ) async {
+  for (final size in [const Size(1440, 960), const Size(1100, 800), const Size(390, 844)]) {
+    testWidgets('shell remains usable at ${size.width.toInt()}px', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final dark = Platform.environment['PI_FRAME_CAPTURE_DARK'] == '1';
-      final json = File('assets/themes/piframe-${dark ? 'dark' : 'light'}.json')
-          .readAsStringSync();
+      final json = File('assets/themes/piframe-${dark ? 'dark' : 'light'}.json').readAsStringSync();
       final repo = ThemeRepository()
         ..registerThemeJson(json)
         ..setActiveTheme(dark ? 'piframe-dark' : 'piframe-light');
@@ -226,14 +184,10 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            diagnosticsFixtureLabelProvider.overrideWithValue(
-              'DATI SINTETICI · CAPTURA DI TEST',
-            ),
+            diagnosticsFixtureLabelProvider.overrideWithValue('DATI SINTETICI · CAPTURA DI TEST'),
             themeRepositoryProvider.overrideWithValue(repo),
             daemonEndpointProvider.overrideWith((ref) async => null),
-            connectionStateProvider.overrideWith(
-              (ref) => Stream.value(DaemonConnectionState.connected),
-            ),
+            connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
             sessionListProvider.overrideWith(
               (ref) async => [
                 {
@@ -259,14 +213,9 @@ void main() {
                 },
               ],
             ),
-            activeSessionIdProvider.overrideWith(
-              (ref) => sampleSession.sessionId,
-            ),
-            sessionStateFamily(sampleSession.sessionId).overrideWith(
-              (ref) =>
-                  SessionStateNotifier(sampleSession.sessionId, null)
-                    ..state = sampleSession,
-            ),
+            activeSessionIdProvider.overrideWith((ref) => sampleSession.sessionId),
+            sessionStateFamily(sampleSession.sessionId)
+                .overrideWith((ref) => SessionStateNotifier(sampleSession.sessionId, null)..state = sampleSession),
           ],
           child: RepaintBoundary(
             key: boundaryKey,
@@ -289,11 +238,7 @@ void main() {
       if (size.width >= 1440) {
         expect(find.text('REPOSITORY'), findsOneWidget);
         expect(_gitPaneHeader, findsOneWidget);
-        final divider = find.byKey(
-          const ValueKey(
-            'pane-divider-WorkspacePane.repository-WorkspacePane.chat',
-          ),
-        );
+        final divider = find.byKey(const ValueKey('pane-divider-WorkspacePane.repository-WorkspacePane.chat'));
         expect(divider, findsOneWidget);
         await tester.drag(divider, const Offset(36, 0));
         await tester.pumpAndSettle();
@@ -331,13 +276,8 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('companion-tab-git')));
         await tester.pumpAndSettle();
         expect(find.text('MODIFICHE GIT'), findsOneWidget);
-        expect(
-          find.byKey(const ValueKey('companion-tab-repository')),
-          findsOneWidget,
-        );
-        await tester.tap(
-          find.byKey(const ValueKey('companion-tab-repository')),
-        );
+        expect(find.byKey(const ValueKey('companion-tab-repository')), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('companion-tab-repository')));
         await tester.pumpAndSettle();
         expect(find.text('FILE'), findsOneWidget);
       }
@@ -349,19 +289,13 @@ void main() {
       // The drawer has its own "Sessione · <session title>" heading.
       expect(find.textContaining('Sessione · '), findsOneWidget);
       // The title bar button is labelled "Sessione" too, so check the drawer state.
-      expect(
-        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
-        isTrue,
-      );
+      expect(tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen, isTrue);
       expect(find.textContaining('File Modificati'), findsNothing);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-workspace');
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      expect(
-        tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen,
-        isFalse,
-      );
+      expect(tester.state<ScaffoldState>(find.byType(Scaffold).first).isEndDrawerOpen, isFalse);
 
       await tester.tap(find.byTooltip('Impostazioni (Ctrl / Cmd + ,)'));
       await tester.pumpAndSettle();
@@ -374,13 +308,9 @@ void main() {
           await capture(tester, boundaryKey, '$name-$tab');
         }
       }
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(AppShell)),
-      );
+      final container = ProviderScope.containerOf(tester.element(find.byType(AppShell)));
       container.read(showSettingsProvider.notifier).state = false;
-      container
-          .read(sessionStateFamily(sampleSession.sessionId).notifier)
-          .state = sampleSession.copyWith(
+      container.read(sessionStateFamily(sampleSession.sessionId).notifier).state = sampleSession.copyWith(
         agentStatus: AgentStatus.working,
       );
       await tester.pump(const Duration(milliseconds: 240));
@@ -390,9 +320,7 @@ void main() {
       expect(find.text('Follow-up'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await capture(tester, boundaryKey, '$name-streaming');
-      container
-          .read(sessionStateFamily(sampleSession.sessionId).notifier)
-          .state = sampleSession.copyWith(
+      container.read(sessionStateFamily(sampleSession.sessionId).notifier).state = sampleSession.copyWith(
         readOnly: true,
         readOnlyReason: 'unknown',
       );
@@ -407,10 +335,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CommandPalette), findsOneWidget);
       await tester.enterText(
-        find.descendant(
-          of: find.byType(CommandPalette),
-          matching: find.byType(TextField),
-        ),
+        find.descendant(of: find.byType(CommandPalette), matching: find.byType(TextField)),
         'Impostazioni',
       );
       await tester.pump();
@@ -427,9 +352,7 @@ void main() {
     });
   }
 
-  testWidgets('D9 captures the locked Bento Triptych workspace', (
-    tester,
-  ) async {
+  testWidgets('D9 captures the locked Bento Triptych workspace', (tester) async {
     const size = Size(1440, 960);
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -442,24 +365,18 @@ void main() {
     final repo = ThemeRepository()
       ..registerThemeJson(themeJson)
       ..setActiveTheme(themeName);
-    final capturePrefix = dark
-        ? 'bento-triptych-fixture-dark'
-        : 'bento-triptych-fixture';
+    final capturePrefix = dark ? 'bento-triptych-fixture-dark' : 'bento-triptych-fixture';
     addTearDown(repo.dispose);
     final client = _VisualWorkspaceClient();
     final boundaryKey = GlobalKey();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          diagnosticsFixtureLabelProvider.overrideWithValue(
-            'DATI SINTETICI · D9',
-          ),
+          diagnosticsFixtureLabelProvider.overrideWithValue('DATI SINTETICI · D9'),
           themeRepositoryProvider.overrideWithValue(repo),
           daemonEndpointProvider.overrideWith((ref) async => null),
           pcpClientProvider.overrideWithValue(client),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
           sessionListProvider.overrideWith(
             (ref) async => [
               {
@@ -471,14 +388,9 @@ void main() {
               },
             ],
           ),
-          activeSessionIdProvider.overrideWith(
-            (ref) => sampleSession.sessionId,
-          ),
-          sessionStateFamily(sampleSession.sessionId).overrideWith(
-            (ref) =>
-                SessionStateNotifier(sampleSession.sessionId, null)
-                  ..state = sampleSession,
-          ),
+          activeSessionIdProvider.overrideWith((ref) => sampleSession.sessionId),
+          sessionStateFamily(sampleSession.sessionId)
+              .overrideWith((ref) => SessionStateNotifier(sampleSession.sessionId, null)..state = sampleSession),
         ],
         child: RepaintBoundary(
           key: boundaryKey,
@@ -491,10 +403,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('claude-sonnet', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.textContaining('claude-sonnet', findRichText: true), findsOneWidget);
     expect(find.textContaining('55.2%', findRichText: true), findsOneWidget);
     expect(find.textContaining('\$0.4200', findRichText: true), findsOneWidget);
     // Extension statuses live in the header's Plugins popup.
@@ -508,12 +417,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('caveman', findRichText: true), findsNothing);
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AppShell)),
-    );
-    final repository = container.read(
-      repositoryStateProvider(sampleSession.sessionId).notifier,
-    );
+    final container = ProviderScope.containerOf(tester.element(find.byType(AppShell)));
+    final repository = container.read(repositoryStateProvider(sampleSession.sessionId).notifier);
     await repository.loadFiles();
     await repository.selectFile('apps/pi_frame/lib/app/app_shell.dart');
     await tester.pumpAndSettle();
@@ -521,12 +426,7 @@ void main() {
     expect(find.text('REPOSITORY'), findsOneWidget);
     expect(_gitPaneHeader, findsOneWidget);
     expect(tester.takeException(), isNull);
-    await capture(
-      tester,
-      boundaryKey,
-      '$capturePrefix-wide',
-      outputDirectory: '../../docs/design-evidence',
-    );
+    await capture(tester, boundaryKey, '$capturePrefix-wide', outputDirectory: '../../docs/design-evidence');
     await tester.tap(find.byTooltip('Apri sessioni'));
     await tester.pumpAndSettle();
     expect(find.text('Sessioni'), findsOneWidget);
@@ -545,30 +445,15 @@ void main() {
     await tester.tap(find.byTooltip('Torna ai file'));
     await tester.pumpAndSettle();
     expect(find.text('app_shell.dart'), findsOneWidget);
-    await capture(
-      tester,
-      boundaryKey,
-      '$capturePrefix-compact-files',
-      outputDirectory: '../../docs/design-evidence',
-    );
+    await capture(tester, boundaryKey, '$capturePrefix-compact-files', outputDirectory: '../../docs/design-evidence');
     await tester.tap(find.text('app_shell.dart').first);
     await tester.pumpAndSettle();
     expect(find.byTooltip('Torna ai file'), findsOneWidget);
-    await capture(
-      tester,
-      boundaryKey,
-      '$capturePrefix-compact-file',
-      outputDirectory: '../../docs/design-evidence',
-    );
+    await capture(tester, boundaryKey, '$capturePrefix-compact-file', outputDirectory: '../../docs/design-evidence');
     await tester.tap(find.text('Modifiche Git').first);
     await tester.pumpAndSettle();
     expect(_gitPaneHeader, findsOneWidget);
-    await capture(
-      tester,
-      boundaryKey,
-      '$capturePrefix-compact-git',
-      outputDirectory: '../../docs/design-evidence',
-    );
+    await capture(tester, boundaryKey, '$capturePrefix-compact-git', outputDirectory: '../../docs/design-evidence');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

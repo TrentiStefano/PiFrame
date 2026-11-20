@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
-import { awaitSubagentStopped, mapLiveStatus, parseLiveSubagents, resolveSubagentStatus, type SubagentRuntime } from '../liveSubagents.js';
+import {
+  awaitSubagentStopped,
+  mapLiveStatus,
+  parseLiveSubagents,
+  resolveSubagentStatus,
+  type SubagentRuntime
+} from '../liveSubagents.js';
 import { Session } from '../Session.js';
 
 const report = (agents: any[], anyRunning: boolean) =>
@@ -10,7 +16,7 @@ const runtime = (live: any, extra: Partial<SubagentRuntime> = {}): SubagentRunti
   live: live ? parseLiveSubagents(live, 10) : null,
   workerAlive: true,
   workerGone: false,
-  ...extra,
+  ...extra
 });
 
 test('parseLiveSubagents accepts only the bridge format', () => {
@@ -19,7 +25,10 @@ test('parseLiveSubagents accepts only the bridge format', () => {
   const state = parseLiveSubagents(report([{ id: 'a', status: 'running' }, { status: 'x' }], true), 42)!;
   assert.equal(state.anyRunning, true);
   assert.equal(state.receivedAt, 42);
-  assert.deepEqual(state.agents.map((a) => a.id), ['a']);
+  assert.deepEqual(
+    state.agents.map((a) => a.id),
+    ['a']
+  );
 });
 
 test('mapLiveStatus speaks PiFrame', () => {
@@ -64,7 +73,7 @@ test('Session keeps the bridge report as live state, never as a status line', ()
     type: 'extension_ui_request',
     method: 'setStatus',
     statusKey: 'piframe-subagents',
-    statusText: report([{ id: 'a', status: 'running' }], true),
+    statusText: report([{ id: 'a', status: 'running' }], true)
   });
   assert.deepEqual(emitted, []);
   assert.equal(session.hasRunningSubagents, true);
@@ -80,7 +89,9 @@ test('Session keeps the bridge report as live state, never as a status line', ()
 
 test('awaitSubagentStopped waits for the bridge to confirm the stop', async () => {
   let live = parseLiveSubagents(report([{ id: 'a', status: 'running' }], true));
-  setTimeout(() => { live = parseLiveSubagents(report([{ id: 'a', status: 'stopped' }], false)); }, 30);
+  setTimeout(() => {
+    live = parseLiveSubagents(report([{ id: 'a', status: 'stopped' }], false));
+  }, 30);
   assert.equal(await awaitSubagentStopped(() => live, 'a', 1000, 10), true);
   // Never confirmed: false after the timeout.
   const stuck = parseLiveSubagents(report([{ id: 'b', status: 'running' }], true));

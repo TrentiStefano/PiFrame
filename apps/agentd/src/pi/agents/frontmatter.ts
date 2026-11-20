@@ -10,10 +10,7 @@ function parseScalar(raw: string): any {
   if (trimmed === 'null' || trimmed === '~') return null;
 
   // Quoted string
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
     return trimmed.slice(1, -1);
   }
 
@@ -98,7 +95,11 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
         if (colonIdx !== -1) {
           const subKey = trimmedLine.slice(0, colonIdx).trim();
           const subVal = parseScalar(trimmedLine.slice(colonIdx + 1));
-          if (typeof result[currentKey] !== 'object' || result[currentKey] === null || Array.isArray(result[currentKey])) {
+          if (
+            typeof result[currentKey] !== 'object' ||
+            result[currentKey] === null ||
+            Array.isArray(result[currentKey])
+          ) {
             result[currentKey] = {};
           }
           result[currentKey][subKey] = subVal;

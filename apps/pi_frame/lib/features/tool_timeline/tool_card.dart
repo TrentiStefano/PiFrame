@@ -20,23 +20,13 @@ class ParsedToolOutput {
   final String? filename;
   final String rawText;
 
-  const ParsedToolOutput({
-    this.summaryText,
-    this.diffText,
-    this.filename,
-    required this.rawText,
-  });
+  const ParsedToolOutput({this.summaryText, this.diffText, this.filename, required this.rawText});
 }
 
 typedef _ParsedToolOutput = ParsedToolOutput;
 
-final RegExp _patchRegex = RegExp(
-  r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)',
-  dotAll: true,
-);
-final RegExp _fileRegex = RegExp(
-  r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)',
-);
+final RegExp _patchRegex = RegExp(r'(?:patch|diff)\s*[:=]\s*([---|\+\+\+|@@].*)', dotAll: true);
+final RegExp _fileRegex = RegExp(r'(?:---|\+\+\+)\s+[ab]?/?([^\s\n]+)');
 
 IconData getToolIcon(String name) {
   switch (name.toLowerCase()) {
@@ -103,9 +93,8 @@ ParsedToolOutput parseToolOutput(ToolExecutionState tool) {
 
   String? summary;
   String? diff;
-  String? filename = tool.args['path']?.toString() ??
-      tool.args['file']?.toString() ??
-      tool.args['filePath']?.toString();
+  String? filename =
+      tool.args['path']?.toString() ?? tool.args['file']?.toString() ?? tool.args['filePath']?.toString();
 
   // 1. Try parsing JSON output
   try {
@@ -125,11 +114,9 @@ ParsedToolOutput parseToolOutput(ToolExecutionState tool) {
       // Details map
       if (decoded['details'] is Map) {
         final details = decoded['details'] as Map;
-        if (details['patch'] != null &&
-            details['patch'].toString().isNotEmpty) {
+        if (details['patch'] != null && details['patch'].toString().isNotEmpty) {
           diff = details['patch'].toString();
-        } else if (details['diff'] != null &&
-            details['diff'].toString().isNotEmpty) {
+        } else if (details['diff'] != null && details['diff'].toString().isNotEmpty) {
           diff = details['diff'].toString();
         }
       }
@@ -153,12 +140,7 @@ ParsedToolOutput parseToolOutput(ToolExecutionState tool) {
     if (fileMatch != null) filename = fileMatch.group(1);
   }
 
-  return ParsedToolOutput(
-    summaryText: summary,
-    diffText: diff,
-    filename: filename,
-    rawText: raw,
-  );
+  return ParsedToolOutput(summaryText: summary, diffText: diff, filename: filename, rawText: raw);
 }
 
 class ToolCard extends StatefulWidget {
@@ -190,8 +172,7 @@ class _ToolCardState extends State<ToolCard> {
   @override
   void didUpdateWidget(covariant ToolCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.tool.isRunning &&
-        (!oldWidget.tool.isRunning || widget.tool.startedAt != oldWidget.tool.startedAt)) {
+    if (widget.tool.isRunning && (!oldWidget.tool.isRunning || widget.tool.startedAt != oldWidget.tool.startedAt)) {
       _startLiveTimer();
     } else if (!widget.tool.isRunning && oldWidget.tool.isRunning) {
       _stopLiveTimer();
@@ -241,8 +222,7 @@ class _ToolCardState extends State<ToolCard> {
     if (tool.args.containsKey('cmd') && tool.args['cmd'] != null) {
       return tool.args['cmd'].toString();
     }
-    if (tool.args.containsKey('CommandLine') &&
-        tool.args['CommandLine'] != null) {
+    if (tool.args.containsKey('CommandLine') && tool.args['CommandLine'] != null) {
       return tool.args['CommandLine'].toString();
     }
     if (tool.args.containsKey('script') && tool.args['script'] != null) {
@@ -278,8 +258,7 @@ class _ToolCardState extends State<ToolCard> {
 
   IconData _getToolIcon(String name) => getToolIcon(name);
 
-  Color _getToolColor(String name, FrameTokens tokens) =>
-      getToolColor(name, tokens);
+  Color _getToolColor(String name, FrameTokens tokens) => getToolColor(name, tokens);
 
   _ParsedToolOutput _parseOutput(ToolExecutionState tool) {
     if (_cachedParsedOutput != null && _cachedOutput == tool.output) {
@@ -320,15 +299,12 @@ class _ToolCardState extends State<ToolCard> {
     }
 
     final hasOutput = tool.output.isNotEmpty;
-    final canExpand =
-        hasOutput || commandText != null || parsed.diffText != null;
+    final canExpand = hasOutput || commandText != null || parsed.diffText != null;
     final toolColor = _getToolColor(tool.toolName, tokens);
 
     // Timing calculation
     final durationMs = tool.elapsedMsAt(DateTime.now().millisecondsSinceEpoch);
-    final durationSeconds = durationMs != null
-        ? (durationMs / 1000).floor()
-        : 0;
+    final durationSeconds = durationMs != null ? (durationMs / 1000).floor() : 0;
     final isOver5Seconds = durationSeconds >= 5;
 
     return RepaintBoundary(
@@ -348,15 +324,10 @@ class _ToolCardState extends State<ToolCard> {
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 1),
                 alignment: Alignment.centerLeft,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 2.5,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2.5),
                 child: Row(
                   children: [
                     Icon(
@@ -393,9 +364,7 @@ class _ToolCardState extends State<ToolCard> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: isTerminal
-                                      ? tokens.syntaxNumber
-                                      : tokens.syntaxString,
+                                  color: isTerminal ? tokens.syntaxNumber : tokens.syntaxString,
                                   fontSize: FrameText.of(context).caption.fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   fontWeight: FontWeight.w500,
@@ -411,10 +380,7 @@ class _ToolCardState extends State<ToolCard> {
                       const SizedBox(width: 6),
                       Container(
                         key: const ValueKey('tool-card-seconds-counter'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -426,9 +392,7 @@ class _ToolCardState extends State<ToolCard> {
                             Icon(
                               Icons.timer_outlined,
                               size: 11,
-                              color: tool.isRunning
-                                  ? tokens.agentWorking
-                                  : tokens.textMuted,
+                              color: tool.isRunning ? tokens.agentWorking : tokens.textMuted,
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -456,10 +420,7 @@ class _ToolCardState extends State<ToolCard> {
                     ] else if (tool.durationMs != null) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -480,10 +441,7 @@ class _ToolCardState extends State<ToolCard> {
                       const SizedBox(width: 6),
                       Container(
                         key: const ValueKey('tool-card-timeout-badge'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -508,25 +466,14 @@ class _ToolCardState extends State<ToolCard> {
                           child: SizedBox(
                             width: 12,
                             height: 12,
-                            child: FrameActivityIndicator(size: 12, 
-                              strokeWidth: 1.5,
-                              color: tokens.agentWorking,
-                            ),
+                            child: FrameActivityIndicator(size: 12, strokeWidth: 1.5, color: tokens.agentWorking),
                           ),
                         ),
                       )
                     else if (tool.isError)
-                      Icon(
-                        Icons.error_outline,
-                        size: FrameSize.iconSm,
-                        color: tokens.agentError,
-                      )
+                      Icon(Icons.error_outline, size: FrameSize.iconSm, color: tokens.agentError)
                     else
-                      Icon(
-                        Icons.check_circle_outline,
-                        size: FrameSize.iconSm,
-                        color: tokens.agentSettled,
-                      ),
+                      Icon(Icons.check_circle_outline, size: FrameSize.iconSm, color: tokens.agentSettled),
                     const SizedBox(width: 4),
                     if (canExpand)
                       Icon(
@@ -548,227 +495,186 @@ class _ToolCardState extends State<ToolCard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-              Divider(color: tokens.border, height: 1),
-
-              // Full bash / terminal command section
-              if (commandText != null) ...[
-                Container(
-                  key: const ValueKey('tool-card-expanded-command'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: tokens.background,
-                    borderRadius: !hasOutput && parsed.diffText == null
-                        ? BorderRadius.only(
-                            bottomLeft: Radius.circular(tokens.radiusSm),
-                            bottomRight: Radius.circular(tokens.radiusSm),
-                          )
-                        : BorderRadius.zero,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.terminal_outlined,
-                            size: 13,
-                            color: tokens.syntaxNumber,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isTerminal
-                                ? strings.toolCardExecutedCommand
-                                : strings.toolCardCommandParams,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: FrameText.of(context).caption.fontSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (timeoutLabel != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              key: const ValueKey('tool-card-expanded-timeout'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 1.5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tokens.surfaceElevated,
-                                borderRadius: BorderRadius.circular(
-                                  tokens.radiusSm,
-                                ),
-                                border: Border.all(color: tokens.border),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.timer_outlined,
-                                    size: 10,
-                                    color: tokens.textMuted,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    strings.toolCardRequestedTimeout(timeoutLabel),
-                                    style: TextStyle(
-                                      color: tokens.textMuted,
-                                      fontSize: FrameText.of(context).caption.fontSize,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                          const Spacer(),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(context.tokens.radiusSm),
-                            onTap: () {
-                              Clipboard.setData(
-                                ClipboardData(text: commandText),
-                              );
-                              FrameSnackBar.show(
-                                context,
-                                message: strings.toolCardCopiedToClipboard,
-                                duration: const Duration(seconds: 1),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 2,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.copy_outlined,
-                                    size: 11,
-                                    color: tokens.textMuted,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    strings.toolCardCopyCommand,
-                                    style: TextStyle(
-                                      color: tokens.textMuted,
-                                      fontSize: FrameText.of(context).caption.fontSize,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: tokens.surface,
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(color: tokens.borderStrong),
-                        ),
-                        child: SelectableText(
-                          commandText,
-                          selectionWidthStyle: BoxWidthStyle.tight,
-                          style: TextStyle(
-                            color: tokens.syntaxNumber,
-                            fontSize: FrameText.of(context).label.fontSize,
-                            fontFamily: tokens.monoFontFamily,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (hasOutput || parsed.diffText != null)
                   Divider(color: tokens.border, height: 1),
-              ],
 
-              if (parsed.diffText != null) ...[
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (parsed.summaryText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
+                  // Full bash / terminal command section
+                  if (commandText != null) ...[
+                    Container(
+                      key: const ValueKey('tool-card-expanded-command'),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: tokens.background,
+                        borderRadius: !hasOutput && parsed.diffText == null
+                            ? BorderRadius.only(
+                                bottomLeft: Radius.circular(tokens.radiusSm),
+                                bottomRight: Radius.circular(tokens.radiusSm),
+                              )
+                            : BorderRadius.zero,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
                             children: [
-                              Icon(
-                                Icons.check_outlined,
-                                size: 13,
-                                color: tokens.syntaxString,
-                              ),
+                              Icon(Icons.terminal_outlined, size: 13, color: tokens.syntaxNumber),
                               const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  parsed.summaryText!,
-                                  style: TextStyle(
-                                    color: tokens.textSecondary,
-                                    fontSize: FrameText.of(context).caption.fontSize,
-                                    fontWeight: FontWeight.w500,
+                              Text(
+                                isTerminal ? strings.toolCardExecutedCommand : strings.toolCardCommandParams,
+                                style: TextStyle(
+                                  color: tokens.textMuted,
+                                  fontSize: FrameText.of(context).caption.fontSize,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (timeoutLabel != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  key: const ValueKey('tool-card-expanded-timeout'),
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: tokens.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                    border: Border.all(color: tokens.border),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.timer_outlined, size: 10, color: tokens.textMuted),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        strings.toolCardRequestedTimeout(timeoutLabel),
+                                        style: TextStyle(
+                                          color: tokens.textMuted,
+                                          fontSize: FrameText.of(context).caption.fontSize,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const Spacer(),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(context.tokens.radiusSm),
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: commandText));
+                                  FrameSnackBar.show(
+                                    context,
+                                    message: strings.toolCardCopiedToClipboard,
+                                    duration: const Duration(seconds: 1),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.copy_outlined, size: 11, color: tokens.textMuted),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        strings.toolCardCopyCommand,
+                                        style: TextStyle(
+                                          color: tokens.textMuted,
+                                          fontSize: FrameText.of(context).caption.fontSize,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      DiffBlock(
-                        diffText: parsed.diffText!,
-                        filename: parsed.filename,
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (hasOutput) ...[
-                Builder(
-                  builder: (context) {
-                    final notifData = TaskNotificationData.tryParse(tool.output);
-                    if (notifData != null) {
-                      return Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: TaskNotificationCard(data: notifData),
-                      );
-                    }
-                    return Container(
-                      padding: const EdgeInsets.all(8),
-                      constraints: BoxConstraints(
-                        maxHeight: _isExpanded ? 320 : 120,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isTerminal
-                            ? tokens.background
-                            : tokens.surfaceElevated.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(tokens.radiusSm),
-                          bottomRight: Radius.circular(tokens.radiusSm),
-                        ),
-                      ),
-                      child: SingleChildScrollView(
-                        child: SelectableText(
-                          tool.output,
-                          selectionWidthStyle: BoxWidthStyle.tight,
-                          style: TextStyle(
-                            color: tool.isError
-                                ? tokens.agentError
-                                : tokens.textSecondary,
-                            fontSize: FrameText.of(context).caption.fontSize,
-                            fontFamily: tokens.monoFontFamily,
-                            height: 1.4,
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                              border: Border.all(color: tokens.borderStrong),
+                            ),
+                            child: SelectableText(
+                              commandText,
+                              selectionWidthStyle: BoxWidthStyle.tight,
+                              style: TextStyle(
+                                color: tokens.syntaxNumber,
+                                fontSize: FrameText.of(context).label.fontSize,
+                                fontFamily: tokens.monoFontFamily,
+                                height: 1.4,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    );
-                  },
-                ),
-              ],
+                    ),
+                    if (hasOutput || parsed.diffText != null) Divider(color: tokens.border, height: 1),
+                  ],
+
+                  if (parsed.diffText != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (parsed.summaryText != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_outlined, size: 13, color: tokens.syntaxString),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      parsed.summaryText!,
+                                      style: TextStyle(
+                                        color: tokens.textSecondary,
+                                        fontSize: FrameText.of(context).caption.fontSize,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          DiffBlock(diffText: parsed.diffText!, filename: parsed.filename),
+                        ],
+                      ),
+                    ),
+                  ] else if (hasOutput) ...[
+                    Builder(
+                      builder: (context) {
+                        final notifData = TaskNotificationData.tryParse(tool.output);
+                        if (notifData != null) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: TaskNotificationCard(data: notifData),
+                          );
+                        }
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          constraints: BoxConstraints(maxHeight: _isExpanded ? 320 : 120),
+                          decoration: BoxDecoration(
+                            color: isTerminal ? tokens.background : tokens.surfaceElevated.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(tokens.radiusSm),
+                              bottomRight: Radius.circular(tokens.radiusSm),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            child: SelectableText(
+                              tool.output,
+                              selectionWidthStyle: BoxWidthStyle.tight,
+                              style: TextStyle(
+                                color: tool.isError ? tokens.agentError : tokens.textSecondary,
+                                fontSize: FrameText.of(context).caption.fontSize,
+                                fontFamily: tokens.monoFontFamily,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

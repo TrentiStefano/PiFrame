@@ -4,10 +4,16 @@ export function isLoopbackHost(host: string | undefined, port: number): boolean 
   if (!host) return false;
   try {
     const url = new URL(`http://${host}`);
-    return ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) &&
-      !url.username && !url.password && url.pathname === '/' &&
-      Number(url.port || 80) === port;
-  } catch { return false; }
+    return (
+      ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) &&
+      !url.username &&
+      !url.password &&
+      url.pathname === '/' &&
+      Number(url.port || 80) === port
+    );
+  } catch {
+    return false;
+  }
 }
 
 const PROXY_HEADER_NAMES = [
@@ -30,7 +36,9 @@ const PROXY_HEADER_NAMES = [
  * Checks whether an incoming HTTP request carries reverse-proxy headers.
  * The direct loopback listener strictly rejects these to prevent reverse-proxy confusion.
  */
-export function hasProxyHeaders(req: http.IncomingMessage | { headers: Record<string, string | string[] | undefined> }): boolean {
+export function hasProxyHeaders(
+  req: http.IncomingMessage | { headers: Record<string, string | string[] | undefined> }
+): boolean {
   const headers = req.headers;
   for (const name of PROXY_HEADER_NAMES) {
     if (headers[name] !== undefined) return true;
@@ -48,7 +56,7 @@ export function isOriginAllowed(origin: string | undefined, allowedOrigins: stri
 
     // Loopback origins are allowed on matching port
     if (host === '127.0.0.1' || host === 'localhost') {
-      const originPort = parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https:' ? 443 : 80);
+      const originPort = parsed.port ? parseInt(parsed.port, 10) : parsed.protocol === 'https:' ? 443 : 80;
       if (originPort === port) return true;
     }
 

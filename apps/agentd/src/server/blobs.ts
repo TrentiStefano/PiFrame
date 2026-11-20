@@ -62,7 +62,11 @@ export function safeBlobName(rawHeader: string | undefined, contentType: string 
     }
   }
   const base = decoded.replace(/\\/g, '/').split('/').pop() ?? '';
-  let name = base.replace(/[^A-Za-z0-9._ -]/g, '_').replace(/^\.+/, '').trim().slice(0, 100);
+  let name = base
+    .replace(/[^A-Za-z0-9._ -]/g, '_')
+    .replace(/^\.+/, '')
+    .trim()
+    .slice(0, 100);
   const mime = (contentType ?? '').split(';')[0].trim().toLowerCase();
   if (!name) name = 'file';
   if (!/\.[A-Za-z0-9]{1,8}$/.test(name) && EXT_BY_MIME[mime]) name += EXT_BY_MIME[mime];

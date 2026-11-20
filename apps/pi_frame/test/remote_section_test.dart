@@ -27,13 +27,15 @@ class _MockRemoteClient extends PcpClient {
   Future<Map<String, dynamic>> getRemoteStatus() async {
     if (statusError != null) throw statusError!;
     return {
-      'data': initialData ?? {
-        'enabled': false,
-        'state': 'stopped',
-        'tunnelProvider': 'cloudflared',
-        'devices': [],
-        'options': {'defaultMode': 'view'},
-      },
+      'data':
+          initialData ??
+          {
+            'enabled': false,
+            'state': 'stopped',
+            'tunnelProvider': 'cloudflared',
+            'devices': [],
+            'options': {'defaultMode': 'view'},
+          },
     };
   }
 }
@@ -43,12 +45,8 @@ void main() {
     final client = _MockRemoteClient();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(body: RemoteSection()),
-        ),
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: const MaterialApp(home: Scaffold(body: RemoteSection())),
       ),
     );
 
@@ -65,18 +63,12 @@ void main() {
     expect(find.text('Configurazione provider tunnel'), findsOneWidget);
   });
 
-  testWidgets('a failed status load shows a callout with raw text behind Dettagli', (
-    tester,
-  ) async {
+  testWidgets('a failed status load shows a callout with raw text behind Dettagli', (tester) async {
     final client = _MockRemoteClient()..statusError = StateError('remote-boom-7');
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(body: RemoteSection()),
-        ),
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: const MaterialApp(home: Scaffold(body: RemoteSection())),
       ),
     );
 
@@ -113,19 +105,15 @@ void main() {
             'remoteIp': '198.51.100.42',
             'lastUsedAt': DateTime.now().millisecondsSinceEpoch,
             'expiresAt': DateTime.now().millisecondsSinceEpoch + 86400000,
-          }
+          },
         ],
       },
     );
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(body: RemoteSection()),
-        ),
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: const MaterialApp(home: Scaffold(body: RemoteSection())),
       ),
     );
 
@@ -159,12 +147,8 @@ void main() {
     final client = _MockRemoteClient(initialData: data);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(body: RemoteSection()),
-        ),
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: const MaterialApp(home: Scaffold(body: RemoteSection())),
       ),
     );
     await tester.pump();
@@ -177,10 +161,12 @@ void main() {
     await tester.pump();
 
     // The missing-binary notice is a FrameCallout: its info tone uses the info icon.
-    final icon = tester.widget<Icon>(find.descendant(
-      of: find.byKey(const ValueKey('remote-tailscale-missing')),
-      matching: find.byIcon(Icons.info_outlined),
-    ));
+    final icon = tester.widget<Icon>(
+      find.descendant(
+        of: find.byKey(const ValueKey('remote-tailscale-missing')),
+        matching: find.byIcon(Icons.info_outlined),
+      ),
+    );
     expect(icon.color, FrameTokens.dark.info);
     expect(icon.color, isNot(FrameTokens.dark.warning));
     expect(icon.color, isNot(FrameTokens.dark.danger));
@@ -191,10 +177,12 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -600));
     await tester.pump();
 
-    final icon = tester.widget<Icon>(find.descendant(
-      of: find.byKey(const ValueKey('remote-tailscale-missing')),
-      matching: find.byIcon(Icons.warning_amber_outlined),
-    ));
+    final icon = tester.widget<Icon>(
+      find.descendant(
+        of: find.byKey(const ValueKey('remote-tailscale-missing')),
+        matching: find.byIcon(Icons.warning_amber_outlined),
+      ),
+    );
     expect(icon.color, FrameTokens.dark.warning);
     expect(icon.color, isNot(FrameTokens.dark.danger));
   });

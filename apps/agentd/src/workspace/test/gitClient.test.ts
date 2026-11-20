@@ -90,7 +90,10 @@ test('gitClient: status reports branch on a branch and the short commit when det
 
   const onBranch = await getGitStatus(repo);
   assert.equal(onBranch.branch, 'topic');
-  assert.deepEqual(onBranch.files.map((file) => [file.path, file.status]), [['a.txt', 'modified']]);
+  assert.deepEqual(
+    onBranch.files.map((file) => [file.path, file.status]),
+    [['a.txt', 'modified']]
+  );
 
   git(repo, 'checkout', '-q', '--detach');
   const detached = await getGitStatus(repo);

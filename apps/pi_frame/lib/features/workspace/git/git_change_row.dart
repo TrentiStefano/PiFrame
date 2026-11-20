@@ -13,14 +13,9 @@ import '../../../ui/motion.dart';
 enum _ChangeOrigin { pi, manual, piAndManual }
 
 bool _pathSetContains(Set<String> paths, String path) =>
-    paths.contains(path) ||
-    paths.any((value) => value.toLowerCase() == path.toLowerCase());
+    paths.contains(path) || paths.any((value) => value.toLowerCase() == path.toLowerCase());
 
-_ChangeOrigin? _changeOrigin(
-  String path,
-  Set<String> piTouchedPaths,
-  Set<String> manualSavedPaths,
-) {
+_ChangeOrigin? _changeOrigin(String path, Set<String> piTouchedPaths, Set<String> manualSavedPaths) {
   final touchedByPi = _pathSetContains(piTouchedPaths, path);
   final savedHere = _pathSetContains(manualSavedPaths, path);
   if (touchedByPi && savedHere) return _ChangeOrigin.piAndManual;
@@ -29,12 +24,11 @@ _ChangeOrigin? _changeOrigin(
   return null;
 }
 
-String _originLabel(_ChangeOrigin origin, AppStrings strings) =>
-    switch (origin) {
-      _ChangeOrigin.piAndManual => strings.gitOriginPiAndManual,
-      _ChangeOrigin.pi => strings.gitOriginPiTool,
-      _ChangeOrigin.manual => strings.gitOriginManualSave,
-    };
+String _originLabel(_ChangeOrigin origin, AppStrings strings) => switch (origin) {
+  _ChangeOrigin.piAndManual => strings.gitOriginPiAndManual,
+  _ChangeOrigin.pi => strings.gitOriginPiTool,
+  _ChangeOrigin.manual => strings.gitOriginManualSave,
+};
 
 /// One-letter badge for a daemon file status (`modified`, `untracked`, ...).
 String _statusCode(String status) => switch (status) {
@@ -60,10 +54,7 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
 /// Splits a path into its file name and parent directory. [dir] is null for a
 /// file at the root.
 ({String name, String? dir}) splitGitPath(String path) {
-  final cut = [
-    path.lastIndexOf('/'),
-    path.lastIndexOf('\\'),
-  ].reduce((a, b) => a > b ? a : b);
+  final cut = [path.lastIndexOf('/'), path.lastIndexOf('\\')].reduce((a, b) => a > b ? a : b);
   if (cut < 0) return (name: path, dir: null);
   final dir = path.substring(0, cut);
   return (name: path.substring(cut + 1), dir: dir.isEmpty ? null : dir);
@@ -74,8 +65,7 @@ Color _statusColor(String status, FrameTokens tokens) => switch (status) {
 const double gitCompactLayoutWidth = 900;
 
 /// Whether the Git pane is in the compact layout (below [gitCompactLayoutWidth]).
-bool gitCompactLayout(BuildContext context) =>
-    MediaQuery.sizeOf(context).width < gitCompactLayoutWidth;
+bool gitCompactLayout(BuildContext context) => MediaQuery.sizeOf(context).width < gitCompactLayoutWidth;
 
 /// Whether the row actions (stage, unstage, discard) stay visible without a
 /// hover. True where there is no hover pointer: compact layouts, iOS and
@@ -127,11 +117,7 @@ class GitChangeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FrameEnter(
-      offset: FrameSpace.x1,
-      duration: FrameMotion.small,
-      child: _rowBody(context),
-    );
+    return FrameEnter(offset: FrameSpace.x1, duration: FrameMotion.small, child: _rowBody(context));
   }
 
   Widget _rowBody(BuildContext context) {
@@ -170,9 +156,7 @@ class GitChangeRow extends StatelessWidget {
               message: _originLabel(origin, strings),
               child: Icon(
                 key: ValueKey('git-origin-$section-$path'),
-                origin == _ChangeOrigin.manual
-                    ? Icons.person_outline
-                    : Icons.auto_awesome_outlined,
+                origin == _ChangeOrigin.manual ? Icons.person_outline : Icons.auto_awesome_outlined,
                 size: FrameSize.icon,
                 color: tokens.textMuted,
               ),
@@ -186,10 +170,7 @@ class GitChangeRow extends StatelessWidget {
               child: Text(
                 _statusCode(status),
                 textAlign: TextAlign.center,
-                style: text.mono.copyWith(
-                  color: _statusColor(status, tokens),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: text.mono.copyWith(color: _statusColor(status, tokens), fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -201,12 +182,8 @@ class GitChangeRow extends StatelessWidget {
           child: FrameIconAction(
             key: ValueKey('git-$section-toggle-$path'),
             icon: isStaged ? Icons.remove_circle_outline : Icons.add_outlined,
-            tooltip: isStaged
-                ? strings.unstageFileTooltip(path)
-                : strings.stageFileTooltip(path),
-            onPressed: actionsBlocked
-                ? null
-                : () => isStaged ? onUnstage(path) : onStage(path),
+            tooltip: isStaged ? strings.unstageFileTooltip(path) : strings.stageFileTooltip(path),
+            onPressed: actionsBlocked ? null : () => isStaged ? onUnstage(path) : onStage(path),
           ),
         ),
         // Gap between stage and discard, so a misclick does not discard.

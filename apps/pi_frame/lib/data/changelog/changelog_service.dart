@@ -34,9 +34,9 @@ class ChangelogService {
     if (localMarkdown != null && localMarkdown.isNotEmpty) {
       final releases = _parser.parseChangelog(localMarkdown);
       final match = releases.cast<ChangelogRelease?>().firstWhere(
-            (r) => r?.version == targetVersion,
-            orElse: () => null,
-          );
+        (r) => r?.version == targetVersion,
+        orElse: () => null,
+      );
       if (match != null && match.isNotEmpty) {
         return match;
       }
@@ -50,28 +50,17 @@ class ChangelogService {
     // 2. Try fetching from GitHub Releases API
     try {
       final tag = 'v$targetVersion';
-      final uri = Uri.https(
-        'api.github.com',
-        '/repos/$repository/releases/tags/$tag',
-      );
-      final response = await _client.get(
-        uri,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'PiFrame-App',
-        },
-      ).timeout(const Duration(seconds: 6));
+      final uri = Uri.https('api.github.com', '/repos/$repository/releases/tags/$tag');
+      final response = await _client
+          .get(uri, headers: {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'PiFrame-App'})
+          .timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
           final body = data['body']?.toString() ?? '';
           final publishedAt = data['published_at']?.toString();
-          final parsed = _parser.parseReleaseBody(
-            targetVersion,
-            body,
-            date: publishedAt?.split('T').first,
-          );
+          final parsed = _parser.parseReleaseBody(targetVersion, body, date: publishedAt?.split('T').first);
           if (parsed.isNotEmpty) {
             return parsed;
           }
@@ -81,21 +70,17 @@ class ChangelogService {
 
     // 3. Try raw GitHub CHANGELOG.md as secondary online fallback
     try {
-      final rawUri = Uri.https(
-        'raw.githubusercontent.com',
-        '/$repository/main/CHANGELOG.md',
-      );
-      final rawResponse = await _client.get(
-        rawUri,
-        headers: {'User-Agent': 'PiFrame-App'},
-      ).timeout(const Duration(seconds: 6));
+      final rawUri = Uri.https('raw.githubusercontent.com', '/$repository/main/CHANGELOG.md');
+      final rawResponse = await _client
+          .get(rawUri, headers: {'User-Agent': 'PiFrame-App'})
+          .timeout(const Duration(seconds: 6));
 
       if (rawResponse.statusCode == 200) {
         final releases = _parser.parseChangelog(rawResponse.body);
         final match = releases.cast<ChangelogRelease?>().firstWhere(
-              (r) => r?.version == targetVersion,
-              orElse: () => null,
-            );
+          (r) => r?.version == targetVersion,
+          orElse: () => null,
+        );
         if (match != null && match.isNotEmpty) {
           return match;
         }

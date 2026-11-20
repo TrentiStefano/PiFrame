@@ -24,13 +24,10 @@ class DesktopCaptionButtons extends StatefulWidget {
   final Future<bool> Function()? onCloseRequested;
   const DesktopCaptionButtons({super.key, this.onCloseRequested});
   @override
-  State<DesktopCaptionButtons> createState() =>
-      _DesktopCaptionButtonsState();
+  State<DesktopCaptionButtons> createState() => _DesktopCaptionButtonsState();
 }
 
-class _DesktopCaptionButtonsState
-    extends State<DesktopCaptionButtons>
-    with WindowListener {
+class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> with WindowListener {
   bool _maximized = false;
   bool _closing = false;
   @override
@@ -80,8 +77,7 @@ class _DesktopCaptionButtonsState
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final hasScope =
-        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
-            null ||
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() != null ||
         context.findAncestorWidgetOfExactType<ProviderScope>() != null;
     if (hasScope) {
       return Consumer(
@@ -94,17 +90,8 @@ class _DesktopCaptionButtonsState
     return _buildButtons(context, tokens, const AppStrings(AppLanguage.it));
   }
 
-  Widget _buildButtons(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
-    Widget button(
-      String label,
-      IconData icon,
-      VoidCallback action, {
-      bool close = false,
-    }) => Tooltip(
+  Widget _buildButtons(BuildContext context, FrameTokens tokens, AppStrings strings) {
+    Widget button(String label, IconData icon, VoidCallback action, {bool close = false}) => Tooltip(
       message: label,
       child: SizedBox(
         width: 40,
@@ -128,16 +115,9 @@ class _DesktopCaptionButtonsState
         button(
           _maximized ? strings.captionRestore : strings.captionMaximize,
           _maximized ? Icons.filter_none_outlined : Icons.crop_square_outlined,
-          () => _maximized
-              ? windowManager.unmaximize()
-              : windowManager.maximize(),
+          () => _maximized ? windowManager.unmaximize() : windowManager.maximize(),
         ),
-        button(
-          strings.captionClose,
-          Icons.close_outlined,
-          () => windowManager.close(),
-          close: true,
-        ),
+        button(strings.captionClose, Icons.close_outlined, () => windowManager.close(), close: true),
       ],
     );
   }

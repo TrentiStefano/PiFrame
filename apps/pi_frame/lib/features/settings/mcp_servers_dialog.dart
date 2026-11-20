@@ -77,13 +77,7 @@ class McpServersDialog extends StatefulWidget {
   final List<McpServerItem>? initialServers;
   final AppStrings? strings;
 
-  const McpServersDialog({
-    super.key,
-    required this.tokens,
-    this.projectDir,
-    this.initialServers,
-    this.strings,
-  });
+  const McpServersDialog({super.key, required this.tokens, this.projectDir, this.initialServers, this.strings});
 
   @override
   State<McpServersDialog> createState() => _McpServersDialogState();
@@ -134,12 +128,7 @@ class McpServersDialog extends StatefulWidget {
         strings: bodyStrings,
       ),
       // Passive close is a text button; there is no filled primary here.
-      actions: [
-        FrameDialogAction<void>(
-          label: resolved.close,
-          role: FrameDialogActionRole.cancel,
-        ),
-      ],
+      actions: [FrameDialogAction<void>(label: resolved.close, role: FrameDialogActionRole.cancel)],
     );
   }
 }
@@ -162,10 +151,7 @@ class _McpServersDialogState extends State<McpServersDialog> {
 
 AppStrings _stringsFor(BuildContext context) {
   try {
-    return ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(appStringsProvider);
+    return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
   } catch (_) {
     return const AppStrings(AppLanguage.it);
   }
@@ -177,13 +163,7 @@ class _McpServersBody extends StatefulWidget {
   final List<McpServerItem>? initialServers;
   final AppStrings? strings;
 
-  const _McpServersBody({
-    super.key,
-    required this.tokens,
-    this.projectDir,
-    this.initialServers,
-    this.strings,
-  });
+  const _McpServersBody({super.key, required this.tokens, this.projectDir, this.initialServers, this.strings});
 
   @override
   State<_McpServersBody> createState() => _McpServersBodyState();
@@ -193,10 +173,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
-      return ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(appStringsProvider);
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
       return const AppStrings(AppLanguage.it);
     }
@@ -222,9 +199,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
   String _getGlobalMcpConfigPath() {
     if (kIsWeb) return '';
     final home = Platform.isWindows
-        ? (Platform.environment['USERPROFILE'] ??
-              Platform.environment['HOME'] ??
-              '')
+        ? (Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? '')
         : (Platform.environment['HOME'] ?? '');
     return p.join(home, '.pi', 'agent', 'mcp.json');
   }
@@ -267,16 +242,10 @@ class _McpServersBodyState extends State<_McpServersBody> {
               final name = entry.key.toString();
               final conf = entry.value;
               if (conf is Map) {
-                final isEnabled =
-                    conf['enabled'] != false && conf['disabled'] != true;
+                final isEnabled = conf['enabled'] != false && conf['disabled'] != true;
                 final desc = conf['description']?.toString();
-                final cmd =
-                    conf['command']?.toString() ??
-                    conf['url']?.toString() ??
-                    '';
-                final args = conf['args'] is List
-                    ? (conf['args'] as List).map((e) => e.toString()).join(' ')
-                    : '';
+                final cmd = conf['command']?.toString() ?? conf['url']?.toString() ?? '';
+                final args = conf['args'] is List ? (conf['args'] as List).map((e) => e.toString()).join(' ') : '';
                 final transport = args.isNotEmpty ? '$cmd $args' : cmd;
 
                 serversMap[name] = McpServerItem(
@@ -310,18 +279,10 @@ class _McpServersBodyState extends State<_McpServersBody> {
                 final name = entry.key.toString();
                 final conf = entry.value;
                 if (conf is Map) {
-                  final isEnabled =
-                      conf['enabled'] != false && conf['disabled'] != true;
+                  final isEnabled = conf['enabled'] != false && conf['disabled'] != true;
                   final desc = conf['description']?.toString();
-                  final cmd =
-                      conf['command']?.toString() ??
-                      conf['url']?.toString() ??
-                      '';
-                  final args = conf['args'] is List
-                      ? (conf['args'] as List)
-                            .map((e) => e.toString())
-                            .join(' ')
-                      : '';
+                  final cmd = conf['command']?.toString() ?? conf['url']?.toString() ?? '';
+                  final args = conf['args'] is List ? (conf['args'] as List).map((e) => e.toString()).join(' ') : '';
                   final transport = args.isNotEmpty ? '$cmd $args' : cmd;
 
                   // Project entry overrides global entry with same name
@@ -330,9 +291,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
                     scope: 'project',
                     sourcePath: projectPath,
                     enabled: isEnabled,
-                    transport: transport.isNotEmpty
-                        ? transport
-                        : (serversMap[name]?.transport ?? ''),
+                    transport: transport.isNotEmpty ? transport : (serversMap[name]?.transport ?? ''),
                     state: isEnabled ? 'unknown' : 'disabled',
                     description: desc ?? serversMap[name]?.description,
                   );
@@ -348,18 +307,8 @@ class _McpServersBodyState extends State<_McpServersBody> {
       // 3. Try to query live status from `pi mcp list --json`
       try {
         final result = Platform.isWindows
-            ? await Process.run('cmd.exe', [
-                '/c',
-                'pi',
-                'mcp',
-                'list',
-                '--json',
-              ]).timeout(const Duration(seconds: 4))
-            : await Process.run('pi', [
-                'mcp',
-                'list',
-                '--json',
-              ]).timeout(const Duration(seconds: 4));
+            ? await Process.run('cmd.exe', ['/c', 'pi', 'mcp', 'list', '--json']).timeout(const Duration(seconds: 4))
+            : await Process.run('pi', ['mcp', 'list', '--json']).timeout(const Duration(seconds: 4));
 
         if (result.stdout != null) {
           final rawOutput = result.stdout.toString().trim();
@@ -372,9 +321,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
                   if (name.isEmpty) continue;
 
                   final enabled = item['enabled'] == true;
-                  final state =
-                      item['state']?.toString() ??
-                      (enabled ? 'connected' : 'disabled');
+                  final state = item['state']?.toString() ?? (enabled ? 'connected' : 'disabled');
                   final transport = item['transport']?.toString() ?? '';
                   final source = item['source']?.toString() ?? globalPath;
                   final scope = item['scope']?.toString() ?? 'global';
@@ -393,13 +340,9 @@ class _McpServersBodyState extends State<_McpServersBody> {
                     scope: scope,
                     sourcePath: source,
                     enabled: enabled,
-                    transport: transport.isNotEmpty
-                        ? transport
-                        : (existing?.transport ?? ''),
+                    transport: transport.isNotEmpty ? transport : (existing?.transport ?? ''),
                     state: state,
-                    tools: toolsList.isNotEmpty
-                        ? toolsList
-                        : (existing?.tools ?? const []),
+                    tools: toolsList.isNotEmpty ? toolsList : (existing?.tools ?? const []),
                     description: existing?.description,
                     error: error,
                   );
@@ -414,8 +357,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
 
       if (mounted) {
         setState(() {
-          _servers = serversMap.values.toList()
-            ..sort((a, b) => a.name.compareTo(b.name));
+          _servers = serversMap.values.toList()..sort((a, b) => a.name.compareTo(b.name));
           _isLoading = false;
         });
       }
@@ -434,10 +376,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
       _togglingServers.add(server.name);
       final idx = _servers.indexWhere((s) => s.name == server.name);
       if (idx != -1) {
-        _servers[idx] = _servers[idx].copyWith(
-          enabled: newEnabled,
-          state: newEnabled ? 'enabled' : 'disabled',
-        );
+        _servers[idx] = _servers[idx].copyWith(enabled: newEnabled, state: newEnabled ? 'enabled' : 'disabled');
       }
     });
 
@@ -447,8 +386,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
         final content = await file.readAsString();
         final parsed = jsonDecode(content);
         if (parsed is Map) {
-          final mcpServers =
-              (parsed['mcpServers'] as Map?) ?? <String, dynamic>{};
+          final mcpServers = (parsed['mcpServers'] as Map?) ?? <String, dynamic>{};
           if (mcpServers.containsKey(server.name)) {
             final conf = mcpServers[server.name];
             if (conf is Map) {
@@ -459,15 +397,11 @@ class _McpServersBodyState extends State<_McpServersBody> {
             mcpServers[server.name] = <String, dynamic>{'enabled': newEnabled};
           }
           parsed['mcpServers'] = mcpServers;
-          await file.writeAsString(
-            const JsonEncoder.withIndent('  ').convert(parsed),
-          );
+          await file.writeAsString(const JsonEncoder.withIndent('  ').convert(parsed));
         }
       }
     } catch (e) {
-      debugPrint(
-        'Error updating server ${server.name} in ${server.sourcePath}: $e',
-      );
+      debugPrint('Error updating server ${server.name} in ${server.sourcePath}: $e');
       if (mounted) {
         FrameSnackBar.show(context, message: _strings.mcpSaveError(e), isError: true);
       }
@@ -506,34 +440,22 @@ class _McpServersBodyState extends State<_McpServersBody> {
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                 border: Border.all(color: tokens.border),
               ),
-              child: Icon(
-                Icons.hub_outlined,
-                size: FrameSize.iconLg,
-                color: tokens.textSecondary,
-              ),
+              child: Icon(Icons.hub_outlined, size: FrameSize.iconLg, color: tokens.textSecondary),
             ),
             const SizedBox(width: FrameSpace.x3),
             Expanded(
-              child: Text(
-                strings.mcpDialogSubtitle,
-                style: text.body.copyWith(color: tokens.textSecondary),
-              ),
+              child: Text(strings.mcpDialogSubtitle, style: text.body.copyWith(color: tokens.textSecondary)),
             ),
           ],
         ),
         const SizedBox(height: FrameSpace.x3),
 
         // Height follows the content, with a 240 px floor.
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 240),
-          child: _buildContent(tokens, strings),
-        ),
+        ConstrainedBox(constraints: const BoxConstraints(minHeight: 240), child: _buildContent(tokens, strings)),
 
         const SizedBox(height: FrameSpace.x3),
         Text(
-          _servers.isEmpty
-              ? strings.mcpZeroServers
-              : strings.mcpActiveServersCount(enabledCount, _servers.length),
+          _servers.isEmpty ? strings.mcpZeroServers : strings.mcpActiveServersCount(enabledCount, _servers.length),
           style: text.label.copyWith(color: tokens.textSecondary),
         ),
       ],
@@ -549,10 +471,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
           children: [
             FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2.2, color: tokens.accent),
             const SizedBox(height: FrameSpace.x3),
-            Text(
-              strings.mcpLoadingServers,
-              style: text.body.copyWith(color: tokens.textMuted),
-            ),
+            Text(strings.mcpLoadingServers, style: text.body.copyWith(color: tokens.textMuted)),
           ],
         ),
       );
@@ -591,11 +510,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
     );
   }
 
-  Widget _buildServerCard(
-    FrameTokens tokens,
-    McpServerItem server,
-    AppStrings strings,
-  ) {
+  Widget _buildServerCard(FrameTokens tokens, McpServerItem server, AppStrings strings) {
     final text = FrameText.of(context);
     final isToggling = _togglingServers.contains(server.name);
     final isToolsExpanded = _expandedTools.contains(server.name);
@@ -610,9 +525,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
 
     return Container(
       decoration: BoxDecoration(
-        color: server.enabled
-            ? tokens.surface
-            : tokens.surface.withValues(alpha: 0.4),
+        color: server.enabled ? tokens.surface : tokens.surface.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(tokens.radiusMd),
         border: Border.all(
           color: server.enabled ? tokens.borderStrong : tokens.border,
@@ -623,10 +536,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x3,
-              vertical: FrameSpace.x2 + FrameSpace.x1 / 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2 + FrameSpace.x1 / 2),
             child: Row(
               children: [
                 // Checkbox to enable/disable
@@ -642,15 +552,8 @@ class _McpServersBodyState extends State<_McpServersBody> {
                           value: server.enabled,
                           activeColor: tokens.accent,
                           checkColor: tokens.surface,
-                          side: BorderSide(
-                            color: tokens.borderStrong,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
-                          ),
+                          side: BorderSide(color: tokens.borderStrong, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                           onChanged: (val) {
                             if (val != null) {
                               _toggleServer(server, val);
@@ -669,26 +572,16 @@ class _McpServersBodyState extends State<_McpServersBody> {
                           server.name,
                           overflow: TextOverflow.ellipsis,
                           style: text.mono.copyWith(
-                            color: server.enabled
-                                ? tokens.textPrimary
-                                : tokens.textMuted,
+                            color: server.enabled ? tokens.textPrimary : tokens.textMuted,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       const SizedBox(width: FrameSpace.x2),
-                      FrameStatusTag(
-                        label: statusLabel,
-                        tone: _statusTone(server),
-                      ),
+                      FrameStatusTag(label: statusLabel, tone: _statusTone(server)),
                       if (server.scope == 'project') ...[
                         const SizedBox(width: FrameSpace.x2),
-                        Text(
-                          strings.mcpScopeProject,
-                          style: text.caption.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
+                        Text(strings.mcpScopeProject, style: text.caption.copyWith(color: tokens.textSecondary)),
                       ],
                     ],
                   ),
@@ -697,9 +590,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
                 // Tool count chip, expands the tool list
                 if (server.tools.isNotEmpty)
                   Tooltip(
-                    message: isToolsExpanded
-                        ? strings.mcpHideToolsTooltip
-                        : strings.mcpShowToolsTooltip,
+                    message: isToolsExpanded ? strings.mcpHideToolsTooltip : strings.mcpShowToolsTooltip,
                     child: InkWell(
                       onTap: () {
                         setState(() {
@@ -712,31 +603,19 @@ class _McpServersBodyState extends State<_McpServersBody> {
                       },
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x2 - 2,
-                          vertical: FrameSpace.x1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2 - 2, vertical: FrameSpace.x1),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.build_outlined,
-                              size: FrameSize.icon,
-                              color: tokens.textSecondary,
-                            ),
+                            Icon(Icons.build_outlined, size: FrameSize.icon, color: tokens.textSecondary),
                             const SizedBox(width: FrameSpace.x1),
                             Text(
                               strings.mcpToolsCount(server.tools.length),
-                              style: text.caption.copyWith(
-                                color: tokens.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: text.caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(width: FrameSpace.x1 / 2),
                             Icon(
-                              isToolsExpanded
-                                  ? Icons.keyboard_arrow_up_outlined
-                                  : Icons.keyboard_arrow_down_outlined,
+                              isToolsExpanded ? Icons.keyboard_arrow_up_outlined : Icons.keyboard_arrow_down_outlined,
                               size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),
@@ -752,32 +631,16 @@ class _McpServersBodyState extends State<_McpServersBody> {
           // Description if present
           if (server.description != null && server.description!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                44,
-                0,
-                FrameSpace.x3,
-                FrameSpace.x2 - 2,
-              ),
-              child: Text(
-                server.description!,
-                style: text.caption.copyWith(color: tokens.textSecondary),
-              ),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2 - 2),
+              child: Text(server.description!, style: text.caption.copyWith(color: tokens.textSecondary)),
             ),
 
           // Transport snippet, with a copy action
           if (server.transport.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                44,
-                0,
-                FrameSpace.x3,
-                FrameSpace.x2,
-              ),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FrameSpace.x2,
-                  vertical: FrameSpace.x1,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
                 decoration: BoxDecoration(
                   color: tokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -790,19 +653,14 @@ class _McpServersBodyState extends State<_McpServersBody> {
                         server.transport,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: text.caption.copyWith(
-                          color: tokens.textMuted,
-                          fontFamily: tokens.monoFontFamily,
-                        ),
+                        style: text.caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                       ),
                     ),
                     FrameIconAction(
                       icon: Icons.copy_outlined,
                       tooltip: strings.mcpCopyCommandTooltip,
                       onPressed: () {
-                        Clipboard.setData(
-                          ClipboardData(text: server.transport),
-                        );
+                        Clipboard.setData(ClipboardData(text: server.transport));
                         FrameSnackBar.show(
                           context,
                           message: strings.mcpCommandCopiedSnackBar,
@@ -818,12 +676,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
           // Expandable tools list
           if (isToolsExpanded && server.tools.isNotEmpty)
             Container(
-              margin: const EdgeInsets.fromLTRB(
-                44,
-                0,
-                FrameSpace.x3,
-                FrameSpace.x2,
-              ),
+              margin: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
               padding: const EdgeInsets.all(FrameSpace.x2),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
@@ -836,23 +689,15 @@ class _McpServersBodyState extends State<_McpServersBody> {
                 children: [
                   for (final tool in server.tools)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2 - 2,
-                        vertical: FrameSpace.x1 / 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2 - 2, vertical: FrameSpace.x1 / 2),
                       decoration: BoxDecoration(
                         color: tokens.syntaxFunction.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(
-                          color: tokens.syntaxFunction.withValues(alpha: 0.25),
-                        ),
+                        border: Border.all(color: tokens.syntaxFunction.withValues(alpha: 0.25)),
                       ),
                       child: Text(
                         tool,
-                        style: text.caption.copyWith(
-                          color: tokens.syntaxFunction,
-                          fontFamily: tokens.monoFontFamily,
-                        ),
+                        style: text.caption.copyWith(color: tokens.syntaxFunction, fontFamily: tokens.monoFontFamily),
                       ),
                     ),
                 ],
@@ -862,16 +707,8 @@ class _McpServersBodyState extends State<_McpServersBody> {
           // Error text if present
           if (server.error != null && server.error!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                44,
-                0,
-                FrameSpace.x3,
-                FrameSpace.x2,
-              ),
-              child: Text(
-                server.error!,
-                style: text.caption.copyWith(color: tokens.danger),
-              ),
+              padding: const EdgeInsets.fromLTRB(44, 0, FrameSpace.x3, FrameSpace.x2),
+              child: Text(server.error!, style: text.caption.copyWith(color: tokens.danger)),
             ),
         ],
       ),

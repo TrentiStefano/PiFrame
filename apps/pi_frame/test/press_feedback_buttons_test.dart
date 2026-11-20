@@ -22,9 +22,7 @@ class _NoopUpdateClient implements UpdateClient {
 }
 
 void main() {
-  testWidgets('enabled filled button in Aggiornamenti gets press feedback', (
-    tester,
-  ) async {
+  testWidgets('enabled filled button in Aggiornamenti gets press feedback', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -41,13 +39,8 @@ void main() {
 
     final button = find.byKey(const ValueKey('check_for_updates_button'));
     expect(button, findsOneWidget);
-    expect(
-      find.ancestor(of: button, matching: find.byType(PressFeedback)),
-      findsOneWidget,
-    );
-    final feedback = tester.widget<PressFeedback>(
-      find.ancestor(of: button, matching: find.byType(PressFeedback)),
-    );
+    expect(find.ancestor(of: button, matching: find.byType(PressFeedback)), findsOneWidget);
+    final feedback = tester.widget<PressFeedback>(find.ancestor(of: button, matching: find.byType(PressFeedback)));
     expect(feedback.enabled, isTrue);
   });
 }

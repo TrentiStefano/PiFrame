@@ -28,8 +28,7 @@ class FolderProbe {
 
   /// Whether a session can be created in this folder.
   bool get isValid => switch (status) {
-    FolderStatus.folder || FolderStatus.gitRepo || FolderStatus.unverified =>
-      true,
+    FolderStatus.folder || FolderStatus.gitRepo || FolderStatus.unverified => true,
     FolderStatus.empty || FolderStatus.notFound => false,
   };
 }
@@ -48,8 +47,7 @@ FolderProbe probeFolder(String path) {
       return const FolderProbe(FolderStatus.notFound);
     }
     final marker = '$trimmed${Platform.pathSeparator}.git';
-    if (!FileSystemEntity.isDirectorySync(marker) &&
-        !FileSystemEntity.isFileSync(marker)) {
+    if (!FileSystemEntity.isDirectorySync(marker) && !FileSystemEntity.isFileSync(marker)) {
       return const FolderProbe(FolderStatus.folder);
     }
     return FolderProbe(FolderStatus.gitRepo, branch: _readBranch(marker));
@@ -67,9 +65,7 @@ String? _readBranch(String gitMarker) {
       final pointer = File(gitMarker).readAsStringSync().trim();
       if (!pointer.startsWith('gitdir:')) return null;
       final target = pointer.substring('gitdir:'.length).trim();
-      gitDir = File(target).isAbsolute
-          ? target
-          : '${File(gitMarker).parent.path}${Platform.pathSeparator}$target';
+      gitDir = File(target).isAbsolute ? target : '${File(gitMarker).parent.path}${Platform.pathSeparator}$target';
     }
     final headFile = File('$gitDir${Platform.pathSeparator}HEAD');
     if (!headFile.existsSync()) return null;

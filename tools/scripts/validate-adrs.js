@@ -7,7 +7,7 @@ if (!fs.existsSync(adrDir)) {
   process.exit(1);
 }
 
-const files = fs.readdirSync(adrDir).filter(f => f.endsWith('.md'));
+const files = fs.readdirSync(adrDir).filter((f) => f.endsWith('.md'));
 console.log(`Found ${files.length} ADRs in docs/adr`);
 
 if (files.length !== 17) {

@@ -9,7 +9,9 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 
 void main() {
-  testWidgets('macOS integrated title bar leaves space for traffic lights and omits Windows caption buttons', (tester) async {
+  testWidgets('macOS integrated title bar leaves space for traffic lights and omits Windows caption buttons', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     try {
       tester.view.physicalSize = const Size(1280, 800);
@@ -20,9 +22,7 @@ void main() {
         overrides: [
           desktopChromeProvider.overrideWithValue(true),
           desktopWindowLifecycleProvider.overrideWithValue(false),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         ],
       );
       addTearDown(container.dispose);
@@ -31,9 +31,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const AppShell(),
           ),
         ),
@@ -41,12 +39,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify 76px spacer for macOS traffic lights is present
-      expect(
-        find.byWidgetPredicate(
-          (widget) => widget is SizedBox && widget.width == 76,
-        ),
-        findsOneWidget,
-      );
+      expect(find.byWidgetPredicate((widget) => widget is SizedBox && widget.width == 76), findsOneWidget);
 
       // Verify Windows caption buttons are NOT rendered on macOS
       expect(find.byType(DesktopCaptionButtons), findsNothing);
@@ -66,9 +59,7 @@ void main() {
         overrides: [
           desktopChromeProvider.overrideWithValue(true),
           desktopWindowLifecycleProvider.overrideWithValue(false),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         ],
       );
       addTearDown(container.dispose);
@@ -77,9 +68,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const AppShell(),
           ),
         ),
@@ -87,12 +76,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify 76px spacer for macOS traffic lights is NOT present on Windows
-      expect(
-        find.byWidgetPredicate(
-          (widget) => widget is SizedBox && widget.width == 76,
-        ),
-        findsNothing,
-      );
+      expect(find.byWidgetPredicate((widget) => widget is SizedBox && widget.width == 76), findsNothing);
 
       // Verify DesktopCaptionButtons ARE rendered on Windows
       expect(find.byType(DesktopCaptionButtons), findsOneWidget);

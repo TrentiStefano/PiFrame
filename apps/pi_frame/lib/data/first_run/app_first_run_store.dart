@@ -25,9 +25,7 @@ class AppFirstRunStore {
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) dir.createSync(recursive: true);
       return File('${dir.path}/app_first_run.json');

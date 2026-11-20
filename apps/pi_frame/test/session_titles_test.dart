@@ -46,16 +46,15 @@ void main() {
       int? messageCount,
       String? lastPreview,
       AppStrings strings = it,
-    }) =>
-        sessionRailTitle(
-          id: 'sess_1',
-          name: name,
-          qualifiedName: qualifiedName,
-          prompt: prompt,
-          messageCount: messageCount,
-          lastPreview: lastPreview,
-          strings: strings,
-        );
+    }) => sessionRailTitle(
+      id: 'sess_1',
+      name: name,
+      qualifiedName: qualifiedName,
+      prompt: prompt,
+      messageCount: messageCount,
+      lastPreview: lastPreview,
+      strings: strings,
+    );
 
     test('a fresh session with no prompt is untitled, never a timestamp', () {
       expect(title(messageCount: 0), 'Nuova sessione');
@@ -70,21 +69,11 @@ void main() {
     });
 
     test('a chosen name wins over the first prompt', () {
-      expect(
-        title(name: 'Settings work', prompt: 'Add dark mode', messageCount: 2),
-        'Settings work',
-      );
+      expect(title(name: 'Settings work', prompt: 'Add dark mode', messageCount: 2), 'Settings work');
     });
 
     test('a chosen name is qualified by repository when names collide', () {
-      expect(
-        title(
-          name: 'PiFrame',
-          qualifiedName: 'v1 / PiFrame',
-          messageCount: 2,
-        ),
-        'v1 / PiFrame',
-      );
+      expect(title(name: 'PiFrame', qualifiedName: 'v1 / PiFrame', messageCount: 2), 'v1 / PiFrame');
     });
 
     test('an unloaded session takes the first prompt the daemon lists', () {
@@ -136,10 +125,7 @@ void main() {
     });
 
     test('without a loaded prompt, the last message preview is the stopgap', () {
-      expect(
-        title(messageCount: 4, lastPreview: 'Fixing stream buffer overflow'),
-        'Fixing stream buffer overflow',
-      );
+      expect(title(messageCount: 4, lastPreview: 'Fixing stream buffer overflow'), 'Fixing stream buffer overflow');
     });
   });
 

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+
 import '../../domain/update/update_models.dart';
 
 class DownloadProgress {
@@ -10,11 +12,7 @@ class DownloadProgress {
   final int totalBytes;
   final double fraction;
 
-  const DownloadProgress({
-    required this.downloadedBytes,
-    required this.totalBytes,
-    required this.fraction,
-  });
+  const DownloadProgress({required this.downloadedBytes, required this.totalBytes, required this.fraction});
 }
 
 class UpdateException implements Exception {
@@ -42,13 +40,9 @@ class GithubUpdateClient implements UpdateClient {
 
   static const defaultRepository = 'TrentiStefano/piframe';
 
-  GithubUpdateClient({
-    http.Client? client,
-    this.repository = defaultRepository,
-  }) : _client = client ?? http.Client();
+  GithubUpdateClient({http.Client? client, this.repository = defaultRepository}) : _client = client ?? http.Client();
 
-  Uri get _releasesLatestUri =>
-      Uri.https('api.github.com', '/repos/$repository/releases/latest');
+  Uri get _releasesLatestUri => Uri.https('api.github.com', '/repos/$repository/releases/latest');
 
   bool _isAllowedHost(String host) {
     final lower = host.toLowerCase();
@@ -64,13 +58,9 @@ class GithubUpdateClient implements UpdateClient {
   Future<AppRelease?> fetchLatestRelease() async {
     final uri = _releasesLatestUri;
     try {
-      final response = await _client.get(
-        uri,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'PiFrame-App',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await _client
+          .get(uri, headers: {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'PiFrame-App'})
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -81,10 +71,7 @@ class GithubUpdateClient implements UpdateClient {
       } else if (response.statusCode == 404) {
         return null;
       } else if (response.statusCode == 403 || response.statusCode == 429) {
-        throw const UpdateException(
-          'Limite di richieste GitHub raggiunto. Riprova più tardi.',
-          403,
-        );
+        throw const UpdateException('Limite di richieste GitHub raggiunto. Riprova più tardi.', 403);
       } else {
         throw UpdateException(
           'Errore durante il controllo degli aggiornamenti (HTTP ${response.statusCode})',
@@ -92,13 +79,9 @@ class GithubUpdateClient implements UpdateClient {
         );
       }
     } on SocketException {
-      throw const UpdateException(
-        'Impossibile contattare GitHub. Verifica la connessione a Internet.',
-      );
+      throw const UpdateException('Impossibile contattare GitHub. Verifica la connessione a Internet.');
     } on TimeoutException {
-      throw const UpdateException(
-        'La richiesta di aggiornamento a GitHub è scaduta (timeout).',
-      );
+      throw const UpdateException('La richiesta di aggiornamento a GitHub è scaduta (timeout).');
     } catch (e) {
       if (e is UpdateException) rethrow;
       throw UpdateException('Errore imprevisto durante il controllo: $e');
@@ -113,9 +96,7 @@ class GithubUpdateClient implements UpdateClient {
   }) async* {
     final uri = Uri.tryParse(asset.downloadUrl);
     if (uri == null || uri.scheme != 'https' || !_isAllowedHost(uri.host)) {
-      throw const UpdateException(
-        'URL di download non valido o dominio non autorizzato per sicurezza.',
-      );
+      throw const UpdateException('URL di download non valido o dominio non autorizzato per sicurezza.');
     }
 
     final destFile = File(destinationPath);
@@ -126,10 +107,7 @@ class GithubUpdateClient implements UpdateClient {
     }
 
     final request = http.Request('GET', uri)
-      ..headers.addAll({
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'PiFrame-App',
-      });
+      ..headers.addAll({'Accept': 'application/octet-stream', 'User-Agent': 'PiFrame-App'});
 
     final streamedResponse = await _client.send(request);
 
@@ -157,14 +135,8 @@ class GithubUpdateClient implements UpdateClient {
         }
         sink.add(chunk);
         downloadedBytes += chunk.length;
-        final fraction = totalBytes > 0
-            ? (downloadedBytes / totalBytes).clamp(0.0, 1.0)
-            : 0.0;
-        yield DownloadProgress(
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-          fraction: fraction,
-        );
+        final fraction = totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+        yield DownloadProgress(downloadedBytes: downloadedBytes, totalBytes: totalBytes, fraction: fraction);
       }
       await sink.flush();
     } finally {

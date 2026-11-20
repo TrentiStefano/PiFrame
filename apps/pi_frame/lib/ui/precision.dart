@@ -27,20 +27,15 @@ class _PressFeedbackState extends State<PressFeedback> {
     return Listener(
       onPointerDown: (event) {
         if (!widget.enabled) return;
-        if (event.kind == PointerDeviceKind.mouse ||
-            event.kind == PointerDeviceKind.touch) {
+        if (event.kind == PointerDeviceKind.mouse || event.kind == PointerDeviceKind.touch) {
           setState(() => _pressed = true);
         }
       },
       onPointerUp: (_) => _release(),
       onPointerCancel: (_) => _release(),
       child: AnimatedScale(
-        scale: _pressed && widget.enabled && !MediaQuery.disableAnimationsOf(context)
-            ? 0.97
-            : 1,
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : tokens.pressDuration,
+        scale: _pressed && widget.enabled && !MediaQuery.disableAnimationsOf(context) ? 0.97 : 1,
+        duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : tokens.pressDuration,
         curve: tokens.enterCurve,
         child: widget.child,
       ),
@@ -52,8 +47,7 @@ class _LaunchScope extends InheritedWidget {
   final Animation<double> progress;
   const _LaunchScope({required this.progress, required super.child});
   @override
-  bool updateShouldNotify(_LaunchScope oldWidget) =>
-      progress != oldWidget.progress;
+  bool updateShouldNotify(_LaunchScope oldWidget) => progress != oldWidget.progress;
 }
 
 /// A once-per-launch reveal. The application is visible and interactive from
@@ -65,8 +59,7 @@ class LaunchReveal extends StatefulWidget {
   State<LaunchReveal> createState() => _LaunchRevealState();
 }
 
-class _LaunchRevealState extends State<LaunchReveal>
-    with SingleTickerProviderStateMixin {
+class _LaunchRevealState extends State<LaunchReveal> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: FrameMotionTokens.launchReveal,
@@ -105,9 +98,7 @@ class _LaunchRevealState extends State<LaunchReveal>
 
   @override
   Widget build(BuildContext context) {
-    final progress = _controller.drive(
-      CurveTween(curve: context.tokens.enterCurve),
-    );
+    final progress = _controller.drive(CurveTween(curve: context.tokens.enterCurve));
     return Listener(
       onPointerDown: (_) => _finish(),
       child: Focus(
@@ -123,10 +114,7 @@ class _LaunchRevealState extends State<LaunchReveal>
             opacity: Tween<double>(begin: 0.82, end: 1).animate(progress),
             child: SlideTransition(
               key: const ValueKey('launch-transform'),
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.006),
-                end: Offset.zero,
-              ).animate(progress),
+              position: Tween<Offset>(begin: const Offset(0, 0.006), end: Offset.zero).animate(progress),
               child: RepaintBoundary(child: widget.child),
             ),
           ),
@@ -147,11 +135,8 @@ class PiFrameMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
-        tokens.background.computeLuminance() < 0.5;
-    final assetPath = isDark
-        ? 'assets/branding/app_icon_dark_512.png'
-        : 'assets/branding/app_icon_light_512.png';
+    final isDark = Theme.of(context).brightness == Brightness.dark || tokens.background.computeLuminance() < 0.5;
+    final assetPath = isDark ? 'assets/branding/app_icon_dark_512.png' : 'assets/branding/app_icon_light_512.png';
 
     final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
     final cacheDim = (size * dpr).round();
@@ -172,9 +157,7 @@ class PiFrameMark extends StatelessWidget {
           fit: BoxFit.contain,
           excludeFromSemantics: true,
           errorBuilder: (context, error, stackTrace) {
-            final progress = context
-                .dependOnInheritedWidgetOfExactType<_LaunchScope>()
-                ?.progress;
+            final progress = context.dependOnInheritedWidgetOfExactType<_LaunchScope>()?.progress;
             return SizedBox.square(
               dimension: size,
               child: CustomPaint(
@@ -220,15 +203,10 @@ class _MarkPainter extends CustomPainter {
     canvas.scale(size.width / 32, size.height / 32);
     canvas.clipRect(const Rect.fromLTWH(0, 0, 32, 32));
 
-    final overallPhase = curve.transform(
-      (progress?.value ?? 1.0).clamp(0.0, 1.0),
-    );
+    final overallPhase = curve.transform((progress?.value ?? 1.0).clamp(0.0, 1.0));
 
     // 1. Geometric PiFrame outer rounded frame
-    final outerFrame = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(2, 2, 28, 28),
-      const Radius.circular(7),
-    );
+    final outerFrame = RRect.fromRectAndRadius(const Rect.fromLTWH(2, 2, 28, 28), const Radius.circular(7));
     canvas.drawRRect(
       outerFrame,
       Paint()
@@ -239,10 +217,7 @@ class _MarkPainter extends CustomPainter {
 
     // 2. Inner surface background
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(3.2, 3.2, 25.6, 25.6),
-        const Radius.circular(5.5),
-      ),
+      RRect.fromRectAndRadius(const Rect.fromLTWH(3.2, 3.2, 25.6, 25.6), const Radius.circular(5.5)),
       Paint()..color = surfaceColor,
     );
 
@@ -257,18 +232,10 @@ class _MarkPainter extends CustomPainter {
       Rect.fromLTWH(19.25, 16.0, 3.25, 6.5), // i block (Amber)
     ];
 
-    final partColors = [
-      blueColor,
-      coralColor,
-      coralColor,
-      coralColor,
-      amberColor,
-    ];
+    final partColors = [blueColor, coralColor, coralColor, coralColor, amberColor];
 
     for (var i = 0; i < parts.length; i++) {
-      final phase = curve.transform(
-        (((progress?.value ?? 1) * 1.6) - (i * 0.12)).clamp(0.0, 1.0),
-      );
+      final phase = curve.transform((((progress?.value ?? 1) * 1.6) - (i * 0.12)).clamp(0.0, 1.0));
       canvas.drawRect(
         parts[i].shift(Offset((1 - phase) * (i.isEven ? -6 : 6), 0)),
         Paint()..color = partColors[i].withValues(alpha: 0.15 + 0.85 * phase),

@@ -14,18 +14,8 @@ class _NoPinsNotifier extends PinnedSessionsNotifier {
 
 Future<void> _pumpRail(WidgetTester tester) async {
   final sessions = [
-    {
-      'id': 'a1',
-      'name': 'Alpha one',
-      'cwd': '/repos/alpha',
-      'lastActivityAt': 2000000000000,
-    },
-    {
-      'id': 'b1',
-      'name': 'Beta one',
-      'cwd': '/repos/beta',
-      'lastActivityAt': 1000000000000,
-    },
+    {'id': 'a1', 'name': 'Alpha one', 'cwd': '/repos/alpha', 'lastActivityAt': 2000000000000},
+    {'id': 'b1', 'name': 'Beta one', 'cwd': '/repos/beta', 'lastActivityAt': 1000000000000},
   ];
   await tester.pumpWidget(
     ProviderScope(
@@ -45,9 +35,7 @@ Future<void> _pumpRail(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('the most recently used repository is expanded by default', (
-    tester,
-  ) async {
+  testWidgets('the most recently used repository is expanded by default', (tester) async {
     await _pumpRail(tester);
 
     expect(find.text('Alpha one'), findsOneWidget);
@@ -97,9 +85,7 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
   });
 
-  testWidgets('Shift+F10 on the cursor session opens its context menu', (
-    tester,
-  ) async {
+  testWidgets('Shift+F10 on the cursor session opens its context menu', (tester) async {
     await _pumpRail(tester);
 
     expect(find.byType(PopupMenuItem<String>), findsNothing);
@@ -119,9 +105,7 @@ void main() {
     expect(find.byType(PopupMenuItem<String>), findsWidgets);
   });
 
-  testWidgets('Shift+F10 on the cursor folder opens its context menu', (
-    tester,
-  ) async {
+  testWidgets('Shift+F10 on the cursor folder opens its context menu', (tester) async {
     await _pumpRail(tester);
 
     // The folder row is the cursor after a click on it.
@@ -136,21 +120,14 @@ void main() {
     expect(find.byType(PopupMenuItem<String>), findsWidgets);
   });
 
-  testWidgets('the cursor ring is a keyboard cue: a click does not leave it on the card', (
-    tester,
-  ) async {
+  testWidgets('the cursor ring is a keyboard cue: a click does not leave it on the card', (tester) async {
     await _pumpRail(tester);
     final alphaTile = find.byKey(const ValueKey('session-tile-/repos/alpha-a1'));
 
-    bool hasRing() => tester
-        .widgetList<DecoratedBox>(
-          find.descendant(of: alphaTile, matching: find.byType(DecoratedBox)),
-        )
-        .any((box) {
+    bool hasRing() =>
+        tester.widgetList<DecoratedBox>(find.descendant(of: alphaTile, matching: find.byType(DecoratedBox))).any((box) {
           final dec = box.decoration;
-          return dec is BoxDecoration &&
-              dec.border != null &&
-              dec.border!.top.color == FrameTokens.dark.focusRing;
+          return dec is BoxDecoration && dec.border != null && dec.border!.top.color == FrameTokens.dark.focusRing;
         });
 
     // Clicking a card focuses the rail but shows no keyboard ring.

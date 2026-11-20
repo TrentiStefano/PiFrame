@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../data/platform/widget_test_binding.dart';
 
 /// Accent ring around an active composer.
@@ -28,8 +30,7 @@ class ShimmerBorder extends StatefulWidget {
   State<ShimmerBorder> createState() => _ShimmerBorderState();
 }
 
-class _ShimmerBorderState extends State<ShimmerBorder>
-    with SingleTickerProviderStateMixin {
+class _ShimmerBorderState extends State<ShimmerBorder> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   /// Phone browsers (canvaskit) cannot sustain a 60fps blurred sweep + animated shadow around the
@@ -42,10 +43,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: FrameMotionTokens.shimmerLoop,
-    );
+    _controller = AnimationController(vsync: this, duration: FrameMotionTokens.shimmerLoop);
   }
 
   @override
@@ -98,10 +96,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
           // Thin, softened accent: a 2px bright ring looked heavy around the phone composer.
-          border: Border.all(
-            color: tokens.accent.withValues(alpha: 0.7),
-            width: math.min(widget.strokeWidth, 1.25),
-          ),
+          border: Border.all(color: tokens.accent.withValues(alpha: 0.7), width: math.min(widget.strokeWidth, 1.25)),
         ),
         child: widget.child,
       );

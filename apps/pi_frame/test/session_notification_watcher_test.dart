@@ -35,11 +35,7 @@ class MockDesktopNotificationService extends DesktopNotificationService {
   }
 
   @override
-  Future<void> showNotification({
-    required String title,
-    required String body,
-    String? sessionId,
-  }) async {
+  Future<void> showNotification({required String title, required String body, String? sessionId}) async {
     sent.add((title: title, body: body, sessionId: sessionId));
   }
 }
@@ -48,8 +44,7 @@ class _TestPinnedNotifier extends PinnedSessionsNotifier {
   _TestPinnedNotifier(super.initial);
 }
 
-class _MockSubagentsNotifier extends StateNotifier<List<SubagentItem>>
-    implements SubagentsNotifier {
+class _MockSubagentsNotifier extends StateNotifier<List<SubagentItem>> implements SubagentsNotifier {
   _MockSubagentsNotifier([List<SubagentItem>? initial]) : super(initial ?? []);
 
   void updateState(List<SubagentItem> items) {
@@ -61,9 +56,7 @@ class _MockSubagentsNotifier extends StateNotifier<List<SubagentItem>>
 }
 
 void main() {
-  testWidgets('triggers system notification when agent completes answer while app unfocused', (
-    tester,
-  ) async {
+  testWidgets('triggers system notification when agent completes answer while app unfocused', (tester) async {
     final mockService = MockDesktopNotificationService();
     final notifier = SessionStateNotifier('sess_notif_1', null)
       ..state = SessionState(
@@ -85,9 +78,7 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -100,12 +91,7 @@ void main() {
     notifier.state = notifier.state.copyWith(
       agentStatus: AgentStatus.settled,
       entries: [
-        SessionEntry(
-          id: 'user_prompt',
-          role: 'user',
-          text: 'Can you solve this issue?',
-          timestamp: 1,
-        ),
+        SessionEntry(id: 'user_prompt', role: 'user', text: 'Can you solve this issue?', timestamp: 1),
         SessionEntry(
           id: 'asst_reply',
           role: 'assistant',
@@ -123,9 +109,7 @@ void main() {
     expect(mockService.sent.first.sessionId, 'sess_notif_1');
   });
 
-  testWidgets('suppresses notification when app is focused', (
-    tester,
-  ) async {
+  testWidgets('suppresses notification when app is focused', (tester) async {
     final mockService = MockDesktopNotificationService();
     final notifier = SessionStateNotifier('sess_notif_2', null)
       ..state = SessionState(
@@ -147,9 +131,7 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -172,9 +154,7 @@ void main() {
     expect(mockService.sent, isEmpty);
   });
 
-  testWidgets('triggers notification when interactive UI request requires user attention', (
-    tester,
-  ) async {
+  testWidgets('triggers notification when interactive UI request requires user attention', (tester) async {
     final mockService = MockDesktopNotificationService();
     final notifier = SessionStateNotifier('sess_notif_3', null)
       ..state = SessionState(
@@ -196,9 +176,7 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -225,9 +203,7 @@ void main() {
     expect(mockService.sent.first.sessionId, 'sess_notif_3');
   });
 
-  testWidgets('clicking notification navigates to the session', (
-    tester,
-  ) async {
+  testWidgets('clicking notification navigates to the session', (tester) async {
     final mockService = MockDesktopNotificationService();
     final container = ProviderContainer(
       overrides: [
@@ -241,9 +217,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -259,9 +233,7 @@ void main() {
     expect(container.read(activeSessionIdProvider), 'target_sess');
   });
 
-  testWidgets('does not trigger completion notification when transitioning to retrying or compacting', (
-    tester,
-  ) async {
+  testWidgets('does not trigger completion notification when transitioning to retrying or compacting', (tester) async {
     final mockService = MockDesktopNotificationService();
     final notifier = SessionStateNotifier('sess_retry', null)
       ..state = SessionState(
@@ -269,14 +241,7 @@ void main() {
         sessionName: 'Retry Session',
         cwd: '/repo',
         agentStatus: AgentStatus.working,
-        entries: [
-          SessionEntry(
-            id: 'asst_1',
-            role: 'assistant',
-            text: 'I will retry in 5 seconds...',
-            timestamp: 1,
-          ),
-        ],
+        entries: [SessionEntry(id: 'asst_1', role: 'assistant', text: 'I will retry in 5 seconds...', timestamp: 1)],
       );
 
     await tester.pumpWidget(
@@ -290,9 +255,7 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -319,12 +282,7 @@ void main() {
       agentStatus: AgentStatus.settled,
       entries: [
         ...notifier.state.entries,
-        SessionEntry(
-          id: 'asst_final',
-          role: 'assistant',
-          text: 'Final response after retry.',
-          timestamp: 2,
-        ),
+        SessionEntry(id: 'asst_final', role: 'assistant', text: 'Final response after retry.', timestamp: 2),
       ],
     );
     await tester.pumpAndSettle();
@@ -335,9 +293,7 @@ void main() {
     expect(mockService.sent.first.body, contains('Final response after retry.'));
   });
 
-  testWidgets('does not trigger completion notification while subagents are running', (
-    tester,
-  ) async {
+  testWidgets('does not trigger completion notification while subagents are running', (tester) async {
     final mockService = MockDesktopNotificationService();
     final sessionNotifier = SessionStateNotifier('sess_subagents', null)
       ..state = SessionState(
@@ -360,20 +316,14 @@ void main() {
           sessionStateFamily('sess_subagents').overrideWith((ref) => sessionNotifier),
           subagentsFamily('sess_subagents').overrideWith((ref) {
             subagentsNotifier = _MockSubagentsNotifier([
-              const SubagentItem(
-                id: 'sub_1',
-                name: 'Worker 1',
-                status: 'running',
-              ),
+              const SubagentItem(id: 'sub_1', name: 'Worker 1', status: 'running'),
             ]);
             return subagentsNotifier;
           }),
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -399,13 +349,7 @@ void main() {
     expect(mockService.sent, isEmpty);
 
     // Subagent completes!
-    subagentsNotifier.updateState([
-      const SubagentItem(
-        id: 'sub_1',
-        name: 'Worker 1',
-        status: 'completed',
-      ),
-    ]);
+    subagentsNotifier.updateState([const SubagentItem(id: 'sub_1', name: 'Worker 1', status: 'completed')]);
     await tester.pumpAndSettle();
     await tester.pump(finalAnswerQuietPeriod);
 
@@ -415,9 +359,7 @@ void main() {
     expect(mockService.sent.first.body, contains('Launched background workers'));
   });
 
-  testWidgets('does not trigger notification for existing entries when watcher is mounted', (
-    tester,
-  ) async {
+  testWidgets('does not trigger notification for existing entries when watcher is mounted', (tester) async {
     final mockService = MockDesktopNotificationService();
     final notifier = SessionStateNotifier('sess_existing', null)
       ..state = SessionState(
@@ -426,12 +368,7 @@ void main() {
         cwd: '/repo',
         agentStatus: AgentStatus.settled,
         entries: [
-          SessionEntry(
-            id: 'old_asst_1',
-            role: 'assistant',
-            text: 'This answer was completed yesterday.',
-            timestamp: 1,
-          ),
+          SessionEntry(id: 'old_asst_1', role: 'assistant', text: 'This answer was completed yesterday.', timestamp: 1),
         ],
       );
 
@@ -446,9 +383,7 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({})),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionNotificationWatcher()),
         ),
       ),
@@ -585,22 +520,16 @@ void main() {
       );
       await tester.pump(finalAnswerQuietPeriod);
       await tester.pumpAndSettle();
-      expect(
-        service.indicatorHistory,
-        [DesktopIndicatorStatus.working, DesktopIndicatorStatus.unread],
-      );
+      expect(service.indicatorHistory, [DesktopIndicatorStatus.working, DesktopIndicatorStatus.unread]);
 
       // 3. User focuses the app
       container.read(focused.notifier).state = true;
       await tester.pump();
-      expect(
-        service.indicatorHistory,
-        [
-          DesktopIndicatorStatus.working,
-          DesktopIndicatorStatus.unread,
-          DesktopIndicatorStatus.idle,
-        ],
-      );
+      expect(service.indicatorHistory, [
+        DesktopIndicatorStatus.working,
+        DesktopIndicatorStatus.unread,
+        DesktopIndicatorStatus.idle,
+      ]);
     });
 
     testWidgets('desktop indicator transitions working -> idle when finished while focused', (tester) async {
@@ -619,10 +548,7 @@ void main() {
       );
       await tester.pump(finalAnswerQuietPeriod);
       await tester.pumpAndSettle();
-      expect(
-        service.indicatorHistory,
-        [DesktopIndicatorStatus.working, DesktopIndicatorStatus.idle],
-      );
+      expect(service.indicatorHistory, [DesktopIndicatorStatus.working, DesktopIndicatorStatus.idle]);
     });
   });
 

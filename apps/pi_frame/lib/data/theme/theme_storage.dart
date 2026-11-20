@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 class ThemeSettings {
@@ -24,18 +25,15 @@ class ThemeSettings {
 
   factory ThemeSettings.fromJson(Map<String, dynamic> json) {
     return ThemeSettings(
-      activeThemeId:
-          (json['activeThemeId'] as String?)?.trim().isNotEmpty == true
-              ? (json['activeThemeId'] as String).trim()
-              : 'piframe-dark',
-      defaultDarkThemeId:
-          (json['defaultDarkThemeId'] as String?)?.trim().isNotEmpty == true
-              ? (json['defaultDarkThemeId'] as String).trim()
-              : 'piframe-dark',
-      defaultLightThemeId:
-          (json['defaultLightThemeId'] as String?)?.trim().isNotEmpty == true
-              ? (json['defaultLightThemeId'] as String).trim()
-              : 'piframe-light',
+      activeThemeId: (json['activeThemeId'] as String?)?.trim().isNotEmpty == true
+          ? (json['activeThemeId'] as String).trim()
+          : 'piframe-dark',
+      defaultDarkThemeId: (json['defaultDarkThemeId'] as String?)?.trim().isNotEmpty == true
+          ? (json['defaultDarkThemeId'] as String).trim()
+          : 'piframe-dark',
+      defaultLightThemeId: (json['defaultLightThemeId'] as String?)?.trim().isNotEmpty == true
+          ? (json['defaultLightThemeId'] as String).trim()
+          : 'piframe-light',
       useSystemTheme: json['useSystemTheme'] as bool? ?? false,
     );
   }
@@ -66,10 +64,7 @@ class ThemeSettings {
 
   @override
   int get hashCode =>
-      activeThemeId.hashCode ^
-      defaultDarkThemeId.hashCode ^
-      defaultLightThemeId.hashCode ^
-      useSystemTheme.hashCode;
+      activeThemeId.hashCode ^ defaultDarkThemeId.hashCode ^ defaultLightThemeId.hashCode ^ useSystemTheme.hashCode;
 }
 
 abstract class ThemeStorage {
@@ -95,9 +90,7 @@ class FileThemeStorage implements ThemeStorage {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -114,9 +107,7 @@ class FileThemeStorage implements ThemeStorage {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe/themes');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -178,8 +169,7 @@ class FileThemeStorage implements ThemeStorage {
     final dir = resolveUserThemesDir();
     if (dir == null) return null;
     try {
-      final sanitizedName =
-          filename.endsWith('.json') ? filename : '$filename.json';
+      final sanitizedName = filename.endsWith('.json') ? filename : '$filename.json';
       final file = File('${dir.path}/$sanitizedName');
       await file.writeAsString(content);
       return file;
@@ -194,11 +184,11 @@ class MemoryThemeStorage implements ThemeStorage {
   final Map<String, String> userThemes = {};
 
   MemoryThemeStorage([dynamic initial])
-      : _settings = initial is ThemeSettings
-            ? initial
-            : initial is String
-                ? ThemeSettings(activeThemeId: initial)
-                : const ThemeSettings();
+    : _settings = initial is ThemeSettings
+          ? initial
+          : initial is String
+          ? ThemeSettings(activeThemeId: initial)
+          : const ThemeSettings();
 
   @override
   ThemeSettings loadSettingsSync() => _settings;
@@ -231,4 +221,3 @@ class MemoryThemeStorage implements ThemeStorage {
   @override
   Directory? resolveUserThemesDir() => null;
 }
-

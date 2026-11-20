@@ -10,18 +10,13 @@ import '../../ui/motion.dart';
 class AgentStatusBadge extends StatelessWidget {
   final AgentStatus status;
   final bool onDisplay;
-  const AgentStatusBadge({
-    super.key,
-    required this.status,
-    this.onDisplay = false,
-  });
+  const AgentStatusBadge({super.key, required this.status, this.onDisplay = false});
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final hasScope =
-        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
-            null ||
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() != null ||
         context.findAncestorWidgetOfExactType<ProviderScope>() != null;
     if (hasScope) {
       return Consumer(
@@ -34,11 +29,7 @@ class AgentStatusBadge extends StatelessWidget {
     return _buildBadge(context, tokens, const AppStrings(AppLanguage.it));
   }
 
-  Widget _buildBadge(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _buildBadge(BuildContext context, FrameTokens tokens, AppStrings strings) {
     final label = strings.agentStatusLabel(status);
     final foreground = switch (status) {
       AgentStatus.idle || AgentStatus.settled => tokens.success,
@@ -51,9 +42,7 @@ class AgentStatusBadge extends StatelessWidget {
     if (onDisplay) {
       final signal = switch (status) {
         AgentStatus.error || AgentStatus.workerError => tokens.signalDanger,
-        AgentStatus.working ||
-        AgentStatus.retrying ||
-        AgentStatus.awaitingUser => tokens.signalWarning,
+        AgentStatus.working || AgentStatus.retrying || AgentStatus.awaitingUser => tokens.signalWarning,
         _ => tokens.displayText,
       };
       return Semantics(
@@ -71,11 +60,7 @@ class AgentStatusBadge extends StatelessWidget {
               ),
             ),
             const SizedBox(width: FrameSpace.x2),
-            Text(
-              label,
-              style: FrameText.of(context).label
-                  .copyWith(color: tokens.displayText),
-            ),
+            Text(label, style: FrameText.of(context).label.copyWith(color: tokens.displayText)),
           ],
         ),
       );
@@ -83,16 +68,11 @@ class AgentStatusBadge extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: AnimatedContainer(
-        duration: FrameMotion.reduced(context)
-            ? FrameMotion.instant
-            : FrameMotion.micro,
+        duration: FrameMotion.reduced(context) ? FrameMotion.instant : FrameMotion.micro,
         curve: FrameMotion.enterCurve,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            foreground.withValues(alpha: 0.12),
-            tokens.surface,
-          ),
+          color: Color.alphaBlend(foreground.withValues(alpha: 0.12), tokens.surface),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(color: tokens.border),
         ),
@@ -111,10 +91,7 @@ class AgentStatusBadge extends StatelessWidget {
             const SizedBox(width: FrameSpace.x2),
             Text(
               label,
-              style: FrameText.of(context).label.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+              style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
             ),
           ],
         ),

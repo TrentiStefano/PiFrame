@@ -8,10 +8,7 @@ export interface PiLaunchCommand {
 }
 
 export function resolveNpmLaunch(piExecutablePath: string, args: string[]): PiLaunchCommand {
-  const directories = [
-    path.dirname(piExecutablePath),
-    ...getAugmentedPath().split(path.delimiter),
-  ];
+  const directories = [path.dirname(piExecutablePath), ...getAugmentedPath().split(path.delimiter)];
   for (const directory of directories) {
     const cli = path.join(directory, 'node_modules', 'npm', 'bin', 'npm-cli.js');
     if (fs.existsSync(cli)) {
@@ -26,7 +23,11 @@ export function resolveNpmLaunch(piExecutablePath: string, args: string[]): PiLa
 }
 
 /** Resolve Node entrypoints and Windows npm shims without invoking a shell. */
-export function resolvePiLaunch(executablePath: string, args: string[] = [], platform = process.platform): PiLaunchCommand {
+export function resolvePiLaunch(
+  executablePath: string,
+  args: string[] = [],
+  platform = process.platform
+): PiLaunchCommand {
   const extension = path.extname(executablePath).toLowerCase();
   if (['.js', '.cjs', '.mjs'].includes(extension)) {
     return { file: process.execPath, args: [executablePath, ...args] };
@@ -42,7 +43,12 @@ export function resolvePiLaunch(executablePath: string, args: string[] = [], pla
     // 2. Check for npm package dist bundle
     const adjacentCli = path.join(
       path.dirname(executablePath),
-      'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'bundle', 'cli.js'
+      'node_modules',
+      '@earendil-works',
+      'pi-coding-agent',
+      'dist',
+      'bundle',
+      'cli.js'
     );
     if (fs.existsSync(adjacentCli)) {
       return { file: process.execPath, args: [adjacentCli, ...args] };

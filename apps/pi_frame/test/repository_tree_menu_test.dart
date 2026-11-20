@@ -31,18 +31,14 @@ Future<void> _pump(WidgetTester tester) async {
       overrides: [
         pcpClientProvider.overrideWithValue(_TreeFakeClient()),
         sessionStateFamily('session-a').overrideWith(
-          (ref) => SessionStateNotifier('session-a', null)
-            ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          (ref) =>
+              SessionStateNotifier('session-a', null)..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
         ),
       ],
       child: MaterialApp(
         theme: ThemeData.light().copyWith(extensions: const [FrameTokens.light]),
         home: const Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: RepositoryPane(sessionId: 'session-a'),
-          ),
+          body: SizedBox(width: 900, height: 600, child: RepositoryPane(sessionId: 'session-a')),
         ),
       ),
     ),
@@ -51,9 +47,7 @@ Future<void> _pump(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('folder context menu offers new session, add folder to chat and copy path', (
-    tester,
-  ) async {
+  testWidgets('folder context menu offers new session, add folder to chat and copy path', (tester) async {
     await _pump(tester);
     await tester.tap(find.text('src'), buttons: kSecondaryButton);
     await tester.pumpAndSettle();
@@ -67,17 +61,12 @@ void main() {
     expect(find.byKey(const ValueKey('tree-menu-chat')), findsNothing);
   });
 
-  testWidgets('Shift+F10 on a focused tree row opens that row menu', (
-    tester,
-  ) async {
+  testWidgets('Shift+F10 on a focused tree row opens that row menu', (tester) async {
     await _pump(tester);
     // Focus the folder row's own focus node, then press Shift+F10 instead of
     // right-clicking. The folder menu offers the folder actions.
     final observer = Focus.of(tester.element(find.text('src')));
-    (observer.canRequestFocus
-            ? observer
-            : observer.descendants.firstWhere((n) => n.canRequestFocus))
-        .requestFocus();
+    (observer.canRequestFocus ? observer : observer.descendants.firstWhere((n) => n.canRequestFocus)).requestFocus();
     await tester.pumpAndSettle();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f10);
@@ -95,9 +84,7 @@ void main() {
 
     final action = find.byKey(const ValueKey('tree-add-to-chat-src/app.dart'));
     expect(action, findsOneWidget);
-    Opacity opacity() => tester.widget<Opacity>(
-      find.ancestor(of: action, matching: find.byType(Opacity)).first,
-    );
+    Opacity opacity() => tester.widget<Opacity>(find.ancestor(of: action, matching: find.byType(Opacity)).first);
     expect(opacity().opacity, 0);
 
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);

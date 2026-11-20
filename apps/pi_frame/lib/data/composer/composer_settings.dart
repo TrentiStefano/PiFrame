@@ -11,29 +11,21 @@ class ComposerSettings {
   const ComposerSettings({this.sendWithEnter = false});
 
   ComposerSettings copyWith({bool? sendWithEnter}) {
-    return ComposerSettings(
-      sendWithEnter: sendWithEnter ?? this.sendWithEnter,
-    );
+    return ComposerSettings(sendWithEnter: sendWithEnter ?? this.sendWithEnter);
   }
 
-  Map<String, dynamic> toJson() => {
-    'sendWithEnter': sendWithEnter,
-  };
+  Map<String, dynamic> toJson() => {'sendWithEnter': sendWithEnter};
 
   factory ComposerSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const ComposerSettings();
     final raw = json['sendWithEnter'];
-    return ComposerSettings(
-      sendWithEnter: raw is bool ? raw : false,
-    );
+    return ComposerSettings(sendWithEnter: raw is bool ? raw : false);
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ComposerSettings &&
-          runtimeType == other.runtimeType &&
-          sendWithEnter == other.sendWithEnter;
+      other is ComposerSettings && runtimeType == other.runtimeType && sendWithEnter == other.sendWithEnter;
 
   @override
   int get hashCode => sendWithEnter.hashCode;
@@ -45,9 +37,7 @@ class ComposerSettings {
 class ComposerSettingsNotifier extends StateNotifier<ComposerSettings> {
   final File? _customStorageFile;
 
-  ComposerSettingsNotifier({File? storageFile})
-      : _customStorageFile = storageFile,
-        super(const ComposerSettings()) {
+  ComposerSettingsNotifier({File? storageFile}) : _customStorageFile = storageFile, super(const ComposerSettings()) {
     _load();
   }
 
@@ -56,9 +46,7 @@ class ComposerSettingsNotifier extends StateNotifier<ComposerSettings> {
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -103,7 +91,6 @@ class ComposerSettingsNotifier extends StateNotifier<ComposerSettings> {
   }
 }
 
-final composerSettingsProvider =
-    StateNotifierProvider<ComposerSettingsNotifier, ComposerSettings>((ref) {
+final composerSettingsProvider = StateNotifierProvider<ComposerSettingsNotifier, ComposerSettings>((ref) {
   return ComposerSettingsNotifier();
 });

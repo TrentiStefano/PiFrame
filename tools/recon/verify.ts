@@ -15,8 +15,9 @@ async function main() {
   console.log(`Platform: ${process.platform} (${process.arch})`);
 
   // 2. Verify Pi CLI version
-  const piBundle = process.env.PI_FRAME_PI_BUNDLE
-    ?? (process.platform === 'win32'
+  const piBundle =
+    process.env.PI_FRAME_PI_BUNDLE ??
+    (process.platform === 'win32'
       ? 'C:/nvm4w/nodejs/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js'
       : '');
   if (!piBundle || !fs.existsSync(piBundle)) {
@@ -26,8 +27,8 @@ async function main() {
   const piVersion = await new Promise<string>((resolve, reject) => {
     const p = spawn(process.execPath, [piBundle, '--version'], { stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
-    p.stdout.on('data', d => out += d.toString());
-    p.on('close', code => {
+    p.stdout.on('data', (d) => (out += d.toString()));
+    p.on('close', (code) => {
       if (code === 0) resolve(out.trim());
       else reject(new Error(`pi --version exited with code ${code}`));
     });
@@ -35,8 +36,10 @@ async function main() {
   console.log(`Detected Pi version: ${piVersion}`);
 
   // Minimum required version check (v0.85.0)
-  const semverParts = piVersion.split('.').map(p => parseInt(p, 10));
-  const isCompatible = semverParts[0] > 0 || (semverParts[0] === 0 && (semverParts[1] > 85 || (semverParts[1] === 85 && semverParts[2] >= 0)));
+  const semverParts = piVersion.split('.').map((p) => parseInt(p, 10));
+  const isCompatible =
+    semverParts[0] > 0 ||
+    (semverParts[0] === 0 && (semverParts[1] > 85 || (semverParts[1] === 85 && semverParts[2] >= 0)));
   if (!isCompatible) {
     throw new Error(`Pi version ${piVersion} is lower than minimum supported v0.85.0`);
   }
@@ -47,7 +50,7 @@ async function main() {
   if (!fs.existsSync(fixturesDir)) {
     throw new Error(`Fixtures directory not found: ${fixturesDir}`);
   }
-  const fixtureFiles = fs.readdirSync(fixturesDir).filter(f => f.endsWith('.jsonl'));
+  const fixtureFiles = fs.readdirSync(fixturesDir).filter((f) => f.endsWith('.jsonl'));
   console.log(`Found ${fixtureFiles.length} golden fixtures in ${fixturesDir}`);
   if (fixtureFiles.length < 10) {
     throw new Error(`Expected at least 10 golden fixtures, found ${fixtureFiles.length}`);
@@ -55,7 +58,7 @@ async function main() {
 
   for (const f of fixtureFiles) {
     const content = fs.readFileSync(path.join(fixturesDir, f), 'utf8');
-    const lines = content.split('\n').filter(l => l.trim().length > 0);
+    const lines = content.split('\n').filter((l) => l.trim().length > 0);
     for (let i = 0; i < lines.length; i++) {
       try {
         const obj = JSON.parse(lines[i]);
@@ -115,7 +118,7 @@ function runRpcProbe(piBundle: string): Promise<{ sessionId: string; model?: str
   });
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Verification failed:', err);
   process.exit(1);
 });

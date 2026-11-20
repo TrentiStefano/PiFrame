@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,9 +13,7 @@ class RemovedReposNotifier extends StateNotifier<Set<String>> {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -60,7 +59,6 @@ class RemovedReposNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final removedReposProvider =
-    StateNotifierProvider<RemovedReposNotifier, Set<String>>((ref) {
+final removedReposProvider = StateNotifierProvider<RemovedReposNotifier, Set<String>>((ref) {
   return RemovedReposNotifier();
 });

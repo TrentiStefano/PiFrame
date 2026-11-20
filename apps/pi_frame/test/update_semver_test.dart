@@ -60,10 +60,7 @@ void main() {
       expect(rc2 > rc1, isTrue);
       expect(SemVer.parse('1.3.0-rc.10') > rc2, isTrue);
       expect(SemVer.parse('1.3.0-2') < SemVer.parse('1.3.0-alpha'), isTrue);
-      expect(
-        SemVer.parse('1.3.0-alpha') < SemVer.parse('1.3.0-alpha.1'),
-        isTrue,
-      );
+      expect(SemVer.parse('1.3.0-alpha') < SemVer.parse('1.3.0-alpha.1'), isTrue);
       expect(SemVer.parse('1.3.0+old') == SemVer.parse('1.3.0+new'), isTrue);
     });
   });

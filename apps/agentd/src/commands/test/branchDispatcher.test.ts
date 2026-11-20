@@ -33,8 +33,7 @@ class MockWebSocket extends EventEmitter {
 
 function createGitRepo(): { root: string; cleanup: () => void } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-branch-repo-'));
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   git(['init', '-q', '-b', 'main']);
   git(['config', 'user.email', 'test@example.com']);
   git(['config', 'user.name', 'PiFrame Test']);
@@ -66,7 +65,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       piExecutablePath: 'node',
       capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
       workerIdleTimeoutMs: 60000,
-      connectionManager: manager,
+      connectionManager: manager
     });
     const session = await registry.createSession({ cwd: repo.root });
 
@@ -90,7 +89,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       remoteManager,
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     viewConn.state = 'ready';
     viewConn.isRemote = true;
@@ -105,7 +104,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_lb_view',
       type: 'workspace.listBranches',
       sessionId: session.id,
-      payload: {},
+      payload: {}
     });
     const lbResult = getLastSent(viewWs);
     assert.equal(lbResult.kind, 'result');
@@ -122,7 +121,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_sb_view',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     const viewSent = getSentResults(viewWs);
     const errIdx = viewSent.findIndex((m) => m.kind === 'error');
@@ -146,7 +145,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       remoteManager,
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     ctrlConn.state = 'ready';
     ctrlConn.isRemote = true;
@@ -161,7 +160,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_sb_ctrl',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     const sbCtrlResult = getLastSent(ctrlWs);
     assert.equal(sbCtrlResult.kind, 'result');
@@ -181,7 +180,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       piExecutablePath: 'node',
       capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
       workerIdleTimeoutMs: 60000,
-      connectionManager: manager,
+      connectionManager: manager
     });
     const session = await registry.createSession({ cwd: repo.root });
     const dispatcher = new Dispatcher(registry, manager);
@@ -194,7 +193,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       startedAt: Date.now(),
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     conn.state = 'ready';
 
@@ -208,7 +207,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_ro_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     let sent = getSentResults(ws);
     let err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_ro_switch');
@@ -228,7 +227,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_ro_list',
       type: 'workspace.listBranches',
       sessionId: session.id,
-      payload: {},
+      payload: {}
     });
     let last = getLastSent(ws);
     assert.equal(last.kind, 'result');
@@ -246,7 +245,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_busy_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_busy_switch');
@@ -268,7 +267,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_tool_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_tool_switch');
@@ -289,7 +288,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_working_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_working_switch');
@@ -309,7 +308,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_idle_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     last = getLastSent(ws);
     assert.equal(last.kind, 'result');

@@ -93,18 +93,12 @@ void main() {
       expect(release.date, '2026-11-20');
       expect(release.features.length, 1);
       expect(release.features.first.scope, 'settings');
-      expect(
-        release.features.first.message,
-        'add provider subtitle to model dropdowns',
-      );
+      expect(release.features.first.message, 'add provider subtitle to model dropdowns');
       expect(release.features.first.commitHash, 'de5ece3');
 
       expect(release.fixes.length, 1);
       expect(release.fixes.first.scope, 'workspace');
-      expect(
-        release.fixes.first.message,
-        'do not collapse git changes when opening agents sidecar',
-      );
+      expect(release.fixes.first.message, 'do not collapse git changes when opening agents sidecar');
     });
   });
 

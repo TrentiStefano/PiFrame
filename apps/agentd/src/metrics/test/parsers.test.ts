@@ -1,10 +1,6 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
-import {
-  parseNvidiaSmiLine,
-  aggregateNvidiaSmiSamples,
-  parseNvidiaSmiOutput
-} from '../parsers/nvidiaSmiParser.js';
+import { parseNvidiaSmiLine, aggregateNvidiaSmiSamples, parseNvidiaSmiOutput } from '../parsers/nvidiaSmiParser.js';
 import {
   splitCsvLine,
   parseTypeperfHeader,
@@ -54,7 +50,8 @@ test('nvidiaSmiParser: aggregates multiple GPUs taking max utilization and sum m
 });
 
 test('typeperfParser: splitCsvLine handles quoted and unquoted columns', () => {
-  const line = '"(PDH-CSV 4.0) (UTC)(0)","\\\\HOST\\GPU Engine(pid_1_luid_0x0001_phys_0_eng_0)\\Utilization","0.000000"';
+  const line =
+    '"(PDH-CSV 4.0) (UTC)(0)","\\\\HOST\\GPU Engine(pid_1_luid_0x0001_phys_0_eng_0)\\Utilization","0.000000"';
   const cols = splitCsvLine(line);
   assert.equal(cols.length, 3);
   assert.equal(cols[0], '(PDH-CSV 4.0) (UTC)(0)');

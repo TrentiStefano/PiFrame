@@ -10,7 +10,8 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-policy-dispatch-'));
 const previousHome = process.env.PI_FRAME_HOME;
 process.env.PI_FRAME_HOME = home;
 test.after(() => {
-  if (previousHome === undefined) delete process.env.PI_FRAME_HOME; else process.env.PI_FRAME_HOME = previousHome;
+  if (previousHome === undefined) delete process.env.PI_FRAME_HOME;
+  else process.env.PI_FRAME_HOME = previousHome;
   fs.rmSync(home, { recursive: true, force: true });
 });
 
@@ -20,30 +21,57 @@ function setup() {
   let runtimeModel = { ...session.model };
   let failPolicy = false;
   const sent: any[] = [];
-  const worker = { send: async (command: any) => {
-    sent.push(command);
-    if (command.command === 'prompt') {
-      if (failPolicy) { failPolicy = false; throw new Error('Cannot apply policy'); }
-      runtimeModel = { ...runtimeModel, piframeOriginalContextWindow: 1000000,
-        piframeContextPolicy: JSON.parse(command.arguments.message.split(' ').slice(1).join(' ')) };
+  const worker = {
+    send: async (command: any) => {
+      sent.push(command);
+      if (command.command === 'prompt') {
+        if (failPolicy) {
+          failPolicy = false;
+          throw new Error('Cannot apply policy');
+        }
+        runtimeModel = {
+          ...runtimeModel,
+          piframeOriginalContextWindow: 1000000,
+          piframeContextPolicy: JSON.parse(command.arguments.message.split(' ').slice(1).join(' '))
+        };
+      }
+      return { success: true, data: { model: runtimeModel } };
     }
-    return { success: true, data: { model: runtimeModel } };
-  } };
+  };
   const registry: any = {
-    getSession: () => session, getIndex: () => ({}), getPiExecutablePath: () => 'pi',
-    ensureWorkerForSession: async () => worker, closeWorker: async () => {},
+    getSession: () => session,
+    getIndex: () => ({}),
+    getPiExecutablePath: () => 'pi',
+    ensureWorkerForSession: async () => worker,
+    closeWorker: async () => {}
   };
   const dispatcher = new Dispatcher(registry, {} as any, {} as any);
   let sequence = 0;
   const execute = async (type: string, payload: any) => {
     const messages: any[] = [];
-    await dispatcher.handle({ state: 'ready', send: (message: any) => messages.push(message) } as any, {
-      protocol: 1, kind: 'command', id: `c_${++sequence}`, commandId: `id_${sequence}`, ts: Date.now(),
-      type, sessionId: session.id, payload,
-    } as any);
-    return messages.find(message => message.kind === 'result');
+    await dispatcher.handle(
+      { state: 'ready', send: (message: any) => messages.push(message) } as any,
+      {
+        protocol: 1,
+        kind: 'command',
+        id: `c_${++sequence}`,
+        commandId: `id_${sequence}`,
+        ts: Date.now(),
+        type,
+        sessionId: session.id,
+        payload
+      } as any
+    );
+    return messages.find((message) => message.kind === 'result');
   };
-  return { session, sent, execute, fail: () => { failPolicy = true; } };
+  return {
+    session,
+    sent,
+    execute,
+    fail: () => {
+      failPolicy = true;
+    }
+  };
 }
 
 test('Dispatcher context policy: rejects invalid/unbounded max and reserve values', async () => {
@@ -56,7 +84,9 @@ test('Dispatcher context policy: rejects invalid/unbounded max and reserve value
       assert.equal((await s.execute('agent.setCompactionReservePercent', { percent })).payload.state, 'rejected');
     }
     assert.equal(s.sent.length, 0);
-  } finally { await s.session.close(); }
+  } finally {
+    await s.session.close();
+  }
 });
 
 test('Dispatcher context policy: acknowledges applied settings and restores them in snapshots/reopen', async () => {
@@ -75,8 +105,14 @@ test('Dispatcher context policy: acknowledges applied settings and restores them
     await reopened.close();
     response = await s.execute('agent.setContextWindowOverride', { limit: null });
     assert.equal(response.payload.data.contextWindowOverride, null);
-    assert.equal(s.sent.some(c => c.command === 'compact'), false, 'Pi owns compaction; no duplicate daemon compact');
-  } finally { await s.session.close(); }
+    assert.equal(
+      s.sent.some((c) => c.command === 'compact'),
+      false,
+      'Pi owns compaction; no duplicate daemon compact'
+    );
+  } finally {
+    await s.session.close();
+  }
 });
 
 test('Dispatcher context policy: failures and active sessions never acknowledge unapplied settings', async () => {
@@ -91,5 +127,7 @@ test('Dispatcher context policy: failures and active sessions never acknowledge 
     s.session.readOnly = true;
     assert.equal((await s.execute('agent.setCompactionReservePercent', { percent: 5 })).payload.state, 'rejected');
     assert.equal(s.session.compactionReservePercent, 2.5);
-  } finally { await s.session.close(); }
+  } finally {
+    await s.session.close();
+  }
 });

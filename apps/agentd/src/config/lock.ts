@@ -34,7 +34,9 @@ export function acquireSingleInstanceLock(): LockHandle | null {
       fs.unlinkSync(lockFile);
     } catch {
       // Corrupt lock file, remove it
-      try { fs.unlinkSync(lockFile); } catch {}
+      try {
+        fs.unlinkSync(lockFile);
+      } catch {}
     }
   }
 

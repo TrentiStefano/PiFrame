@@ -13,9 +13,7 @@ void main() {
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: PiCliSection(tokens: tokens),
-        ),
+        home: Scaffold(body: PiCliSection(tokens: tokens)),
       ),
     );
     await tester.pumpAndSettle();

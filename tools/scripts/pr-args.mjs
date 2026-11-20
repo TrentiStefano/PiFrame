@@ -19,6 +19,10 @@ export function splitArgs(argv) {
 
 /** Full argument list for `gh pr create`. Without --title/--body/--fill/--body-file, the commits fill the PR. */
 export function buildPrCreateArgs(ghArgs) {
-  const hasContent = ghArgs.includes('--title') || ghArgs.includes('--body') || ghArgs.includes('--fill') || ghArgs.includes('--body-file');
+  const hasContent =
+    ghArgs.includes('--title') ||
+    ghArgs.includes('--body') ||
+    ghArgs.includes('--fill') ||
+    ghArgs.includes('--body-file');
   return ['pr', 'create', '--base', 'main', ...(hasContent ? [] : ['--fill']), ...ghArgs];
 }

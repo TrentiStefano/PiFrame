@@ -7,9 +7,7 @@ import 'package:pi_frame/features/tool_timeline/tool_card.dart';
 void main() {
   Widget wrapWithTheme(Widget child) {
     return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
-      ),
+      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }

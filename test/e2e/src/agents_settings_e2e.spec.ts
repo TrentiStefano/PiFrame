@@ -25,7 +25,7 @@ function createTempDir(prefix: string): { root: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -42,10 +42,7 @@ test('E2E: Subagent Settings - pi.agents.get and pi.agents.update over WebSocket
   const nicoDir = path.join(tempAgent.root, 'npm', 'node_modules', 'pi-subagents');
   const nicoAgentsDir = path.join(nicoDir, 'agents');
   fs.mkdirSync(nicoAgentsDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(nicoDir, 'package.json'),
-    JSON.stringify({ name: 'pi-subagents', version: '0.9.5' })
-  );
+  fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '0.9.5' }));
   fs.writeFileSync(
     path.join(nicoAgentsDir, 'worker.md'),
     `---
@@ -64,7 +61,7 @@ Worker prompt.
     token,
     version,
     startedAt,
-    listener: 'local',
+    listener: 'local'
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -93,14 +90,14 @@ Worker prompt.
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
     piExecutablePath: fakePiPath,
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   const agentsService = new AgentsService({
@@ -113,20 +110,13 @@ Worker prompt.
           name: 'Fake Pi Model',
           contextWindow: 128000,
           reasoning: true,
-          tiers: [64000],
-        },
-      ],
-    }),
+          tiers: [64000]
+        }
+      ]
+    })
   });
 
-  dispatcher = new Dispatcher(
-    registry,
-    manager,
-    undefined,
-    undefined,
-    undefined,
-    agentsService
-  );
+  dispatcher = new Dispatcher(registry, manager, undefined, undefined, undefined, agentsService);
 
   const client = new WebSocket(`ws://127.0.0.1:${port}/api/ws`);
   await new Promise<void>((resolve, reject) => {
@@ -162,8 +152,8 @@ Worker prompt.
           token,
           client: { name: 'e2e-test', version: '1.0.0', platform: 'test' },
           encoding: 'json',
-          capabilities: ['replay.v1'],
-        },
+          capabilities: ['replay.v1']
+        }
       })
     );
 
@@ -182,7 +172,7 @@ Worker prompt.
         commandId: getCmdId,
         sessionId: '@daemon',
         type: 'pi.agents.get',
-        payload: {},
+        payload: {}
       })
     );
 
@@ -213,15 +203,15 @@ Worker prompt.
               name: 'worker',
               model: 'fake/fake-model',
               thinking: 'low',
-              contextLimit: 64000,
+              contextLimit: 64000
             },
             {
               kind: 'sessionDefaults',
               model: 'fake/fake-model',
-              thinking: 'low',
-            },
-          ],
-        },
+              thinking: 'low'
+            }
+          ]
+        }
       })
     );
 
@@ -238,9 +228,7 @@ Worker prompt.
     assert.equal(updatedWorker.context.limit, 64000);
 
     // Verify settings on disk
-    const settingsOnDisk = JSON.parse(
-      fs.readFileSync(path.join(tempAgent.root, 'settings.json'), 'utf8')
-    );
+    const settingsOnDisk = JSON.parse(fs.readFileSync(path.join(tempAgent.root, 'settings.json'), 'utf8'));
     assert.equal(settingsOnDisk.defaultProvider, 'fake');
     assert.equal(settingsOnDisk.defaultModel, 'fake-model');
     assert.equal(settingsOnDisk.defaultThinkingLevel, 'low');
@@ -263,10 +251,10 @@ Worker prompt.
             {
               kind: 'agent',
               name: 'worker',
-              model: 'nonexistent/model',
-            },
-          ],
-        },
+              model: 'nonexistent/model'
+            }
+          ]
+        }
       })
     );
 

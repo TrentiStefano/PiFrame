@@ -46,9 +46,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   void initState() {
     super.initState();
     final active =
-        widget.initialTheme ??
-        ref.read(activeThemeSpecProvider) ??
-        ref.read(themeRepositoryProvider).activeTheme;
+        widget.initialTheme ?? ref.read(activeThemeSpecProvider) ?? ref.read(themeRepositoryProvider).activeTheme;
     _selectedBaseThemeId = active.id;
     _nameController = TextEditingController(text: '${active.name} (Custom)');
     _variant = active.variant;
@@ -83,8 +81,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   }
 
   void _setColor(String key, Color color, {bool isSyntax = false}) {
-    final hex =
-        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+    final hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
     setState(() {
       if (isSyntax) {
         _customSyntax[key] = hex;
@@ -94,17 +91,11 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     });
   }
 
-  Future<void> _openColorPicker(
-    String key,
-    String title,
-    Color currentColor, {
-    bool isSyntax = false,
-  }) async {
+  Future<void> _openColorPicker(String key, String title, Color currentColor, {bool isSyntax = false}) async {
     final tokens = context.tokens;
     final strings = ref.read(appStringsProvider);
     final hexController = TextEditingController(
-      text:
-          '#${currentColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+      text: '#${currentColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
     );
 
     // Curated palette of modern vibrant and neutral colors
@@ -157,10 +148,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                         decoration: BoxDecoration(
                           color: selectedColor,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(
-                            color: tokens.borderStrong,
-                            width: 2,
-                          ),
+                          border: Border.all(color: tokens.borderStrong, width: 2),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -170,18 +158,12 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           style: TextStyle(
                             fontFamily: tokens.monoFontFamily,
                             color: tokens.textPrimary,
-                            fontSize: FrameText.fromTokens(tokens)
-                                .bodyLarge
-                                .fontSize,
+                            fontSize: FrameText.fromTokens(tokens).bodyLarge.fontSize,
                           ),
                           decoration: InputDecoration(
                             labelText: strings.themeEditorHexLabel,
-                            labelStyle: FrameText.fromTokens(tokens).label
-                                .copyWith(color: tokens.textSecondary),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
+                            labelStyle: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                           onChanged: (val) {
                             final p = parseHexColor(val.trim());
@@ -196,16 +178,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                   const SizedBox(height: 16),
                   Text(
                     strings.themeEditorSuggestedColors,
-                    style: FrameText.fromTokens(tokens).caption
-                        .copyWith(color: tokens.textMuted),
+                    style: FrameText.fromTokens(tokens).caption.copyWith(color: tokens.textMuted),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: palette.map((color) {
-                      final isSelected =
-                          color.toARGB32() == selectedColor.toARGB32();
+                      final isSelected = color.toARGB32() == selectedColor.toARGB32();
                       return InkWell(
                         onTap: () {
                           setDialogState(() {
@@ -220,9 +200,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           height: 28,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                             border: Border.all(
                               color: isSelected ? tokens.accent : tokens.border,
                               width: isSelected ? 2 : 1,
@@ -236,15 +214,11 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               ),
             ),
             actions: [
-              FrameDialogAction(
-                label: strings.cancel,
-                role: FrameDialogActionRole.cancel,
-              ),
+              FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel),
               FrameDialogAction(
                 label: strings.themeEditorApplyColor,
                 role: FrameDialogActionRole.primary,
-                onPressed: () =>
-                    _setColor(key, selectedColor, isSyntax: isSyntax),
+                onPressed: () => _setColor(key, selectedColor, isSyntax: isSyntax),
               ),
             ],
           );
@@ -261,10 +235,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
       return;
     }
 
-    final slug = name
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9_-]+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final slug = name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
 
     final id = 'custom-$slug';
 
@@ -290,10 +261,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        FrameSnackBar.show(
-          context,
-          message: strings.themeEditorSavedSuccess(name),
-        );
+        FrameSnackBar.show(context, message: strings.themeEditorSavedSuccess(name));
       }
     } catch (e) {
       if (mounted) {
@@ -313,17 +281,11 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
     Color? fallback,
   }) {
     // Token search matches the label, so a long list can be narrowed.
-    if (_tokenQuery.trim().isNotEmpty &&
-        !label.toLowerCase().contains(_tokenQuery.trim().toLowerCase())) {
+    if (_tokenQuery.trim().isNotEmpty && !label.toLowerCase().contains(_tokenQuery.trim().toLowerCase())) {
       return const SizedBox.shrink();
     }
-    final color = _resolveColor(
-      key,
-      isSyntax: isSyntax,
-      fallback: fallback ?? tokens.textMuted,
-    );
-    final hexString =
-        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+    final color = _resolveColor(key, isSyntax: isSyntax, fallback: fallback ?? tokens.textMuted);
+    final hexString = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
     return InkWell(
       key: ValueKey('theme-editor-color-$key'),
@@ -350,25 +312,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                label,
-                style: FrameText.fromTokens(tokens).body
-                    .copyWith(color: tokens.textPrimary),
-              ),
+              child: Text(label, style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary)),
             ),
             Text(
               hexString,
-              style: TextStyle(
-                color: tokens.textMuted,
-                fontFamily: tokens.monoFontFamily,
-              ),
+              style: TextStyle(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
             ),
             const SizedBox(width: 6),
-            Icon(
-              Icons.colorize_outlined,
-              size: FrameSize.icon,
-              color: tokens.textMuted,
-            ),
+            Icon(Icons.colorize_outlined, size: FrameSize.icon, color: tokens.textMuted),
           ],
         ),
       ),
@@ -378,10 +329,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
   /// The edited theme as a full [ThemeSpec], built on the selected base theme.
   ThemeSpec _draftSpec() {
     final repo = ref.read(themeRepositoryProvider);
-    final base = repo.availableThemes.firstWhere(
-      (t) => t.id == _selectedBaseThemeId,
-      orElse: () => repo.activeTheme,
-    );
+    final base = repo.availableThemes.firstWhere((t) => t.id == _selectedBaseThemeId, orElse: () => repo.activeTheme);
     return base.copyWith(rawColors: _customColors, rawSyntax: _customSyntax);
   }
 
@@ -405,24 +353,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                FramePaneHeader(
-                  title: strings.previewLabel,
-                  subtitle: strings.themeEditorPreviewPaneSubtitle,
-                ),
+                FramePaneHeader(title: strings.previewLabel, subtitle: strings.themeEditorPreviewPaneSubtitle),
                 // Git row, as in the changes list.
                 FrameListRow(
                   name: strings.themeEditorPreviewGitFile,
                   secondary: strings.themeEditorPreviewGitStatus,
                   selected: true,
-                  leading: Icon(
-                    Icons.description_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.textSecondary,
-                  ),
-                  trailing: FrameStatusTag(
-                    label: strings.themeEditorPreviewGitBadge,
-                    tone: FrameStatusTone.warning,
-                  ),
+                  leading: Icon(Icons.description_outlined, size: FrameSize.icon, color: tokens.textSecondary),
+                  trailing: FrameStatusTag(label: strings.themeEditorPreviewGitBadge, tone: FrameStatusTone.warning),
                 ),
                 // Chat turn: a user message above the assistant reply.
                 Padding(
@@ -430,10 +368,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        strings.themeEditorPreviewUserTurn,
-                        style: text.body.copyWith(color: tokens.textSecondary),
-                      ),
+                      Text(strings.themeEditorPreviewUserTurn, style: text.body.copyWith(color: tokens.textSecondary)),
                       const SizedBox(height: FrameSpace.x2),
                       Container(
                         padding: const EdgeInsets.all(FrameSpace.x3),
@@ -447,9 +382,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           children: [
                             Text(
                               strings.themeEditorPreviewAssistantTurn,
-                              style: text.bodyLarge.copyWith(
-                                color: tokens.textPrimary,
-                              ),
+                              style: text.bodyLarge.copyWith(color: tokens.textPrimary),
                             ),
                             const SizedBox(height: FrameSpace.x2),
                             Wrap(
@@ -459,17 +392,13 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                                 PressFeedback(
                                   child: FilledButton(
                                     onPressed: () {},
-                                    child: Text(
-                                      strings.themeEditorPreviewAccentBtn,
-                                    ),
+                                    child: Text(strings.themeEditorPreviewAccentBtn),
                                   ),
                                 ),
                                 PressFeedback(
                                   child: OutlinedButton(
                                     onPressed: () {},
-                                    child: Text(
-                                      strings.themeEditorPreviewSecondaryBtn,
-                                    ),
+                                    child: Text(strings.themeEditorPreviewSecondaryBtn),
                                   ),
                                 ),
                               ],
@@ -496,10 +425,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               ),
                               TextSpan(
                                 text: 'const ',
-                                style: TextStyle(
-                                  color: tokens.syntaxKeyword,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                style: TextStyle(color: tokens.syntaxKeyword, fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
                                 text: 'answer',
@@ -555,11 +481,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
               // Header
               Row(
                 children: [
-                  Icon(
-                    Icons.tune_outlined,
-                    color: tokens.accent,
-                    size: FrameSize.iconLg,
-                  ),
+                  Icon(Icons.tune_outlined, color: tokens.accent, size: FrameSize.iconLg),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -569,17 +491,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                           strings.themeEditorTitle,
                           style: TextStyle(
                             color: tokens.displayText,
-                            fontSize: FrameText.fromTokens(tokens)
-                                .heading
-                                .fontSize,
+                            fontSize: FrameText.fromTokens(tokens).heading.fontSize,
                             fontWeight: FontWeight.bold,
                             fontFamily: tokens.headingFontFamily,
                           ),
                         ),
                         Text(
                           strings.themeEditorSubtitle,
-                          style: FrameText.fromTokens(tokens).label
-                              .copyWith(color: tokens.textMuted),
+                          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ),
@@ -602,17 +521,14 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                       children: [
                         Text(
                           strings.baseThemeLabel,
-                          style: FrameText.fromTokens(tokens).label
-                              .copyWith(color: tokens.textSecondary),
+                          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
                         ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: tokens.surface,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                             border: Border.all(color: tokens.border),
                           ),
                           child: DropdownButtonHideUnderline(
@@ -621,19 +537,13 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               isExpanded: true,
                               value: _selectedBaseThemeId,
                               dropdownColor: tokens.surfaceElevated,
-                              style: FrameText.fromTokens(tokens).body
-                                  .copyWith(color: tokens.textPrimary),
+                              style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
                               items: availableThemes.map((t) {
-                                return DropdownMenuItem<String>(
-                                  value: t.id,
-                                  child: Text('${t.name} (${t.variant})'),
-                                );
+                                return DropdownMenuItem<String>(value: t.id, child: Text('${t.name} (${t.variant})'));
                               }).toList(),
                               onChanged: (id) {
                                 if (id != null) {
-                                  final selected = availableThemes.firstWhere(
-                                    (t) => t.id == id,
-                                  );
+                                  final selected = availableThemes.firstWhere((t) => t.id == id);
                                   _onBaseThemeChanged(selected);
                                 }
                               },
@@ -651,21 +561,16 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                       children: [
                         Text(
                           strings.themeNameLabel,
-                          style: FrameText.fromTokens(tokens).label
-                              .copyWith(color: tokens.textSecondary),
+                          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
                         ),
                         const SizedBox(height: 4),
                         TextField(
                           key: const ValueKey('theme-editor-name-input'),
                           controller: _nameController,
-                          style: FrameText.fromTokens(tokens).body
-                              .copyWith(color: tokens.textPrimary),
+                          style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
                           decoration: InputDecoration(
                             hintText: strings.themeNameHint,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
                         ),
                       ],
@@ -679,38 +584,26 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                       children: [
                         Text(
                           strings.themeVariantLabel,
-                          style: FrameText.fromTokens(tokens).label
-                              .copyWith(color: tokens.textSecondary),
+                          style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.textSecondary),
                         ),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
                             color: tokens.surface,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                             border: Border.all(color: tokens.border),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
-                              key: const ValueKey(
-                                'theme-editor-variant-dropdown',
-                              ),
+                              key: const ValueKey('theme-editor-variant-dropdown'),
                               isExpanded: true,
                               value: _variant,
                               dropdownColor: tokens.surfaceElevated,
-                              style: FrameText.fromTokens(tokens).body
-                                  .copyWith(color: tokens.textPrimary),
+                              style: FrameText.fromTokens(tokens).body.copyWith(color: tokens.textPrimary),
                               items: [
-                                DropdownMenuItem(
-                                  value: 'dark',
-                                  child: Text(strings.variantDark),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'light',
-                                  child: Text(strings.variantLight),
-                                ),
+                                DropdownMenuItem(value: 'dark', child: Text(strings.variantDark)),
+                                DropdownMenuItem(value: 'light', child: Text(strings.variantLight)),
                               ],
                               onChanged: (v) {
                                 if (v != null) setState(() => _variant = v);
@@ -753,8 +646,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             const SizedBox(height: 8),
                             Text(
                               strings.catSurfaces,
-                              style: FrameText.fromTokens(tokens).label
-                                  .copyWith(color: tokens.accent),
+                              style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent),
                             ),
                             const SizedBox(height: 4),
                             _buildColorRow(
@@ -775,12 +667,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               tokens: tokens,
                               fallback: tokens.surfaceElevated,
                             ),
-                            _buildColorRow(
-                              'border',
-                              strings.colorLabelBorder,
-                              tokens: tokens,
-                              fallback: tokens.border,
-                            ),
+                            _buildColorRow('border', strings.colorLabelBorder, tokens: tokens, fallback: tokens.border),
                             _buildColorRow(
                               'borderStrong',
                               strings.colorLabelBorderStrong,
@@ -791,16 +678,10 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             const SizedBox(height: 12),
                             Text(
                               strings.catAccents,
-                              style: FrameText.fromTokens(tokens).label
-                                  .copyWith(color: tokens.accent),
+                              style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent),
                             ),
                             const SizedBox(height: 4),
-                            _buildColorRow(
-                              'accent',
-                              strings.colorLabelAccent,
-                              tokens: tokens,
-                              fallback: tokens.accent,
-                            ),
+                            _buildColorRow('accent', strings.colorLabelAccent, tokens: tokens, fallback: tokens.accent),
                             _buildColorRow(
                               'accentContrast',
                               strings.colorLabelAccentContrast,
@@ -817,8 +698,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             const SizedBox(height: 12),
                             Text(
                               strings.catText,
-                              style: FrameText.fromTokens(tokens).label
-                                  .copyWith(color: tokens.accent),
+                              style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent),
                             ),
                             const SizedBox(height: 4),
                             _buildColorRow(
@@ -843,8 +723,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                             const SizedBox(height: 12),
                             Text(
                               strings.catAgent,
-                              style: FrameText.fromTokens(tokens).label
-                                  .copyWith(color: tokens.accent),
+                              style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent),
                             ),
                             const SizedBox(height: 4),
                             _buildColorRow(
@@ -871,18 +750,12 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               tokens: tokens,
                               fallback: tokens.agentCompacting,
                             ),
-                            _buildColorRow(
-                              'danger',
-                              strings.colorLabelDanger,
-                              tokens: tokens,
-                              fallback: tokens.danger,
-                            ),
+                            _buildColorRow('danger', strings.colorLabelDanger, tokens: tokens, fallback: tokens.danger),
 
                             const SizedBox(height: 12),
                             Text(
                               strings.catSyntax,
-                              style: FrameText.fromTokens(tokens).label
-                                  .copyWith(color: tokens.accent),
+                              style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.accent),
                             ),
                             const SizedBox(height: 4),
                             _buildColorRow(
@@ -938,8 +811,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                               const SizedBox(height: 12),
                               Text(
                                 _errorMessage!,
-                                style: FrameText.fromTokens(tokens).label
-                                    .copyWith(color: tokens.danger),
+                                style: FrameText.fromTokens(tokens).label.copyWith(color: tokens.danger),
                               ),
                             ],
                           ],
@@ -956,10 +828,7 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   PressFeedback(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(strings.cancel),
-                    ),
+                    child: OutlinedButton(onPressed: () => Navigator.pop(context), child: Text(strings.cancel)),
                   ),
                   const SizedBox(width: 12),
                   PressFeedback(
@@ -968,15 +837,8 @@ class _ThemeEditorDialogState extends ConsumerState<ThemeEditorDialog> {
                       key: const ValueKey('theme-editor-save-btn'),
                       onPressed: _isSaving ? null : _saveAndApplyTheme,
                       icon: _isSaving
-                          ? FrameActivityIndicator(
-                              size: FrameSize.icon,
-                              strokeWidth: 2,
-                              color: tokens.accentContrast,
-                            )
-                          : const Icon(
-                              Icons.check_outlined,
-                              size: FrameSize.icon,
-                            ),
+                          ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
+                          : const Icon(Icons.check_outlined, size: FrameSize.icon),
                       label: Text(strings.saveThemeAction),
                     ),
                   ),

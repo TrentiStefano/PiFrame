@@ -5,22 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
-  test(
-    'PiFrame Dark fallback uses Vercel design standards and icon color palette',
-    () {
-      const tokens = FrameTokens.dark;
-      expect(tokens.background, const Color(0xFF161C27));
-      expect(tokens.surfaceElevated, const Color(0xFF242E40));
-      expect(tokens.displaySurface, const Color(0xFF242E40));
-      expect(tokens.displayText, const Color(0xFFF1F5F9));
-      expect(tokens.accent, const Color(0xFF5F9FC5));
-      expect(tokens.agentWorking, const Color(0xFF81B2CF));
-      expect(tokens.diffAddedFg, const Color(0xFFA1D9B0));
-      expect(tokens.danger, const Color(0xFFF1887A));
-      expect(tokens.syntaxKeyword, const Color(0xFF5F9FC5));
-      expect(tokens.radiusLg, 14);
-    },
-  );
+  test('PiFrame Dark fallback uses Vercel design standards and icon color palette', () {
+    const tokens = FrameTokens.dark;
+    expect(tokens.background, const Color(0xFF161C27));
+    expect(tokens.surfaceElevated, const Color(0xFF242E40));
+    expect(tokens.displaySurface, const Color(0xFF242E40));
+    expect(tokens.displayText, const Color(0xFFF1F5F9));
+    expect(tokens.accent, const Color(0xFF5F9FC5));
+    expect(tokens.agentWorking, const Color(0xFF81B2CF));
+    expect(tokens.diffAddedFg, const Color(0xFFA1D9B0));
+    expect(tokens.danger, const Color(0xFFF1887A));
+    expect(tokens.syntaxKeyword, const Color(0xFF5F9FC5));
+    expect(tokens.radiusLg, 14);
+  });
 
   test('PiFrame Light fallback has coordinated light surfaces', () {
     const tokens = FrameTokens.light;
@@ -55,21 +52,11 @@ void main() {
 
     final spec = ThemeSpec.fromJson(rawJson);
     expect(spec.id, 'test-tolerant');
-    expect(
-      spec.diagnostics.any(
-        (d) => d.contains('Unknown theme property ignored: "unknownKey"'),
-      ),
-      isTrue,
-    );
+    expect(spec.diagnostics.any((d) => d.contains('Unknown theme property ignored: "unknownKey"')), isTrue);
 
     final tokens = spec.toTokens();
     expect(tokens.accent, FrameTokens.dark.accent); // fell back safely!
-    expect(
-      spec.diagnostics.any(
-        (d) => d.contains('Invalid color format for "colors.accent"'),
-      ),
-      isTrue,
-    );
+    expect(spec.diagnostics.any((d) => d.contains('Invalid color format for "colors.accent"')), isTrue);
   });
 
   test('ThemeSpec.merge correctly merges base and override', () {
@@ -117,10 +104,7 @@ void main() {
     repo.registerThemeJson(themeB);
 
     final resolvedA = repo.availableThemes.firstWhere((t) => t.id == 'theme-a');
-    expect(
-      resolvedA.diagnostics.any((d) => d.contains('Inheritance cycle')),
-      isTrue,
-    );
+    expect(resolvedA.diagnostics.any((d) => d.contains('Inheritance cycle')), isTrue);
   });
 
   test('ThemeSpec.toThemeData generates consistent ThemeData with tokens extension', () {

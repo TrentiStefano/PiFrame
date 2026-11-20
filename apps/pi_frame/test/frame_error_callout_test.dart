@@ -8,11 +8,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 void main() {
   const strings = AppStrings(AppLanguage.it);
 
-  Future<void> pumpCallout(
-    WidgetTester tester, {
-    required UserFacingError error,
-    VoidCallback? onRetry,
-  }) {
+  Future<void> pumpCallout(WidgetTester tester, {required UserFacingError error, VoidCallback? onRetry}) {
     return tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
@@ -29,9 +25,7 @@ void main() {
     );
   }
 
-  testWidgets('details are collapsed by default and expand to the raw text', (
-    tester,
-  ) async {
+  testWidgets('details are collapsed by default and expand to the raw text', (tester) async {
     await pumpCallout(
       tester,
       error: const UserFacingError(
@@ -52,23 +46,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('test-callout-error-details-toggle')));
     await tester.pumpAndSettle();
 
-    final details = tester.widget<SelectableText>(
-      find.byKey(const ValueKey('test-callout-error-details')),
-    );
+    final details = tester.widget<SelectableText>(find.byKey(const ValueKey('test-callout-error-details')));
     expect(details.data, 'socket closed by peer boom-7');
   });
 
-  testWidgets('Riprova appears only when the error is retryable and a callback exists', (
-    tester,
-  ) async {
+  testWidgets('Riprova appears only when the error is retryable and a callback exists', (tester) async {
     var retries = 0;
     await pumpCallout(
       tester,
-      error: const UserFacingError(
-        title: 'Operazione non riuscita',
-        details: 'x',
-        retryable: true,
-      ),
+      error: const UserFacingError(title: 'Operazione non riuscita', details: 'x', retryable: true),
       onRetry: () => retries++,
     );
     expect(find.byKey(const ValueKey('test-callout-retry')), findsOneWidget);
@@ -79,10 +65,7 @@ void main() {
   testWidgets('no Riprova for a non-retryable error', (tester) async {
     await pumpCallout(
       tester,
-      error: const UserFacingError(
-        title: 'Nessun repository Git',
-        details: 'not a repo',
-      ),
+      error: const UserFacingError(title: 'Nessun repository Git', details: 'not a repo'),
       onRetry: () {},
     );
     expect(find.byKey(const ValueKey('test-callout-retry')), findsNothing);
@@ -91,11 +74,7 @@ void main() {
   testWidgets('no Riprova without a callback', (tester) async {
     await pumpCallout(
       tester,
-      error: const UserFacingError(
-        title: 'Operazione non riuscita',
-        details: 'x',
-        retryable: true,
-      ),
+      error: const UserFacingError(title: 'Operazione non riuscita', details: 'x', retryable: true),
     );
     expect(find.byKey(const ValueKey('test-callout-retry')), findsNothing);
   });

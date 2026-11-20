@@ -17,10 +17,7 @@ Color _deriveInputBorder(Color surface, Color borderStrong, Color textPrimary) {
 
 /// Keyboard focus overlay: a `focusRing` wash that stays distinct from the
 /// hover wash the widget already uses. Falls back to [base] for other states.
-WidgetStateProperty<Color?> _focusOverlay(
-  FrameTokens tokens, [
-  WidgetStateProperty<Color?>? base,
-]) {
+WidgetStateProperty<Color?> _focusOverlay(FrameTokens tokens, [WidgetStateProperty<Color?>? base]) {
   return WidgetStateProperty.resolveWith((states) {
     if (states.contains(WidgetState.focused)) {
       return tokens.focusRing.withValues(alpha: 0.2);
@@ -44,12 +41,7 @@ ButtonStyle _withFocusRing(FrameTokens tokens, [ButtonStyle? base]) {
   );
 }
 
-Color? parseHexColor(
-  dynamic hex, {
-  Color? fallback,
-  String? fieldName,
-  List<String>? diagnostics,
-}) {
+Color? parseHexColor(dynamic hex, {Color? fallback, String? fieldName, List<String>? diagnostics}) {
   if (hex == null || hex is! String) {
     return fallback;
   }
@@ -73,15 +65,11 @@ Color? parseHexColor(
       final a = int.parse(clean.substring(7, 9), radix: 16);
       return Color.fromARGB(a, r, g, b);
     } else {
-      diagnostics?.add(
-        'Invalid color length for "$fieldName": "$hex". Expected 7 or 9 chars. Using fallback.',
-      );
+      diagnostics?.add('Invalid color length for "$fieldName": "$hex". Expected 7 or 9 chars. Using fallback.');
       return fallback;
     }
   } catch (e) {
-    diagnostics?.add(
-      'Malformed color hex for "$fieldName": "$hex" ($e). Using fallback.',
-    );
+    diagnostics?.add('Malformed color hex for "$fieldName": "$hex" ($e). Using fallback.');
     return fallback;
   }
 }
@@ -151,19 +139,13 @@ class ThemeSpec {
       }
     }
 
-    final schemaVer = json['schemaVersion'] is int
-        ? json['schemaVersion'] as int
-        : 1;
+    final schemaVer = json['schemaVersion'] is int ? json['schemaVersion'] as int : 1;
     final id = json['id'] is String ? json['id'] as String : 'unknown-theme';
     final name = json['name'] is String ? json['name'] as String : id;
     final author = json['author'] is String ? json['author'] as String : '';
-    final version = json['version'] is String
-        ? json['version'] as String
-        : '1.0.0';
+    final version = json['version'] is String ? json['version'] as String : '1.0.0';
     final variant = (json['variant'] == 'light') ? 'light' : 'dark';
-    final extendsTheme = json['extends'] is String
-        ? json['extends'] as String
-        : null;
+    final extendsTheme = json['extends'] is String ? json['extends'] as String : null;
 
     Map<String, dynamic> toMap(dynamic val) => (val is Map<String, dynamic>)
         ? val
@@ -192,15 +174,9 @@ class ThemeSpec {
   }
 
   static ThemeSpec merge(ThemeSpec base, ThemeSpec override) {
-    final mergedDiagnostics = <String>[
-      ...base.diagnostics,
-      ...override.diagnostics,
-    ];
+    final mergedDiagnostics = <String>[...base.diagnostics, ...override.diagnostics];
 
-    Map<String, dynamic> mergeMaps(
-      Map<String, dynamic> b,
-      Map<String, dynamic> o,
-    ) {
+    Map<String, dynamic> mergeMaps(Map<String, dynamic> b, Map<String, dynamic> o) {
       final res = Map<String, dynamic>.from(b);
       res.addAll(o);
       return res;
@@ -283,40 +259,23 @@ class ThemeSpec {
   };
 
   FrameTokens toTokens() {
-    final baseTokens = variant == 'light'
-        ? FrameTokens.light
-        : FrameTokens.dark;
+    final baseTokens = variant == 'light' ? FrameTokens.light : FrameTokens.dark;
     final d = diagnostics;
 
-    Color c(String key, Color fallback) => parseHexColor(
-      rawColors[key],
-      fallback: fallback,
-      fieldName: 'colors.$key',
-      diagnostics: d,
-    )!;
+    Color c(String key, Color fallback) =>
+        parseHexColor(rawColors[key], fallback: fallback, fieldName: 'colors.$key', diagnostics: d)!;
 
-    Color s(String key, Color fallback) => parseHexColor(
-      rawSyntax[key],
-      fallback: fallback,
-      fieldName: 'syntax.$key',
-      diagnostics: d,
-    )!;
+    Color s(String key, Color fallback) =>
+        parseHexColor(rawSyntax[key], fallback: fallback, fieldName: 'syntax.$key', diagnostics: d)!;
 
     double numVal(dynamic val, double fallback) {
       if (val is num) return val.toDouble();
       return fallback;
     }
 
-    final surfaceColor =
-        parseHexColor(rawColors['surface'], fallback: baseTokens.surface)!;
-    final borderStrongColor = parseHexColor(
-      rawColors['borderStrong'],
-      fallback: baseTokens.borderStrong,
-    )!;
-    final textPrimaryColor = parseHexColor(
-      rawColors['textPrimary'],
-      fallback: baseTokens.textPrimary,
-    )!;
+    final surfaceColor = parseHexColor(rawColors['surface'], fallback: baseTokens.surface)!;
+    final borderStrongColor = parseHexColor(rawColors['borderStrong'], fallback: baseTokens.borderStrong)!;
+    final textPrimaryColor = parseHexColor(rawColors['textPrimary'], fallback: baseTokens.textPrimary)!;
 
     final uiFont = rawTypography['uiFontFamily'] is String
         ? rawTypography['uiFontFamily'] as String
@@ -343,14 +302,7 @@ class ThemeSpec {
       accent: c('accent', baseTokens.accent),
       accentContrast: c('accentContrast', baseTokens.accentContrast),
       focusRing: c('focusRing', baseTokens.focusRing),
-      inputBorder: c(
-        'inputBorder',
-        _deriveInputBorder(
-          surfaceColor,
-          borderStrongColor,
-          textPrimaryColor,
-        ),
-      ),
+      inputBorder: c('inputBorder', _deriveInputBorder(surfaceColor, borderStrongColor, textPrimaryColor)),
       success: c('success', baseTokens.success),
       warning: c('warning', baseTokens.warning),
       danger: c('danger', baseTokens.danger),
@@ -451,36 +403,12 @@ class ThemeSpec {
                   color: tokens.textPrimary,
                   letterSpacing: -0.5,
                 ),
-                titleLarge: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: tokens.textPrimary,
-                ),
-                titleMedium: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: tokens.textPrimary,
-                ),
-                bodyLarge: TextStyle(
-                  fontSize: 15,
-                  height: 1.6,
-                  color: tokens.textPrimary,
-                ),
-                bodyMedium: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: tokens.textPrimary,
-                ),
-                bodySmall: TextStyle(
-                  fontSize: 12,
-                  height: 1.5,
-                  color: tokens.textSecondary,
-                ),
-                labelLarge: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: tokens.textPrimary,
-                ),
+                titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: tokens.textPrimary),
+                titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: tokens.textPrimary),
+                bodyLarge: TextStyle(fontSize: 15, height: 1.6, color: tokens.textPrimary),
+                bodyMedium: TextStyle(fontSize: 14, height: 1.5, color: tokens.textPrimary),
+                bodySmall: TextStyle(fontSize: 12, height: 1.5, color: tokens.textSecondary),
+                labelLarge: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tokens.textPrimary),
               )
               .apply(fontFamily: tokens.uiFontFamily)
               .copyWith(
@@ -544,27 +472,16 @@ class ThemeSpec {
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(color: tokens.borderStrong, width: 0.8),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8, offset: const Offset(0, 4)),
           ],
         ),
-        textStyle: TextStyle(
-          color: tokens.displayText,
-          fontFamily: tokens.uiFontFamily,
-          fontSize: 12,
-        ),
+        textStyle: TextStyle(color: tokens.displayText, fontFamily: tokens.uiFontFamily, fontSize: 12),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         waitDuration: const Duration(milliseconds: 300),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: tokens.surfaceElevated,
-        contentTextStyle: TextStyle(
-          color: tokens.textPrimary,
-          fontFamily: tokens.uiFontFamily,
-        ),
+        contentTextStyle: TextStyle(color: tokens.textPrimary, fontFamily: tokens.uiFontFamily),
         behavior: SnackBarBehavior.floating,
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -580,9 +497,7 @@ class ThemeSpec {
           disabledBackgroundColor: tokens.surfaceElevated,
           disabledForegroundColor: tokens.textMuted,
           minimumSize: const Size(40, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -592,9 +507,7 @@ class ThemeSpec {
             backgroundColor: tokens.accent,
             foregroundColor: tokens.accentContrast,
             minimumSize: const Size(40, 40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
           ),
         ),
       ),
@@ -605,9 +518,7 @@ class ThemeSpec {
             foregroundColor: tokens.textPrimary,
             side: BorderSide(color: tokens.borderStrong),
             minimumSize: const Size(40, 40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
           ),
         ),
       ),
@@ -617,19 +528,13 @@ class ThemeSpec {
           TextButton.styleFrom(
             foregroundColor: tokens.textPrimary,
             minimumSize: const Size(40, 40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
           ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: _withFocusRing(tokens).copyWith(
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
-          ),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm))),
         ),
       ),
       checkboxTheme: CheckboxThemeData(overlayColor: _focusOverlay(tokens)),
@@ -657,18 +562,12 @@ class ThemeSpec {
         indicatorColor: tokens.accent,
         overlayColor: _focusOverlay(tokens),
         dividerColor: tokens.border,
-        labelStyle: TextStyle(
-          fontFamily: tokens.uiFontFamily,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+        labelStyle: TextStyle(fontFamily: tokens.uiFontFamily, fontWeight: FontWeight.w600, fontSize: 13),
       ),
       listTileTheme: ListTileThemeData(
         textColor: tokens.textPrimary,
         iconColor: tokens.textSecondary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
       ),
       cardTheme: CardThemeData(
         color: tokens.surface,
@@ -684,10 +583,7 @@ class ThemeSpec {
         hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
         labelStyle: TextStyle(color: tokens.textSecondary),
         errorStyle: TextStyle(color: tokens.danger),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           borderSide: BorderSide(color: tokens.inputBorder),
@@ -711,9 +607,7 @@ class ThemeSpec {
       ),
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (states) =>
-              states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.dragged)
+          (states) => states.contains(WidgetState.hovered) || states.contains(WidgetState.dragged)
               ? tokens.textSecondary
               : tokens.textMuted.withValues(alpha: 0.45),
         ),

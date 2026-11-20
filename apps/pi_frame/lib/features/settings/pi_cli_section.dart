@@ -44,8 +44,7 @@ class PiCommandItem {
 /// Content width at which the console moves to a right column.
 const _piCliWideBreakpoint = 880.0;
 
-List<PiCommandItem> get kBuiltinPiCommands =>
-    getBuiltinPiCommands(const AppStrings(AppLanguage.it));
+List<PiCommandItem> get kBuiltinPiCommands => getBuiltinPiCommands(const AppStrings(AppLanguage.it));
 
 List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
   PiCommandItem(
@@ -113,13 +112,7 @@ class PiCliSection extends StatefulWidget {
   final AppStrings? strings;
   final Future<void> Function()? onPackagesChanged;
 
-  const PiCliSection({
-    super.key,
-    required this.tokens,
-    this.onRecheck,
-    this.strings,
-    this.onPackagesChanged,
-  });
+  const PiCliSection({super.key, required this.tokens, this.onRecheck, this.strings, this.onPackagesChanged});
 
   @override
   State<PiCliSection> createState() => _PiCliSectionState();
@@ -133,10 +126,7 @@ class _PiCliSectionState extends State<PiCliSection> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
-      return ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(appStringsProvider);
+      return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
       return const AppStrings(AppLanguage.it);
     }
@@ -169,11 +159,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final target = _consoleKey.currentContext;
       if (target != null) {
-        Scrollable.ensureVisible(
-          target,
-          duration: FrameMotion.small,
-          curve: FrameMotion.enterCurve,
-        );
+        Scrollable.ensureVisible(target, duration: FrameMotion.small, curve: FrameMotion.enterCurve);
       }
     });
   }
@@ -223,19 +209,9 @@ class _PiCliSectionState extends State<PiCliSection> {
         );
       } else {
         if (piExe != null) {
-          process = await Process.start(
-            piExe,
-            args,
-            environment: PlatformEnvironment.environment,
-            runInShell: false,
-          );
+          process = await Process.start(piExe, args, environment: PlatformEnvironment.environment, runInShell: false);
         } else {
-          process = await Process.start(
-            'pi',
-            args,
-            environment: PlatformEnvironment.environment,
-            runInShell: true,
-          );
+          process = await Process.start('pi', args, environment: PlatformEnvironment.environment, runInShell: true);
         }
       }
 
@@ -261,23 +237,17 @@ class _PiCliSectionState extends State<PiCliSection> {
       await Future.wait([stdoutDone, stderrDone]);
 
       if (!mounted) return;
-      final duration = _startTime != null
-          ? DateTime.now().difference(_startTime!)
-          : null;
+      final duration = _startTime != null ? DateTime.now().difference(_startTime!) : null;
 
       setState(() {
         _exitCode = code;
         _isExecuting = false;
         _activeProcess = null;
         _executionDuration = duration;
-        _consoleOutput += _strings.piCliProcessCompleted(
-          code,
-          duration?.inMilliseconds ?? 0,
-        );
+        _consoleOutput += _strings.piCliProcessCompleted(code, duration?.inMilliseconds ?? 0);
       });
       _scrollToBottom();
-      if (args.isNotEmpty &&
-          const {'install', 'update', 'remove'}.contains(args.first)) {
+      if (args.isNotEmpty && const {'install', 'update', 'remove'}.contains(args.first)) {
         await widget.onPackagesChanged?.call();
       }
     } catch (e) {
@@ -306,11 +276,7 @@ class _PiCliSectionState extends State<PiCliSection> {
   void _copyConsoleOutput() {
     if (_consoleOutput.isEmpty) return;
     Clipboard.setData(ClipboardData(text: _consoleOutput));
-    FrameSnackBar.show(
-      context,
-      message: _strings.piCliOutputCopiedSnackBar,
-      duration: const Duration(seconds: 2),
-    );
+    FrameSnackBar.show(context, message: _strings.piCliOutputCopiedSnackBar, duration: const Duration(seconds: 2));
   }
 
   void _clearConsoleOutput() {
@@ -343,16 +309,9 @@ class _PiCliSectionState extends State<PiCliSection> {
 
     final title = Row(
       children: [
-        Icon(
-          Icons.terminal_outlined,
-          color: tokens.accent,
-          size: FrameSize.iconLg,
-        ),
+        Icon(Icons.terminal_outlined, color: tokens.accent, size: FrameSize.iconLg),
         const SizedBox(width: FrameSpace.x3),
-        Text(
-          strings.piCliTitle,
-          style: text.title.copyWith(color: tokens.textPrimary),
-        ),
+        Text(strings.piCliTitle, style: text.title.copyWith(color: tokens.textPrimary)),
       ],
     );
 
@@ -360,9 +319,7 @@ class _PiCliSectionState extends State<PiCliSection> {
       title: strings.piCliFastCommands,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final cmd in commands) _buildActionRow(tokens, cmd, strings),
-        ],
+        children: [for (final cmd in commands) _buildActionRow(tokens, cmd, strings)],
       ),
     );
 
@@ -377,10 +334,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                 children: [
                   Text(
                     'pi ',
-                    style: text.mono.copyWith(
-                      color: tokens.accent,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: text.mono.copyWith(color: tokens.accent, fontWeight: FontWeight.w700),
                   ),
                   Expanded(
                     child: TextField(
@@ -390,9 +344,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                       style: text.mono.copyWith(color: tokens.textPrimary),
                       decoration: InputDecoration(
                         hintText: strings.piCliCustomCmdHint,
-                        hintStyle: text.caption.copyWith(
-                          color: tokens.textMuted,
-                        ),
+                        hintStyle: text.caption.copyWith(color: tokens.textMuted),
                         // The surrounding box draws the one border; the
                         // field's own states must not add another.
                         border: InputBorder.none,
@@ -457,10 +409,7 @@ class _PiCliSectionState extends State<PiCliSection> {
                       padding: const EdgeInsets.all(FrameSpace.x3),
                       child: SelectableText(
                         _consoleOutput,
-                        style: text.mono.copyWith(
-                          color: tokens.displayText,
-                          height: 1.4,
-                        ),
+                        style: text.mono.copyWith(color: tokens.displayText, height: 1.4),
                       ),
                     ),
                   ),
@@ -472,25 +421,16 @@ class _PiCliSectionState extends State<PiCliSection> {
     // System verification footer: flat, no second border level.
     final footer = Row(
       children: [
-        Icon(
-          Icons.check_circle_outlined,
-          size: FrameSize.icon,
-          color: tokens.success,
-        ),
+        Icon(Icons.check_circle_outlined, size: FrameSize.icon, color: tokens.success),
         const SizedBox(width: FrameSpace.x3),
         Expanded(
-          child: Text(
-            strings.piCliSystemPathNotice,
-            style: text.caption.copyWith(color: tokens.textMuted),
-          ),
+          child: Text(strings.piCliSystemPathNotice, style: text.caption.copyWith(color: tokens.textMuted)),
         ),
         if (widget.onRecheck != null)
           PressFeedback(
             enabled: (widget.onRecheck) != null,
             child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, FrameSize.rowForm),
-              ),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
               onPressed: widget.onRecheck,
               child: Text(strings.piCliRecheckBtn),
             ),
@@ -555,19 +495,11 @@ class _PiCliSectionState extends State<PiCliSection> {
     minimumSize: const Size(0, FrameSize.hitMin),
   );
 
-  Widget _buildConsoleToolbar(
-    FrameTokens tokens,
-    FrameText text,
-    AppStrings strings,
-  ) {
+  Widget _buildConsoleToolbar(FrameTokens tokens, FrameText text, AppStrings strings) {
     return Row(
       children: [
         if (_isExecuting) ...[
-          FrameActivityIndicator(
-            size: FrameSize.icon - FrameSpace.x1,
-            strokeWidth: 2,
-            color: tokens.accent,
-          ),
+          FrameActivityIndicator(size: FrameSize.icon - FrameSpace.x1, strokeWidth: 2, color: tokens.accent),
           const SizedBox(width: FrameSpace.x2),
           Flexible(
             child: Text(
@@ -587,12 +519,8 @@ class _PiCliSectionState extends State<PiCliSection> {
           if (_exitCode != null)
             FrameStatusTag(
               key: const ValueKey('pi-cli-exit-status'),
-              label: _exitCode == 0
-                  ? strings.piCliSuccessCode
-                  : strings.piCliExitCode(_exitCode!),
-              tone: _exitCode == 0
-                  ? FrameStatusTone.success
-                  : FrameStatusTone.danger,
+              label: _exitCode == 0 ? strings.piCliSuccessCode : strings.piCliExitCode(_exitCode!),
+              tone: _exitCode == 0 ? FrameStatusTone.success : FrameStatusTone.danger,
             ),
           if (_executionDuration != null) ...[
             const SizedBox(width: FrameSpace.x2),
@@ -621,11 +549,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     );
   }
 
-  Widget _buildActionRow(
-    FrameTokens tokens,
-    PiCommandItem item,
-    AppStrings strings,
-  ) {
+  Widget _buildActionRow(FrameTokens tokens, PiCommandItem item, AppStrings strings) {
     final text = FrameText.of(context);
     final isRunning = _currentCommand == item.command && _isExecuting;
     final isMcpRow = item.command == 'pi mcp list';
@@ -636,10 +560,7 @@ class _PiCliSectionState extends State<PiCliSection> {
         Row(
           children: [
             Flexible(
-              child: Text(
-                item.label,
-                style: text.label.copyWith(color: tokens.textPrimary),
-              ),
+              child: Text(item.label, style: text.label.copyWith(color: tokens.textPrimary)),
             ),
             if (item.isRecommended) ...[
               const SizedBox(width: FrameSpace.x2),
@@ -652,10 +573,7 @@ class _PiCliSectionState extends State<PiCliSection> {
           ],
         ),
         Text(item.command, style: text.mono.copyWith(color: tokens.textMuted)),
-        Text(
-          item.description,
-          style: text.caption.copyWith(color: tokens.textMuted),
-        ),
+        Text(item.description, style: text.caption.copyWith(color: tokens.textMuted)),
       ],
     );
 
@@ -669,8 +587,7 @@ class _PiCliSectionState extends State<PiCliSection> {
               side: BorderSide(color: tokens.borderStrong),
               minimumSize: const Size(0, FrameSize.hitMin),
             ),
-            onPressed: () =>
-                McpServersDialog.show(context, tokens, strings: strings),
+            onPressed: () => McpServersDialog.show(context, tokens, strings: strings),
             child: Text(strings.piCliManageMcpBtn),
           ),
         ),
@@ -680,19 +597,11 @@ class _PiCliSectionState extends State<PiCliSection> {
         child: OutlinedButton.icon(
           key: ValueKey('pi-cli-run-${item.command.replaceAll(' ', '-')}'),
           style: _outlinedRunStyle(tokens),
-          onPressed: _isExecuting
-              ? null
-              : () => _executeCommand(item.command, item.args),
+          onPressed: _isExecuting ? null : () => _executeCommand(item.command, item.args),
           icon: isRunning
-              ? FrameActivityIndicator(
-                  size: FrameSize.icon,
-                  strokeWidth: 2,
-                  color: tokens.accent,
-                )
+              ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
               : const Icon(Icons.play_arrow_outlined, size: FrameSize.icon),
-          label: Text(
-            isRunning ? strings.piCliInProgress : strings.piCliRunBtn,
-          ),
+          label: Text(isRunning ? strings.piCliInProgress : strings.piCliRunBtn),
         ),
       ),
     ];
@@ -721,20 +630,13 @@ class _PiCliSectionState extends State<PiCliSection> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        item.icon,
-                        size: FrameSize.icon,
-                        color: tokens.textSecondary,
-                      ),
+                      Icon(item.icon, size: FrameSize.icon, color: tokens.textSecondary),
                       const SizedBox(width: FrameSpace.x3),
                       Expanded(child: info),
                     ],
                   ),
                   const SizedBox(height: FrameSpace.x2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: buttons,
-                  ),
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: buttons),
                 ],
               );
             },
@@ -756,13 +658,9 @@ class _PiCliSectionState extends State<PiCliSection> {
             message: strings.piCliMcpCardTooltip,
             child: InkWell(
               borderRadius: BorderRadius.circular(tokens.radiusSm),
-              onTap: () =>
-                  McpServersDialog.show(context, tokens, strings: strings),
+              onTap: () => McpServersDialog.show(context, tokens, strings: strings),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: FrameSpace.x3,
-                  vertical: FrameSpace.x2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
                 child: rowContent,
               ),
             ),

@@ -6,11 +6,7 @@ import 'package:pi_frame/features/settings/sections/packages_section.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 /// Pumps the Settings Pacchetti tab with the platform "reduce motion" flag.
-Widget _packages({
-  required bool isLoading,
-  required bool isWorking,
-  required double? updateProgress,
-}) {
+Widget _packages({required bool isLoading, required bool isWorking, required double? updateProgress}) {
   const tokens = FrameTokens.dark;
   return ProviderScope(
     child: MaterialApp(
@@ -41,27 +37,17 @@ Widget _packages({
 }
 
 void main() {
-  testWidgets('Pacchetti loading shows no indeterminate indicator under reduced motion', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _packages(isLoading: true, isWorking: false, updateProgress: null),
-    );
+  testWidgets('Pacchetti loading shows no indeterminate indicator under reduced motion', (tester) async {
+    await tester.pumpWidget(_packages(isLoading: true, isWorking: false, updateProgress: null));
     expect(find.byKey(const ValueKey('packages-loading')), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
-  testWidgets('Pacchetti update in progress shows no indeterminate bar under reduced motion', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _packages(isLoading: false, isWorking: true, updateProgress: null),
-    );
+  testWidgets('Pacchetti update in progress shows no indeterminate bar under reduced motion', (tester) async {
+    await tester.pumpWidget(_packages(isLoading: false, isWorking: true, updateProgress: null));
     await tester.pump();
-    final bars = tester.widgetList<LinearProgressIndicator>(
-      find.byType(LinearProgressIndicator),
-    );
+    final bars = tester.widgetList<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
     for (final bar in bars) {
       expect(bar.value, isNotNull, reason: 'indeterminate bar still loops');
     }

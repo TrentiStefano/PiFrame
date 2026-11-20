@@ -55,7 +55,9 @@ const check = argv.includes('--check');
 const chosen = argv.filter((a) => a !== '--check');
 const unknown = chosen.filter((name) => !FORMATTERS[name]);
 if (unknown.length > 0) {
-  console.error(`Unknown formatter: ${unknown.join(', ')}. Use: ${Object.keys(FORMATTERS).join(', ')} (or nothing for all).`);
+  console.error(
+    `Unknown formatter: ${unknown.join(', ')}. Use: ${Object.keys(FORMATTERS).join(', ')} (or nothing for all).`
+  );
   process.exit(2);
 }
 

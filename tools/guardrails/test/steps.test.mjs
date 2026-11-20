@@ -26,7 +26,8 @@ test('verify runs the full gate in order, including codegen parity and an explic
   ]);
 });
 
-const WEB_BUILD = 'flutter build web --release --no-web-resources-cdn --pwa-strategy=none --dart-define=PI_FRAME_VERSION=1.5.1';
+const WEB_BUILD =
+  'flutter build web --release --no-web-resources-cdn --pwa-strategy=none --dart-define=PI_FRAME_VERSION=1.5.1';
 const tailOf = (steps, n) => steps.slice(-n).map((s) => ({ command: s.command.join(' '), cwd: s.cwd }));
 
 test('verify --release appends the web and desktop release builds for the given platform and version', () => {
@@ -35,7 +36,8 @@ test('verify --release appends the web and desktop release builds for the given 
   assert.deepEqual(tailOf(steps, 2), [
     { command: WEB_BUILD, cwd: 'apps/pi_frame' },
     {
-      command: 'flutter build windows --release --build-name 1.5.1 --build-number 1 --dart-define=PI_FRAME_VERSION=1.5.1',
+      command:
+        'flutter build windows --release --build-name 1.5.1 --build-number 1 --dart-define=PI_FRAME_VERSION=1.5.1',
       cwd: 'apps/pi_frame'
     }
   ]);

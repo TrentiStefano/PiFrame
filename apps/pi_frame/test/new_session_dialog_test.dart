@@ -19,9 +19,7 @@ Future<void> _openDialog(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        sessionListProvider.overrideWith((ref) async => sessions),
-      ],
+      overrides: [sessionListProvider.overrideWith((ref) async => sessions)],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Builder(
@@ -52,8 +50,7 @@ Future<void> _type(WidgetTester tester, String path) async {
   await tester.pumpAndSettle();
 }
 
-bool _createEnabled(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.byKey(_createKey)).onPressed != null;
+bool _createEnabled(WidgetTester tester) => tester.widget<FilledButton>(find.byKey(_createKey)).onPressed != null;
 
 void main() {
   late Directory root;
@@ -83,9 +80,7 @@ void main() {
     expect(_createEnabled(tester), isFalse);
   });
 
-  testWidgets('a missing path shows Cartella non trovata and keeps Create disabled', (
-    tester,
-  ) async {
+  testWidgets('a missing path shows Cartella non trovata and keeps Create disabled', (tester) async {
     await _openDialog(tester, results: []);
 
     await _type(tester, '${root.path}/does-not-exist');

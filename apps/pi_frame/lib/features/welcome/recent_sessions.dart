@@ -28,23 +28,14 @@ int sessionActivityTimestamp(Map<String, dynamic> s) {
 }
 
 /// Top-level sessions, most recently active first.
-List<Map<String, dynamic>> resumableSessions(
-  List<Map<String, dynamic>> sessions,
-) {
+List<Map<String, dynamic>> resumableSessions(List<Map<String, dynamic>> sessions) {
   final result = sessions.where((s) => !isSubsessionEntry(s)).toList();
-  result.sort(
-    (a, b) => sessionActivityTimestamp(
-      b,
-    ).compareTo(sessionActivityTimestamp(a)),
-  );
+  result.sort((a, b) => sessionActivityTimestamp(b).compareTo(sessionActivityTimestamp(a)));
   return result;
 }
 
 /// Distinct repository folders of [sessions], most recently active first.
-List<String> recentSessionFolders(
-  List<Map<String, dynamic>> sessions, {
-  int limit = 5,
-}) {
+List<String> recentSessionFolders(List<Map<String, dynamic>> sessions, {int limit = 5}) {
   final folders = <String>[];
   for (final session in resumableSessions(sessions)) {
     final folder = sessionFolder(session).trim();

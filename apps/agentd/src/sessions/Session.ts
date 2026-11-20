@@ -163,8 +163,11 @@ export class Session {
   public dispatchPiEvent(rawEvent: PiEvent): PcpEvent[] {
     // The subagent bridge reports through a reserved status key: keep it as
     // live state, never as a visible status line or a journal event.
-    if (rawEvent.type === 'extension_ui_request' && rawEvent.method === 'setStatus' &&
-        rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY) {
+    if (
+      rawEvent.type === 'extension_ui_request' &&
+      rawEvent.method === 'setStatus' &&
+      rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY
+    ) {
       const live = parseLiveSubagents(rawEvent.statusText);
       if (live) this.liveSubagents = live;
       return [];
@@ -293,7 +296,7 @@ export class Session {
 
       case 'session.status':
         if (payload.status !== 'settled' && payload.status !== 'idle') break;
-        // Recovery must settle the same execution state as a normal stop.
+      // Recovery must settle the same execution state as a normal stop.
       case 'run.settled':
         this.finishActiveTools();
         this.status = 'settled';

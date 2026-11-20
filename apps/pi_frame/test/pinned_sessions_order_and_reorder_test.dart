@@ -120,9 +120,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(body: SessionsSidebar()),
           ),
         ),
@@ -163,18 +161,8 @@ void main() {
       tester,
     ) async {
       final mockSessions = [
-        {
-          'id': 'sess_alpha',
-          'name': 'Alpha Session',
-          'cwd': '/repo/app',
-          'isActive': false,
-        },
-        {
-          'id': 'sess_beta',
-          'name': 'Beta Session',
-          'cwd': '/repo/app',
-          'isActive': false,
-        },
+        {'id': 'sess_alpha', 'name': 'Alpha Session', 'cwd': '/repo/app', 'isActive': false},
+        {'id': 'sess_beta', 'name': 'Beta Session', 'cwd': '/repo/app', 'isActive': false},
       ];
 
       final pinnedNotifier = _TestPinnedNotifier(['sess_alpha', 'sess_beta']);
@@ -187,26 +175,18 @@ void main() {
             pinnedSessionsProvider.overrideWith((ref) => pinnedNotifier),
             activeSessionIdProvider.overrideWith((ref) => 'sess_alpha'),
             sessionStateFamily('sess_alpha').overrideWith(
-              (ref) => SessionStateNotifier('sess_alpha', null)
-                ..state = const SessionState(
-                  sessionId: 'sess_alpha',
-                  cwd: '/repo/app',
-                  entries: [],
-                ),
+              (ref) =>
+                  SessionStateNotifier('sess_alpha', null)
+                    ..state = const SessionState(sessionId: 'sess_alpha', cwd: '/repo/app', entries: []),
             ),
             sessionStateFamily('sess_beta').overrideWith(
-              (ref) => SessionStateNotifier('sess_beta', null)
-                ..state = const SessionState(
-                  sessionId: 'sess_beta',
-                  cwd: '/repo/app',
-                  entries: [],
-                ),
+              (ref) =>
+                  SessionStateNotifier('sess_beta', null)
+                    ..state = const SessionState(sessionId: 'sess_beta', cwd: '/repo/app', entries: []),
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(body: SessionsSidebar()),
           ),
         ),

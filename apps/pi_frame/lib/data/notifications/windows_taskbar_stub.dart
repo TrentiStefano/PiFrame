@@ -3,13 +3,7 @@
 // Windows taskbar. desktop_notification_service.dart picks the real one with
 // a conditional import whenever `dart:ffi` is available.
 
-enum WindowsTaskbarProgressState {
-  noProgress,
-  indeterminate,
-  normal,
-  error,
-  paused,
-}
+enum WindowsTaskbarProgressState { noProgress, indeterminate, normal, error, paused }
 
 class WindowsTaskbar {
   WindowsTaskbar._();

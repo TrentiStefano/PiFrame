@@ -5,10 +5,7 @@ import 'harness/harness_extensions.dart';
 import 'harness/harness_window.dart';
 import 'main.dart' show runPiFrame;
 
-const _harnessSize = String.fromEnvironment(
-  'PIFRAME_HARNESS_SIZE',
-  defaultValue: '1920x1032',
-);
+const _harnessSize = String.fromEnvironment('PIFRAME_HARNESS_SIZE', defaultValue: '1920x1032');
 
 final _rootBoundaryKey = GlobalKey();
 
@@ -17,8 +14,7 @@ Future<void> main() async {
   final size = _parseHarnessSize(_harnessSize);
   await runPiFrame(
     configureWindow: () => configureHarnessWindow(size),
-    rootWrapper: (child) =>
-        RepaintBoundary(key: _rootBoundaryKey, child: child),
+    rootWrapper: (child) => RepaintBoundary(key: _rootBoundaryKey, child: child),
   );
   registerHarnessExtensions(_rootBoundaryKey);
   // --size is the app's drawing area: grow the window by its frame.

@@ -91,15 +91,12 @@ String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
   // 3. A pure Linux path on Windows with no known WSL distro: keep the Linux
   // path. openInOsFileExplorer maps it with `wslpath -w` on the default distro.
   if (cwd != null && (cwd.startsWith('/') || resolved.startsWith('/'))) {
-    return resolved.startsWith('/')
-        ? resolved
-        : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
+    return resolved.startsWith('/') ? resolved : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
   }
 
   // 4. Standard Windows path
   if (cwd != null && cwd.isNotEmpty) {
-    final isAbsolute = RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(resolved) ||
-        resolved.startsWith(r'\\');
+    final isAbsolute = RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(resolved) || resolved.startsWith(r'\\');
     if (!isAbsolute) {
       final separator = cwd.endsWith('\\') || cwd.endsWith('/') ? '' : '\\';
       return '$cwd$separator$resolved'.replaceAll('/', '\\');
@@ -134,17 +131,11 @@ Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
               .replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
           final targetLinux = rawClean.startsWith('/')
               ? rawClean
-              : (cwd != null
-                  ? '${parseWslPath(cwd)?['linuxPath'] ?? cwd}/$rawClean'
-                  : rawClean);
-          final res = await Process.run(
-            'wsl.exe',
-            ['wslpath', '-w', targetLinux],
-          ).timeout(const Duration(seconds: 1));
+              : (cwd != null ? '${parseWslPath(cwd)?['linuxPath'] ?? cwd}/$rawClean' : rawClean);
+          final res = await Process.run('wsl.exe', ['wslpath', '-w', targetLinux]).timeout(const Duration(seconds: 1));
           if (res.exitCode == 0) {
             final out = (res.stdout as String).trim();
-            if (out.isNotEmpty &&
-                (File(out).existsSync() || Directory(out).existsSync())) {
+            if (out.isNotEmpty && (File(out).existsSync() || Directory(out).existsSync())) {
               winPath = out;
               file = File(winPath);
               dir = Directory(winPath);
@@ -208,24 +199,15 @@ class RichContent extends StatefulWidget {
   final String? cwd;
   final Color? textColor;
 
-  const RichContent({
-    super.key,
-    required this.text,
-    this.cwd,
-    this.textColor,
-  });
+  const RichContent({super.key, required this.text, this.cwd, this.textColor});
 
   @override
   State<RichContent> createState() => _RichContentState();
 
-  static final RegExp _fenceRegex = RegExp(
-    r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```',
-  );
+  static final RegExp _fenceRegex = RegExp(r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```');
   static final RegExp _numberedListRegex = RegExp(r'^(\d+)\.\s');
   static final RegExp _mdLinkRegex = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
-  static final RegExp _rawUrlRegex = RegExp(
-    r'(?<![\(\[])(https?://[^\s\)]+|file://[^\s\)]+)',
-  );
+  static final RegExp _rawUrlRegex = RegExp(r'(?<![\(\[])(https?://[^\s\)]+|file://[^\s\)]+)');
   static final RegExp _inlineCodeRegex = RegExp(r'`([^`]+)`');
   static final RegExp _boldRegex = RegExp(r'\*\*([^*]+)\*\*');
   static final RegExp _rawFilePathRegex = RegExp(
@@ -269,9 +251,7 @@ class RichContent extends StatefulWidget {
     return segments;
   }
 
-  static final RegExp _tableSeparatorRegex = RegExp(
-    r'^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$',
-  );
+  static final RegExp _tableSeparatorRegex = RegExp(r'^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$');
 
   /// A table row is any line with a pipe; the header is the first such line
   /// followed directly by a `|---|` separator row.
@@ -301,22 +281,13 @@ class RichContent extends StatefulWidget {
   }) {
     final header = _splitTableRow(rows.first);
     final columnCount = header.length;
-    List<String> normalize(List<String> cells) => List.generate(
-          columnCount,
-          (c) => c < cells.length ? cells[c] : '',
-        );
+    List<String> normalize(List<String> cells) => List.generate(columnCount, (c) => c < cells.length ? cells[c] : '');
 
     Widget cell(String content, {required bool isHeader}) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text.rich(
-          _parseInlineSpans(
-            content,
-            tokens,
-            cwd: cwd,
-            strings: strings,
-            createTapRecognizer: createTapRecognizer,
-          ),
+          _parseInlineSpans(content, tokens, cwd: cwd, strings: strings, createTapRecognizer: createTapRecognizer),
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: FrameText.fromTokens(tokens).label.fontSize,
@@ -330,17 +301,10 @@ class RichContent extends StatefulWidget {
     final tableRows = <TableRow>[
       TableRow(
         decoration: BoxDecoration(color: tokens.surfaceElevated),
-        children: [
-          for (final c in normalize(header)) cell(c, isHeader: true),
-        ],
+        children: [for (final c in normalize(header)) cell(c, isHeader: true)],
       ),
       for (final row in rows.skip(2))
-        TableRow(
-          children: [
-            for (final c in normalize(_splitTableRow(row)))
-              cell(c, isHeader: false),
-          ],
-        ),
+        TableRow(children: [for (final c in normalize(_splitTableRow(row))) cell(c, isHeader: false)]),
     ];
 
     return Padding(
@@ -373,10 +337,7 @@ class RichContent extends StatefulWidget {
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
     Color? textColor,
   }) {
-    final rawLines =
-        (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split(
-          '\n',
-        );
+    final rawLines = (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split('\n');
     final widgets = <Widget>[];
     final currentPara = StringBuffer();
     final effectiveTextColor = textColor ?? tokens.textPrimary;
@@ -428,9 +389,7 @@ class RichContent extends StatefulWidget {
           ),
         );
         i = end - 1;
-      } else if (trimmed.startsWith('# ') ||
-          trimmed.startsWith('## ') ||
-          trimmed.startsWith('### ')) {
+      } else if (trimmed.startsWith('# ') || trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
         flushPara();
         if (trimmed.startsWith('### ')) {
           widgets.add(
@@ -453,9 +412,7 @@ class RichContent extends StatefulWidget {
               child: Container(
                 padding: const EdgeInsets.only(left: 8),
                 decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: tokens.accent, width: 3),
-                  ),
+                  border: Border(left: BorderSide(color: tokens.accent, width: 3)),
                 ),
                 child: Text(
                   trimmed.substring(3),
@@ -494,12 +451,7 @@ class RichContent extends StatefulWidget {
             decoration: BoxDecoration(
               color: tokens.surfaceElevated.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border(
-                left: BorderSide(
-                  color: tokens.accent.withValues(alpha: 0.6),
-                  width: 3,
-                ),
-              ),
+              border: Border(left: BorderSide(color: tokens.accent.withValues(alpha: 0.6), width: 3)),
             ),
             child: Text.rich(
               _parseInlineSpans(
@@ -531,10 +483,7 @@ class RichContent extends StatefulWidget {
                   child: Container(
                     width: 5,
                     height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: tokens.accent,
-                    ),
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: tokens.accent),
                   ),
                 ),
                 Expanded(
@@ -610,10 +559,7 @@ class RichContent extends StatefulWidget {
     }
     flushPara();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
   }
 
   static TextSpan _parseInlineSpans(
@@ -650,15 +596,7 @@ class RichContent extends StatefulWidget {
 
       // Markdown links: [label](target)
       for (final m in _mdLinkRegex.allMatches(line)) {
-        matches.add(
-          _InlineMatch(
-            m.start,
-            m.end,
-            m.group(1)!,
-            _InlineType.link,
-            target: m.group(2)!,
-          ),
-        );
+        matches.add(_InlineMatch(m.start, m.end, m.group(1)!, _InlineType.link, target: m.group(2)!));
       }
 
       // Raw URLs: https://... or file://...
@@ -667,20 +605,10 @@ class RichContent extends StatefulWidget {
         final end = m.end;
         // Skip if already inside a markdown link match
         final overlaps = matches.any(
-          (other) =>
-              (start >= other.start && start < other.end) ||
-              (end > other.start && end <= other.end),
+          (other) => (start >= other.start && start < other.end) || (end > other.start && end <= other.end),
         );
         if (!overlaps) {
-          matches.add(
-            _InlineMatch(
-              start,
-              end,
-              m.group(1)!,
-              _InlineType.link,
-              target: m.group(1)!,
-            ),
-          );
+          matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.link, target: m.group(1)!));
         }
       }
 
@@ -689,9 +617,7 @@ class RichContent extends StatefulWidget {
         final start = m.start;
         final end = m.end;
         final overlaps = matches.any(
-          (other) =>
-              (start >= other.start && start < other.end) ||
-              (end > other.start && end <= other.end),
+          (other) => (start >= other.start && start < other.end) || (end > other.start && end <= other.end),
         );
         if (!overlaps) {
           matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.code));
@@ -703,9 +629,7 @@ class RichContent extends StatefulWidget {
         final start = m.start;
         final end = m.end;
         final overlaps = matches.any(
-          (other) =>
-              (start >= other.start && start < other.end) ||
-              (end > other.start && end <= other.end),
+          (other) => (start >= other.start && start < other.end) || (end > other.start && end <= other.end),
         );
         if (!overlaps) {
           matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.bold));
@@ -717,20 +641,10 @@ class RichContent extends StatefulWidget {
         final start = m.start;
         final end = m.end;
         final overlaps = matches.any(
-          (other) =>
-              (start >= other.start && start < other.end) ||
-              (end > other.start && end <= other.end),
+          (other) => (start >= other.start && start < other.end) || (end > other.start && end <= other.end),
         );
         if (!overlaps) {
-          matches.add(
-            _InlineMatch(
-              start,
-              end,
-              m.group(1)!,
-              _InlineType.filePath,
-              target: m.group(1)!,
-            ),
-          );
+          matches.add(_InlineMatch(start, end, m.group(1)!, _InlineType.filePath, target: m.group(1)!));
         }
       }
 
@@ -791,8 +705,7 @@ class RichContent extends StatefulWidget {
           );
         } else if (m.type == _InlineType.link) {
           final targetUrl = m.target ?? m.text;
-          final isFile =
-              targetUrl.startsWith('file://') || isLikelyFilePath(targetUrl);
+          final isFile = targetUrl.startsWith('file://') || isLikelyFilePath(targetUrl);
           if (isFile) {
             spans.add(
               _buildFileChip(
@@ -846,8 +759,7 @@ class RichContent extends StatefulWidget {
           alignment: PlaceholderAlignment.middle,
           child: SelectionContainer.disabled(
             child: Tooltip(
-              message: strings?.richContentOpenFileTooltip ??
-                  'CTRL+clic per aprire in Esplora file',
+              message: strings?.richContentOpenFileTooltip ?? 'CTRL+clic per aprire in Esplora file',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 // Focusable link (plan 6.1): reachable by Tab, activated by
@@ -862,22 +774,13 @@ class RichContent extends StatefulWidget {
                       onTap: openFile,
                       child: Container(
                         margin: const EdgeInsets.only(right: 3),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 3,
-                          vertical: 1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
-                          border: Border.all(
-                            color: tokens.accent.withValues(alpha: 0.5),
-                          ),
+                          border: Border.all(color: tokens.accent.withValues(alpha: 0.5)),
                         ),
-                        child: Icon(
-                          Icons.insert_drive_file_outlined,
-                          size: 11,
-                          color: tokens.accent,
-                        ),
+                        child: Icon(Icons.insert_drive_file_outlined, size: 11, color: tokens.accent),
                       ),
                     ),
                   ),
@@ -972,10 +875,7 @@ class _RichContentState extends State<RichContent> {
             }
             return CodeBlock(code: seg.code, language: seg.language);
           } else if (seg is _TaskNotificationSegment) {
-            return TaskNotificationCard(
-              data: seg.data,
-              cwd: widget.cwd,
-            );
+            return TaskNotificationCard(data: seg.data, cwd: widget.cwd);
           } else if (seg is _TextSegment) {
             return RichContent._buildMarkdownText(
               seg.content,

@@ -60,11 +60,8 @@ Map<String, dynamic> _final(String id, String text, {String stopReason = 'stop'}
   'timestamp': 9000,
 };
 
-List<TranscriptBlock> _group(List<SessionEntry> entries) => groupTranscript(
-  entries: entries,
-  mode: StepGroupingMode.withThinking,
-  live: TranscriptLiveState.empty,
-);
+List<TranscriptBlock> _group(List<SessionEntry> entries) =>
+    groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: TranscriptLiveState.empty);
 
 void main() {
   group('merged text-less assistant message (snapshot path)', () {
@@ -90,10 +87,7 @@ void main() {
       expect(blocks.last, same(finalText));
       expect(group.steps.whereType<IntermediateTextStep>(), isEmpty);
       // Chronological order: c1, then c2 (merged into the final message).
-      expect(
-        group.steps.whereType<ToolStep>().map((s) => s.toolCallId),
-        ['c1', 'c2'],
-      );
+      expect(group.steps.whereType<ToolStep>().map((s) => s.toolCallId), ['c1', 'c2']);
       expect(group.hasError, isFalse);
       expect(group.failed, isFalse);
       assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
@@ -114,8 +108,7 @@ void main() {
       expect(group.hasError, isTrue, reason: 'error icon for the failed step');
       expect(group.failed, isFalse);
       expect(group.aborted, isFalse);
-      expect(blocks.whereType<FinalTextBlock>().single.text,
-          'Committed after fixing the message.');
+      expect(blocks.whereType<FinalTextBlock>().single.text, 'Committed after fixing the message.');
     });
 
     test('a turn whose last assistant message errored is failed', () {
@@ -219,10 +212,7 @@ void main() {
 
       // New default: intermediate text is kept visible outside the step group
       final blocks = _group(entries);
-      expect(
-        blocks.whereType<IntermediateTextBlock>().single.text,
-        'Let me run the tests.',
-      );
+      expect(blocks.whereType<IntermediateTextBlock>().single.text, 'Let me run the tests.');
       expect(blocks.whereType<FinalTextBlock>().single.text, 'Tests pass.');
 
       // Legacy compact setting: intermediate text is inside the single step group
@@ -233,10 +223,7 @@ void main() {
         showIntermediateAnswers: false,
       );
       final legacyGroup = legacyBlocks.whereType<StepsGroupBlock>().single;
-      expect(
-        legacyGroup.steps.whereType<IntermediateTextStep>().single.text,
-        'Let me run the tests.',
-      );
+      expect(legacyGroup.steps.whereType<IntermediateTextStep>().single.text, 'Let me run the tests.');
       expect(legacyBlocks.whereType<FinalTextBlock>().single.text, 'Tests pass.');
     });
   });
@@ -246,9 +233,7 @@ void main() {
       var state = const SessionState(
         sessionId: 's1',
         cwd: '/test',
-        entries: [
-          SessionEntry(id: 'u1', role: 'user', text: 'Check', timestamp: 1000),
-        ],
+        entries: [SessionEntry(id: 'u1', role: 'user', text: 'Check', timestamp: 1000)],
       );
       var seq = 0;
       PcpEvent completed(Map<String, dynamic> message) {
@@ -274,10 +259,7 @@ void main() {
       final blocks = _group(state.entries);
       expect(blocks.whereType<FinalTextBlock>().single.text, 'Final answer.');
       expect(blocks.whereType<StepsGroupBlock>().single.failed, isFalse);
-      expect(
-        blocks.whereType<StepsGroupBlock>().single.steps.whereType<ToolStep>(),
-        hasLength(1),
-      );
+      expect(blocks.whereType<StepsGroupBlock>().single.steps.whereType<ToolStep>(), hasLength(1));
     });
   });
 
@@ -285,9 +267,7 @@ void main() {
     var state = const SessionState(
       sessionId: 's1',
       cwd: '/test',
-      entries: [
-        SessionEntry(id: 'u1', role: 'user', text: 'Go', timestamp: 1000),
-      ],
+      entries: [SessionEntry(id: 'u1', role: 'user', text: 'Go', timestamp: 1000)],
     );
     state = reduceSessionState(
       state,
@@ -336,9 +316,7 @@ void main() {
       var state = const SessionState(
         sessionId: 's1',
         cwd: '/test',
-        entries: [
-          SessionEntry(id: 'u1', role: 'user', text: 'Go', timestamp: 1000),
-        ],
+        entries: [SessionEntry(id: 'u1', role: 'user', text: 'Go', timestamp: 1000)],
       );
       state = reduceSessionState(
         state,
@@ -377,22 +355,14 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: Scaffold(
-              body: StepsGroup(
-                sessionId: 's1',
-                block: block,
-                tokens: FrameTokens.dark,
-              ),
+              body: StepsGroup(sessionId: 's1', block: block, tokens: FrameTokens.dark),
             ),
           ),
         ),
       );
     }
 
-    StepsGroupBlock block({
-      bool hasError = false,
-      bool failed = false,
-      bool aborted = false,
-    }) => StepsGroupBlock(
+    StepsGroupBlock block({bool hasError = false, bool failed = false, bool aborted = false}) => StepsGroupBlock(
       groupId: 'steps_u1',
       turnId: 'u1',
       steps: const [],
@@ -413,10 +383,7 @@ void main() {
 
     testWidgets('failed turn reads as stopped with errors', (tester) async {
       await pumpHeader(tester, block(hasError: true, failed: true));
-      expect(
-        find.textContaining(RegExp('Interrotto con errori|Stopped with errors')),
-        findsOneWidget,
-      );
+      expect(find.textContaining(RegExp('Interrotto con errori|Stopped with errors')), findsOneWidget);
     });
 
     testWidgets('aborted turn reads as stopped without errors wording', (tester) async {

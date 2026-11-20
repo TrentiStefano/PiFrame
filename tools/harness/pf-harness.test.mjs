@@ -16,7 +16,7 @@ import {
   seedHarnessHome,
   splitCommandLine,
   validateScenarioName,
-  writeFakePiShims,
+  writeFakePiShims
 } from './pf-harness.mjs';
 
 test('parseSelector handles keys, text, defaults, and matching index', () => {
@@ -31,7 +31,10 @@ test('assertSafeHome refuses the normal PiFrame homes', () => {
   assert.throws(() => assertSafeHome(path.join(userHome, '.piframe'), userHome), /unsafe harness home/i);
   assert.throws(() => assertSafeHome(path.join(userHome, '.piframe-dev'), userHome), /unsafe harness home/i);
   assert.throws(() => assertSafeHome(path.join(userHome, '.piframe', 'nested'), userHome), /unsafe harness home/i);
-  assert.equal(assertSafeHome(path.join(userHome, '.piframe-harness', 'test'), userHome), path.join(userHome, '.piframe-harness', 'test'));
+  assert.equal(
+    assertSafeHome(path.join(userHome, '.piframe-harness', 'test'), userHome),
+    path.join(userHome, '.piframe-harness', 'test')
+  );
 });
 
 test('isMissingProcessError recognizes taskkill exit code and localized output fallback', () => {
@@ -43,19 +46,22 @@ test('isMissingProcessError recognizes taskkill exit code and localized output f
 test('argument parsing supports harness pointer, tree, media, and seed options', () => {
   assert.deepEqual(parseArgs(['drag', 'key:divider', '12', '-4', '--run', 'inspect']), {
     positional: ['drag', 'key:divider', '12', '-4'],
-    options: { run: 'inspect' },
+    options: { run: 'inspect' }
   });
   assert.deepEqual(parseArgs(['tree', '--limit', '80', '--depth=12', '--filter', 'notes.md']), {
     positional: ['tree'],
-    options: { limit: '80', depth: '12', filter: 'notes.md' },
+    options: { limit: '80', depth: '12', filter: 'notes.md' }
   });
-  assert.deepEqual(parseArgs(['media', '--text-scale', '1.4', '--reduce-motion', 'on', '--brightness', 'dark', '--reset']), {
-    positional: ['media'],
-    options: { 'text-scale': '1.4', 'reduce-motion': 'on', brightness: 'dark', reset: true },
-  });
+  assert.deepEqual(
+    parseArgs(['media', '--text-scale', '1.4', '--reduce-motion', 'on', '--brightness', 'dark', '--reset']),
+    {
+      positional: ['media'],
+      options: { 'text-scale': '1.4', 'reduce-motion': 'on', brightness: 'dark', reset: true }
+    }
+  );
   assert.deepEqual(parseArgs(['start', '--seed']), {
     positional: ['start'],
-    options: { seed: true },
+    options: { seed: true }
   });
 });
 
@@ -67,19 +73,16 @@ test('scenario names are validated against the fake-pi scenario catalog', () => 
 
 test('seed rejects protected PiFrame homes before creating fixtures', async () => {
   const userHome = path.resolve('/user/home');
-  await assert.rejects(
-    seedHarnessHome(path.join(userHome, '.piframe', 'seed'), userHome),
-    /unsafe harness home/i,
-  );
-  await assert.rejects(
-    seedHarnessHome(path.join(userHome, '.piframe-dev'), userHome),
-    /unsafe harness home/i,
-  );
+  await assert.rejects(seedHarnessHome(path.join(userHome, '.piframe', 'seed'), userHome), /unsafe harness home/i);
+  await assert.rejects(seedHarnessHome(path.join(userHome, '.piframe-dev'), userHome), /unsafe harness home/i);
 });
 
 test('encodeParams preserves strings and JSON-encodes other values', () => {
   assert.deepEqual(encodeParams({ text: 'hello', index: 2, selector: { type: 'key' }, enabled: false }), {
-    text: 'hello', index: '2', selector: '{"type":"key"}', enabled: 'false',
+    text: 'hello',
+    index: '2',
+    selector: '{"type":"key"}',
+    enabled: 'false'
   });
 });
 
@@ -98,7 +101,13 @@ test('writeFakePiShims creates a fresh run home before writing the shims', () =>
 
 test('record plans default to 2 s at 12 fps and half scale, and validate options', () => {
   assert.deepEqual(recordPlan({}), { duration: 2000, fps: 12, scale: 0.5, crop: null, action: null });
-  const plan = recordPlan({ duration: '800', fps: '20', scale: '1', crop: '10,20,300,200', do: 'tap "text:New session#2"' });
+  const plan = recordPlan({
+    duration: '800',
+    fps: '20',
+    scale: '1',
+    crop: '10,20,300,200',
+    do: 'tap "text:New session#2"'
+  });
   assert.deepEqual(plan.crop, { x: 10, y: 20, width: 300, height: 200 });
   assert.deepEqual(plan.action, ['tap', 'text:New session#2']);
   assert.throws(() => recordPlan({ fps: '0' }), /--fps/);
@@ -108,7 +117,12 @@ test('record plans default to 2 s at 12 fps and half scale, and validate options
 });
 
 test('splitCommandLine keeps quoted arguments together', () => {
-  assert.deepEqual(splitCommandLine(`type "hello world" --into key:composer-input-area`), ['type', 'hello world', '--into', 'key:composer-input-area']);
+  assert.deepEqual(splitCommandLine(`type "hello world" --into key:composer-input-area`), [
+    'type',
+    'hello world',
+    '--into',
+    'key:composer-input-area'
+  ]);
   assert.deepEqual(splitCommandLine(`tap 'text:Workspace planning'`), ['tap', 'text:Workspace planning']);
 });
 

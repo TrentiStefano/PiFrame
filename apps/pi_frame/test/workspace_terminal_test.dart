@@ -137,18 +137,11 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         sessionStateFamily('session-1').overrideWith(
-          (ref) => SessionStateNotifier('session-1', null)
-            ..state = const SessionState(
-              sessionId: 'session-1',
-              cwd: 'C:/test',
-            ),
+          (ref) =>
+              SessionStateNotifier('session-1', null)
+                ..state = const SessionState(sessionId: 'session-1', cwd: 'C:/test'),
         ),
-        repositoryStateProvider('session-1').overrideWith(
-          (ref) => RepositoryController(
-            'session-1',
-            () => null,
-          ),
-        ),
+        repositoryStateProvider('session-1').overrideWith((ref) => RepositoryController('session-1', () => null)),
       ],
     );
     addTearDown(container.dispose);
@@ -158,13 +151,7 @@ void main() {
         container: container,
         child: const MaterialApp(
           home: Scaffold(
-            body: SizedBox(
-              width: 500,
-              height: 700,
-              child: RepositoryPane(
-                sessionId: 'session-1',
-              ),
-            ),
+            body: SizedBox(width: 500, height: 700, child: RepositoryPane(sessionId: 'session-1')),
           ),
         ),
       ),
@@ -208,12 +195,7 @@ void main() {
           body: SizedBox(
             height: 400,
             width: 600,
-            child: IntegratedTerminalPanel(
-              cwd: '',
-              tokens: tokens,
-              onCollapseDownward: () {},
-              onClose: () {},
-            ),
+            child: IntegratedTerminalPanel(cwd: '', tokens: tokens, onCollapseDownward: () {}, onClose: () {}),
           ),
         ),
       ),
@@ -226,19 +208,11 @@ void main() {
 
     final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
     const qCode = 0x71;
-    final qCountBefore = terminalView.terminal.buffer
-        .getText()
-        .runes
-        .where((rune) => rune == qCode)
-        .length;
+    final qCountBefore = terminalView.terminal.buffer.getText().runes.where((rune) => rune == qCode).length;
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ, character: 'q');
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ);
     await tester.pump();
-    final qCountAfter = terminalView.terminal.buffer
-        .getText()
-        .runes
-        .where((rune) => rune == qCode)
-        .length;
+    final qCountAfter = terminalView.terminal.buffer.getText().runes.where((rune) => rune == qCode).length;
     expect(qCountAfter - qCountBefore, 1);
 
     // Test writing to terminal buffer

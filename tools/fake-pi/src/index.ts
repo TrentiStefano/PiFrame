@@ -22,15 +22,22 @@ async function main() {
   // If env configured log file, record argv
   if (process.env.FAKE_PI_LOG_FILE) {
     try {
-      fs.appendFileSync(process.env.FAKE_PI_LOG_FILE, JSON.stringify({ argv: args, pid: process.pid, ts: Date.now() }) + '\n');
+      fs.appendFileSync(
+        process.env.FAKE_PI_LOG_FILE,
+        JSON.stringify({ argv: args, pid: process.pid, ts: Date.now() }) + '\n'
+      );
     } catch {}
   }
 
   // Parse key flags for RPC reflection
   const toolsIdx = args.indexOf('--tools');
-  const toolList = toolsIdx !== -1 && args[toolsIdx + 1]
-    ? args[toolsIdx + 1].split(',').map((s) => s.trim()).filter(Boolean)
-    : undefined;
+  const toolList =
+    toolsIdx !== -1 && args[toolsIdx + 1]
+      ? args[toolsIdx + 1]
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
   const modelIdx = args.indexOf('--model');
   const passedModelPattern = modelIdx !== -1 && args[modelIdx + 1] ? args[modelIdx + 1] : undefined;
   const thinkingIdx = args.indexOf('--thinking');
@@ -49,7 +56,10 @@ async function main() {
       console.error(`Replay file not found: ${replayPath}`);
       process.exit(1);
     }
-    const lines = fs.readFileSync(replayPath, 'utf8').split('\n').filter(l => l.trim().length > 0);
+    const lines = fs
+      .readFileSync(replayPath, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim().length > 0);
     for (const line of lines) {
       sendRaw(line);
     }
@@ -74,7 +84,14 @@ async function main() {
     const scenariosDir = path.resolve(__dirname, '../scenarios');
     let scenarioPath = path.resolve(scenariosDir, `${name}.json`);
     const scenarioRelative = path.relative(scenariosDir, scenarioPath);
-    if (!name || name.includes('/') || name.includes('\\') || scenarioRelative.startsWith('..') || path.isAbsolute(scenarioRelative) || !fs.existsSync(scenarioPath)) {
+    if (
+      !name ||
+      name.includes('/') ||
+      name.includes('\\') ||
+      scenarioRelative.startsWith('..') ||
+      path.isAbsolute(scenarioRelative) ||
+      !fs.existsSync(scenarioPath)
+    ) {
       console.error(`Unknown fake-pi scenario '${name}', falling back to hello-world.`);
       name = 'hello-world';
       scenarioPath = path.resolve(__dirname, '../scenarios/hello-world.json');
@@ -149,7 +166,10 @@ async function main() {
     }
   };
 
-  const agentDir = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.pi', 'agent'));
+  const agentDir = path.resolve(
+    process.env.PI_CODING_AGENT_DIR ||
+      path.join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.pi', 'agent')
+  );
   const packagesFile = path.join(agentDir, 'fake-packages.json');
   const defaultPackages = [
     { source: 'npm:pi-subagents', version: '0.9.0', latest: '0.10.0' },
@@ -176,7 +196,9 @@ async function main() {
     try {
       const loaded = JSON.parse(fs.readFileSync(packagesFile, 'utf8'));
       return Array.isArray(loaded) ? loaded : [...defaultPackages];
-    } catch { return [...defaultPackages]; }
+    } catch {
+      return [...defaultPackages];
+    }
   };
   const savePackages = (packages: any[]): void => {
     fs.mkdirSync(agentDir, { recursive: true });
@@ -186,11 +208,17 @@ async function main() {
       const name = packageName(item.source);
       const installDir = path.join(agentDir, 'npm', 'node_modules', name);
       fs.mkdirSync(installDir, { recursive: true });
-      fs.writeFileSync(path.join(installDir, 'package.json'), JSON.stringify({ name, version: item.version || packageVersion(item.source) }, null, 2));
+      fs.writeFileSync(
+        path.join(installDir, 'package.json'),
+        JSON.stringify({ name, version: item.version || packageVersion(item.source) }, null, 2)
+      );
       if (name === 'pi-subagents') {
         const agentsDir = path.join(installDir, 'agents');
         fs.mkdirSync(agentsDir, { recursive: true });
-        fs.writeFileSync(path.join(agentsDir, 'reviewer.md'), '---\nname: reviewer\ndescription: Review changes offline\n---\nReview the requested changes carefully.\n');
+        fs.writeFileSync(
+          path.join(agentsDir, 'reviewer.md'),
+          '---\nname: reviewer\ndescription: Review changes offline\n---\nReview the requested changes carefully.\n'
+        );
       }
     }
   };
@@ -209,14 +237,17 @@ async function main() {
       console.log('User packages:');
       for (const item of packages) {
         console.log(`  ${item.source}`);
-        if (String(item.source).startsWith('npm:')) console.log(`    ${path.join(agentDir, 'npm', 'node_modules', packageName(item.source))}`);
+        if (String(item.source).startsWith('npm:'))
+          console.log(`    ${path.join(agentDir, 'npm', 'node_modules', packageName(item.source))}`);
       }
       console.log('Project packages:');
       return true;
     }
     if (command === 'install' && args[1]) {
       const source = args[1];
-      const packages = loadPackages().filter((item) => item.source !== source && item.source !== `npm:${packageName(source)}`);
+      const packages = loadPackages().filter(
+        (item) => item.source !== source && item.source !== `npm:${packageName(source)}`
+      );
       const version = source.startsWith('npm:') ? packageVersion(source, '1.0.0') : '1.0.0';
       packages.push({ source, version, latest: version });
       savePackages(packages);
@@ -239,7 +270,13 @@ async function main() {
       const packages = loadPackages();
       const target = args[1];
       for (const item of packages) {
-        if (!target || target === '--all' || target === '--extensions' || target === '--models' || item.source === target) {
+        if (
+          !target ||
+          target === '--all' ||
+          target === '--extensions' ||
+          target === '--models' ||
+          item.source === target
+        ) {
           const pinned = item.source.startsWith('npm:') && item.source !== `npm:${packageName(item.source)}`;
           if (item.latest && !pinned) item.version = item.latest;
           console.log(`Updated ${item.source} to ${item.version || 'latest'}.`);
@@ -250,8 +287,25 @@ async function main() {
     }
     if (command === 'mcp' && args[1] === 'list') {
       const servers = [
-        { name: 'local-files', enabled: true, state: 'connected', transport: 'stdio node local-files.js', source: path.join(agentDir, 'mcp.json'), scope: 'global', tools: ['read_file', 'list_directory'] },
-        { name: 'offline-search', enabled: true, state: 'failed', transport: 'stdio node offline-search.js', source: path.join(agentDir, 'mcp.json'), scope: 'global', tools: [], error: 'Offline simulator: server unavailable' }
+        {
+          name: 'local-files',
+          enabled: true,
+          state: 'connected',
+          transport: 'stdio node local-files.js',
+          source: path.join(agentDir, 'mcp.json'),
+          scope: 'global',
+          tools: ['read_file', 'list_directory']
+        },
+        {
+          name: 'offline-search',
+          enabled: true,
+          state: 'failed',
+          transport: 'stdio node offline-search.js',
+          source: path.join(agentDir, 'mcp.json'),
+          scope: 'global',
+          tools: [],
+          error: 'Offline simulator: server unavailable'
+        }
       ];
       if (args.includes('--json')) console.log(JSON.stringify({ servers }));
       else {
@@ -285,7 +339,13 @@ async function main() {
     const id = cmd.id;
     const type = cmd.type;
     if (typeof type !== 'string' || 'arguments' in cmd) {
-      send({ id, type: 'response', command: 'parse', success: false, error: 'Expected canonical flat RPC command with type and top-level arguments' });
+      send({
+        id,
+        type: 'response',
+        command: 'parse',
+        success: false,
+        error: 'Expected canonical flat RPC command with type and top-level arguments'
+      });
       return;
     }
 
@@ -424,9 +484,27 @@ async function main() {
         success: true,
         data: {
           commands: readScenario().commands || [
-            { name: 'help', description: 'Show help', source: 'prompt', sourceInfo: { name: 'help' }, argumentHint: '[topic]' },
-            { name: 'review', description: 'Review changes', source: 'skill', sourceInfo: { name: 'review' }, argumentHint: '[files]' },
-            { name: 'status', description: 'Show detailed extension status', source: 'extension', sourceInfo: { name: 'fake-pi' }, argumentHint: '<verbose|short>' }
+            {
+              name: 'help',
+              description: 'Show help',
+              source: 'prompt',
+              sourceInfo: { name: 'help' },
+              argumentHint: '[topic]'
+            },
+            {
+              name: 'review',
+              description: 'Review changes',
+              source: 'skill',
+              sourceInfo: { name: 'review' },
+              argumentHint: '[files]'
+            },
+            {
+              name: 'status',
+              description: 'Show detailed extension status',
+              source: 'extension',
+              sourceInfo: { name: 'fake-pi' },
+              argumentHint: '<verbose|short>'
+            }
           ]
         }
       });
@@ -439,7 +517,10 @@ async function main() {
         type: 'response',
         command: 'get_entries',
         success: true,
-        data: (() => { const scenario = readScenario(); return { entries: scenario.entries || [], leafId: scenario.leafId ?? null }; })()
+        data: (() => {
+          const scenario = readScenario();
+          return { entries: scenario.entries || [], leafId: scenario.leafId ?? null };
+        })()
       });
       return;
     }
@@ -450,7 +531,10 @@ async function main() {
         type: 'response',
         command: 'get_tree',
         success: true,
-        data: (() => { const scenario = readScenario(); return { tree: scenario.tree || [], leafId: scenario.leafId ?? null }; })()
+        data: (() => {
+          const scenario = readScenario();
+          return { tree: scenario.tree || [], leafId: scenario.leafId ?? null };
+        })()
       });
       return;
     }
@@ -461,7 +545,11 @@ async function main() {
         type: 'response',
         command: 'get_session_stats',
         success: true,
-        data: readScenario().stats || { tokens: { input: 100, output: 50, total: 150 }, cost: 0.001, contextUsage: { tokens: 150, contextWindow: 128000, percent: 0.12 } }
+        data: readScenario().stats || {
+          tokens: { input: 100, output: 50, total: 150 },
+          cost: 0.001,
+          contextUsage: { tokens: 150, contextWindow: 128000, percent: 0.12 }
+        }
       });
       return;
     }
@@ -518,13 +606,24 @@ async function main() {
         data: { tokensBefore: 10000, tokensAfter: 2000, estimatedTokensAfter: 2000, cost: 0.02 }
       });
       send({ type: 'compaction_start', reason: 'manual' });
-      send({ type: 'compaction_end', result: { tokensBefore: 10000, tokensAfter: 2000, estimatedTokensAfter: 2000, cost: 0.02 }, aborted: false, willRetry: false });
+      send({
+        type: 'compaction_end',
+        result: { tokensBefore: 10000, tokensAfter: 2000, estimatedTokensAfter: 2000, cost: 0.02 },
+        aborted: false,
+        willRetry: false
+      });
       return;
     }
 
     if (type === 'prompt') {
       if (isStreaming && !cmd.streamingBehavior) {
-        send({ id, type: 'response', command: 'prompt', success: false, error: 'Streaming active. Use streamingBehavior: steer or followUp.' });
+        send({
+          id,
+          type: 'response',
+          command: 'prompt',
+          success: false,
+          error: 'Streaming active. Use streamingBehavior: steer or followUp.'
+        });
         return;
       }
 
@@ -539,19 +638,60 @@ async function main() {
         { event: { type: 'message_start', message: { role: 'user', content: cmd.message, timestamp: Date.now() } } },
         { event: { type: 'message_end', message: { role: 'user', content: cmd.message, timestamp: Date.now() } } },
         { delayMs: 10, event: { type: 'message_start', message: { role: 'assistant', content: [] } } },
-        { delayMs: 10, event: { type: 'message_update', usage: { input: 100, output: 5, total: 105 }, assistantMessageEvent: { type: 'text_start', contentIndex: 0 } } },
-        { delayMs: 10, event: { type: 'message_update', usage: { input: 100, output: 15, total: 115 }, assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'Hello from fake-pi!' } } },
-        { delayMs: 10, event: { type: 'message_update', usage: { input: 100, output: 20, total: 120 }, assistantMessageEvent: { type: 'text_end', contentIndex: 0, content: 'Hello from fake-pi!' } } },
-        { delayMs: 10, event: { type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] } } },
-        { delayMs: 10, event: { type: 'turn_end', message: { role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] }, toolResults: [] } },
-        { delayMs: 10, event: { type: 'agent_end', messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] }], willRetry: false } },
+        {
+          delayMs: 10,
+          event: {
+            type: 'message_update',
+            usage: { input: 100, output: 5, total: 105 },
+            assistantMessageEvent: { type: 'text_start', contentIndex: 0 }
+          }
+        },
+        {
+          delayMs: 10,
+          event: {
+            type: 'message_update',
+            usage: { input: 100, output: 15, total: 115 },
+            assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'Hello from fake-pi!' }
+          }
+        },
+        {
+          delayMs: 10,
+          event: {
+            type: 'message_update',
+            usage: { input: 100, output: 20, total: 120 },
+            assistantMessageEvent: { type: 'text_end', contentIndex: 0, content: 'Hello from fake-pi!' }
+          }
+        },
+        {
+          delayMs: 10,
+          event: {
+            type: 'message_end',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] }
+          }
+        },
+        {
+          delayMs: 10,
+          event: {
+            type: 'turn_end',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] },
+            toolResults: []
+          }
+        },
+        {
+          delayMs: 10,
+          event: {
+            type: 'agent_end',
+            messages: [{ role: 'assistant', content: [{ type: 'text', text: 'Hello from fake-pi!' }] }],
+            willRetry: false
+          }
+        },
         { delayMs: 10, event: { type: 'agent_settled' } }
       ];
 
       for (const step of events) {
         if (abortRequested) break;
         if (step.delayMs) {
-          await new Promise(r => setTimeout(r, step.delayMs));
+          await new Promise((r) => setTimeout(r, step.delayMs));
         }
         if (abortRequested) break;
 
@@ -569,11 +709,17 @@ async function main() {
           // those slots with {{prompt}} and "{{now}}".
           const prompt = typeof cmd.message === 'string' ? cmd.message : '';
           const raw = JSON.stringify(step.event);
-          send(raw.includes('{{')
-            ? JSON.parse(raw
-              .split('{{prompt}}').join(JSON.stringify(prompt).slice(1, -1))
-              .split('"{{now}}"').join(String(Date.now())))
-            : step.event);
+          send(
+            raw.includes('{{')
+              ? JSON.parse(
+                  raw
+                    .split('{{prompt}}')
+                    .join(JSON.stringify(prompt).slice(1, -1))
+                    .split('"{{now}}"')
+                    .join(String(Date.now()))
+                )
+              : step.event
+          );
         }
       }
 
@@ -582,17 +728,35 @@ async function main() {
     }
 
     if (type === 'bash') {
-      send({ id, type: 'response', command: type, success: true,
-        data: { output: `Fake command: ${cmd.command}`, exitCode: 0, cancelled: false, truncated: false } });
+      send({
+        id,
+        type: 'response',
+        command: type,
+        success: true,
+        data: { output: `Fake command: ${cmd.command}`, exitCode: 0, cancelled: false, truncated: false }
+      });
       return;
     }
-    const supportedSetters = ['set_model', 'set_thinking_level', 'set_session_name',
-      'set_auto_compaction', 'set_auto_retry', 'set_steering_mode', 'set_follow_up_mode'];
-    send({ id, type: 'response', command: type, success: supportedSetters.includes(type), data: {},
-      error: supportedSetters.includes(type) ? undefined : `Unknown command type: ${type}` });
+    const supportedSetters = [
+      'set_model',
+      'set_thinking_level',
+      'set_session_name',
+      'set_auto_compaction',
+      'set_auto_retry',
+      'set_steering_mode',
+      'set_follow_up_mode'
+    ];
+    send({
+      id,
+      type: 'response',
+      command: type,
+      success: supportedSetters.includes(type),
+      data: {},
+      error: supportedSetters.includes(type) ? undefined : `Unknown command type: ${type}`
+    });
   };
 
-  process.stdin.on('data', chunk => {
+  process.stdin.on('data', (chunk) => {
     inputBuffer += typeof chunk === 'string' ? chunk : decoder.write(chunk);
     while (true) {
       const idx = inputBuffer.indexOf('\n');
@@ -608,7 +772,7 @@ async function main() {
   });
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('fake-pi error:', err);
   process.exit(1);
 });

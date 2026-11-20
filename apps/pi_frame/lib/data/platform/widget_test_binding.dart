@@ -4,5 +4,4 @@ import 'package:flutter/widgets.dart';
 ///
 /// Widgets use it to skip endless animations, native views and OS services
 /// that cannot run, or never settle, in widget tests.
-bool get isWidgetTestBinding =>
-    WidgetsBinding.instance.runtimeType.toString().contains('Test');
+bool get isWidgetTestBinding => WidgetsBinding.instance.runtimeType.toString().contains('Test');

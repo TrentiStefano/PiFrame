@@ -8,7 +8,7 @@ import {
   ensureSubagentContextLimitExtension,
   ensureSubagentContextLimitExtensionIfReferenced,
   generateSubagentContextLimitSource,
-  subagentContextLimitExtension,
+  subagentContextLimitExtension
 } from '../subagentContextLimitExtension.js';
 
 function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
@@ -19,7 +19,7 @@ function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -46,10 +46,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
 
   try {
     // 1. Setup subagent-context.json with worker=64000
-    fs.writeFileSync(
-      path.join(piframeDir, 'subagent-context.json'),
-      JSON.stringify({ worker: 64000 })
-    );
+    fs.writeFileSync(path.join(piframeDir, 'subagent-context.json'), JSON.stringify({ worker: 64000 }));
 
     let registeredHandlers: Record<string, (event: any, ctx: any) => Promise<void>> = {};
     let modelSetCalls: any[] = [];
@@ -61,7 +58,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
       setModel: async (model: any) => {
         modelSetCalls.push(model);
         return true;
-      },
+      }
     };
 
     subagentContextLimitExtension(fakePi);
@@ -76,8 +73,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
         model: {
           id: 'claude-3-5-sonnet',
           contextWindow: 200000,
-          cost: { tiers: [{ inputTokensAbove: 64000 }] },
-        },
+          cost: { tiers: [{ inputTokensAbove: 64000 }] }
+        }
       }
     );
     assert.equal(modelSetCalls.length, 0);
@@ -89,8 +86,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
         model: {
           id: 'claude-3-5-sonnet',
           contextWindow: 200000,
-          cost: { tiers: [{ inputTokensAbove: 64000 }] },
-        },
+          cost: { tiers: [{ inputTokensAbove: 64000 }] }
+        }
       }
     );
     assert.equal(modelSetCalls.length, 0);
@@ -101,8 +98,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
       {
         model: {
           id: 'claude-3-5-haiku',
-          contextWindow: 200000,
-        },
+          contextWindow: 200000
+        }
       }
     );
     assert.equal(modelSetCalls.length, 0);
@@ -114,8 +111,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
         model: {
           id: 'claude-3-5-sonnet',
           contextWindow: 64000,
-          cost: { tiers: [{ inputTokensAbove: 32000 }] },
-        },
+          cost: { tiers: [{ inputTokensAbove: 32000 }] }
+        }
       }
     );
     assert.equal(modelSetCalls.length, 0);
@@ -127,8 +124,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
         model: {
           id: 'claude-3-5-sonnet',
           contextWindow: 200000,
-          cost: { tiers: [{ inputTokensAbove: 64000 }] },
-        },
+          cost: { tiers: [{ inputTokensAbove: 64000 }] }
+        }
       }
     );
     assert.equal(modelSetCalls.length, 1);
@@ -155,10 +152,10 @@ test('ensureSubagentContextLimitExtensionIfReferenced: generates extension if re
       subagents: {
         agentOverrides: {
           worker: {
-            subagentOnlyExtensions: [extPath],
-          },
-        },
-      },
+            subagentOnlyExtensions: [extPath]
+          }
+        }
+      }
     };
     fs.writeFileSync(settingsPath, JSON.stringify(originalSettings, null, 2), 'utf8');
 
@@ -196,10 +193,10 @@ test('ensureSubagentContextLimitExtensionIfReferenced: regenerates extension if 
       subagents: {
         agentOverrides: {
           specialist: {
-            subagentOnlyExtensions: [extPath],
-          },
-        },
-      },
+            subagentOnlyExtensions: [extPath]
+          }
+        }
+      }
     };
     fs.writeFileSync(settingsPath, JSON.stringify(originalSettings), 'utf8');
 
@@ -230,10 +227,10 @@ test('ensureSubagentContextLimitExtensionIfReferenced: does not generate extensi
           agentOverrides: {
             worker: {
               model: 'anthropic/claude-3-5-sonnet',
-              subagentOnlyExtensions: ['/some/other/custom-ext.mjs'],
-            },
-          },
-        },
+              subagentOnlyExtensions: ['/some/other/custom-ext.mjs']
+            }
+          }
+        }
       }),
       'utf8'
     );
@@ -264,4 +261,3 @@ test('ensureSubagentContextLimitExtensionIfReferenced: handles missing or unpars
     cleanupPiframe();
   }
 });
-

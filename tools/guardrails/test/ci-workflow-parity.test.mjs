@@ -58,7 +58,11 @@ test(`${WORKFLOW} runs exactly the ci tier of the shared step list`, () => {
   const actual = runStepsByJob(workflowText);
   for (const [job, steps] of Object.entries(actual)) {
     for (const step of steps) {
-      assert.notEqual(step.run, '|', `${WORKFLOW} job "${job}": step "${step.name}" uses a multi-line run. Use one command per step so it can be checked against the step list.`);
+      assert.notEqual(
+        step.run,
+        '|',
+        `${WORKFLOW} job "${job}": step "${step.name}" uses a multi-line run. Use one command per step so it can be checked against the step list.`
+      );
     }
   }
   const expected = expectedByJob();
@@ -70,11 +74,23 @@ test(`${WORKFLOW} runs exactly the ci tier of the shared step list`, () => {
         `Change the step list first, then make the job's run steps (after its setup "uses:" steps) exactly:\n\n${asYaml(expected[job])}\n`
     );
   }
-  assert.deepEqual(Object.keys(actual).sort(), Object.keys(expected).sort(), `${WORKFLOW} must have exactly the jobs of the ci tier.`);
+  assert.deepEqual(
+    Object.keys(actual).sort(),
+    Object.keys(expected).sort(),
+    `${WORKFLOW} must have exactly the jobs of the ci tier.`
+  );
 });
 
 test(`${WORKFLOW} runs on pull requests and on pushes to main`, () => {
   const on = workflowText.match(/^on:\s*\n((?:[ \t]+.*\n|\s*\n)*)/m)?.[1] ?? '';
-  assert.match(on, /^ {2}pull_request:/m, `${WORKFLOW} must trigger on pull_request so a PR is checked before it merges.`);
-  assert.match(on, /^ {2}push:\s*\n\s+branches:\s*\[\s*main\s*\]/m, `${WORKFLOW} must keep triggering on pushes to main.`);
+  assert.match(
+    on,
+    /^ {2}pull_request:/m,
+    `${WORKFLOW} must trigger on pull_request so a PR is checked before it merges.`
+  );
+  assert.match(
+    on,
+    /^ {2}push:\s*\n\s+branches:\s*\[\s*main\s*\]/m,
+    `${WORKFLOW} must keep triggering on pushes to main.`
+  );
 });

@@ -1,11 +1,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const dirs = [
-  'packages/pi_frame_protocol',
-  'packages/pi_frame_theme',
-  'apps/pi_frame'
-];
+const dirs = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
 
 const cmd = process.platform === 'win32' ? 'flutter.bat' : 'flutter';
 

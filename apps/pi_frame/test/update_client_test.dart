@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -23,7 +24,7 @@ void main() {
                 'name': 'PiFrame-Setup-1.4.0-windows-x64.exe',
                 'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
                 'size': 1000,
-              }
+              },
             ],
           }),
           200,
@@ -57,11 +58,9 @@ void main() {
       final client = GithubUpdateClient(client: mockClient);
       expect(
         () => client.fetchLatestRelease(),
-        throwsA(isA<UpdateException>().having(
-          (e) => e.message,
-          'message',
-          contains('Limite di richieste GitHub raggiunto'),
-        )),
+        throwsA(
+          isA<UpdateException>().having((e) => e.message, 'message', contains('Limite di richieste GitHub raggiunto')),
+        ),
       );
     });
 
@@ -78,15 +77,8 @@ void main() {
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
       expect(
-        () => client.downloadAsset(
-          asset: maliciousAsset,
-          destinationPath: '${tempDir.path}/payload.exe',
-        ).toList(),
-        throwsA(isA<UpdateException>().having(
-          (e) => e.message,
-          'message',
-          contains('dominio non autorizzato'),
-        )),
+        () => client.downloadAsset(asset: maliciousAsset, destinationPath: '${tempDir.path}/payload.exe').toList(),
+        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('dominio non autorizzato'))),
       );
     });
 
@@ -103,28 +95,15 @@ void main() {
       addTearDown(() => tempDir.deleteSync(recursive: true));
 
       expect(
-        () => client.downloadAsset(
-          asset: insecureAsset,
-          destinationPath: '${tempDir.path}/test.exe',
-        ).toList(),
-        throwsA(isA<UpdateException>().having(
-          (e) => e.message,
-          'message',
-          contains('URL di download non valido'),
-        )),
+        () => client.downloadAsset(asset: insecureAsset, destinationPath: '${tempDir.path}/test.exe').toList(),
+        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('URL di download non valido'))),
       );
     });
 
     test('sanitizes filenames correctly', () {
       expect(GithubUpdateClient.sanitizeFilename('test.exe'), 'test.exe');
-      expect(
-        GithubUpdateClient.sanitizeFilename('../../etc/passwd.exe'),
-        'passwd.exe',
-      );
-      expect(
-        GithubUpdateClient.sanitizeFilename('weird;name!file.deb'),
-        'weird_name_file.deb',
-      );
+      expect(GithubUpdateClient.sanitizeFilename('../../etc/passwd.exe'), 'passwd.exe');
+      expect(GithubUpdateClient.sanitizeFilename('weird;name!file.deb'), 'weird_name_file.deb');
     });
   });
 }

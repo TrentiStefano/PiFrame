@@ -49,11 +49,7 @@ void main() {
           ts: 1000,
           sessionId: 's1',
           seq: 1,
-          payload: {
-            'toolCallId': 'call_1',
-            'toolName': 'bash',
-            'partialResult': 'First output',
-          },
+          payload: {'toolCallId': 'call_1', 'toolName': 'bash', 'partialResult': 'First output'},
         ),
       );
       expect(state.toolOutputs['call_1'], 'First output');
@@ -67,11 +63,7 @@ void main() {
           ts: 1001,
           sessionId: 's1',
           seq: 2,
-          payload: {
-            'toolCallId': 'call_1',
-            'toolName': 'bash',
-            'partialResult': 'First output and second output',
-          },
+          payload: {'toolCallId': 'call_1', 'toolName': 'bash', 'partialResult': 'First output and second output'},
         ),
       );
       expect(state.toolOutputs['call_1'], 'First output and second output');
@@ -102,11 +94,7 @@ void main() {
           sessionId: 's1',
           seq: 2,
           payload: {
-            'message': {
-              'id': 'm1',
-              'role': 'assistant',
-              'content': 'Final content',
-            },
+            'message': {'id': 'm1', 'role': 'assistant', 'content': 'Final content'},
           },
         ),
       );
@@ -135,12 +123,7 @@ void main() {
           sessionId: 's1',
           seq: 1,
           payload: {
-            'message': {
-              'id': 'm1',
-              'role': 'user',
-              'content': 'hello',
-              'timestamp': 1002,
-            },
+            'message': {'id': 'm1', 'role': 'user', 'content': 'hello', 'timestamp': 1002},
           },
         ),
       );
@@ -154,9 +137,7 @@ void main() {
       var state = const SessionState(
         sessionId: 's1',
         cwd: '/test',
-        entries: [
-          SessionEntry(id: 'user_1', role: 'user', text: 'hello', timestamp: 1000),
-        ],
+        entries: [SessionEntry(id: 'user_1', role: 'user', text: 'hello', timestamp: 1000)],
       );
 
       state = reduceSessionState(
@@ -167,11 +148,7 @@ void main() {
           ts: 1003,
           sessionId: 's1',
           seq: 2,
-          payload: {
-            'success': false,
-            'attempt': 3,
-            'finalError': 'Model unavailable',
-          },
+          payload: {'success': false, 'attempt': 3, 'finalError': 'Model unavailable'},
         ),
       );
 
@@ -209,11 +186,7 @@ void main() {
     });
 
     test('ignores duplicate or older seq events', () {
-      var state = const SessionState(
-        sessionId: 's1',
-        cwd: '/test',
-        lastAppliedSeq: 5,
-      );
+      var state = const SessionState(sessionId: 's1', cwd: '/test', lastAppliedSeq: 5);
 
       state = reduceSessionState(
         state,
@@ -243,10 +216,7 @@ void main() {
           ts: 1000,
           sessionId: 's1',
           seq: 1,
-          payload: {
-            'contentIndex': 0,
-            'delta': 'Analyzing repo architecture...',
-          },
+          payload: {'contentIndex': 0, 'delta': 'Analyzing repo architecture...'},
         ),
       );
       expect(state.currentStreamingThinking, 'Analyzing repo architecture...');
@@ -289,10 +259,7 @@ void main() {
         ),
       );
       expect(state.activeToolCalls['call_find']!.isRunning, isFalse);
-      expect(
-        state.activeToolCalls['call_find']!.output,
-        contains('lib/main.dart'),
-      );
+      expect(state.activeToolCalls['call_find']!.output, contains('lib/main.dart'));
 
       // 4. toolResult message completes: MUST NOT wipe active tools or thinking
       state = reduceSessionState(
@@ -338,11 +305,7 @@ void main() {
           sessionId: 's1',
           seq: 6,
           payload: {
-            'message': {
-              'id': 'm_final',
-              'role': 'assistant',
-              'content': 'Found 2 Dart files.',
-            },
+            'message': {'id': 'm_final', 'role': 'assistant', 'content': 'Found 2 Dart files.'},
           },
         ),
       );
@@ -389,14 +352,7 @@ void main() {
 
       state = reduceSessionState(
         state,
-        const RunSettledEvent(
-          protocol: 1,
-          id: 'e3',
-          ts: 1002,
-          sessionId: 's1',
-          seq: 3,
-          payload: {},
-        ),
+        const RunSettledEvent(protocol: 1, id: 'e3', ts: 1002, sessionId: 's1', seq: 3, payload: {}),
       );
 
       expect(state.entries.length, 1);
@@ -407,179 +363,161 @@ void main() {
       expect(entry.toolCalls.first.toolName, 'bash');
     });
 
-    test(
-      'internal or junk message does not wipe active tool calls or thinking',
-      () {
-        var state = const SessionState(sessionId: 's1', cwd: '/test');
+    test('internal or junk message does not wipe active tool calls or thinking', () {
+      var state = const SessionState(sessionId: 's1', cwd: '/test');
 
-        state = reduceSessionState(
-          state,
-          const ThinkingDeltaEvent(
-            protocol: 1,
-            id: 'e1',
-            ts: 1000,
-            sessionId: 's1',
-            seq: 1,
-            payload: {'contentIndex': 0, 'delta': 'Live thinking'},
-          ),
-        );
-
-        state = reduceSessionState(
-          state,
-          const ToolStartedEvent(
-            protocol: 1,
-            id: 'e2',
-            ts: 1001,
-            sessionId: 's1',
-            seq: 2,
-            payload: {
-              'toolCallId': 'c1',
-              'toolName': 'bash',
-              'args': {'command': 'git status'},
-            },
-          ),
-        );
-
-        // Junk / task notification arrives
-        state = reduceSessionState(
-          state,
-          const MessageCompletedEvent(
-            protocol: 1,
-            id: 'e3',
-            ts: 1002,
-            sessionId: 's1',
-            seq: 3,
-            payload: {
-              'message': {
-                'id': 'm_junk',
-                'role': 'user',
-                'content': '<task-notification>Task done</task-notification>',
-              },
-            },
-          ),
-        );
-
-        expect(state.currentStreamingThinking, 'Live thinking');
-        expect(state.activeToolCalls.containsKey('c1'), isTrue);
-      },
-    );
-
-    test(
-      'SessionReducer processes bashExecution message and sets metadata',
-      () {
-        final initial = SessionState(
+      state = reduceSessionState(
+        state,
+        const ThinkingDeltaEvent(
+          protocol: 1,
+          id: 'e1',
+          ts: 1000,
           sessionId: 's1',
-          cwd: '/repo',
-          agentStatus: AgentStatus.settled,
-          entries: const [],
-          streamingTextBlocks: const {},
-          streamingThinkingBlocks: const {},
-          activeToolCalls: const {},
-          steeringQueue: const [],
-          followUpQueue: const [],
-          pendingUiRequests: const [],
-          usage: const {},
-          lastAppliedSeq: 1,
-        );
+          seq: 1,
+          payload: {'contentIndex': 0, 'delta': 'Live thinking'},
+        ),
+      );
 
-        final next = reduceSessionState(
-          initial,
-          const MessageCompletedEvent(
-            protocol: 1,
-            id: 'e2',
-            ts: 1001,
-            sessionId: 's1',
-            seq: 2,
-            payload: {
-              'message': {
-                'id': 'bash_1',
-                'role': 'bashExecution',
-                'command': 'git status -s',
-                'output': ' M lib/main.dart\n',
-                'exitCode': 0,
-                'cancelled': false,
-                'truncated': false,
-              },
-            },
-          ),
-        );
-
-        expect(next.entries.length, 1);
-        final entry = next.entries.first;
-        expect(entry.role, 'bashExecution');
-        expect(entry.text, ' M lib/main.dart\n');
-        expect(entry.metadata?['command'], 'git status -s');
-        expect(entry.metadata?['exitCode'], 0);
-        expect(entry.isJunkOrInternal, isFalse);
-      },
-    );
-
-    test(
-      'SessionReducer processes branchSummary and compactionSummary messages',
-      () {
-        final initial = SessionState(
+      state = reduceSessionState(
+        state,
+        const ToolStartedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
           sessionId: 's1',
-          cwd: '/repo',
-          agentStatus: AgentStatus.settled,
-          entries: const [],
-          streamingTextBlocks: const {},
-          streamingThinkingBlocks: const {},
-          activeToolCalls: const {},
-          steeringQueue: const [],
-          followUpQueue: const [],
-          pendingUiRequests: const [],
-          usage: const {},
-          lastAppliedSeq: 1,
-        );
+          seq: 2,
+          payload: {
+            'toolCallId': 'c1',
+            'toolName': 'bash',
+            'args': {'command': 'git status'},
+          },
+        ),
+      );
 
-        final s1 = reduceSessionState(
-          initial,
-          const MessageCompletedEvent(
-            protocol: 1,
-            id: 'e2',
-            ts: 1001,
-            sessionId: 's1',
-            seq: 2,
-            payload: {
-              'message': {
-                'id': 'b1',
-                'role': 'branchSummary',
-                'summary': 'Branch from checkpoint',
-                'fromId': 'chk_99',
-              },
+      // Junk / task notification arrives
+      state = reduceSessionState(
+        state,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e3',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 3,
+          payload: {
+            'message': {'id': 'm_junk', 'role': 'user', 'content': '<task-notification>Task done</task-notification>'},
+          },
+        ),
+      );
+
+      expect(state.currentStreamingThinking, 'Live thinking');
+      expect(state.activeToolCalls.containsKey('c1'), isTrue);
+    });
+
+    test('SessionReducer processes bashExecution message and sets metadata', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: const [],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final next = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {
+              'id': 'bash_1',
+              'role': 'bashExecution',
+              'command': 'git status -s',
+              'output': ' M lib/main.dart\n',
+              'exitCode': 0,
+              'cancelled': false,
+              'truncated': false,
             },
-          ),
-        );
+          },
+        ),
+      );
 
-        final s2 = reduceSessionState(
-          s1,
-          const MessageCompletedEvent(
-            protocol: 1,
-            id: 'e3',
-            ts: 1002,
-            sessionId: 's1',
-            seq: 3,
-            payload: {
-              'message': {
-                'id': 'c1',
-                'role': 'compactionSummary',
-                'summary': 'Compacted conversation',
-                'tokensBefore': 54000,
-              },
+      expect(next.entries.length, 1);
+      final entry = next.entries.first;
+      expect(entry.role, 'bashExecution');
+      expect(entry.text, ' M lib/main.dart\n');
+      expect(entry.metadata?['command'], 'git status -s');
+      expect(entry.metadata?['exitCode'], 0);
+      expect(entry.isJunkOrInternal, isFalse);
+    });
+
+    test('SessionReducer processes branchSummary and compactionSummary messages', () {
+      final initial = SessionState(
+        sessionId: 's1',
+        cwd: '/repo',
+        agentStatus: AgentStatus.settled,
+        entries: const [],
+        streamingTextBlocks: const {},
+        streamingThinkingBlocks: const {},
+        activeToolCalls: const {},
+        steeringQueue: const [],
+        followUpQueue: const [],
+        pendingUiRequests: const [],
+        usage: const {},
+        lastAppliedSeq: 1,
+      );
+
+      final s1 = reduceSessionState(
+        initial,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e2',
+          ts: 1001,
+          sessionId: 's1',
+          seq: 2,
+          payload: {
+            'message': {'id': 'b1', 'role': 'branchSummary', 'summary': 'Branch from checkpoint', 'fromId': 'chk_99'},
+          },
+        ),
+      );
+
+      final s2 = reduceSessionState(
+        s1,
+        const MessageCompletedEvent(
+          protocol: 1,
+          id: 'e3',
+          ts: 1002,
+          sessionId: 's1',
+          seq: 3,
+          payload: {
+            'message': {
+              'id': 'c1',
+              'role': 'compactionSummary',
+              'summary': 'Compacted conversation',
+              'tokensBefore': 54000,
             },
-          ),
-        );
+          },
+        ),
+      );
 
-        expect(s2.entries.length, 2);
-        expect(s2.entries[0].role, 'branchSummary');
-        expect(s2.entries[0].text, 'Branch from checkpoint');
-        expect(s2.entries[0].metadata?['fromId'], 'chk_99');
+      expect(s2.entries.length, 2);
+      expect(s2.entries[0].role, 'branchSummary');
+      expect(s2.entries[0].text, 'Branch from checkpoint');
+      expect(s2.entries[0].metadata?['fromId'], 'chk_99');
 
-        expect(s2.entries[1].role, 'compactionSummary');
-        expect(s2.entries[1].text, 'Compacted conversation');
-        expect(s2.entries[1].metadata?['tokensBefore'], 54000);
-      },
-    );
+      expect(s2.entries[1].role, 'compactionSummary');
+      expect(s2.entries[1].text, 'Compacted conversation');
+      expect(s2.entries[1].metadata?['tokensBefore'], 54000);
+    });
 
     test('SessionReducer processes custom messages and flags display: false as internal', () {
       final initial = SessionState(
@@ -696,10 +634,7 @@ void main() {
 
       expect(next.entries.first.toolCalls.first.isRunning, isFalse);
       expect(next.entries.first.toolCalls.first.isError, isTrue);
-      expect(
-        next.entries.first.toolCalls.first.output,
-        'FAIL test/foo.spec.ts',
-      );
+      expect(next.entries.first.toolCalls.first.output, 'FAIL test/foo.spec.ts');
     });
 
     test('ToolCompletedEvent updates output, isRunning, and isError in existing transcript entries', () {
@@ -712,22 +647,12 @@ void main() {
             id: 'asst_1',
             role: 'assistant',
             text: 'I will list files.',
-            toolCalls: [
-              const ToolExecutionState(
-                toolCallId: 'call_ls_1',
-                toolName: 'ls',
-                isRunning: true,
-              ),
-            ],
+            toolCalls: [const ToolExecutionState(toolCallId: 'call_ls_1', toolName: 'ls', isRunning: true)],
             timestamp: 1000,
           ),
         ],
         activeToolCalls: {
-          'call_ls_1': const ToolExecutionState(
-            toolCallId: 'call_ls_1',
-            toolName: 'ls',
-            isRunning: true,
-          ),
+          'call_ls_1': const ToolExecutionState(toolCallId: 'call_ls_1', toolName: 'ls', isRunning: true),
         },
       );
 
@@ -751,57 +676,41 @@ void main() {
 
       expect(next.entries.first.toolCalls.first.isRunning, isFalse);
       expect(next.entries.first.toolCalls.first.isError, isFalse);
-      expect(
-        next.entries.first.toolCalls.first.output,
-        'file1.dart\nfile2.dart',
-      );
+      expect(next.entries.first.toolCalls.first.output, 'file1.dart\nfile2.dart');
       expect(next.entries.first.toolCalls.first.durationMs, 120);
       expect(next.activeToolCalls['call_ls_1']?.isRunning, isFalse);
     });
 
-    test(
-      'SessionStatusEvent settles agent status and clears streaming blocks',
-      () {
-        final initial = SessionState(
-          sessionId: 's1',
-          cwd: '/test',
-          agentStatus: AgentStatus.working,
-          streamingTextBlocks: {0: 'Incomplete streaming'},
-          streamingThinkingBlocks: {0: 'Incomplete thinking'},
-          activeToolCalls: {
-            't1': const ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'bash',
-              isRunning: true,
-            ),
-          },
-        );
-
-        final next = reduceSessionState(
-          initial,
-          const SessionStatusEvent(
-            protocol: 1,
-            id: 'evt_status_1',
-            ts: 1010,
-            sessionId: 's1',
-            seq: 0,
-            payload: {'status': 'settled', 'reason': 'recovered_from_crash'},
-          ),
-        );
-
-        expect(next.agentStatus, AgentStatus.settled);
-        expect(next.streamingTextBlocks, isEmpty);
-        expect(next.streamingThinkingBlocks, isEmpty);
-        expect(next.activeToolCalls['t1']?.isRunning, isFalse);
-      },
-    );
-
-    test('RunEndedEvent settles status when willRetry is false and no tools are running', () {
-      final initial = const SessionState(
+    test('SessionStatusEvent settles agent status and clears streaming blocks', () {
+      final initial = SessionState(
         sessionId: 's1',
         cwd: '/test',
         agentStatus: AgentStatus.working,
+        streamingTextBlocks: {0: 'Incomplete streaming'},
+        streamingThinkingBlocks: {0: 'Incomplete thinking'},
+        activeToolCalls: {'t1': const ToolExecutionState(toolCallId: 't1', toolName: 'bash', isRunning: true)},
       );
+
+      final next = reduceSessionState(
+        initial,
+        const SessionStatusEvent(
+          protocol: 1,
+          id: 'evt_status_1',
+          ts: 1010,
+          sessionId: 's1',
+          seq: 0,
+          payload: {'status': 'settled', 'reason': 'recovered_from_crash'},
+        ),
+      );
+
+      expect(next.agentStatus, AgentStatus.settled);
+      expect(next.streamingTextBlocks, isEmpty);
+      expect(next.streamingThinkingBlocks, isEmpty);
+      expect(next.activeToolCalls['t1']?.isRunning, isFalse);
+    });
+
+    test('RunEndedEvent settles status when willRetry is false and no tools are running', () {
+      final initial = const SessionState(sessionId: 's1', cwd: '/test', agentStatus: AgentStatus.working);
 
       final next = reduceSessionState(
         initial,
@@ -822,18 +731,9 @@ void main() {
   group('applySessionSnapshot', () {
     test('restores session cost and tokens directly from payload usage', () {
       final state = applySessionSnapshot('session-cost', 10, {
-        'session': {
-          'id': 'session-cost',
-          'name': 'Cost Session',
-          'cwd': '/workspace',
-        },
+        'session': {'id': 'session-cost', 'name': 'Cost Session', 'cwd': '/workspace'},
         'runtime': {'status': 'settled', 'model': 'claude-3-5-sonnet'},
-        'usage': {
-          'cost': 0.0845,
-          'totalTokens': 15000,
-          'inputTokens': 12000,
-          'outputTokens': 3000,
-        },
+        'usage': {'cost': 0.0845, 'totalTokens': 15000, 'inputTokens': 12000, 'outputTokens': 3000},
       });
 
       expect(state.usage?['cost'], 0.0845);
@@ -845,11 +745,7 @@ void main() {
 
     test('aggregates session cost and tokens from transcript entries when payload usage is empty', () {
       final state = applySessionSnapshot('session-fallback', 10, {
-        'session': {
-          'id': 'session-fallback',
-          'name': 'Fallback Session',
-          'cwd': '/workspace',
-        },
+        'session': {'id': 'session-fallback', 'name': 'Fallback Session', 'cwd': '/workspace'},
         'runtime': {'status': 'settled', 'model': 'claude-3-5-sonnet'},
         'usage': {},
         'transcript': {
@@ -898,18 +794,15 @@ void main() {
       expect(state.compactionReservePercent, 5);
     });
 
-    test(
-      'snapshot default reserve and null runtime override are authoritative',
-      () {
-        final state = applySessionSnapshot('session-reset', 1, {
-          'session': {'id': 'session-reset', 'contextWindowOverride': 100000},
-          'runtime': {'status': 'idle', 'contextWindowOverride': null},
-          'transcript': {'entries': []},
-        });
+    test('snapshot default reserve and null runtime override are authoritative', () {
+      final state = applySessionSnapshot('session-reset', 1, {
+        'session': {'id': 'session-reset', 'contextWindowOverride': 100000},
+        'runtime': {'status': 'idle', 'contextWindowOverride': null},
+        'transcript': {'entries': []},
+      });
 
-        expect(state.contextWindowOverride, isNull);
-        expect(state.compactionReservePercent, 2.5);
-      },
-    );
+      expect(state.contextWindowOverride, isNull);
+      expect(state.compactionReservePercent, 2.5);
+    });
   });
 }

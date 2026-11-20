@@ -13,9 +13,7 @@ void main() {
   group('Theme persistence and VSCode theme importing', () {
     test('themeRepositoryProvider initializes with piframe-dark or saved theme instead of forcing light mode', () {
       final storage = MemoryThemeStorage(); // No saved theme initially
-      final container = ProviderContainer(
-        overrides: [themeStorageProvider.overrideWithValue(storage)],
-      );
+      final container = ProviderContainer(overrides: [themeStorageProvider.overrideWithValue(storage)]);
       addTearDown(container.dispose);
 
       final repo = container.read(themeRepositoryProvider);
@@ -24,25 +22,18 @@ void main() {
       expect(repo.activeTheme.variant, 'dark');
     });
 
-    test(
-      'themeRepositoryProvider restores saved theme from storage on startup',
-      () {
-        final storage = MemoryThemeStorage('piframe-light');
-        final container = ProviderContainer(
-          overrides: [themeStorageProvider.overrideWithValue(storage)],
-        );
-        addTearDown(container.dispose);
+    test('themeRepositoryProvider restores saved theme from storage on startup', () {
+      final storage = MemoryThemeStorage('piframe-light');
+      final container = ProviderContainer(overrides: [themeStorageProvider.overrideWithValue(storage)]);
+      addTearDown(container.dispose);
 
-        final repo = container.read(themeRepositoryProvider);
-        expect(repo.activeThemeId, 'piframe-light');
-      },
-    );
+      final repo = container.read(themeRepositoryProvider);
+      expect(repo.activeThemeId, 'piframe-light');
+    });
 
     test('setTheme persists chosen theme ID to storage', () {
       final storage = MemoryThemeStorage('piframe-dark');
-      final container = ProviderContainer(
-        overrides: [themeStorageProvider.overrideWithValue(storage)],
-      );
+      final container = ProviderContainer(overrides: [themeStorageProvider.overrideWithValue(storage)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(activeThemeSpecProvider.notifier);
@@ -58,9 +49,7 @@ void main() {
 
     test('importThemeFromJson converts VSCode JSON, saves user theme file, and activates it', () async {
       final storage = MemoryThemeStorage('piframe-dark');
-      final container = ProviderContainer(
-        overrides: [themeStorageProvider.overrideWithValue(storage)],
-      );
+      final container = ProviderContainer(overrides: [themeStorageProvider.overrideWithValue(storage)]);
       addTearDown(container.dispose);
 
       const vscodeThemeJson = '''
@@ -93,16 +82,10 @@ void main() {
       expect(importedSpec.variant, 'dark');
 
       // Check that it was saved to storage
-      expect(
-        storage.userThemes.containsKey('vscode-monokai-pro-test.json'),
-        isTrue,
-      );
+      expect(storage.userThemes.containsKey('vscode-monokai-pro-test.json'), isTrue);
 
       // Check that it is now the active theme in provider and persisted
-      expect(
-        container.read(activeThemeSpecProvider).id,
-        'vscode-monokai-pro-test',
-      );
+      expect(container.read(activeThemeSpecProvider).id, 'vscode-monokai-pro-test');
       expect(storage.loadActiveThemeIdSync(), 'vscode-monokai-pro-test');
 
       final tokens = container.read(activeThemeSpecProvider).toTokens();
@@ -126,9 +109,7 @@ void main() {
             pcpClientProvider.overrideWithValue(null),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: Scaffold(
               body: SettingsView(
                 onClose: () {},
@@ -147,9 +128,7 @@ void main() {
 
     test('default dark and light themes persist and update independently', () {
       final storage = MemoryThemeStorage();
-      final container = ProviderContainer(
-        overrides: [themeStorageProvider.overrideWithValue(storage)],
-      );
+      final container = ProviderContainer(overrides: [themeStorageProvider.overrideWithValue(storage)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(activeThemeSpecProvider.notifier);
@@ -170,61 +149,47 @@ void main() {
       expect(storage.loadSettingsSync().useSystemTheme, isTrue);
     });
 
-    testWidgets(
-      'SettingsView displays system theme switch and default theme dropdowns',
-      (tester) async {
-        final storage = MemoryThemeStorage();
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              themeStorageProvider.overrideWithValue(storage),
-              daemonEndpointProvider.overrideWith((ref) async => null),
-              pcpClientProvider.overrideWithValue(null),
-            ],
-            child: MaterialApp(
-              theme: ThemeData.dark().copyWith(
-                extensions: const [FrameTokens.dark],
-              ),
-              home: Scaffold(
-                body: SettingsView(
-                  onClose: () {},
-                  initialTabIndex: 3, // Aspetto tab
-                ),
+    testWidgets('SettingsView displays system theme switch and default theme dropdowns', (tester) async {
+      final storage = MemoryThemeStorage();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            themeStorageProvider.overrideWithValue(storage),
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            pcpClientProvider.overrideWithValue(null),
+          ],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: Scaffold(
+              body: SettingsView(
+                onClose: () {},
+                initialTabIndex: 3, // Aspetto tab
               ),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // One "Tema" control: Sistema / Chiaro / Scuro (task 8.3).
-        expect(
-          find.byKey(const ValueKey('settings-theme-mode-segmented')),
-          findsOneWidget,
-        );
-        expect(find.text('Sistema'), findsOneWidget);
-        expect(find.text('Chiaro'), findsOneWidget);
-        expect(find.text('Scuro'), findsOneWidget);
-        // Only the select the chosen mode needs is shown, not both.
-        expect(
-          find
-                  .byKey(const ValueKey('settings-dark-theme-dropdown'))
-                  .evaluate()
-                  .length +
-              find
-                  .byKey(const ValueKey('settings-light-theme-dropdown'))
-                  .evaluate()
-                  .length,
-          1,
-        );
+      // One "Tema" control: Sistema / Chiaro / Scuro (task 8.3).
+      expect(find.byKey(const ValueKey('settings-theme-mode-segmented')), findsOneWidget);
+      expect(find.text('Sistema'), findsOneWidget);
+      expect(find.text('Chiaro'), findsOneWidget);
+      expect(find.text('Scuro'), findsOneWidget);
+      // Only the select the chosen mode needs is shown, not both.
+      expect(
+        find.byKey(const ValueKey('settings-dark-theme-dropdown')).evaluate().length +
+            find.byKey(const ValueKey('settings-light-theme-dropdown')).evaluate().length,
+        1,
+      );
 
-        // Choose "Sistema": both default selects appear and the setting persists.
-        await tester.tap(find.text('Sistema'));
-        await tester.pumpAndSettle();
+      // Choose "Sistema": both default selects appear and the setting persists.
+      await tester.tap(find.text('Sistema'));
+      await tester.pumpAndSettle();
 
-        expect(storage.loadSettingsSync().useSystemTheme, isTrue);
-        expect(find.text('Tema scuro predefinito:'), findsOneWidget);
-        expect(find.text('Tema chiaro predefinito:'), findsOneWidget);
-      },
-    );
+      expect(storage.loadSettingsSync().useSystemTheme, isTrue);
+      expect(find.text('Tema scuro predefinito:'), findsOneWidget);
+      expect(find.text('Tema chiaro predefinito:'), findsOneWidget);
+    });
   });
 }

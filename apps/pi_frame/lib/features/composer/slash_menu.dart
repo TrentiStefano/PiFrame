@@ -8,6 +8,7 @@ class SlashMenu extends StatelessWidget {
   final List<Map<String, dynamic>> commands;
   final String filter;
   final ValueChanged<Map<String, dynamic>> onSelect;
+
   /// Localized label for a command source (Pi, estensione, prompt, skill).
   final String Function(String source) sourceLabel;
 
@@ -24,12 +25,8 @@ class SlashMenu extends StatelessWidget {
   });
 
   /// Commands matching [filter] (the composer text, with or without the leading '/').
-  static List<Map<String, dynamic>> filtered(
-    List<Map<String, dynamic>> commands,
-    String filter,
-  ) {
-    final clean = (filter.startsWith('/') ? filter.substring(1) : filter)
-        .toLowerCase();
+  static List<Map<String, dynamic>> filtered(List<Map<String, dynamic>> commands, String filter) {
+    final clean = (filter.startsWith('/') ? filter.substring(1) : filter).toLowerCase();
     return commands.where((cmd) {
       final name = (cmd['name'] as String? ?? '').toLowerCase();
       final desc = (cmd['description'] as String? ?? '').toLowerCase();
@@ -48,16 +45,11 @@ class SlashMenu extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : FrameMotion.small,
+      duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : FrameMotion.small,
       curve: FrameMotion.enterCurve,
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, 6 * (1 - t)),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, 6 * (1 - t)), child: child),
       ),
       child: Material(
         color: tokens.surface.withValues(alpha: 0),
@@ -67,20 +59,13 @@ class SlashMenu extends StatelessWidget {
             color: tokens.surfaceElevated,
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             border: Border.all(color: tokens.border, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: tokens.overlay,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: tokens.overlay, blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
             shrinkWrap: true,
             itemCount: items.length,
-            separatorBuilder: (_, _) =>
-                Divider(height: 1, color: tokens.border),
+            separatorBuilder: (_, _) => Divider(height: 1, color: tokens.border),
             itemBuilder: (context, index) {
               final cmd = items[index];
               final name = cmd['name'] as String? ?? '';
@@ -96,36 +81,19 @@ class SlashMenu extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: FrameMotion.micro,
                   curve: FrameMotion.enterCurve,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? tokens.accent.withValues(alpha: 0.12)
-                        : tokens.accent.withValues(alpha: 0),
+                    color: selected ? tokens.accent.withValues(alpha: 0.12) : tokens.accent.withValues(alpha: 0),
                     border: Border(
-                      left: BorderSide(
-                        color: tokens.accent.withValues(
-                          alpha: selected ? 1 : 0,
-                        ),
-                        width: 2,
-                      ),
+                      left: BorderSide(color: tokens.accent.withValues(alpha: selected ? 1 : 0), width: 2),
                     ),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.terminal_outlined,
-                        size: 13,
-                        color: selected ? tokens.accent : tokens.textMuted,
-                      ),
+                      Icon(Icons.terminal_outlined, size: 13, color: selected ? tokens.accent : tokens.textMuted),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: tokens.accent.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -133,7 +101,11 @@ class SlashMenu extends StatelessWidget {
                         ),
                         child: Text(
                           '/$name${argumentHint.isEmpty ? '' : ' $argumentHint'}',
-                          style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.monoFontFamily),
+                          style: FrameText.of(context).label.copyWith(
+                            color: tokens.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
                         ),
                       ),
                       const SizedBox(width: FrameSpace.x2),
@@ -148,7 +120,8 @@ class SlashMenu extends StatelessWidget {
                       const SizedBox(width: FrameSpace.x2),
                       Text(
                         sourceLabel(source),
-                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
+                        style: FrameText.of(context).caption
+                            .copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),

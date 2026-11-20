@@ -8,16 +8,11 @@ import 'package:pi_frame/data/metrics/system_metrics_model.dart';
 import 'package:pi_frame/features/metrics/nerd_stats_bar.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-Widget _buildTestWidget({
-  required List<Override> overrides,
-  double width = 1000,
-}) {
+Widget _buildTestWidget({required List<Override> overrides, double width = 1000}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: [FrameTokens.dark],
-      ),
+      theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -35,20 +30,14 @@ void main() {
     testWidgets('hidden when setting is OFF', (tester) async {
       await tester.pumpWidget(
         _buildTestWidget(
-          overrides: [
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(false),
-            ),
-          ],
+          overrides: [nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(false))],
         ),
       );
 
       expect(find.byKey(const ValueKey('nerd-stats-bar')), findsNothing);
     });
 
-    testWidgets('shows formatted metric values and FPS when ON', (
-      tester,
-    ) async {
+    testWidgets('shows formatted metric values and FPS when ON', (tester) async {
       const metrics = SystemMetricsData(
         cpuPercent: 12.3,
         memoryPercent: 48.0,
@@ -66,12 +55,8 @@ void main() {
         _buildTestWidget(
           overrides: [
             isWebProvider.overrideWithValue(false),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 60),
           ],
         ),
@@ -80,10 +65,7 @@ void main() {
       expect(find.byKey(const ValueKey('nerd-stats-bar')), findsOneWidget);
 
       // Verify the exact rendered monospace string
-      expect(
-        find.text('CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS'),
-        findsOneWidget,
-      );
+      expect(find.text('CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS'), findsOneWidget);
     });
 
     testWidgets('shows GPU percentage when available', (tester) async {
@@ -100,21 +82,14 @@ void main() {
         _buildTestWidget(
           overrides: [
             isWebProvider.overrideWithValue(false),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 58),
           ],
         ),
       );
 
-      expect(
-        find.text('CPU 10.0% · RAM 30% · DISK 40% · GPU 15% · 58 FPS'),
-        findsOneWidget,
-      );
+      expect(find.text('CPU 10.0% · RAM 30% · DISK 40% · GPU 15% · 58 FPS'), findsOneWidget);
     });
 
     testWidgets('web mode shows ONLY the FPS segment', (tester) async {
@@ -131,12 +106,8 @@ void main() {
         _buildTestWidget(
           overrides: [
             isWebProvider.overrideWithValue(true),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 60),
           ],
         ),
@@ -150,9 +121,7 @@ void main() {
       expect(find.textContaining('GPU'), findsNothing);
     });
 
-    testWidgets('hides gracefully when width is below threshold', (
-      tester,
-    ) async {
+    testWidgets('hides gracefully when width is below threshold', (tester) async {
       const metrics = SystemMetricsData(
         cpuPercent: 12.3,
         memoryPercent: 48.0,
@@ -167,12 +136,8 @@ void main() {
           width: 700,
           overrides: [
             isWebProvider.overrideWithValue(false),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 60),
           ],
         ),
@@ -195,12 +160,8 @@ void main() {
         _buildTestWidget(
           overrides: [
             isWebProvider.overrideWithValue(false),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 60),
           ],
         ),
@@ -211,16 +172,12 @@ void main() {
       expect(rootSpan, isNotNull);
 
       // Find the CPU value span
-      final cpuSpan = rootSpan!.children!.firstWhere(
-        (span) => span is TextSpan && span.text == '92.0%',
-      ) as TextSpan;
+      final cpuSpan = rootSpan!.children!.firstWhere((span) => span is TextSpan && span.text == '92.0%') as TextSpan;
 
       expect(cpuSpan.style?.color, equals(FrameTokens.dark.warning));
     });
 
-    testWidgets('tooltip contains full details and formatted bytes', (
-      tester,
-    ) async {
+    testWidgets('tooltip contains full details and formatted bytes', (tester) async {
       const metrics = SystemMetricsData(
         cpuPercent: 12.3,
         memoryUsedBytes: 8589934592,
@@ -241,12 +198,8 @@ void main() {
         _buildTestWidget(
           overrides: [
             isWebProvider.overrideWithValue(false),
-            nerdStatsSettingsProvider.overrideWith(
-              (ref) => NerdStatsSettingsNotifier()..setEnabled(true),
-            ),
-            systemMetricsProvider.overrideWith(
-              (ref) => SystemMetricsController(ref)..state = metrics,
-            ),
+            nerdStatsSettingsProvider.overrideWith((ref) => NerdStatsSettingsNotifier()..setEnabled(true)),
+            systemMetricsProvider.overrideWith((ref) => SystemMetricsController(ref)..state = metrics),
             fpsProvider.overrideWith((ref) => FpsNotifier(ref)..state = 60),
           ],
         ),

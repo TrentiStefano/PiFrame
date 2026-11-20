@@ -212,9 +212,7 @@ export class SideConversationManager {
 
     if (parentSession.model) {
       const m = parentSession.model;
-      const modelPattern = typeof m === 'string'
-        ? m
-        : (m.provider && m.id ? `${m.provider}/${m.id}` : (m.id || String(m)));
+      const modelPattern = typeof m === 'string' ? m : m.provider && m.id ? `${m.provider}/${m.id}` : m.id || String(m);
       args.push('--model', modelPattern);
     }
 

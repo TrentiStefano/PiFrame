@@ -49,38 +49,21 @@ void _expectCalls(SessionState state) {
 }
 
 void main() {
-  test(
-    'Pi toolCall blocks survive model interruption without execution events',
-    () {
-      var state = reduceSessionState(
-        const SessionState(sessionId: 's1', cwd: '/repo'),
-        MessageCompletedEvent(
-          protocol: 1,
-          id: 'm1',
-          ts: 1,
-          sessionId: 's1',
-          seq: 1,
-          payload: {'message': _assistant()},
-        ),
-      );
-      _expectCalls(state);
-      state = reduceSessionState(
-        state,
-        const RunSettledEvent(
-          protocol: 1,
-          id: 'stop',
-          ts: 2,
-          sessionId: 's1',
-          seq: 2,
-          payload: {},
-        ),
-      );
-      _expectCalls(state);
-      expect(state.entries.single.thinking, 'Check changes');
-      expect(state.agentStatus, AgentStatus.settled);
-      expect(state.activeToolCalls, isEmpty);
-    },
-  );
+  test('Pi toolCall blocks survive model interruption without execution events', () {
+    var state = reduceSessionState(
+      const SessionState(sessionId: 's1', cwd: '/repo'),
+      MessageCompletedEvent(protocol: 1, id: 'm1', ts: 1, sessionId: 's1', seq: 1, payload: {'message': _assistant()}),
+    );
+    _expectCalls(state);
+    state = reduceSessionState(
+      state,
+      const RunSettledEvent(protocol: 1, id: 'stop', ts: 2, sessionId: 's1', seq: 2, payload: {}),
+    );
+    _expectCalls(state);
+    expect(state.entries.single.thinking, 'Check changes');
+    expect(state.agentStatus, AgentStatus.settled);
+    expect(state.activeToolCalls, isEmpty);
+  });
 
   test('Pi tool-only assistant messages are not discarded', () {
     final state = reduceSessionState(
@@ -99,120 +82,91 @@ void main() {
   });
 
   for (final nested in [false, true]) {
-    test(
-      'reopen restores Pi calls, block outputs and errors (nested: $nested)',
-      () {
-        final messages = [
-          _assistant(),
-          for (final call in _calls)
-            {
-              'role': 'toolResult',
-              'toolCallId': call['id'],
-              'content': [
-                {'type': 'text', 'text': '${call['name']} output'},
-                {'type': 'image', 'data': 'ignored', 'mimeType': 'image/png'},
-                {'type': 'text', 'text': '\nsecond block'},
-              ],
-              'isError': call['name'] == 'bash',
-            },
-        ];
-        final raw = [
-          for (final message in messages)
-            if (nested)
-              {
-                'type': 'message',
-                'id': 'entry-${messages.indexOf(message)}',
-                'message': message,
-              }
-            else
-              message,
-        ];
-        final state = applySessionSnapshot('s1', 42, {
-          'session': {'cwd': '/repo'},
-          'runtime': {'status': 'settled'},
-          'transcript': {'entries': raw},
-        });
-        _expectCalls(state);
-        for (final call in state.entries.single.toolCalls) {
-          expect(call.output, '${call.toolName} output\nsecond block');
-          expect(call.isError, call.toolName == 'bash');
-          expect(call.isRunning, isFalse);
-        }
-        // On-demand older history uses the same parser as initial snapshots.
-        expect(parseSessionEntries(raw).single.toolCalls, hasLength(4));
-      },
-    );
+    test('reopen restores Pi calls, block outputs and errors (nested: $nested)', () {
+      final messages = [
+        _assistant(),
+        for (final call in _calls)
+          {
+            'role': 'toolResult',
+            'toolCallId': call['id'],
+            'content': [
+              {'type': 'text', 'text': '${call['name']} output'},
+              {'type': 'image', 'data': 'ignored', 'mimeType': 'image/png'},
+              {'type': 'text', 'text': '\nsecond block'},
+            ],
+            'isError': call['name'] == 'bash',
+          },
+      ];
+      final raw = [
+        for (final message in messages)
+          if (nested) {'type': 'message', 'id': 'entry-${messages.indexOf(message)}', 'message': message} else message,
+      ];
+      final state = applySessionSnapshot('s1', 42, {
+        'session': {'cwd': '/repo'},
+        'runtime': {'status': 'settled'},
+        'transcript': {'entries': raw},
+      });
+      _expectCalls(state);
+      for (final call in state.entries.single.toolCalls) {
+        expect(call.output, '${call.toolName} output\nsecond block');
+        expect(call.isError, call.toolName == 'bash');
+        expect(call.isRunning, isFalse);
+      }
+      // On-demand older history uses the same parser as initial snapshots.
+      expect(parseSessionEntries(raw).single.toolCalls, hasLength(4));
+    });
   }
 
-  test(
-    'live Pi tool completion and abort preserve args and last output once',
-    () {
-      var state = reduceSessionState(
-        const SessionState(sessionId: 's1', cwd: '/repo'),
-        MessageCompletedEvent(
-          protocol: 1,
-          id: 'm1',
-          ts: 1,
-          sessionId: 's1',
-          seq: 1,
-          payload: {'message': _assistant()},
-        ),
-      );
-      state = reduceSessionState(
-        state,
-        const ToolStartedEvent(
-          protocol: 1,
-          id: 'start',
-          ts: 2,
-          sessionId: 's1',
-          seq: 2,
-          payload: {
+  test('live Pi tool completion and abort preserve args and last output once', () {
+    var state = reduceSessionState(
+      const SessionState(sessionId: 's1', cwd: '/repo'),
+      MessageCompletedEvent(protocol: 1, id: 'm1', ts: 1, sessionId: 's1', seq: 1, payload: {'message': _assistant()}),
+    );
+    state = reduceSessionState(
+      state,
+      const ToolStartedEvent(
+        protocol: 1,
+        id: 'start',
+        ts: 2,
+        sessionId: 's1',
+        seq: 2,
+        payload: {
+          'toolCallId': 'bash-1',
+          'toolName': 'bash',
+          'args': {'command': 'pnpm test'},
+        },
+      ),
+    );
+    state = reduceSessionState(
+      state,
+      const MessageCompletedEvent(
+        protocol: 1,
+        id: 'result',
+        ts: 3,
+        sessionId: 's1',
+        seq: 3,
+        payload: {
+          'message': {
+            'role': 'toolResult',
             'toolCallId': 'bash-1',
-            'toolName': 'bash',
-            'args': {'command': 'pnpm test'},
+            'content': [
+              {'type': 'text', 'text': 'Cancelled by user'},
+            ],
+            'isError': true,
           },
-        ),
-      );
-      state = reduceSessionState(
-        state,
-        const MessageCompletedEvent(
-          protocol: 1,
-          id: 'result',
-          ts: 3,
-          sessionId: 's1',
-          seq: 3,
-          payload: {
-            'message': {
-              'role': 'toolResult',
-              'toolCallId': 'bash-1',
-              'content': [
-                {'type': 'text', 'text': 'Cancelled by user'},
-              ],
-              'isError': true,
-            },
-          },
-        ),
-      );
-      state = reduceSessionState(
-        state,
-        const RunSettledEvent(
-          protocol: 1,
-          id: 'stop',
-          ts: 4,
-          sessionId: 's1',
-          seq: 4,
-          payload: {},
-        ),
-      );
-      _expectCalls(state);
-      final bash = state.entries.single.toolCalls.singleWhere(
-        (t) => t.toolName == 'bash',
-      );
-      expect(bash.output, 'Cancelled by user');
-      expect(bash.isError, isTrue);
-      expect(bash.isRunning, isFalse);
-    },
-  );
+        },
+      ),
+    );
+    state = reduceSessionState(
+      state,
+      const RunSettledEvent(protocol: 1, id: 'stop', ts: 4, sessionId: 's1', seq: 4, payload: {}),
+    );
+    _expectCalls(state);
+    final bash = state.entries.single.toolCalls.singleWhere((t) => t.toolName == 'bash');
+    expect(bash.output, 'Cancelled by user');
+    expect(bash.isError, isTrue);
+    expect(bash.isRunning, isFalse);
+  });
 
   test('settling updates recorded tools without copying them to a later entry', () {
     final state = reduceSessionState(
@@ -221,29 +175,28 @@ void main() {
         cwd: '/repo',
         entries: [
           SessionEntry(
-            id: 'first', role: 'assistant', text: 'Reading', timestamp: 1,
+            id: 'first',
+            role: 'assistant',
+            text: 'Reading',
+            timestamp: 1,
             toolCalls: [
-              ToolExecutionState(
-                toolCallId: 'read-1', toolName: 'read', args: {'path': 'a.txt'},
-              ),
+              ToolExecutionState(toolCallId: 'read-1', toolName: 'read', args: {'path': 'a.txt'}),
             ],
           ),
           SessionEntry(id: 'second', role: 'assistant', text: 'Working', timestamp: 2),
         ],
         activeToolCalls: {
           'read-1': ToolExecutionState(
-            toolCallId: 'read-1', toolName: 'read', output: 'partial',
-            isRunning: true, startedAt: 10,
+            toolCallId: 'read-1',
+            toolName: 'read',
+            output: 'partial',
+            isRunning: true,
+            startedAt: 10,
           ),
-          'write-1': ToolExecutionState(
-            toolCallId: 'write-1', toolName: 'write', output: 'saved',
-          ),
+          'write-1': ToolExecutionState(toolCallId: 'write-1', toolName: 'write', output: 'saved'),
         },
       ),
-      const RunSettledEvent(
-        protocol: 1, id: 'settled', ts: 30, sessionId: 's1', seq: 1,
-        payload: {},
-      ),
+      const RunSettledEvent(protocol: 1, id: 'settled', ts: 30, sessionId: 's1', seq: 1, payload: {}),
     );
     final recorded = state.entries.first.toolCalls.single;
     expect(recorded.toolCallId, 'read-1');
@@ -257,36 +210,24 @@ void main() {
   });
 
   for (final type in ['tool_call', 'tool_use']) {
-    test(
-      'legacy $type calls remain supported in live and historical messages',
-      () {
-        final message = {
-          'role': 'assistant',
-          'content': [
-            {
-              'type': type,
-              'id': 'legacy',
-              'name': 'bash',
-              'input': {'command': 'ls'},
-            },
-          ],
-        };
-        final state = reduceSessionState(
-          const SessionState(sessionId: 's1', cwd: '/repo'),
-          MessageCompletedEvent(
-            protocol: 1,
-            id: 'm1',
-            ts: 1,
-            sessionId: 's1',
-            seq: 1,
-            payload: {'message': message},
-          ),
-        );
-        expect(state.entries.single.toolCalls.single.args, {'command': 'ls'});
-        expect(parseSessionEntries([message]).single.toolCalls.single.args, {
-          'command': 'ls',
-        });
-      },
-    );
+    test('legacy $type calls remain supported in live and historical messages', () {
+      final message = {
+        'role': 'assistant',
+        'content': [
+          {
+            'type': type,
+            'id': 'legacy',
+            'name': 'bash',
+            'input': {'command': 'ls'},
+          },
+        ],
+      };
+      final state = reduceSessionState(
+        const SessionState(sessionId: 's1', cwd: '/repo'),
+        MessageCompletedEvent(protocol: 1, id: 'm1', ts: 1, sessionId: 's1', seq: 1, payload: {'message': message}),
+      );
+      expect(state.entries.single.toolCalls.single.args, {'command': 'ls'});
+      expect(parseSessionEntries([message]).single.toolCalls.single.args, {'command': 'ls'});
+    });
   }
 }

@@ -22,9 +22,7 @@ class MockSteerQueueClient extends PcpClient {
 }
 
 void main() {
-  testWidgets('Composer displays queued steer messages and allows modifying them', (
-    tester,
-  ) async {
+  testWidgets('Composer displays queued steer messages and allows modifying them', (tester) async {
     final client = MockSteerQueueClient();
     final notifier = SessionStateNotifier('sess_steer', client)
       ..state = SessionState(
@@ -43,9 +41,7 @@ void main() {
           sessionStateFamily('sess_steer').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: Composer(sessionId: 'sess_steer')),
         ),
       ),
@@ -85,19 +81,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify notifier state was updated
-    expect(
-      notifier.state.steeringQueue,
-      ['Refactor module X with new architecture', 'Add unit tests'],
-    );
+    expect(notifier.state.steeringQueue, ['Refactor module X with new architecture', 'Add unit tests']);
 
     // Now delete the second steer message
     final deleteBtn1 = find.byKey(const ValueKey('delete-steer-btn-1'));
     await tester.tap(deleteBtn1);
     await tester.pumpAndSettle();
 
-    expect(
-      notifier.state.steeringQueue,
-      ['Refactor module X with new architecture'],
-    );
+    expect(notifier.state.steeringQueue, ['Refactor module X with new architecture']);
   });
 }

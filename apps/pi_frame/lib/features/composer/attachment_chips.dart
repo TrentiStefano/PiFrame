@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../data/daemon/attachment_upload.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
@@ -15,10 +17,7 @@ class WebLinkInputDialog extends ConsumerStatefulWidget {
   const WebLinkInputDialog({super.key});
 
   static Future<ChatAttachment?> show(BuildContext context) {
-    return showFrameDialogBuilder<ChatAttachment>(
-      context: context,
-      builder: (ctx) => const WebLinkInputDialog(),
-    );
+    return showFrameDialogBuilder<ChatAttachment>(context: context, builder: (ctx) => const WebLinkInputDialog());
   }
 
   @override
@@ -46,8 +45,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
     }
 
     String formattedUrl = rawUrl;
-    if (!formattedUrl.startsWith('http://') &&
-        !formattedUrl.startsWith('https://')) {
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = 'https://$formattedUrl';
     }
 
@@ -101,7 +99,11 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                   const SizedBox(width: 10),
                   Text(
                     strings.attAddWebLinkTitle,
-                    style: FrameText.of(context).title.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.headingFontFamily),
+                    style: FrameText.of(context).title.copyWith(
+                      color: tokens.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: tokens.headingFontFamily,
+                    ),
                   ),
                 ],
               ),
@@ -110,7 +112,8 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 key: const ValueKey('weblink-dialog-url-field'),
                 controller: _urlController,
                 autofocus: true,
-                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
+                style: FrameText.of(context).body
+                    .copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
                 decoration: InputDecoration(
                   labelText: strings.attUrlFieldLabel,
                   hintText: 'https://example.com/docs',
@@ -118,9 +121,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                   prefixIcon: const Icon(Icons.language_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
@@ -135,9 +136,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                   prefixIcon: const Icon(Icons.label_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                 ),
                 onSubmitted: (_) => _submit(),
               ),
@@ -155,9 +154,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: tokens.accent,
                       foregroundColor: tokens.accentContrast,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                     ),
                     onPressed: _submit,
                     child: Text(strings.attAddLinkAction),
@@ -176,17 +173,9 @@ class ImagePreviewDialog extends ConsumerWidget {
   final String pathOrUrl;
   final String title;
 
-  const ImagePreviewDialog({
-    super.key,
-    required this.pathOrUrl,
-    required this.title,
-  });
+  const ImagePreviewDialog({super.key, required this.pathOrUrl, required this.title});
 
-  static Future<void> show(
-    BuildContext context, {
-    required String pathOrUrl,
-    required String title,
-  }) {
+  static Future<void> show(BuildContext context, {required String pathOrUrl, required String title}) {
     return showFrameDialogBuilder<void>(
       context: context,
       builder: (ctx) => ImagePreviewDialog(pathOrUrl: pathOrUrl, title: title),
@@ -204,22 +193,13 @@ class ImagePreviewDialog extends ConsumerWidget {
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x6, vertical: FrameSpace.x6),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 960,
-          maxHeight: 780,
-        ),
+        constraints: const BoxConstraints(maxWidth: 960, maxHeight: 780),
         child: Container(
           decoration: BoxDecoration(
             color: tokens.surface.withValues(alpha: 0.95),
             borderRadius: BorderRadius.circular(tokens.radiusLg),
             border: Border.all(color: tokens.borderStrong),
-            boxShadow: [
-              BoxShadow(
-                color: tokens.overlay,
-                blurRadius: 24,
-                spreadRadius: 4,
-              ),
-            ],
+            boxShadow: [BoxShadow(color: tokens.overlay, blurRadius: 24, spreadRadius: 4)],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -229,9 +209,7 @@ class ImagePreviewDialog extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: 10),
                 decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: tokens.border, width: 1),
-                  ),
+                  border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
                 ),
                 child: Row(
                   children: [
@@ -245,13 +223,15 @@ class ImagePreviewDialog extends ConsumerWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
+                            style: FrameText.of(context).bodyLarge
+                                .copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             pathOrUrl,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                            style: FrameText.of(context).caption
+                                .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ],
                       ),
@@ -294,20 +274,13 @@ class ImagePreviewDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _buildError(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.broken_image_outlined, size: 48, color: tokens.danger),
         const SizedBox(height: FrameSpace.x2),
-        Text(
-          strings.attImageLoadError,
-          style: FrameText.of(context).body.copyWith(color: tokens.textSecondary),
-        ),
+        Text(strings.attImageLoadError, style: FrameText.of(context).body.copyWith(color: tokens.textSecondary)),
       ],
     );
   }
@@ -319,13 +292,7 @@ class AttachmentChip extends ConsumerWidget {
   final VoidCallback? onRemove;
   final VoidCallback? onImageTap;
 
-  const AttachmentChip({
-    super.key,
-    required this.attachment,
-    this.isEditable = false,
-    this.onRemove,
-    this.onImageTap,
-  });
+  const AttachmentChip({super.key, required this.attachment, this.isEditable = false, this.onRemove, this.onImageTap});
 
   Future<void> _handleLinkTap() async {
     final uri = Uri.tryParse(attachment.pathOrUrl);
@@ -370,18 +337,13 @@ class AttachmentChip extends ConsumerWidget {
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: tokens.borderStrong,
-          width: 1,
-        ),
+        border: Border.all(color: tokens.borderStrong, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            attachment.type == AttachmentType.repoFile
-                ? Icons.folder_outlined
-                : Icons.insert_drive_file_outlined,
+            attachment.type == AttachmentType.repoFile ? Icons.folder_outlined : Icons.insert_drive_file_outlined,
             size: FrameSize.iconSm,
             color: tokens.accent,
           ),
@@ -394,14 +356,15 @@ class AttachmentChip extends ConsumerWidget {
                 attachment.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500, fontFamily: tokens.monoFontFamily),
+                style: FrameText.of(context).caption.copyWith(
+                  color: tokens.textPrimary,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: tokens.monoFontFamily,
+                ),
               ),
             ),
           ),
-          if (isEditable) ...[
-            const SizedBox(width: 2),
-            _removeAction(strings),
-          ],
+          if (isEditable) ...[const SizedBox(width: 2), _removeAction(strings)],
         ],
       ),
     );
@@ -417,19 +380,12 @@ class AttachmentChip extends ConsumerWidget {
         decoration: BoxDecoration(
           color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: Border.all(
-            color: tokens.syntaxKeyword.withValues(alpha: 0.4),
-            width: 1,
-          ),
+          border: Border.all(color: tokens.syntaxKeyword.withValues(alpha: 0.4), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.link_outlined,
-              size: FrameSize.iconSm,
-              color: tokens.syntaxKeyword,
-            ),
+            Icon(Icons.link_outlined, size: FrameSize.iconSm, color: tokens.syntaxKeyword),
             const SizedBox(width: 6),
             Tooltip(
               message: attachment.pathOrUrl,
@@ -439,14 +395,15 @@ class AttachmentChip extends ConsumerWidget {
                   attachment.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).caption.copyWith(color: tokens.syntaxKeyword, fontWeight: FontWeight.w600, decoration: isEditable ? null : TextDecoration.underline),
+                  style: FrameText.of(context).caption.copyWith(
+                    color: tokens.syntaxKeyword,
+                    fontWeight: FontWeight.w600,
+                    decoration: isEditable ? null : TextDecoration.underline,
+                  ),
                 ),
               ),
             ),
-            if (isEditable) ...[
-              const SizedBox(width: 2),
-              _removeAction(strings),
-            ],
+            if (isEditable) ...[const SizedBox(width: 2), _removeAction(strings)],
           ],
         ),
       ),
@@ -462,12 +419,9 @@ class AttachmentChip extends ConsumerWidget {
           message: strings.attClickToExpand(attachment.name),
           child: InkWell(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
-            onTap: onImageTap ??
-                () => ImagePreviewDialog.show(
-                      context,
-                      pathOrUrl: attachment.pathOrUrl,
-                      title: attachment.name,
-                    ),
+            onTap:
+                onImageTap ??
+                () => ImagePreviewDialog.show(context, pathOrUrl: attachment.pathOrUrl, title: attachment.name),
             child: Container(
               width: 52,
               height: 52,
@@ -489,21 +443,14 @@ class AttachmentChip extends ConsumerWidget {
                       key: ValueKey('attachment-image-invalid-${attachment.id}'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.image_not_supported_outlined,
-                          size: FrameSize.icon,
-                          color: tokens.textMuted,
-                        ),
+                        Icon(Icons.image_not_supported_outlined, size: FrameSize.icon, color: tokens.textMuted),
                         const SizedBox(height: 2),
                         Text(
                           strings.attImageInvalid,
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: FrameText.of(context).caption.copyWith(
-                            color: tokens.textMuted,
-                            height: 1,
-                          ),
+                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, height: 1),
                         ),
                       ],
                     ),
@@ -513,12 +460,7 @@ class AttachmentChip extends ConsumerWidget {
             ),
           ),
         ),
-        if (isEditable)
-          Positioned(
-            top: -10,
-            right: -10,
-            child: _removeAction(strings),
-          ),
+        if (isEditable) Positioned(top: -10, right: -10, child: _removeAction(strings)),
       ],
     );
   }
@@ -535,23 +477,11 @@ Widget buildAttachmentImage(
     final uri = Uri.tryParse(pathOrUrl);
     final bytes = uri?.data?.contentAsBytes();
     if (bytes != null) {
-      return Image.memory(
-        bytes,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: errorBuilder,
-      );
+      return Image.memory(bytes, width: width, height: height, fit: fit, errorBuilder: errorBuilder);
     }
   }
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
-    return Image.network(
-      pathOrUrl,
-      width: width,
-      height: height,
-      fit: fit,
-      errorBuilder: errorBuilder,
-    );
+    return Image.network(pathOrUrl, width: width, height: height, fit: fit, errorBuilder: errorBuilder);
   }
   if (kIsWeb) {
     // The file lives on the daemon host: preview it through the authenticated blob endpoint.
@@ -567,17 +497,9 @@ Widget buildAttachmentImage(
     }
   }
   if (!kIsWeb) {
-    return Image.file(
-      File(pathOrUrl),
-      width: width,
-      height: height,
-      fit: fit,
-      errorBuilder: errorBuilder,
-    );
+    return Image.file(File(pathOrUrl), width: width, height: height, fit: fit, errorBuilder: errorBuilder);
   }
-  return Builder(
-    builder: (ctx) => errorBuilder(ctx, StateError('Unsupported image source'), null),
-  );
+  return Builder(builder: (ctx) => errorBuilder(ctx, StateError('Unsupported image source'), null));
 }
 
 class AttachmentListBar extends StatelessWidget {

@@ -52,12 +52,7 @@ class PackagesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = FrameText.of(context);
     if (isLoading) {
-      return PackageLoadingView(
-        tokens: tokens,
-        strings: strings,
-        slow: slow,
-        onRetry: onRetry,
-      );
+      return PackageLoadingView(tokens: tokens, strings: strings, slow: slow, onRetry: onRetry);
     }
     if (loadError != null) {
       return ListView(
@@ -85,38 +80,19 @@ class PackagesSection extends ConsumerWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: PressFeedback(
-                  enabled:
-                      (isWorking || !packages.any(hasAvailablePiPackageUpdate)
-                          ? null
-                          : onUpdateAll) !=
-                      null,
+                  enabled: (isWorking || !packages.any(hasAvailablePiPackageUpdate) ? null : onUpdateAll) != null,
                   child: FilledButton.icon(
                     key: const ValueKey('update-all-pi-packages'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, FrameSize.rowForm),
-                    ),
-                    onPressed:
-                        isWorking || !packages.any(hasAvailablePiPackageUpdate)
-                        ? null
-                        : onUpdateAll,
-                    icon: const Icon(
-                      Icons.system_update_alt_outlined,
-                      size: FrameSize.icon,
-                    ),
-                    label: Text(
-                      updateProgress == null
-                          ? strings.updateAllPackages
-                          : strings.updatingPackages,
-                    ),
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
+                    onPressed: isWorking || !packages.any(hasAvailablePiPackageUpdate) ? null : onUpdateAll,
+                    icon: const Icon(Icons.system_update_alt_outlined, size: FrameSize.icon),
+                    label: Text(updateProgress == null ? strings.updateAllPackages : strings.updatingPackages),
                   ),
                 ),
               ),
               if (isWorking) ...[
                 const SizedBox(height: FrameSpace.x3),
-                FrameLinearProgress(
-                  color: tokens.accent,
-                  value: updateProgress,
-                ),
+                FrameLinearProgress(color: tokens.accent, value: updateProgress),
               ],
               if (updateErrorMessage != null) ...[
                 const SizedBox(height: FrameSpace.x3),
@@ -128,12 +104,8 @@ class PackagesSection extends ConsumerWidget {
               ],
               const SizedBox(height: FrameSpace.x3),
               if (packages.isEmpty)
-                Text(
-                  strings.noPackagesInstalled,
-                  style: text.body.copyWith(color: tokens.textMuted),
-                ),
-              for (final package in packages)
-                _buildPackageRow(context, ref, package),
+                Text(strings.noPackagesInstalled, style: text.body.copyWith(color: tokens.textMuted)),
+              for (final package in packages) _buildPackageRow(context, ref, package),
             ],
           ),
         ),
@@ -141,11 +113,7 @@ class PackagesSection extends ConsumerWidget {
     );
   }
 
-  Widget _buildPackageRow(
-    BuildContext context,
-    WidgetRef ref,
-    Map<String, dynamic> package,
-  ) {
+  Widget _buildPackageRow(BuildContext context, WidgetRef ref, Map<String, dynamic> package) {
     final text = FrameText.of(context);
     final source = package['source']?.toString() ?? '';
     final name = package['name']?.toString() ?? source;
@@ -157,18 +125,11 @@ class PackagesSection extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: FrameSpace.x2),
-      padding: const EdgeInsets.symmetric(
-        horizontal: FrameSpace.x4,
-        vertical: FrameSpace.x3,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: FrameSpace.x3),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(
-          color: hasUpdate
-              ? tokens.accent.withValues(alpha: 0.3)
-              : tokens.border,
-        ),
+        border: Border.all(color: hasUpdate ? tokens.accent.withValues(alpha: 0.3) : tokens.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -199,37 +160,23 @@ class PackagesSection extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         name,
-                        style: text.body.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: tokens.displayText,
-                        ),
+                        style: text.body.copyWith(fontWeight: FontWeight.w600, color: tokens.displayText),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (pin != null) ...[
                       const SizedBox(width: FrameSpace.x2),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x2,
-                          vertical: 1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 1),
                         decoration: BoxDecoration(
                           color: tokens.accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            tokens.radiusPill,
-                          ),
-                          border: Border.all(
-                            color: tokens.accent.withValues(alpha: 0.3),
-                          ),
+                          borderRadius: BorderRadius.circular(tokens.radiusPill),
+                          border: Border.all(color: tokens.accent.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.push_pin,
-                              size: 11,
-                              color: tokens.accent,
-                            ),
+                            Icon(Icons.push_pin, size: 11, color: tokens.accent),
                             const SizedBox(width: 2),
                             Text(
                               pin,
@@ -248,10 +195,7 @@ class PackagesSection extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$version${pin == null ? '' : ' · pinned $pin'} · $source',
-                  style: text.caption.copyWith(
-                    color: tokens.textMuted,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
+                  style: text.caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -267,10 +211,7 @@ class PackagesSection extends ConsumerWidget {
                   child: Text(
                     ref
                         .watch(appStringsProvider)
-                        .packageUpdateUnavailable(
-                          package['latestVersion']?.toString() ?? '?',
-                          updateError,
-                        ),
+                        .packageUpdateUnavailable(package['latestVersion']?.toString() ?? '?', updateError),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: text.caption.copyWith(color: tokens.danger),
@@ -281,9 +222,7 @@ class PackagesSection extends ConsumerWidget {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 tooltip: strings.updatePackageTooltip(name),
-                onPressed: isWorking || !hasUpdate
-                    ? null
-                    : () => onUpdatePackage(package),
+                onPressed: isWorking || !hasUpdate ? null : () => onUpdatePackage(package),
                 icon: Icon(
                   Icons.system_update_alt_outlined,
                   size: FrameSize.iconLg,
@@ -295,20 +234,13 @@ class PackagesSection extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                   tooltip: strings.pinPackageTooltip(name),
                   onPressed: isWorking ? null : () => onPinPackage(package),
-                  icon: const Icon(
-                    Icons.push_pin_outlined,
-                    size: FrameSize.iconLg,
-                  ),
+                  icon: const Icon(Icons.push_pin_outlined, size: FrameSize.iconLg),
                 ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 tooltip: strings.removePackageTooltip(name),
                 onPressed: isWorking ? null : () => onRemovePackage(package),
-                icon: Icon(
-                  Icons.delete_outline_outlined,
-                  size: FrameSize.iconLg,
-                  color: tokens.danger,
-                ),
+                icon: Icon(Icons.delete_outline_outlined, size: FrameSize.iconLg, color: tokens.danger),
               ),
             ],
           ),

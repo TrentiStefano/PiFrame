@@ -32,22 +32,12 @@ class CodeLineLayout {
       _heights.clear();
       _signature = signature;
     }
-    return [
-      for (final line in lines)
-        _heights.putIfAbsent(
-          line,
-          () => _measure(line, style, maxWidth, textScaler),
-        ),
-    ];
+    return [for (final line in lines) _heights.putIfAbsent(line, () => _measure(line, style, maxWidth, textScaler))];
   }
 
   /// Width in px of the widest line. Only exact for monospace styles, which
   /// is what the code editor uses: the longest line is the widest one.
-  double widestLineWidth(
-    List<String> lines,
-    TextStyle style, {
-    TextScaler textScaler = TextScaler.noScaling,
-  }) {
+  double widestLineWidth(List<String> lines, TextStyle style, {TextScaler textScaler = TextScaler.noScaling}) {
     var longest = '';
     for (final line in lines) {
       if (line.length > longest.length) longest = line;
@@ -63,12 +53,7 @@ class CodeLineLayout {
     return width;
   }
 
-  double _measure(
-    String line,
-    TextStyle style,
-    double maxWidth,
-    TextScaler textScaler,
-  ) {
+  double _measure(String line, TextStyle style, double maxWidth, TextScaler textScaler) {
     if (line.isEmpty) return _singleLineHeight(style, textScaler);
     final painter = TextPainter(
       text: TextSpan(text: line, style: style),
@@ -142,17 +127,11 @@ class CodeLineGutterPainter extends CustomPainter {
       if (y + height < offset) continue;
       if (y > bottom) break;
       final painter = TextPainter(
-        text: TextSpan(
-          text: '${i + 1}',
-          style: i == caretLine ? currentStyle : numberStyle,
-        ),
+        text: TextSpan(text: '${i + 1}', style: i == caretLine ? currentStyle : numberStyle),
         textDirection: TextDirection.ltr,
         textScaler: textScaler,
       )..layout();
-      painter.paint(
-        canvas,
-        Offset(size.width - rightInset - painter.width, y),
-      );
+      painter.paint(canvas, Offset(size.width - rightInset - painter.width, y));
       painter.dispose();
     }
   }

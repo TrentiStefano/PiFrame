@@ -79,10 +79,7 @@ export class FaultProxy {
         if (clientWs.readyState !== WebSocket.OPEN) return;
 
         // 3. Check frame corruption
-        if (
-          this.config.corruptEveryNFrames &&
-          this.frameCount % this.config.corruptEveryNFrames === 0
-        ) {
+        if (this.config.corruptEveryNFrames && this.frameCount % this.config.corruptEveryNFrames === 0) {
           clientWs.send('{"protocol":1,"kind":"event","truncated":true', { binary: isBinary });
           return;
         }

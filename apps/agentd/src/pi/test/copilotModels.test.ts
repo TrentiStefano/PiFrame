@@ -5,24 +5,33 @@ import { createCopilotEntitlementService } from '../copilotModels.js';
 const auth = (access = 'tid=test;proxy-ep=proxy.individual.githubcopilot.com', expires = Date.now() + 60_000) => ({
   'github-copilot': { type: 'oauth', refresh: 'refresh-secret', access, expires }
 });
-const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
-  status,
-  headers: { 'content-type': 'application/json' }
-});
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json' }
+  });
 const catalog = (models: unknown[]) => ({ data: models });
 
 test('filters Copilot models by picker, policy, and tool support', async () => {
   const service = createCopilotEntitlementService({
     readAuth: () => auth(),
-    fetch: async () => json(catalog([
-      { id: 'picker-enabled', model_picker_enabled: true, policy: { state: 'enabled' } },
-      { id: 'included-no-policy', model_picker_enabled: true },
-      { id: 'picker-unconfigured', model_picker_enabled: true, policy: { state: 'unconfigured' } },
-      { id: 'picker-disabled', model_picker_enabled: true, policy: { state: 'disabled' } },
-      { id: 'not-in-picker', model_picker_enabled: false, policy: { state: 'enabled' } },
-      { id: 'no-tools', model_picker_enabled: true, policy: { state: 'enabled' }, capabilities: { supports: { tool_calls: false } } },
-      { id: 'tools-false', model_picker_enabled: true, policy: { state: 'enabled' }, tools: false }
-    ]))
+    fetch: async () =>
+      json(
+        catalog([
+          { id: 'picker-enabled', model_picker_enabled: true, policy: { state: 'enabled' } },
+          { id: 'included-no-policy', model_picker_enabled: true },
+          { id: 'picker-unconfigured', model_picker_enabled: true, policy: { state: 'unconfigured' } },
+          { id: 'picker-disabled', model_picker_enabled: true, policy: { state: 'disabled' } },
+          { id: 'not-in-picker', model_picker_enabled: false, policy: { state: 'enabled' } },
+          {
+            id: 'no-tools',
+            model_picker_enabled: true,
+            policy: { state: 'enabled' },
+            capabilities: { supports: { tool_calls: false } }
+          },
+          { id: 'tools-false', model_picker_enabled: true, policy: { state: 'enabled' }, tools: false }
+        ])
+      )
   });
   const result = await service.get();
   assert.deepEqual([...result.allowedModelIds], ['picker-enabled', 'included-no-policy']);
@@ -32,17 +41,21 @@ test('filters Copilot models by picker, policy, and tool support', async () => {
 test('uses enabled-policy fallback for individual only when picker has no regular IDs', async () => {
   const service = createCopilotEntitlementService({
     readAuth: () => auth(),
-    fetch: async () => json(catalog([
-      { id: 'enabled', model_picker_enabled: false, policy: { state: 'enabled' } },
-      { id: 'unconfigured', model_picker_enabled: false, policy: { state: 'unconfigured' } },
-      { id: 'disabled', model_picker_enabled: true, policy: { state: 'disabled' } }
-    ]))
+    fetch: async () =>
+      json(
+        catalog([
+          { id: 'enabled', model_picker_enabled: false, policy: { state: 'enabled' } },
+          { id: 'unconfigured', model_picker_enabled: false, policy: { state: 'unconfigured' } },
+          { id: 'disabled', model_picker_enabled: true, policy: { state: 'disabled' } }
+        ])
+      )
   });
   assert.deepEqual([...(await service.get()).allowedModelIds], ['enabled']);
 
   const enterprise = createCopilotEntitlementService({
     readAuth: () => auth('tid=test;proxy-ep=proxy.business.githubcopilot.com'),
-    fetch: async () => json(catalog([{ id: 'enterprise-enabled', model_picker_enabled: false, policy: { state: 'enabled' } }]))
+    fetch: async () =>
+      json(catalog([{ id: 'enterprise-enabled', model_picker_enabled: false, policy: { state: 'enabled' } }]))
   });
   assert.deepEqual([...(await enterprise.get()).allowedModelIds], []);
 });

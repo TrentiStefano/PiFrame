@@ -11,9 +11,7 @@ import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 
 void main() {
-  testWidgets('Panes can collapse and expand using arrow icons', (
-    tester,
-  ) async {
+  testWidgets('Panes can collapse and expand using arrow icons', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -23,18 +21,13 @@ void main() {
         desktopWindowLifecycleProvider.overrideWithValue(false),
         desktopChromeProvider.overrideWithValue(false),
         activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionStateFamily('session_1').overrideWith(
-          (ref) => SessionStateNotifier(
-            'session_1',
-            null,
-          )..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+          (ref) =>
+              SessionStateNotifier('session_1', null)
+                ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
         ),
-        repositoryStateProvider(
-          'session_1',
-        ).overrideWith((ref) => RepositoryController('session_1', () => null)),
+        repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
       ],
     );
     addTearDown(container.dispose);
@@ -87,9 +80,7 @@ void main() {
     expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
   });
 
-  testWidgets('Sessions sidebar can collapse and expand using arrow icon', (
-    tester,
-  ) async {
+  testWidgets('Sessions sidebar can collapse and expand using arrow icon', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -99,18 +90,13 @@ void main() {
         desktopWindowLifecycleProvider.overrideWithValue(false),
         desktopChromeProvider.overrideWithValue(false),
         activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionStateFamily('session_1').overrideWith(
-          (ref) => SessionStateNotifier(
-            'session_1',
-            null,
-          )..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+          (ref) =>
+              SessionStateNotifier('session_1', null)
+                ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
         ),
-        repositoryStateProvider(
-          'session_1',
-        ).overrideWith((ref) => RepositoryController('session_1', () => null)),
+        repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
       ],
     );
     addTearDown(container.dispose);
@@ -143,9 +129,7 @@ void main() {
     expect(find.byTooltip('Collassa barra sessioni'), findsOneWidget);
   });
 
-  testWidgets('Pane collapses when dragging border over minimum space', (
-    tester,
-  ) async {
+  testWidgets('Pane collapses when dragging border over minimum space', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -155,18 +139,13 @@ void main() {
         desktopWindowLifecycleProvider.overrideWithValue(false),
         desktopChromeProvider.overrideWithValue(false),
         activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionStateFamily('session_1').overrideWith(
-          (ref) => SessionStateNotifier(
-            'session_1',
-            null,
-          )..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+          (ref) =>
+              SessionStateNotifier('session_1', null)
+                ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
         ),
-        repositoryStateProvider(
-          'session_1',
-        ).overrideWith((ref) => RepositoryController('session_1', () => null)),
+        repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
       ],
     );
     addTearDown(container.dispose);
@@ -180,11 +159,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Find the divider between repository and chat
-    final dividerFinder = find.byKey(
-      const ValueKey(
-        'pane-divider-WorkspacePane.repository-WorkspacePane.chat',
-      ),
-    );
+    final dividerFinder = find.byKey(const ValueKey('pane-divider-WorkspacePane.repository-WorkspacePane.chat'));
     expect(dividerFinder, findsOneWidget);
 
     // Drag the divider far to the left (past the minimum space)
@@ -211,32 +186,22 @@ void main() {
             desktopWindowLifecycleProvider.overrideWithValue(false),
             desktopChromeProvider.overrideWithValue(false),
             activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-            connectionStateProvider.overrideWith(
-              (ref) => Stream.value(DaemonConnectionState.connected),
-            ),
+            connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
             sessionStateFamily('session_1').overrideWith(
-              (ref) => SessionStateNotifier('session_1', null)
-                ..state = const SessionState(
-                  sessionId: 'session_1',
-                  cwd: 'C:/repo',
-                ),
+              (ref) =>
+                  SessionStateNotifier('session_1', null)
+                    ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
             ),
-            repositoryStateProvider('session_1').overrideWith(
-              (ref) => RepositoryController('session_1', () => null),
-            ),
+            repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
             subagentsFamily('session_1').overrideWith(
-              (ref) => _FixedSubagents(ref, 'session_1', const [
-                SubagentItem(id: 'a1', name: 'Scout', status: 'completed'),
-              ]),
+              (ref) =>
+                  _FixedSubagents(ref, 'session_1', const [SubagentItem(id: 'a1', name: 'Scout', status: 'completed')]),
             ),
           ],
         );
         addTearDown(container.dispose);
         if (preOpened) {
-          container
-                  .read(agentActivityPanelOpenProvider('session_1').notifier)
-                  .state =
-              true;
+          container.read(agentActivityPanelOpenProvider('session_1').notifier).state = true;
         }
 
         await tester.pumpWidget(
@@ -247,20 +212,12 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (!preOpened) {
-          expect(
-            find.byTooltip('Collassa pannello Git changes'),
-            findsOneWidget,
-          );
-          await tester.tap(
-            find.byKey(const ValueKey('agent-activity-open-btn')),
-          );
+          expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
+          await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
           await tester.pumpAndSettle();
         }
 
-        expect(
-          find.byKey(const ValueKey('agent-activity-panel')),
-          findsOneWidget,
-        );
+        expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
         expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
       },
     );
@@ -270,80 +227,62 @@ void main() {
   // width inside a clipped slot, so its width does not change while the slot
   // grows; reduced motion keeps the final layout and cross-fades the content.
   for (final reduced in [false, true]) {
-    testWidgets(
-      'expanding a collapsed pane keeps its final width during the transition '
-      '(reduced: $reduced)',
-      (tester) async {
-        tester.view.physicalSize = const Size(1920, 1080);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(() => tester.view.resetPhysicalSize());
+    testWidgets('expanding a collapsed pane keeps its final width during the transition '
+        '(reduced: $reduced)', (tester) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
 
-        final container = ProviderContainer(
-          overrides: [
-            desktopWindowLifecycleProvider.overrideWithValue(false),
-            desktopChromeProvider.overrideWithValue(false),
-            activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-            connectionStateProvider.overrideWith(
-              (ref) => Stream.value(DaemonConnectionState.connected),
-            ),
-            sessionStateFamily('session_1').overrideWith(
-              (ref) => SessionStateNotifier(
-                'session_1',
-                null,
-              )..state = const SessionState(
-                sessionId: 'session_1',
-                cwd: 'C:/repo',
-              ),
-            ),
-            repositoryStateProvider(
-              'session_1',
-            ).overrideWith((ref) => RepositoryController('session_1', () => null)),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        await tester.pumpWidget(
-          UncontrolledProviderScope(
-            container: container,
-            child: MaterialApp(
-              builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  disableAnimations: reduced,
-                ),
-                child: child!,
-              ),
-              home: const AppShell(),
-            ),
+      final container = ProviderContainer(
+        overrides: [
+          desktopWindowLifecycleProvider.overrideWithValue(false),
+          desktopChromeProvider.overrideWithValue(false),
+          activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
+          sessionStateFamily('session_1').overrideWith(
+            (ref) =>
+                SessionStateNotifier('session_1', null)
+                  ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
           ),
-        );
-        await tester.pumpAndSettle();
+          repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final card = find.byKey(
-          const ValueKey('pane-enter-WorkspacePane.repository'),
-        );
-        await tester.tap(find.byTooltip('Collassa pannello repository'));
-        await tester.pumpAndSettle();
-        expect(card, findsNothing);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: reduced),
+              child: child!,
+            ),
+            home: const AppShell(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        await tester.tap(find.byTooltip('Espandi pannello Repository'));
-        await tester.pump(const Duration(milliseconds: 60));
-        final midWidth = tester.getSize(card).width;
-        final midSlot = tester.getSize(find.ancestor(
-          of: card,
-          matching: find.byType(ClipRect),
-        ).first).width;
+      final card = find.byKey(const ValueKey('pane-enter-WorkspacePane.repository'));
+      await tester.tap(find.byTooltip('Collassa pannello repository'));
+      await tester.pumpAndSettle();
+      expect(card, findsNothing);
 
-        await tester.pumpAndSettle();
-        final finalWidth = tester.getSize(card).width;
-        expect(finalWidth, greaterThan(200));
-        // No reflow: the card keeps its final width during the transition.
-        expect(midWidth, closeTo(finalWidth, 0.5));
-        if (!reduced) {
-          // The slot itself is still growing at 60 ms.
-          expect(midSlot, lessThan(finalWidth));
-        }
-      },
-    );
+      await tester.tap(find.byTooltip('Espandi pannello Repository'));
+      await tester.pump(const Duration(milliseconds: 60));
+      final midWidth = tester.getSize(card).width;
+      final midSlot = tester.getSize(find.ancestor(of: card, matching: find.byType(ClipRect)).first).width;
+
+      await tester.pumpAndSettle();
+      final finalWidth = tester.getSize(card).width;
+      expect(finalWidth, greaterThan(200));
+      // No reflow: the card keeps its final width during the transition.
+      expect(midWidth, closeTo(finalWidth, 0.5));
+      if (!reduced) {
+        // The slot itself is still growing at 60 ms.
+        expect(midSlot, lessThan(finalWidth));
+      }
+    });
   }
 }
 

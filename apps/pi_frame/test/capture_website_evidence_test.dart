@@ -48,15 +48,10 @@ void _saveScreenshot(Uint8List bytes, String fileName) {
   }
 }
 
-Future<void> _captureToPng(
-  WidgetTester tester,
-  GlobalKey key,
-  String fileName,
-) async {
+Future<void> _captureToPng(WidgetTester tester, GlobalKey key, String fileName) async {
   await tester.pump(const Duration(milliseconds: 300));
   await tester.runAsync(() async {
-    final boundary =
-        key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
     if (boundary == null) return;
     final image = await boundary.toImage(pixelRatio: 1.0);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -77,29 +72,16 @@ class _VisualWorkspaceClient extends PcpClient {
       'truncated': false,
       'files': [
         {'path': 'apps/pi_frame/lib/app/app_shell.dart', 'sizeBytes': 4800},
-        {
-          'path':
-              'apps/pi_frame/lib/features/workspace/repository_workspace.dart',
-          'sizeBytes': 7200,
-        },
-        {
-          'path': 'apps/pi_frame/lib/ui/code/code_editor_controller.dart',
-          'sizeBytes': 3600,
-        },
-        {
-          'path': 'packages/pi_frame_theme/lib/src/theme_tokens.dart',
-          'sizeBytes': 5100,
-        },
+        {'path': 'apps/pi_frame/lib/features/workspace/repository_workspace.dart', 'sizeBytes': 7200},
+        {'path': 'apps/pi_frame/lib/ui/code/code_editor_controller.dart', 'sizeBytes': 3600},
+        {'path': 'packages/pi_frame_theme/lib/src/theme_tokens.dart', 'sizeBytes': 5100},
         {'path': 'themes/piframe-dark.json', 'sizeBytes': 1850},
       ],
     },
   };
 
   @override
-  Future<Map<String, dynamic>> readWorkspaceFile(
-    String sessionId,
-    String path,
-  ) async => {
+  Future<Map<String, dynamic>> readWorkspaceFile(String sessionId, String path) async => {
     'data': {
       'rootPath': 'C:/Projects/pi-frame',
       'path': path,
@@ -121,10 +103,7 @@ class ThemeTokensController {
   };
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': 'C:/Projects/pi-frame',
@@ -159,10 +138,7 @@ class ThemeTokensController {
   };
 
   @override
-  Future<Map<String, dynamic>> getWorkspaceDiff(
-    String sessionId, {
-    String? filePath,
-  }) async => {
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) async => {
     'data': {
       'filePath': filePath ?? 'apps/pi_frame/lib/app/app_shell.dart',
       'diff': '''--- a/apps/pi_frame/lib/app/app_shell.dart
@@ -177,10 +153,7 @@ class ThemeTokensController {
   };
 
   @override
-  Future<Map<String, dynamic>> listSessions({
-    String? query,
-    int? limit,
-  }) async => {
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {
     'data': {
       'sessions': [
         {
@@ -202,39 +175,33 @@ class ThemeTokensController {
   };
 
   @override
-  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
-  getSubagentsWithLive(String sessionId) async =>
-      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})> getSubagentsWithLive(
+    String sessionId,
+  ) async => (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
 
   @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async => [];
 
   // Answer the defaults lookups so their timeout timers do not outlive the test.
   @override
-  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async =>
-      {'models': <Map<String, dynamic>>[]};
+  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async => {'models': <Map<String, dynamic>>[]};
 
   @override
-  Future<Map<String, dynamic>> getAvailableThinkingLevels(
-    String sessionId,
-  ) async => {'levels': <String>[]};
+  Future<Map<String, dynamic>> getAvailableThinkingLevels(String sessionId) async => {'levels': <String>[]};
 }
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    final uiFont = FontLoader('SchibstedGrotesk')
-      ..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));
+    final uiFont = FontLoader('SchibstedGrotesk')..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));
     await uiFont.load();
-    final monoFont = FontLoader('SourceCodePro')
-      ..addFont(rootBundle.load('assets/fonts/SourceCodePro.ttf'));
+    final monoFont = FontLoader('SourceCodePro')..addFont(rootBundle.load('assets/fonts/SourceCodePro.ttf'));
     await monoFont.load();
     final headingFont = FontLoader('BarlowCondensed')
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
     await headingFont.load();
-    final iconsFont = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    final iconsFont = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await iconsFont.load();
   });
 
@@ -245,8 +212,7 @@ void main() {
     required GlobalKey key,
     Widget? customBody,
   }) {
-    final notifier = SessionStateNotifier(session.sessionId, client)
-      ..state = session;
+    final notifier = SessionStateNotifier(session.sessionId, client)..state = session;
 
     return ProviderScope(
       overrides: [
@@ -255,9 +221,7 @@ void main() {
         pcpClientProvider.overrideWithValue(client),
         desktopChromeProvider.overrideWithValue(false),
         desktopWindowLifecycleProvider.overrideWithValue(false),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionListProvider.overrideWith(
           (ref) async => [
             {
@@ -265,9 +229,7 @@ void main() {
               'name': session.sessionName,
               'cwd': session.cwd,
               'isActive': true,
-              'lastMessagePreview': session.entries.isNotEmpty
-                  ? session.entries.last.text
-                  : 'Nessun messaggio',
+              'lastMessagePreview': session.entries.isNotEmpty ? session.entries.last.text : 'Nessun messaggio',
             },
           ],
         ),
@@ -278,10 +240,7 @@ void main() {
         debugShowCheckedModeBanner: false,
         theme: repo.activeTheme.toThemeData(),
         home: Scaffold(
-          body: RepaintBoundary(
-            key: key,
-            child: customBody ?? const AppShell(),
-          ),
+          body: RepaintBoundary(key: key, child: customBody ?? const AppShell()),
         ),
       ),
     );
@@ -295,8 +254,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -314,11 +272,7 @@ void main() {
       sessionStats: const {
         'cost': 0.28,
         'tokens': {'total': 34200},
-        'contextUsage': {
-          'tokens': 48000,
-          'contextWindow': 200000,
-          'percent': 24.0,
-        },
+        'contextUsage': {'tokens': 48000, 'contextWindow': 200000, 'percent': 24.0},
       },
       extensionStatuses: const {'caveman': 'full', 'ponytail': 'full'},
       agentStatus: AgentStatus.working,
@@ -344,9 +298,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      createHarness(repo: repo, client: client, session: session, key: key),
-    );
+    await tester.pumpWidget(createHarness(repo: repo, client: client, session: session, key: key));
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -362,8 +314,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -381,11 +332,7 @@ void main() {
       sessionStats: const {
         'cost': 0.42,
         'tokens': {'total': 52100},
-        'contextUsage': {
-          'tokens': 72000,
-          'contextWindow': 200000,
-          'percent': 36.0,
-        },
+        'contextUsage': {'tokens': 72000, 'contextWindow': 200000, 'percent': 36.0},
       },
       extensionStatuses: const {'caveman': 'full', 'ponytail': 'full'},
       agentStatus: AgentStatus.working,
@@ -416,9 +363,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      createHarness(repo: repo, client: client, session: session, key: key),
-    );
+    await tester.pumpWidget(createHarness(repo: repo, client: client, session: session, key: key));
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -441,8 +386,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -460,22 +404,13 @@ void main() {
       sessionStats: const {
         'cost': 0.15,
         'tokens': {'total': 18900},
-        'contextUsage': {
-          'tokens': 24000,
-          'contextWindow': 200000,
-          'percent': 12.0,
-        },
+        'contextUsage': {'tokens': 24000, 'contextWindow': 200000, 'percent': 12.0},
       },
       extensionStatuses: const {'caveman': 'full'},
       agentStatus: AgentStatus.settled,
       steeringQueue: const [],
       entries: const [
-        SessionEntry(
-          id: 'u1',
-          role: 'user',
-          timestamp: 1,
-          text: 'Mostrami le modifiche Git pronte per il commit.',
-        ),
+        SessionEntry(id: 'u1', role: 'user', timestamp: 1, text: 'Mostrami le modifiche Git pronte per il commit.'),
         SessionEntry(
           id: 'a1',
           role: 'assistant',
@@ -485,9 +420,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      createHarness(repo: repo, client: client, session: session, key: key),
-    );
+    await tester.pumpWidget(createHarness(repo: repo, client: client, session: session, key: key));
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -516,8 +449,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -535,11 +467,7 @@ void main() {
       sessionStats: const {
         'cost': 0.35,
         'tokens': {'total': 44200},
-        'contextUsage': {
-          'tokens': 58000,
-          'contextWindow': 200000,
-          'percent': 29.0,
-        },
+        'contextUsage': {'tokens': 58000, 'contextWindow': 200000, 'percent': 29.0},
       },
       extensionStatuses: const {'caveman': 'full', 'ponytail': 'full'},
       agentStatus: AgentStatus.working,
@@ -569,9 +497,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      createHarness(repo: repo, client: client, session: session, key: key),
-    );
+    await tester.pumpWidget(createHarness(repo: repo, client: client, session: session, key: key));
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -589,8 +515,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -607,10 +532,7 @@ void main() {
           home: Scaffold(
             backgroundColor: const Color(0xFF161C27),
             body: Center(
-              child: RepaintBoundary(
-                key: key,
-                child: const ThemeEditorDialog(),
-              ),
+              child: RepaintBoundary(key: key, child: const ThemeEditorDialog()),
             ),
           ),
         ),
@@ -632,8 +554,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -656,10 +577,7 @@ void main() {
                   width: 680,
                   height: 480,
                   child: Consumer(
-                    builder: (context, ref, _) => CommandPalette(
-                      hostContext: context,
-                      hostRef: ref,
-                    ),
+                    builder: (context, ref, _) => CommandPalette(hostContext: context, hostRef: ref),
                   ),
                 ),
               ),
@@ -676,17 +594,14 @@ void main() {
   });
 
   // 7. CAPTURE TOOL TIMELINE & CONTEXT ANALYTICS
-  testWidgets('Capture Tool Timeline and Context Analytics in PiFrame Dark', (
-    tester,
-  ) async {
+  testWidgets('Capture Tool Timeline and Context Analytics in PiFrame Dark', (tester) async {
     const size = Size(1600, 1000);
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final darkThemeJson = File('assets/themes/piframe-dark.json')
-        .readAsStringSync();
+    final darkThemeJson = File('assets/themes/piframe-dark.json').readAsStringSync();
     final repo = ThemeRepository()
       ..registerThemeJson(darkThemeJson)
       ..setActiveTheme('piframe-dark');
@@ -704,11 +619,7 @@ void main() {
       sessionStats: const {
         'cost': 0.48,
         'tokens': {'total': 64100},
-        'contextUsage': {
-          'tokens': 86400,
-          'contextWindow': 200000,
-          'percent': 43.2,
-        },
+        'contextUsage': {'tokens': 86400, 'contextWindow': 200000, 'percent': 43.2},
       },
       extensionStatuses: const {'caveman': 'full', 'ponytail': 'full'},
       agentStatus: AgentStatus.settled,
@@ -729,9 +640,7 @@ void main() {
             ToolExecutionState(
               toolCallId: 't1',
               toolName: 'readWorkspaceFile',
-              args: {
-                'path': 'packages/pi_frame_theme/lib/src/theme_tokens.dart',
-              },
+              args: {'path': 'packages/pi_frame_theme/lib/src/theme_tokens.dart'},
               output: 'FrameTokens loaded: #161c27 base, #5f9fc5 accent.',
               durationMs: 34,
             ),
@@ -746,8 +655,7 @@ void main() {
               toolCallId: 't3',
               toolName: 'benchmarkGpuTextures',
               args: {'sampleFrames': 120},
-              output:
-                  'Impeller raster cache hit rate: 99.4% (8.2ms frame time)',
+              output: 'Impeller raster cache hit rate: 99.4% (8.2ms frame time)',
               durationMs: 820,
             ),
           ],
@@ -756,9 +664,7 @@ void main() {
       ],
     );
 
-    await tester.pumpWidget(
-      createHarness(repo: repo, client: client, session: session, key: key),
-    );
+    await tester.pumpWidget(createHarness(repo: repo, client: client, session: session, key: key));
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));

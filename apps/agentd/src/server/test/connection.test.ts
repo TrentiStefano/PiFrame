@@ -33,7 +33,9 @@ test('Connection: closes with 4003 if token is invalid', () => {
     startedAt: Date.now(),
     piInfo: { path: 'pi', version: '0.85.1', supported: true },
     onCommand: async () => {},
-    onClose: () => { closed = true; }
+    onClose: () => {
+      closed = true;
+    }
   });
 
   // Client sends hello with wrong token
@@ -118,15 +120,27 @@ function frame(value: Record<string, unknown>): Buffer {
 function readyConnection() {
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any, expectedToken: 'tok', daemonVersion: '0.1.0', startedAt: Date.now(),
-    piInfo: { path: 'pi', version: '0.85.1', supported: true }, onCommand: async () => {}, onClose: () => {},
+    ws: ws as any,
+    expectedToken: 'tok',
+    daemonVersion: '0.1.0',
+    startedAt: Date.now(),
+    piInfo: { path: 'pi', version: '0.85.1', supported: true },
+    onCommand: async () => {},
+    onClose: () => {}
   });
   return { ws, conn };
 }
 
 const hello = frame({
-  kind: 'hello', id: 'h', type: 'connection.hello',
-  payload: { token: 'tok', client: { name: 't', version: '1', platform: 'desktop' }, encoding: 'json', capabilities: [] },
+  kind: 'hello',
+  id: 'h',
+  type: 'connection.hello',
+  payload: {
+    token: 'tok',
+    client: { name: 't', version: '1', platform: 'desktop' },
+    encoding: 'json',
+    capabilities: []
+  }
 });
 
 // Timers are mocked, setImmediate is real: it models the socket reads that run after a late timer.

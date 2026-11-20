@@ -33,15 +33,11 @@ export class WindowsTypeperfGpuProvider implements GpuMetricsProvider {
   private spawnChild(): void {
     if (this.stopped || this.permanentlyFailed) return;
     try {
-      const child = this.spawnFn(
-        'typeperf',
-        ['\\GPU Engine(*)\\Utilization Percentage', '-si', '1'],
-        {
-          shell: false,
-          windowsHide: true,
-          stdio: ['ignore', 'pipe', 'ignore']
-        }
-      );
+      const child = this.spawnFn('typeperf', ['\\GPU Engine(*)\\Utilization Percentage', '-si', '1'], {
+        shell: false,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore']
+      });
       this.child = child;
 
       child.stdout?.setEncoding('utf8');

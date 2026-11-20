@@ -52,5 +52,7 @@ if (driftDetected) {
   process.exit(1);
 }
 
-console.log(`Verified ${schemaCommandTypes.length} command types and ${schemaEventTypes.length} event types across Schema, TypeScript, and Dart.`);
+console.log(
+  `Verified ${schemaCommandTypes.length} command types and ${schemaEventTypes.length} event types across Schema, TypeScript, and Dart.`
+);
 console.log('Codegen parity: 100% synchronized.');

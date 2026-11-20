@@ -68,7 +68,11 @@ export class WorkerSupervisor {
     if (starting) return starting;
     const task = this.startWorker(session);
     this.startingWorkers.set(session.id, task);
-    try { return await task; } finally { this.startingWorkers.delete(session.id); }
+    try {
+      return await task;
+    } finally {
+      this.startingWorkers.delete(session.id);
+    }
   }
 
   private async startWorker(session: Session): Promise<StdioPiTransport> {
@@ -88,9 +92,11 @@ export class WorkerSupervisor {
       if (terminalOwner === true || (terminalOwner === null && !session.allowAmbiguousTerminal)) {
         session.readOnly = true;
         session.readOnlyReason = terminalOwner === true ? 'terminal' : 'unknown';
-        throw new Error(terminalOwner === true
-          ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
-          : 'PiFrame could not verify which session is open in this project. Confirm before continuing.');
+        throw new Error(
+          terminalOwner === true
+            ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
+            : 'PiFrame could not verify which session is open in this project. Confirm before continuing.'
+        );
       }
     }
 
@@ -124,9 +130,16 @@ export class WorkerSupervisor {
     void this.pumpEvents(session, worker);
     try {
       await this.refreshSession(session, worker);
-      if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+      if (
+        session.contextWindowOverride !== null ||
+        session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+      ) {
         const maximum = session.model?.contextWindow;
-        if (typeof maximum === 'number' && session.contextWindowOverride !== null && session.contextWindowOverride > maximum) {
+        if (
+          typeof maximum === 'number' &&
+          session.contextWindowOverride !== null &&
+          session.contextWindowOverride > maximum
+        ) {
           session.contextWindowOverride = maximum;
           writeContextPolicy(session.id, session);
         }
@@ -291,13 +304,19 @@ export class WorkerSupervisor {
     if (!worker) return;
 
     const session = this.sessions.get(sessionId);
-    if (session && session.sessionFile && fs.existsSync(session.sessionFile) &&
-        session.status === 'settled' && !session.isStreaming && !session.isCompacting &&
-        session.uiBroker.getPending().length === 0 &&
-        // Background subagents run inside this worker: stopping it while one
-        // works killed the agent with no result, leaving the main agent
-        // waiting on it forever.
-        !session.hasRunningSubagents) {
+    if (
+      session &&
+      session.sessionFile &&
+      fs.existsSync(session.sessionFile) &&
+      session.status === 'settled' &&
+      !session.isStreaming &&
+      !session.isCompacting &&
+      session.uiBroker.getPending().length === 0 &&
+      // Background subagents run inside this worker: stopping it while one
+      // works killed the agent with no result, leaving the main agent
+      // waiting on it forever.
+      !session.hasRunningSubagents
+    ) {
       await this.stopWorker(sessionId);
     } else {
       this.touch(sessionId);
@@ -309,7 +328,11 @@ export class WorkerSupervisor {
     if (pending) return pending;
     const stopping = this.stopWorkerNow(sessionId, graceMs);
     this.stoppingTasks.set(sessionId, stopping);
-    try { await stopping; } finally { this.stoppingTasks.delete(sessionId); }
+    try {
+      await stopping;
+    } finally {
+      this.stoppingTasks.delete(sessionId);
+    }
   }
 
   private async stopWorkerNow(sessionId: string, graceMs: number): Promise<void> {

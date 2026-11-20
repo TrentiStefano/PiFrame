@@ -30,17 +30,12 @@ ProviderContainer _shellContainer() => ProviderContainer(
     desktopWindowLifecycleProvider.overrideWithValue(false),
     desktopChromeProvider.overrideWithValue(false),
     activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-    connectionStateProvider.overrideWith(
-      (ref) => Stream.value(DaemonConnectionState.connected),
-    ),
+    connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
     sessionListProvider.overrideWith((ref) async => const []),
     sessionStateFamily('session_1').overrideWith(
-      (ref) =>
-          SessionStateNotifier('session_1', null)
-            ..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+      (ref) => SessionStateNotifier('session_1', null)..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
     ),
-    repositoryStateProvider('session_1')
-        .overrideWith((ref) => RepositoryController('session_1', () => null)),
+    repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
   ],
 );
 
@@ -49,9 +44,7 @@ void main() {
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('pi_frame_escape_test_');
-    LayoutStore.instance.setStorageFileForTesting(
-      File('${tempDir.path}/layout.json'),
-    );
+    LayoutStore.instance.setStorageFileForTesting(File('${tempDir.path}/layout.json'));
   });
 
   tearDown(() {
@@ -59,10 +52,7 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  Future<void> pumpShell(
-    WidgetTester tester,
-    ProviderContainer container,
-  ) async {
+  Future<void> pumpShell(WidgetTester tester, ProviderContainer container) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -81,8 +71,7 @@ void main() {
     expect(tester.takeException(), isNull);
   }
 
-  ScaffoldState scaffold(WidgetTester tester) =>
-      tester.state<ScaffoldState>(find.byType(Scaffold).first);
+  ScaffoldState scaffold(WidgetTester tester) => tester.state<ScaffoldState>(find.byType(Scaffold).first);
 
   Future<void> openEndDrawer(WidgetTester tester) async {
     await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
@@ -91,10 +80,7 @@ void main() {
   }
 
   Finder composerInput() => find
-      .descendant(
-        of: find.byKey(const ValueKey('focus-region-composer')),
-        matching: find.byType(EditableText),
-      )
+      .descendant(of: find.byKey(const ValueKey('focus-region-composer')), matching: find.byType(EditableText))
       .first;
 
   /// Returns focus to the composer input, the way a user would after a drawer opens.
@@ -104,106 +90,90 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets(
-    'menu: Escape closes the composer slash menu, not the drawer under it',
-    (tester) async {
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('menu: Escape closes the composer slash menu, not the drawer under it', (tester) async {
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      await openEndDrawer(tester);
-      await focusComposer(tester);
-      await tester.enterText(composerInput(), '/');
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('composer-slash-menu')), findsOneWidget);
+    await openEndDrawer(tester);
+    await focusComposer(tester);
+    await tester.enterText(composerInput(), '/');
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('composer-slash-menu')), findsOneWidget);
 
-      await pressEscape(tester);
-      expect(find.byKey(const ValueKey('composer-slash-menu')), findsNothing);
-      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+    await pressEscape(tester);
+    expect(find.byKey(const ValueKey('composer-slash-menu')), findsNothing);
+    expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
-      await pressEscape(tester);
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
-    },
-  );
+    await pressEscape(tester);
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
+  });
 
-  testWidgets(
-    'side close confirmation: Escape closes the dialog, the side conversation stays open',
-    (tester) async {
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('side close confirmation: Escape closes the dialog, the side conversation stays open', (tester) async {
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      container.read(sideThreadFamily('session_1').notifier).state =
-          const SideThreadState(
-            parentSessionId: 'session_1',
-            sideId: 'side_1',
-            streamId: 'stream_1',
-            status: 'active',
-            isOpen: true,
-          );
-      // The side panel opens with a width animation: let it finish before tapping.
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+    container.read(sideThreadFamily('session_1').notifier).state = const SideThreadState(
+      parentSessionId: 'session_1',
+      sideId: 'side_1',
+      streamId: 'stream_1',
+      status: 'active',
+      isOpen: true,
+    );
+    // The side panel opens with a width animation: let it finish before tapping.
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
 
-      // A draft makes closing ask for confirmation through a FrameDialog. In
-      // the plugins pane the Side tab has no close button of its own; Escape
-      // closes the conversation, so it opens the confirmation here.
-      await tester.enterText(
-        find.byKey(const ValueKey('side-mini-composer-input')),
-        'bozza',
-      );
-      await tester.pump();
-      await pressEscape(tester);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(FrameDialog<bool>), findsOneWidget);
+    // A draft makes closing ask for confirmation through a FrameDialog. In
+    // the plugins pane the Side tab has no close button of its own; Escape
+    // closes the conversation, so it opens the confirmation here.
+    await tester.enterText(find.byKey(const ValueKey('side-mini-composer-input')), 'bozza');
+    await tester.pump();
+    await pressEscape(tester);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(FrameDialog<bool>), findsOneWidget);
 
-      await pressEscape(tester);
-      expect(find.byType(FrameDialog<bool>), findsNothing);
-      expect(container.read(sideThreadFamily('session_1')).isOpen, isTrue);
-    },
-  );
+    await pressEscape(tester);
+    expect(find.byType(FrameDialog<bool>), findsNothing);
+    expect(container.read(sideThreadFamily('session_1')).isOpen, isTrue);
+  });
 
-  testWidgets(
-    'context drawer: Escape closes only the drawer, Review mode stays open',
-    (tester) async {
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('context drawer: Escape closes only the drawer, Review mode stays open', (tester) async {
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      container.read(isReviewingChangesProvider.notifier).state = true;
-      await tester.pump(const Duration(milliseconds: 500));
-      await openEndDrawer(tester);
+    container.read(isReviewingChangesProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
+    await openEndDrawer(tester);
 
-      await pressEscape(tester);
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
-      expect(container.read(isReviewingChangesProvider), isTrue);
-    },
-  );
+    await pressEscape(tester);
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
+    expect(container.read(isReviewingChangesProvider), isTrue);
+  });
 
-  testWidgets(
-    'Review mode under Settings: Settings covers Review, so Escape closes Settings first',
-    (tester) async {
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('Review mode under Settings: Settings covers Review, so Escape closes Settings first', (tester) async {
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      container.read(isReviewingChangesProvider.notifier).state = true;
-      await tester.pump(const Duration(milliseconds: 500));
-      container.read(showSettingsProvider.notifier).state = true;
-      await tester.pump(const Duration(milliseconds: 500));
+    container.read(isReviewingChangesProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
+    container.read(showSettingsProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
 
-      // Settings replaces the workspace, so the Review pane is not mounted while it
-      // is open. Its layer is not registered, and Settings is the visible top layer.
-      await pressEscape(tester);
-      expect(container.read(showSettingsProvider), isFalse);
-      expect(container.read(isReviewingChangesProvider), isTrue);
+    // Settings replaces the workspace, so the Review pane is not mounted while it
+    // is open. Its layer is not registered, and Settings is the visible top layer.
+    await pressEscape(tester);
+    expect(container.read(showSettingsProvider), isFalse);
+    expect(container.read(isReviewingChangesProvider), isTrue);
 
-      // With Settings closed, Review is back on screen and closes on the next Escape.
-      await pressEscape(tester);
-      expect(container.read(isReviewingChangesProvider), isFalse);
-    },
-  );
+    // With Settings closed, Review is back on screen and closes on the next Escape.
+    await pressEscape(tester);
+    expect(container.read(isReviewingChangesProvider), isFalse);
+  });
 
   testWidgets('Review mode: Escape closes Review', (tester) async {
     final container = _shellContainer();
@@ -218,9 +188,7 @@ void main() {
     expect(scaffold(tester).isEndDrawerOpen, isFalse);
   });
 
-  testWidgets('Settings: Escape closes Settings and nothing else', (
-    tester,
-  ) async {
+  testWidgets('Settings: Escape closes Settings and nothing else', (tester) async {
     final container = _shellContainer();
     addTearDown(container.dispose);
     await pumpShell(tester, container);
@@ -234,21 +202,18 @@ void main() {
     expect(scaffold(tester).isEndDrawerOpen, isFalse);
   });
 
-  testWidgets('side conversation: Escape closes it when the draft is empty', (
-    tester,
-  ) async {
+  testWidgets('side conversation: Escape closes it when the draft is empty', (tester) async {
     final container = _shellContainer();
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    container.read(sideThreadFamily('session_1').notifier).state =
-        const SideThreadState(
-          parentSessionId: 'session_1',
-          sideId: 'side_1',
-          streamId: 'stream_1',
-          status: 'active',
-          isOpen: true,
-        );
+    container.read(sideThreadFamily('session_1').notifier).state = const SideThreadState(
+      parentSessionId: 'session_1',
+      sideId: 'side_1',
+      streamId: 'stream_1',
+      status: 'active',
+      isOpen: true,
+    );
     await tester.pump(const Duration(milliseconds: 500));
 
     await pressEscape(tester);
@@ -257,31 +222,26 @@ void main() {
     expect(container.read(sideThreadFamily('session_1')).isOpen, isFalse);
   });
 
-  testWidgets(
-    'command palette: Escape closes the palette and leaves Settings open',
-    (tester) async {
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('command palette: Escape closes the palette and leaves Settings open', (tester) async {
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      container.read(showSettingsProvider.notifier).state = true;
-      await tester.pump(const Duration(milliseconds: 500));
+    container.read(showSettingsProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(CommandPalette), findsOneWidget);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(CommandPalette), findsOneWidget);
 
-      await pressEscape(tester);
-      expect(find.byType(CommandPalette), findsNothing);
-      expect(container.read(showSettingsProvider), isTrue);
-    },
-  );
+    await pressEscape(tester);
+    expect(find.byType(CommandPalette), findsNothing);
+    expect(container.read(showSettingsProvider), isTrue);
+  });
 
-  testWidgets('in-pane Git diff: Escape closes the diff, the layer below stays open', (
-    tester,
-  ) async {
+  testWidgets('in-pane Git diff: Escape closes the diff, the layer below stays open', (tester) async {
     tester.view.physicalSize = const Size(800, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -291,8 +251,8 @@ void main() {
       overrides: [
         pcpClientProvider.overrideWithValue(_GitClient()),
         sessionStateFamily('session-a').overrideWith(
-          (ref) => SessionStateNotifier('session-a', null)
-            ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          (ref) =>
+              SessionStateNotifier('session-a', null)..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
         ),
       ],
     );
@@ -309,9 +269,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: ThemeData.light().copyWith(
-            extensions: const [FrameTokens.light],
-          ),
+          theme: ThemeData.light().copyWith(extensions: const [FrameTokens.light]),
           // Routes Escape the way the app shell does: to the topmost open layer.
           home: Focus(
             autofocus: true,
@@ -333,11 +291,7 @@ void main() {
 
     // Focus the list, move the cursor onto notes.txt, and open it with Enter.
     tester
-        .widget<Focus>(
-          find.byWidgetPredicate(
-            (w) => w is Focus && w.focusNode?.debugLabel == 'git-list',
-          ),
-        )
+        .widget<Focus>(find.byWidgetPredicate((w) => w is Focus && w.focusNode?.debugLabel == 'git-list'))
         .focusNode!
         .requestFocus();
     await tester.pump();
@@ -367,21 +321,13 @@ class _GitClient extends PcpClient {
   _GitClient() : super(port: 1, token: 'test');
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': '/repo',
       'branch': 'main',
       'files': [
-        {
-          'path': 'notes.txt',
-          'status': 'modified',
-          'staged': false,
-          'unstaged': true,
-        },
+        {'path': 'notes.txt', 'status': 'modified', 'staged': false, 'unstaged': true},
       ],
       'totalAdditions': 1,
       'totalDeletions': 0,

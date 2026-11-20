@@ -35,10 +35,7 @@ void main() {
       expect(strings.settingsTooltip, 'Impostazioni');
       expect(strings.modelAndSessionActionsTooltip, 'Modello e azioni sessione');
       expect(strings.reconnectingToDaemon, 'Riconnessione al daemon in corso...');
-      expect(
-        strings.daemonUnreachableNotice,
-        'Daemon non raggiungibile. Le sessioni restano gestite da Pi.',
-      );
+      expect(strings.daemonUnreachableNotice, 'Daemon non raggiungibile. Le sessioni restano gestite da Pi.');
       expect(strings.retryAction, 'Riprova');
       expect(strings.expandPaneTooltip('Chat'), 'Espandi pannello Chat');
       expect(strings.expandSessionsSidebarTooltip, 'Espandi barra sessioni');
@@ -95,10 +92,7 @@ void main() {
       expect(strings.directoryNotAvailable('Err'), 'Cartella non disponibile: Err');
       expect(strings.newSessionDialogTitle, 'Nuova sessione');
       expect(strings.workingDirectoryLabel, 'Cartella di lavoro');
-      expect(
-        strings.browserPathNotice,
-        'Nel browser inserisci il percorso locale raggiungibile dal daemon.',
-      );
+      expect(strings.browserPathNotice, 'Nel browser inserisci il percorso locale raggiungibile dal daemon.');
       expect(strings.chooseFolderAction, 'Scegli cartella');
       expect(strings.createAction, 'Crea');
       expect(strings.creationFailedNotice('Err'), 'Creazione non riuscita: Err');
@@ -112,14 +106,8 @@ void main() {
       expect(strings.sessionDeletedNotice('SessA'), 'Sessione "SessA" eliminata.');
       expect(strings.deletionFailedNotice('Err'), 'Eliminazione non riuscita: Err');
       expect(strings.removeRepoDialogTitle('RepoA'), 'Rimuovi repository "RepoA"');
-      expect(
-        strings.repoSessionsCountNotice(1),
-        'Il repository contiene 1 sessione. Scegli cosa desideri fare:',
-      );
-      expect(
-        strings.repoSessionsCountNotice(2),
-        'Il repository contiene 2 sessioni. Scegli cosa desideri fare:',
-      );
+      expect(strings.repoSessionsCountNotice(1), 'Il repository contiene 1 sessione. Scegli cosa desideri fare:');
+      expect(strings.repoSessionsCountNotice(2), 'Il repository contiene 2 sessioni. Scegli cosa desideri fare:');
       expect(strings.removeOnlyFromViewTitle, 'Rimuovi solo dalla vista');
       expect(
         strings.removeOnlyFromViewSubtitle,
@@ -221,10 +209,7 @@ void main() {
       expect(strings.settingsTooltip, 'Settings');
       expect(strings.modelAndSessionActionsTooltip, 'Model and session actions');
       expect(strings.reconnectingToDaemon, 'Reconnecting to daemon...');
-      expect(
-        strings.daemonUnreachableNotice,
-        'Daemon unreachable. Sessions remain managed by Pi.',
-      );
+      expect(strings.daemonUnreachableNotice, 'Daemon unreachable. Sessions remain managed by Pi.');
       expect(strings.retryAction, 'Retry');
       expect(strings.expandPaneTooltip('Chat'), 'Expand Chat panel');
       expect(strings.expandSessionsSidebarTooltip, 'Expand sessions sidebar');
@@ -296,13 +281,9 @@ void main() {
   group('Widget Localization Tests (Italian vs English)', () {
     Widget buildTestApp(Widget child, {AppLanguage language = AppLanguage.it}) {
       return ProviderScope(
-        overrides: [
-          appStringsProvider.overrideWithValue(AppStrings(language)),
-        ],
+        overrides: [appStringsProvider.overrideWithValue(AppStrings(language))],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(body: child),
         ),
       );
@@ -311,20 +292,14 @@ void main() {
     testWidgets('AgentStatusBadge renders Italian and English labels according to language', (tester) async {
       // Italian (default)
       await tester.pumpWidget(
-        buildTestApp(
-          const AgentStatusBadge(status: AgentStatus.working),
-          language: AppLanguage.it,
-        ),
+        buildTestApp(const AgentStatusBadge(status: AgentStatus.working), language: AppLanguage.it),
       );
       expect(find.text('In esecuzione'), findsOneWidget);
       expect(find.text('Working'), findsNothing);
 
       // English
       await tester.pumpWidget(
-        buildTestApp(
-          const AgentStatusBadge(status: AgentStatus.working),
-          language: AppLanguage.en,
-        ),
+        buildTestApp(const AgentStatusBadge(status: AgentStatus.working), language: AppLanguage.en),
       );
       expect(find.text('Working'), findsOneWidget);
       expect(find.text('In esecuzione'), findsNothing);
@@ -368,22 +343,12 @@ void main() {
     });
 
     testWidgets('DesktopCaptionButtons renders Italian and English tooltips', (tester) async {
-      await tester.pumpWidget(
-        buildTestApp(
-          const DesktopCaptionButtons(),
-          language: AppLanguage.it,
-        ),
-      );
+      await tester.pumpWidget(buildTestApp(const DesktopCaptionButtons(), language: AppLanguage.it));
       expect(find.byTooltip('Riduci a icona'), findsOneWidget);
       expect(find.byTooltip('Massimizza finestra'), findsOneWidget);
       expect(find.byTooltip('Chiudi finestra'), findsOneWidget);
 
-      await tester.pumpWidget(
-        buildTestApp(
-          const DesktopCaptionButtons(),
-          language: AppLanguage.en,
-        ),
-      );
+      await tester.pumpWidget(buildTestApp(const DesktopCaptionButtons(), language: AppLanguage.en));
       expect(find.byTooltip('Minimize'), findsOneWidget);
       expect(find.byTooltip('Maximize window'), findsOneWidget);
       expect(find.byTooltip('Close window'), findsOneWidget);

@@ -42,15 +42,12 @@ class _FrameFocusRingState extends State<FrameFocusRing> {
     if (mounted) setState(() {});
   }
 
-  bool get _showRing =>
-      _hasFocus &&
-      FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+  bool get _showRing => _hasFocus && FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
-    final radius =
-        widget.borderRadius ?? BorderRadius.circular(tokens.radiusSm);
+    final radius = widget.borderRadius ?? BorderRadius.circular(tokens.radiusSm);
     const outside = FrameFocusRing.ringOffset + FrameFocusRing.ringWidth;
 
     return Focus(
@@ -74,10 +71,7 @@ class _FrameFocusRingState extends State<FrameFocusRing> {
                   key: const ValueKey<String>('frame-focus-ring'),
                   decoration: BoxDecoration(
                     borderRadius: _grow(radius, outside),
-                    border: Border.all(
-                      color: tokens.focusRing,
-                      width: FrameFocusRing.ringWidth,
-                    ),
+                    border: Border.all(color: tokens.focusRing, width: FrameFocusRing.ringWidth),
                   ),
                 ),
               ),

@@ -86,7 +86,7 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
@@ -95,10 +95,10 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
       version: '0.85.1',
       supported: true,
       modes: ['rpc'],
-      features: [],
+      features: []
     },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   dispatcher = new Dispatcher(registry, manager, undefined, remoteManager);
@@ -110,7 +110,7 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
 
     await remoteManager.start({
       tunnelProvider: 'custom',
-      customUrl: tunnelUrl,
+      customUrl: tunnelUrl
     });
 
     const status = remoteManager.getStatus();
@@ -120,18 +120,21 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
 
     // 2. Unauthenticated remote caller requesting bootstrap is rejected (401 needsPairing)
     const unauthRes = await new Promise<any>((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/session-bootstrap',
-        headers: {
-          Host: tunnelHost,
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/session-bootstrap',
+          headers: {
+            Host: tunnelHost
+          }
         },
-      }, (res) => {
-        let body = '';
-        res.on('data', chunk => body += chunk);
-        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body) }));
-      });
+        (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body) }));
+        }
+      );
       req.on('error', reject);
       req.end();
     });
@@ -144,21 +147,24 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     for (let i = 0; i < 4; i++) {
       await new Promise<void>((resolve, reject) => {
         const payload = JSON.stringify({ pairingSecret: 'invalid_secret' });
-        const req = http.request({
-          host: '127.0.0.1',
-          port: remotePort,
-          path: '/api/remote/pair',
-          method: 'POST',
-          headers: {
-            Host: tunnelHost,
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload),
+        const req = http.request(
+          {
+            host: '127.0.0.1',
+            port: remotePort,
+            path: '/api/remote/pair',
+            method: 'POST',
+            headers: {
+              Host: tunnelHost,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload)
+            }
           },
-        }, (res) => {
-          assert.strictEqual(res.statusCode, 401);
-          res.resume();
-          res.on('end', () => resolve());
-        });
+          (res) => {
+            assert.strictEqual(res.statusCode, 401);
+            res.resume();
+            res.on('end', () => resolve());
+          }
+        );
         req.on('error', reject);
         req.write(payload);
         req.end();
@@ -168,21 +174,24 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     // 5th attempt locks out the IP
     await new Promise<void>((resolve, reject) => {
       const payload = JSON.stringify({ pairingSecret: 'invalid_secret' });
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/remote/pair',
-        method: 'POST',
-        headers: {
-          Host: tunnelHost,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/remote/pair',
+          method: 'POST',
+          headers: {
+            Host: tunnelHost,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
         },
-      }, (res) => {
-        assert.strictEqual(res.statusCode, 401);
-        res.resume();
-        res.on('end', () => resolve());
-      });
+        (res) => {
+          assert.strictEqual(res.statusCode, 401);
+          res.resume();
+          res.on('end', () => resolve());
+        }
+      );
       req.on('error', reject);
       req.write(payload);
       req.end();
@@ -191,21 +200,24 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     // 6th attempt is blocked with 429
     await new Promise<void>((resolve, reject) => {
       const payload = JSON.stringify({ pairingSecret: 'invalid_secret' });
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/remote/pair',
-        method: 'POST',
-        headers: {
-          Host: tunnelHost,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/remote/pair',
+          method: 'POST',
+          headers: {
+            Host: tunnelHost,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
         },
-      }, (res) => {
-        assert.strictEqual(res.statusCode, 429);
-        res.resume();
-        res.on('end', () => resolve());
-      });
+        (res) => {
+          assert.strictEqual(res.statusCode, 429);
+          res.resume();
+          res.on('end', () => resolve());
+        }
+      );
       req.on('error', reject);
       req.write(payload);
       req.end();
@@ -215,7 +227,12 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     // Clear locked IP for legitimate test pair
     const pairing = remoteManager.generatePairing(60000);
     // Use authManager pair directly to bypass same-IP lockout in test
-    const pairResult = authManager.pair(pairing.secret, 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4)', '198.51.100.88', 'view');
+    const pairResult = authManager.pair(
+      pairing.secret,
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4)',
+      '198.51.100.88',
+      'view'
+    );
 
     assert.ok(pairResult.deviceId);
     assert.ok(pairResult.deviceToken.startsWith('rem_dev_'));
@@ -226,25 +243,27 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     const ws = new WebSocket(`ws://127.0.0.1:${remotePort}`, {
       headers: {
         Origin: `https://${tunnelHost}`,
-        Host: tunnelHost,
-      },
+        Host: tunnelHost
+      }
     });
 
     await new Promise<void>((resolve, reject) => {
       ws.on('open', () => {
-        ws.send(JSON.stringify({
-          protocol: 1,
-          kind: 'hello',
-          id: 'hl_phone_1',
-          ts: Date.now(),
-          type: 'connection.hello',
-          payload: {
-            token: phoneToken,
-            client: { name: 'mobile_safari', version: '1.3', platform: 'ios' },
-            encoding: 'json',
-            capabilities: ['replay.v1', 'workspace.v1'],
-          },
-        }));
+        ws.send(
+          JSON.stringify({
+            protocol: 1,
+            kind: 'hello',
+            id: 'hl_phone_1',
+            ts: Date.now(),
+            type: 'connection.hello',
+            payload: {
+              token: phoneToken,
+              client: { name: 'mobile_safari', version: '1.3', platform: 'ios' },
+              encoding: 'json',
+              capabilities: ['replay.v1', 'workspace.v1']
+            }
+          })
+        );
       });
 
       ws.on('message', (raw) => {
@@ -258,7 +277,7 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     });
 
     // 6. Verify phone connection is active and flagged as remote
-    const remoteConn = manager.getAll().find(c => c.deviceId === phoneDeviceId);
+    const remoteConn = manager.getAll().find((c) => c.deviceId === phoneDeviceId);
     assert.ok(remoteConn);
     assert.strictEqual(remoteConn?.isRemote, true);
 
@@ -273,15 +292,17 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
       };
       ws.on('message', listener);
 
-      ws.send(JSON.stringify({
-        protocol: 1,
-        kind: 'command',
-        id: 'cmd_b1',
-        ts: Date.now(),
-        commandId: 'c_phone_blocked',
-        type: 'workspace.saveFile',
-        payload: { path: 'test.txt', content: 'test', revision: '0'.repeat(64) },
-      }));
+      ws.send(
+        JSON.stringify({
+          protocol: 1,
+          kind: 'command',
+          id: 'cmd_b1',
+          ts: Date.now(),
+          commandId: 'c_phone_blocked',
+          type: 'workspace.saveFile',
+          payload: { path: 'test.txt', content: 'test', revision: '0'.repeat(64) }
+        })
+      );
     });
 
     const blockedResult = await blockedWritePromise;
@@ -298,15 +319,17 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
       };
       ws.on('message', listener);
 
-      ws.send(JSON.stringify({
-        protocol: 1,
-        kind: 'command',
-        id: 'cmd_b2',
-        ts: Date.now(),
-        commandId: 'c_phone_rem_cmd',
-        type: 'remote.stop',
-        payload: {},
-      }));
+      ws.send(
+        JSON.stringify({
+          protocol: 1,
+          kind: 'command',
+          id: 'cmd_b2',
+          ts: Date.now(),
+          commandId: 'c_phone_rem_cmd',
+          type: 'remote.stop',
+          payload: {}
+        })
+      );
     });
 
     const blockedRemoteResult = await blockedRemoteCmdPromise;
@@ -326,31 +349,35 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
 
     // 10. After revocation, attempting to bootstrap with the revoked token fails
     const postRevokeRes = await new Promise<any>((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/session-bootstrap',
-        headers: {
-          Host: tunnelHost,
-          Authorization: `Bearer ${phoneToken}`,
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/session-bootstrap',
+          headers: {
+            Host: tunnelHost,
+            Authorization: `Bearer ${phoneToken}`
+          }
         },
-      }, (res) => {
-        let body = '';
-        res.on('data', chunk => body += chunk);
-        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body) }));
-      });
+        (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body) }));
+        }
+      );
       req.on('error', reject);
       req.end();
     });
 
     assert.strictEqual(postRevokeRes.status, 401);
     assert.strictEqual(postRevokeRes.data.needsPairing, true);
-
   } finally {
     await remoteManager.stop().catch(() => {});
     wss.close();
     httpServer.close();
     remoteHttpServer.close();
-    try { fs.unlinkSync(tmpDevices); } catch {}
+    try {
+      fs.unlinkSync(tmpDevices);
+    } catch {}
   }
 });

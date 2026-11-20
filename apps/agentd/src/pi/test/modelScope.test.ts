@@ -8,7 +8,7 @@ import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../mode
 const models = [
   { provider: 'github-copilot', id: 'gpt-6-luna', name: 'GPT 6 Luna' },
   { provider: 'github-copilot', id: 'claude-sonnet-4', name: 'Claude Sonnet 4' },
-  { provider: 'openai', id: 'gpt-4.1', name: 'GPT 4.1' },
+  { provider: 'openai', id: 'gpt-4.1', name: 'GPT 4.1' }
 ];
 
 test('empty Pi enabledModels scope preserves Pi-authenticated models', () => {
@@ -18,7 +18,7 @@ test('empty Pi enabledModels scope preserves Pi-authenticated models', () => {
 test('enabledModels scope supports exact, provider glob and fuzzy model names', () => {
   assert.deepEqual(
     filterModelsByEnabledPatterns(models, ['github-copilot/gpt-6-luna', 'claude-sonnet']),
-    models.slice(0, 2),
+    models.slice(0, 2)
   );
   assert.deepEqual(filterModelsByEnabledPatterns(models, ['openai/gpt-*']), [models[2]]);
   assert.deepEqual(filterModelsByEnabledPatterns(models, ['not-enabled']), []);

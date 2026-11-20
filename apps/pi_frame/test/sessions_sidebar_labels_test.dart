@@ -13,9 +13,7 @@ class _PinnedNotifier extends PinnedSessionsNotifier {
 }
 
 void main() {
-  testWidgets('folders and pinned sessions retain context after filtering', (
-    tester,
-  ) async {
+  testWidgets('folders and pinned sessions retain context after filtering', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -23,23 +21,13 @@ void main() {
           pinnedSessionsProvider.overrideWith((ref) => _PinnedNotifier()),
           sessionListProvider.overrideWith(
             (ref) async => [
-              {
-                'id': 'one',
-                'name': 'PiFrame',
-                'cwd': r'C:\versions\v1\PiFrame',
-              },
-              {
-                'id': 'two',
-                'name': 'PiFrame',
-                'cwd': r'C:\versions\v2\PiFrame',
-              },
+              {'id': 'one', 'name': 'PiFrame', 'cwd': r'C:\versions\v1\PiFrame'},
+              {'id': 'two', 'name': 'PiFrame', 'cwd': r'C:\versions\v2\PiFrame'},
             ],
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionsSidebar()),
         ),
       ),
@@ -51,9 +39,7 @@ void main() {
     expect(find.text('v1 / PiFrame'), findsNWidgets(3));
     expect(find.text('v2 / PiFrame'), findsNWidgets(2));
 
-    await tester.tap(
-      find.byKey(const ValueKey(r'session-folder:C:\versions\v1\PiFrame')),
-    );
+    await tester.tap(find.byKey(const ValueKey(r'session-folder:C:\versions\v1\PiFrame')));
     await tester.pumpAndSettle();
     expect(find.text('v1 / PiFrame'), findsNWidgets(2));
 
@@ -64,18 +50,12 @@ void main() {
     expect(find.text('PiFrame'), findsNothing);
 
     // The row's menu button is revealed on hover only; right-click opens the same menu.
-    await tester.tap(
-      find.byKey(const ValueKey('session-row-one')),
-      buttons: kSecondaryMouseButton,
-    );
+    await tester.tap(find.byKey(const ValueKey('session-row-one')), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rinomina'));
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextField),
-      ),
+      find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)),
     );
     expect(field.controller!.text, 'PiFrame');
   });

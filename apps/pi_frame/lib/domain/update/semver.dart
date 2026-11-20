@@ -64,11 +64,7 @@ class SemVer implements Comparable<SemVer> {
     if (preRelease != null && other.preRelease != null) {
       final left = preRelease!.split('.');
       final right = other.preRelease!.split('.');
-      for (
-        var index = 0;
-        index < left.length && index < right.length;
-        index++
-      ) {
+      for (var index = 0; index < left.length && index < right.length; index++) {
         final leftNumber = int.tryParse(left[index]);
         final rightNumber = int.tryParse(right[index]);
         final int comparison;

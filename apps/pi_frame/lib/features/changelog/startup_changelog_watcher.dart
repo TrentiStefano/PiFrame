@@ -17,18 +17,13 @@ import 'changelog_dialog.dart';
 class StartupChangelogWatcher extends ConsumerStatefulWidget {
   final bool enableInTests;
 
-  const StartupChangelogWatcher({
-    super.key,
-    this.enableInTests = false,
-  });
+  const StartupChangelogWatcher({super.key, this.enableInTests = false});
 
   @override
-  ConsumerState<StartupChangelogWatcher> createState() =>
-      _StartupChangelogWatcherState();
+  ConsumerState<StartupChangelogWatcher> createState() => _StartupChangelogWatcherState();
 }
 
-class _StartupChangelogWatcherState
-    extends ConsumerState<StartupChangelogWatcher> {
+class _StartupChangelogWatcherState extends ConsumerState<StartupChangelogWatcher> {
   bool _checked = false;
 
   @override
@@ -61,10 +56,7 @@ class _StartupChangelogWatcherState
     store.setLastSeenVersion(piFrameVersion);
 
     if (release != null && release.isNotEmpty && mounted) {
-      await showChangelogDialog(
-        context: context,
-        release: release,
-      );
+      await showChangelogDialog(context: context, release: release);
     }
   }
 

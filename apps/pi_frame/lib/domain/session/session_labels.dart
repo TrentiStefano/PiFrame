@@ -6,13 +6,10 @@ String sessionFolder(Map<String, dynamic> session) {
 }
 
 bool _isWindowsPath(String path) =>
-    path.contains('\\') ||
-    path.startsWith('//') ||
-    RegExp(r'^[A-Za-z]:').hasMatch(path);
+    path.contains('\\') || path.startsWith('//') || RegExp(r'^[A-Za-z]:').hasMatch(path);
 
-String _normalizedPath(String path) => _isWindowsPath(path)
-    ? p.windows.normalize(path.trim().replaceAll('/', '\\'))
-    : p.posix.normalize(path.trim());
+String _normalizedPath(String path) =>
+    _isWindowsPath(path) ? p.windows.normalize(path.trim().replaceAll('/', '\\')) : p.posix.normalize(path.trim());
 
 String _pathKey(String path) {
   final normalized = _normalizedPath(path).replaceAll('\\', '/');
@@ -21,19 +18,12 @@ String _pathKey(String path) {
 
 List<String> _pathSegments(String path) => path.trim().isEmpty
     ? const []
-    : _normalizedPath(path)
-          .replaceAll('\\', '/')
-          .split('/')
-          .where((part) => part.isNotEmpty)
-          .toList();
+    : _normalizedPath(path).replaceAll('\\', '/').split('/').where((part) => part.isNotEmpty).toList();
 
-String _nameKey(String name) =>
-    name.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+String _nameKey(String name) => name.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
 Map<String, String> folderDisplayNames(Iterable<String> folders) {
-  final segments = {
-    for (final folder in folders) folder: _pathSegments(folder),
-  };
+  final segments = {for (final folder in folders) folder: _pathSegments(folder)};
   final depths = {for (final folder in segments.keys) folder: 1};
 
   while (true) {
@@ -44,9 +34,7 @@ Map<String, String> folderDisplayNames(Iterable<String> folders) {
       final depth = depths[entry.key]!;
       final label = parts.isEmpty
           ? (entry.key.trim().isEmpty ? 'Sessioni' : entry.key)
-          : parts
-                .skip((parts.length - depth).clamp(0, parts.length))
-                .join(' / ');
+          : parts.skip((parts.length - depth).clamp(0, parts.length)).join(' / ');
       labels[entry.key] = label;
       collisions.putIfAbsent(_nameKey(label), () => []).add(entry.key);
     }
@@ -65,9 +53,7 @@ Map<String, String> folderDisplayNames(Iterable<String> folders) {
   }
 }
 
-Map<String, String> sessionDisplayNames(
-  Iterable<Map<String, dynamic>> sessions,
-) {
+Map<String, String> sessionDisplayNames(Iterable<Map<String, dynamic>> sessions) {
   final labels = <String, String>{};
   final groups = <String, List<Map<String, dynamic>>>{};
   for (final session in sessions) {
@@ -83,9 +69,7 @@ Map<String, String> sessionDisplayNames(
   }
 
   for (final group in groups.values) {
-    final folders = group
-        .map(workingFolder)
-        .where((folder) => folder.isNotEmpty);
+    final folders = group.map(workingFolder).where((folder) => folder.isNotEmpty);
     if (folders.map(_pathKey).toSet().length < 2) continue;
     final folderLabels = folderDisplayNames(folders);
     for (final session in group) {
@@ -95,9 +79,7 @@ Map<String, String> sessionDisplayNames(
       final name = labels[id]!;
       final parts = _pathSegments(folder);
       final folderLabel = folderLabels[folder]!;
-      labels[id] = parts.isNotEmpty && _nameKey(name) == _nameKey(parts.last)
-          ? folderLabel
-          : '$name · $folderLabel';
+      labels[id] = parts.isNotEmpty && _nameKey(name) == _nameKey(parts.last) ? folderLabel : '$name · $folderLabel';
     }
   }
   return labels;

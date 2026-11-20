@@ -47,21 +47,14 @@ void main() {
       ProviderScope(
         overrides: [pcpClientProvider.overrideWithValue(client)],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             // Mirrors the composer: the card sits in a vertically unconstrained Column.
             body: Align(
               alignment: Alignment.bottomCenter,
               child: SingleChildScrollView(
                 reverse: true,
-                child: ExtensionUiDialog(
-                  sessionId: 's',
-                  request: request,
-                  isCard: true,
-                  onDismissed: onDismissed,
-                ),
+                child: ExtensionUiDialog(sessionId: 's', request: request, isCard: true, onDismissed: onDismissed),
               ),
             ),
           ),
@@ -75,17 +68,12 @@ void main() {
     'requestId': 'ui',
     'method': 'select',
     'title': 'Scegli',
-    'message': List.filled(
-      40,
-      'Riga di contesto molto lunga della domanda.',
-    ).join('\n'),
+    'message': List.filled(40, 'Riga di contesto molto lunga della domanda.').join('\n'),
     'options': List.generate(30, (i) => 'Opzione $i'),
     'dialog': true,
   };
 
-  testWidgets('numbered Type something opens inline and submits once', (
-    tester,
-  ) async {
+  testWidgets('numbered Type something opens inline and submits once', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'custom-answer',
@@ -98,9 +86,7 @@ void main() {
     await tester.tap(find.text('3. Type something.'));
     await tester.pump();
 
-    final answerField = find.byKey(
-      const ValueKey('extension-ui-custom-answer'),
-    );
+    final answerField = find.byKey(const ValueKey('extension-ui-custom-answer'));
     expect(answerField, findsOneWidget);
     expect(tester.widget<TextField>(answerField).focusNode!.hasFocus, isTrue);
     expect(find.text('3. Type something.'), findsNothing);
@@ -117,9 +103,7 @@ void main() {
     expect(client.responses, ['Use the other approach']);
   });
 
-  testWidgets('switching directly to another option preserves custom draft', (
-    tester,
-  ) async {
+  testWidgets('switching directly to another option preserves custom draft', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'switch-answer',
@@ -131,9 +115,7 @@ void main() {
 
     await tester.tap(find.text('3. Type something.'));
     await tester.pump();
-    final answerField = find.byKey(
-      const ValueKey('extension-ui-custom-answer'),
-    );
+    final answerField = find.byKey(const ValueKey('extension-ui-custom-answer'));
     await tester.enterText(answerField, 'Custom draft');
     await tester.tap(find.text('2. No — Stop'));
     await tester.pump();
@@ -141,10 +123,7 @@ void main() {
     expect(find.text('3. Type something.'), findsOneWidget);
     await tester.tap(find.text('3. Type something.'));
     await tester.pump();
-    expect(
-      tester.widget<TextField>(answerField).controller!.text,
-      'Custom draft',
-    );
+    expect(tester.widget<TextField>(answerField).controller!.text, 'Custom draft');
     await tester.tap(find.text('2. No — Stop'));
     await tester.pump();
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
@@ -161,60 +140,41 @@ void main() {
       'dialog': true,
     });
 
-    final row = find.ancestor(
-      of: find.text('2. Type something.'),
-      matching: find.byType(InkWell),
-    );
-    await tester.tap(
-      find.descendant(
-        of: row,
-        matching: find.byIcon(Icons.radio_button_unchecked_outlined),
-      ),
-    );
+    final row = find.ancestor(of: find.text('2. Type something.'), matching: find.byType(InkWell));
+    await tester.tap(find.descendant(of: row, matching: find.byIcon(Icons.radio_button_unchecked_outlined)));
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('extension-ui-custom-answer')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('extension-ui-custom-answer')), findsOneWidget);
     expect(client.responses, isEmpty);
   });
 
-  testWidgets(
-    'trailing space does not show a warning or require a second input',
-    (tester) async {
-      final client = _Client();
-      await mount(tester, client, {
-        'requestId': 'custom-trailing-space',
-        'method': 'select',
-        'options': ['1. Yes — Proceed', '2. Type something.'],
-        'dialog': true,
-      });
+  testWidgets('trailing space does not show a warning or require a second input', (tester) async {
+    final client = _Client();
+    await mount(tester, client, {
+      'requestId': 'custom-trailing-space',
+      'method': 'select',
+      'options': ['1. Yes — Proceed', '2. Type something.'],
+      'dialog': true,
+    });
 
-      await tester.tap(find.text('2. Type something.'));
-      await tester.pump();
-      final field = find.byKey(const ValueKey('extension-ui-custom-answer'));
-      await tester.enterText(field, 'Custom');
-      await tester.pump();
-      final initialSize = tester.getSize(find.byType(ExtensionUiDialog));
-      await tester.enterText(field, 'Custom ');
-      await tester.pump();
-      expect(tester.getSize(find.byType(ExtensionUiDialog)), initialSize);
-      expect(
-        find.textContaining('richiederà di inserirla di nuovo'),
-        findsNothing,
-      );
-      await tester.enterText(field, 'Custom answer ');
-      await tester.pump();
-      expect(tester.getSize(find.byType(ExtensionUiDialog)), initialSize);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
-      await tester.pumpAndSettle();
-      expect(client.responses, ['Custom answer ']);
-    },
-  );
+    await tester.tap(find.text('2. Type something.'));
+    await tester.pump();
+    final field = find.byKey(const ValueKey('extension-ui-custom-answer'));
+    await tester.enterText(field, 'Custom');
+    await tester.pump();
+    final initialSize = tester.getSize(find.byType(ExtensionUiDialog));
+    await tester.enterText(field, 'Custom ');
+    await tester.pump();
+    expect(tester.getSize(find.byType(ExtensionUiDialog)), initialSize);
+    expect(find.textContaining('richiederà di inserirla di nuovo'), findsNothing);
+    await tester.enterText(field, 'Custom answer ');
+    await tester.pump();
+    expect(tester.getSize(find.byType(ExtensionUiDialog)), initialSize);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pumpAndSettle();
+    expect(client.responses, ['Custom answer ']);
+  });
 
-  testWidgets('ambiguous custom text follows the RPC input path', (
-    tester,
-  ) async {
+  testWidgets('ambiguous custom text follows the RPC input path', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'ambiguous-answer',
@@ -225,15 +185,9 @@ void main() {
 
     await tester.tap(find.text('2. Type something.'));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const ValueKey('extension-ui-custom-answer')),
-      '1',
-    );
+    await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), '1');
     await tester.pump();
-    expect(
-      find.textContaining('richiederà di inserirla di nuovo'),
-      findsNothing,
-    );
+    expect(find.textContaining('richiederà di inserirla di nuovo'), findsNothing);
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. Type something.']);
@@ -250,19 +204,14 @@ void main() {
 
     await tester.tap(find.text('2. Type something.'));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const ValueKey('extension-ui-custom-answer')),
-      'Yes',
-    );
+    await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), 'Yes');
     await tester.pump();
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. Type something.']);
   });
 
-  testWidgets('custom label containing a dash follows the RPC input path', (
-    tester,
-  ) async {
+  testWidgets('custom label containing a dash follows the RPC input path', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'ambiguous-dash-label',
@@ -273,10 +222,7 @@ void main() {
 
     await tester.tap(find.text('2. Type something.'));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const ValueKey('extension-ui-custom-answer')),
-      'Yes — maybe',
-    );
+    await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), 'Yes — maybe');
     await tester.pump();
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
     await tester.pumpAndSettle();
@@ -294,23 +240,15 @@ void main() {
 
     await tester.tap(find.text('2. Type something.'));
     await tester.pump();
-    await tester.enterText(
-      find.byKey(const ValueKey('extension-ui-custom-answer')),
-      '999',
-    );
+    await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), '999');
     await tester.pump();
-    expect(
-      find.textContaining('richiederà di inserirla di nuovo'),
-      findsNothing,
-    );
+    expect(find.textContaining('richiederà di inserirla di nuovo'), findsNothing);
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
     await tester.pumpAndSettle();
     expect(client.responses, ['999']);
   });
 
-  testWidgets('Type something is not submitted as the default option', (
-    tester,
-  ) async {
+  testWidgets('Type something is not submitted as the default option', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'custom-answer-default',
@@ -329,9 +267,7 @@ void main() {
     ]);
   });
 
-  testWidgets('RPC previews stay bounded and follow the selected option', (
-    tester,
-  ) async {
+  testWidgets('RPC previews stay bounded and follow the selected option', (tester) async {
     tester.view.physicalSize = const Size(800, 500);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -345,11 +281,7 @@ void main() {
           '[Layout] Choose?\n\n'
           '--- 1. First preview ---\n$firstPreview\n\n'
           '--- 2. Second preview ---\n$secondPreview',
-      'options': [
-        '1. First — Explanation',
-        '2. Second — Explanation',
-        '3. Type something.',
-      ],
+      'options': ['1. First — Explanation', '2. Second — Explanation', '3. Type something.'],
       'dialog': true,
     });
     await tester.pumpAndSettle();
@@ -358,10 +290,7 @@ void main() {
     expect(find.text('[Layout] Choose?'), findsOneWidget);
     expect(find.text(firstPreview), findsOneWidget);
     expect(find.text(secondPreview), findsNothing);
-    expect(
-      tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top,
-      greaterThanOrEqualTo(0),
-    );
+    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top, greaterThanOrEqualTo(0));
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
     expect(find.text(firstPreview), findsNothing);
@@ -371,9 +300,7 @@ void main() {
     expect(client.responses, ['2. Second — Explanation']);
   });
 
-  testWidgets('preview switches on click and hides for custom input', (
-    tester,
-  ) async {
+  testWidgets('preview switches on click and hides for custom input', (tester) async {
     tester.view.physicalSize = const Size(360, 500);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -384,11 +311,7 @@ void main() {
       'title':
           'Choose?\n\n--- 1. First preview ---\n```text\n+---+\n```\n\n'
           '--- 2. Second preview ---\nSecond preview content',
-      'options': [
-        '1. First — Explanation',
-        '2. Second — Explanation',
-        '3. Type something.',
-      ],
+      'options': ['1. First — Explanation', '2. Second — Explanation', '3. Type something.'],
       'dialog': true,
     });
     await tester.pumpAndSettle();
@@ -408,9 +331,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('preview parsing does not depend on the sentinel language', (
-    tester,
-  ) async {
+  testWidgets('preview parsing does not depend on the sentinel language', (tester) async {
     final client = _Client();
     await mount(tester, client, {
       'requestId': 'localized-preview',
@@ -422,9 +343,7 @@ void main() {
     expect(find.text('Anteprima'), findsOneWidget);
   });
 
-  testWidgets('incomplete preview marker remains visible and does not crash', (
-    tester,
-  ) async {
+  testWidgets('incomplete preview marker remains visible and does not crash', (tester) async {
     final client = _Client();
     const title = 'Choose?\n\n--- 1. First preview ---';
     await mount(tester, client, {
@@ -437,9 +356,7 @@ void main() {
     expect(find.text(title), findsOneWidget);
   });
 
-  testWidgets('long title without RPC previews stays scrollable', (
-    tester,
-  ) async {
+  testWidgets('long title without RPC previews stays scrollable', (tester) async {
     tester.view.physicalSize = const Size(600, 400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -453,22 +370,14 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(
-      tester.getSize(find.byType(ExtensionUiDialog)).height,
-      lessThan(400),
-    );
-    expect(
-      tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top,
-      greaterThanOrEqualTo(0),
-    );
+    expect(tester.getSize(find.byType(ExtensionUiDialog)).height, lessThan(400));
+    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top, greaterThanOrEqualTo(0));
     await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
     await tester.pump();
     expect(client.responses, ['Yes']);
   });
 
-  testWidgets('long question: answer buttons stay on screen and work', (
-    tester,
-  ) async {
+  testWidgets('long question: answer buttons stay on screen and work', (tester) async {
     tester.view.physicalSize = const Size(800, 500);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -489,20 +398,15 @@ void main() {
     expect(client.responses, ['Opzione 25']);
   });
 
-  testWidgets(
-    'claim failure other than "claimed by another" does not lock the card',
-    (tester) async {
-      final client = _Client(
-        claim: () => Future.error(StateError('Request not found')),
-      );
-      await mount(tester, client, longSelect);
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Un altro client'), findsNothing);
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
-      await tester.pump();
-      expect(client.responses, ['Opzione 0']);
-    },
-  );
+  testWidgets('claim failure other than "claimed by another" does not lock the card', (tester) async {
+    final client = _Client(claim: () => Future.error(StateError('Request not found')));
+    await mount(tester, client, longSelect);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Un altro client'), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pump();
+    expect(client.responses, ['Opzione 0']);
+  });
 
   testWidgets('claim still pending does not delay answering', (tester) async {
     final claim = Completer<Map<String, dynamic>>();
@@ -518,87 +422,59 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('claimed by another client keeps the card locked', (
-    tester,
-  ) async {
-    final client = _Client(
-      claim: () => Future.error(
-        StateError('UI request already claimed by another client'),
-      ),
-    );
+  testWidgets('claimed by another client keeps the card locked', (tester) async {
+    final client = _Client(claim: () => Future.error(StateError('UI request already claimed by another client')));
     await mount(tester, client, longSelect);
     await tester.pumpAndSettle();
     expect(find.textContaining('Un altro client'), findsOneWidget);
-    final send = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Invia'),
-    );
+    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Invia'));
     expect(send.onPressed, isNull);
   });
 
-  testWidgets(
-    'successful answer dismisses the card without waiting for the daemon event',
-    (tester) async {
-      var dismissed = 0;
-      final client = _Client();
-      await mount(tester, client, longSelect, onDismissed: () => dismissed++);
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
-      await tester.pumpAndSettle();
-      expect(dismissed, 1);
-    },
-  );
-
-  testWidgets(
-    'answer failing with a real error keeps the card and re-enables the buttons',
-    (tester) async {
-      var dismissed = 0;
-      final client = _Client(respond: () => Future.error(StateError('boom')));
-      await mount(tester, client, longSelect, onDismissed: () => dismissed++);
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
-      await tester.pumpAndSettle();
-      expect(dismissed, 0);
-      expect(find.textContaining('boom'), findsNothing);
-      expect(find.text('Operazione non riuscita'), findsOneWidget);
-      final send = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Invia'),
-      );
-      expect(send.onPressed, isNotNull);
-      // No retry action here: the user answers again with Invia.
-      expect(find.byKey(const ValueKey('extension-ui-retry')), findsNothing);
-      // The raw text is only behind Dettagli.
-      await tester.tap(
-        find.byKey(const ValueKey('extension-ui-error-details-toggle')),
-      );
-      await tester.pumpAndSettle();
-      expect(find.textContaining('boom'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'stale request (not found on daemon) is dismissed instead of blocking chat',
-    (tester) async {
-      var dismissed = 0;
-      final client = _Client(
-        respond: () => Future.error(StateError('Request not found')),
-      );
-      await mount(tester, client, longSelect, onDismissed: () => dismissed++);
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(TextButton, 'Annulla'));
-      await tester.pumpAndSettle();
-      expect(dismissed, 1);
-    },
-  );
-
-  testWidgets('card is dismissed locally when the request countdown ends', (
-    tester,
-  ) async {
+  testWidgets('successful answer dismisses the card without waiting for the daemon event', (tester) async {
     var dismissed = 0;
     final client = _Client();
-    await mount(tester, client, {
-      ...longSelect,
-      'timeoutMs': 2000,
-    }, onDismissed: () => dismissed++);
+    await mount(tester, client, longSelect, onDismissed: () => dismissed++);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pumpAndSettle();
+    expect(dismissed, 1);
+  });
+
+  testWidgets('answer failing with a real error keeps the card and re-enables the buttons', (tester) async {
+    var dismissed = 0;
+    final client = _Client(respond: () => Future.error(StateError('boom')));
+    await mount(tester, client, longSelect, onDismissed: () => dismissed++);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.pumpAndSettle();
+    expect(dismissed, 0);
+    expect(find.textContaining('boom'), findsNothing);
+    expect(find.text('Operazione non riuscita'), findsOneWidget);
+    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Invia'));
+    expect(send.onPressed, isNotNull);
+    // No retry action here: the user answers again with Invia.
+    expect(find.byKey(const ValueKey('extension-ui-retry')), findsNothing);
+    // The raw text is only behind Dettagli.
+    await tester.tap(find.byKey(const ValueKey('extension-ui-error-details-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('boom'), findsOneWidget);
+  });
+
+  testWidgets('stale request (not found on daemon) is dismissed instead of blocking chat', (tester) async {
+    var dismissed = 0;
+    final client = _Client(respond: () => Future.error(StateError('Request not found')));
+    await mount(tester, client, longSelect, onDismissed: () => dismissed++);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Annulla'));
+    await tester.pumpAndSettle();
+    expect(dismissed, 1);
+  });
+
+  testWidgets('card is dismissed locally when the request countdown ends', (tester) async {
+    var dismissed = 0;
+    final client = _Client();
+    await mount(tester, client, {...longSelect, 'timeoutMs': 2000}, onDismissed: () => dismissed++);
     await tester.pump(const Duration(seconds: 3));
     expect(dismissed, 1);
   });

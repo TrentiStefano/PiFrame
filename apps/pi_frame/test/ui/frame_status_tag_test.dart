@@ -16,9 +16,7 @@ Widget _host(Widget child, {double width = 400}) {
 }
 
 Color _dotColor(WidgetTester tester, Key tag) {
-  final dot = tester.widget<DecoratedBox>(
-    find.descendant(of: find.byKey(tag), matching: find.byType(DecoratedBox)),
-  );
+  final dot = tester.widget<DecoratedBox>(find.descendant(of: find.byKey(tag), matching: find.byType(DecoratedBox)));
   return (dot.decoration as BoxDecoration).color!;
 }
 
@@ -35,29 +33,19 @@ void main() {
 
     for (final entry in cases.entries) {
       final key = ValueKey('tag-${entry.key.name}');
-      await tester.pumpWidget(
-        _host(FrameStatusTag(key: key, label: 'Attivo', tone: entry.key)),
-      );
+      await tester.pumpWidget(_host(FrameStatusTag(key: key, label: 'Attivo', tone: entry.key)));
       expect(_dotColor(tester, key), entry.value, reason: entry.key.name);
       expect(find.text('Attivo'), findsOneWidget);
     }
   });
 
-  testWidgets('tag is intrinsic and never takes the full width', (
-    tester,
-  ) async {
+  testWidgets('tag is intrinsic and never takes the full width', (tester) async {
     const key = ValueKey('tag');
     await tester.pumpWidget(
       _host(
         const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FrameStatusTag(
-              key: key,
-              label: "Attivo",
-              tone: FrameStatusTone.success,
-            ),
-          ],
+          children: [FrameStatusTag(key: key, label: "Attivo", tone: FrameStatusTone.success)],
         ),
         width: 400,
       ),
@@ -69,9 +57,7 @@ void main() {
 
   testWidgets('default tone is neutral', (tester) async {
     const key = ValueKey('default-tag');
-    await tester.pumpWidget(
-      _host(const FrameStatusTag(key: key, label: 'Bozza')),
-    );
+    await tester.pumpWidget(_host(const FrameStatusTag(key: key, label: 'Bozza')));
     expect(_dotColor(tester, key), FrameTokens.dark.textMuted);
   });
 }

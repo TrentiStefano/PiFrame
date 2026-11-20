@@ -64,12 +64,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
 
       if (mounted && widget.sessionId == sessionId) {
         setState(() {
-          _models = result.models
-              .map((model) => Map<String, dynamic>.from(model))
-              .toList();
-          _thinkingLevels = levels.isNotEmpty
-              ? levels
-              : ['off', 'low', 'medium', 'high'];
+          _models = result.models.map((model) => Map<String, dynamic>.from(model)).toList();
+          _thinkingLevels = levels.isNotEmpty ? levels : ['off', 'low', 'medium', 'high'];
           _isLoadingParams = false;
         });
         if (result.warning != null) {
@@ -88,21 +84,14 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   String _modelOptionValue(Map<String, dynamic> model) =>
       '${model['provider'] ?? ''}\u0000${model['id'] ?? model['name'] ?? ''}';
 
-  String? _modelDropdownValue(
-    String? currentModel,
-    String? currentProvider,
-    String? currentId,
-  ) {
+  String? _modelDropdownValue(String? currentModel, String? currentProvider, String? currentId) {
     if (_models.isEmpty) return null;
     final index = _models.indexWhere((model) {
-      if (currentProvider != null &&
-          currentProvider.isNotEmpty &&
-          model['provider']?.toString() != currentProvider) {
+      if (currentProvider != null && currentProvider.isNotEmpty && model['provider']?.toString() != currentProvider) {
         return false;
       }
       if (currentId != null) return model['id']?.toString() == currentId;
-      return model['id']?.toString() == currentModel ||
-          model['name']?.toString() == currentModel;
+      return model['id']?.toString() == currentModel || model['name']?.toString() == currentModel;
     });
     return _modelOptionValue(_models[index < 0 ? 0 : index]);
   }
@@ -121,8 +110,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   }
 
   Future<void> _saveReserve(double percent) async {
-    if (_savingReserve ||
-        ref.read(contextPolicySavingProvider(widget.sessionId))) {
+    if (_savingReserve || ref.read(contextPolicySavingProvider(widget.sessionId))) {
       return;
     }
     final sessionId = widget.sessionId;
@@ -130,17 +118,12 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     saving.state = true;
     setState(() => _savingReserve = true);
     try {
-      await ref
-          .read(sessionStateFamily(sessionId).notifier)
-          .setCompactionReservePercent(percent);
+      await ref.read(sessionStateFamily(sessionId).notifier).setCompactionReservePercent(percent);
     } catch (error) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
         if (widget.sessionId == sessionId) {
-          FrameSnackBar.show(
-            context,
-            message: strings.compactionMarginNotApplied(error),
-          );
+          FrameSnackBar.show(context, message: strings.compactionMarginNotApplied(error));
         }
       }
     } finally {
@@ -175,8 +158,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     if (mounted && res != null) {
       final strings = ref.read(appStringsProvider);
       final tokensBefore = res['tokensBefore'] ?? '?';
-      final tokensAfter =
-          res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
+      final tokensAfter = res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
       final usage = res['usage'] as Map?;
       final cost = usage?['cost'] is Map ? '\$${usage!['cost']['total']}' : '';
 
@@ -188,8 +170,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           title: strings.compactionCompletedTitle,
           body: Text(
             strings.compactionDialogContent(tokensBefore, tokensAfter, cost),
-            style: FrameText.of(context).body
-                .copyWith(color: context.tokens.textSecondary),
+            style: FrameText.of(context).body.copyWith(color: context.tokens.textSecondary),
           ),
           actions: [
             FrameDialogAction<bool>(
@@ -206,11 +187,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   Future<void> _cloneSession() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
-    if (!await resolveDirtyRepository(
-      context,
-      ref,
-      ref.read(activeSessionIdProvider),
-    )) {
+    if (!await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider))) {
       return;
     }
     try {
@@ -280,86 +257,44 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final title = ref.watch(sessionDisplayNameProvider(widget.sessionId));
-    final currentModel = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.currentModel),
-    );
-    final currentModelProvider = ref.watch(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => s.currentModelProvider),
-    );
-    final currentModelId = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.currentModelId),
-    );
-    final currentThinkingLevel = ref.watch(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => s.currentThinkingLevel),
-    );
-    final usage = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.usage),
-    );
-    final sessionStats = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.sessionStats),
-    );
-    final readOnly = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.readOnly),
-    );
+    final currentModel = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.currentModel));
+    final currentModelProvider = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.currentModelProvider));
+    final currentModelId = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.currentModelId));
+    final currentThinkingLevel = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.currentThinkingLevel));
+    final usage = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.usage));
+    final sessionStats = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.sessionStats));
+    final readOnly = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.readOnly));
     final sessionBusy = ref.watch(
       sessionStateFamily(widget.sessionId).select(
         (s) =>
             s.isStreaming ||
-            const {
-              AgentStatus.retrying,
-              AgentStatus.compacting,
-              AgentStatus.awaitingUser,
-            }.contains(s.agentStatus),
+            const {AgentStatus.retrying, AgentStatus.compacting, AgentStatus.awaitingUser}.contains(s.agentStatus),
       ),
     );
-    final policySaving = ref.watch(
-      contextPolicySavingProvider(widget.sessionId),
-    );
-    final sessionNotifier = ref.read(
-      sessionStateFamily(widget.sessionId).notifier,
-    );
+    final policySaving = ref.watch(contextPolicySavingProvider(widget.sessionId));
+    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
 
     final currentThinking = currentThinkingLevel ?? 'medium';
 
     final contextUsage =
-        (sessionStats?['contextUsage'] as Map<String, dynamic>?) ??
-        (usage?['contextUsage'] as Map<String, dynamic>?);
+        (sessionStats?['contextUsage'] as Map<String, dynamic>?) ?? (usage?['contextUsage'] as Map<String, dynamic>?);
     final totalTokens = (contextUsage?['tokens'] as num?)?.toInt();
     final percent = (contextUsage?['percent'] as num?)?.toDouble();
-    final autoCompaction = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.autoCompaction),
-    );
+    final autoCompaction = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.autoCompaction));
 
     final activeModelMap = _models.firstWhere(
       (model) => currentModelId != null
           ? model['id']?.toString() == currentModelId &&
-                (currentModelProvider == null ||
-                    model['provider']?.toString() == currentModelProvider)
+                (currentModelProvider == null || model['provider']?.toString() == currentModelProvider)
           : model['name'] == currentModel || model['id'] == currentModel,
       orElse: () => const {},
     );
     final fullWindow = modelContextWindow(activeModelMap);
-    final contextOverride = ref.watch(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => s.contextWindowOverride),
-    );
-    final reservePercent = ref.watch(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => s.compactionReservePercent),
-    );
-    final reserveValue = (_reserveDraft ?? reservePercent)
-        .clamp(0.5, 25)
-        .toDouble();
-    final effectiveWindow =
-        contextOverride ??
-        (contextUsage?['contextWindow'] as num?)?.toInt() ??
-        fullWindow ??
-        0;
-    final compactionThreshold = effectiveWindow > 0
-        ? usableContextWindow(effectiveWindow, reservePercent)
-        : 0.0;
+    final contextOverride = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.contextWindowOverride));
+    final reservePercent = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.compactionReservePercent));
+    final reserveValue = (_reserveDraft ?? reservePercent).clamp(0.5, 25).toDouble();
+    final effectiveWindow = contextOverride ?? (contextUsage?['contextWindow'] as num?)?.toInt() ?? fullWindow ?? 0;
+    final compactionThreshold = effectiveWindow > 0 ? usableContextWindow(effectiveWindow, reservePercent) : 0.0;
     final effectivePercent = effectiveWindow > 0 && totalTokens != null
         ? (totalTokens / effectiveWindow * 100.0)
         : percent;
@@ -370,18 +305,12 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           ? SizedBox(
               height: FrameSize.rowForm,
               child: Center(
-                child: FrameActivityIndicator(
-                  size: FrameSize.iconLg,
-                  strokeWidth: 2,
-                  color: tokens.accent,
-                ),
+                child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
               ),
             )
           : _models.isEmpty
           ? Text(
-              currentModel == null
-                  ? strings.noModelEnabled
-                  : strings.modelListNotAvailable(currentModel),
+              currentModel == null ? strings.noModelEnabled : strings.modelListNotAvailable(currentModel),
               style: text.caption.copyWith(color: tokens.textMuted),
             )
           : _fieldBox(
@@ -392,18 +321,12 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   borderRadius: BorderRadius.circular(tokens.radiusMd),
                   dropdownColor: tokens.surfaceElevated,
                   key: const ValueKey('context-model-dropdown'),
-                  value: _modelDropdownValue(
-                    currentModel,
-                    currentModelProvider,
-                    currentModelId,
-                  ),
+                  value: _modelDropdownValue(currentModel, currentModelProvider, currentModelId),
                   style: text.body.copyWith(color: tokens.textPrimary),
                   items: _models.map((model) {
-                    final name =
-                        model['name'] as String? ?? model['id'] as String;
+                    final name = model['name'] as String? ?? model['id'] as String;
                     String? provider = model['provider']?.toString();
-                    if ((provider == null || provider.isEmpty) &&
-                        model['id'] is String) {
+                    if ((provider == null || provider.isEmpty) && model['id'] is String) {
                       final id = model['id'] as String;
                       final slash = id.indexOf('/');
                       if (slash > 0) {
@@ -419,8 +342,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           provider = 'openai';
                         } else if (lower.startsWith('gemini')) {
                           provider = 'google';
-                        } else if (lower.startsWith('mistral') ||
-                            lower.startsWith('codestral')) {
+                        } else if (lower.startsWith('mistral') || lower.startsWith('codestral')) {
                           provider = 'mistral';
                         } else if (lower.startsWith('deepseek')) {
                           provider = 'deepseek';
@@ -440,17 +362,13 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                           Text(
                             name,
                             overflow: TextOverflow.ellipsis,
-                            style: text.body.copyWith(
-                              color: tokens.textPrimary,
-                            ),
+                            style: text.body.copyWith(color: tokens.textPrimary),
                           ),
                           if (provider != null && provider.isNotEmpty)
                             Text(
                               provider,
                               overflow: TextOverflow.ellipsis,
-                              style: text.caption.copyWith(
-                                color: tokens.textMuted,
-                              ),
+                              style: text.caption.copyWith(color: tokens.textMuted),
                             ),
                         ],
                       ),
@@ -458,8 +376,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   }).toList(),
                   selectedItemBuilder: (context) {
                     return _models.map((model) {
-                      final name =
-                          model['name'] as String? ?? model['id'] as String;
+                      final name = model['name'] as String? ?? model['id'] as String;
                       return Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
@@ -479,23 +396,16 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                               orElse: () => const <String, dynamic>{},
                             );
                             if (modelObj.isEmpty) return;
-                            final provider =
-                                modelObj['provider']?.toString() ?? '';
-                            final modelId =
-                                modelObj['id']?.toString() ?? newModel;
-                            _runAction(
-                              () => sessionNotifier.setModel(provider, modelId),
-                            );
+                            final provider = modelObj['provider']?.toString() ?? '';
+                            final modelId = modelObj['id']?.toString() ?? newModel;
+                            _runAction(() => sessionNotifier.setModel(provider, modelId));
                           }
                         },
                 ),
               ),
             ),
       const SizedBox(height: FrameSpace.x4),
-      Text(
-        strings.thinkingLevelHeader,
-        style: text.caption.copyWith(color: tokens.textSecondary),
-      ),
+      Text(strings.thinkingLevelHeader, style: text.caption.copyWith(color: tokens.textSecondary)),
       const SizedBox(height: FrameSpace.x1),
       _fieldBox(
         context,
@@ -511,18 +421,14 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             items: _thinkingLevels.map((lvl) {
               return DropdownMenuItem<String>(
                 value: lvl,
-                child: Text(
-                  ref.read(appStringsProvider).thinkingLevelLabel(lvl),
-                ),
+                child: Text(ref.read(appStringsProvider).thinkingLevelLabel(lvl)),
               );
             }).toList(),
             onChanged: sessionLocked
                 ? null
                 : (newLevel) {
                     if (newLevel != null) {
-                      _runAction(
-                        () => sessionNotifier.setThinkingLevel(newLevel),
-                      );
+                      _runAction(() => sessionNotifier.setThinkingLevel(newLevel));
                     }
                   },
           ),
@@ -531,21 +437,11 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
     ]);
 
     final contextSection = _section(context, strings.contextContextSection, [
-      Text(
-        strings.contextSizeHeader,
-        style: text.caption.copyWith(color: tokens.textSecondary),
-      ),
+      Text(strings.contextSizeHeader, style: text.caption.copyWith(color: tokens.textSecondary)),
       const SizedBox(height: FrameSpace.x1),
-      ContextWindowSelector(
-        sessionId: widget.sessionId,
-        model: activeModelMap,
-        readOnly: readOnly,
-      ),
+      ContextWindowSelector(sessionId: widget.sessionId, model: activeModelMap, readOnly: readOnly),
       const SizedBox(height: FrameSpace.x3),
-      Text(
-        strings.compactionMarginHeader,
-        style: text.caption.copyWith(color: tokens.textSecondary),
-      ),
+      Text(strings.compactionMarginHeader, style: text.caption.copyWith(color: tokens.textSecondary)),
       Slider(
         key: const ValueKey('context-panel-compaction-reserve-slider'),
         activeColor: tokens.accent,
@@ -560,21 +456,13 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         onChanged: readOnly || sessionBusy || _savingReserve || policySaving
             ? null
             : (value) => setState(() => _reserveDraft = value),
-        onChangeEnd: readOnly || sessionBusy || _savingReserve || policySaving
-            ? null
-            : _saveReserve,
+        onChangeEnd: readOnly || sessionBusy || _savingReserve || policySaving ? null : _saveReserve,
       ),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            strings.compactionMarginStep,
-            style: text.caption.copyWith(color: tokens.textMuted),
-          ),
-          Text(
-            '${reserveValue.toStringAsFixed(1)}%',
-            style: text.caption.copyWith(color: tokens.textMuted),
-          ),
+          Text(strings.compactionMarginStep, style: text.caption.copyWith(color: tokens.textMuted)),
+          Text('${reserveValue.toStringAsFixed(1)}%', style: text.caption.copyWith(color: tokens.textMuted)),
         ],
       ),
       if (reservePercent < 0.5 || reservePercent > 25)
@@ -595,10 +483,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         style: text.caption.copyWith(color: tokens.textMuted),
       ),
       const SizedBox(height: FrameSpace.x3),
-      Text(
-        strings.contextUsageHeader,
-        style: text.caption.copyWith(color: tokens.textSecondary),
-      ),
+      Text(strings.contextUsageHeader, style: text.caption.copyWith(color: tokens.textSecondary)),
       const SizedBox(height: FrameSpace.x2),
       if (effectivePercent != null)
         ClipRRect(
@@ -607,9 +492,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             value: (effectivePercent / 100.0).clamp(0.0, 1.0),
             backgroundColor: tokens.background,
             valueColor: AlwaysStoppedAnimation<Color>(
-              effectivePercent > 80
-                  ? tokens.danger
-                  : (effectivePercent > 60 ? tokens.warning : tokens.success),
+              effectivePercent > 80 ? tokens.danger : (effectivePercent > 60 ? tokens.warning : tokens.success),
             ),
             minHeight: FrameSpace.x2,
           ),
@@ -622,56 +505,35 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
         children: [
           if (totalTokens != null)
             Text(
-              strings.contextTokensUsage(
-                totalTokens,
-                formatTokens(effectiveWindow),
-              ),
+              strings.contextTokensUsage(totalTokens, formatTokens(effectiveWindow)),
               style: text.caption.copyWith(color: tokens.textMuted),
             )
           else if (effectivePercent == null)
-            Text(
-              strings.dataNotAvailable,
-              style: text.caption.copyWith(color: tokens.textMuted),
-            )
+            Text(strings.dataNotAvailable, style: text.caption.copyWith(color: tokens.textMuted))
           else
             const SizedBox.shrink(),
           if (effectivePercent != null)
             Text(
               '${effectivePercent.toStringAsFixed(1)} %',
-              style: text.caption.copyWith(
-                color: tokens.textMuted,
-                fontWeight: FontWeight.bold,
-              ),
+              style: text.caption.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
             ),
         ],
       ),
       const SizedBox(height: FrameSpace.x3),
       // The one primary action of this section.
       PressFeedback(
-        enabled:
-            (_isCompacting || readOnly ? null : _triggerCompaction) != null,
+        enabled: (_isCompacting || readOnly ? null : _triggerCompaction) != null,
         child: FilledButton.icon(
           key: const ValueKey('context-compact-action'),
-          style: FilledButton.styleFrom(
-            backgroundColor: tokens.accent,
-            foregroundColor: tokens.surface,
-          ),
+          style: FilledButton.styleFrom(backgroundColor: tokens.accent, foregroundColor: tokens.surface),
           icon: _isCompacting
               ? SizedBox(
                   width: FrameSize.icon,
                   height: FrameSize.icon,
-                  child: FrameActivityIndicator(
-                    size: FrameSize.iconLg,
-                    strokeWidth: 2,
-                    color: tokens.surface,
-                  ),
+                  child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.surface),
                 )
               : const Icon(Icons.compress_outlined, size: FrameSize.icon),
-          label: Text(
-            _isCompacting
-                ? strings.compactingLabel
-                : strings.compactContextAction,
-          ),
+          label: Text(_isCompacting ? strings.compactingLabel : strings.compactContextAction),
           onPressed: _isCompacting || readOnly ? null : _triggerCompaction,
         ),
       ),
@@ -685,11 +547,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             foregroundColor: tokens.textSecondary,
             side: BorderSide(color: tokens.border),
           ),
-          icon: Icon(
-            Icons.content_copy_outlined,
-            size: FrameSize.icon,
-            color: tokens.textSecondary,
-          ),
+          icon: Icon(Icons.content_copy_outlined, size: FrameSize.icon, color: tokens.textSecondary),
           label: Text(strings.duplicateBranchAction),
           onPressed: _cloneSession,
         ),
@@ -702,11 +560,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
             foregroundColor: tokens.textSecondary,
             side: BorderSide(color: tokens.border),
           ),
-          icon: Icon(
-            Icons.account_tree_outlined,
-            size: FrameSize.icon,
-            color: tokens.textSecondary,
-          ),
+          icon: Icon(Icons.account_tree_outlined, size: FrameSize.icon, color: tokens.textSecondary),
           label: Text(strings.branchTreeAction),
           onPressed: _openTree,
         ),
@@ -722,10 +576,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
           // The single heading of the panel: the session title.
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x4,
-              vertical: FrameSpace.x3,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: FrameSpace.x3),
             decoration: BoxDecoration(
               color: tokens.displaySurface,
               border: Border(bottom: BorderSide(color: tokens.border)),

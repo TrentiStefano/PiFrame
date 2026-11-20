@@ -8,15 +8,9 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
-  testWidgets('duplicate title shows parents but rename edits the stored name', (
-    tester,
-  ) async {
+  testWidgets('duplicate title shows parents but rename edits the stored name', (tester) async {
     final notifier = SessionStateNotifier('one', null)
-      ..state = const SessionState(
-        sessionId: 'one',
-        sessionName: 'PiFrame',
-        cwd: '/versions/v1/PiFrame',
-      );
+      ..state = const SessionState(sessionId: 'one', sessionName: 'PiFrame', cwd: '/versions/v1/PiFrame');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -30,9 +24,7 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'one')),
         ),
       ),
@@ -54,16 +46,9 @@ void main() {
     expect(notifier.state.sessionName, 'Different product');
   });
 
-  testWidgets('double-clicking session name enters rename mode and updates name', (
-    tester,
-  ) async {
+  testWidgets('double-clicking session name enters rename mode and updates name', (tester) async {
     final notifier = SessionStateNotifier('session_1', null)
-      ..state = SessionState(
-        sessionId: 'session_1',
-        sessionName: 'Old Title',
-        cwd: '/test/repo',
-        entries: [],
-      );
+      ..state = SessionState(sessionId: 'session_1', sessionName: 'Old Title', cwd: '/test/repo', entries: []);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -72,9 +57,7 @@ void main() {
           sessionStateFamily('session_1').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_1')),
         ),
       ),
@@ -98,10 +81,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-name-rename-cancel')), findsOneWidget);
 
     // Enter new name and tap submit
-    await tester.enterText(
-      find.byKey(const ValueKey('session-name-rename-field')),
-      'New Awesome Title',
-    );
+    await tester.enterText(find.byKey(const ValueKey('session-name-rename-field')), 'New Awesome Title');
     await tester.tap(find.byKey(const ValueKey('session-name-rename-submit')));
     await tester.pumpAndSettle();
 
@@ -111,16 +91,9 @@ void main() {
     expect(notifier.state.sessionName, 'New Awesome Title');
   });
 
-  testWidgets('pressing Enter on rename field submits and updates name', (
-    tester,
-  ) async {
+  testWidgets('pressing Enter on rename field submits and updates name', (tester) async {
     final notifier = SessionStateNotifier('session_enter', null)
-      ..state = SessionState(
-        sessionId: 'session_enter',
-        sessionName: 'Old Title',
-        cwd: '/test/repo',
-        entries: [],
-      );
+      ..state = SessionState(sessionId: 'session_enter', sessionName: 'Old Title', cwd: '/test/repo', entries: []);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -129,9 +102,7 @@ void main() {
           sessionStateFamily('session_enter').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_enter')),
         ),
       ),
@@ -147,10 +118,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-name-rename-field')), findsOneWidget);
 
     // Enter new name
-    await tester.enterText(
-      find.byKey(const ValueKey('session-name-rename-field')),
-      'Renamed Via Physical Enter',
-    );
+    await tester.enterText(find.byKey(const ValueKey('session-name-rename-field')), 'Renamed Via Physical Enter');
     await tester.pump();
 
     // Send Enter key
@@ -162,16 +130,9 @@ void main() {
     expect(notifier.state.sessionName, 'Renamed Via Physical Enter');
   });
 
-  testWidgets('pressing Numpad Enter on rename field submits and updates name', (
-    tester,
-  ) async {
+  testWidgets('pressing Numpad Enter on rename field submits and updates name', (tester) async {
     final notifier = SessionStateNotifier('session_numpad', null)
-      ..state = SessionState(
-        sessionId: 'session_numpad',
-        sessionName: 'Old Title',
-        cwd: '/test/repo',
-        entries: [],
-      );
+      ..state = SessionState(sessionId: 'session_numpad', sessionName: 'Old Title', cwd: '/test/repo', entries: []);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -180,9 +141,7 @@ void main() {
           sessionStateFamily('session_numpad').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_numpad')),
         ),
       ),
@@ -194,10 +153,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('session-name-title')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const ValueKey('session-name-rename-field')),
-      'Renamed Via Numpad Enter',
-    );
+    await tester.enterText(find.byKey(const ValueKey('session-name-rename-field')), 'Renamed Via Numpad Enter');
     await tester.pump();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.numpadEnter);
@@ -208,16 +164,9 @@ void main() {
     expect(notifier.state.sessionName, 'Renamed Via Numpad Enter');
   });
 
-  testWidgets('cancelling rename reverts without changing name', (
-    tester,
-  ) async {
+  testWidgets('cancelling rename reverts without changing name', (tester) async {
     final notifier = SessionStateNotifier('session_2', null)
-      ..state = SessionState(
-        sessionId: 'session_2',
-        sessionName: 'Keep This Name',
-        cwd: '/test/repo',
-        entries: [],
-      );
+      ..state = SessionState(sessionId: 'session_2', sessionName: 'Keep This Name', cwd: '/test/repo', entries: []);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -226,9 +175,7 @@ void main() {
           sessionStateFamily('session_2').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_2')),
         ),
       ),
@@ -244,10 +191,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-name-rename-field')), findsOneWidget);
 
     // Type something but press cancel button
-    await tester.enterText(
-      find.byKey(const ValueKey('session-name-rename-field')),
-      'Discarded Edit',
-    );
+    await tester.enterText(find.byKey(const ValueKey('session-name-rename-field')), 'Discarded Edit');
     await tester.tap(find.byKey(const ValueKey('session-name-rename-cancel')));
     await tester.pumpAndSettle();
 
@@ -271,9 +215,7 @@ void main() {
           sessionStateFamily('session_keys').overrideWith((ref) => notifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_keys')),
         ),
       ),
@@ -283,10 +225,7 @@ void main() {
     // Focus the title through its key observer, then press F2.
     final title = find.byKey(const ValueKey('session-name-title'));
     final observer = Focus.of(tester.element(title));
-    (observer.canRequestFocus
-            ? observer
-            : observer.descendants.firstWhere((n) => n.canRequestFocus))
-        .requestFocus();
+    (observer.canRequestFocus ? observer : observer.descendants.firstWhere((n) => n.canRequestFocus)).requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.f2);
     await tester.pumpAndSettle();
@@ -295,12 +234,8 @@ void main() {
     // Cancel, refocus and rename with Enter instead.
     await tester.tap(find.byKey(const ValueKey('session-name-rename-cancel')));
     await tester.pumpAndSettle();
-    final observerAgain = Focus.of(
-      tester.element(find.byKey(const ValueKey('session-name-title'))),
-    );
-    (observerAgain.canRequestFocus
-            ? observerAgain
-            : observerAgain.descendants.firstWhere((n) => n.canRequestFocus))
+    final observerAgain = Focus.of(tester.element(find.byKey(const ValueKey('session-name-title'))));
+    (observerAgain.canRequestFocus ? observerAgain : observerAgain.descendants.firstWhere((n) => n.canRequestFocus))
         .requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

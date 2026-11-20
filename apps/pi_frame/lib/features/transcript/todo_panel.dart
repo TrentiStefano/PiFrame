@@ -51,9 +51,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
   @override
   void initState() {
     super.initState();
-    _activeFilterTaskIds = widget.filterTaskIds != null
-        ? Set<int>.from(widget.filterTaskIds!)
-        : null;
+    _activeFilterTaskIds = widget.filterTaskIds != null ? Set<int>.from(widget.filterTaskIds!) : null;
   }
 
   @override
@@ -61,9 +59,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     super.didUpdateWidget(oldWidget);
     if (widget.filterTaskIds != oldWidget.filterTaskIds) {
       setState(() {
-        _activeFilterTaskIds = widget.filterTaskIds != null
-            ? Set<int>.from(widget.filterTaskIds!)
-            : null;
+        _activeFilterTaskIds = widget.filterTaskIds != null ? Set<int>.from(widget.filterTaskIds!) : null;
       });
     }
   }
@@ -119,28 +115,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
     final percent = totalCount > 0 ? (completedCount / totalCount) : 0.0;
     final isMobile = MediaQuery.sizeOf(context).width < 600;
 
-    final visibleTodos =
-        (_activeFilterTaskIds != null && _activeFilterTaskIds!.isNotEmpty)
+    final visibleTodos = (_activeFilterTaskIds != null && _activeFilterTaskIds!.isNotEmpty)
         ? todos.where((t) => _activeFilterTaskIds!.contains(t.id)).toList()
         : todos;
     final isFiltered =
-        _activeFilterTaskIds != null &&
-        _activeFilterTaskIds!.isNotEmpty &&
-        visibleTodos.length < todos.length;
+        _activeFilterTaskIds != null && _activeFilterTaskIds!.isNotEmpty && visibleTodos.length < todos.length;
 
     final embedded = widget.embedded;
     final panelContent = _isExpanded || embedded
         ? Container(
             key: const ValueKey('todo-popdown-panel'),
             width: double.infinity,
-            margin: embedded
-                ? EdgeInsets.zero
-                : EdgeInsets.fromLTRB(
-                    isMobile ? 12 : 8,
-                    0,
-                    isMobile ? 12 : 8,
-                    6,
-                  ),
+            margin: embedded ? EdgeInsets.zero : EdgeInsets.fromLTRB(isMobile ? 12 : 8, 0, isMobile ? 12 : 8, 6),
             decoration: embedded
                 ? BoxDecoration(color: tokens.surface)
                 : BoxDecoration(
@@ -167,34 +153,19 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
               children: [
                 // Header Bar
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
                     color: embedded ? tokens.surfaceElevated : tokens.surface,
                     borderRadius: embedded
                         ? null
                         : widget.hideBookTab
-                        ? BorderRadius.only(
-                            topRight: Radius.circular(tokens.radiusMd),
-                          )
-                        : BorderRadius.vertical(
-                            top: Radius.circular(tokens.radiusMd),
-                          ),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: tokens.border.withValues(alpha: 0.6),
-                      ),
-                    ),
+                        ? BorderRadius.only(topRight: Radius.circular(tokens.radiusMd))
+                        : BorderRadius.vertical(top: Radius.circular(tokens.radiusMd)),
+                    border: Border(bottom: BorderSide(color: tokens.border.withValues(alpha: 0.6))),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.checklist_rtl_outlined,
-                        size: FrameSize.icon,
-                        color: tokens.accent,
-                      ),
+                      Icon(Icons.checklist_rtl_outlined, size: FrameSize.icon, color: tokens.accent),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -211,34 +182,20 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                           decoration: BoxDecoration(
-                            color:
-                                (percent >= 1.0
-                                        ? tokens.success
-                                        : tokens.accent)
-                                    .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusSm,
-                            ),
+                            color: (percent >= 1.0 ? tokens.success : tokens.accent).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                           ),
                           child: Text(
                             // The narrow side panel shows just the fraction.
                             embedded
                                 ? '$completedCount/$totalCount'
-                                : strings.todoCompletedCount(
-                                    completedCount,
-                                    totalCount,
-                                  ),
+                                : strings.todoCompletedCount(completedCount, totalCount),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: percent >= 1.0
-                                  ? tokens.success
-                                  : tokens.accent,
+                              color: percent >= 1.0 ? tokens.success : tokens.accent,
                               fontSize: FrameText.of(context).caption.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
@@ -249,17 +206,10 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1.5,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                             decoration: BoxDecoration(
-                              color: tokens.agentWorking.withValues(
-                                alpha: 0.15,
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                tokens.radiusSm,
-                              ),
+                              color: tokens.agentWorking.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
                             ),
                             child: Text(
                               strings.todoInProgressCount(inProgressCount),
@@ -267,9 +217,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: tokens.agentWorking,
-                                fontSize: FrameText.of(context)
-                                    .caption
-                                    .fontSize,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -284,14 +232,9 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                           tooltip: strings.todoHideTasksTooltip,
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 26,
-                            minHeight: 26,
-                          ),
+                          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                           icon: Icon(
-                            embedded
-                                ? Icons.chevron_right_outlined
-                                : Icons.keyboard_arrow_up_outlined,
+                            embedded ? Icons.chevron_right_outlined : Icons.keyboard_arrow_up_outlined,
                             size: FrameSize.icon,
                             color: tokens.textMuted,
                           ),
@@ -304,25 +247,14 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 // Filter banner if showing only newly added tasks
                 if (isFiltered)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
                       color: tokens.accent.withValues(alpha: 0.08),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: tokens.border.withValues(alpha: 0.5),
-                        ),
-                      ),
+                      border: Border(bottom: BorderSide(color: tokens.border.withValues(alpha: 0.5))),
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.auto_awesome,
-                          size: 12,
-                          color: tokens.accent,
-                        ),
+                        Icon(Icons.auto_awesome, size: 12, color: tokens.accent),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -336,20 +268,14 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         ),
                         InkWell(
                           key: const ValueKey('todo-show-all-filter-btn'),
-                          onTap: () =>
-                              setState(() => _activeFilterTaskIds = null),
+                          onTap: () => setState(() => _activeFilterTaskIds = null),
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                             child: Text(
                               strings.todoShowAllTasks(todos.length),
                               style: TextStyle(
-                                fontSize: FrameText.of(context)
-                                    .caption
-                                    .fontSize,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 color: tokens.accent,
                                 fontWeight: FontWeight.bold,
                                 decoration: TextDecoration.underline,
@@ -368,10 +294,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     child: Center(
                       child: Text(
                         strings.todoNoTasksYet,
-                        style: TextStyle(
-                          color: tokens.textMuted,
-                          fontSize: FrameText.of(context).caption.fontSize,
-                        ),
+                        style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                       ),
                     ),
                   )
@@ -380,31 +303,20 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                     embedded: embedded,
                     child: ListView.separated(
                       shrinkWrap: !embedded,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       itemCount: visibleTodos.length,
-                      separatorBuilder: (ctx, i) => Divider(
-                        color: tokens.border.withValues(alpha: 0.35),
-                        height: 1,
-                      ),
+                      separatorBuilder: (ctx, i) => Divider(color: tokens.border.withValues(alpha: 0.35), height: 1),
                       itemBuilder: (ctx, index) {
                         final task = visibleTodos[index];
                         final isExpanded = _expandedTaskIds.contains(task.id);
-                        final hasDescription =
-                            task.description != null &&
-                            task.description!.trim().isNotEmpty;
+                        final hasDescription = task.description != null && task.description!.trim().isNotEmpty;
 
                         return InkWell(
                           key: ValueKey('todo-item-row-${task.id}'),
                           onTap: () => _toggleTaskExpanded(task.id),
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 4,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               mainAxisSize: MainAxisSize.min,
@@ -417,22 +329,16 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                       width: 22,
                                       height: 22,
                                       child: Checkbox(
-                                        key: ValueKey(
-                                          'todo-checkbox-${task.id}',
-                                        ),
+                                        key: ValueKey('todo-checkbox-${task.id}'),
                                         value: task.isCompleted,
                                         activeColor: tokens.accent,
                                         checkColor: tokens.surface,
                                         side: BorderSide(
-                                          color: task.isCompleted
-                                              ? tokens.accent
-                                              : tokens.borderStrong,
+                                          color: task.isCompleted ? tokens.accent : tokens.borderStrong,
                                           width: 1.4,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusSm,
-                                          ),
+                                          borderRadius: BorderRadius.circular(tokens.radiusSm),
                                         ),
                                         onChanged: (val) {
                                           notifier.toggleStatus(task.id);
@@ -445,45 +351,27 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                     Expanded(
                                       child: task.isInProgress
                                           ? FrameTextShimmer(
-                                              key: ValueKey<String>(
-                                                'todo-shimmer-${task.id}',
-                                              ),
-                                              text: task.subject.endsWith('...')
-                                                  ? task.subject
-                                                  : '${task.subject}...',
+                                              key: ValueKey<String>('todo-shimmer-${task.id}'),
+                                              text: task.subject.endsWith('...') ? task.subject : '${task.subject}...',
                                               baseColor: tokens.textMuted,
-                                              highlightColor:
-                                                  tokens.textPrimary,
+                                              highlightColor: tokens.textPrimary,
                                               maxLines: isExpanded ? null : 1,
-                                              overflow: isExpanded
-                                                  ? null
-                                                  : TextOverflow.ellipsis,
+                                              overflow: isExpanded ? null : TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: FrameText.of(context)
-                                                    .label
-                                                    .fontSize,
+                                                fontSize: FrameText.of(context).label.fontSize,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             )
                                           : Text(
                                               task.subject,
                                               maxLines: isExpanded ? null : 1,
-                                              overflow: isExpanded
-                                                  ? null
-                                                  : TextOverflow.ellipsis,
+                                              overflow: isExpanded ? null : TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                color: task.isCompleted
-                                                    ? tokens.textMuted
-                                                    : tokens.textSecondary,
-                                                fontSize: FrameText.of(context)
-                                                    .label
-                                                    .fontSize,
+                                                color: task.isCompleted ? tokens.textMuted : tokens.textSecondary,
+                                                fontSize: FrameText.of(context).label.fontSize,
                                                 fontWeight: FontWeight.w500,
-                                                decoration: task.isCompleted
-                                                    ? TextDecoration.lineThrough
-                                                    : null,
-                                                decorationColor:
-                                                    tokens.textMuted,
+                                                decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                                                decorationColor: tokens.textMuted,
                                               ),
                                             ),
                                     ),
@@ -497,9 +385,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                       size: FrameSize.icon,
                                       color: hasDescription
                                           ? tokens.textSecondary
-                                          : tokens.textMuted.withValues(
-                                              alpha: 0.4,
-                                            ),
+                                          : tokens.textMuted.withValues(alpha: 0.4),
                                     ),
                                   ],
                                 ),
@@ -508,36 +394,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                 if (isExpanded) ...[
                                   const SizedBox(height: 4),
                                   Container(
-                                    margin: const EdgeInsets.only(
-                                      left: 30,
-                                      right: 4,
-                                      bottom: 4,
-                                    ),
+                                    margin: const EdgeInsets.only(left: 30, right: 4, bottom: 4),
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: tokens.background.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      border: Border.all(
-                                        color: tokens.border.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
+                                      color: tokens.background.withValues(alpha: 0.7),
+                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                      border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
                                     ),
                                     child: Text(
-                                      hasDescription
-                                          ? task.description!
-                                          : strings.todoNoDetailedDescription,
+                                      hasDescription ? task.description! : strings.todoNoDetailedDescription,
                                       style: TextStyle(
-                                        color: hasDescription
-                                            ? tokens.textSecondary
-                                            : tokens.textMuted,
-                                        fontSize: FrameText.of(context)
-                                            .caption
-                                            .fontSize,
+                                        color: hasDescription ? tokens.textSecondary : tokens.textMuted,
+                                        fontSize: FrameText.of(context).caption.fontSize,
                                         height: 1.4,
                                       ),
                                     ),
@@ -554,25 +422,16 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                 // Bottom "Add task" section
                 Container(
                   decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: tokens.border.withValues(alpha: 0.35),
-                      ),
-                    ),
+                    border: Border(top: BorderSide(color: tokens.border.withValues(alpha: 0.35))),
                   ),
                   child: _isAdding
                       ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: tokens.background,
                             borderRadius: embedded
                                 ? null
-                                : BorderRadius.vertical(
-                                    bottom: Radius.circular(tokens.radiusMd),
-                                  ),
+                                : BorderRadius.vertical(bottom: Radius.circular(tokens.radiusMd)),
                           ),
                           child: Row(
                             children: [
@@ -584,21 +443,15 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                   onSubmitted: (_) => _submitNewTask(),
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize: FrameText.of(context)
-                                        .label
-                                        .fontSize,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                   ),
                                   decoration: InputDecoration(
                                     isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
                                     hintText: strings.todoAddTaskHint,
                                     hintStyle: TextStyle(
                                       color: tokens.textMuted,
-                                      fontSize: FrameText.of(context)
-                                          .caption
-                                          .fontSize,
+                                      fontSize: FrameText.of(context).caption.fontSize,
                                     ),
                                     border: InputBorder.none,
                                   ),
@@ -608,15 +461,8 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                 tooltip: strings.todoCancelTooltip,
                                 visualDensity: VisualDensity.compact,
                                 padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 26,
-                                  minHeight: 26,
-                                ),
-                                icon: Icon(
-                                  Icons.close_outlined,
-                                  size: FrameSize.icon,
-                                  color: tokens.textMuted,
-                                ),
+                                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                icon: Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.textMuted),
                                 onPressed: () {
                                   _addController.clear();
                                   setState(() => _isAdding = false);
@@ -629,19 +475,12 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                   key: const ValueKey('todo-add-task-submit'),
                                   style: FilledButton.styleFrom(
                                     visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   ),
                                   onPressed: _submitNewTask,
                                   child: Text(
                                     strings.todoAddButton,
-                                    style: TextStyle(
-                                      fontSize: FrameText.of(context)
-                                          .caption
-                                          .fontSize,
-                                    ),
+                                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize),
                                   ),
                                 ),
                               ),
@@ -653,29 +492,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                           onTap: () => setState(() => _isAdding = true),
                           borderRadius: embedded
                               ? null
-                              : BorderRadius.vertical(
-                                  bottom: Radius.circular(tokens.radiusMd),
-                                ),
+                              : BorderRadius.vertical(bottom: Radius.circular(tokens.radiusMd)),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 7,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.add_rounded,
-                                  size: FrameSize.iconLg,
-                                  color: tokens.textSecondary,
-                                ),
+                                Icon(Icons.add_rounded, size: FrameSize.iconLg, color: tokens.textSecondary),
                                 const SizedBox(width: 6),
                                 Text(
                                   strings.todoAddTaskTooltip,
                                   style: TextStyle(
                                     color: tokens.textSecondary,
-                                    fontSize: FrameText.of(context)
-                                        .label
-                                        .fontSize,
+                                    fontSize: FrameText.of(context).label.fontSize,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -690,11 +518,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
         : (widget.hideBookTab
               ? const SizedBox.shrink()
               : Container(
-                  margin: EdgeInsets.only(
-                    left: isMobile ? 16 : 14,
-                    right: isMobile ? 16 : 14,
-                    bottom: 4,
-                  ),
+                  margin: EdgeInsets.only(left: isMobile ? 16 : 14, right: isMobile ? 16 : 14, bottom: 4),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -703,40 +527,22 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                         height: 2.5,
                         decoration: BoxDecoration(
                           color: tokens.accent.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(
-                            context.tokens.radiusSm,
-                          ),
+                          borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                         ),
                       ),
                       InkWell(
                         key: const ValueKey('todo-peek-tab'),
                         onTap: _handleToggle,
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(6),
-                        ),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2.5,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                           decoration: BoxDecoration(
                             color: tokens.surfaceElevated,
-                            borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(6),
-                            ),
+                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(6)),
                             border: Border(
-                              left: BorderSide(
-                                color: tokens.borderStrong,
-                                width: 1,
-                              ),
-                              right: BorderSide(
-                                color: tokens.borderStrong,
-                                width: 1,
-                              ),
-                              bottom: BorderSide(
-                                color: tokens.borderStrong,
-                                width: 1,
-                              ),
+                              left: BorderSide(color: tokens.borderStrong, width: 1),
+                              right: BorderSide(color: tokens.borderStrong, width: 1),
+                              bottom: BorderSide(color: tokens.borderStrong, width: 1),
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -749,28 +555,18 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.checklist_rtl_outlined,
-                                size: 11,
-                                color: tokens.accent,
-                              ),
+                              Icon(Icons.checklist_rtl_outlined, size: 11, color: tokens.accent),
                               const SizedBox(width: 4),
                               Text(
                                 strings.todoPeekTab(completedCount, totalCount),
                                 style: TextStyle(
                                   color: tokens.textSecondary,
-                                  fontSize: FrameText.of(context)
-                                      .caption
-                                      .fontSize,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(width: 2),
-                              Icon(
-                                Icons.keyboard_arrow_down_outlined,
-                                size: 12,
-                                color: tokens.textMuted,
-                              ),
+                              Icon(Icons.keyboard_arrow_down_outlined, size: 12, color: tokens.textMuted),
                             ],
                           ),
                         ),
@@ -795,8 +591,5 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
   /// Embedded, the list fills the tab; as a popup it stays at most 220 px.
   Widget _listSlot({required bool embedded, required Widget child}) => embedded
       ? Expanded(child: child)
-      : ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 220),
-          child: child,
-        );
+      : ConstrainedBox(constraints: const BoxConstraints(maxHeight: 220), child: child);
 }

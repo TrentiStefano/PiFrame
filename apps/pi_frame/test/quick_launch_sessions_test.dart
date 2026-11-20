@@ -18,16 +18,11 @@ class _MockPcpClient extends PcpClient {
   Stream<PcpSnapshot> snapshots(String sessionId) => const Stream.empty();
 
   @override
-  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {
-        'status': 'ok',
-        'data': {},
-      };
+  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {'status': 'ok', 'data': {}};
 }
 
 void main() {
-  testWidgets('Quick Launch labels use all sessions, not only the latest five', (
-    tester,
-  ) async {
+  testWidgets('Quick Launch labels use all sessions, not only the latest five', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -36,22 +31,17 @@ void main() {
       ProviderScope(
         overrides: [
           pcpClientProvider.overrideWithValue(null),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
           sessionListProvider.overrideWith(
             (ref) async => [
               {'id': 'one', 'name': 'PiFrame', 'cwd': '/v1/PiFrame', 'updatedAt': 100},
-              for (var i = 0; i < 4; i++)
-                {'id': 'other-$i', 'name': 'Other $i', 'updatedAt': 90 - i},
+              for (var i = 0; i < 4; i++) {'id': 'other-$i', 'name': 'Other $i', 'updatedAt': 90 - i},
               {'id': 'two', 'name': 'PiFrame', 'cwd': '/v2/PiFrame', 'updatedAt': 1},
             ],
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const AppShell(),
         ),
       ),
@@ -64,9 +54,7 @@ void main() {
     expect(find.text('PiFrame'), findsNothing);
   });
 
-  testWidgets('Landing page displays top 5 recent active sessions and switches session on tap', (
-    tester,
-  ) async {
+  testWidgets('Landing page displays top 5 recent active sessions and switches session on tap', (tester) async {
     tester.view.physicalSize = const Size(1280, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -74,18 +62,8 @@ void main() {
 
     final mockClient = _MockPcpClient();
     final testSessions = [
-      {
-        'id': 'session-1',
-        'name': 'Refactor Core Engine',
-        'cwd': '/projects/pi-core',
-        'updatedAt': 1700000000500,
-      },
-      {
-        'id': 'session-2',
-        'name': 'Fix Flutter UI Bug',
-        'cwd': '/projects/pi-crust',
-        'updatedAt': 1700000000400,
-      },
+      {'id': 'session-1', 'name': 'Refactor Core Engine', 'cwd': '/projects/pi-core', 'updatedAt': 1700000000500},
+      {'id': 'session-2', 'name': 'Fix Flutter UI Bug', 'cwd': '/projects/pi-crust', 'updatedAt': 1700000000400},
       {
         'id': 'subagent-worker-1',
         'name': 'worker#1 subagent',
@@ -93,38 +71,16 @@ void main() {
         'isSubsession': true,
         'updatedAt': 1700000000350,
       },
-      {
-        'id': 'session-3',
-        'name': 'Database Migrations',
-        'cwd': '/projects/backend',
-        'updatedAt': 1700000000300,
-      },
-      {
-        'id': 'session-4',
-        'name': 'Documentation Pass',
-        'cwd': '/projects/docs',
-        'updatedAt': 1700000000200,
-      },
-      {
-        'id': 'session-5',
-        'name': 'API Integration',
-        'cwd': '/projects/api',
-        'updatedAt': 1700000000100,
-      },
-      {
-        'id': 'session-6',
-        'name': 'Older Session',
-        'cwd': '/projects/old',
-        'updatedAt': 1700000000050,
-      },
+      {'id': 'session-3', 'name': 'Database Migrations', 'cwd': '/projects/backend', 'updatedAt': 1700000000300},
+      {'id': 'session-4', 'name': 'Documentation Pass', 'cwd': '/projects/docs', 'updatedAt': 1700000000200},
+      {'id': 'session-5', 'name': 'API Integration', 'cwd': '/projects/api', 'updatedAt': 1700000000100},
+      {'id': 'session-6', 'name': 'Older Session', 'cwd': '/projects/old', 'updatedAt': 1700000000050},
     ];
 
     final container = ProviderContainer(
       overrides: [
         pcpClientProvider.overrideWithValue(mockClient),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionListProvider.overrideWith((ref) => Future.value(testSessions)),
         themeStorageProvider.overrideWithValue(MemoryThemeStorage('piframe-dark')),
       ],

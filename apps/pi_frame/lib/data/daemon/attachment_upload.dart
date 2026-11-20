@@ -14,12 +14,7 @@ class UploadedBlob {
   final String path;
   final int size;
 
-  const UploadedBlob({
-    required this.blobId,
-    required this.name,
-    required this.path,
-    required this.size,
-  });
+  const UploadedBlob({required this.blobId, required this.name, required this.path, required this.size});
 }
 
 class AttachmentUploadException implements Exception {
@@ -59,8 +54,7 @@ String guessMimeType(String fileName, {String? declared}) {
 final RegExp _blobPathRegex = RegExp(r'[\\/]blobs[\\/](blob_[a-f0-9]{32})[\\/]');
 
 /// Returns the blob id when [pathOrUrl] points into the daemon blob store, else null.
-String? blobIdFromPath(String pathOrUrl) =>
-    _blobPathRegex.firstMatch(pathOrUrl)?.group(1);
+String? blobIdFromPath(String pathOrUrl) => _blobPathRegex.firstMatch(pathOrUrl)?.group(1);
 
 /// Uploads [bytes] to the daemon (`POST /api/blobs`) of the origin the web app was loaded from.
 /// Only meaningful in the browser: desktop clients reference local paths directly.
@@ -81,8 +75,7 @@ Future<UploadedBlob> uploadAttachmentBytes({
           headers: {
             'Content-Type': guessMimeType(name, declared: mimeType),
             'X-File-Name': Uri.encodeComponent(name),
-            if (token != null && token.isNotEmpty)
-              'Authorization': 'Bearer $token',
+            if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
           },
           body: bytes,
         )
@@ -97,8 +90,7 @@ Future<UploadedBlob> uploadAttachmentBytes({
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw AttachmentUploadException(
         body['error']?.toString() ?? 'Upload failed (HTTP ${response.statusCode})',
-        code: body['code']?.toString() ??
-            (response.statusCode == 413 ? 'TOO_LARGE' : null),
+        code: body['code']?.toString() ?? (response.statusCode == 413 ? 'TOO_LARGE' : null),
       );
     }
     final path = body['path']?.toString();

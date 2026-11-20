@@ -4,10 +4,7 @@ import 'package:pi_frame/domain/session/context_pricing_helper.dart';
 void main() {
   group('ContextPricingHelper', () {
     test('identifies variable context models correctly', () {
-      expect(
-        hasVariableContextPricing({'id': 'anthropic/claude-3-haiku-20240307'}),
-        isTrue,
-      );
+      expect(hasVariableContextPricing({'id': 'anthropic/claude-3-haiku-20240307'}), isTrue);
       expect(hasVariableContextPricing({'id': 'claude-haiku-4'}), isTrue);
       expect(hasVariableContextPricing({'name': 'Luna 1.5 Pro'}), isTrue);
       expect(hasVariableContextPricing({'id': 'gpt-4o'}), isFalse);
@@ -25,20 +22,23 @@ void main() {
     });
 
     test('returns correct context sizes for variable context models', () {
-      final haikuSizes = getVariableContextSizes({
-        'id': 'claude-3-haiku',
-        'contextWindow': 200000,
-      });
+      final haikuSizes = getVariableContextSizes({'id': 'claude-3-haiku', 'contextWindow': 200000});
       expect(haikuSizes, containsAll([100000, 200000]));
 
-      expect(getVariableContextSizes({
-        'id': 'gpt-6-luna', 'contextWindow': 1000000,
-      }), [272000, 1000000]);
+      expect(getVariableContextSizes({'id': 'gpt-6-luna', 'contextWindow': 1000000}), [272000, 1000000]);
       // Authoritative pricing metadata takes precedence over the fallback.
-      expect(getVariableContextSizes({
-        'id': 'gpt-6-luna', 'contextWindow': 1000000,
-        'cost': {'tiers': [{'inputTokensAbove': 300000}]},
-      }), [300000, 1000000]);
+      expect(
+        getVariableContextSizes({
+          'id': 'gpt-6-luna',
+          'contextWindow': 1000000,
+          'cost': {
+            'tiers': [
+              {'inputTokensAbove': 300000},
+            ],
+          },
+        }),
+        [300000, 1000000],
+      );
 
       final tieredSizes = getVariableContextSizes({
         'id': 'custom',
@@ -66,17 +66,14 @@ void main() {
       expect(getVariableContextSizes({'id': 'claude-haiku'}), isEmpty);
     });
 
-    test(
-      'validates context maximum and calculates unused compaction margin',
-      () {
-        expect(isValidContextWindowLimit(200000, 200000), isTrue);
-        expect(isValidContextWindowLimit(200001, 200000), isFalse);
-        expect(isValidContextWindowLimit(0, 200000), isFalse);
-        expect(isValidContextWindowLimit(1000, null), isFalse);
-        expect(usableContextWindow(200000, 2.5), 195000);
-        expect(usableContextWindow(1000000, 5), 950000);
-      },
-    );
+    test('validates context maximum and calculates unused compaction margin', () {
+      expect(isValidContextWindowLimit(200000, 200000), isTrue);
+      expect(isValidContextWindowLimit(200001, 200000), isFalse);
+      expect(isValidContextWindowLimit(0, 200000), isFalse);
+      expect(isValidContextWindowLimit(1000, null), isFalse);
+      expect(usableContextWindow(200000, 2.5), 195000);
+      expect(usableContextWindow(1000000, 5), 950000);
+    });
 
     test('formats tokens and context sizes accurately', () {
       expect(formatTokens(128000), '128k');

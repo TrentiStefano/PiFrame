@@ -61,9 +61,7 @@ class WindowStateService {
 
   WindowManager get _windowManager => _windowManagerForTesting ?? windowManager;
   bool get _canUseWindowManager =>
-      !kIsWeb &&
-      (!Platform.environment.containsKey('FLUTTER_TEST') ||
-          _windowManagerForTesting != null);
+      !kIsWeb && (!Platform.environment.containsKey('FLUTTER_TEST') || _windowManagerForTesting != null);
 
   @visibleForTesting
   void setStorageFileForTesting(File? file) {
@@ -89,9 +87,7 @@ class WindowStateService {
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);

@@ -11,8 +11,7 @@ Widget _host(Widget child, {double textScale = 1, double width = 400}) {
   return MaterialApp(
     theme: ThemeData(extensions: const [FrameTokens.dark]),
     builder: (context, app) => MediaQuery(
-      data: MediaQuery.of(context)
-          .copyWith(textScaler: TextScaler.linear(textScale)),
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
       child: app!,
     ),
     home: Scaffold(
@@ -26,59 +25,33 @@ Widget _host(Widget child, {double textScale = 1, double width = 400}) {
 
 void main() {
   testWidgets('min height is 40 and grows with text scale 1.4', (tester) async {
-    await tester.pumpWidget(
-      _host(
-        const FramePaneHeader(key: _headerKey, title: 'Sessioni'),
-        textScale: 1.4,
-      ),
-    );
+    await tester.pumpWidget(_host(const FramePaneHeader(key: _headerKey, title: 'Sessioni'), textScale: 1.4));
     final height = tester.getSize(find.byKey(_headerKey)).height;
     expect(height >= FrameSize.paneHeader, isTrue, reason: 'height $height');
   });
 
-  testWidgets('title uses the pane-heading family and no card is drawn', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _host(const FramePaneHeader(key: _headerKey, title: 'Sessioni')),
-    );
+  testWidgets('title uses the pane-heading family and no card is drawn', (tester) async {
+    await tester.pumpWidget(_host(const FramePaneHeader(key: _headerKey, title: 'Sessioni')));
 
     final title = tester.widget<Text>(find.text('Sessioni'));
     expect(title.style?.fontFamily, FrameTokens.dark.headingFontFamily);
     expect(find.byType(Card), findsNothing);
   });
 
-  testWidgets('subtitle path is middle-truncated with a tooltip', (
-    tester,
-  ) async {
+  testWidgets('subtitle path is middle-truncated with a tooltip', (tester) async {
     const path = r'C:\Repos\PiFrame\wt-p2-widgets-a\apps\pi_frame\lib';
-    await tester.pumpWidget(
-      _host(
-        const FramePaneHeader(key: _headerKey, title: 'Git', subtitle: path),
-        width: 180,
-      ),
-    );
+    await tester.pumpWidget(_host(const FramePaneHeader(key: _headerKey, title: 'Git', subtitle: path), width: 180));
 
     expect(find.byType(Tooltip), findsOneWidget);
     expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, path);
   });
 
   testWidgets('short subtitle has no tooltip', (tester) async {
-    await tester.pumpWidget(
-      _host(
-        const FramePaneHeader(
-          key: _headerKey,
-          title: 'Git',
-          subtitle: r'lib\main.dart',
-        ),
-      ),
-    );
+    await tester.pumpWidget(_host(const FramePaneHeader(key: _headerKey, title: 'Git', subtitle: r'lib\main.dart')));
     expect(find.byType(Tooltip), findsNothing);
   });
 
-  testWidgets('trailing actions and the tab strip slot are rendered', (
-    tester,
-  ) async {
+  testWidgets('trailing actions and the tab strip slot are rendered', (tester) async {
     await tester.pumpWidget(
       _host(
         FramePaneHeader(
@@ -105,9 +78,7 @@ void main() {
     expect(tabsTop > headerTop + FrameSize.paneHeader - 1, isTrue);
   });
 
-  testWidgets('titleWidget replaces the title text and keeps the header height', (
-    tester,
-  ) async {
+  testWidgets('titleWidget replaces the title text and keeps the header height', (tester) async {
     await tester.pumpWidget(
       _host(
         const FramePaneHeader(
@@ -125,9 +96,7 @@ void main() {
   });
 
   testWidgets('without titleWidget the title text is used', (tester) async {
-    await tester.pumpWidget(
-      _host(const FramePaneHeader(key: _headerKey, title: 'Sessioni')),
-    );
+    await tester.pumpWidget(_host(const FramePaneHeader(key: _headerKey, title: 'Sessioni')));
     expect(find.text('Sessioni'), findsOneWidget);
   });
 }

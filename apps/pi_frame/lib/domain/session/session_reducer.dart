@@ -10,24 +10,24 @@ List<SessionEntry> _mergeRecordedTools(
   int? settledAt,
 }) {
   return entries.map((entry) {
-    if (!entry.toolCalls.any((tool) =>
-        tool.toolCallId.isNotEmpty && activeTools.containsKey(tool.toolCallId))) {
+    if (!entry.toolCalls.any((tool) => tool.toolCallId.isNotEmpty && activeTools.containsKey(tool.toolCallId))) {
       return entry;
     }
-    return entry.copyWith(toolCalls: entry.toolCalls.map((tool) {
-      final active = tool.toolCallId.isEmpty ? null : activeTools[tool.toolCallId];
-      if (active == null) return tool;
-      return tool.copyWith(
-        output: active.output.isEmpty ? tool.output : active.output,
-        isRunning: settledAt == null && active.isRunning,
-        isError: active.isError || tool.isError,
-        durationMs: (settledAt != null && active.isRunning
-                ? active.elapsedMsAt(settledAt)
-                : active.durationMs) ??
-            tool.durationMs,
-        startedAt: active.startedAt,
-      );
-    }).toList());
+    return entry.copyWith(
+      toolCalls: entry.toolCalls.map((tool) {
+        final active = tool.toolCallId.isEmpty ? null : activeTools[tool.toolCallId];
+        if (active == null) return tool;
+        return tool.copyWith(
+          output: active.output.isEmpty ? tool.output : active.output,
+          isRunning: settledAt == null && active.isRunning,
+          isError: active.isError || tool.isError,
+          durationMs:
+              (settledAt != null && active.isRunning ? active.elapsedMsAt(settledAt) : active.durationMs) ??
+              tool.durationMs,
+          startedAt: active.startedAt,
+        );
+      }).toList(),
+    );
   }).toList();
 }
 
@@ -37,9 +37,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     return current;
   }
 
-  final nextSeq = event.seq > current.lastAppliedSeq
-      ? event.seq
-      : current.lastAppliedSeq;
+  final nextSeq = event.seq > current.lastAppliedSeq ? event.seq : current.lastAppliedSeq;
 
   switch (event) {
     case SessionStatusEvent(:final status):
@@ -71,9 +69,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
       if (newStatus == AgentStatus.settled) {
         final updatedTools = current.activeToolCalls.map(
-          (k, v) => MapEntry(k, v.isRunning
-              ? v.copyWith(isRunning: false, durationMs: v.elapsedMsAt(event.ts))
-              : v),
+          (k, v) => MapEntry(k, v.isRunning ? v.copyWith(isRunning: false, durationMs: v.elapsedMsAt(event.ts)) : v),
         );
         return current.copyWith(
           agentStatus: AgentStatus.settled,
@@ -85,10 +81,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         );
       }
 
-      return current.copyWith(
-        agentStatus: newStatus,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(agentStatus: newStatus, lastAppliedSeq: nextSeq);
 
     case RunStartedEvent():
       return current.copyWith(
@@ -102,44 +95,34 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         agentStatus: willRetry
             ? AgentStatus.retrying
             : (current.activeToolCalls.values.any((t) => t.isRunning) ||
-                    current.streamingTextBlocks.isNotEmpty ||
-                    current.streamingThinkingBlocks.isNotEmpty
-                ? current.agentStatus
-                : AgentStatus.settled),
+                      current.streamingTextBlocks.isNotEmpty ||
+                      current.streamingThinkingBlocks.isNotEmpty
+                  ? current.agentStatus
+                  : AgentStatus.settled),
         lastAppliedSeq: nextSeq,
       );
 
     case TurnEndedEvent():
-      return current.copyWith(
-        streamingTextBlocks: const {},
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(streamingTextBlocks: const {}, lastAppliedSeq: nextSeq);
 
     case RunSettledEvent():
-      var updatedEntries = _mergeRecordedTools(
-        current.entries, current.activeToolCalls, settledAt: event.ts,
-      );
+      var updatedEntries = _mergeRecordedTools(current.entries, current.activeToolCalls, settledAt: event.ts);
       final recordedIds = {
         for (final entry in updatedEntries)
           for (final tool in entry.toolCalls)
             if (tool.toolCallId.isNotEmpty) tool.toolCallId,
       };
-      final unrecordedTools = current.activeToolCalls.values
-          .where((tool) => !recordedIds.contains(tool.toolCallId));
+      final unrecordedTools = current.activeToolCalls.values.where((tool) => !recordedIds.contains(tool.toolCallId));
       final liveThinking = current.currentStreamingThinking.trim();
       final liveText = current.currentStreamingText.trim();
       if (unrecordedTools.isNotEmpty ||
           liveThinking.isNotEmpty ||
-          (liveText.isNotEmpty &&
-              !isInternalOrJunkMessageText(current.currentStreamingText))) {
-        if (updatedEntries.isNotEmpty &&
-            updatedEntries.last.role == 'assistant') {
+          (liveText.isNotEmpty && !isInternalOrJunkMessageText(current.currentStreamingText))) {
+        if (updatedEntries.isNotEmpty && updatedEntries.last.role == 'assistant') {
           final last = updatedEntries.last;
           final mergedTools = List<ToolExecutionState>.from(last.toolCalls);
           for (final t in unrecordedTools) {
-            final completedT = t.isRunning
-                ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
-                : t;
+            final completedT = t.isRunning ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts)) : t;
             final index = mergedTools.indexWhere((e) => e.toolCallId == t.toolCallId);
             if (index < 0) {
               mergedTools.add(completedT);
@@ -149,41 +132,34 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           }
           final newThinking = liveThinking.isNotEmpty ? liveThinking : null;
           final lastThinking = last.thinking?.trim();
-          final combinedThinking = lastThinking != null &&
-                  newThinking != null &&
-                  lastThinking != newThinking
+          final combinedThinking = lastThinking != null && newThinking != null && lastThinking != newThinking
               ? '$lastThinking\n\n$newThinking'
               : (lastThinking ?? newThinking);
           final updatedLast = SessionEntry(
             id: last.id,
             role: last.role,
-            text: last.text.isNotEmpty
-                ? last.text
-                : current.currentStreamingText,
+            text: last.text.isNotEmpty ? last.text : current.currentStreamingText,
             thinking: combinedThinking,
             toolCalls: mergedTools,
             timestamp: last.timestamp,
             metadata: last.metadata,
           );
-          updatedEntries = List<SessionEntry>.from(updatedEntries)
-            ..[updatedEntries.length - 1] = updatedLast;
+          updatedEntries = List<SessionEntry>.from(updatedEntries)..[updatedEntries.length - 1] = updatedLast;
         } else {
           updatedEntries = List<SessionEntry>.from(updatedEntries)
-            ..add(SessionEntry(
-              id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-              role: 'assistant',
-              text: current.currentStreamingText,
-              thinking: liveThinking.isNotEmpty ? liveThinking : null,
-              toolCalls: unrecordedTools
-                  .map((t) => t.isRunning
-                      ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts))
-                      : t)
-                  .toList(),
-              timestamp: DateTime.now().millisecondsSinceEpoch,
-              metadata: {
-                if (current.currentModel != null) 'model': current.currentModel,
-              },
-            ));
+            ..add(
+              SessionEntry(
+                id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
+                role: 'assistant',
+                text: current.currentStreamingText,
+                thinking: liveThinking.isNotEmpty ? liveThinking : null,
+                toolCalls: unrecordedTools
+                    .map((t) => t.isRunning ? t.copyWith(isRunning: false, durationMs: t.elapsedMsAt(event.ts)) : t)
+                    .toList(),
+                timestamp: DateTime.now().millisecondsSinceEpoch,
+                metadata: {if (current.currentModel != null) 'model': current.currentModel},
+              ),
+            );
         }
       }
       return current.copyWith(
@@ -199,11 +175,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
     case TextDeltaEvent(:final contentIndex, :final delta):
       final updated = Map<int, String>.from(current.streamingTextBlocks);
       updated[contentIndex] = (updated[contentIndex] ?? '') + delta;
-      return current.copyWith(
-        agentStatus: AgentStatus.working,
-        streamingTextBlocks: updated,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(agentStatus: AgentStatus.working, streamingTextBlocks: updated, lastAppliedSeq: nextSeq);
 
     case ThinkingDeltaEvent(:final contentIndex, :final delta):
       final updated = Map<int, String>.from(current.streamingThinkingBlocks);
@@ -219,8 +191,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       final role = (msg['role'] as String?) ?? 'assistant';
       if (role == 'system' || role == 'toolResult' || role == 'tool') {
         if (role == 'toolResult' || role == 'tool') {
-          final toolCallId =
-              (msg['toolCallId'] ?? msg['tool_call_id'] ?? msg['id'])?.toString();
+          final toolCallId = (msg['toolCallId'] ?? msg['tool_call_id'] ?? msg['id'])?.toString();
           String? output = msg['result']?.toString() ?? msg['output']?.toString();
           if (output == null) {
             if (msg['content'] is String) {
@@ -238,8 +209,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           if (toolCallId != null) {
             final nextOutputs = Map<String, String>.from(current.toolOutputs);
             nextOutputs[toolCallId] = resolvedOutput;
-            final updatedTools =
-                Map<String, ToolExecutionState>.from(current.activeToolCalls);
+            final updatedTools = Map<String, ToolExecutionState>.from(current.activeToolCalls);
             if (updatedTools.containsKey(toolCallId)) {
               final existing = updatedTools[toolCallId]!;
               updatedTools[toolCallId] = existing.copyWith(
@@ -291,12 +261,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           role: 'bashExecution',
           text: output,
           timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-          metadata: {
-            'command': command,
-            'exitCode': exitCode,
-            'cancelled': cancelled,
-            'truncated': truncated,
-          },
+          metadata: {'command': command, 'exitCode': exitCode, 'cancelled': cancelled, 'truncated': truncated},
         );
         return current.copyWith(
           entries: [...current.entries, entry],
@@ -360,11 +325,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           role: 'custom',
           text: text,
           timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-          metadata: {
-            'customType': customType,
-            'display': display,
-            'details': msg['details'],
-          },
+          metadata: {'customType': customType, 'display': display, 'details': msg['details']},
         );
         return current.copyWith(
           entries: [...current.entries, entry],
@@ -397,12 +358,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
             final data = block['data']?.toString() ?? '';
             final mimeType = block['mimeType']?.toString() ?? 'image/png';
             if (data.isNotEmpty) {
-              attachments.add(ChatAttachment(
-                id: 'att_${attachments.length}',
-                name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
-                type: AttachmentType.image,
-                pathOrUrl: 'data:$mimeType;base64,$data',
-              ));
+              attachments.add(
+                ChatAttachment(
+                  id: 'att_${attachments.length}',
+                  name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
+                  type: AttachmentType.image,
+                  pathOrUrl: 'data:$mimeType;base64,$data',
+                ),
+              );
             }
           }
         }
@@ -437,15 +400,10 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       };
       if (msg['content'] is List) {
         for (final b in (msg['content'] as List).whereType<Map>()) {
-          if (b['type'] == 'toolCall' ||
-              b['type'] == 'tool_call' ||
-              b['type'] == 'tool_use') {
-            final callId = (b['id'] ?? b['toolCallId'])?.toString() ??
-                'tc_${turnTools.length}';
+          if (b['type'] == 'toolCall' || b['type'] == 'tool_call' || b['type'] == 'tool_use') {
+            final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? 'tc_${turnTools.length}';
             final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
-            final args = Map<String, dynamic>.from(
-              (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
-            );
+            final args = Map<String, dynamic>.from((b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {});
             if (!turnTools.containsKey(callId)) {
               turnTools[callId] = ToolExecutionState(
                 toolCallId: callId,
@@ -460,12 +418,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
       if (msg['toolCalls'] is List) {
         for (final b in (msg['toolCalls'] as List).whereType<Map>()) {
-          final callId = (b['id'] ?? b['toolCallId'])?.toString() ??
-              'tc_${turnTools.length}';
+          final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? 'tc_${turnTools.length}';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
-          final args = Map<String, dynamic>.from(
-            (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
-          );
+          final args = Map<String, dynamic>.from((b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {});
           if (!turnTools.containsKey(callId)) {
             turnTools[callId] = ToolExecutionState(
               toolCallId: callId,
@@ -480,37 +435,21 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       }
 
       if (isInternalOrJunkMessageText(text)) {
-        return current.copyWith(
-          streamingTextBlocks: const {},
-          lastAppliedSeq: nextSeq,
-        );
+        return current.copyWith(streamingTextBlocks: const {}, lastAppliedSeq: nextSeq);
       }
 
-      if (text.trim().isEmpty &&
-          (thinking == null || thinking.trim().isEmpty) &&
-          turnTools.isEmpty) {
+      if (text.trim().isEmpty && (thinking == null || thinking.trim().isEmpty) && turnTools.isEmpty) {
         // An empty assistant message can still carry how the turn ended
         // (e.g. a provider error). Keep that on the previous assistant entry.
         final terminal = role == 'assistant' ? terminalStopMetadata(msg) : null;
-        final stopped = terminal == null
-            ? null
-            : applyTerminalStop(current.entries, terminal);
+        final stopped = terminal == null ? null : applyTerminalStop(current.entries, terminal);
         if (stopped != null) {
-          return current.copyWith(
-            entries: stopped,
-            streamingTextBlocks: const {},
-            lastAppliedSeq: nextSeq,
-          );
+          return current.copyWith(entries: stopped, streamingTextBlocks: const {}, lastAppliedSeq: nextSeq);
         }
-        return current.copyWith(
-          streamingTextBlocks: const {},
-          lastAppliedSeq: nextSeq,
-        );
+        return current.copyWith(streamingTextBlocks: const {}, lastAppliedSeq: nextSeq);
       }
 
-      final id =
-          (msg['id'] as String?) ??
-          'msg_${DateTime.now().millisecondsSinceEpoch}';
+      final id = (msg['id'] as String?) ?? 'msg_${DateTime.now().millisecondsSinceEpoch}';
 
       final entryModel = msg['model'] ?? msg['modelId'] ?? current.currentModel;
       final entryUsage = msg['usage'];
@@ -520,46 +459,30 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         text: text,
         thinking: thinking,
         toolCalls: turnTools.values.toList(),
-        timestamp:
-            (msg['timestamp'] as num?)?.toInt() ??
-            DateTime.now().millisecondsSinceEpoch,
-        metadata: {
-          'model': ?entryModel,
-          'usage': ?entryUsage,
-          'stopReason': ?msg['stopReason']?.toString(),
-        },
+        timestamp: (msg['timestamp'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+        metadata: {'model': ?entryModel, 'usage': ?entryUsage, 'stopReason': ?msg['stopReason']?.toString()},
       );
 
       final isTaskNotif = text.contains('<task-notification>');
       if (isTaskNotif) {
         final nextEntries = List<SessionEntry>.from(current.entries)..add(entry);
-        return current.copyWith(
-          entries: nextEntries,
-          lastAppliedSeq: nextSeq,
-        );
+        return current.copyWith(entries: nextEntries, lastAppliedSeq: nextSeq);
       }
 
-      final nextEntries = _mergeRecordedTools(
-        current.entries, current.activeToolCalls,
-      );
+      final nextEntries = _mergeRecordedTools(current.entries, current.activeToolCalls);
       if (role == 'user') {
         final optimisticIndex = nextEntries.lastIndexWhere(
-          (existing) =>
-              existing.role == 'user' &&
-              existing.id.startsWith('usr_') &&
-              existing.text == text,
+          (existing) => existing.role == 'user' && existing.id.startsWith('usr_') && existing.text == text,
         );
         if (optimisticIndex >= 0) {
           final existing = nextEntries[optimisticIndex];
-          final optimisticId =
-              (existing.metadata?['optimisticId'] as String?) ?? existing.id;
+          final optimisticId = (existing.metadata?['optimisticId'] as String?) ?? existing.id;
           final mergedMetadata = <String, dynamic>{
             ...?existing.metadata,
             ...?entry.metadata,
             'optimisticId': optimisticId,
           };
-          nextEntries[optimisticIndex] =
-              entry.copyWith(metadata: mergedMetadata);
+          nextEntries[optimisticIndex] = entry.copyWith(metadata: mergedMetadata);
           return current.copyWith(
             entries: nextEntries,
             streamingTextBlocks: const {},
@@ -590,35 +513,24 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case ToolStartedEvent(:final toolCallId, :final toolName, :final args):
-      final nextActive = Map<String, ToolExecutionState>.from(
-        current.activeToolCalls,
-      );
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
       nextActive[toolCallId] = ToolExecutionState(
         toolCallId: toolCallId,
         toolName: toolName,
         args: args,
         isRunning: true,
-        startedAt: current.activeToolCalls[toolCallId]?.startedAt ??
-            (event.payload['startedAt'] as num?)?.toInt() ?? event.ts,
+        startedAt:
+            current.activeToolCalls[toolCallId]?.startedAt ?? (event.payload['startedAt'] as num?)?.toInt() ?? event.ts,
       );
-      return current.copyWith(
-        activeToolCalls: nextActive,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(activeToolCalls: nextActive, lastAppliedSeq: nextSeq);
 
-    case ToolProgressEvent(
-      :final toolCallId,
-      :final toolName,
-      :final partialResult,
-    ):
+    case ToolProgressEvent(:final toolCallId, :final toolName, :final partialResult):
       // Cumulative replacement rule: partialResult is NOT a delta
       final outputStr = partialResult?.toString() ?? '';
       final nextOutputs = Map<String, String>.from(current.toolOutputs);
       nextOutputs[toolCallId] = outputStr;
 
-      final nextActive = Map<String, ToolExecutionState>.from(
-        current.activeToolCalls,
-      );
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
       final existing = nextActive[toolCallId];
       if (existing != null) {
         nextActive[toolCallId] = existing.copyWith(output: outputStr);
@@ -631,26 +543,14 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         );
       }
 
-      return current.copyWith(
-        activeToolCalls: nextActive,
-        toolOutputs: nextOutputs,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(activeToolCalls: nextActive, toolOutputs: nextOutputs, lastAppliedSeq: nextSeq);
 
-    case ToolCompletedEvent(
-      :final toolCallId,
-      :final toolName,
-      :final result,
-      :final isError,
-      :final durationMs,
-    ):
+    case ToolCompletedEvent(:final toolCallId, :final toolName, :final result, :final isError, :final durationMs):
       final outputStr = result?.toString() ?? '';
       final nextOutputs = Map<String, String>.from(current.toolOutputs);
       nextOutputs[toolCallId] = outputStr;
 
-      final nextActive = Map<String, ToolExecutionState>.from(
-        current.activeToolCalls,
-      );
+      final nextActive = Map<String, ToolExecutionState>.from(current.activeToolCalls);
       final existing = nextActive[toolCallId];
       final resolvedDuration = durationMs ?? existing?.elapsedMsAt(event.ts);
       if (existing != null) {
@@ -709,9 +609,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       final nextStats = Map<String, dynamic>.from(current.sessionStats ?? const {});
       if (usage.containsKey('cost')) {
         final c = usage['cost'];
-        final num? rawCost = c is Map
-            ? (c['total'] as num? ?? c['amount'] as num?)
-            : (c is num ? c : null);
+        final num? rawCost = c is Map ? (c['total'] as num? ?? c['amount'] as num?) : (c is num ? c : null);
         if (rawCost != null) {
           final existingCost = (nextStats['cost'] as num?)?.toDouble() ?? 0.0;
           if (rawCost > existingCost) {
@@ -750,36 +648,23 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       } else {
         statuses[statusKey] = statusText;
       }
-      return current.copyWith(
-        extensionStatuses: statuses,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(extensionStatuses: statuses, lastAppliedSeq: nextSeq);
 
     case CompactionStartedEvent():
-      return current.copyWith(
-        agentStatus: AgentStatus.compacting,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(agentStatus: AgentStatus.compacting, lastAppliedSeq: nextSeq);
 
     case CompactionEndedEvent():
       return current.copyWith(
-        agentStatus: current.isStreaming
-            ? AgentStatus.working
-            : AgentStatus.settled,
+        agentStatus: current.isStreaming ? AgentStatus.working : AgentStatus.settled,
         lastAppliedSeq: nextSeq,
       );
 
     case RetryStartedEvent():
-      return current.copyWith(
-        agentStatus: AgentStatus.retrying,
-        lastAppliedSeq: nextSeq,
-      );
+      return current.copyWith(agentStatus: AgentStatus.retrying, lastAppliedSeq: nextSeq);
 
     case RetryEndedEvent(:final success):
       final errorMessage = event.payload['finalError']?.toString();
-      final userIndex = current.entries.lastIndexWhere(
-        (entry) => entry.role == 'user',
-      );
+      final userIndex = current.entries.lastIndexWhere((entry) => entry.role == 'user');
       if (success || errorMessage == null || errorMessage.isEmpty || userIndex < 0) {
         return current.copyWith(lastAppliedSeq: nextSeq);
       }
@@ -796,16 +681,8 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
       return current.copyWith(entries: entries, lastAppliedSeq: nextSeq);
 
-    case UiRequestEvent(
-      :final requestId,
-      :final method,
-      :final title,
-      :final message,
-      :final dialog,
-    ):
-      final nextRequests = List<Map<String, dynamic>>.from(
-        current.pendingUiRequests,
-      );
+    case UiRequestEvent(:final requestId, :final method, :final title, :final message, :final dialog):
+      final nextRequests = List<Map<String, dynamic>>.from(current.pendingUiRequests);
       nextRequests.add({
         'requestId': requestId,
         'method': method,
@@ -821,9 +698,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       );
 
     case UiResolvedEvent(:final requestId):
-      final nextRequests = current.pendingUiRequests
-          .where((r) => r['requestId'] != requestId)
-          .toList();
+      final nextRequests = current.pendingUiRequests.where((r) => r['requestId'] != requestId).toList();
       return current.copyWith(
         pendingUiRequests: nextRequests,
         agentStatus: current.agentStatus == AgentStatus.awaitingUser
@@ -836,8 +711,9 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       return current.copyWith(
         agentStatus: AgentStatus.workerError,
         clearRunStartedAt: true,
-        activeToolCalls: current.activeToolCalls.map((id, tool) => MapEntry(id,
-            tool.copyWith(isRunning: false, durationMs: tool.elapsedMsAt(event.ts)))),
+        activeToolCalls: current.activeToolCalls.map(
+          (id, tool) => MapEntry(id, tool.copyWith(isRunning: false, durationMs: tool.elapsedMsAt(event.ts))),
+        ),
         lastAppliedSeq: nextSeq,
       );
 

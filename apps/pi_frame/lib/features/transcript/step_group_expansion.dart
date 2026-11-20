@@ -22,8 +22,7 @@ class StepGroupExpansionState {
   });
 
   /// Whether the expanded step list of [turnId] is shown at full height.
-  bool isGroupFullyExpanded(String turnId) =>
-      fullyExpandedGroups.contains(turnId);
+  bool isGroupFullyExpanded(String turnId) => fullyExpandedGroups.contains(turnId);
 
   /// Evaluates whether a group is expanded:
   /// User manual override takes precedence; otherwise expanded while running or if autoCollapse is false.
@@ -73,10 +72,10 @@ class StepGroupExpansionState {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(groupOverrides.entries),
-        Object.hashAll(expandedStepIds),
-        Object.hashAll(fullyExpandedGroups),
-      );
+    Object.hashAll(groupOverrides.entries),
+    Object.hashAll(expandedStepIds),
+    Object.hashAll(fullyExpandedGroups),
+  );
 
   @override
   String toString() =>
@@ -85,26 +84,21 @@ class StepGroupExpansionState {
 
 /// Riverpod notifier managing expansion state for a specific session.
 /// Survives UI rebuilds, streaming updates, and list virtualization.
-class StepGroupExpansionNotifier
-    extends StateNotifier<StepGroupExpansionState> {
+class StepGroupExpansionNotifier extends StateNotifier<StepGroupExpansionState> {
   static const int maxGroupOverrides = 500;
   static const int maxExpandedSteps = 1000;
 
   /// Optional identifier of currently active/running turn so LRU eviction never drops it.
   String? activeTurnId;
 
-  StepGroupExpansionNotifier({this.activeTurnId})
-      : super(const StepGroupExpansionState());
+  StepGroupExpansionNotifier({this.activeTurnId}) : super(const StepGroupExpansionState());
 
   /// Sets or clears the active/running turn ID.
   void setActiveTurnId(String? turnId) {
     activeTurnId = turnId;
   }
 
-  void _evictOldestGroupOverride(
-    Map<String, bool> map, {
-    String? protectedKey,
-  }) {
+  void _evictOldestGroupOverride(Map<String, bool> map, {String? protectedKey}) {
     final candidate = map.keys.firstWhere(
       (key) => key != protectedKey && key != activeTurnId,
       orElse: () => map.keys.first,
@@ -132,27 +126,18 @@ class StepGroupExpansionNotifier
   /// Toggles group expansion by setting user override to opposite of [currentEffective].
   /// True LRU: removes [turnId] before re-inserting so it moves to most-recent position.
   /// Eviction protects [runningTurnId] or [activeTurnId] from being dropped.
-  void toggleGroup(
-    String turnId,
-    bool currentEffective, {
-    String? runningTurnId,
-  }) {
+  void toggleGroup(String turnId, bool currentEffective, {String? runningTurnId}) {
     if (runningTurnId != null) activeTurnId = runningTurnId;
     final nextOverrides = Map<String, bool>.from(state.groupOverrides);
     nextOverrides.remove(turnId);
     if (nextOverrides.length >= maxGroupOverrides) {
-      _evictOldestGroupOverride(
-        nextOverrides,
-        protectedKey: runningTurnId ?? activeTurnId,
-      );
+      _evictOldestGroupOverride(nextOverrides, protectedKey: runningTurnId ?? activeTurnId);
     }
     nextOverrides[turnId] = !currentEffective;
     state = state.copyWith(
       groupOverrides: nextOverrides,
       // Collapsing resets the full-height list; the next expand is compact.
-      fullyExpandedGroups: currentEffective
-          ? (Set<String>.from(state.fullyExpandedGroups)..remove(turnId))
-          : null,
+      fullyExpandedGroups: currentEffective ? (Set<String>.from(state.fullyExpandedGroups)..remove(turnId)) : null,
     );
   }
 
@@ -173,29 +158,18 @@ class StepGroupExpansionNotifier
   /// Sets an explicit user override for a group (or removes override if null).
   /// True LRU: removes [turnId] before re-inserting so it moves to most-recent position.
   /// Eviction protects [runningTurnId] or [activeTurnId] from being dropped.
-  void setGroupOverride(
-    String turnId,
-    bool? override, {
-    String? runningTurnId,
-  }) {
+  void setGroupOverride(String turnId, bool? override, {String? runningTurnId}) {
     if (runningTurnId != null) activeTurnId = runningTurnId;
     final nextOverrides = Map<String, bool>.from(state.groupOverrides);
-    if (override != true &&
-        state.fullyExpandedGroups.contains(turnId)) {
-      state = state.copyWith(
-        fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)
-          ..remove(turnId),
-      );
+    if (override != true && state.fullyExpandedGroups.contains(turnId)) {
+      state = state.copyWith(fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)..remove(turnId));
     }
     if (override == null) {
       nextOverrides.remove(turnId);
     } else {
       nextOverrides.remove(turnId);
       if (nextOverrides.length >= maxGroupOverrides) {
-        _evictOldestGroupOverride(
-          nextOverrides,
-          protectedKey: runningTurnId ?? activeTurnId,
-        );
+        _evictOldestGroupOverride(nextOverrides, protectedKey: runningTurnId ?? activeTurnId);
       }
       nextOverrides[turnId] = override;
     }
@@ -248,16 +222,14 @@ class StepGroupExpansionNotifier
 }
 
 /// Riverpod family provider keyed by `sessionId`.
-final stepGroupExpansionProvider = StateNotifierProvider.family<
-    StepGroupExpansionNotifier, StepGroupExpansionState, String>(
-  (ref, sessionId) {
-    final notifier = StepGroupExpansionNotifier();
-    ref.onDispose(() {
-      notifier.clear();
+final stepGroupExpansionProvider =
+    StateNotifierProvider.family<StepGroupExpansionNotifier, StepGroupExpansionState, String>((ref, sessionId) {
+      final notifier = StepGroupExpansionNotifier();
+      ref.onDispose(() {
+        notifier.clear();
+      });
+      return notifier;
     });
-    return notifier;
-  },
-);
 
 /// Alias matching family convention in PiFrame codebase.
 final stepGroupExpansionFamily = stepGroupExpansionProvider;

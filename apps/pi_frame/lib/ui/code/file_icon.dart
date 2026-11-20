@@ -44,10 +44,7 @@ class FileIcon extends StatelessWidget {
     } else if (lower.endsWith('.ts') || lower.endsWith('.tsx')) {
       icon = Icons.code_outlined;
       color = tokens.info;
-    } else if (lower.endsWith('.js') ||
-        lower.endsWith('.jsx') ||
-        lower.endsWith('.mjs') ||
-        lower.endsWith('.cjs')) {
+    } else if (lower.endsWith('.js') || lower.endsWith('.jsx') || lower.endsWith('.mjs') || lower.endsWith('.cjs')) {
       icon = Icons.javascript_outlined;
       color = tokens.syntaxString;
     } else if (lower.endsWith('.md') || lower.endsWith('.markdown')) {

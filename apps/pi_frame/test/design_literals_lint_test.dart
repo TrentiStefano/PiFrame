@@ -11,10 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Allow-listed files (theme tokens and the startup animation) are not counted:
 /// they are where the literals are meant to live.
-const _allowList = <String>{
-  'lib/ui/motion.dart',
-  'lib/ui/startup_assemble_animation.dart',
-};
+const _allowList = <String>{'lib/ui/motion.dart', 'lib/ui/startup_assemble_animation.dart'};
 
 /// Non-visual timers that may stay numeric (daemon retry and readiness, the
 /// window-save I/O debounce, harness touch pacing). Each one is a named
@@ -41,9 +38,7 @@ const _allowedTimerConstants = <String>{
 final _fontSizeLiteral = RegExp(r'fontSize:\s*(\d+(?:\.\d+)?)');
 final _radiusLiteral = RegExp(r'BorderRadius\.circular\(\s*\d');
 final _durationLiteral = RegExp(r'Duration\(\s*milliseconds:\s*\d');
-final _timerConstantDecl = RegExp(
-  r'\b(\w+)\s*=\s*(?:const\s+)?Duration\(\s*milliseconds:',
-);
+final _timerConstantDecl = RegExp(r'\b(\w+)\s*=\s*(?:const\s+)?Duration\(\s*milliseconds:');
 final _curvesLiteral = RegExp(r'\bCurves\.');
 final _boxShadow = RegExp(r'\bBoxShadow\(');
 final _gestureDetector = RegExp(r'\bGestureDetector\(');
@@ -66,19 +61,12 @@ void main() {
     final libDir = Directory('lib');
     expect(libDir.existsSync(), isTrue, reason: 'lib directory must exist');
 
-    final hits = <String, List<_Hit>>{
-      for (final key in _baselines.keys) key: <_Hit>[],
-    };
+    final hits = <String, List<_Hit>>{for (final key in _baselines.keys) key: <_Hit>[]};
 
-    final dartFiles = libDir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'));
+    final dartFiles = libDir.listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'));
 
     for (final file in dartFiles) {
-      final rel = file.path
-          .replaceAll('\\', '/')
-          .replaceFirst(RegExp(r'^.*?lib/'), 'lib/');
+      final rel = file.path.replaceAll('\\', '/').replaceFirst(RegExp(r'^.*?lib/'), 'lib/');
       if (_allowList.contains(rel)) continue;
 
       final lines = file.readAsLinesSync();
@@ -100,14 +88,9 @@ void main() {
         }
         if (_durationLiteral.hasMatch(line)) {
           final decl = _timerConstantDecl.firstMatch(line);
-          final allowed =
-              decl != null &&
-              _allowedTimerConstants.contains('$rel#${decl.group(1)}');
+          final allowed = decl != null && _allowedTimerConstants.contains('$rel#${decl.group(1)}');
           if (!allowed) {
-            hits['Duration(milliseconds:) numeric']!.add((
-              file: rel,
-              line: lineNo,
-            ));
+            hits['Duration(milliseconds:) numeric']!.add((file: rel, line: lineNo));
           }
         }
         if (_curvesLiteral.hasMatch(line)) {
@@ -122,13 +105,9 @@ void main() {
       }
     }
 
-    final report = StringBuffer(
-      '\nDesign literal counts (count / baseline):\n',
-    );
+    final report = StringBuffer('\nDesign literal counts (count / baseline):\n');
     for (final entry in _baselines.entries) {
-      report.writeln(
-        '  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}',
-      );
+      report.writeln('  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}');
     }
     // ignore: avoid_print
     print(report.toString());
@@ -141,12 +120,8 @@ void main() {
       for (final h in found) {
         byFile.putIfAbsent(h.file, () => <int>[]).add(h.line);
       }
-      final files = byFile.entries
-          .map((e) => '    ${e.key}: lines ${e.value.join(', ')}')
-          .join('\n');
-      failures.add(
-        '${entry.key}: ${found.length} hits, baseline ${entry.value}\n$files',
-      );
+      final files = byFile.entries.map((e) => '    ${e.key}: lines ${e.value.join(', ')}').join('\n');
+      failures.add('${entry.key}: ${found.length} hits, baseline ${entry.value}\n$files');
     }
 
     expect(

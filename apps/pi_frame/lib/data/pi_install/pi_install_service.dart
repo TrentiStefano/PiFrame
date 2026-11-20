@@ -24,9 +24,7 @@ class DefaultPiInstallService implements PiInstallService {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -67,10 +65,7 @@ class DefaultPiInstallService implements PiInstallService {
     final file = _resolveFirstRunFile();
     if (file == null) return;
     try {
-      final data = {
-        'firstRunCompleted': true,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final data = {'firstRunCompleted': true, 'timestamp': DateTime.now().toIso8601String()};
       await file.writeAsString(jsonEncode(data));
     } catch (_) {}
   }
@@ -120,13 +115,7 @@ class DefaultPiInstallService implements PiInstallService {
         yield 'Esecuzione comando ufficiale Windows: irm https://pi.dev/install.ps1 | iex\n\n';
         process = await Process.start(
           'powershell.exe',
-          [
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-Command',
-            'irm https://pi.dev/install.ps1 | iex',
-          ],
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://pi.dev/install.ps1 | iex'],
           environment: PlatformEnvironment.environment,
           runInShell: true,
         );
@@ -187,18 +176,20 @@ curl -fsSL https://pi.dev/install.sh | sh
         controller.add(utf8.decode(bytes, allowMalformed: true));
       });
 
-      process.exitCode.then((code) {
-        PlatformEnvironment.resetCache();
-        if (code == 0) {
-          controller.add('\n[SUCCESSO] Pi Coding Agent installato con successo!\n');
-        } else {
-          controller.add('\n[ERRORE] Processo di installazione terminato con codice: $code\n');
-        }
-        controller.close();
-      }).catchError((err) {
-        controller.add('\n[ERRORE] $err\n');
-        controller.close();
-      });
+      process.exitCode
+          .then((code) {
+            PlatformEnvironment.resetCache();
+            if (code == 0) {
+              controller.add('\n[SUCCESSO] Pi Coding Agent installato con successo!\n');
+            } else {
+              controller.add('\n[ERRORE] Processo di installazione terminato con codice: $code\n');
+            }
+            controller.close();
+          })
+          .catchError((err) {
+            controller.add('\n[ERRORE] $err\n');
+            controller.close();
+          });
 
       yield* controller.stream;
     } catch (e) {
