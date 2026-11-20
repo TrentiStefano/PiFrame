@@ -46,7 +46,6 @@ function safeHashEqual(aHex: string, bHex: string): boolean {
 }
 
 function sanitizeText(value: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
   return value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max);
 }
 
